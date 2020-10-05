@@ -16,34 +16,12 @@ pypeit_ql_mos
 
 This script performs a boxcar (only) extraction of a long
 or multi-slit observation taken with one of PypeIt's
-spectrographs
+spectrographs.
 
-Here is the usage (get the latest with *pypeit_ql_mos -h*)::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_ql_mos [-h] [-b BOX_RADIUS] [-d DET] [--ignore_headers]
-                     [--user_pixflat USER_PIXFLAT] [--slit_spat SLIT_SPAT]
-                     spectrograph full_rawpath arc flat science
-
-    Script to run PypeIt in QuickLook on a set of MOS files
-
-    positional arguments:
-      spectrograph          Name of spectograph, e.g. shane_kast_blue
-      full_rawpath          Full path to the raw files
-      arc                   Arc frame filename
-      flat                  Flat frame filename
-      science               Science frame filename
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -b BOX_RADIUS, --box_radius BOX_RADIUS
-                            Set the radius for the boxcar extraction (arcsec)
-      -d DET, --det DET     Detector number
-      --ignore_headers      Ignore bad headers?
-      --user_pixflat USER_PIXFLAT
-                            Use a user-supplied pixel flat (e.g. keck_lris_blue)
-      --slit_spat SLIT_SPAT
-                            Reduce only this slit
-
+.. include:: help/pypeit_ql_mos.rst
 
 And here is a sample call on files from the Development suite::
 
@@ -131,23 +109,10 @@ Before running this script, you will need to
 Options
 +++++++
 
-Here is the usage::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    pypeit_ql_keck_nires /data/Projects/Python/PypeIt-development-suite/REDUX_OUT/Keck_NIRES/AB_script/Raw s180604_0089.fits.gz s180604_0090.fits.gz -b 0.5 -h
-    usage: pypeit_ql_keck_nires [-h] [-b BOX_RADIUS] full_rawpath fileA fileB
-
-    Script to run PypeIt on a pair of NIRES files (A-B)
-
-    positional arguments:
-      full_rawpath          Full path to the raw files
-      fileA                 A frame
-      fileB                 B frame
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -b BOX_RADIUS, --box_radius BOX_RADIUS
-                            Set the radius for the boxcar extraction
-
+.. include:: help/pypeit_ql_keck_nires.rst
 
 Example
 +++++++

@@ -30,6 +30,8 @@
    :target: https://github.com/pypeit/PypeIt
 
 
+.. TODO: Having the version here means we'll need to change it every time we release a new version. Do we need this here?
+
 PypeIt 1.1.0 |stars| |watch|
 ============================
 
@@ -52,6 +54,26 @@ configurable and designed to be applied to any standard slit-imaging
 spectrograph, and can accommodate long-slit, multi-slit, as well as
 cross-dispersed echelle spectra.
 
+Citation
+++++++++
+
+If you use ``PypeIt`` in your research, please cite the following
+publications (:ref:`bibtex` are provided below):
+
+ - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__: Submitted for publication in JOSS
+ - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__: Zenodo
+
+If there is no place to include the relevant citations in the text of
+the publication, please include the following acknowledgement
+(provided in latex and using the provided :ref:`bibtex`):
+
+.. code-block:: latex
+
+    This research made use of \ttfamily{PypeIt},\footnote{\url{https://pypeit.readthedocs.io/en/latest/}}
+    a Python package for semi-automated reduction of astronomical slit-based spectroscopy
+    \citep{pypeit:joss, pypeit:zenodo}.
+
+----
 
 What this version provides
 ++++++++++++++++++++++++++
@@ -66,6 +88,7 @@ What this version provides
   * Magellan/Fire
   * MDM/OSMOS
   * Keck/DEIMOS (600ZD, 830G, 1200G)
+  * Keck/KCWI (BM, BH2)
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES
@@ -188,14 +211,14 @@ or have a feature request, please `submit an issue
    :caption: For developers
    :maxdepth: 1
 
-   development
+   dev/development
 
 Contributors
 ============
 
 ``PypeIt`` is an open-source, community developed package.
 Astronomers are encouraged to join the project and should review our
-:doc:`codeconduct` and :doc:`development`. We would also appreciate
+:doc:`codeconduct` and :ref:`development`. We would also appreciate
 if you contact the lead developers (JXP, JFH) before beginning
 development activities.
 
@@ -210,4 +233,51 @@ development of ``PypeIt``.
 * Tiffany Hsyu
 * Frederick B. Davies
 * Emanuele Paolo Farina
+
+----
+
+.. _bibtex:
+
+PypeIt BibTeX Entries
++++++++++++++++++++++
+
+.. code-block:: latex
+
+    @ARTICLE{pypeit:joss,
+           author = {{Prochaska}, J. Xavier and {Hennawi}, Joseph F. and {Westfall}, Kyle B. and
+             {Cooke}, Ryan J. and {Wang}, Feige and {Hsyu}, Tiffany and
+             {Davies}, Frederick B. and {Farina}, Emanuele Paolo},
+            title = "{PypeIt: The Python Spectroscopic Data Reduction Pipeline}",
+          journal = {arXiv e-prints},
+         keywords = {Astrophysics - Instrumentation and Methods for Astrophysics},
+             year = 2020,
+            month = may,
+              eid = {arXiv:2005.06505},
+            pages = {arXiv:2005.06505},
+    archivePrefix = {arXiv},
+           eprint = {2005.06505},
+     primaryClass = {astro-ph.IM},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P},
+          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
+    @MISC{pypeit:zenodo,
+           author = {{Prochaska}, J. Xavier and {Hennawi}, Joseph and {Cooke}, Ryan and
+             {Westfall}, Kyle and {Wang}, Feige and {EmAstro} and {Tiffanyhsyu} and
+             {Wasserman}, Asher and {Villaume}, Alexa and {Marijana777} and
+             {Schindler}, JT and {Young}, David and {Simha}, Sunil and
+             {Wilde}, Matt and {Tejos}, Nicolas and {Isbell}, Jacob and
+             {Fl{\"o}rs}, Andreas and {Sandford}, Nathan and {Vasovi{\'c}}, Zlatan and
+             {Betts}, Edward and {Holden}, Brad},
+            title = "{pypeit/PypeIt: Release 1.0.0}",
+             year = 2020,
+            month = apr,
+              eid = {10.5281/zenodo.3743493},
+              doi = {10.5281/zenodo.3743493},
+          version = {v1.0.0},
+        publisher = {Zenodo},
+           adsurl = {https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P},
+          adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
 

@@ -24,7 +24,7 @@ provide instrument-specific:
     - method to access an archival sky spectrum
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 from copy import deepcopy
@@ -105,8 +105,6 @@ class Spectrograph:
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
-
-        self.minexp = 0  # TODO: NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
         # Init meta
         self.meta_data_model = meta.get_meta_data_model()

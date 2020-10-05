@@ -13,4 +13,5 @@ from pypeit.scripts import skysub_regions
 import sys
 
 if __name__ == '__main__':
-    sys.exit(skysub_regions.main(skysub_regions.parser()))
+    sys.exit(skysub_regions.main(skysub_regions.parse_args()))
+

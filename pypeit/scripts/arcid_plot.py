@@ -13,9 +13,9 @@ This script generates an ArcID plot from a Master WaveSoln file
     pypeit master branch.
 
 """
-import argparse
 
-def parser(options=None) :
+def parse_args(options=None, return_parser=False):
+    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -24,28 +24,14 @@ def parser(options=None) :
     parser.add_argument('title', type = str, default = None, help = 'Title for the plot')
     parser.add_argument('outfile', type = str, default = None, help = 'Output PDF file')
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
+
 
 def main(args):
-    """
-    Parameters
-    ----------
-    args
-
-    Returns
-    -------
-
-    """
     import numpy as np
-
-    try:
-        from xastropy.xutils import xdebug as debugger
-    except:
-        import pdb as debugger
 
     from linetools.utils import loadjson
 

@@ -13,5 +13,7 @@ if not sys.platform.startswith('win'):
 
 def get_extensions():
     return [Extension(name='pypeit.bspline._bspline', sources=SRC_FILES,
-                      extra_compile_args=extra_compile_args, language='c')]
-
+                      extra_compile_args=extra_compile_args, language='c',
+                      export_symbols=['bspline_model', 'solution_arrays',
+                                      'cholesky_band', 'cholesky_solve',
+                                      'intrv'])]

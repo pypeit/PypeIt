@@ -23,8 +23,7 @@ from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -34,18 +33,10 @@ def parser(options=None):
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
-
-
-def main(args):
-    spec2d_files = []
-    if args.file is not None:
-        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
-    else:
-        msgs.error('You must input a coadd3d file')
-
-    # Coadd the files
-    coadd_cube(spec2d_files, det=args.det, overwrite=args.overwrite)
 
 
 def coadd_cube(files, det=1, overwrite=False):
@@ -264,3 +255,14 @@ def coadd_cube(files, det=1, overwrite=False):
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
+
+
+def main(args):
+    spec2d_files = []
+    if args.file is not None:
+        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
+    else:
+        msgs.error('You must input a coadd3d file')
+
+    # Coadd the files
+    coadd_cube(spec2d_files, det=args.det, overwrite=args.overwrite)

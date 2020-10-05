@@ -6,11 +6,10 @@
 """
 This script enables the viewing of a raw FITS file
 """
-import argparse
 
-from pypeit import defs
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
+    from pypeit import defs
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -21,11 +20,11 @@ def parser(options=None):
     parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
     parser.add_argument('--det', type=int, default=1, help="Detector number (ignored for keck_lris, keck_deimos")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
+
 
 def main(args):
 

@@ -1,67 +1,12 @@
 #!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
 
-"""
-Plots an extracted sky spectrum with an archived one
-  Probably most useful for exploring sky spectra in the blue
-"""
-import pdb
-import sys, os
-
-this_file = os.path.realpath(__file__)
-#sky_path = this_file[:this_file.rfind('/')]+'/../data/sky_spec/'
-sky_path ='/{0}/pypeit/data/sky_spec/'.format(this_file.strip('bin/pypeit_compare_sky'))
-#sys.path.append(os.path.abspath(this_path+'/../src'))
-
-from linetools.spectra.io import readspec
-
-try:
-    from xastropy.xutils import xdebug as debugger
-except:
-    import pdb as debugger
-
-# Script to run XSpec from the command line or ipython
-def main(*args, **kwargs):
-    """ Runs the XSpecGui on an input file
-    """
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Parse')
-    parser.add_argument("file", type=str, help="Spectral file")
-    parser.add_argument("skyfile", type=str, help="Archived PypeIt sky file (e.g. paranal_sky.fits")
-    parser.add_argument("--exten", type=int, help="FITS extension")
-    parser.add_argument("--optimal", default=False,
-                        help="Show Optimal? Default is boxcar", action="store_true")
-    parser.add_argument("--scale_user", default=1., type=float, help="Scale user spectrum by a factor")
-
-    pargs = parser.parse_args()
-    from matplotlib import pyplot as plt
-
-    # Extension
-    exten = (pargs.exten if hasattr(pargs, 'exten') else 0)
-    #scale = (pargs.scale_user if hasattr(pargs, 'scale_user') else 1.)
-
-    # Read spec keywords
-    ikwargs = {}
-    if pargs.optimal:
-        ikwargs['wave_tag'] = 'opt_wave'
-        ikwargs['flux_tag'] = 'opt_sky'
-    else:
-        ikwargs['wave_tag'] = 'box_wave'
-        ikwargs['flux_tag'] = 'box_sky'
-
-    # Load user file
-    user_sky = readspec(pargs.file, exten=exten, **ikwargs)
-    # Load sky spec
-    arx_sky = readspec(sky_path+pargs.skyfile)
-
-    # Plot
-    plt.clf()
-    plt.plot(user_sky.wavelength, user_sky.flux*pargs.scale_user, 'k-', label='user')
-    plt.plot(arx_sky.wavelength, arx_sky.flux, 'b-', label='archive')
-    legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
-                        handletextpad=0.3, fontsize='small', numpoints=1)
-    plt.show()
-
+from pypeit.scripts import compare_sky
 
 if __name__ == '__main__':
-    main()
+    compare_sky.main(compare_sky.parse_args())
+
+

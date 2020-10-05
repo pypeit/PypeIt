@@ -3,14 +3,25 @@ Support algorithms for bspline.
 */
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 
 #include "bspline.h"
 
+#include <Python.h>
 
-int column_to_row_major_index(int k, int nr, int nc) {
+static struct PyModuleDef _bspline_module = {
+    PyModuleDef_HEAD_INIT,
+    "_bspline",   /* name of module */
+};
+
+PyMODINIT_FUNC PyInit__bspline(void) {
+    return PyModule_Create(&_bspline_module);
+}
+
+int32_t column_to_row_major_index(int32_t k, int32_t nr, int32_t nc) {
     /*
     Convert a flattened index in a column-major stored array into the
     flattened index in row-major stored array.
@@ -30,7 +41,7 @@ int column_to_row_major_index(int k, int nr, int nc) {
 }
 
 
-void flat_row_major_indices(int k, int nr, int nc, int *i, int *j) {
+void flat_row_major_indices(int32_t k, int32_t nr, int32_t nc, int32_t *i, int32_t *j) {
     /*
     Convert the flattened index in a row-major stored array into the
     indices along the two axes.
@@ -54,7 +65,7 @@ void flat_row_major_indices(int k, int nr, int nc, int *i, int *j) {
 }
 
 
-int* upper_triangle(int n, bool upper_left) {
+int32_t* upper_triangle(int32_t n, bool upper_left) {
     /*
     Compute the indices in a flattened 2D array that contain the
     upper triangle.
@@ -77,10 +88,10 @@ int* upper_triangle(int n, bool upper_left) {
     Returns:
         Returns the pointer to the integer array with the indices.
     */
-    int i, j;
-    int nbi = n*(n+1)/2;
-    int* bi = (int*) malloc (nbi * sizeof(int));
-    int s = 0;
+    int32_t i, j;
+    int32_t nbi = n*(n+1)/2;
+    int32_t* bi = (int32_t*) malloc (nbi * sizeof(int32_t));
+    int32_t s = 0;
     for (i = n; i > 0; --i)
         for (j = 0; j < i; ++j) {
             bi[s] = upper_left ? j+(n-i)*n : j+(n-i)*(n+1);
@@ -90,8 +101,8 @@ int* upper_triangle(int n, bool upper_left) {
 }
 
 
-void bspline_model(double *action, long *lower, long *upper, double *coeff, int n, int nord,
-                   int npoly, int nd, double *yfit) {
+void bspline_model(double *action, int64_t *lower, int64_t *upper, double *coeff, int32_t n, int32_t nord,
+                   int32_t npoly, int32_t nd, double *yfit) {
     /*
     Calculate the bspline model.
 
@@ -120,9 +131,9 @@ void bspline_model(double *action, long *lower, long *upper, double *coeff, int 
             Pointer to the memory location for the bspline model.
             Memory must have already been allocated.
     */
-    int nn = npoly*nord;    // This is the same as the number of columns in action
-    int mm = n - nord+1;
-    int i, j, k;
+    int32_t nn = npoly*nord;    // This is the same as the number of columns in action
+    int32_t mm = n - nord+1;
+    int32_t i, j, k;
     for (i = 0; i < mm; ++i) {
         if (!(upper[i]+1 > lower[i]))
             continue;
@@ -134,7 +145,7 @@ void bspline_model(double *action, long *lower, long *upper, double *coeff, int 
     }
 }
 
-void intrv(int nord, double *breakpoints, int nb, double *x, int nx, long *indx) {
+void intrv(int32_t nord, double *breakpoints, int32_t nb, double *x, int32_t nx, int64_t *indx) {
     /*
     Find the segment between breakpoints which contain each value in
     the array x.
@@ -152,9 +163,9 @@ void intrv(int nord, double *breakpoints, int nb, double *x, int nx, long *indx)
         indx:
             Replaced on output: the break-point segments.
     */
-    int n = nb - nord;
-    int ileft = nord - 1;
-    int i;
+    int32_t n = nb - nord;
+    int32_t ileft = nord - 1;
+    int32_t i;
     for (i = 0; i < nx; ++i) {
         while ((x[i] > breakpoints[ileft+1]) & (ileft < n - 1))
             ileft += 1;
@@ -163,9 +174,9 @@ void intrv(int nord, double *breakpoints, int nb, double *x, int nx, long *indx)
 }
 
 
-void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double *ivar,
-                     double *action, long *upper, long *lower, double *alpha, int ar,
-                     double *beta, int bn) {
+void solution_arrays(int32_t nn, int32_t npoly, int32_t nord, int32_t nd, double *ydata, double *ivar,
+                     double *action, int64_t *upper, int64_t *lower, double *alpha, int32_t ar,
+                     double *beta, int32_t bn) {
     /*
     Support function that builds the arrays for Cholesky
     decomposition.
@@ -179,8 +190,8 @@ void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double 
           same length as the second axis of action (npoly*nord).
 
         - BEWARE that the type of upper and lower must match the
-          input: np.int32 for int and np.int64 for long. Current
-          input must be long.
+          input: np.int32 for int32_t and np.int64 for int64_t. Current
+          input must be int64_t.
 
     Args:
         nn:
@@ -218,14 +229,14 @@ void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double 
             in alpha.
     */
     // Get the upper triangle indices
-    int bw = npoly * nord;      // This is the length of the second axis of action
-    int nbi = bw*(bw+1)/2;
-    int *bi = upper_triangle(bw, false);
-    int *bo = upper_triangle(bw, true);
+    int32_t bw = npoly * nord;      // This is the length of the second axis of action
+    int32_t nbi = bw*(bw+1)/2;
+    int32_t *bi = upper_triangle(bw, false);
+    int32_t *bo = upper_triangle(bw, true);
 
-    int i, j, k;
-    int ii, jj, kk;
-    int itop;
+    int32_t i, j, k;
+    int32_t ii, jj, kk;
+    int32_t itop;
 
     // Convenience data
     // TODO: These are big allocations.  Can we avoid them?
@@ -269,7 +280,7 @@ void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double 
 }
 
 
-int cholesky_band(double *lower, int lr, int lc) {
+int32_t cholesky_band(double *lower, int32_t lr, int32_t lc) {
     /*
        Compute the Cholesky decomposition of banded matrix.
 
@@ -287,14 +298,14 @@ int cholesky_band(double *lower, int lr, int lc) {
         the integer is -1.  Otherwise, the integer is the index of the
         column that contains a problem for the decomposition.
     */
-    int i, j, k, s;
-    int kn = lr - 1;
-    int n = lc - lr;
+    int32_t i, j, k, s;
+    int32_t kn = lr - 1;
+    int32_t n = lc - lr;
 
-    int nbi = kn*(kn+1)/2;
-    int *bi = upper_triangle(kn, false);
+    int32_t nbi = kn*(kn+1)/2;
+    int32_t *bi = upper_triangle(kn, false);
 
-    int *here = (int*) malloc (nbi*n * sizeof(int));
+    int32_t *here = (int32_t*) malloc (nbi*n * sizeof(int32_t));
     for (i = 0; i < nbi; ++i)
         for (j = 0; j < n; ++j) {
             k = i*n+j;
@@ -337,7 +348,7 @@ int cholesky_band(double *lower, int lr, int lc) {
 }
 
 
-void cholesky_solve(double *a, int ar, int ac, double *b, int bn) {
+void cholesky_solve(double *a, int32_t ar, int32_t ac, double *b, int32_t bn) {
     /*
        Solve the equation Ax=b where A is a Cholesky-banded matrix.
 
@@ -355,9 +366,9 @@ void cholesky_solve(double *a, int ar, int ac, double *b, int bn) {
         bn:
             The number of elements in the b vector.
     */
-    int n = bn - ar;
-    int kn = ar - 1;
-    int i, j;
+    int32_t n = bn - ar;
+    int32_t kn = ar - 1;
+    int32_t i, j;
     double s;
     for (j = 0; j < n; ++j) {
         b[j] /= a[j];

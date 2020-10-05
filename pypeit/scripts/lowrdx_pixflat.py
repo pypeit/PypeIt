@@ -6,22 +6,19 @@
 """
 This script converts a LowRedux pixel flat into a PYPIT ready one
 """
-import argparse
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('lowrdx_file', type = str, default = None,
                         help = 'LowRedux Pixel Flat FITS file')
     parser.add_argument('new_file', type = str, default = None, help = 'PYPIT FITS file')
 
-    args = parser.parse_args()
+    if return_parser:
+        return parser
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
