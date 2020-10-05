@@ -1,6 +1,10 @@
 # Taken from https://www.aanda.org/articles/aa/pdf/2011/03/aa15537-10.pdf
 # Patat F., Moehler S., O'Brien K., Pompei E., Bensby T., Carraro G., de Ugarte Postigo A., et al., 2011, A&A, 527, A91
+# Extinction values below 3300A are taken from http://www.eso.org/sci/facilities/eelt/science/drm/tech_data/data/atm_scat/paranal.dat
+# Extinction values above 10000A are assumed to quickly approach zero.
 #  lambda [um]   extinction due to scattering [mag/airmass]
+   3100          1.53
+   3200          0.94
    3325          0.686 
    3375          0.606 
    3425          0.581 
@@ -79,4 +83,4 @@
    8850          0.029  
   10000          0.022
   15000          0.001
-  
+  25000          0.0001
