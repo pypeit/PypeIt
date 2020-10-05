@@ -2069,7 +2069,7 @@ class WavelengthSolutionPar(ParSet):
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, frame=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, refframe=None,
                  nsnippet=None):
 
         # Grab the parameter names and values from the function
@@ -2310,11 +2310,11 @@ class WavelengthSolutionPar(ParSet):
                           'Options are: {0}'.format(', '.join(options['medium']))
 
         # TODO: What should the default be?  None or 'heliocentric'?
-        defaults['frame'] = 'heliocentric'
-        options['frame'] = WavelengthSolutionPar.valid_reference_frames()
-        dtypes['frame'] = str
-        descr['frame'] = 'Frame of reference for the wavelength calibration.  ' \
-                         'Options are: {0}'.format(', '.join(options['frame']))
+        defaults['refframe'] = 'heliocentric'
+        options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
+        dtypes['refframe'] = str
+        descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
+                         'Options are: {0}'.format(', '.join(options['refframe']))
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),
@@ -2333,7 +2333,7 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'medium', 'frame', 'nsnippet']
+                   'IDpixels', 'IDwaves', 'medium', 'refframe', 'nsnippet']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

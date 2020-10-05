@@ -35,7 +35,7 @@ def main(args):
     from pypeit import specobjs
     from pypeit import msgs
 
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
     # List only?
     if args.list:
         print("Showing object names for input file...")

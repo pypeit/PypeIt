@@ -128,7 +128,7 @@ def test_run_pypeit():
     pargs = run_pypeit.parse_args([pyp_file, '-o', '-m', '-r', configdir])
     run_pypeit.main(pargs)
 
-    # #########################################################33
+    # #########################################################
     # Test!!
     # Files exist
     assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'))
@@ -139,10 +139,10 @@ def test_run_pypeit():
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
 
     # Flexure
-    assert specObjs[0].FLEX_SHIFT != 0., 'Flexure not calculated!'
+    assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels
 
     # Helio
-    assert specObjs[0].VEL_CORR != 0., 'Heliocentric not calculated!'
+    assert abs(specObjs[0].VEL_CORR - 0.9999261685542624) < 1.0E-10
 
     # Now re-use those master files
     pargs = run_pypeit.parse_args([pyp_file, '-o', '-r', configdir])
