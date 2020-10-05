@@ -171,8 +171,8 @@ def coadd_cube(files, det=1, overwrite=False):
     # Register spatial offsets between all frames if several frames are being combined
     if combine:
         # Generate white light images
-        whitelight_Imgs, _ = dc_utils.generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                                                     dspat, numfiles=numfiles)
+        whitelight_Imgs, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                                                      dspat, numfiles=numfiles)
 
         # ref_idx will be the index of the cube with the highest S/N
         ref_idx = np.argmax(weights)

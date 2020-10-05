@@ -118,8 +118,8 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
-def generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                            dspat, numfiles=None, all_ivar=None):
+def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                    dspat, numfiles=None, all_ivar=None):
     """ Generate a whitelight image of every input frame
 
     Args:
@@ -275,8 +275,8 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
 
     # Generate a white light image of *all* data
     msgs.info("Generating global white light image")
-    whitelight_Img, ivar = generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
-                                                dspat, numfiles=1)
+    whitelight_Img, ivar = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
+                                           dspat, numfiles=1)
     whitelight_Img = whitelight_Img[:, :, 0]
     # Find the location of the object with the highest S/N in the combined white light image
     idx_max = np.unravel_index(np.argmax(whitelight_Img), whitelight_Img.shape)

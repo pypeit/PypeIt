@@ -694,6 +694,11 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     (S/N)^2 weights to be used for coadding.
 
     Args:
+        waves: float ndarray, shape = (nspec,) or (nspec, nexp)
+            Reference wavelength grid for all the spectra. If wave is a
+            1d array the routine will assume that all spectra are on the
+            same wavelength grid. If wave is a 2-d array, it will use
+            the individual
         fluxes: float ndarray, shape = (nspec, nexp)
             Stack of (nspec, nexp) spectra where nexp = number of
             exposures, and nspec is the length of the spectrum.
@@ -701,11 +706,6 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
             Inverse variance noise vectors for the spectra
         masks: bool ndarray, shape = (nspec, nexp)
             Mask for stack of spectra. True=Good, False=Bad.
-        waves: float ndarray, shape = (nspec,) or (nspec, nexp)
-            Reference wavelength grid for all the spectra. If wave is a
-            1d array the routine will assume that all spectra are on the
-            same wavelength grid. If wave is a 2-d array, it will use
-            the individual
         sn_smooth_npix: float, optional, default = 10000.0
             Number of pixels used for determining smoothly varying S/N ratio weights.
 
@@ -748,7 +748,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
     spec_vec = np.arange(nspec)
 
-    # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
+    # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Eventually, we will change it to
     # TODO Should ivar weights be deprecated??
     if ivar_weights:
         if verbose:
@@ -793,7 +793,6 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
     # Finish
     return rms_sn, weights
-
 
 
 def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
