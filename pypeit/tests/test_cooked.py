@@ -20,6 +20,6 @@ def test_cooked_version():
     v_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'version')
     with open(v_file) as f:
         tmp = f.readlines()
-    assert tmp[-1].strip() == '1.1.0'
+    assert tmp[-1].strip() == '1.1.1'
 
 
