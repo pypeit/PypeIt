@@ -219,7 +219,7 @@ def coadd_cube(files, det=1, overwrite=False):
         xbins, ybins, spec_bins = spec.get_datacube_bins(slitlength, minmax, numwav)
 
     # Make the cube
-    msgs.info("Generating datacube")
+    msgs.info("Generating pixel coordinates")
     if combine:
         pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
         hdr = masterwcs.to_header()
@@ -228,12 +228,14 @@ def coadd_cube(files, det=1, overwrite=False):
         hdr = wcs.to_header()
 
     # Find the NGP coordinates for all input pixels
+    msgs.info("Generating data cube")
     bins = (xbins, ybins, spec_bins)
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
     normCube = (norm > 0) / (norm + (norm == 0))
     datacube *= normCube
     # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
     all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
     varCube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
     varCube *= normCube**2
