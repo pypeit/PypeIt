@@ -559,6 +559,12 @@ class Reduce(object):
             msgs.info("Global sky subtraction for slit: {:d}".format(slit_idx))
             thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
+            # All masked?
+            if not np.any(inmask):
+                msgs.warn("No pixels for fitting sky.  If you are using mask_by_boxcar=True, your radius may be too large.")
+                self.reduce_bpm[slit_idx] = True
+                continue
+
             # Find sky
             self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                                              thismask, self.slits_left[:,slit_idx],
