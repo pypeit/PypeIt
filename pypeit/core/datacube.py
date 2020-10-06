@@ -294,7 +294,6 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
     bins = (xbins, ybins, spec_bins)
 
     # Extract the spectrum of the highest S/N object
-    all_spec = np.zeros((numwav, numfiles))
     all_snr = np.zeros((numwav, numfiles))
     for ff in range(numfiles):
         msgs.info("Extracting spectrum of highest S/N detection from frame {0:d}/{1:d}".format(ff + 1, numfiles))
@@ -302,12 +301,15 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
         # Extract the spectrum
         pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
         spec, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww])
+        var, edges = np.histogramdd(pix_coord, bins=bins, weights=1/all_ivar[ww])
         norm, edges = np.histogramdd(pix_coord, bins=bins)
-        ivar, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar[ww])
         nrmSpec = (norm > 0) / (norm + (norm == 0))
-        spec = (spec*nrmSpec)[0, 0, :]
-        all_spec[:, ff] = spec.copy()
-        all_snr[:, ff] = spec*np.sqrt(ivar[0, 0, :])
+        var_spec = var[0, 0, :]
+        nse_spec = (var_spec > 0) / (var_spec + (var_spec == 0))
+        # Calculate the S/N in a given spectral bin
+        all_snr[:, ff] = spec[0, 0, :]*np.sqrt(nse_spec)
+        # Now, we want the S/N in a _single_ pixel (i.e. not spectral bin)
+        all_snr[:, ff] *= np.sqrt(nrmSpec[0, 0, :])
 
     # Construct the relative weights based on the S/N as a function of wavelength
     # Obtain a wavelength of each pixel
