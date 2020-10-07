@@ -11,7 +11,8 @@
   doc files
 - full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
 - optimal weights in datacube generation
-
+- Docs for skysub, extraction, flat fielding
+- New skysub options for masking and suppressing local
 
 1.1.1 (10 Sep 2020)
 -------------------

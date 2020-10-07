@@ -3257,7 +3257,8 @@ class SkySubPar(ParSet):
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
-                 user_regions=None, joint_fit=None, load_mask=None):
+                 user_regions=None, joint_fit=None, load_mask=None, mask_by_boxcar=None,
+                 no_local_sky=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3291,6 +3292,11 @@ class SkySubPar(ParSet):
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
+        defaults['no_local_sky'] = False
+        dtypes['no_local_sky'] = bool
+        descr['no_local_sky'] = 'If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction'
+
+        # Masking
         defaults['user_regions'] = None
         dtypes['user_regions'] = [str, list]
         descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
@@ -3299,6 +3305,10 @@ class SkySubPar(ParSet):
                                 'a comma separated list of percentages to apply to _all_ slits' \
                                 ' For example: The following string   :10,35:65,80:   would select the' \
                                 'first 10%, the inner 30%, and the final 20% of _all_ slits.'
+
+        defaults['mask_by_boxcar'] = False
+        dtypes['mask_by_boxcar'] = bool
+        descr['mask_by_boxcar'] = 'In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).'
 
         defaults['load_mask'] = False
         dtypes['load_mask'] = bool
@@ -3324,7 +3334,9 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'joint_fit']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
+                   'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
+                   'no_local_sky']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
