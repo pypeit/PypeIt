@@ -15,11 +15,13 @@ from astropy import units
 from linetools import utils as ltu
 
 from pypeit import utils
+from pypeit import wavecalib
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
+from pypeit.core import fitting
 
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
@@ -168,13 +170,29 @@ def pypeit_arcspec(in_file, slit):
         np.ndarray, np.ndarray:  wave, flux
 
     """
-    wv_dict = ltu.loadjson(in_file)
-    iwv_calib = wv_dict[str(slit)]
-    x = np.arange(len(iwv_calib['spec']))
-    wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
-                           minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+    if 'json' in in_file:
+        wv_dict = ltu.loadjson(in_file)
+        iwv_calib = wv_dict[str(slit)]
+        x = np.arange(len(iwv_calib['spec']))
+        pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
+                                          func=iwv_calib['function'],
+                                          minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+        wv_vac = pypeitFitting.eval(x / iwv_calib['xnorm'])
+        #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
+        #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+        flux = np.array(iwv_calib['spec']).flatten()
+    elif 'fits' in in_file:
+        wvcalib = wavecalib.WaveCalib.from_file(in_file)
+        idx = np.where(wvcalib.spat_ids == slit)[0][0]
+        flux = wvcalib.arc_spectra[:,idx]
+        #
+        npix = flux.size
+        wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(np.arange(npix) / (npix - 1))
+    else:
+        raise IOError("Bad in_file {}".format(in_file))
+
     # Return
-    return wv_vac, np.array(iwv_calib['spec']).flatten()  # JXP added flatten on 2019-11-09
+    return wv_vac, flux
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -420,78 +438,6 @@ def main(flg):
         xidl_file = os.path.join(template_path, 'Shane_Kast', '830_3460', 'kast_830_3460.sav')
         outroot = 'shane_kast_blue_830.fits'
         build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
-
-    # Keck/DEIMOS
-    if flg & (2**7):  # 600ZD :: Might not go red enough
-        binspec = 1
-        slits = [0,1]
-        lcut = [7192.]
-        xidl_file = os.path.join(template_path, 'Keck_DEIMOS', '600ZD', 'deimos_600.sav')
-        outroot = 'keck_deimos_600.fits'
-        build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
-
-    if flg & (2**8):  # 830G
-        binspec = 1
-        outroot='keck_deimos_830G.fits'
-        # 3-12 = blue  6508 -- 8410
-        # 7-24 = blue  8497 -- 9925 (no lines after XeI)
-        ifiles = [0, 0, 1]
-        slits = [12, 14, 24]
-        lcut = [8400., 8480]
-        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '830G_M_8600', 'MasterWaveCalib_A_1_03.json')
-        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '830G_M_8600', 'MasterWaveCalib_A_1_07.json')
-        # det_dict
-        det_cut = {}
-        det_cut['dets'] = [[1,2,3,4], [5,6,7,8]]
-        det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
-        #
-        build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
-                       ifiles=ifiles, det_cut=det_cut)
-
-    if flg & (2**9):  # 1200G
-        binspec = 1
-        outroot='keck_deimos_1200G.fits'
-        # 3-3 = blue  6268.23 -- 7540
-        # 3-14 = red   6508 -- 7730
-        # 7-3 = blue  7589 -- 8821
-        # 7-17 = red  8000 - 9230
-        # 7c-0 = red  9120 -- 9950
-        ifiles = [0, 0, 1, 1, 2]
-        slits = [3, 14, 3, 17, 0]
-        lcut = [7450., 7730., 8170, 9120]
-        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_03.json')
-        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07.json')
-        wfile3 = os.path.join(template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07c.json')
-        # det_dict
-        det_cut = None
-        #det_cut = {}
-        #det_cut['dets'] = [[1,2,3,4], [5,6,7,8]]
-        #det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
-        #
-        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
-                       ifiles=ifiles, det_cut=det_cut, chk=True)
-
-    if flg & (2**35):  # 1200B
-        binspec = 1
-        outroot='keck_deimos_1200B.fits'
-        # file1 = blue  4063 - 5382.8
-        # file2 = blue  ??   - 5425.
-        # file3 = red   5394.4 - 6709.2
-        ifiles = [0, 1]#, 2]
-        slits = [0, 0] #, 0]  # Not used
-        #wv_cuts = [5100., 5400]
-        wv_cuts = [5400]
-        # Outputs from IRAF by Carlos
-        #wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200.dat')
-        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200_slit2.dat')
-        wfile3 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_redchip_1200B_tilt5200.dat')
-        # det_dict
-        det_cut = None
-        #
-        build_template([wfile2,wfile3], slits, wv_cuts, binspec, outroot,
-                       ascii_tbl=True, ifiles=ifiles, det_cut=det_cut,
-                       chk=True, normalize=True, lowredux=False, in_vac=False,
-                       subtract_conti=True)
 
 
     # ###############################################3
@@ -996,6 +942,7 @@ if __name__ == '__main__':
 
     # Keck/DEIMOS
     flg += 2**35  # 1200B
+    flg += 2**36  # 1200G, blue
 
     main(flg)
 
