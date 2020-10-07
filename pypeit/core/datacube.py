@@ -13,7 +13,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.core.procimg import grow_masked
-from pypeit.core import fitting
+from pypeit.core import fitting, coadd
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
@@ -235,7 +235,8 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     return w
 
 
-def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv, numfiles=None):
+def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv,
+                    sn_smooth_npix=None, numfiles=None):
     """ Calculate wavelength dependent optimal weights. The weighting
         is currently based on a relative (S/N)^2 at each wavelength
 
@@ -261,6 +262,10 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
             The size of each spaxel on the sky (in degrees)
         dwv (float):
             The size of each wavelength pixel (in Angstroms)
+        sn_smooth_npix (float, optional):
+            Number of pixels used for determining smoothly varying S/N ratio weights.
+            This is currently not required, since a relative weighting scheme with a
+            polynomial fit is used to calculate the S/N weights.
         numfiles (int, optional):
             Number of spec2d files included. If not provided, it will be calculated from all_idx
 
@@ -294,7 +299,8 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
     bins = (xbins, ybins, spec_bins)
 
     # Extract the spectrum of the highest S/N object
-    all_snr = np.zeros((numwav, numfiles))
+    flux_stack = np.zeros((numwav, numfiles))
+    ivar_stack = np.zeros((numwav, numfiles))
     for ff in range(numfiles):
         msgs.info("Extracting spectrum of highest S/N detection from frame {0:d}/{1:d}".format(ff + 1, numfiles))
         ww = (all_idx == ff)
@@ -303,38 +309,36 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
         spec, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww])
         var, edges = np.histogramdd(pix_coord, bins=bins, weights=1/all_ivar[ww])
         norm, edges = np.histogramdd(pix_coord, bins=bins)
-        nrmSpec = (norm > 0) / (norm + (norm == 0))
+        normspec = (norm > 0) / (norm + (norm == 0))
         var_spec = var[0, 0, :]
-        nse_spec = (var_spec > 0) / (var_spec + (var_spec == 0))
+        ivar_spec = (var_spec > 0) / (var_spec + (var_spec == 0))
         # Calculate the S/N in a given spectral bin
-        all_snr[:, ff] = spec[0, 0, :]*np.sqrt(nse_spec)
-        # Now, we want the S/N in a _single_ pixel (i.e. not spectral bin)
-        all_snr[:, ff] *= np.sqrt(nrmSpec[0, 0, :])
+        flux_stack[:, ff] = spec[0, 0, :] * np.sqrt(normspec)  # Note: sqrt(nrmspec), is because we want the S/N in a _single_ pixel (i.e. not spectral bin)
+        ivar_stack[:, ff] = ivar_spec
 
-    # Construct the relative weights based on the S/N as a function of wavelength
+    mask_stack = (flux_stack != 0.0) & (ivar_stack != 0.0)
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
     wave_spec = wcs_res[:, 2] * 1.0E10
     # Identify the reference spectrum (the one with the highest typical S/N ratio)
-    medsnr = np.median(all_snr, axis=0)
-    ref_idx = np.argmax(medsnr)
-    msgs.info("The reference spectrum (frame {0:d}) has a typical S/N = {1:.3f}".format(ref_idx, medsnr[ref_idx]))
-    all_wghts = np.ones(all_sci.size)
+    medsnr = np.median(flux_stack*np.sqrt(ivar_stack), axis=0)
+    ref_spec = np.argmax(medsnr)
+    # Compute the smoothing scale to use
+    if sn_smooth_npix is None:
+        sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
+    rms_sn, weights = coadd.sn_weights(wave_spec, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
+                                       relative_weights=True, poly_order=3, ref_spec=ref_spec)
+
+    # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
+    all_wghts = np.ones(all_idx.size)
     for ff in range(numfiles):
         ww = (all_idx == ff)
-        # The reference spectrum will have unit weights
-        if ff == ref_idx:
-            all_wghts[ww] = 1.0
+        if ff == ref_spec:
+            all_wghts[ww] = 1
             continue
-        # Calculate the relative weights according the S/N
-        gpm = (all_snr[:, ff] != 0) & (all_snr[:, ref_idx] != 0)
-        relsnr = all_snr[:, ff] / all_snr[:, ref_idx]
-        # Perform a low order polynomial fit
-        wght_fit = fitting.robust_fit(wave_spec[gpm], relsnr[gpm], 3, function="legendre",
-                                      minx=np.min(wave_spec), maxx=np.max(wave_spec),
-                                      lower=5, upper=5)
-        # Apply fitting function to all wavelengths
-        all_wghts[ww] = (wght_fit.eval(all_wave[ww]))**2  # Weight needs to be relative (S/N)^2
+        all_wghts[ww] = interp1d(wave_spec, weights[:, ff], kind='cubic',
+                                 bounds_error=False, fill_value="extrapolate")(all_wave[ww])
+
     msgs.info("Optimal weighting complete")
     return all_wghts
 

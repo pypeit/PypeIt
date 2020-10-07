@@ -197,8 +197,8 @@ def coadd_cube(files, det=1, overwrite=False):
             all_dec[all_idx == ff] += dec_shift
 
         # Calculate the relative spectral weights of all pixels
-        all_wghts = dc_utils.calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                                                        all_idx, dspat, dwv, numfiles=numfiles)
+        all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                                             all_idx, dspat, dwv, numfiles=numfiles)
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
