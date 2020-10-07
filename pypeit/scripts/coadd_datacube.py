@@ -171,20 +171,20 @@ def coadd_cube(files, det=1, overwrite=False):
     # Register spatial offsets between all frames if several frames are being combined
     if combine:
         # Generate white light images
-        whitelight_Imgs, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+        whitelight_imgs, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
                                                       dspat, numfiles=numfiles)
 
         # ref_idx will be the index of the cube with the highest S/N
         ref_idx = np.argmax(weights)
         msgs.info("Calculating the relative spatial translation of each cube (reference cube = {0:d})".format(ref_idx+1))
         # Calculate the image offsets - check the reference is a zero shift
-        ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
+        ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_imgs[:, :, ref_idx], whitelight_imgs[:, :, ref_idx])
         for ff in range(numfiles):
             # Don't correlate the reference image with itself
             if ff == ref_idx:
                 continue
             # Calculate the shift
-            ra_shift, dec_shift = calculate_image_offset(whitelight_Imgs[:, :, ff], whitelight_Imgs[:, :, ref_idx])
+            ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], whitelight_imgs[:, :, ref_idx])
             # Convert to reference
             ra_shift -= ra_shift_ref
             dec_shift -= dec_shift_ref
@@ -232,29 +232,29 @@ def coadd_cube(files, det=1, overwrite=False):
     bins = (xbins, ybins, spec_bins)
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    normCube = (norm > 0) / (norm + (norm == 0))
-    datacube *= normCube
+    norm_cube = (norm > 0) / (norm + (norm == 0))
+    datacube *= norm_cube
     # Create the variance cube, including weights
     msgs.info("Generating variance cube")
     all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
-    varCube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
-    varCube *= normCube**2
+    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube *= norm_cube**2
 
     # Save the datacube
     debug = False
     if debug:
         datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*np.sqrt(all_ivar))
         norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins))
-        normCube = (norm > 0) / (norm + (norm == 0))
+        norm_cube = (norm > 0) / (norm + (norm == 0))
         outfile = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile))
-        hdu = fits.PrimaryHDU((datacube_resid*normCube).T, header=masterwcs.to_header())
+        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=masterwcs.to_header())
         hdu.writeto(outfile, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
     sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
-    var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
+    var_hdu = fits.ImageHDU(var_cube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
 
