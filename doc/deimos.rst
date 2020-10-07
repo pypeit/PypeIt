@@ -29,14 +29,23 @@ for DEIMOS
 These are tuned to the standard calibration
 set taken with DEIMOS.
 
-Edge Tracing
+Calibrations
 ============
+
+Edge Tracing
+------------
 
 It has been reported that the default `edge_thresh` of 50
 for DEIMOS is too high for some setups.
 
-Calibrations
-============
+Flat Fielding
+-------------
+
+When using the *LVMslitC* mask, it is common for the
+widest slits to have saturated flat fields.  If so, the
+code will exit during flat fielding. You can skip over them
+as described in :ref:`flat_fielding:Saturated Slits`.
+
 
 Fluxing
 -------
