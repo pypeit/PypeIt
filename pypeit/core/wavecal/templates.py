@@ -219,19 +219,18 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
     """
-    TODO: Documentation needed
+    Write the template spectrum into a binary FITS table
+
     Args:
-        nwwv:
-        nwspec:
-        binspec:
-        outpath:
-        outroot:
-        det_cut:
+        nwwv (`numpy.ndarray`_):
+        nwspec (`numpy.ndarray`_):
+        binspec (float):
+        outpath (str):
+        outroot (str):
+        det_cut (bool, optional):
         order:
-        overwrite:
-
-    Returns:
-
+        overwrite (bool, optional):
+            If True, overwrite any existing file
     """
     tbl = Table()
     tbl['wave'] = nwwv
