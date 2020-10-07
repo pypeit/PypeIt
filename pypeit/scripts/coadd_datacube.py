@@ -27,8 +27,7 @@ from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 from pypeit import spec2dobj
 
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -37,6 +36,9 @@ def parser(options=None):
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -176,17 +178,6 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
     w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
     w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
     return w
-
-
-def main(args):
-    # Get a list of files for the combination
-    files = open(args.file, 'r').readlines()
-    filelist = []
-    for fil in files:
-        filelist.append(fil.rstrip("\n"))
-
-    # Coadd the files
-    coadd_cube(filelist, det=args.det, overwrite=args.overwrite)
 
 
 def coadd_cube(files, det=1, overwrite=False):
@@ -425,3 +416,14 @@ def coadd_cube(files, det=1, overwrite=False):
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
+
+
+def main(args):
+    # Get a list of files for the combination
+    files = open(args.file, 'r').readlines()
+    filelist = []
+    for fil in files:
+        filelist.append(fil.rstrip("\n"))
+
+    # Coadd the files
+    coadd_cube(filelist, det=args.det, overwrite=args.overwrite)

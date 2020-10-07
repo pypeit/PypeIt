@@ -14,10 +14,12 @@ tips for customizing the PypeIt file.
 ======================  =========   =======================================
 PypeIt Name             Telescope   Instrument
 ======================  =========   =======================================
-gemini_gmos_north_ham   Gemini      GMOS-N spectrometer; Hamamatsu detector (R400, B600)
+gemini_gmos_north_ham   Gemini      :doc:`gemini_gmos`-N spectrometer; Hamamatsu detector (R400, B600); Used since Feb 2017
+gemini_gmos_north_e2v   Gemini      :doc:`gemini_gmos`-N spectrometer; E2V detector
+gemini_gmos_south_ham   Gemini      :doc:`gemini_gmos`-S spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
 gemini_flamingos        Gemini      Gemini FLAMINGOS spectrometer
-keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
+keck_kcwi               Keck        :doc:`keck_kcwi` slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
 keck_lris_red_orig      Keck        :doc:`lris` spectrometer; red camera + original detector
@@ -33,7 +35,7 @@ lbt_mods2r              LBT         MODS-II red spectrometer
 lbt_mods2b              LBT         MODS-II blue spectrometer
 magellan_fire           Magellan    FIRE spectrometer; Echelle mode
 magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
-magellan_mage           Magellan    MagE spectrometer
+magellan_mage           Magellan    :doc:`mage` spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
 mmt_mmirs               MMT         MMIRS spectrometer
 mmt_binospec            MMT         BINSOSPEC spectrometer
@@ -53,3 +55,20 @@ p200_tspec              P200        TripleSpec spectrograph
 ======================  =========   =======================================
 
 
+List of Spectrographs
+=====================
+
+Instrument docs with additional details for running
+PypeIt.
+
+
+.. toctree::
+   :caption: Spectrographs
+   :maxdepth: 1
+
+   new_spectrograph
+   gemini_gmos
+   deimos
+   lris
+   mage
+   xshooter

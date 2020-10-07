@@ -21,6 +21,7 @@ can be generated.  The ones that are made depend on the
 ================= ========= ===========================================
 Type              Format    Description
 ================= ========= ===========================================
+MasterAlign       FITS      Alignment image (IFU)
 MasterArc         FITS      Processed arc spectral image
 MasterBias        FITS      Processed bias image
 MasterEdges       FITS      Several images describing the slit traces
@@ -30,7 +31,7 @@ MasterSlits       FITS      Reduced output of slit tracing
 MasterTiltimg     FITS      Mapping of pixel to constant wavelength
 MasterTilts       FITS      Image used to trace wavelengths in the slits
 MasterWave        FITS      Wavelength image (in air and Angstroms)
-MasterWaveCalib   JSON      Solution of 1D wavelength calibration
+MasterWaveCalib   FITS      Solution of 1D wavelength calibration
 ================= ========= ===========================================
 
 

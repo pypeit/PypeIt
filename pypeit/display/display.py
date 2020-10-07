@@ -1,7 +1,7 @@
 """
 Module for ginga routines.  Mainly for debugging
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 """
 import os

@@ -7,7 +7,6 @@
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
-import argparse
 import os
 
 import numpy as np
@@ -28,7 +27,8 @@ from pypeit import masterframe
 from pypeit import spec2dobj
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a '
                                                  'Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -46,6 +46,9 @@ def parser(options=None):
                         action='store_true')
     parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -152,7 +155,7 @@ def main(args):
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)  # sky residual map
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm #(spec2DObj.bpmmask == 0)  # sky residual map
     viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:

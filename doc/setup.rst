@@ -51,6 +51,11 @@ the primary data reduction process that follows.  It also
 generates a .sorted file describing the various configurations found
 amongst the files parsed.
 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_setup.rst
+
 Prepare
 -------
 

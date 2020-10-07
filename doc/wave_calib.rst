@@ -115,31 +115,10 @@ pypeit_identify
 usage
 -----
 
-Here is the usage::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
-                           [--slit SLIT] [--det DET] [--rmstol RMSTOL]
-                           arc_file slits_file
-
-    Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
-    above the Masters/ folder
-
-    positional arguments:
-      arc_file         PypeIt MasterArc file
-      slits_file       PypeIt MasterSlits file
-
-    optional arguments:
-      -h, --help       show this help message and exit
-      --lamps LAMPS    Comma separated list of calibration lamps (no spaces)
-                       (default: None)
-      -s, --solution   Load a wavelength solution from the arc_file (if it exists)
-                       (default: False)
-      --wmin WMIN      Minimum wavelength range (default: 3000.0)
-      --wmax WMAX      Maximum wavelength range (default: 10000.0)
-      --slit SLIT      Which slit to load for wavelength calibration (default: 0)
-      --det DET        Detector index (default: 1)
-      --rmstol RMSTOL  RMS tolerance (default: 0.1)
-
+.. include:: help/pypeit_identify.rst
 
 To launch the GUI, use the following command:
 
@@ -205,13 +184,18 @@ If you are confident this is the case, raise an Issue.
 Items to Modify
 ===============
 
+There are several parameters in the Wavelength Calibration
+:ref:`pypeit_par:WavelengthSolutionPar Keywords` that one
+needs to occasionally customize for your specific observations.
+We describe the most common below.
+
 FWHM
 ----
 
-The arc lines are identified and fitted with ane
+The arc lines are identified and fitted with an
 expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
-standard slit is assume for each instrument but
+standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
 than you may need to modify::
 
@@ -341,3 +325,14 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
+
+Additional Reading
+==================
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   flexure
+   heliocorr
+   wavetilts

@@ -564,7 +564,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
         Size of one pixel at central_wl
     """
 
-    if central_wl is 'midpt':
+    if central_wl == 'midpt':
         wl_cent = np.median(wavelength)
     else:
         wl_cent = np.float(central_wl)

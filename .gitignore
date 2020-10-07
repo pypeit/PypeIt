@@ -1,5 +1,8 @@
 # Folders#
 .idea/
+.vscode/
+build/*
+dist/*
 
 # Compiled source #
 ###################
@@ -10,8 +13,11 @@
 *.exe
 *.o
 *.so
+*.pyd
 *.pyc
 *_rjc*
+*.nbi
+*.nbc
  
 # Packages #
 ############

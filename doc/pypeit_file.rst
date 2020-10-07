@@ -21,6 +21,8 @@ It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
 easily customize the associated calibration files to process.
 
+
+
 The File
 ========
 
@@ -78,19 +80,9 @@ At the top of the file is the Parameter block which allows the user
 to customize the otherwise default parameters for the input spectrograph.
 The two lines shown in this example are the only 2 that are required.
 
-See :doc:`pypeit_par` for the complete list of parameters,
-the spectrograph specific settings, and the syntax for changing parameters.
+See :ref:`Edits to the Parameter Block` for common edits
+and also read the instrument specific docs.
 
-Here are notes on somewhat common edits that PypeIt users make
-(docs under construction!):
-
-  - Restrict reduction (including the detectors reduced)
-  - :doc:`bias_dark`
-  - :doc:`flat_fielding`
-  - Wavelength fussing
-  - :doc:`slit_tracing`
-  - :doc:`object_finding`
-  - :doc:`reduction_tips`
 
 Setup Block
 -----------
@@ -122,18 +114,30 @@ of the following :doc:`frametype`:
 **Warning:** The code will *not* run if your :doc:`pypeit_file` includes
 entries with *None*.  You must remove or modify those.
 
-FlatField
-+++++++++
 
-If you do **not** provide one or more *pixelflat* frames, you should
-explicitly tell the code to ignore flatfielding.  Do so by
-adding the following to your `Parameter Block`::
+Edits to the Parameter Block
+============================
 
-    [calibrations]
-        [[flatfield]]
-            method=skip
+:doc:`pypeit_par` provides the complete (and extensive)
+list of parameters,
+the spectrograph specific settings,
+and the syntax for changing parameters.
 
-This will skip all flat-field steps.
+Here are additional docs on common edits that
+PypeIt users make:
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   frametype
+   bias_dark
+   flat_fielding
+   wave_calib
+   slit_tracing
+   object_finding
+   reduction_tips
+
 
 Edits to the Data Block
 =======================
@@ -174,19 +178,9 @@ near-IR
 -------
 
 One key difference is that you can and probably should make modifications
-to enable A-B (or AA-BB or whatever) subtraction.  At present, the only notes
-on this are here:
-`Near-IR HOWTO <https://docs.google.com/presentation/d/1jOgwOBP9OhlhHxMTqxuc2dsBZ86PTxjje1kJ1FnSVs4/edit?usp=sharing>`_.
-This will be ingested into these `readthedocs` before long..
+to enable A-B (or AA-BB or whatever) subtraction.
+See :doc:`A-B_differencing` for a full discussion.
 
 
-calib
-+++++
-
-comb_id
-+++++++
-
-bkg_id
-++++++
-
+.. pypeit-file-reading:
 

@@ -29,11 +29,15 @@ are placed in the Masters/ folder.  Here are the full set
 that may be created (not all are required; depends on the
 instrument):
 
-- :doc:`master_align`
-- :doc:`master_arc`
-- :doc:`master_bias`
-- :doc:`master_edges`
-- :doc:`master_flat`
-- :doc:`master_tilt`
-- :doc:`master_tilts`
-- :doc:`master_wvcalib`
+.. toctree::
+   :maxdepth: 1
+
+   masters
+   master_align
+   master_arc
+   master_bias
+   master_edges
+   master_flat
+   master_tilt
+   master_tilts
+   master_wvcalib

@@ -208,7 +208,7 @@ you are a developer) and none should fail.
 Developers
 ==========
 
-For developers, see :doc:`development`.
+For developers, see :ref:`development`.
 
 Also, test scripts for development purposes are available at the
 `PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.

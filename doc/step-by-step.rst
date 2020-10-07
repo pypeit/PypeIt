@@ -5,8 +5,8 @@ Step by Step Example
 Overview
 ========
 
-This doc goes through a full run of *PypeIt* on one of the
-Shane Kastb datasets in the Development Suite.
+This doc goes through a full run of ``PypeIt`` on one of the Shane
+Kast*b* datasets in the Development Suite.
 
 Setup
 =====
@@ -14,21 +14,23 @@ Setup
 Organize data
 -------------
 
-Place all of the files in a single folder.
-Mine is named /home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
-(which I will refer to as RAW_PATH)
-and the files within are:
+Place all of the files in a single folder. Mine is named
+``/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55``
+(which I will refer to as ``RAW_PATH``) and the files within are:
 
-b10.fits.gz  b15.fits.gz  b1.fits.gz   b24.fits.gz  b4.fits.gz  b9.fits.gz
-b11.fits.gz  b16.fits.gz  b20.fits.gz  b27.fits.gz  b5.fits.gz
-b12.fits.gz  b17.fits.gz  b21.fits.gz  b28.fits.gz  b6.fits.gz
-b13.fits.gz  b18.fits.gz  b22.fits.gz  b2.fits.gz   b7.fits.gz
-b14.fits.gz  b19.fits.gz  b23.fits.gz  b3.fits.gz   b8.fits.gz
+.. code-block:: bash
 
-Run pypeit_setup
-----------------
+    $ ls
+    b10.fits.gz  b15.fits.gz  b1.fits.gz   b24.fits.gz  b4.fits.gz  b9.fits.gz
+    b11.fits.gz  b16.fits.gz  b20.fits.gz  b27.fits.gz  b5.fits.gz
+    b12.fits.gz  b17.fits.gz  b21.fits.gz  b28.fits.gz  b6.fits.gz
+    b13.fits.gz  b18.fits.gz  b22.fits.gz  b2.fits.gz   b7.fits.gz
+    b14.fits.gz  b19.fits.gz  b23.fits.gz  b3.fits.gz   b8.fits.gz
 
-The first script you will run with PypeIt is :ref:`pypeit_setup` which
+Run ``pypeit_setup``
+--------------------
+
+The first script you will run with ``PypeIt`` is :ref:`pypeit_setup` which
 examines your raw files and generates a sorted list and (when instructed)
 one :doc:`pypeit_file` per instrument configuration.
 
@@ -173,7 +175,7 @@ slit of the Kast instrument, there is only one slit.
 
 Here is a screen shot from the first tab in the *ginga*
 window after using
-the `pypeit_chk_edges`_ script, with this explicit call::
+the :ref:`pypeit_chk_edges` script, with this explicit call::
 
     pypeit_chk_edges Masters/MasterEdges_A_1_01.fits.gz
 
@@ -231,7 +233,7 @@ pixel-to-pixel variations and illumination of the detector.
 
 Here is a screen shot from the first tab in the *ginga*
 window (pixflat_norm) after using
-`pypeit_chk_flats`_, with this explicit call::
+:ref:`pypeit_chk_flats`, with this explicit call::
 
     pypeit_chk_flats Masters/MasterFlat_A_1_01.fits
 
@@ -258,7 +260,7 @@ Spec2D
 
 Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det01) after using
-`pypeit_show_2dspec`_, with this explicit call::
+:ref:`pypeit_show_2dspec`, with this explicit call::
 
     pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
@@ -278,7 +280,7 @@ Spec1D
 
 Here is a screen shot from the GUI showing the
 1D spectrum after using
-`pypeit_show_1dspec`_, with this explicit call::
+:ref:`pypeit_show_1dspec`, with this explicit call::
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
