@@ -7,6 +7,8 @@ import os
 import numpy as np
 import warnings
 
+from pkg_resources import resource_filename
+
 from scipy import interpolate
 from astropy.io import fits
 
@@ -191,6 +193,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+
+        # If telluric is triggered
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 

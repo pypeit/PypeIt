@@ -110,7 +110,7 @@ What this version provides
   * :doc:`flat_fielding` with illumination pattern correction
   * Full 2D :doc:`wave_calib` (no rectification)
   * :doc:`flexure` (spatial and spectral)
-  * Global and local sky subtraction
+  * Global and local :doc:`skysub`
   * Optimal (and boxcar) :doc:`extraction`
   * :doc:`A-B_differencing`
 
@@ -183,6 +183,7 @@ or have a feature request, please `submit an issue
    running
    quicklook
    object_finding
+   skysub
    extraction
    scripts
 

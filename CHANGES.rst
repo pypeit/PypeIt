@@ -11,6 +11,8 @@
   doc files
 - full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
 - optimal weights in datacube generation
+- Docs for skysub, extraction, flat fielding
+- New skysub options for masking and suppressing local
 - Added `pypeit/core/convert_DEIMOSsavfiles.py` to convert .sav files into fits files
 - Added "amap" and "bmap" fits files in `pypeit/data/static_calibs/keck_deimos/` for DEIMOS
    optical model
