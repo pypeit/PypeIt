@@ -327,7 +327,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
     rms_sn, weights = coadd.sn_weights(wave_spec, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
-                                       relative_weights=True, poly_order=3, ref_spec=ref_spec)
+                                       relative_weights=True, ref_spec=ref_spec)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = np.ones(all_idx.size)

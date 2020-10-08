@@ -687,7 +687,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
 
 
 def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
-               ivar_weights=False, relative_weights=False, ref_spec=-1, poly_order=-1, verbose=False):
+               ivar_weights=False, relative_weights=False, ref_spec=-1, verbose=False):
 
     """
     Calculate the S/N of each input spectrum and create an array of
@@ -710,9 +710,6 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
             Number of pixels used for determining smoothly varying S/N ratio weights.
         const_weights : bool
             Use a constant weights for each spectrum?
-        poly_order : int
-            polynomial order to use when fitting the S/N. Polynomial fitting will only be
-            used when poly_order >= 0.
         ivar_weights : bool
             Use inverse variance weighted scheme?
         relative_weights : bool
@@ -768,7 +765,9 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     spec_vec = np.arange(nspec)
 
     # Check if relative weights input
-    if relative_weights:
+    if ivar_weights:
+        relative_weights = False
+    elif relative_weights:
         if ref_spec == -1:
             # Relative weights are requested, but no reference spectrum provided.
             # Use the highest S/N spectrum as a reference
@@ -816,23 +815,20 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
             if (rms_sn[iexp] < 3.0) or const_weights:
                 weight_method = 'constant'
                 weights[:, iexp] = np.full(nspec, np.fmax(sn2[iexp], 1e-2))  # set the minimum  to be 1e-2 to avoid zeros
-            elif poly_order >= 0:
-                weight_method = 'polynomial'
-                # Perform a legendre polynomial fit
-                wght_fit = fitting.robust_fit(spec_vec[mask_stack[:, iexp]], sn_val[mask_stack[:, iexp], iexp],
-                                              poly_order, function="legendre", minx=0, maxx=nspec,
-                                              lower=5, upper=5)
-                # Apply fitting function to all wavelengths
-                weights[:, iexp] = (wght_fit.eval(spec_vec)) ** 2  # Weight needs to be relative (S/N)^2
             else:
                 weight_method = 'wavelength dependent'
                 # JFH THis line is experimental but it deals with cases where the spectrum drops to zero. We thus
                 # transition to using ivar_weights. This needs more work because the spectra are not rescaled at this point.
                 #sn_val[sn_val[:, iexp] < 1.0, iexp] = ivar_stack[sn_val[:, iexp] < 1.0, iexp]
-
                 sn_med1 = utils.fast_running_median(sn_val[mask_stack[:, iexp], iexp]**2, sn_smooth_npix)
                 sn_med2 = scipy.interpolate.interp1d(spec_vec[mask_stack[:, iexp]], sn_med1, kind='cubic',
-                                                     bounds_error=False, fill_value=0.0)(spec_vec)
+                                                     bounds_error=False, fill_value=-999)(spec_vec)
+                # Fill the S/N weight to the left and right with the nearest value
+                mask_good = np.where(sn_med2 != -999)[0]
+                idx_mn, idx_mx = np.min(mask_good), np.max(mask_good)
+                sn_med2[:idx_mn] = sn_med2[idx_mn]
+                sn_med2[idx_mx:] = sn_med2[idx_mx]
+                # Smooth with a Gaussian kernal
                 sig_res = np.fmax(sn_smooth_npix/10.0, 3.0)
                 gauss_kernel = convolution.Gaussian1DKernel(sig_res)
                 sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
