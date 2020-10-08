@@ -681,8 +681,7 @@ class SpecObjs:
 
             # Optimal profile (FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None:
-                # opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
                 # S2N -- optimal
                 ivar = specobj.OPT_COUNTS_IVAR
