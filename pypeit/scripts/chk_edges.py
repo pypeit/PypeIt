@@ -37,19 +37,13 @@ def parse_args(options=None, return_parser=False):
 # case with the current show method.
 
 def main(pargs):
-    import os
     from pypeit import edgetrace
-    from pypeit import slittrace
 
     # Load
     edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
 
-    # Try to slurp in slits too (mainly for Slit ID names)
-    slit_file = pargs.trace_file.replace('Edges', 'Slits')
-    slits = slittrace.SlitTraceSet.from_file(slit_file) if os.path.isfile(slit_file) else None
-
     if pargs.mpl:
         edges.show(thin=10, include_img=True, idlabel=True)
     else:
-        edges.show(thin=10, in_ginga=True, slits=slits)
+        edges.show(thin=10, in_ginga=True)
     return 0

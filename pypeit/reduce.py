@@ -993,7 +993,6 @@ class MultiSlitReduce(Reduce):
             inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
             specobj_dict = {'SLITID': slit_spat,
-                            'OBJTYPE': self.objtype,
                             'DET': self.det, 'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
@@ -1021,13 +1020,6 @@ class MultiSlitReduce(Reduce):
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
-
-            # Add info from slitmask
-            if len(sobjs_slit) > 0 and self.slits.maskdef_id is not None:
-                embed(header='1031')
-                maskdef_id = self.slits.maskdef_ids[slit_idx]
-                for sobj in sobjs_slit:
-                    sobj.MASKDEF_ID = maskdef_id
 
             sobjs.add_sobj(sobjs_slit)
 

@@ -645,10 +645,6 @@ class Calibrations(object):
         if self.slitspat_num is not None:
             self.slits.user_mask(self.det, self.slitspat_num)
 
-        # Ingest slitmask definition?
-        if self.slits.maskdef_file is not None and self.spectrograph.slitmask is None:
-            self.spectrograph.get_slitmask(self.slits.maskdef_file)
-
         return self.slits
 
     def get_wv_calib(self):

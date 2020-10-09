@@ -489,7 +489,6 @@ class EdgeTraceSet(DataContainer):
         self.master_key = None          # Calibration key for master frame
         self.master_dir = None          # Directory for Master frames
         self.maskdef_id = None          # Slit ID number from slit-mask design to record in SlitTraceSet
-        self.maskdef_file = None        # File used to slurp in slit-mask design
 
     def _reinit_trace_data(self):
         """
@@ -1315,7 +1314,6 @@ class EdgeTraceSet(DataContainer):
                 half = _trc.shape[0] // 2
                 slit_ids = ((_trc[half, gpm & is_left]
                              + _trc[half, gpm & is_right]) / 2.).astype(int)
-            maskdef_ids = None
         else:
             # Use the provided SlitTraceSet
             _include_error = False
@@ -1336,7 +1334,6 @@ class EdgeTraceSet(DataContainer):
             # known, but this functionality appears to be never used? I
             # think slits needs its own show method.
             slit_ids = slits.slitord_id
-            maskdef_ids = slits.maskdef_id
 
         # TODO: The above should set everything (self shouldn't be used
         # below). We need a single show method that both EdgeTraceSet
@@ -1347,7 +1344,6 @@ class EdgeTraceSet(DataContainer):
             id_kwargs = {'slit_ids': slit_ids} if synced \
                             else {'left_ids': traceid[gpm & is_left],
                                   'right_ids': traceid[gpm & is_right]}
-            id_kwargs['maskdef_ids'] = maskdef_ids
             _trc = cen if fit is None else fit
 
             # Connect to or instantiate ginga window
@@ -4031,7 +4027,6 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Unable to read grating info')
         if self.spectrograph.get_amapbmap(self.traceimg.files[0]) is None:
             msgs.error('Unable to read amap and bmap')
-        self.maskdef_file = self.traceimg.files[0]
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
@@ -4869,13 +4864,11 @@ class EdgeTraceSet(DataContainer):
             specmax = specmax[indx]/binspec
 
         # Instantiate and return
-        embed(header='4872 of edgetrace')
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=self.maskdef_id,
-                                      #maskdef_file=self.maskdef_file,  # ADD THIS BACK WHEN FITS ISSUE IS RESOLVED
                                       ech_order=ech_order)
 
 
