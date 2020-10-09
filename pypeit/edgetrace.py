@@ -1316,15 +1316,13 @@ class EdgeTraceSet(DataContainer):
                 half = _trc.shape[0] // 2
                 slit_ids = ((_trc[half, gpm & is_left]
                              + _trc[half, gpm & is_right]) / 2.).astype(int)
+            maskdef_ids = None
         else:
-
-            # TODO: Pull echelle order from slits
-
             # Use the provided SlitTraceSet
             _include_error = False
             if include_error:
                 msgs.warn('SlitTraceSet object has no errors.')
-            left, right, _ = slits.select_edges(original=original)
+            left, right, _ = slits.select_edges() # original=original)
             cen = np.hstack((left,right))
             fit = cen
             msk = None
@@ -1339,6 +1337,7 @@ class EdgeTraceSet(DataContainer):
             # known, but this functionality appears to be never used? I
             # think slits needs its own show method.
             slit_ids = slits.slitord_id
+            maskdef_ids = slits.maskdef_id
 
         # TODO: The above should set everything (self shouldn't be used
         # below). We need a single show method that both EdgeTraceSet
@@ -1349,6 +1348,7 @@ class EdgeTraceSet(DataContainer):
             id_kwargs = {'slit_ids': slit_ids} if synced \
                             else {'left_ids': traceid[gpm & is_left],
                                   'right_ids': traceid[gpm & is_right]}
+            id_kwargs['maskdef_ids'] = maskdef_ids
             _trc = cen if fit is None else fit
 
             # Connect to or instantiate ginga window
