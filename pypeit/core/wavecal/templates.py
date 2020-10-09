@@ -45,7 +45,7 @@ outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
-                   lowredux=True, ifiles=None, det_cut=None, chk=False,
+                   lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
                    shift_wave=False):
     """
@@ -88,7 +88,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             True if input wavelengths are in vacuum
         shift_wave (bool, optional):
             Shift wavelengths when splicing to sync up precisely (Recommended)
-            Requires v>=1.0.0 WaveCalib files
+            Requires PypeIt file (old JSON works for now)
     """
     if outdir is None:
         outdir = outpath

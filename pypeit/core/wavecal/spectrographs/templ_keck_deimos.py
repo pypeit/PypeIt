@@ -41,9 +41,9 @@ def keck_deimos_1200G(overwrite=False):
     # 7-3 = blue  7589 -- 8821
     # 7-17 = red  8000 - 9230
     # 7c-0 = red  9120 -- 9950
-    ifiles = [3, 4, 0, 0, 1, 1, 2]
-    slits = [1261, 132, 3, 14, 3, 17, 0]
-    lcut = [5500., 6800., 7450., 7730., 8170, 9120]
+    ifiles = [3, 5, 4, 0, 0, 1, 1, 2]
+    slits = [1261, 1652, 132, 3, 14, 3, 17, 0]
+    lcut = [5200., 5580., 6800., 7450., 7730., 8170, 9120]
     wfile1 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_03.json')
     wfile2 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07.json')
     wfile3 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', 'MasterWaveCalib_A_1_07c.json')
@@ -51,7 +51,11 @@ def keck_deimos_1200G(overwrite=False):
                           'MasterWaveCalib_B_1_02_useS1261.fits')
     wfile5 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', '1200G_bluetilt',
                           'MasterWaveCalib_B_1_06_useS0132.fits')
-    files = [wfile1, wfile2, wfile3, wfile4, wfile5]
+    wfile6 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', '1200G_bluetilt',
+                          'MasterWaveCalib_B_1_02_useS1652.fits')
+    #wfile7 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200G', '1200G_bluetilt',
+    #                      'MasterWaveCalib_B_1_06_useS1649.fits')
+    files = [wfile1, wfile2, wfile3, wfile4, wfile5, wfile6] #, wfile7]
 
     # det_dict
     det_cut = None
@@ -61,7 +65,7 @@ def keck_deimos_1200G(overwrite=False):
     #
     templates.build_template(files, slits, lcut, binspec, outroot, lowredux=False,
                    ifiles=ifiles, det_cut=det_cut, chk=True, subtract_conti=True,
-                             overwrite=overwrite)
+                             overwrite=overwrite, shift_wave=True)
 
 
 def keck_deimos_1200B(overwrite=False):
