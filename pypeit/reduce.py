@@ -1023,11 +1023,10 @@ class MultiSlitReduce(Reduce):
                                 debug_all=debug)
 
             # Add info from slitmask
-            if len(sobjs_slit) > 0 and self.slits.maskdef_id is not None:
-                embed(header='1031')
-                maskdef_id = self.slits.maskdef_ids[slit_idx]
-                for sobj in sobjs_slit:
-                    sobj.MASKDEF_ID = maskdef_id
+            #if len(sobjs_slit) > 0 and self.slits.maskdef_id is not None:
+            #    maskdef_id = self.slits.maskdef_ids[slit_idx]
+            #    for sobj in sobjs_slit:
+            #        sobj.MASKDEF_ID = maskdef_id
 
             sobjs.add_sobj(sobjs_slit)
 

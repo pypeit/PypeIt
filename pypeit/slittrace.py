@@ -241,8 +241,8 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Getting this rolling..
         # FITS failure is killing this..
-        if self.maskdef_id is not None:
-            self.maskdef_file = '/data/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz'
+        #if self.maskdef_id is not None:
+        #    self.maskdef_file = '/data/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz'
 
     def _init_internals(self):
         self.left_flexure = None

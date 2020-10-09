@@ -244,6 +244,11 @@ class SlitMask:
         """Check if specific slit should have a science target."""
         return self.bitmask.flagged(self.mask[i], 'SCIENCE')
 
+    def assign_maskinfo(self, sobjs):
+        # The following assumes the DEIMOS info
+        #   We should turn this into a DataContainer and make things a bit more rigid
+        pass
+
 
 class SlitRegister:
     r"""

@@ -4869,7 +4869,6 @@ class EdgeTraceSet(DataContainer):
             specmax = specmax[indx]/binspec
 
         # Instantiate and return
-        embed(header='4872 of edgetrace')
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
