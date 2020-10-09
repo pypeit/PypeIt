@@ -87,7 +87,7 @@ class SlitTraceSet(datamodel.DataContainer):
     master_file_format = 'fits.gz'
     """File format for the master frame file."""
     minimum_version = '1.1.0'
-    version = '1.1.0'
+    version = '1.1.1'
     """SlitTraceSet data model version."""
 
     hdu_prefix = None
@@ -112,6 +112,7 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Slit ID number from SPAT measured at half way point.'),
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                     descr='Slit ID number slitmask'),
+                 'maskdef_file': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
                  'nslits': dict(otype=int,
@@ -154,7 +155,8 @@ class SlitTraceSet(datamodel.DataContainer):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None, left_tweak=None,
+                 spat_id=None, maskdef_id=None, maskdef_file=None,
+                 ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
         # Instantiate the DataContainer
@@ -236,6 +238,11 @@ class SlitTraceSet(datamodel.DataContainer):
         # Mask
         if self.mask is None:
             self.mask = self.mask_init.copy()
+
+        # Getting this rolling..
+        # FITS failure is killing this..
+        if self.maskdef_id is not None:
+            self.maskdef_file = '/data/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz'
 
     def _init_internals(self):
         self.left_flexure = None

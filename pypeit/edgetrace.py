@@ -130,9 +130,7 @@ from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace, slitdesign_matching
 from pypeit.images.buildimage import TraceImage
-from pypeit.images import detector_container
 from pypeit.tracepca import TracePCA
-from pypeit.spectrographs import slitmask
 from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -491,6 +489,7 @@ class EdgeTraceSet(DataContainer):
         self.master_key = None          # Calibration key for master frame
         self.master_dir = None          # Directory for Master frames
         self.maskdef_id = None          # Slit ID number from slit-mask design to record in SlitTraceSet
+        self.maskdef_file = None        # File used to slurp in slit-mask design
 
     def _reinit_trace_data(self):
         """
@@ -4032,6 +4031,7 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Unable to read grating info')
         if self.spectrograph.get_amapbmap(self.traceimg.files[0]) is None:
             msgs.error('Unable to read amap and bmap')
+        self.maskdef_file = self.traceimg.files[0]
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
@@ -4869,10 +4869,13 @@ class EdgeTraceSet(DataContainer):
             specmax = specmax[indx]/binspec
 
         # Instantiate and return
+        embed(header='4872 of edgetrace')
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'], mask_init=slit_msk, maskdef_id=self.maskdef_id,
+                                      pad=self.par['pad'], mask_init=slit_msk,
+                                      maskdef_id=self.maskdef_id,
+                                      #maskdef_file=self.maskdef_file,  # ADD THIS BACK WHEN FITS ISSUE IS RESOLVED
                                       ech_order=ech_order)
 
 

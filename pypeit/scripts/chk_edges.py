@@ -41,6 +41,7 @@ def main(pargs):
     from pypeit import edgetrace
     from pypeit import slittrace
 
+    # Load
     edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
 
     # Try to slurp in slits too (mainly for Slit ID names)

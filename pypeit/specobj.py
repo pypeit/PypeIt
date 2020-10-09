@@ -58,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.1'
+    version = '1.1.2'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -164,7 +164,8 @@ class SpecObj(datamodel.DataContainer):
                  'NAME': dict(otype=str, descr='Name of the object following the naming model'),
                  'RA': dict(otype=float, descr='Right Ascension (J2000) decimal degree'),
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
-                 'MASK_SLITID': dict(otype=(int, np.integer), descr='Slitmask slit ID'),
+                 'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
+                 'MASKOBJ_NAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '
