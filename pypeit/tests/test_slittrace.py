@@ -80,7 +80,9 @@ def test_io():
 def test_io_single():
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
                          'MultiSlit',
-                         nspat=10, PYP_SPEC='dummy')
+                         nspat=10, PYP_SPEC='dummy',
+                         maskdef_file='/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57006.fits.gz'
+                         )
 
     # Remove any existing file from previous runs that were interrupted
     tst_file = data_path('tst_slittrace.fits')
