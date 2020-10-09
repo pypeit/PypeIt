@@ -40,20 +40,31 @@ def parse_args(options=None, return_parser=False):
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def coadd_cube(files, det=1, overwrite=False):
+def coadd_cube(files, parset, overwrite=False):
     """ Main routine to coadd spec2D files
 
     Args:
         files (list):
             List of all spec2D files
-        det (int):
-            detector
         overwrite (bool):
             Overwrite the output file, if it exists?
     """
-    outfile = "datacube.fits"
+    # Get the detector number
+    det = 1 if parset is None else parset['rdx']['detnum']
+
+    # Load the spectrograph
+    spec2DObj = spec2dobj.Spec2DObj.from_file(files[0], det)
+    specname = spec2DObj.head0['SPECTROG']
+    spec = load_spectrograph(specname)
+
+    # Grab the parset, if not provided
+    if parset is None: parset = spec.default_pypeit_par()
+
+    # Check the output file
+    outfile = parset['reduce']['cube']['output_filename']
     if os.path.exists(outfile) and not overwrite:
         msgs.error("Output filename already exists:"+msgs.newline()+outfile)
+
     # prep
     numfiles = len(files)
     combine = True if numfiles > 1 else False
@@ -68,10 +79,6 @@ def coadd_cube(files, det=1, overwrite=False):
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
-
-        # Load the spectrograph
-        specname = spec2DObj.head0['SPECTROG']
-        spec = load_spectrograph(specname)
         detector = spec2DObj.detector
 
         # Setup for PypeIt imports
@@ -260,10 +267,20 @@ def coadd_cube(files, det=1, overwrite=False):
 
 
 def main(args):
-    if args.file is not None:
-        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
-    else:
+    if args.file is None:
         msgs.error('You must input a coadd3d file')
+    else:
+        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
+        spectrograph = load_spectrograph(spectrograph_name)
+
+        # Parameters
+        spectrograph_def_par = spectrograph.default_pypeit_par()
+        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                              merge_with=config_lines)
+        # If detector was passed as an argument override whatever was in the coadd3d file
+        if args.det is not None:
+            msgs.info("Restricting to detector={}".format(args.det))
+            parset['rdx']['detnum'] = int(args.det)
 
     # Coadd the files
-    coadd_cube(spec2d_files, det=args.det, overwrite=args.overwrite)
+    coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
