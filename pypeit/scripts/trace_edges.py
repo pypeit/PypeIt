@@ -7,12 +7,12 @@
 Trace slit edges for a set of images.
 """
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     import argparse
     from pypeit import defs
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Require either a pypeit file or a fits file 
     inp = parser.add_mutually_exclusive_group(required=True)
@@ -43,6 +43,9 @@ def parser(options=None):
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
     parser.add_argument('--show', default=False, action='store_true',
                         help='Show the stages of trace refinements (only for the new code).')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

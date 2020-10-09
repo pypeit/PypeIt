@@ -14,7 +14,7 @@ from astropy import units
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import numpy as np
-import copy
+import copy, os
 
 from pypeit import msgs, par, io, spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
@@ -24,9 +24,9 @@ from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
-    parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it into a datacube',
+    parser = argparse.ArgumentParser(description='Read in an array of spec2D files and convert them into a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
@@ -34,18 +34,10 @@ def parser(options=None):
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
-
-
-def main(args):
-    spec2d_files = []
-    if args.file is not None:
-        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
-    else:
-        msgs.error('You must input a coadd3d file')
-
-    # Coadd the files
-    coadd_cube(spec2d_files, det=args.det, overwrite=args.overwrite)
 
 
 def coadd_cube(files, det=1, overwrite=False):
@@ -59,6 +51,9 @@ def coadd_cube(files, det=1, overwrite=False):
         overwrite (bool):
             Overwrite the output file, if it exists?
     """
+    outfile = "datacube.fits"
+    if os.path.exists(outfile) and not overwrite:
+        msgs.error("Output filename already exists:"+msgs.newline()+outfile)
     # prep
     numfiles = len(files)
     combine = True if numfiles > 1 else False
@@ -176,20 +171,20 @@ def coadd_cube(files, det=1, overwrite=False):
     # Register spatial offsets between all frames if several frames are being combined
     if combine:
         # Generate white light images
-        whitelight_Imgs, _ = dc_utils.generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                                                     dspat, numfiles=numfiles)
+        whitelight_imgs, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                                                      dspat, numfiles=numfiles)
 
         # ref_idx will be the index of the cube with the highest S/N
         ref_idx = np.argmax(weights)
         msgs.info("Calculating the relative spatial translation of each cube (reference cube = {0:d})".format(ref_idx+1))
         # Calculate the image offsets - check the reference is a zero shift
-        ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
+        ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_imgs[:, :, ref_idx], whitelight_imgs[:, :, ref_idx])
         for ff in range(numfiles):
             # Don't correlate the reference image with itself
             if ff == ref_idx:
                 continue
             # Calculate the shift
-            ra_shift, dec_shift = calculate_image_offset(whitelight_Imgs[:, :, ff], whitelight_Imgs[:, :, ref_idx])
+            ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], whitelight_imgs[:, :, ref_idx])
             # Convert to reference
             ra_shift -= ra_shift_ref
             dec_shift -= dec_shift_ref
@@ -202,8 +197,8 @@ def coadd_cube(files, det=1, overwrite=False):
             all_dec[all_idx == ff] += dec_shift
 
         # Calculate the relative spectral weights of all pixels
-        all_wghts = dc_utils.calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                                                        all_idx, dspat, dwv, numfiles=numfiles)
+        all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
+                                             all_idx, dspat, dwv, numfiles=numfiles)
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
@@ -219,15 +214,12 @@ def coadd_cube(files, det=1, overwrite=False):
         ybins = np.arange(1+numdec)-0.5
         spec_bins = np.arange(1+numwav)-0.5
     else:
-        # TODO :: This is KCWI specific - probably should put this in the spectrograph file, or just delete it.
-        msgs.warn("This routine is Keck/KCWI specific")
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-        xbins = np.arange(1 + 24) - 12.0 - 0.5
-        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
-        spec_bins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
+        numwav = int((np.max(waveimg) - wave0) / dwv)
+        xbins, ybins, spec_bins = spec.get_datacube_bins(slitlength, minmax, numwav)
 
     # Make the cube
-    msgs.info("Generating datacube")
+    msgs.info("Generating pixel coordinates")
     if combine:
         pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
         hdr = masterwcs.to_header()
@@ -236,31 +228,42 @@ def coadd_cube(files, det=1, overwrite=False):
         hdr = wcs.to_header()
 
     # Find the NGP coordinates for all input pixels
+    msgs.info("Generating data cube")
     bins = (xbins, ybins, spec_bins)
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    normCube = (norm > 0) / (norm + (norm == 0))
-    datacube *= normCube
+    norm_cube = (norm > 0) / (norm + (norm == 0))
+    datacube *= norm_cube
     # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
     all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
-    varCube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
-    varCube *= normCube**2
+    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube *= norm_cube**2
 
     # Save the datacube
     debug = False
     if debug:
         datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*np.sqrt(all_ivar))
         norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins))
-        normCube = (norm > 0) / (norm + (norm == 0))
+        norm_cube = (norm > 0) / (norm + (norm == 0))
         outfile = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile))
-        hdu = fits.PrimaryHDU((datacube_resid*normCube).T, header=masterwcs.to_header())
+        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=masterwcs.to_header())
         hdu.writeto(outfile, overwrite=overwrite)
 
-    outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
     sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
-    var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
+    var_hdu = fits.ImageHDU(var_cube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
+
+
+def main(args):
+    if args.file is not None:
+        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
+    else:
+        msgs.error('You must input a coadd3d file')
+
+    # Coadd the files
+    coadd_cube(spec2d_files, det=args.det, overwrite=args.overwrite)

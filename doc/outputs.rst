@@ -28,6 +28,7 @@ Contents
    master_flat
    out_spec1D
    out_spec2D
+   out_masks
 
 .. _standard-products:
 

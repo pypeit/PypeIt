@@ -1,3 +1,6 @@
+
+.. include:: include/links.rst
+
 =============
 Spec1D Output 
 =============
@@ -73,25 +76,10 @@ pypeit_show_1dspec
 The spectra may be viewed with the `pypeit_show_1dspec`_ script
 which loads the data and launches a GUI from the *linetools* package.
 
-Here is the usage (use *pypeit_show_1dspec -h* to see the most current)::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--obj OBJ]
-                          [--extract EXTRACT] [--flux]
-                          file
-
-    Parse
-
-    positional arguments:
-      file               Spectral file
-
-    optional arguments:
-      -h, --help         show this help message and exit
-      --list             List the extensions only?
-      --exten EXTEN      FITS extension
-      --obj OBJ          Object name in lieu of extension, e.g.
-                         SPAT0424-SILT0000-DET01
-      --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT']
-      --flux             Show fluxed spectrum?
+.. include:: help/pypeit_show_1dspec.rst
 
 Here is a typical call::
 
@@ -150,18 +138,16 @@ Show the fluxed spectrum (only if it has been fluxed!)
 Current Data Model
 ==================
 
-Internally, the spectrum for a single object is held in
-:class:`pypeit.specobj.SpecObj`.  Here is its datamodel,
-which is written as a BinTblHDU n the FITS file with this `Naming`_.
-In addition, one :class:`pypeit.images.detector_container.DetectorContainer`
-is written to an HDU (e.g. DET01-DETECTOR) for each detector
-with at least one spectrum extracted.
+Internally, the spectrum for a single object is held by the
+:class:`~pypeit.specobj.SpecObj` class. Here is its datamodel, which
+is written as an `astropy.io.fits.BinTableHDU`_ in the `spec1d*` fits
+file with this `Naming`_. In addition, one
+:class:`~pypeit.images.detector_container.DetectorContainer` is
+written to a fits extension --- named, e.g., ``DET01-DETECTOR`` ---
+for each detector with at least one spectrum extracted.
 
-The :class:`pypeit.specobj.SpecObj` objects are held
-interally by a
-:class:`pypeit.specobjs.SpecObjs` object.
-
-
+Multiple :class:`~pypeit.specobj.SpecObj` objects are held interally
+by a :class:`~pypeit.specobjs.SpecObjs` object.
 
 .. include:: include/datamodel_specobj.rst
 

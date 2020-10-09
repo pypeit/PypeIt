@@ -7,6 +7,8 @@ import os
 import numpy as np
 import warnings
 
+from pkg_resources import resource_filename
+
 from scipy import interpolate
 
 from astropy.io import fits
@@ -178,16 +180,19 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 2]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
-        par['scienceframe']['exprng'] = [30, None]
+#        par['calibrations']['biasframe']['exprng'] = [None, 2]
+#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+#        par['calibrations']['traceframe']['exprng'] = [None, 30]
+#        par['scienceframe']['exprng'] = [30, None]
         
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+
+        # If telluric is triggered
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
@@ -319,16 +324,23 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            #return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
-            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
+            return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['lampstat01'] == 'Off') \
+                        & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
-            return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Bias') & (fitstbl['lampstat01'] == 'Off') \
+                        & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & (fitstbl['idname'] == 'IntFlat') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pinhole', 'dark']:
-            # Don't type pinhole or dark frames
+            is_flat = np.any(np.vstack(((fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
+                                    for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
+                                                   ['closed', 'open', 'open']))), axis=0)
+            return good_exp & is_flat
+        if ftype == 'pinhole':
+            # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'dark':
+            return good_exp & (fitstbl['idname'] == 'Dark') & (fitstbl['lampstat01'] == 'Off') \
+                        & (fitstbl['hatch'] == 'closed')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
 

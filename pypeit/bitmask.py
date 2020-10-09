@@ -3,21 +3,15 @@
 """
 Base class for handling bit masks.
 
-*License*:
-    Copyright (c) 2015, SDSS-IV/MaNGA Pipeline Group
-        Licensed under BSD 3-clause license - see LICENSE.rst
+Class usage examples
+--------------------
 
-*Class usage examples*:
-    TODO
+.. include:: ../include/bitmask_usage.rst
 
-*Revision history*:
-    | **01 Jun 2015**: Original implementation by K. Westfall (KBW)
-    | **06 Sep 2018**: (KBW) Added to PypeIt repo, removed
-        functionality of instantiating a bitmask from a file, code
-        update, and slight doc changes.
+----
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 """
 from IPython import embed
@@ -32,7 +26,7 @@ class BitMask:
     ignored.  The index in the input keys determines the bit value;
     'NULL' keys are included in the count.  For example::
 
-        >>> from mangadap.util.bitmask import BitMask
+        >>> from pypeit.bitmask import BitMask
         >>> keys = [ 'key1', 'key2', 'NULL', 'NULL', 'key3' ]
         >>> bm = BitMask(keys)
         >>> bm.info()
@@ -317,12 +311,12 @@ class BitMask:
 
         out = value ^ (1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out ^= (1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def turn_on(self, value, flag):
         """
@@ -351,12 +345,12 @@ class BitMask:
 
         out = value | (1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out |= (1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def turn_off(self, value, flag):
         """
@@ -384,12 +378,12 @@ class BitMask:
 
         out = value & ~(1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out &= ~(1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def consolidate(self, value, flag_set, consolidated_flag):
         """

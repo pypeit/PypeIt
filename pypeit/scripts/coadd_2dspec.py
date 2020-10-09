@@ -24,8 +24,10 @@ from pypeit import spec2dobj
 from IPython import embed
 
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse')
+def parse_args(options=None, return_parser=False):
+
+    parser = argparse.ArgumentParser(description='Coadd 2D spectra',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
     parser.add_argument('--det', default=None, type=int, help="Only coadd this detector number")
     parser.add_argument("--obj", type=str, default=None,
@@ -51,6 +53,8 @@ def parser(options=None):
     #parser.add_argument("--std", default=False, action="store_true",
     #                    help="This is a standard star reduction.")
 
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

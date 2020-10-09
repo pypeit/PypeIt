@@ -2,7 +2,17 @@
 1.1.2dev
 --------
 
-
+- Frame-typing tweaks for DEIMOS
+    - Exposure-time ranges removed
+    - All frame types now key off OBSTYPE
+- Added more detail on citation policy to main page on readthedocs
+- Added docs for BitMasks
+- Altered scripts interface to allow for dynamically making the help
+  doc files
+- full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
+- optimal weights in datacube generation
+- Docs for skysub, extraction, flat fielding
+- New skysub options for masking and suppressing local
 
 1.1.1 (10 Sep 2020)
 -------------------

@@ -4,7 +4,8 @@
 Provides a set of I/O routines.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import sys

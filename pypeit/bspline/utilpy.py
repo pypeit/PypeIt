@@ -5,7 +5,8 @@
 Implements pure python support methods for
 :class:`pypeit.bspline.bspline.bspline`.
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import warnings
 
