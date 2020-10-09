@@ -19,6 +19,7 @@ gemini_gmos_north_e2v   Gemini      :doc:`gemini_gmos`-N spectrometer; E2V detec
 gemini_gmos_south_ham   Gemini      :doc:`gemini_gmos`-S spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
 gemini_flamingos        Gemini      Gemini FLAMINGOS spectrometer
+keck_deimos             Keck        :doc:`deimos` spectrometer (600ZD, 830G, 1200G)
 keck_kcwi               Keck        :doc:`keck_kcwi` slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
@@ -26,7 +27,6 @@ keck_lris_red_orig      Keck        :doc:`lris` spectrometer; red camera + origi
 keck_mosfire            Keck        MOSFIRE spectrometer; J and Y gratings tested
 keck_nires              Keck        NIRES spectrometer
 keck_nirspec_low        Keck        NIRSPEC spectrometer; low-dispersion
-keck_deimos             Keck        :doc:`deimos` spectrometer (600ZD, 830G, 1200G)
 lbt_luci1               LBT         LUCI-I spectrometer
 lbt_luci2               LBT         LUCI-II spectrometer
 lbt_mods1r              LBT         MODS-I red spectrometer
