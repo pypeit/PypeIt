@@ -60,35 +60,33 @@ def keck_deimos_1200G(overwrite=False):
     # det_cut['wcuts'] = [[0,9000.], [8200,1e9]]  # Significant overlap is fine
     #
     templates.build_template(files, slits, lcut, binspec, outroot, lowredux=False,
-                   ifiles=ifiles, det_cut=det_cut, chk=True, subtract_conti=True)
+                   ifiles=ifiles, det_cut=det_cut, chk=True, subtract_conti=True,
+                             overwrite=overwrite)
 
 
-def keck_deimos_1200B():
+def keck_deimos_1200B(overwrite=False):
     binspec = 1
     outroot = 'keck_deimos_1200B.fits'
-    # file1 = blue  4063 - 5382.8
-    # file2 = blue  ??   - 5425.
-    # file3 = red   5394.4 - 6709.2
-    ifiles = [0, 1]  # , 2]
-    slits = [0, 0]  # , 0]  # Not used
-    # wv_cuts = [5100., 5400]
-    wv_cuts = [5400]
-    # Outputs from IRAF by Carlos
-    # wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200.dat')
-    wfile2 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200B',
-                          'deimos_calibrated_arc_bluechip_1200B_tilt5200_slit2.dat')
-    wfile3 = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_redchip_1200B_tilt5200.dat')
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200B')
+    basefiles = ['MasterWaveCalib_A_1_02_useS0106.fits', 'MasterWaveCalib_A_1_02_useS0291.fits',
+                 'MasterWaveCalib_A_1_06_useS0106.fits', 'MasterWaveCalib_A_1_06_useS0287.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [1, 0, 1, 0, 3, 2]
+    slits = [291, 106, 291, 106, 287, 106]
+    wv_cuts = [4493., 4870., 5100., 5260., 5810.]
+    assert len(wv_cuts) == len(slits)-1
     # det_dict
     det_cut = None
     #
-    templates.build_template([wfile2, wfile3], slits, wv_cuts, binspec, outroot,
-                   ascii_tbl=True, ifiles=ifiles, det_cut=det_cut,
-                   chk=True, normalize=True, lowredux=False, in_vac=False,
-                   subtract_conti=True)
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                   ifiles=ifiles, det_cut=det_cut, chk=True, normalize=False, lowredux=False,
+                   subtract_conti=True, overwrite=overwrite, shift_wave=True)
 
 if __name__ == '__main__':
     #keck_deimos_600ZD()
     #keck_deimos_830G(overwrite=False) # False for Testing; True for real
-    keck_deimos_1200G(overwrite=True)
+    keck_deimos_1200G(overwrite=False)
     #keck_deimos_1200B()
     pass

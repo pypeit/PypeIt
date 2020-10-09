@@ -8,6 +8,8 @@ from matplotlib import pyplot as plt
 
 from pkg_resources import resource_filename
 from scipy.io import readsav
+from scipy.interpolate import interp1d
+
 
 from astropy.table import Table
 from astropy import units
@@ -44,7 +46,8 @@ outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
-                   miny=None, overwrite=True, ascii_tbl=False, in_vac=True):
+                   miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
+                   shift_wave=False):
     """
     Generate a full_template for a given instrument
 
@@ -83,6 +86,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Table is a simple ASCII 2 column wave,flux table
         in_vac (bool, optional):
             True if input wavelengths are in vacuum
+        shift_wave (bool, optional):
+            Shift wavelengths when splicing to sync up precisely (Recommended)
+            Requires v>=1.0.0 WaveCalib files
     """
     if outdir is None:
         outdir = outpath
@@ -105,22 +111,36 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             elif ascii_tbl:
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
-                wv_vac, spec = pypeit_arcspec(in_file, slit)
+                wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit)
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
         if len(slits) > 1:
-            if kk == 0:
-                llow = 0.
-                lhi = wv_cuts[0]
-            elif kk == len(slits)-1:
-                llow = wv_cuts[kk-1]
-                lhi = 1e9
-            else:
-                llow = wv_cuts[kk-1]
-                lhi = wv_cuts[kk]
-            #
-            gdi = (wv_vac > llow) & (wv_vac < lhi)
+            wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))
+            # Default
+            gdi = (wv_vac > wvmin) & (wv_vac < wvmax)
+            if shift_wave:
+                if len(lvals) > 0:
+                    # Find pixel closet to end
+                    ipix = np.argmin(np.abs(lvals[-1][-1] - wv_vac))
+                    # Difference between the two spectra at this pixel
+                    dwv_specs = wv_vac[ipix] - lvals[-1][-1]
+                    # Delta wv per pix
+                    dwv_snipp = wv_vac - np.roll(wv_vac, 1)
+                    dwv_snipp[0] = dwv_snipp[1]
+                    # Delta pix -- approximate but should be pretty good
+                    dpix = dwv_specs / dwv_snipp[ipix]
+                    # Calculate new wavelengths
+                    npix = spec.size
+                    new_wave = pypeitFit.eval((-dpix + np.arange(npix)) / (npix - 1))
+                    # Range
+                    iend = np.argmin(np.abs(new_wave - wvmax))
+                    # Interpolate
+                    f = interp1d(wv_vac, spec)
+                    spec = f(new_wave[ipix + 1:iend])
+                    wv_vac = new_wave[ipix+1:iend]
+                    # Over-write gdi
+                    gdi = np.ones_like(wv_vac, dtype=bool)
         else:
             gdi = np.arange(spec.size).astype(int)
         # Append
@@ -151,10 +171,37 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         plt.clf()
         ax = plt.gca()
         ax.plot(nwwv, nwspec)
+        # DEBUGGING
+        #wave, flux, bin = waveio.load_template('keck_deimos_1200B.fits', 1)
+        #ax.plot(wave, flux)
         plt.show()
-        embed(header='152')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
+
+def grab_wvlim(kk, wv_cuts, nslits):
+    """
+    Set the wavelength range to cut on
+
+    Args:
+        kk (int):
+        wv_cuts (list):
+        nslits (int):
+
+    Returns:
+        tuple: wv_min, wv_max (float, float)
+
+    """
+    if kk == 0:
+        llow = 0.
+        lhi = wv_cuts[0]
+    elif kk == nslits - 1:
+        llow = wv_cuts[kk - 1]
+        lhi = 1e9
+    else:
+        llow = wv_cuts[kk - 1]
+        lhi = wv_cuts[kk]
+    #
+    return llow, lhi
 
 
 def pypeit_arcspec(in_file, slit):
@@ -167,7 +214,7 @@ def pypeit_arcspec(in_file, slit):
             slit index
 
     Returns:
-        np.ndarray, np.ndarray:  wave, flux
+        tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
 
     """
     if 'json' in in_file:
@@ -188,11 +235,12 @@ def pypeit_arcspec(in_file, slit):
         #
         npix = flux.size
         wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(np.arange(npix) / (npix - 1))
+        pypeitFitting = wvcalib.wv_fits[idx].pypeitfit
     else:
         raise IOError("Bad in_file {}".format(in_file))
 
     # Return
-    return wv_vac, flux
+    return wv_vac, flux, pypeitFitting
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -874,11 +922,6 @@ if __name__ == '__main__':
     #flg += 2**5  # Kastb 600/4310
     #flg += 2**6  # Kastb 830/3460 -- Not yet tested
 
-    # Keck/DEIMOS
-    #flg += 2**7  # 600
-    #flg += 2**8  # 830G
-    #flg += 2**9  # 1200G
-
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
@@ -939,10 +982,6 @@ if __name__ == '__main__':
 
     # P200 Triplespec
     #flg += 2**34
-
-    # Keck/DEIMOS
-    flg += 2**35  # 1200B
-    flg += 2**36  # 1200G, blue
 
     main(flg)
 
