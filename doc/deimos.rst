@@ -36,7 +36,16 @@ Edge Tracing
 ------------
 
 It has been reported that the default `edge_thresh` of 50
-for DEIMOS is too high for some setups.
+for DEIMOS is too high for some setups.  If some of your
+'fainter' slits on the blue side of the spectrum are missing,
+try::
+
+    [calibrations]
+      [[slitedges]]
+         edge_thresh = 10
+
+It is possible, however, that our new implementation of using
+the slitmask design file has alleviated this issue.
 
 Flat Fielding
 -------------
