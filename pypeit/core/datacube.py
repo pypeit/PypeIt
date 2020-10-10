@@ -320,22 +320,16 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
     # Obtain a wavelength of each pixel
     wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
     wave_spec = wcs_res[:, 2] * 1.0E10
-    # Identify the reference spectrum (the one with the highest typical S/N ratio)
-    medsnr = np.median(flux_stack*np.sqrt(ivar_stack), axis=0)
-    ref_spec = np.argmax(medsnr)
     # Compute the smoothing scale to use
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
     rms_sn, weights = coadd.sn_weights(wave_spec, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
-                                       relative_weights=True, ref_spec=ref_spec)
+                                       relative_weights=True)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = np.ones(all_idx.size)
     for ff in range(numfiles):
         ww = (all_idx == ff)
-        if ff == ref_spec:
-            all_wghts[ww] = 1
-            continue
         all_wghts[ww] = interp1d(wave_spec, weights[:, ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
 
