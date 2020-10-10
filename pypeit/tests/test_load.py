@@ -12,7 +12,7 @@ def data_path(filename):
 
 
 # IF THIS TEST IS FAILING BECAUSE THE SPEC1D DATAMODEL UPDATED,
-#   RUN source copy_spec1d.src in files/
+#   RUN python copy_spec1d.py in files/
 #   *After* you have run the Dev Suite tests
 def test_load_specobjs():
     spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
