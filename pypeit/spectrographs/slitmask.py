@@ -239,7 +239,9 @@ class SlitMask:
         self.pa[self.pa > 90] -= 180
 
     def assign_maskinfo(self, slits, sobjs, plate_scale, TOLER=1.):
-        # TODO -- Check that sobjs matches detector of slits
+
+        # Restrict to objects on this detector
+        on_det = sobjs.DET == slits.det
 
         # Unpack -- Remove this once we have a DataModel
         obj_maskdef_id = self.objects[:, 0].astype(int)
@@ -266,7 +268,7 @@ class SlitMask:
 
         # First pass
         measured, expected = [], []
-        for sobj in sobjs:
+        for sobj in sobjs[on_det]:
             # Set MASKDEF_ID
             sobj.MASKDEF_ID = slits.maskdef_id[slits.spat_id == sobj.SLITID][0]
             # object ID
@@ -294,9 +296,8 @@ class SlitMask:
         else:
             median_off = 0.
 
-        # TODO -- Add Object Name
         # Assign
-        for ss, sobj in enumerate(sobjs):
+        for ss, sobj in enumerate(sobjs[on_det]):
             # object ID
             oidx = numpy.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
             if numpy.abs(expected[ss]-measured[ss] - median_off) < TOLER:
@@ -315,6 +316,7 @@ class SlitMask:
                 # Assign
                 sobj.RA = new_obj_coord.ra.value
                 sobj.DEC = new_obj_coord.dec.value
+                sobj.MASKOBJ_NAME = 'SERENDIP'
 
         # Return
         return

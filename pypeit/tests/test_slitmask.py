@@ -38,7 +38,6 @@ def test_assign_maskinfo():
                                  '830G_M_8500', 'Science',
                                  'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
     sobjs = specobjs.SpecObjs.from_fitsfile(specobjs_file)
-    sobjs = sobjs[sobjs.DET == det]
     # Init at null
     for sobj in sobjs:
         sobj.MASKOBJ_NAME = None
