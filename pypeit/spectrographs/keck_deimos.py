@@ -637,6 +637,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
                                strict=True)
 
+        # Mask PA
+        posx_maskpa = hdu['MaskDesign'].data['PA_PNT']
+        if posx_maskpa < 0.:
+            posx_maskpa += 360.
+
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
                                            hdu['BluSlits'].data['slitY1'],
@@ -654,7 +659,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                                  hdu['DesiSlits'].data['slitLen'][indx],
                                                  hdu['DesiSlits'].data['slitWid'][indx],
                                                  hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects)
+                                 objects=objects,
+                                 posx_maskpa=posx_maskpa)
         return self.slitmask
 
     def get_grating(self, filename):
@@ -789,7 +795,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         #TODO: Figure out which amap and bmap to use for slider 2
 
         return self.amap, self.bmap
-
 
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,

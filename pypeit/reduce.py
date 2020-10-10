@@ -393,6 +393,11 @@ class Reduce(object):
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
 
+            # Add mask definition information (if available)
+            if self.slits.maskdef_id is not None and self.slitmask is not None:
+                self.spectrograph.slitmask.assign_maskinfo(
+                    self.slits, self.sobjs_obj, self.get_platescale(None))
+
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -1021,12 +1026,6 @@ class MultiSlitReduce(Reduce):
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
-
-            # Add info from slitmask
-            #if len(sobjs_slit) > 0 and self.slits.maskdef_id is not None:
-            #    maskdef_id = self.slits.maskdef_ids[slit_idx]
-            #    for sobj in sobjs_slit:
-            #        sobj.MASKDEF_ID = maskdef_id
 
             sobjs.add_sobj(sobjs_slit)
 

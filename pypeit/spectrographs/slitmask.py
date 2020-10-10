@@ -9,10 +9,14 @@ import warnings
 import numpy
 from scipy import optimize, fftpack, signal
 from matplotlib import pyplot
+
 from astropy.stats import sigma_clip, sigma_clipped_stats
+from astropy.coordinates import SkyCoord
 
 from pypeit.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
+
+from IPython import embed
 
 class SlitMaskBitMask(BitMask):
     """
@@ -126,6 +130,10 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
+        posx_maskpa (:ob:`float`):
+            Sky PA that points to positive x (spatial) on the detector
+        negx_maskpa (:ob:`float`):
+            Sky PA that points to negative x (spatial) on the detector
 
     Raises:
         ValueError:
@@ -134,7 +142,16 @@ class SlitMask:
             slits provided.
     """
     bitmask = SlitMaskBitMask()
-    def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None):
+    def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None,
+                 posx_maskpa=None):
+
+        self.posx_maskpa = posx_maskpa
+        if self.posx_maskpa is not None:
+            if self.posx_maskpa > 180.:
+                self.negx_maskpa = self.posx_maskpa - 180.
+            else:
+                self.negx_maskpa = self.posx_maskpa + 180.
+
 
         # TODO: Allow random input order and then fix
 
@@ -218,6 +235,76 @@ class SlitMask:
         self.pa[self.pa < -90] += 180
         self.pa[self.pa > 90] -= 180
 
+    def assign_maskinfo(self, slits, sobjs, plate_scale, TOLER=1.):
+        # TODO -- Check that sobjs matches detector of slits
+
+        # Unpack -- Remove this once we have a DataModel
+        obj_maskdef_id = self.objects[:, 0].astype(int)
+        objids = self.objects[:, 1].astype(int)
+        obj_coords = SkyCoord(ra=self.objects[:, 2], dec=self.objects[:, 3], unit='deg')
+        slit_coords = SkyCoord(ra=self.onsky[:, 0], dec=self.onsky[:, 1], unit='deg')
+
+        # Slit coordinates for each object
+        obj_slit_coords = []
+        for obj_mid in obj_maskdef_id:
+            # Get the slit index
+            idx = numpy.where(self.slitid == obj_mid)[0]
+            if len(idx) != 1:
+                import pdb;
+                pdb.set_trace()
+            idx = idx[0]
+            # Fill
+            obj_slit_coords.append(slit_coords[idx])
+        #
+        obj_slit_coords = SkyCoord(obj_slit_coords)
+
+        # Offsets, PA:  Slit to object
+        slit_to_obj_sep = obj_slit_coords.separation(obj_coords)
+        slit_to_obj_pa = obj_slit_coords.position_angle(obj_coords)
+
+        # First pass
+        measured, expected = [], []
+        for sobj in sobjs:
+            # Set MASKDEF_ID
+            sobj.MASKDEF_ID = slits.maskdef_id[slits.spat_id == sobj.SLITID][0]
+            # object ID
+            # TODO -- Add to SpecObj DataModel?
+            # Expected offset
+            oidx = numpy.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
+            expected_offset = slit_to_obj_sep[oidx].to('arcsec').value
+            # Actual offset
+            dpix = sobj.SPAT_PIXPOS - sobj.SLITID
+            darcsec = dpix * plate_scale
+            # Direction -- Allows for 180deg rotation
+            true_pa = slit_to_obj_pa[oidx].to('deg').value
+            imin = numpy.argmin(numpy.abs(true_pa - numpy.array([self.posx_maskpa, self.negx_maskpa])))
+            sign = -1 if imin == 1 else 1
+            expected_offset *= sign
+            # Finish
+            measured.append(darcsec)
+            expected.append(expected_offset)
+        measured = numpy.array(measured)
+        expected = numpy.array(expected)
+
+        # Stats
+        mean, median_off, std = sigma_clipped_stats(expected - measured, sigma=2.)
+
+        # TODO -- Add Object Name
+        # Assign
+        for ss, sobj in enumerate(sobjs):
+            # object ID
+            oidx = numpy.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
+            if numpy.abs(expected[ss]-measured[ss] - median_off) < TOLER:
+                sobj.RA = self.objects[:,2][oidx]
+                sobj.DEC = self.objects[:,3][oidx]
+            else:
+                # TODO -- Assign RA, DEC based on slit PA + plate-scalehh
+                pass
+
+        # Return
+        return
+
+
     def __repr__(self):
         return '<{0}: nslits={1}>'.format(self.__class__.__name__, self.nslits)
 
@@ -243,11 +330,6 @@ class SlitMask:
     def is_science(self, i):
         """Check if specific slit should have a science target."""
         return self.bitmask.flagged(self.mask[i], 'SCIENCE')
-
-    def assign_maskinfo(self, sobjs):
-        # The following assumes the DEIMOS info
-        #   We should turn this into a DataContainer and make things a bit more rigid
-        pass
 
 
 class SlitRegister:
