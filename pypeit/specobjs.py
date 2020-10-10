@@ -529,8 +529,8 @@ class SpecObjs:
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
-            outfile (str):
             subheader (:obj:`dict`):
+            outfile (str):
             overwrite (bool, optional):
             slitspatnum (:obj:`str` or :obj:`list`, optional):
                 Restricted set of slits for reduction

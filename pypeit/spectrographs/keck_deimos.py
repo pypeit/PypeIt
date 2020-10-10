@@ -232,6 +232,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Turn on the use of mask design
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
+            # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
 
         # Templates
@@ -637,10 +638,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
                                strict=True)
 
-        # Mask PA
-        posx_maskpa = hdu['MaskDesign'].data['PA_PNT']
-        if posx_maskpa < 0.:
-            posx_maskpa += 360.
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = hdu['MaskDesign'].data['PA_PNT']
+        if posx_pa < 0.:
+            posx_pa += 360.
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
@@ -660,7 +661,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                                  hdu['DesiSlits'].data['slitWid'][indx],
                                                  hdu['DesiSlits'].data['slitLPA'][indx]]).T,
                                  objects=objects,
-                                 posx_maskpa=posx_maskpa)
+                                 object_names=hdu['ObjectCat'].data['OBJECT'],
+                                 posx_pa=posx_pa)
         return self.slitmask
 
     def get_grating(self, filename):

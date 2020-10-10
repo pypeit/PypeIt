@@ -12,6 +12,7 @@ from matplotlib import pyplot
 
 from astropy.stats import sigma_clip, sigma_clipped_stats
 from astropy.coordinates import SkyCoord
+from astropy import units
 
 from pypeit.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
@@ -130,10 +131,12 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
-        posx_maskpa (:ob:`float`):
+        posx_pa (:ob:`float`):
             Sky PA that points to positive x (spatial) on the detector
-        negx_maskpa (:ob:`float`):
+        negx_pa (:ob:`float`):
             Sky PA that points to negative x (spatial) on the detector
+        object_names (`numpy.ndarray`_): str
+            Object names
 
     Raises:
         ValueError:
@@ -143,15 +146,15 @@ class SlitMask:
     """
     bitmask = SlitMaskBitMask()
     def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None,
-                 posx_maskpa=None):
+                 posx_pa=None, object_names=None):
 
-        self.posx_maskpa = posx_maskpa
-        if self.posx_maskpa is not None:
-            if self.posx_maskpa > 180.:
-                self.negx_maskpa = self.posx_maskpa - 180.
-            else:
-                self.negx_maskpa = self.posx_maskpa + 180.
+        # PA
+        if posx_pa is not None:
+            self.posx_pa, self.negx_pa = fuss_with_maskpa(posx_pa)
+        else:
+            self.posx_pa, self.negx_pa = None, None
 
+        self.object_names=object_names
 
         # TODO: Allow random input order and then fix
 
@@ -240,7 +243,6 @@ class SlitMask:
 
         # Unpack -- Remove this once we have a DataModel
         obj_maskdef_id = self.objects[:, 0].astype(int)
-        objids = self.objects[:, 1].astype(int)
         obj_coords = SkyCoord(ra=self.objects[:, 2], dec=self.objects[:, 3], unit='deg')
         slit_coords = SkyCoord(ra=self.onsky[:, 0], dec=self.onsky[:, 1], unit='deg')
 
@@ -269,15 +271,15 @@ class SlitMask:
             sobj.MASKDEF_ID = slits.maskdef_id[slits.spat_id == sobj.SLITID][0]
             # object ID
             # TODO -- Add to SpecObj DataModel?
-            # Expected offset
+            # Expected offset (arcsec)
             oidx = numpy.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
             expected_offset = slit_to_obj_sep[oidx].to('arcsec').value
-            # Actual offset
+            # Actual offset (arcsec)
             dpix = sobj.SPAT_PIXPOS - sobj.SLITID
             darcsec = dpix * plate_scale
             # Direction -- Allows for 180deg rotation
             true_pa = slit_to_obj_pa[oidx].to('deg').value
-            imin = numpy.argmin(numpy.abs(true_pa - numpy.array([self.posx_maskpa, self.negx_maskpa])))
+            imin = numpy.argmin(numpy.abs(true_pa - numpy.array([self.posx_pa, self.negx_pa])))
             sign = -1 if imin == 1 else 1
             expected_offset *= sign
             # Finish
@@ -287,7 +289,10 @@ class SlitMask:
         expected = numpy.array(expected)
 
         # Stats
-        mean, median_off, std = sigma_clipped_stats(expected - measured, sigma=2.)
+        if len(expected) > 3:
+            mean, median_off, std = sigma_clipped_stats(expected - measured, sigma=2.)
+        else:
+            median_off = 0.
 
         # TODO -- Add Object Name
         # Assign
@@ -297,9 +302,19 @@ class SlitMask:
             if numpy.abs(expected[ss]-measured[ss] - median_off) < TOLER:
                 sobj.RA = self.objects[:,2][oidx]
                 sobj.DEC = self.objects[:,3][oidx]
+                sobj.MASKOBJ_NAME = self.object_names[oidx]
             else:
-                # TODO -- Assign RA, DEC based on slit PA + plate-scalehh
-                pass
+                # Slit PA
+                sidx = numpy.where(self.slitid == sobj.MASKDEF_ID)[0][0]
+                slit_pa = self.onsky[sidx, 4]
+                pos_pa, neg_pa = fuss_with_maskpa(slit_pa)
+                # Do it
+                obj_pa = pos_pa if measured[ss] > 0 else neg_pa
+                new_obj_coord = slit_coords[sidx].directional_offset_by(
+                    obj_pa, (measured[ss]+median_off)*units.arcsec)
+                # Assign
+                sobj.RA = new_obj_coord.ra.value
+                sobj.DEC = new_obj_coord.dec.value
 
         # Return
         return
@@ -972,4 +987,11 @@ def build_slit_function(edges, size=None, oversample=1, sigma=None):
     return offset, slit_func_x, slit_func_y
 
 
-
+def fuss_with_maskpa(pa):
+    # Require it be positive
+    if pa < 0.:
+        pa += 360.
+    # Now the complement -- also require it be positive
+    comp_pa = pa - 180. if pa > 180. else pa + 180.
+    # Return
+    return pa, comp_pa

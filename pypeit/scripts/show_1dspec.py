@@ -36,12 +36,20 @@ def main(args):
     from pypeit import msgs
 
     sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
+
     # List only?
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            name = sobjs[ii].NAME
-            print("EXT{:07d} = {}".format(ii+1, name))
+            line = ''
+            line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
+            if sobjs[ii].MASKOBJ_NAME is not None:
+                line += " {:0.4f} {:0.4f} {:s}".format(
+                    sobjs[ii].RA,
+                    sobjs[ii].DEC,
+                    sobjs[ii].MASKOBJ_NAME)
+            #
+            print(line)
         return
 
     if args.obj is not None:
