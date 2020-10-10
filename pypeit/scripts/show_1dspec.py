@@ -43,7 +43,7 @@ def main(args):
         for ii in range(len(sobjs)):
             line = ''
             line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
-            if sobjs[ii].MASKOBJ_NAME is not None:
+            if sobjs[ii].RA is not None:
                 line += " {:0.4f} {:0.4f} {:s}".format(
                     sobjs[ii].RA,
                     sobjs[ii].DEC,

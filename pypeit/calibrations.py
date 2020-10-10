@@ -646,7 +646,7 @@ class Calibrations(object):
             self.slits.user_mask(self.det, self.slitspat_num)
 
         # FOR TESTING -- REMOVE WHEN maskdef_file is written correctly to disk
-        if self.slits.maskdef_id is not None:
+        if self.slits.maskdef_id is not None and self.spectrograph.slitmask is None:
             self.slits.maskdef_file = os.path.join(os.getenv('PYPEIT_DEV'),
                                       'RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz')
 
