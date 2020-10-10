@@ -44,8 +44,8 @@ Application
 To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`pypeit_par:EdgeTracePar Keywords`
 must be *True*.  This is the default for DEIMOS, except when *LongMirr* mask is used.
 
-Other three :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment, and they are:
-**maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
+Three other :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment;
+these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
 
 
 Testing
