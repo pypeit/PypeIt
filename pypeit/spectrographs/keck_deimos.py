@@ -234,6 +234,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
+            par['reduce']['slitmask']['assign_obj'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':

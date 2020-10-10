@@ -647,11 +647,14 @@ class Calibrations(object):
 
         # FOR TESTING -- REMOVE WHEN maskdef_file is written correctly to disk
         if self.slits.maskdef_id is not None:
-            self.slits.maskdef_file = '/data/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz'
+            self.slits.maskdef_file = os.path.join(os.getenv('PYPEIT_DEV'),
+                                      'RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz')
 
         # Ingest slitmask definition?
         if self.slits.maskdef_file is not None and self.spectrograph.slitmask is None:
             self.spectrograph.get_slitmask(self.slits.maskdef_file)
+            # TODO -- REMOVE THIS WHEN WE FIX writing issue
+            self.slits.maskdef_file = None
 
         return self.slits
 

@@ -1501,7 +1501,7 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None):
+    def __init__(self, obj_toler=None, assign_obj=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1516,9 +1516,14 @@ class SlitMaskPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+
         defaults['obj_toler'] = 5.
         dtypes['obj_toler'] = float
         descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
+
+        defaults['assign_obj'] = False
+        dtypes['assign_obj'] = bool
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1531,7 +1536,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['obj_toler']
+        parkeys = ['obj_toler', 'assign_obj']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3206,6 +3211,8 @@ class ReducePar(ParSet):
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'cube'
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'slitmask'
+        kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 

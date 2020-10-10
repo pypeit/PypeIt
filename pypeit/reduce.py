@@ -75,7 +75,7 @@ class Reduce(object):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
-        sobjs (SpecObsj):
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
@@ -392,11 +392,6 @@ class Reduce(object):
                 self.global_sky = self.initial_sky.copy()
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
-
-            # Add mask definition information (if available)
-            if self.slits.maskdef_id is not None and self.slitmask is not None:
-                self.spectrograph.slitmask.assign_maskinfo(
-                    self.slits, self.sobjs_obj, self.get_platescale(None))
 
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
@@ -998,7 +993,6 @@ class MultiSlitReduce(Reduce):
             inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
             specobj_dict = {'SLITID': slit_spat,
-                            'OBJTYPE': self.objtype,
                             'DET': self.det, 'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
@@ -1028,6 +1022,11 @@ class MultiSlitReduce(Reduce):
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
+
+        # Assign here -- in case we make another pass to add in missing targets
+        if sobjs.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.spectrograph.slitmask is not None:
+            self.spectrograph.slitmask.assign_maskinfo(self.slits, sobjs, self.get_platescale(None),
+                                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

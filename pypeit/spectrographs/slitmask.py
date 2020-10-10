@@ -239,6 +239,17 @@ class SlitMask:
         self.pa[self.pa > 90] -= 180
 
     def assign_maskinfo(self, slits, sobjs, plate_scale, TOLER=1.):
+        """
+        Assign RA, DEC, Name to objects
+        Modified in place
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+            plate_scale (float):
+            TOLER (float, optional):
+                Matching tolerance in arcsec
+        """
 
         # Restrict to objects on this detector
         on_det = sobjs.DET == slits.det
