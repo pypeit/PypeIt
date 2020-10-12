@@ -409,6 +409,14 @@ class Spectrograph:
         """
         return None
 
+    def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
+                                  corners=False):
+        """
+        Returns an error message if `mask_to_pixel_coordinates` crashed because `use_maskdesign`
+        is set to True for a spectrograph that does not support it.
+        """
+        msgs.error('This spectrograph does not support the use of mask design. Set `use_maskdesign=False`')
+
     def configuration_keys(self):
         """
         Return the metadata keys that defines a unique instrument
