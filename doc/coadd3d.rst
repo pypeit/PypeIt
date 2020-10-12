@@ -43,12 +43,16 @@ coadd3d file
 
 The format of this file is very similar to a :doc:`pypeit_file`.
 In the following example for `keck_kcwi`, the coadd3d file will be
-saved as `BB1245p4238_coadd3d.cfg`::
+saved as `BB1245p4238.coadd3d`::
 
     # User-defined execution parameters
     [rdx]
       spectrograph = keck_kcwi
       detnum = 1
+    [reduce]
+      [[cube]]
+        output_filename = BB1245p4238_datacube.fits
+        save_whitelight = True
 
     # Read in the data
     spec2d read
@@ -67,7 +71,7 @@ run
 
 Then run the script::
 
-    pypeit_coadd_datacube BB1245p4238_coadd3d.cfg -o
+    pypeit_coadd_datacube BB1245p4238.coadd3d -o
 
 Current Coadd3D Data Model
 ==========================

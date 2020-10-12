@@ -1187,9 +1187,9 @@ class CubePar(ParSet):
         descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS (in arcsec).' \
                                  'If None, the default is set by the spectrograph file.'
 
-        defaults['spatial_wave'] = None
-        dtypes['spatial_wave'] = float
-        descr['spatial_wave'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
+        defaults['wave_delta'] = None
+        dtypes['wave_delta'] = float
+        descr['wave_delta'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
                                 'If None, the default is set by the wavelength solution.'
 
         # Instantiate the parameter set
