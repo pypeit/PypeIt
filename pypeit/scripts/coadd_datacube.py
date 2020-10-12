@@ -64,7 +64,7 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Check the output file
     outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename']+".fits"
-    out_whitelight = os.path.exists(outfile).replace(".fits", "_whitelight.fits")
+    out_whitelight = outfile.replace(".fits", "_whitelight.fits")
     if os.path.exists(outfile) and not overwrite:
         msgs.error("Output filename already exists:"+msgs.newline()+outfile)
     elif os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
@@ -237,6 +237,7 @@ def coadd_cube(files, parset, overwrite=False):
                                                             np.zeros(all_ra.size), dspat, numfiles=1)
             whitelight_img = whitelight_img[:, :, 0]
         # Prepare and save the fits file
+        msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img, header=spec2DObj.head0)
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
@@ -257,12 +258,12 @@ def coadd_cube(files, parset, overwrite=False):
         coord_min = [ra_min, dec_min, wav_min]
         coord_dlt = [dspat, dspat, dwv]
         masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt)
-        msgs.info("-"*40)
-        msgs.info("Parameters of the WCS:")
-        msgs.info(msgs.indent() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max))
-        msgs.info(msgs.indent() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max))
-        msgs.info(msgs.indent() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max))
-        msgs.info("-" * 40)
+        msgs.info(msgs.newline()+"-"*40 +
+                  msgs.newline() + "Parameters of the WCS:" +
+                  msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
+                  msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
+                  msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
+                  msgs.newline() + "-" * 40)
 
     # Generate the output binning
     if combine:
