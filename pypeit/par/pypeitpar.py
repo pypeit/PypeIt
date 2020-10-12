@@ -2438,8 +2438,9 @@ class EdgeTracePar(ParSet):
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
-                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
-                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
+                 maskdesign_sigrej=None, mask_reg_maxiter=None, mask_reg_maxsep=None,
+                 mask_reg_sigrej=None, ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2752,6 +2753,30 @@ class EdgeTracePar(ParSet):
                                 'fraction of the detector spatial scale. If None, no offset ' \
                                 'is applied.'
 
+        defaults['use_maskdesign'] = False
+        dtypes['use_maskdesign'] = bool
+        descr['use_maskdesign'] = 'Use slit-mask designs to identify slits.'
+
+        defaults['maskdesign_maxsep'] = 50
+        dtypes['maskdesign_maxsep'] = [int, float]
+        descr['maskdesign_maxsep'] = 'Maximum allowed offset in pixels between the slit edges ' \
+                                     'defined by the slit-mask design and the traced edges.'
+
+        defaults['maskdesign_step'] = 1
+        dtypes['maskdesign_step'] = [int, float]
+        descr['maskdesign_step'] = 'Step in pixels used to generate a list of possible offsets ' \
+                                   '(within +/- `maskdesign_maxsep`) between the slit edges defined ' \
+                                   'by the mask design and the traced edges.'
+
+        defaults['maskdesign_sigrej'] = 3
+        dtypes['maskdesign_sigrej'] = [int, float]
+        descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
+                                     'design matching.'
+
+
+
+        # TODO: [DP] I believe the following 3-4 parameters are from a previous attempt to do slit-mask
+        #  design matching, and that they could be deleted.
         # TODO: Make these mask registration parameters a separate
         # (nested) parameter set? Would making saving the paramters to
         # the master file header annoying ...
@@ -2847,6 +2872,7 @@ class EdgeTracePar(ParSet):
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
                    'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
+                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
                    'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
                    'pad', 'add_slits', 'rm_slits']
 

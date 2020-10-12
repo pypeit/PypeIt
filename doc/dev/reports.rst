@@ -12,4 +12,5 @@ development of ``PypeIt``.
    :maxdepth: 1
    
    deimosframes
+   deimos_slitmask_ids
 
