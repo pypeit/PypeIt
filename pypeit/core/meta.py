@@ -135,7 +135,9 @@ def define_additional_meta(nlamps=20):
                        'temperature': dict(dtype=float, comment='Temperature at obstime'),
                        'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
                        'dateobs': dict(dtype=str, comment='Observation date'),
-                       'utc': dict(dtype=str, comment='UTC of observation')}
+                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'mode': dict(dtype=str, comment='Observing mode'),
+                       'amp': dict(dtype=str, comment='Amplifier used')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \

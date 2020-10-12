@@ -426,6 +426,49 @@ class Spectrograph:
         """
         return ['dispname', 'dichroic', 'decker']
 
+    def valid_configuration_values(self):
+        """
+        Return a fixed set of valid values for
+        any/all of the configuration keys.  
+
+        Returns:
+            :obj:`dict`: A dictionary with the any/all of the
+            configuration keys and their associated discrete set of
+            valid values. If there are no restrictions on
+            configuration values, None is returned.
+        """
+        pass
+
+    def config_independent_frames(self):
+        """
+        Data needed regarding frames types that are independent of
+        the full configuration specification.
+
+        By default, bias and dark frames are considered independent
+        of a configuration; however, at the moment, these frames can
+        only be associated with a *single* configuration. That is,
+        you cannot take afternoon biases, change the instrument
+        configuration during the night, and then use the same biases
+        for both configurations. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        This method returns a dictionary where the keys of the
+        dictionary is the list of configuration-independent frame
+        types. The value of each dictionary element can be set to one
+        or more metadata keys that can be used to assign each frame
+        type to a given configuration group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`
+        and how it interprets the dictionary values, which can be
+        None.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame
+            types that are configuration independent and the values
+            are the metadata keywords that can be used to assign the
+            frames to a configuration group.
+        """
+        return {'bias': None, 'dark': None}
+
     def pypeit_file_keys(self):
         """
         Define the list of keys to be output into a standard PypeIt file
@@ -738,9 +781,9 @@ class Spectrograph:
 
     def validate_metadata(self):
         """
-        Validates the meta definitions of the Spectrograph
+        Validates the definitions of the Spectrograph metadata
         by making a series of comparisons to the meta data model
-        definied in metadata.py
+        defined in core/meta.py and self.meta.
         """
         # Load up
         # TODO: Can we indicate if the metadata element is core instead

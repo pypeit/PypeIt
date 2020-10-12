@@ -8,6 +8,9 @@ Class for organizing PypeIt setup
 import os
 import inspect
 import datetime
+
+from IPython import embed
+
 import numpy as np
 
 from astropy.table import hstack, Table
@@ -19,7 +22,6 @@ from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
-from IPython import embed
 
 # TODO: Instantiation should just automatically trigger the run
 # method...
@@ -360,8 +362,9 @@ class PypeItSetup:
                            #columns=None if format is None else self.spectrograph.pypeit_file_keys(),
                            format=format, overwrite=True)
 
-    def run(self, setup_only=False, calibration_check=False,
-            use_header_id=False, sort_dir=None, write_bkg_pairs=False):
+    # TODO: Check if user_header_id is ever actually used.
+    def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None,
+            write_bkg_pairs=False, clean_config=True):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -383,33 +386,44 @@ class PypeItSetup:
 
         Args:
             setup_only (:obj:`bool`, optional):
-                Only this setup will be performed.  Pypit is expected to
-                execute in a way that ends after this class is fully
-                instantiated such that the user can inspect the results
-                before proceeding.  This has the effect of providing
-                more output describing the success of the setup and how
-                to proceed, and provides warnings (instead of errors)
-                for issues that may cause the reduction itself to fail.
+                Only this setup will be performed. ``PypeIt`` is
+                expected to execute in a way that ends after this
+                class is fully instantiated such that the user can
+                inspect the results before proceeding. This has the
+                effect of providing more output describing the
+                success of the setup and how to proceed, and provides
+                warnings (instead of errors) for issues that may
+                cause the reduction itself to fail.
             calibration_check (obj:`bool`, optional):
-                Only check that the calibration frames are appropriately
-                setup and exist on disk.  Pypit is expected to execute
-                in a way that ends after this class is fully
-                instantiated such that the user can inspect the results
-                before proceeding. 
+                Only check that the calibration frames are
+                appropriately setup and exist on disk. ``PypeIt`` is
+                expected to execute in a way that ends after this
+                class is fully instantiated such that the user can
+                inspect the results before proceeding.
             use_header_id (:obj:`bool`, optional):
                 Allow setup to use the frame types drawn from single,
-                instrument-specific header keywords set to `idname` in
-                the metadata table (:attr:`fitstbl`).
+                instrument-specific header keywords set to ``idname``
+                in the metadata table (:attr:`fitstbl`).
             sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
+            write_bkg_pairs (:obj:`bool`, optional):
+                Include columns with the (unassigned) background
+                image pairs. This is a convenience so that users can
+                more easily add/edit the background pair ID numbers.
+            clean_config (:obj:`bool`, optional):
+                Remove files with metadata that indicate an
+                instrument configuration that ``PypeIt`` cannot
+                reduce. See
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
 
         Returns:
-            :class:`pypeit.par.pypeitpar.PypeItPar`,
-            :class:`pypeit.spectrographs.spectrograph.Spectrograph`,
-            :class:`astropy.table.Table`: Returns the attributes
-            :attr:`par`, :attr:`spectrograph`, :attr:`fitstbl`
-            If running with `setup_only` or
-            `calibrations_check`, these are all returned as `None`
+            :obj:`tuple`: Returns, respectively, the
+            :class:`~pypeit.par.pypeitpar.PypeItPar` object with the
+            reduction parameters, the
+            :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+            object with the spectrograph instance, and an
+            `astropy.table.Table`_ with the frame metadata. If
+            ``setup_only`` is True, these are all returned as None
             values.
         """
         # Kludge
@@ -419,15 +433,19 @@ class PypeItSetup:
         if self.fitstbl is None:
             self.build_fitstbl(strict=not setup_only)#, bkg_pairs=bkg_pairs)
 
+        # Remove frames that have invalid values for
+        # configuration-defining metadata
+        if clean_config:
+            self.fitstbl.clean_configurations()
+
         # File typing
         self.get_frame_types(flag_unknown=setup_only or calibration_check,
                              use_header_id=use_header_id)
 
         # Determine the configurations and assign each frame to the
         # specified configuration
-        ignore_frames=['bias', 'dark']
-        cfgs = self.fitstbl.unique_configurations(ignore_frames=ignore_frames)
-        self.fitstbl.set_configurations(cfgs, ignore_frames=ignore_frames)
+        cfgs = self.fitstbl.unique_configurations()
+        self.fitstbl.set_configurations(cfgs)
 
         # Assign frames to calibration groups
         self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
@@ -435,6 +453,7 @@ class PypeItSetup:
         # Set default comb_id
         self.fitstbl.set_combination_groups()
 
+        # TODO: Are we planning to do this?
         # Assign science IDs based on the calibrations groups (to be
         # deprecated)
         self.fitstbl['failures'] = False                    # TODO: placeholder

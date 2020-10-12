@@ -17,14 +17,15 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit import pypeit
+from pypeit import pypeitsetup
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
-expected = ['pypeit', 'sorted']
+def expected_file_extensions():
+    return ['pypeit', 'sorted']
 
 def test_run_setup():
     """ Test the setup script
@@ -84,6 +85,7 @@ def test_setup_keck_lris_red():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_red*'))
     ext = [f.split('.')[-1] for f in files]
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
         'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -103,6 +105,7 @@ def test_setup_keck_lris_red_orig():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_red_orig*'))
     ext = [f.split('.')[-1] for f in files]
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -123,7 +126,7 @@ def test_setup_keck_lris_blue():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_blue*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
         'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -143,7 +146,7 @@ def test_setup_keck_lris_blue_orig():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_blue_orig*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -163,7 +166,7 @@ def test_setup_shane_kast_blue():
 
     files = glob.glob(os.path.join(setup_dir, 'shane_kast_blue*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -183,7 +186,7 @@ def test_setup_shane_kast_red():
 
     files = glob.glob(os.path.join(setup_dir, 'shane_kast_red*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -206,12 +209,51 @@ def test_setup_keck_deimos():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_deimos*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
+#@dev_suite_required
+def test_setup_keck_deimos_multiconfig():
+
+    root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
+    files = glob.glob(os.path.join(root, '830G_L_8100', '*fits*'))
+    files += glob.glob(os.path.join(root, '830G_L_8400', '*fits*'))
+
+    ps = pypeitsetup.PypeItSetup(files, spectrograph_name='keck_deimos')
+    ps.build_fitstbl(strict=False)
+    ps.get_frame_types(flag_unknown=True)
+
+    # Test that the correct number of configurations are found
+    cfgs = ps.fitstbl.unique_configurations()
+    assert len(cfgs) == 2, 'Should find 2 configurations'
+
+    # Test that the bias is assigned to the correct configuration
+    ps.fitstbl.set_configurations(cfgs)
+    biases = np.where(ps.fitstbl.find_frames('bias'))[0]
+    assert biases.size == 1, 'Should only be 1 bias'
+    assert ps.fitstbl['setup'][biases[0]] == 'B', 'Bias should be in configuration group B'
+
+    # Table should have 25 rows
+    assert len(ps.fitstbl) == 25, 'Incorrect number of table rows.'
+
+    # All frames should be from valid configurations
+    ps.fitstbl.clean_configurations()
+    assert len(ps.fitstbl) == 25, 'Incorrect number of table rows.'
+
+    # Artificially set the amplifier and mode of two frames
+    ps.fitstbl['amp'][0] = 'SINGLE:A'
+    ps.fitstbl['mode'][1] = 'Direct'
+    ps.fitstbl.clean_configurations()
+    # Two frames should be removed
+    assert len(ps.fitstbl) == 23, 'Incorrect number of table rows.'
+
+if __name__ == '__main__':
+    test_setup_keck_deimos_multiconfig()
+
 
 @dev_suite_required
 def test_setup_keck_nires():
@@ -226,7 +268,7 @@ def test_setup_keck_nires():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_nires*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -246,7 +288,7 @@ def test_setup_keck_nirspec():
 
     files = glob.glob(os.path.join(setup_dir, 'keck_nirspec*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -267,7 +309,7 @@ def test_setup_magellan_mage():
 
     files = glob.glob(os.path.join(setup_dir, 'magellan_mage*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -287,7 +329,7 @@ def test_setup_wht_isis_blue():
 
     files = glob.glob(os.path.join(setup_dir, 'wht_isis_blue*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -307,7 +349,7 @@ def test_setup_vlt_xshooter_uvb():
 
     files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_uvb*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -327,7 +369,7 @@ def test_setup_vlt_xshooter_vis():
 
     files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_vis*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -347,7 +389,7 @@ def test_setup_vlt_xshooter_nir():
 
     files = glob.glob(os.path.join(setup_dir, 'vlt_xshooter_nir*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -367,7 +409,7 @@ def test_setup_gemini_gnirs():
 
     files = glob.glob(os.path.join(setup_dir, 'gemini_gnirs*'))
     ext = [f.split('.')[-1] for f in files]
-    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -387,6 +429,7 @@ def test_setup_not_alfosc():
 
     files = glob.glob(os.path.join(setup_dir, 'not_alfosc*'))
     ext = [f.split('.')[-1] for f in files]
+    expected = expected_file_extensions()
     assert np.all([e in ext for e in expected]), \
         'Did not find all setup file extensions: {0}'.format(expected)
 
@@ -394,6 +437,7 @@ def test_setup_not_alfosc():
     pargs = setup.parse_args(['-r', droot, '-s', 'not_alfosc', '-c', 'A', '-d', data_path('')])
     setup.main(pargs)
     pypeit_file = data_path('not_alfosc_A/not_alfosc_A.pypeit')
+    # TODO: Why is this using pypeit.PypeIt and not pypeitsetup.PypeItSetup?
     pypeIt = pypeit.PypeIt(pypeit_file, calib_only=True)
 
     # Clean-up
