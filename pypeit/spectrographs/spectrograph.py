@@ -744,6 +744,29 @@ class Spectrograph:
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
         return None
 
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        """Calculate the bin edges to be used when making a datacube
+
+        Parameters
+        ----------
+        slitlength : int
+            Length of the slit in pixels
+        minmax : `numpy.ndarray`_
+            An array of size (nslits, 2), listing the minimum and maximum pixel
+            locations on each slit relative to the reference location (usually
+            the centre of the slit). This array is returned by the function
+            `slittrace.SlitTraceSet.get_radec_image`_
+        num_wave : int
+            Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
+
+        Returns
+        -------
+        tuple : Three 1D numpy.ndarray providing the bins to use when constructing a histogram
+                of the spec2d files. The elements are (x, y, lambda).
+        """
+        msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.spectrograph))
+        return None
+
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph

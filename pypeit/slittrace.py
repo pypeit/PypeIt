@@ -390,9 +390,12 @@ class SlitTraceSet(datamodel.DataContainer):
 
         Returns
         -------
-        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
-                           first ndarray is the RA image, and the second ndarray
-                           is the DEC image. RA and DEC are in units degrees.
+        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
+                of shape (nspec, nspat), where the first ndarray is the RA image, and the
+                second ndarray is the DEC image. RA and DEC are in units degrees. The third
+                element of the tuple stores the minimum and maximum difference (in pixels)
+                between the WCS reference (usually the centre of the slit) and the edge of
+                the slits. The third array has a shape of (nslits, 2).
         """
         # Grab the central trace, if none was provided
         if trace_cen is None:
