@@ -1149,13 +1149,8 @@ class CubePar(ParSet):
 
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
-        descr['save_whitelight'] = 'Save a white light image of the combined datacube.'
-
-        defaults['cube_spat_num'] = None
-        dtypes['cube_spat_num'] = [int, float]
-        descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
-                                 'pixels in the spatial direction of the slit will be used. If you' \
-                                 'are reducing fibre IFU data, this parameter will be ignored'
+        descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight".'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1189,13 +1184,13 @@ class CubePar(ParSet):
 
         defaults['spatial_delta'] = None
         dtypes['spatial_delta'] = float
-        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS.' \
+        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS (in arcsec).' \
                                  'If None, the default is set by the spectrograph file.'
 
         defaults['spatial_wave'] = None
         dtypes['spatial_wave'] = float
-        descr['spatial_wave'] = 'The wavelength step to use when generating the WCS. If None, the default is' \
-                                'set by the wavelength solution.'
+        descr['spatial_wave'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
+                                'If None, the default is set by the wavelength solution.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
