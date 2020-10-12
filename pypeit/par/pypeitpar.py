@@ -1684,7 +1684,7 @@ class TellFitPar(ParSet):
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
                  func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, use_huber=None, tell_grid=None):
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
 
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1790,10 +1790,6 @@ class TellFitPar(ParSet):
         dtypes['minmax_coeff_bounds'] = list
         descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
 
-        defaults['use_huber'] = True
-        dtypes['use_huber'] = bool
-        descr['use_huber'] = "Rescale chi2 to ignore outliers when initializing object model?"
-
         ### Start parameters for poly_telluric
         defaults['fit_wv_min_max'] = None
         dtypes['fit_wv_min_max'] = list
@@ -1816,11 +1812,11 @@ class TellFitPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max',
-                   'bounds_norm', 'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
-                   'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines', 'func',
-                   'model', 'polyorder', 'fit_wv_min_max', 'mask_lyman_a', 'delta_coeff_bounds',
-                   'minmax_coeff_bounds', 'use_huber', 'tell_grid']
+        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
+                   'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
+                   'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
+                   'func','model','polyorder','fit_wv_min_max','mask_lyman_a',
+                   'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

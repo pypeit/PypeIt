@@ -349,7 +349,6 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     wave_max = arg_dict['wave_max']
     func = arg_dict['func']
     model = arg_dict['model']
-    use_huber = arg_dict['use_huber']
     ymult = poly_model_eval(theta, func, model, wave, wave_min, wave_max)
 
     flux_scale = ymult*flux_med
@@ -376,8 +375,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     robust_scale = 2.0
     huber_vec = scipy.special.huber(robust_scale*chi_std, chi_vec)
     loss_function = np.sum(np.square(huber_vec*mask_both))
-    if not use_huber:
-        loss_function = np.sum(np.square(chi_vec*mask_both))
+    #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
 # TODO: Change thismask to gpm
@@ -478,7 +476,7 @@ def median_filt_spec(flux, ivar, mask, med_width):
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
                      scale_min = 0.05, scale_max = 100.0, func='legendre', model ='square',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01,
-                     ref_percentile=70.0, use_huber=True, debug=False):
+                     ref_percentile=70.0, debug=False):
     """
     Routine for solving for the polynomial rescaling of an input
     spectrum flux to match a reference spectrum flux_ref. The two
@@ -583,8 +581,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess,
-                    use_huber = use_huber, debug=debug)
+                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=debug)
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)

@@ -885,8 +885,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     # set the flux_ref to be the data here, i.e. flux
     scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, flam_model, flam_model_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
-        mask=flam_model_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'],
-        use_huber=obj_params['use_huber'])
+        mask=flam_model_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'])
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
@@ -1001,8 +1000,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     # set the flux_ref to be the data here, i.e. flux
     scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, tellmodel, tellmodel_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
-        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'],
-        scale_max=1e5, use_huber=obj_params['use_huber'])
+        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'], scale_max=1e5)
     # TODO JFH Sticky = False seems to recover better from bad initial fits. Maybe we should change this since poly ratio
     # uses a different optimizer.
 
@@ -1459,7 +1457,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                   func='legendre', model='exp', polyorder=5, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, recombination=0.7, polish=True,
-                  use_huber=True, disp=False, debug_init=False, debug=False, show=False):
+                  disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
@@ -1545,12 +1543,10 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
     return TelObj
 
-def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
-                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True,
-                  delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                  only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
-                  recombination=0.7, polish=True, use_huber=True, disp=False, debug_init=False,
-                  debug=False, show=False):
+def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
+                  fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
+                  recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
@@ -1578,7 +1574,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
                       polyorder_vec=polyorder_vec, exptime=meta_spec['core']['EXPTIME'],
                       func=func, model=model, sigrej=3.0,
                       output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func'),
-                      use_huber=use_huber, debug=debug_init)
+                      debug=debug_init)
 
     # Optionally, only using the redward of Lyman-alpha line to do the fitting
     if mask_lyman_a:

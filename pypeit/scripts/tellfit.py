@@ -175,7 +175,6 @@ def main(args):
                                          mask_abs_lines=par['tellfit']['mask_abs_lines'],
                                          delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
-                                         use_huber=par['tellfit']['use_huber'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
@@ -187,7 +186,6 @@ def main(args):
                                          delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
                                          only_orders=par['tellfit']['only_orders'],
-                                         use_huber=par['tellfit']['use_huber'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
         msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
