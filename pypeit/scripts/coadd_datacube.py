@@ -239,7 +239,7 @@ def coadd_cube(files, parset, overwrite=False):
         img_hdu = fits.PrimaryHDU(whitelight_img, header=spec2DObj.head0)
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
-    # Generate a master WCS to register all frames
+    # Setup the cube ranges
     ra_min = cubepar['ra_min'] if cubepar['ra_min'] is not None else np.min(all_ra)
     ra_max = cubepar['ra_max'] if cubepar['ra_max'] is not None else np.max(all_ra)
     dec_min = cubepar['dec_min'] if cubepar['dec_min'] is not None else np.min(all_dec)
@@ -247,14 +247,21 @@ def coadd_cube(files, parset, overwrite=False):
     wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
-    coord_min = [ra_min, dec_min, wav_min]
-    coord_dlt = [dspat, dspat, dwv]
+    # Generate a master WCS to register all frames
     if cubepar['reference_cube'] is not None:
         # Use a reference cube to generate the WCS
         cube = fits.open(cubepar['reference_cube'])
         masterwcs = WCS(cube['SCICUBE'].header)
     else:
+        coord_min = [ra_min, dec_min, wav_min]
+        coord_dlt = [dspat, dspat, dwv]
         masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt)
+        msgs.info("-"*40)
+        msgs.info("Parameters of the WCS:")
+        msgs.info(msgs.indent() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max))
+        msgs.info(msgs.indent() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max))
+        msgs.info(msgs.indent() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max))
+        msgs.info("-" * 40)
 
     # Generate the output binning
     if combine:
