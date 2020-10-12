@@ -1,9 +1,13 @@
 """
 Module to generate an optical model for a spectrograph.
+
+.. include:: ../include/links.rst
+
 """
 import warnings
+from pypeit import msgs
 import numpy
-
+import scipy
 # ----------------------------------------------------------------------
 # General class for a reflection grating
 class ReflectionGrating:
@@ -54,7 +58,59 @@ class ReflectionGrating:
                             [     -sinx,                 cost*cosx,                 sint*cosx],
                             [ cosx*sinr, -sint*cosr+cost*sinx*sinr,  cost*cosr+sint*sinx*sinr]])
 
-    def reflect(self, r, wave=None, order=1):
+# NOTE: Keep this around for the time-being.
+    # def reflect(self, r, wave=None, order=1):
+    #     """
+    #     Propagate an input ray for a given wavelength and order.
+
+    #     wave is in angstroms
+    #     ruling is in mm^-1
+
+    #     If more than one wave provided, wavelength samples are ordered
+    #     along the first axis.
+
+    #     Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+    #     """
+    #     if wave is None and self.central_wave is None:
+    #         raise ValueError('Must define a wavelength for the calculation.')
+    #     if wave is None:
+    #         warnings.warn('Using central wavelength for calculation.')
+    #     _wave = numpy.array([self.central_wave]) if wave is None else numpy.atleast_1d(wave)
+    #     if _wave.ndim > 1:
+    #         raise NotImplementedError('Input wavelength must be one number or a vector.')
+    #     nwave = _wave.size
+
+    #     _r = numpy.atleast_2d(r)
+    #     if _r.ndim > 2:
+    #         raise NotImplementedError('Rays must be 1D for a single ray, or 2D for multiple.')
+
+    #     # Transform into the grating conjugate surface
+    #     _r = OpticalModel.conjugate_surface_transform(_r, self.transform, forward=True)
+
+    #     # Get the grating input angles
+    #     alpha = -numpy.arctan2(-_r[:,1],-_r[:,2])
+    #     gamma = numpy.arctan2(_r[:,0],numpy.sqrt(numpy.square(_r[:,1])+numpy.square(_r[:,2])))
+
+    #     # Use the grating equation to get the output angle (minus sign
+    #     # in front of sin(alpha) is for reflection)
+    #     beta = numpy.arcsin((order * 1e-7 * self.ruling * _wave[None,:] / numpy.cos(gamma)[:,None])
+    #                         - numpy.sin(alpha)[:,None])
+
+    #     # Revert to ray vectors
+    #     wavesign = 1-2*(_wave < 0)
+    #     cosg = numpy.cos(gamma)
+    #     _r = numpy.array([numpy.repeat(numpy.sin(gamma), nwave).reshape(-1,nwave),
+    #                       numpy.sin(-beta*wavesign[None,:])*cosg[:,None],
+    #                       numpy.cos(-beta*wavesign[None,:])*cosg[:,None] ]).T
+
+    #     if nwave == 1:
+    #         # Flatten if only one wave provided
+    #         _r = _r[0]
+
+    #     # Return vectors transformed out of the grating conjugate surface
+    #     return OpticalModel.conjugate_surface_transform(_r, self.transform)
+
+    def reflect(self, r, nslits, wave=None, order=1):
         """
         Propagate an input ray for a given wavelength and order.
 
@@ -65,15 +121,31 @@ class ReflectionGrating:
         along the first axis.
 
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+
+        Args:
+            r (numpy.ndarray):
+                Rays to propagate.
+            nslits (:obj:`int`):
+                Number of slits
+            wave (`numpy.ndarray`_):
+                The wavelengths in angstroms for the propagated coordinates.
+            order (:obj:`int`):
+                The grating order.
+
+        Returns:
+            Rays reflected off the grating
+
         """
         if wave is None and self.central_wave is None:
-            raise ValueError('Must define a wavelength for the calculation.')
+            msgs.error('Must define a wavelength for the calculation.')
         if wave is None:
-            warnings.warn('Using central wavelength for calculation.')
+            msgs.info('Using central wavelength for calculation.')
         _wave = numpy.array([self.central_wave]) if wave is None else numpy.atleast_1d(wave)
         if _wave.ndim > 1:
             raise NotImplementedError('Input wavelength must be one number or a vector.')
         nwave = _wave.size
+
+        _wave_arr = numpy.tile(_wave, (nslits, 1))
 
         _r = numpy.atleast_2d(r)
         if _r.ndim > 2:
@@ -83,24 +155,23 @@ class ReflectionGrating:
         _r = OpticalModel.conjugate_surface_transform(_r, self.transform, forward=True)
 
         # Get the grating input angles
-        alpha = -numpy.arctan2(-_r[:,1],-_r[:,2])
-        gamma = numpy.arctan2(_r[:,0],numpy.sqrt(numpy.square(_r[:,1])+numpy.square(_r[:,2])))
+        alpha = -numpy.arctan2(-_r[:, 1], -_r[:, 2])
+        gamma = numpy.arctan2(_r[:, 0], numpy.sqrt(numpy.square(_r[:, 1]) + numpy.square(_r[:, 2])))
 
         # Use the grating equation to get the output angle (minus sign
         # in front of sin(alpha) is for reflection)
-        beta = numpy.arcsin((order * 1e-7 * self.ruling * _wave[None,:] / numpy.cos(gamma)[:,None])
-                            - numpy.sin(alpha)[:,None])
+        beta = (numpy.arcsin((order * 1e-7 * self.ruling * _wave_arr.ravel() / numpy.cos(gamma))
+                             - numpy.sin(alpha))).reshape(_wave_arr.shape).T
 
         # Revert to ray vectors
-        wavesign = 1-2*(_wave < 0)
-        cosg = numpy.cos(gamma)
-        _r = numpy.array([numpy.repeat(numpy.sin(gamma), nwave).reshape(-1,nwave),
-                          numpy.sin(-beta*wavesign[None,:])*cosg[:,None],
-                          numpy.cos(-beta*wavesign[None,:])*cosg[:,None] ]).T
+        wavesign = 1 - 2 * (_wave_arr.T < 0)
+        _r = numpy.array([numpy.sin(gamma),
+                          numpy.sin(-beta * wavesign).T.flatten() * numpy.cos(gamma),
+                          numpy.cos(-beta * wavesign).T.flatten() * numpy.cos(gamma)]).T
 
-        if nwave == 1:
-            # Flatten if only one wave provided
-            _r = _r[0]
+        #if nwave == 1:
+        #    # Flatten if only one wave provided
+        #    _r = _r[0]
 
         # Return vectors transformed out of the grating conjugate surface
         return OpticalModel.conjugate_surface_transform(_r, self.transform)
@@ -522,7 +593,125 @@ class OpticalModel:
         sinp = numpy.sin(-self.imaging_rotation)
         return xp*cosp - yp*sinp + self.optical_axis[0], xp*sinp + yp*cosp + self.optical_axis[1]
 
-    def mask_to_imaging_coordinates(self, x, y, wave, order):
+    def pre_grating_vectors(self, x, y, amap, npoints=1):
+        """
+        Propagate rays from the mask plane to the grating, by interpolating a pre-grating
+        map (amap).
+
+        This should replace :attr:`mask_coo_to_grating_input_vectors`
+
+        Taken from DEEP2/spec2d/pro/model/qmodel.pro
+
+        Args:
+            x (`numpy.ndarray`_):
+                The x coordinates in the slit mask in mm.
+            y (`numpy.ndarray`_):
+                The y coordinates in the slit mask in mm.
+            amap (`FITS_rec`):
+                pre-grating map
+            npoints (:obj:`int`):
+                Size of the spectral direction
+
+        Returns:
+            `numpy.ndarray`_: Rays propagated from mask plane to grating.
+
+        """
+
+        xmm = numpy.tile(x, (npoints, 1))
+        ymm = numpy.tile(y, (npoints, 1))
+
+        sx = amap['tanx'].squeeze().T.shape[0]
+        sy = amap['tanx'].squeeze().T.shape[1]
+
+        # create a set of indices to interpolate amap into
+        xindx = (xmm - amap['xmin']) / amap['xstep']
+        yindx = (ymm - amap['ymin']) / amap['ystep']
+
+        # preparing input and output coordinates for interpolation
+        _x, _y = numpy.meshgrid(amap['xarr'].squeeze(), amap['yarr'].squeeze())
+        out_coo = numpy.column_stack((xmm.ravel(), ymm.ravel()))
+        in_coo = numpy.column_stack((_x.ravel(), _y.ravel()))
+
+        interp = scipy.interpolate.CloughTocher2DInterpolator(in_coo, amap['tanx'].ravel(),
+                                                              fill_value=-1e10)
+        tanxx = interp(out_coo).reshape(xindx.shape)
+
+        interp = scipy.interpolate.CloughTocher2DInterpolator(in_coo, amap['tany'].ravel(),
+                                                              fill_value=-1e10)
+        tanyy = interp(out_coo).reshape(xindx.shape)
+
+        whbad = (xindx < 4) | (xindx > (sx - 4)) | (yindx < 4) | (yindx > (sy - 4))
+        tanxx[whbad] = -1e10
+        tanyy[whbad] = -1e10
+
+        rr_2 = (-1. / numpy.sqrt(1. + numpy.square(tanxx).T + numpy.square(tanyy).T)).ravel()
+        rr = numpy.array([rr_2 * tanxx.T.ravel(), rr_2 * tanyy.T.ravel(), rr_2]).T
+
+        return rr
+
+    def post_grating_vectors_to_ics_coo(self, r, bmap, nslits, npoints):
+        """
+        Revert rays from post-grating output vectors to CCD coordinates, by interpolating a post-grating
+        map (bmap).
+
+        This should replace :attr:`grating_output_vectors_to_ics_coo`
+
+        Taken from DEEP2/spec2d/pro/model/qmodel.pro
+
+        Args:
+            r (`numpy.ndarray`_):
+                Rays to be transformed
+            bmap (`FITS_rec`):
+                post-grating map
+            nslits (:obj:`int`):
+                Number of slits
+            npoints (:obj:`int`):
+                Size of the spectral direction
+
+        Returns:
+            Two `numpy.ndarray`_:  Detector image plane coordinates in pixels
+
+        """
+
+        tanxi = r[:, 0] / r[:, 2]
+        tanyi = r[:, 1] / r[:, 2]
+
+        # use grids to determine values of xics, yics from tanxi, tanyi
+        xindx = (tanxi - bmap['txmin']) / bmap['txstep']
+        yindx = (tanyi - bmap['tymin']) / bmap['tystep']
+
+        sx = bmap['gridx'].squeeze().T.shape[0]
+        sy = bmap['gridx'].squeeze().T.shape[1]
+
+        # preparing input and output coordinates for interpolation
+        indx = numpy.logical_not(bmap['gridx'].squeeze() == -1e10)
+        _x, _y = numpy.meshgrid(numpy.arange(sx), numpy.arange(sy))
+        out_coo = numpy.column_stack((xindx.ravel(), yindx.ravel()))
+        in_coo = numpy.column_stack((_x.ravel()[indx.ravel()], _y.ravel()[indx.ravel()]))
+
+        interp = scipy.interpolate.CloughTocher2DInterpolator(in_coo, bmap['gridx'].ravel()[indx.ravel()],
+                                                              fill_value=-1e10)
+        xics = interp(out_coo)
+
+        interp = scipy.interpolate.CloughTocher2DInterpolator(in_coo, bmap['gridy'].ravel()[indx.ravel()],
+                                                              fill_value=-1e10)
+        yics = interp(out_coo)
+
+        whbad = (xindx < 4) | (xindx > (sx - 4)) | (yindx < 4) | (yindx > (sy - 4))
+        xics[whbad] = -1e10
+        yics[whbad] = -1e10
+        # this condition may not be necessary. We should not have values > 1e9
+        wh = (numpy.abs(xics) > 1e9) | (numpy.abs(yics) > 1e9)
+        xics[wh] = -1e4
+        yics[wh] = -1e4
+
+        if npoints > 1:
+            xics = xics.reshape(nslits, npoints)
+            yics = yics.reshape(nslits, npoints)
+
+        return xics, yics
+
+    def mask_to_imaging_coordinates(self, x, y, amap, bmap, nslits, wave, order):
         """
         Convert mask coordinates in mm to detector coordinates in pixels.
 
@@ -532,16 +721,62 @@ class OpticalModel:
         ordered along the first axis.
 
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+
+        Args:
+            x (`numpy.ndarray`_):
+                The x coordinates in the slit mask in mm.
+            y (`numpy.ndarray`_):
+                The y coordinates in the slit mask in mm.
+            amap (`FITS_rec`):
+                pre-grating map
+            bmap (`FITS_rec`):
+                post-grating map
+            nslits (:obj:`int`):
+                Number of slits
+            wave (`numpy.ndarray`_):
+                The wavelengths in angstroms for the propagated coordinates.
+            order (:obj:`int`):
+                The grating order.
+
+        Returns:
+            Two `numpy.ndarray`_: Detector image plane coordinates in pixels
         """
+
+        npoints = 1 if wave is None else numpy.atleast_1d(wave).shape[0]
+
         # First get the grating input vectors
-        r = self.mask_coo_to_grating_input_vectors(x, y)
+        # r = self.mask_coo_to_grating_input_vectors(x, y)
+        r = self.pre_grating_vectors(x, y, amap, npoints=npoints)
 
         # Reflect the rays off the grating
-        r = self.grating.reflect(r, wave, order)
+        r = self.grating.reflect(r, nslits, wave, order)
 
         # Propagate the rays through the camera to the detector and
         # return the imaging coordinates (in mm)
-        return self.grating_output_vectors_to_ics_coo(r, sign=1-2*(x<0))
+        # return self.grating_output_vectors_to_ics_coo(r, sign=1 - 2 * (x < 0))
+        return self.post_grating_vectors_to_ics_coo(r, bmap, nslits, npoints)
+
+# NOTE: Keep this around for the time-being.
+    # def mask_to_imaging_coordinates(self, x, y, wave, order):
+    #     """
+    #     Convert mask coordinates in mm to detector coordinates in pixels.
+
+    #     wave is in angstroms
+
+    #     If more than one wavelength is provided, wavelength samples are
+    #     ordered along the first axis.
+
+    #     Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+    #     """
+    #     # First get the grating input vectors
+    #     r = self.mask_coo_to_grating_input_vectors(x, y)
+
+    #     # Reflect the rays off the grating
+    #     r = self.grating.reflect(r, wave, order)
+
+    #     # Propagate the rays through the camera to the detector and
+    #     # return the imaging coordinates (in mm)
+    #     return self.grating_output_vectors_to_ics_coo(r, sign=1-2*(x<0))
 
 
 # ----------------------------------------------------------------------

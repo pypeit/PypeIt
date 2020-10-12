@@ -16,8 +16,12 @@ from packaging import version
 
 import numpy
 
+from configobj import ConfigObj
+
 from astropy.io import fits
 from astropy.table import Table
+
+from pypeit import par, msgs
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -477,6 +481,58 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
                              dim=rec_to_fits_col_dim(_d, single_row=single_row),
                              array=numpy.expand_dims(_d, 0) if single_row else _d)]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
+
+
+def read_spec2d_file(ifile, filetype='coadd2d'):
+    """
+    Read a PypeIt file of type "filetype", akin to a standard PypeIt file.
+
+    .. todo::
+
+        - Need a better description of this.  Probably for the PypeIt
+          file itself, too!
+
+    The top is a config block that sets ParSet parameters.  The
+    spectrograph is required.
+
+    Args:
+        ifile (:obj:`str`):
+          Name of the config file
+        filetype (:obj:`str`):
+          Type of config file being read (e.g. coadd2d, coadd3d).
+          This is only used for printing messages.
+
+    Returns:
+        tuple: Returns three objects: (1) The name of the spectrograph as
+        a string, (2) the list of configuration lines used to modify the
+        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
+        (3) the list of spec2d files to combine.
+    """
+
+    # Read in the pypeit reduction file
+    msgs.info('Loading the {0:s} file'.format(filetype))
+    lines = par.util._read_pypeit_file_lines(ifile)
+    is_config = numpy.ones(len(lines), dtype=bool)
+
+    # Parse the spec2d block
+    spec2d_files = []
+    s, e = par.util._find_pypeit_block(lines, 'spec2d')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
+    for line in lines[s:e]:
+        prs = line.split(' ')
+        # TODO: This needs to allow for the science directory to be
+        # defined by the user.
+        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
+        spec2d_files.append(prs[0])
+    is_config[s-1:e+1] = False
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+
+    # Return
+    return spectrograph_name, cfg_lines, spec2d_files
 
 
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):

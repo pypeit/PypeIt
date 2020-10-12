@@ -155,7 +155,7 @@ def main(args):
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)  # sky residual map
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm #(spec2DObj.bpmmask == 0)  # sky residual map
     viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:

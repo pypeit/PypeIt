@@ -686,28 +686,71 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
         msgs.error('Invalid size for wave_new')
 
 
+def smooth_weights(inarr, gdmsk, sn_smooth_npix):
+    """Smooth the input weights
+
+    Args:
+        inarr : float ndarray, shape = (nspec,)
+            S/N spectrum to be smoothed
+        gdmsk : float ndarray, shape = (nspec,)
+            Mask of good pixels
+        sn_smooth_npix : float
+            Number of pixels used for determining smoothly varying S/N ratio weights.
+
+    Returns:
+        `numpy.ndarray`_: smoothed version of inarr.
+    """
+    spec_vec = np.arange(gdmsk.size)
+    sn_med2 = scipy.interpolate.interp1d(spec_vec[gdmsk], inarr, kind='cubic',
+                                         bounds_error=False, fill_value=-999)(spec_vec)
+    # Fill the S/N weight to the left and right with the nearest value
+    mask_good = np.where(sn_med2 != -999)[0]
+    idx_mn, idx_mx = np.min(mask_good), np.max(mask_good)
+    sn_med2[:idx_mn] = sn_med2[idx_mn]
+    sn_med2[idx_mx:] = sn_med2[idx_mx]
+    # Smooth with a Gaussian kernel
+    sig_res = np.fmax(sn_smooth_npix / 10.0, 3.0)
+    gauss_kernel = convolution.Gaussian1DKernel(sig_res)
+    sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
+    return sn_conv
+
+
 def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
-               ivar_weights=False, verbose=False):
+               ivar_weights=False, relative_weights=False, verbose=False):
 
     """
     Calculate the S/N of each input spectrum and create an array of
     (S/N)^2 weights to be used for coadding.
 
     Args:
-        fluxes: float ndarray, shape = (nspec, nexp)
-            Stack of (nspec, nexp) spectra where nexp = number of
-            exposures, and nspec is the length of the spectrum.
-        ivars: float ndarray, shape = (nspec, nexp)
-            Inverse variance noise vectors for the spectra
-        masks: bool ndarray, shape = (nspec, nexp)
-            Mask for stack of spectra. True=Good, False=Bad.
-        waves: float ndarray, shape = (nspec,) or (nspec, nexp)
+        waves : float ndarray, shape = (nspec,) or (nspec, nexp)
             Reference wavelength grid for all the spectra. If wave is a
             1d array the routine will assume that all spectra are on the
             same wavelength grid. If wave is a 2-d array, it will use
             the individual
-        sn_smooth_npix: float, optional, default = 10000.0
+        fluxes : float ndarray, shape = (nspec, nexp)
+            Stack of (nspec, nexp) spectra where nexp = number of
+            exposures, and nspec is the length of the spectrum.
+        ivars : float ndarray, shape = (nspec, nexp)
+            Inverse variance noise vectors for the spectra
+        masks : bool ndarray, shape = (nspec, nexp)
+            Mask for stack of spectra. True=Good, False=Bad.
+        sn_smooth_npix : float
             Number of pixels used for determining smoothly varying S/N ratio weights.
+        const_weights : bool
+            Use a constant weights for each spectrum?
+        ivar_weights : bool
+            Use inverse variance weighted scheme?
+        relative_weights : bool
+            Calculate weights by fitting to the ratio of spectra? Note, relative weighting will
+            only work well when there is at least one spectrum with a reasonable S/N, and a continuum.
+            RJC note - This argument may only be better when the object being used has a strong
+            continuum + emission lines. The reference spectrum is assigned a value of 1 for all
+            wavelengths, and the weights of all other spectra will be determined relative to the
+            reference spectrum. This is particularly useful if you are dealing with highly variable
+            spectra (e.g. emission lines) and require a precision better than ~1 per cent.
+        verbose : bool
+            Verbosity of print out.
 
     Returns:
         tuple: (1) rms_sn : ndarray, shape (nexp) -- Root mean square S/N value
@@ -716,6 +759,12 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
         signal-to-noise squared weights.
     """
 
+    # Give preference to ivar_weights
+    if ivar_weights and relative_weights:
+        msgs.warn("Performing inverse variance weights instead of relative weighting")
+        relative_weights = False
+
+    # Check input
     if fluxes.ndim == 1:
         nstack = 1
         nspec = fluxes.shape[0]
@@ -741,47 +790,52 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
     # Calculate S/N
     sn_val = flux_stack*np.sqrt(ivar_stack)
-    sn_val_ma = np.ma.array(sn_val, mask = np.invert(mask_stack))
+    sn_val_ma = np.ma.array(sn_val, mask=np.logical_not(mask_stack))
     sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
-    ## TODO Update with sigma_clipped stats with our new cenfunc and std_func = mad_std
-    sn2 = (sn_sigclip.mean(axis=0).compressed())**2 #S/N^2 value for each spectrum
-    rms_sn = np.sqrt(sn2) # Root Mean S/N**2 value for all spectra
-    spec_vec = np.arange(nspec)
+    # TODO: Update with sigma_clipped stats with our new cenfunc and std_func = mad_std
+    sn2 = (sn_sigclip.mean(axis=0).compressed())**2  #S/N^2 value for each spectrum
+    rms_sn = np.sqrt(sn2)  # Root Mean S/N**2 value for all spectra
 
-    # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
-    # TODO Should ivar weights be deprecated??
+    # Check if relative weights input
+    if relative_weights:
+        # Relative weights are requested, use the highest S/N spectrum as a reference
+        ref_spec = np.argmax(sn2)
+        if verbose:
+            msgs.info(
+                "The reference spectrum (ref_spec={0:d}) has a typical S/N = {1:.3f}".format(ref_spec, sn2[ref_spec]))
+        # Adjust the arrays to be relative
+        refscale = (sn_val[:, ref_spec] > 0) / (sn_val[:, ref_spec] + (sn_val[:, ref_spec] == 0))
+        for iexp in range(nstack):
+            if iexp != ref_spec:
+                # Compute the relative (S/N)^2 and update the mask
+                sn2[iexp] /= sn2[ref_spec]
+                mask_stack[:, iexp] *= (mask_stack[:, ref_spec]) | (sn_val[:, ref_spec] != 0)
+                sn_val[:, iexp] *= refscale
+
+    # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Eventually, we will change it to
+    # TODO: Should ivar weights be deprecated??
+    # Initialise weights
+    weights = np.zeros_like(flux_stack)
     if ivar_weights:
         if verbose:
             msgs.info("Using ivar weights for merging orders")
-        weights = np.zeros_like(flux_stack) # Should this be zeros_like?
         for iexp in range(nstack):
-            sn_med1 = utils.fast_running_median(ivar_stack[mask_stack[:, iexp],iexp], sn_smooth_npix)
-            # TODO Change to scipy.interpolate?
-            sn_med2 = scipy.interpolate.interp1d(spec_vec[mask_stack[:, iexp]], sn_med1, kind='cubic',
-                                                 bounds_error=False, fill_value=0.0)(spec_vec)
-            sig_res = np.fmax(sn_smooth_npix/10.0, 3.0)
-            gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-            sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
-            weights[:, iexp] = sn_conv
+            sn_med1 = utils.fast_running_median(ivar_stack[mask_stack[:, iexp], iexp], sn_smooth_npix)
+            weights[:, iexp] = smooth_weights(sn_med1, mask_stack[:, iexp], sn_smooth_npix)
     else:
-        weights = np.zeros_like(flux_stack)
         for iexp in range(nstack):
+            # Now
             if (rms_sn[iexp] < 3.0) or const_weights:
                 weight_method = 'constant'
-                weights[:, iexp] = np.full(nspec, np.fmax(sn2[iexp], 1e-2)) # set the minimum  to be 1e-2 to avoid zeros
+                weights[:, iexp] = np.full(nspec, np.fmax(sn2[iexp], 1e-2))  # set the minimum  to be 1e-2 to avoid zeros
             else:
                 weight_method = 'wavelength dependent'
                 # JFH THis line is experimental but it deals with cases where the spectrum drops to zero. We thus
                 # transition to using ivar_weights. This needs more work because the spectra are not rescaled at this point.
+                # RJC - also note that nothing should be changed to sn_val is relative_weights=True
                 #sn_val[sn_val[:, iexp] < 1.0, iexp] = ivar_stack[sn_val[:, iexp] < 1.0, iexp]
-
-                sn_med1 = utils.fast_running_median(sn_val[mask_stack[:, iexp],iexp]**2, sn_smooth_npix)
-                sn_med2 = scipy.interpolate.interp1d(spec_vec[mask_stack[:, iexp]], sn_med1, kind = 'cubic',
-                                                     bounds_error = False, fill_value = 0.0)(spec_vec)
-                sig_res = np.fmax(sn_smooth_npix/10.0, 3.0)
-                gauss_kernel = convolution.Gaussian1DKernel(sig_res)
-                sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
-                weights[:, iexp] = sn_conv
+                sn_med1 = utils.fast_running_median(sn_val[mask_stack[:, iexp], iexp]**2, sn_smooth_npix)
+                weights[:, iexp] = smooth_weights(sn_med1, mask_stack[:, iexp], sn_smooth_npix)
             if verbose:
                 msgs.info('Using {:s} weights for coadding, S/N '.format(weight_method) +
                           '= {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
@@ -793,7 +847,6 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
     # Finish
     return rms_sn, weights
-
 
 
 def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):

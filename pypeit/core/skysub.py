@@ -92,8 +92,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             is closed.
 
     Returns:
-        `numpy.ndarray`_: Returns the model sky background at the pixels
-        where thismask is True::
+        `numpy.ndarray`_ : The model sky background at the pixels where thismask is True::
 
             >>>  skyframe = np.zeros_like(image)
             >>>  thismask = slitpix == thisslit
@@ -471,7 +470,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
-                         show_resids=False, use_2dmodel_mask=True):
+                         show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
     """Perform local sky subtraction and  extraction
 
      Args:
@@ -596,6 +595,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             Show the
         use_2dmodel_mask (bool, optional):
             Use the mask made from profile fitting when extracting?
+        no_local_sky (bool, optional):
+            If True, do not fit local sky model, only object profile and extract optimally
+            The objimage will be all zeros.
 
     Returns:
         :obj:`tuple`:  Returns (skyimage[thismask], objimage[thismask],
@@ -762,9 +764,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
 
+            # Fit the local sky
             sky_bmodel = np.array(0.0)
             iterbsp = 0
-            while (not sky_bmodel.any()) & (iterbsp <= 4):
+            while (not sky_bmodel.any()) & (iterbsp <= 4) & (not no_local_sky):
                 bsp_now = (1.2 ** iterbsp) * bsp
                 fullbkpt = optimal_bkpts(bkpts_optimal, bsp_now, piximg, localmask, debug=(debug_bkpts & (iiter == niter)),
                                          skyimage=skyimage, min_spat=min_spat, max_spat=max_spat)
@@ -828,10 +831,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                         'Iteration = {:d}'.format(iiter) + ', rejected {:d}'.format(nrej) + ' of ' + '{:d}'.format(
                             igood1.sum()) + 'fit pixels')
 
+            elif no_local_sky:
+                pass
             else:
                 msgs.warn('ERROR: Bspline sky subtraction failed after 4 iterations of bkpt spacing')
                 msgs.warn('       Moving on......')
                 obj_profiles = np.zeros_like(obj_profiles)
+                isub, = np.where(localmask.flatten())
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
 
@@ -871,7 +877,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 color = 'magenta'
             else:
                 color = 'orange'
-            display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+            display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
         # These are the pixels that were masked by the extraction
         spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))

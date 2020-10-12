@@ -18,6 +18,7 @@ from astropy import units
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
+from pypeit.core import flexure
 from pypeit.core import parse
 from pypeit.core import flux_calib
 from pypeit import utils
@@ -57,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.0'
+    version = '1.1.2'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -127,8 +128,16 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
                  'BOX_RADIUS': dict(otype=float, descr='Size of boxcar radius (pixels)'),
                  #
-                 'FLEX_SHIFT': dict(otype=float,
-                                    descr='Shift of the spectrum to correct for flexure (pixels)'),
+                 'FLEX_SHIFT_GLOBAL': dict(otype=float, descr='Global shift of the spectrum to correct for spectral'
+                                                              'flexure (pixels). This is based on the sky spectrum at'
+                                                              'the center of the slit'),
+                 'FLEX_SHIFT_LOCAL': dict(otype=float, descr='Local shift of the spectrum to correct for spectral'
+                                                             'flexure (pixels). This should be a small correction to'
+                                                             'the global value, and is based on the sky spectrum'
+                                                             'extracted near the object'),
+                 'FLEX_SHIFT_TOTAL': dict(otype=float, descr='Total shift of the spectrum to correct for spectral'
+                                                             'flexure (pixels). This is the sum of the global and'
+                                                             'local FLEX_SHIFT'),
                  'VEL_TYPE': dict(otype=str, descr='Type of heliocentric correction (if any)'),
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
@@ -155,7 +164,8 @@ class SpecObj(datamodel.DataContainer):
                  'NAME': dict(otype=str, descr='Name of the object following the naming model'),
                  'RA': dict(otype=float, descr='Right Ascension (J2000) decimal degree'),
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
-                 'MASK_SLITID': dict(otype=(int, np.integer), descr='Slitmask slit ID'),
+                 'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
+                 'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '
@@ -181,7 +191,9 @@ class SpecObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
-        self.FLEX_SHIFT = 0.
+        self.FLEX_SHIFT_GLOBAL = 0.
+        self.FLEX_SHIFT_LOCAL = 0.
+        self.FLEX_SHIFT_TOTAL = 0.
 
         # Name
         self.set_name()
@@ -350,38 +362,49 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return copy.deepcopy(self)
 
-    def flexure_interp(self, sky_wave, fdict):
+    def apply_spectral_flexure(self, shift, sky_spec):
         """
         Apply interpolation with the flexure dict
 
         Args:
-            sky_wave (np.ndarray): Wavelengths of the extracted sky
-            fdict (dict): Holds the various flexure items
+            shift (float):
+                additive spectral flexure in pixels
+            sky_spec (`xspectrum1d.XSpectrum1D`_):
+                Sky Spectrum
 
         Returns:
             xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
-
         """
         # Simple interpolation to apply
-        npix = len(sky_wave)
-        x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
             if self[attr+'_WAVE'] is not None:
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
-                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) #* units.AA
+                self[attr+'_WAVE'] = flexure.flexure_interp(shift, self[attr+'_WAVE']).copy()
         # Shift sky spec too
-        cut_sky = fdict['sky_spec']
-        x = np.linspace(0., 1., cut_sky.npix)
-        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x + fdict['shift'] / (cut_sky.npix - 1)) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
-        # Save
-        self.FLEX_SHIFT = fdict['shift']
+        twave = flexure.flexure_interp(shift, sky_spec.wavelength.value) * units.AA
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, sky_spec.flux))
+        # Save - since flexure may have been applied/calculated twice, this needs to be additive
+        self.update_flex_shift(shift, flex_type='local')
         # Return
         return new_sky
+
+    def update_flex_shift(self, shift, flex_type='local'):
+        """Store the total spectral flexure shift in pixels
+
+        Args:
+            shift (float):
+                additive spectral flexure in pixels
+        """
+        if flex_type == 'global':
+            self.FLEX_SHIFT_GLOBAL = shift
+        elif flex_type == 'local':
+            self.FLEX_SHIFT_LOCAL = shift
+        else:
+            msgs.error("Spectral flexure type must be 'global' or 'local' only")
+        # Now update the total flexure
+        self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
