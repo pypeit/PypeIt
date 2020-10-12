@@ -1109,7 +1109,7 @@ class CubePar(ParSet):
 
     def __init__(self, slit_spec=None, output_filename=None, reference_cube=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None):
+                 spatial_delta=None, wave_delta=None, relative_weights=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1131,6 +1131,13 @@ class CubePar(ParSet):
         dtypes['slit_spec'] = [bool]
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
                              'If the data uses fibres for all spaxels, set this to False.'
+
+        defaults['relative_weights'] = False
+        dtypes['relative_weights'] = [bool]
+        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme.' \
+                                    'This only works well if there is a common continuum source in the field of' \
+                                    'view of all input observations, and is generally only required if high' \
+                                    'relative precision is desired.'
 
         defaults['output_filename'] = "datacube.fits"
         dtypes['output_filename'] = str
@@ -1208,7 +1215,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'reference_cube', 'reference_image', 'save_whitelight',
                    'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta']
+                   'spatial_delta', 'wave_delta', 'relative_weights']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

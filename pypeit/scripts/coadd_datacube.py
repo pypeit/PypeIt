@@ -226,7 +226,8 @@ def coadd_cube(files, parset, overwrite=False):
 
         # Calculate the relative spectral weights of all pixels
         whitelight_img, all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                                                             all_idx, dspat, dwv, numfiles=numfiles)
+                                                             all_idx, dspat, dwv, numfiles=numfiles,
+                                                             relative_weights=cubepar['relative_weights'])
     # Check if a whitelight image should be saved
     if cubepar['save_whitelight']:
         # Check if the white light image still needs to be generated - if so, generate it now

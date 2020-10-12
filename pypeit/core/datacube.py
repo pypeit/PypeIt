@@ -236,7 +236,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
 
 
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv,
-                    sn_smooth_npix=None, numfiles=None):
+                    sn_smooth_npix=None, numfiles=None, relative_weights=False):
     """ Calculate wavelength dependent optimal weights. The weighting
         is currently based on a relative (S/N)^2 at each wavelength
 
@@ -268,9 +268,10 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
             polynomial fit is used to calculate the S/N weights.
         numfiles (int, optional):
             Number of spec2d files included. If not provided, it will be calculated from all_idx
-
+        relative_weights (bool, optional):
+            Calculate weights by fitting to the ratio of spectra?
     Returns:
-        tuple : There are two elements in the tuple. The first is a whitelight image based on all pixels
+        tuple : There are two elements in the tuple. The first is a white light image based on all pixels
                 from all frames. The second element is a 1D `numpy.ndarray`_ the same size as all_sci,
                 containing relative wavelength dependent weights for each input pixel.
     """
@@ -325,7 +326,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
     if sn_smooth_npix is None:
         sn_smooth_npix = int(np.round(0.1 * wave_spec.size))
     rms_sn, weights = coadd.sn_weights(wave_spec, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
-                                       relative_weights=True)
+                                       relative_weights=relative_weights)
 
     # Because we pass back a weights array, we need to interpolate to assign each detector pixel a weight
     all_wghts = np.ones(all_idx.size)
