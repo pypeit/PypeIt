@@ -339,8 +339,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def config_independent_frames(self):
         """
-        Data needed regarding frames types that are independent of
-        the full configuration specification.
+        Define frame types that are independent of the fully defined
+        instrument configuration.
 
         Bias and dark frames are considered independent of a
         configuration, but the DATE-OBS keyword is used to assign

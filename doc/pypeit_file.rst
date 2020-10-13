@@ -84,6 +84,8 @@ See `Edits to the Parameter Block`_ for common edits
 and also read the instrument specific docs.
 
 
+.. _setup_block:
+
 Setup Block
 -----------
 

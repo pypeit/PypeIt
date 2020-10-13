@@ -20,6 +20,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+
 @dev_suite_required
 def test_chk_calibs_not():
     os.chdir(data_path(''))
@@ -33,6 +34,7 @@ def test_chk_calibs_not():
 
     # Cleanup
     shutil.rmtree(data_path('setup_files'))
+
 
 @dev_suite_required
 def test_chk_calibs_deimos():

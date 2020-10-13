@@ -93,6 +93,7 @@
 .. _repo: https://github.com/pypeit/PypeIt
 .. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
+.. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

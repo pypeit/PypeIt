@@ -20,6 +20,11 @@
 - Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
 - Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
 
+- DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
+  the first three are now included in the auto-generated pypeit files.
+- DEIMOS AMPMODE is now included in the list of metadata used to
+  determine the DEIMOS configuration (setup).
+
 - Frames ignored by
   `pypeit.metadata.PypeItMetaData.unique_configurations` used to
   establish the unique configurations are now set by
@@ -31,6 +36,17 @@
   used to match bias and dark frames to a configuration observed on the
   same date.  Currently these frames can only be set to a single
   configuration.
+
+- Added `pypeit.metadata.PypeItMetaData.clean_configurations` that
+  ignores frames that cannot be reduced by pypeit, as set by
+  `pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
+  For DEIMOS, this is used to ignore frames that are taken in
+  direct-imaging mode or using anything except the B amplifier to read
+  the data.  The ignored frames are removed from the metadata table
+  (`fitstbl`).
+
+- `update_docs` script now builds the html as well as the api rst files.
+
 
 1.1.1 (10 Sep 2020)
 -------------------

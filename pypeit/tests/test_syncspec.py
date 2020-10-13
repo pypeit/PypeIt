@@ -20,7 +20,7 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 #                                  'tst_lris_files',
 #                                  1)
 
-#@cooked_required
+@cooked_required
 def test_kastb():
     dpath = os.path.join(os.environ['PYPEIT_DEV'], 'Cooked', 'Science')
     file1 = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits' #SPAT0176-SLIT0000-DET01
@@ -33,5 +33,3 @@ def test_kastb():
     for ofile in outfiles:
         os.remove(ofile)
 
-if __name__ == '__main__':
-    test_kastb()

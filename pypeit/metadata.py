@@ -529,11 +529,6 @@ class PypeItMetaData:
         """
         Construct the setup dictionary.
 
-        .. todo::
-            - This is for backwards compatibility, but we should
-              consider reformatting it.  And it may be something to put
-              in the relevant spectrograph class.
-
         Args:
             row (:obj:`int`):
                 The 0-indexed row used to construct the setup.
@@ -864,14 +859,14 @@ class PypeItMetaData:
                 indx = (self.table['setup'] == 'None') & self.find_frames(ftype)
                 if not np.any(indx):
                     continue
-                if meta is None:
+                if metakey is None:
                     # No matching meta data defined, so just set all
                     # the frames to this (first) configuration
                     self.table['setup'][indx] = cfg_key
                     continue
 
                 # Find the unique values of meta for this configuration
-                uniq_meta = np.unique(self.table[meta][in_cfg].data)
+                uniq_meta = np.unique(self.table[metakey][in_cfg].data)
                 # Warn the user that the matching meta values are not
                 # unique for this configuration.
                 if uniq_meta.size != 1:
@@ -880,7 +875,7 @@ class PypeItMetaData:
                               + '{1} values.' .format(meta))
                 # Find the frames of this type that match any of the
                 # meta data values
-                indx &= np.isin(self.table[meta], uniq_meta)
+                indx &= np.isin(self.table[metakey], uniq_meta)
                 self.table['setup'][indx] = cfg_key
 
     def clean_configurations(self):
@@ -920,7 +915,7 @@ class PypeItMetaData:
         # Alert the user that some of the frames are going to be
         # removed
         msg = 'The following frames have configurations that cannot be reduced by PypeIt' \
-              ' and will be removed:\n'
+              ' and will be removed from the metadata table (pypeit file):\n'
         indx = np.where(np.logical_not(good))[0]
         for i in indx:
             msg += '    {0}\n'.format(self['filename'][i])
@@ -1043,10 +1038,6 @@ class PypeItMetaData:
         configs = np.unique(self['setup'].data).tolist()
         if 'None' in configs:
             configs.remove('None')      # Ignore frames with undefined configurations
-#        try:
-#            configs.remove('None')      # Ignore frames with undefined configurations
-#        except:
-#            pass
         n_cfg = len(configs)
 
         # TODO: Science frames can only have one calibration group
