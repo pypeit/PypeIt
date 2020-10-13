@@ -1935,9 +1935,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
-
-        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,
-        # not one at every location on the order
+        
+        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,		
+        # not one at every location on the order            
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
             for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),

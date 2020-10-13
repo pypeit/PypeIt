@@ -32,7 +32,7 @@
 
 .. TODO: Having the version here means we'll need to change it every time we release a new version. Do we need this here?
 
-PypeIt 1.1.0 |stars| |watch|
+PypeIt 1.1.2dev |stars| |watch|
 ============================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
@@ -47,12 +47,12 @@ this online documentation.
 ``PypeIt`` is a set of commands designed to perform the reduction
 without any additional coding.
 
-This v1.1 release of ``PypeIt`` is designed to be used by both
-advanced spectroscopists with prior data reduction expertise and
-astronomers with no prior experience of data reduction. It is highly
-configurable and designed to be applied to any standard slit-imaging
-spectrograph, and can accommodate long-slit, multi-slit, as well as
-cross-dispersed echelle spectra.
+This release of ``PypeIt`` is designed to be used by both advanced
+spectroscopists with prior data reduction expertise and astronomers
+with no prior experience of data reduction. It is highly configurable
+and designed to be applied to any standard slit-imaging spectrograph,
+and can accommodate long-slit, multi-slit, as well as cross-dispersed
+echelle spectra.
 
 Citation
 ++++++++
@@ -203,8 +203,11 @@ or have a feature request, please `submit an issue
    :caption: Further processing
    :maxdepth: 1
 
+   A-B_differencing
    fluxing
    coadd1d
+   coadd2d
+   coadd3d
 
 ----
 
@@ -213,6 +216,7 @@ or have a feature request, please `submit an issue
    :maxdepth: 1
 
    dev/development
+   PypeIt API <api/modules>
 
 Contributors
 ============
