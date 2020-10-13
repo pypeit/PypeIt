@@ -1,5 +1,8 @@
 """
 Provides a class that handles the fits metadata required by PypeIt.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 import io

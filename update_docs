@@ -1,12 +1,16 @@
 #!/bin/bash
 
 cd doc
+printf "Updating API documentation"
 make clean ; make apirst
-cd ../
-git add doc/api
-git add doc/pypeit_par.rst
+git add api
+git add pypeit_par.rst
 
-printf "Now check the modified files with:\n\n    git status\n\nAnd commit the changes with: \n\n   git commit -m 'updated docs'\n\n"
+printf "Testing HTML compilation"
+make html
+cd ../
+
+printf "Check the modified files with:\n\n    git status\n\nFix any errors/warnings in:\n\n    doc/sphinx_warnings.out\n\nAdd any additioanl changes with:\n\n    git add -u\n\nAnd commit the changes with: \n\n   git commit -m 'updated docs'\n\n"
 
 exit 0
 
