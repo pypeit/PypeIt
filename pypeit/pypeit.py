@@ -679,6 +679,9 @@ class PypeIt(object):
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
+                                        sci_spec_flexure=self.redux.slitshift,
+                                        vel_corr=self.redux.vel_corr,
+                                        vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=copy.deepcopy(self.caliBrate.slits))
         spec2DObj.process_steps = sciImg.process_steps

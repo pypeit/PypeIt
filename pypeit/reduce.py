@@ -190,6 +190,7 @@ class Reduce(object):
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
+        self.vel_corr = None
 
     def initialise_slits(self, initial=False):
         """
@@ -799,6 +800,7 @@ class Reduce(object):
                         specobj.apply_helio(vel_corr, refframe)
 
             # Apply correction to wavelength image
+            self.vel_corr = vel_corr
             self.waveimg *= vel_corr
 
         else:
