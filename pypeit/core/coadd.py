@@ -503,8 +503,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         mask_ref: ndarray, bool (nspec,)
             mask for reference flux
         norder: int
-            order of polynomial rescaling.  Note that the code multiplies in by the square of a polynomail of order
-            norder to ensure positivity of the scale factor.
+            order of polynomial rescaling; norder=2 is a linear fit.  Note that the code
+            multiplies in by the square of a polynomial of order norder-1 to ensure
+            positivity of the scale factor.
         scale_min: float, default =0.05
             minimum scaling factor allowed
         scale_max: float, default=100.0
@@ -555,12 +556,15 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     if 'poly' in model:
         guess = np.append(ratio, np.zeros(norder-1))
         scale_fun = lambda x: x
+        err_scale_fun = lambda x: x
     elif 'square' in model:
         guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
         scale_fun = np.sqrt
+        err_scale_fun = lambda x: 2 * np.sqrt(x)
     elif 'exp' in model:
         guess = np.append(np.log(ratio), np.zeros(norder-1))
         scale_fun = np.log
+        err_scale_fun = lambda x: x
     else:
         msgs.error('Unrecognized model type')
 
@@ -571,11 +575,26 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
-    lr = scipy.stats.linregress(wave[mask], scale_fun(flux_ref_med[mask]))
-    if np.abs(lr.rvalue) > 0.8:
-        leg_slope = lr.slope * (wave_max - wave_min) / 2.0
-        leg_int = lr.intercept + lr.slope * (wave_max + wave_min)/2.0
-        guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
+    # Here we compute a quadratic or linear regression to the scaled flux in order to get a better guess.
+    if norder >= 2:
+        if norder > 2:
+            # quadratic time!
+            fit = np.polyfit(wave[mask], scale_fun(flux_ref_med[mask]), 2, w=err_scale_fun(flux_ref_med[mask]) * np.sqrt(ivar_ref_med[mask]))
+            chi2_r = np.mean(ivar_ref_med[mask] * np.square((np.exp(fit[0] * wave[mask] ** 2 + fit[1] * wave[mask] + fit[2]) - flux_ref_med[mask])))
+            leg_2 = fit[0] * (wave_max - wave_min) ** 2 / 6.0
+            leg_1 = (wave_max - wave_min)*(fit[1] + fit[0]*(wave_max + wave_min))/2.0
+            leg_0 = fit[2] + fit[1]*(wave_max + wave_min)/2.0 + fit[0] * (wave_max ** 2 + wave_max * wave_min + wave_min ** 2)/3.0
+            proposed_guess = np.append([leg_0, leg_1, leg_2], np.zeros(norder-3))
+        elif norder == 2:
+            # linear time!
+            fit = np.polyfit(wave[mask], scale_fun(flux_ref_med[mask]), 1, w=err_scale_fun(flux_ref_med[mask]) * np.sqrt(ivar_ref_med))
+            # We take a cut on the reduced chi2 of the fit.
+            chi2_r = np.mean(ivar_ref_med[mask] * np.square((np.exp(fit[0] * wave[mask] + fit[1]) - flux_ref_med[mask])))
+            leg_slope = fit[0] * (wave_max - wave_min) / 2.0
+            leg_int = fit[1] + fit[0] * (wave_max + wave_min)/2.0
+            proposed_guess = np.array([leg_int, leg_slope])
+        if chi2_r < 1e4:
+            guess = proposed_guess
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
