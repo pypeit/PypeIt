@@ -448,7 +448,7 @@ class PypeItSetup:
         self.fitstbl.set_configurations(cfgs)
 
         # Assign frames to calibration groups
-        self.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+        self.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
 
         # Set default comb_id
         self.fitstbl.set_combination_groups()

@@ -13,7 +13,7 @@ from pypeit.tests.tstutils import dev_suite_required
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.par.util import parse_pypeit_file
 
-@dev_suite_required
+#@dev_suite_required
 def test_deimos():
     # Raw DEIMOS directory
     raw_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos')
@@ -67,3 +67,6 @@ def test_deimos():
         # Clean up after every setup
         shutil.rmtree(output_path)
 
+
+if __name__ == '__main__':
+    test_deimos()

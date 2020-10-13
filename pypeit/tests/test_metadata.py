@@ -2,6 +2,8 @@ import os
 import glob
 import shutil
 
+from IPython import embed
+
 import pytest
 
 import numpy as np
@@ -64,7 +66,7 @@ def test_lris_red_multi_400():
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations()
     ps.fitstbl.set_configurations(cfgs)
-    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    ps.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
     # Test
     assert np.all(ps.fitstbl['setup'] == 'A')
 
@@ -80,7 +82,13 @@ def test_lris_red_multi():
     ps.get_frame_types(flag_unknown=True)
     cfgs = ps.fitstbl.unique_configurations()
     ps.fitstbl.set_configurations(cfgs)
-    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    ps.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
+
+#    embed()
+#    exit()
+#
+#if __name__ == '__main__':
+#    test_lris_red_multi()
 
 
 @dev_suite_required

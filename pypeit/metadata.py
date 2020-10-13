@@ -860,7 +860,7 @@ class PypeItMetaData:
                     continue
 
                 # Find the unique values of meta for this configuration
-                uniq_meta = np.unique(self.table[meta][in_cfg])
+                uniq_meta = np.unique(self.table[meta][in_cfg].data)
                 # Warn the user that the matching meta values are not
                 # unique for this configuration.
                 if uniq_meta.size != 1:
@@ -869,7 +869,7 @@ class PypeItMetaData:
                               + '{1} values.' .format(meta))
                 # Find the frames of this type that match any of the
                 # meta data values
-                indx &= np.isin(self.table[meta][indx], uniq_meta)
+                indx &= np.isin(self.table[meta], uniq_meta)
                 self.table['setup'][indx] = cfg_key
 
     def clean_configurations(self):

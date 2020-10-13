@@ -216,7 +216,7 @@ def test_setup_keck_deimos():
     # Clean-up
     shutil.rmtree(setup_dir)
 
-#@dev_suite_required
+@dev_suite_required
 def test_setup_keck_deimos_multiconfig():
 
     root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
@@ -251,8 +251,12 @@ def test_setup_keck_deimos_multiconfig():
     # Two frames should be removed
     assert len(ps.fitstbl) == 23, 'Incorrect number of table rows.'
 
-if __name__ == '__main__':
-    test_setup_keck_deimos_multiconfig()
+#if __name__ == '__main__':
+#
+#    import warnings
+#    warnings.simplefilter('error', FutureWarning)
+#
+#    test_setup_keck_deimos_multiconfig()
 
 
 @dev_suite_required

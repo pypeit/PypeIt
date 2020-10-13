@@ -137,9 +137,9 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             type_bits[5:] = fitstbl.type_bitmask.turn_on(type_bits[5:], flag='science')
             fitstbl.set_frame_types(type_bits)
             # Calibration groups
-            cfgs = fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
+            cfgs = fitstbl.unique_configurations() #ignore_frames=['bias', 'dark'])
             fitstbl.set_configurations(cfgs)
-            fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+            fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
 
     return fitstbl
 
