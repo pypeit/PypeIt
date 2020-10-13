@@ -68,7 +68,7 @@ class PypeItSetup:
                 print(valid_spectrographs())
 
             To use all the default parameters when reducing data from a
-            given spectrogaph, you can set `cfg_lines = None`, but you
+            given spectrograph, you can set `cfg_lines = None`, but you
             then *must* provide the `spectrograph_name`.
         spectrograph_name (:obj:`str`, optional):
             If not providing a list of configuration lines
@@ -77,14 +77,14 @@ class PypeItSetup:
             provided by this argument.
         pypeit_file (:obj:`str`, optional):
             The name of the pypeit file used to instantiate the
-            reduction.  This can be None, and will lead to default names
-            for output files (TODO: Give list).  Setting :ref:`pypeit_file`
-            here *only sets the name of the file*.  To instantiate a
-            `PypitSetup` object directly from a pypeit file (i.e. by
-            reading the file), use the :func:`from_pypeit_file` method;
-            i.e.::
+            reduction. This can be None, and will lead to default
+            names for output files (TODO: Give list). Setting
+            :ref:`pypeit_file` here *only sets the name of the file*.
+            To instantiate a :class:`~pypeit.pypeitsetup.PypeItSetup`
+            object directly from a pypeit file (i.e. by reading the
+            file), use the :func:`from_pypeit_file` method; i.e.::
                 
-                setup = PypitSetup.from_pypeit_file('myfile.pypeit')
+                setup = PypeItSetup.from_pypeit_file('myfile.pypeit')
 
     Attributes:
         file_list (list):
@@ -109,8 +109,6 @@ class PypeItSetup:
             The dictionary with the list of instrument setups.
         steps (list):
             The steps run to provide the pypeit setup.
-
-    .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
     def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
                  cfg_lines=None, spectrograph_name=None, pypeit_file=None):

@@ -11,10 +11,14 @@ import numpy as np
 
 import pytest
 import yaml
+from configobj import ConfigObj
 
 from pypeit.pypmsgs import PypeItError
+from pypeit.metadata import PypeItMetaData
+from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit import pypeit
 from pypeit import pypeitsetup
@@ -24,8 +28,10 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+
 def expected_file_extensions():
     return ['pypeit', 'sorted']
+
 
 def test_run_setup():
     """ Test the setup script
@@ -92,6 +98,7 @@ def test_setup_keck_lris_red():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_keck_lris_red_orig():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red_orig/long_300_5000')
@@ -133,6 +140,7 @@ def test_setup_keck_lris_blue():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_keck_lris_blue_orig():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_blue_orig/long_600_4000_d500')
@@ -153,6 +161,7 @@ def test_setup_keck_lris_blue_orig():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_shane_kast_blue():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
@@ -172,6 +181,7 @@ def test_setup_shane_kast_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
 
 @dev_suite_required
 def test_setup_shane_kast_red():
@@ -216,8 +226,58 @@ def test_setup_keck_deimos():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_keck_deimos_multiconfig():
+
+    root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
+    files = glob.glob(os.path.join(root, '830G_L_8100', '*fits*'))
+    files += glob.glob(os.path.join(root, '830G_L_8400', '*fits*'))
+
+    output_path = os.path.join(os.getcwd(), 'output')
+    if os.path.isdir(output_path):
+        shutil.rmtree(output_path)
+
+    ps = pypeitsetup.PypeItSetup(files, spectrograph_name='keck_deimos')
+    ps.run(setup_only=True)
+    # Write the automatically generated pypeit data
+    pypeit_files = ps.fitstbl.write_pypeit(output_path, cfg_lines=ps.user_cfg,
+                                           write_bkg_pairs=True)
+
+    assert len(pypeit_files) == 2, 'Should have created two pypeit files'
+
+    # Test the pypeit files for the correct configuration and
+    # calibration group results
+    for f, s, c in zip(pypeit_files, ['A', 'B'], ['0', '1']):
+
+        # TODO: All of this front-end stuff, pulled from pypeit.py, should
+        # be put into a function.
+
+        # Read the pypeit file
+        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(f, runtime=True)
+        # Spectrograph
+        cfg = ConfigObj(cfg_lines)
+        spectrograph = load_spectrograph(cfg['rdx']['spectrograph'])
+        # Configuration-specific parameters
+        for idx, row in enumerate(usrdata):
+            if 'science' in row['frametype'] or 'standard' in row['frametype']:
+                break
+        spectrograph_cfg_lines = spectrograph.config_specific_par(data_files[idx]).to_config()
+        #  PypeIt parameters
+        par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+        #  Metadata
+        fitstbl = PypeItMetaData(spectrograph, par, files=data_files, usrdata=usrdata, strict=True)
+        fitstbl.finalize_usr_build(frametype, setups[0])
+
+        assert np.all(fitstbl['setup'] == s), 'Setup is wrong'
+        assert np.all(fitstbl['calib'] == c), 'Calibration group is wrong'
+
+    # Clean-up
+    shutil.rmtree(output_path)
+
+
+@dev_suite_required
+def test_setup_keck_deimos_multiconfig_clean():
 
     root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos')
     files = glob.glob(os.path.join(root, '830G_L_8100', '*fits*'))
@@ -244,19 +304,13 @@ def test_setup_keck_deimos_multiconfig():
     ps.fitstbl.clean_configurations()
     assert len(ps.fitstbl) == 25, 'Incorrect number of table rows.'
 
-    # Artificially set the amplifier and mode of two frames
+    # Artificially set the amplifier and mode of two frames to be
+    # invalid
     ps.fitstbl['amp'][0] = 'SINGLE:A'
     ps.fitstbl['mode'][1] = 'Direct'
     ps.fitstbl.clean_configurations()
-    # Two frames should be removed
+    # Those two frames should have been removed
     assert len(ps.fitstbl) == 23, 'Incorrect number of table rows.'
-
-#if __name__ == '__main__':
-#
-#    import warnings
-#    warnings.simplefilter('error', FutureWarning)
-#
-#    test_setup_keck_deimos_multiconfig()
 
 
 @dev_suite_required
@@ -278,6 +332,7 @@ def test_setup_keck_nires():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
 
 @dev_suite_required
 def test_setup_keck_nirspec():
@@ -320,6 +375,7 @@ def test_setup_magellan_mage():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_wht_isis_blue():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/wht_isis_blue/long_R300B_d5300')
@@ -339,6 +395,7 @@ def test_setup_wht_isis_blue():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
 
 @dev_suite_required
 def test_setup_vlt_xshooter_uvb():
@@ -360,6 +417,7 @@ def test_setup_vlt_xshooter_uvb():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_vlt_xshooter_vis():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter/VIS_1x1')
@@ -379,6 +437,7 @@ def test_setup_vlt_xshooter_vis():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
 
 @dev_suite_required
 def test_setup_vlt_xshooter_nir():
@@ -400,6 +459,7 @@ def test_setup_vlt_xshooter_nir():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+
 @dev_suite_required
 def test_setup_gemini_gnirs():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gemini_gnirs/32_SB_SXD/')
@@ -419,6 +479,7 @@ def test_setup_gemini_gnirs():
 
     # Clean-up
     shutil.rmtree(setup_dir)
+
 
 @dev_suite_required
 def test_setup_not_alfosc():
