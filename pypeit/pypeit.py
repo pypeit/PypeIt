@@ -375,10 +375,6 @@ class PypeIt(object):
 
             msgs.info('Finished calibration group {0}'.format(i))
 
-        # Check if this is an IFU reduction. If so, make a datacube
-        if self.spectrograph.pypeline == "IFU" and self.par['reduce']['cube']['make_cube']:
-            msgs.work("Generate datacube")
-
         # Finish
         self.print_end_time()
 
