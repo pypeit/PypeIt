@@ -30,12 +30,12 @@
    :target: https://github.com/pypeit/PypeIt
 
 
-.. TODO: Having the version here means we'll need to change it every time we release a new version. Do we need this here?
-
-PypeIt 1.1.2dev |stars| |watch|
-============================
+PypeIt |stars| |watch|
+======================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
+
+**Version**: 1.1.2dev
 
 ``PypeIt`` is a Python package for semi-automated reduction of
 astronomical, spectroscopic data. Its algorithms build on
