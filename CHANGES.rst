@@ -19,6 +19,7 @@
 - Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching` to `EdgeTraceSet`
 - Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
 - Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
+- Fix assignment bug in fitting bspline
 
 1.1.1 (10 Sep 2020)
 -------------------
