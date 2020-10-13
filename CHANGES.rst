@@ -20,6 +20,18 @@
 - Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
 - Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
 
+- Frames ignored by
+  `pypeit.metadata.PypeItMetaData.unique_configurations` used to
+  establish the unique configurations are now set by
+  `pypeit.spectrographs.spectrograph.Spectrograph.config_independent_frames`.
+
+- `pypeit.spectrographs.spectrograph.Spectrograph.config_independent_frames`
+  can also return a *single* keyword selecting the metadata column used
+  to match these frames to a given configuration.  For DEIMOS, this is
+  used to match bias and dark frames to a configuration observed on the
+  same date.  Currently these frames can only be set to a single
+  configuration.
+
 1.1.1 (10 Sep 2020)
 -------------------
 

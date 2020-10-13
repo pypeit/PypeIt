@@ -850,7 +850,15 @@ class PypeItMetaData:
         # the ignored frame types should be assigned to it:
         for cfg_key in _configs.keys():
             in_cfg = self.table['setup'] == cfg_key
-            for ftype, meta in ignore_frames.items():
+            for ftype, metakey in ignore_frames.items():
+
+                # TODO: For now, use this assert to check that the
+                # metakey is either not set or a string
+                assert metakey is None or isinstance(metakey, str), \
+                    'CODING ERROR: metadata keywords set by config_indpendent_frames are not ' \
+                    'correctly defined for {0}; values must be None or a string.'.format(
+                        self.spectrograph.__class__.__name__)
+
                 # Get the list of frames of this type without a
                 # configuration
                 indx = (self.table['setup'] == 'None') & self.find_frames(ftype)
