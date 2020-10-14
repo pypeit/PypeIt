@@ -1536,6 +1536,10 @@ class PypeItMetaData:
 
         # Construct the setups dictionary
         cfg = self.unique_configurations(copy=True, rm_none=True)
+
+        # TODO: We should edit the relevant follow-on code so that we
+        # don't have to do these gymnastics. Or better yet, just stop
+        # producing/using the *.calib file.
         _cfg = {}
         for setup in cfg.keys():
             _cfg[setup] = {}

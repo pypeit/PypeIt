@@ -63,14 +63,17 @@ Metadata Key    Type    Example         Description
 ``filter1``     str     J               Name of the order-sorting filter
 =============== ======= =============== ===================================================================
 
-*Every unique combination* of the relevant metadata represents a
+*Every unique combination* of the relevant metadata found in any of
+*the fits files to be reduced represents a
 unique instrument configuration for ``PypeIt`` to consider; these
 configurations can be determined automatically by :ref:`pypeit_setup`
 and will be identified by a capital letter, e.g., **A**. When
 executing :ref:`run_pypeit`, however, the instrument configuration is
-set by the :ref:`setup_block` in the :ref:`pypeit_file`, and not
-redetermined by the fits files. Currently, each :ref:`pypeit_file`
-should only provide data from *one* instrument configuration.
+set by the :ref:`setup_block` in the :ref:`pypeit_file` and not
+redetermined by the fits files. The latter allows the user
+flexibility to override ``PypeIt``'s automated configuration
+settings. Currently, each :ref:`pypeit_file` should only provide data
+from *one* instrument configuration.
 
 If you tend to observe with one instrument configuration and with a
 simple set of calibrations, then the setup to run ``PypeIt`` should
@@ -101,18 +104,17 @@ reduction.
 0. Prepare
 ----------
 
-Move to a folder where you wish the reduced data products to appear.
-Any folder will do.
+Change your working directory to the one where you wish the reduced
+data products to appear. Any directory will do.
 
 1. First Execution
 ------------------
 
-We recommend your first execution of ``pypeit_setup`` look like
-this::
+We recommend you first execute ``pypeit_setup`` like this::
 
     pypeit_setup -r path_to_your_raw_data/LB -s keck_lris_blue
 
-Where the two command-line options are *required* and provide:
+where the two command-line options are *required* and provide:
 
   - ``-s``: Sets the spectrograph to be reduce. This is camera
     specific.
@@ -123,9 +125,10 @@ Specifically note that this first run does *not* include the ``-c``
 argument.
 
 This execution of ``pypeit_setup`` searches for all `*.fits` and
-`*.fits.gz` files with the provided root. Generally, the provided
-path should **not** contain a wild-card; however, you can search
-through multiple directories as follows::
+`*.fits.gz` files with the provided root directory. Generally, the
+provided path should **not** contain a wild-card and it is best if
+you provide the *full* path; however, you can search through multiple
+directories as follows::
 
     pypeit_setup -r "/Users/xavier/Keck/LRIS/data/2016apr06/Raw/*/LB" -s keck_lris_blue
 
@@ -142,63 +145,9 @@ The call above creates two files in a ``setup_files/`` folder:
     ``PypeIt``. Each unique configuration is given a capital letter
     identifier (e.g., A,B,C,D...).
 
-Here is an example ``.sorted`` file for some example Keck DEIMOS data::
+Here is an example ``.sorted`` file for some example Keck DEIMOS data:
 
-    ##########################################################
-    Setup A
-    --:
-      binning: 1,1
-      dichroic: none
-      disperser:
-        angle: 8099.98291016
-        name: 830G
-      slit:
-        decker: LongMirr
-        slitlen: none
-        slitwid: none
-    #---------------------------------------------------------
-    |               filename |                 frametype |                 ra |                dec |     target | dispname |   decker | binning |          mjd |    airmass | exptime |     dispangle |      amp |    dateobs |         utc |
-    | DE.20170527.06713.fits |                  arc,tilt |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.077631 | 1.41291034 |     1.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:51:53.87 |
-    |     d0527_0030.fits.gz |                  arc,tilt |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.077631 | 1.41291034 |     1.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:51:53.87 |
-    | DE.20170527.06790.fits | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 |  57900.07851 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:53:10.93 |
-    |     d0527_0031.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 |  57900.07851 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:53:10.93 |
-    | DE.20170527.06864.fits | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.079356 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:54:24.03 |
-    |     d0527_0032.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.079356 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:54:24.03 |
-    | DE.20170527.06936.fits | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.080211 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:55:36.93 |
-    |     d0527_0033.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |               45.0 | DOME PHLAT |     830G | LongMirr |     1,1 | 57900.080211 | 1.41291034 |     4.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 01:55:36.93 |
-    | DE.20170527.37601.fits |                   science |  261.0363749999999 | 19.028166666666667 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.435131 | 1.03078874 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 10:26:41.61 |
-    | DE.20170527.38872.fits |                   science |  261.0363749999999 | 19.028166666666667 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.449842 | 1.01267696 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 10:47:52.92 |
-    |     d0527_0081.fits.gz |                   science |  261.0363749999999 | 19.028166666666667 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.449842 | 1.01267696 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 10:47:52.92 |
-    | DE.20170527.41775.fits |                   science |  261.0362916666666 | 19.028888888888886 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.483427 | 1.00093023 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 11:36:15.35 |
-    |     d0527_0083.fits.gz |                   science |  261.0362916666666 | 19.028888888888886 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.483427 | 1.00093023 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 11:36:15.35 |
-    | DE.20170527.43045.fits |                   science |  261.0362916666666 | 19.028888888888886 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.498135 | 1.00838805 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 11:57:25.35 |
-    | DE.20170527.44316.fits |                   science |  261.0362916666666 | 19.028888888888886 |   P261_OFF |     830G | LongMirr |     1,1 | 57900.512854 | 1.02377681 |  1200.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 12:18:36.71 |
-    | DE.20170527.53184.fits |                   science | 349.99316666666664 |           -5.16575 |  Feige 110 |     830G | LongMirr |     1,1 | 57900.615484 | 1.42505162 |    45.0 | 8099.98291016 | SINGLE:B | 2017-05-27 | 14:46:24.88 |
-    ##########################################################
-    Setup B
-    --:
-      binning: 1,1
-      dichroic: none
-      disperser:
-        angle: 7499.97998047
-        name: 830G
-      slit:
-        decker: None
-        slitlen: none
-        slitwid: none
-    #---------------------------------------------------------
-    |           filename |                 frametype |                 ra |               dec |         target | dispname |   decker | binning |          mjd |    airmass | exptime |     dispangle |      amp |    dateobs |         utc |
-    | d0914_0002.fits.gz |                      bias | 299.99999999999994 |              80.0 |        unknown |     830G |     None |     1,1 |  58010.07499 |  1.0153979 |     1.0 | 7499.97998047 | SINGLE:B | 2017-09-14 | 01:48:05.53 |
-    | d0914_0011.fits.gz |                  arc,tilt |  57.99999999999999 |              45.0 |        unknown |     830G | LongMirr |     1,1 | 58010.135443 | 1.41291034 |     1.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 03:15:07.98 |
-    | d0914_0013.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |              45.0 |        unknown |     830G | LongMirr |     1,1 | 58010.137123 | 1.41291034 |     6.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 03:17:33.43 |
-    | d0914_0014.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |              45.0 |        unknown |     830G | LongMirr |     1,1 | 58010.138113 | 1.41291034 |     6.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 03:18:59.03 |
-    | d0914_0015.fits.gz | pixelflat,illumflat,trace |  57.99999999999999 |              45.0 |        unknown |     830G | LongMirr |     1,1 | 58010.138969 | 1.41291034 |     6.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 03:20:13.93 |
-    | d0914_0036.fits.gz |                   science | 11.389749999999998 | 9.032555555555556 | PSOJ011p09_OFF |     830G | LongMirr |     1,1 |  58010.48501 | 1.01790951 |  1200.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 11:38:32.60 |
-    | d0914_0037.fits.gz |                   science | 11.390166666666666 | 9.033277777777778 | PSOJ011p09_OFF |     830G | LongMirr |     1,1 | 58010.499726 | 1.02369591 |  1200.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 11:59:43.61 |
-    | d0914_0038.fits.gz |                   science | 11.389333333333331 | 9.031833333333335 | PSOJ011p09_OFF |     830G | LongMirr |     1,1 | 58010.514673 |  1.0383931 |  1200.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 12:21:14.62 |
-    | d0914_0047.fits.gz |                   science |  76.37762499999998 | 52.83063888888889 |        G191B2B |     830G | LongMirr |     1,1 | 58010.641261 | 1.19898553 |    60.0 | 8399.93554688 | SINGLE:B | 2017-09-14 | 15:23:31.06 |
-    ##end
-
+.. include:: include/keck_deimos.sorted.rst
 
 This ``sorted`` file contains two configurations, ``A`` and ``B``.
 The "setup block" (the information between the ``###...`` and
@@ -216,16 +165,18 @@ calibrations or you may be surprised to see more configurations than
 you were expecting. In the latter case, you can help us improve the
 automated procedures in ``PypeIt`` by submitting an issue on GitHub
 (`Submit an issue`_) and including the sorted file in the issue
-description. Most importantly, you should use this file to decide
-which configuration you wish to reduce.
+description.
 
-It is ok if the values under `frametype` are not as you expect. These
-can and will be modified later via the relevant :doc:`pypeit_file`.
+Importantly, you should use the ``sorted`` file to decide which
+configuration (as selected by its letter) you wish to reduce. Also
+note that ``PypeIt`` cannot interpret any edits you make to this
+file; all user-level edits to the frame-typing, association of frames
+with given configurations, etc., must be done via the :doc:`pypeit_file`.
 
-3. Second execution; write the pypeit file for each setup
----------------------------------------------------------
+3. Second execution: Write the pypeit file for one or more setups
+-----------------------------------------------------------------
 
-Provided you are happy with the .sorted file, you should execute
+Provided you are happy with the ``sorted`` file, you should execute
 :ref:`pypeit_setup` a second time with the `--cfg_split` (shortcut
 `-c`) option. This will generate one or more sub-folders and populate
 each with a :doc:`pypeit_file`. Some example uses of the ``-c``
@@ -243,13 +194,17 @@ the A configuration is::
 
     pypeit_setup -r path_to_your_raw_data/LB -s keck_lris_blue -c A
 
-This example will generate a new folder named `keck_lris_blue_A`
-and within it will be a file named `keck_lris_blue_A.pypeit`.
+This example will generate a new folder named ``keck_lris_blue_A``
+and within it will be a file named ``keck_lris_blue_A.pypeit``.
 
 -b option
 +++++++++
 
-If you wish to specify pairs (or groups) of files to use for background
-subtraction (e.g. A-B), then include the `-b` option.
-This should already be the default for most near-IR spectrographs. See :doc:`A-B_differencing`.
+If you wish to specify pairs (or groups) of files to use for
+background subtraction (e.g. A-B), then include the `-b` option. This
+simply adds the relevant columns to the :ref:`pypeit_file` that you
+will need to edit by hand. The two columns added, ``comb_id`` and
+``bkg_id``, are added by default for most near-IR spectrographs. See
+:doc:`A-B_differencing` for the syntax used for the data in these
+columns and how ``PypeIt`` uses them.
 

@@ -14,6 +14,7 @@ Version History
 1.0         Kyle Westfall   11 Sep 2020 1.1.1
 1.1         Kyle Westfall   18 Sep 2020 1.1.2dev
 1.2         Kyle Westfall   28 Sep 2020 1.1.2dev
+1.3         Kyle Westfall   14 Oct 2020 1.2.1dev
 =========   =============   =========== ===========
 
 ----
@@ -67,6 +68,14 @@ type. Also note that the criteria used to select ``pixelflat``,
 ``arc`` and ``tilt`` frames. No distinction is currently made between
 ``IntFlat``, ``DmFlat``, or ``SkyFlat`` and how they're used in the
 code.
+
+Also note that ``PypeIt`` will ignore frames observed under
+conditions that do not meet the restricted values set by
+:func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.valid_configuration_values`.
+This currently requires all frames to have ``MOSMODE == 'Spectral'``
+and ``AMPMODE == 'SINGLE:B'`. These frames will not be included in
+the automatically generated :ref:`pypeit_file` created by
+:ref:`pypeit_setup`.
 
 Testing
 -------
