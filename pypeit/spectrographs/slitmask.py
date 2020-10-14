@@ -252,6 +252,7 @@ class SlitMask:
 
         # Restrict to objects on this detector
         on_det = sobjs.DET == slits.det
+        cut_sobjs = sobjs[on_det]
 
         # Unpack -- Remove this once we have a DataModel
         obj_maskdef_id = self.objects[:, 0].astype(int)
@@ -278,7 +279,7 @@ class SlitMask:
 
         # First pass
         measured, expected = [], []
-        for sobj in sobjs[on_det]:
+        for sobj in cut_sobjs:
             # Set MASKDEF_ID
             sobj.MASKDEF_ID = slits.maskdef_id[slits.spat_id == sobj.SLITID][0]
             # object ID
@@ -307,13 +308,54 @@ class SlitMask:
             median_off = 0.
 
         # Assign
+        # Loop on slits to deal with multiple sources within TOLER
+        uni_maskid = numpy.unique(cut_sobjs.MASKDEF_ID)
+        for maskid in uni_maskid:
+            # SpecObjs on this slit
+            idx = numpy.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+            # Within TOLER?
+            in_toler = numpy.abs(expected[idx]-measured[idx] - median_off) < TOLER
+            if numpy.any(in_toler):
+                # Parse the peak fluxes
+                peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
+                imx_peak = numpy.argmax(peak_flux)
+                imx_idx = idx[in_toler][imx_peak]
+                # Object in Mask Definition
+                oidx = numpy.where(obj_maskdef_id == maskid)[0][0]
+                # Assign
+                sobj = cut_sobjs[imx_idx]
+                sobj.RA = self.objects[:,2][oidx]
+                sobj.DEC = self.objects[:,3][oidx]
+                sobj.MASKDEF_OBJNAME = self.object_names[oidx]
+                # Remove that idx value
+                idx = idx.tolist()
+                idx.remove(imx_idx)
+                idx = numpy.array(idx)
+            # Fill in the rest
+            for ss in idx:
+                sobj = cut_sobjs[ss]
+                # Slit PA
+                sidx = numpy.where(self.slitid == sobj.MASKDEF_ID)[0][0]
+                slit_pa = self.onsky[sidx, 4]
+                pos_pa, neg_pa = fuss_with_maskpa(slit_pa)
+                # Do it
+                obj_pa = pos_pa if measured[ss] > 0 else neg_pa
+                new_obj_coord = slit_coords[sidx].directional_offset_by(
+                    obj_pa, (measured[ss]+median_off)*units.arcsec)
+                # Assign
+                sobj.RA = new_obj_coord.ra.value
+                sobj.DEC = new_obj_coord.dec.value
+                sobj.MASKDEF_OBJNAME = 'SERENDIP'
+
+
+        '''  # Original, fails to deal with multiple within tolerance
         for ss, sobj in enumerate(sobjs[on_det]):
             # object ID
             oidx = numpy.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
             if numpy.abs(expected[ss]-measured[ss] - median_off) < TOLER:
                 sobj.RA = self.objects[:,2][oidx]
                 sobj.DEC = self.objects[:,3][oidx]
-                sobj.MASKOBJ_NAME = self.object_names[oidx]
+                sobj.MASKDEF_OBJNAME = self.object_names[oidx]
             else:
                 # Slit PA
                 sidx = numpy.where(self.slitid == sobj.MASKDEF_ID)[0][0]
@@ -326,7 +368,8 @@ class SlitMask:
                 # Assign
                 sobj.RA = new_obj_coord.ra.value
                 sobj.DEC = new_obj_coord.dec.value
-                sobj.MASKOBJ_NAME = 'SERENDIP'
+                sobj.MASKDEF_OBJNAME = 'SERENDIP'
+        '''
 
         # Return
         return

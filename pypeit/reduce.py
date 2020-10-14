@@ -383,6 +383,10 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # Assign here -- in case we make another pass to add in missing targets
+        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.spectrograph.slitmask is not None:
+            self.spectrograph.slitmask.assign_maskinfo(self.slits, self.sobjs_obj, self.get_platescale(None),
+                                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
@@ -1023,10 +1027,6 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
-        # Assign here -- in case we make another pass to add in missing targets
-        if sobjs.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.spectrograph.slitmask is not None:
-            self.spectrograph.slitmask.assign_maskinfo(self.slits, sobjs, self.get_platescale(None),
-                                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
