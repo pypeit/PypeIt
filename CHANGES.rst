@@ -24,6 +24,7 @@
   is ON for `keck_deimos`
 - Pypeit registers `maskdef_id` in SlitTraceSet if instrument is
   `keck_deimos`
+- Fix assignment bug in fitting bspline
 - DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
   the first three are now included in the auto-generated pypeit files.
 - DEIMOS AMPMODE is now included in the list of metadata used to
