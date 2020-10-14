@@ -165,7 +165,7 @@ class SpecObj(datamodel.DataContainer):
                  'RA': dict(otype=float, descr='Right Ascension (J2000) decimal degree'),
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
                  'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
-                 'MASKOBJ_NAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
+                 'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '

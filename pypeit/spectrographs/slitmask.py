@@ -44,7 +44,6 @@ class SlitMaskBitMask(BitMask):
         super(SlitMaskBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
-# TODO -- Consider making a DataContainer
 class SlitMask:
     r"""
     Generic class for a slit mask that holds the slit positions and

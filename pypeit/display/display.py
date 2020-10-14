@@ -252,7 +252,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
 # TODO: Should we continue to allow rotate as an option?
 def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, rotate=False,
-               pstep=50, clear=False, synced=True, maskdef_ids=None):
+               pstep=50, clear=False, synced=True):
     r"""
     Overplot slits on the image in Ginga in the given channel
 
@@ -272,11 +272,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             can be different from ``left`` unless ``synced`` is True.
         slit_ids (:obj:`int`, array-like, optional):
             PypeIt ID numbers for the slits. If None, IDs run from -1 to
-            :math:`-N_{\rm slits}`. If not None, shape must be
-            :math:`(N_{\rm slits},)`. These are only used if
-            ``synced`` is True.
-        maskdef_ids (:obj:`int`, array-like, optional):
-            Mask definition ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
             :math:`(N_{\rm slits},)`. These are only used if
             ``synced`` is True.
@@ -326,7 +321,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
-        _maskdef_ids = np.arange(nslits) if maskdef_ids is None else np.atleast_1d(maskdef_ids)
         if len(_slit_ids) != nslits:
             msgs.error('Incorrect number of slit IDs provided.')
         _slit_id_loc = _left + 0.45*(_right - _left)
@@ -399,10 +393,6 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         # Slit IDs
         canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
                    fontsize=20.)
-        # Mask definition IDs
-        if maskdef_ids is not None:
-            canvas.add(str('text'), xb, yb-30., str('M{0}'.format(_maskdef_ids[i])), color=str('orange'),
-                       fontsize=20.)
         # TODO -- Fix indices if you really want to show them
         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
         #           fontsize=20.)
