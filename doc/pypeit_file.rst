@@ -89,8 +89,7 @@ of the following :doc:`frametype`:
 
     - ``arc``: Wavelength calibration
     - ``trace``: Slit/order definition
-    - ``pixelflat``: Flat fielding (see below if you **not**
-      provided)
+    - ``pixelflat``: Flat fielding
     - ``science``: Science exposure
 
 .. warning::

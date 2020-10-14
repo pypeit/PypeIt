@@ -69,16 +69,16 @@ Metadata Key    Type    Example         Description
 =============== ======= =============== ===================================================================
 
 *Every unique combination* of the relevant metadata found in any of
-*the fits files to be reduced represents a
-unique instrument configuration for ``PypeIt`` to consider; these
-configurations can be determined automatically by :ref:`pypeit_setup`
-and will be identified by a capital letter, e.g., **A**. When
-executing :ref:`run-pypeit`, however, the instrument configuration is
-set by the :ref:`setup_block` in the :ref:`pypeit_file` and not
-redetermined by the fits files. The latter allows the user
-flexibility to override ``PypeIt``'s automated configuration
-settings. Currently, each :ref:`pypeit_file` should only provide data
-from *one* instrument configuration.
+the fits files to be reduced represents a unique instrument
+configuration for ``PypeIt`` to consider; these configurations can be
+determined automatically by :ref:`pypeit_setup` and will be
+identified by a capital letter, e.g., **A**. When executing
+:ref:`run-pypeit`, however, the instrument configuration is set by
+the :ref:`setup_block` in the :ref:`pypeit_file` and not redetermined
+by the fits files. The latter allows the user flexibility to override
+``PypeIt``'s automated configuration settings. Currently, each
+:ref:`pypeit_file` should only provide data from *one* instrument
+configuration.
 
 If you tend to observe with one instrument configuration and with a
 simple set of calibrations, then the setup to run ``PypeIt`` should

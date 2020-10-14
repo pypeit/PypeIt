@@ -91,9 +91,6 @@ def test_run_pypeit_calib_only():
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
 
-if __name__ == '__main__':
-    test_run_pypeit_calib_only()
-
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories

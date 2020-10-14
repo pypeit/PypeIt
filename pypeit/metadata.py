@@ -522,57 +522,6 @@ class PypeItMetaData:
                                            datetime.datetime.strftime(dtime, '%Y%b%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
-#    def get_setup(self, row, det=None, config_only=False):
-#        """
-#        Construct the setup dictionary.
-#
-#        Args:
-#            row (:obj:`int`):
-#                The 0-indexed row used to construct the setup.
-#            det (:obj:`int`, optional):
-#                The 1-indexed detector to include.  If None, all
-#                detectors are included.
-#            config_only (:obj:`bool`, optional):
-#                Just return the dictionary with the configuration, don't
-#                include the top-level designation of the configuration
-#                itself.
-#
-#        Returns:
-#            dict: The pypeit setup dictionary with the default format.
-#
-#        Raises:
-#            PypeItError:
-#                Raised if the 'setup' isn't been defined.
-#        """
-#        if 'setup' not in self.keys():
-#            msgs.error('Cannot provide instrument setup without \'setup\' column; '
-#                       'run set_configurations.')
-#
-#        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
-#        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
-#        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
-#        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
-#        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
-#        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
-#        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
-#
-#        skey = 'Setup {}'.format(self['setup'][row])
-#        setup = {skey:
-#                    {'--':
-#                        {'disperser': {'name': dispname, 'angle':dispangle},
-#                         'dichroic': dichroic,
-#                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
-#                         'binning': binning,  # PypeIt orientation binning of a science image
-#                         }
-#                     }
-#                 }
-#        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
-#        #for d in _det:
-#        #    setup[skey][str(d).zfill(2)] \
-#        #            = {'binning': binning, 'det': d,
-#        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
-#        return setup[skey] if config_only else setup
-
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
         Get the list of the unique configuration names.
@@ -630,27 +579,10 @@ class PypeItMetaData:
 
         return setups, indx if return_index else setups
 
-#    def get_all_setups(self, ignore=None):
-#        """
-#        Construct the full dictionary with all the instrument setup
-#        detail.
-#
-#        This is mostly a convenience function for the writing routines.
-#
-#        .. todo::
-#            - This is for backwards compatibility, but we should
-#              consider reformatting/removing it.
-#
-#        Args:
-#            ignore (:obj:`list`, optional):
-#                Ignore configurations in the provided list.
-#        """
-#        setups, indx = self.get_configuration_names(ignore=ignore, return_index=True)
-#        return {setup: self.get_setup(i, config_only=True) for setup,i in zip(setups,indx)}
-
     def _get_cfgs(self, copy=False, rm_none=False):
         """
-        Convenience method to return :attr:`configs` with possible alterations.
+        Convenience method to return :attr:`configs` with possible
+        alterations.
 
         This method *should not* be called by any method outside of
         this class; use :func:`unique_configurations` instead.
@@ -1408,34 +1340,6 @@ class PypeItMetaData:
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
-
-#    def write_setups(self, ofile, overwrite=True, ignore=None):
-#        """
-#        Write the setups file.
-#
-#        The setups file lists all the unique instrument configurations
-#        (setups).
-#
-#        .. todo::
-#            - This is for backwards compatibility, but we should
-#              consider reformatting/removing it.
-#
-#        Args:
-#            ofile (:obj:`str`):
-#                Name for the output sorted file.
-#            overwrite (:obj:`bool`, optional):
-#                Overwrite any existing file with the same name.
-#            ignore (:obj:`list`, optional):
-#                Ignore configurations in the provided list.
-#        """
-#        if os.path.isfile(ofile) and not overwrite:
-#            msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
-#        
-#        # Construct file
-#        cfg = self.get_all_setups(ignore=ignore)
-#        ff = open(ofile, 'w')
-#        ff.write(yaml.dump(utils.yamlify(cfg)))
-#        ff.close()
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
         """
