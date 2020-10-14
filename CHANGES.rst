@@ -56,6 +56,8 @@
   `PD-3` requirement Keck outlined for the DEIMOS PypeIt pipeline.
 - Building the docs now dynamically generates an example pypeit and
   sorted file for inclusion in the PypeIt documentation.
+- The setup block is now a simple listing of the keywords and values
+  used to identify the instrument configuration.
 
 
 1.1.1 (10 Sep 2020)
