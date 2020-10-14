@@ -47,7 +47,7 @@ def main(args):
                 line += " {:0.4f} {:0.4f} {:s}".format(
                     sobjs[ii].RA,
                     sobjs[ii].DEC,
-                    sobjs[ii].MASKOBJ_NAME)
+                    sobjs[ii].MASKDEF_OBJNAME)
             #
             print(line)
         return
