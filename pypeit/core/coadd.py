@@ -712,6 +712,8 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
     sig_res = np.fmax(sn_smooth_npix / 10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
     sn_conv = convolution.convolve(sn_med2, gauss_kernel, boundary='extend')
+    sn_med2[:idx_mn] = 0
+    sn_med2[idx_mx:] = 0
     return sn_conv
 
 
