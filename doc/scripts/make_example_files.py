@@ -7,6 +7,8 @@ import time
 import shutil 
 import glob
 
+from pkg_resources import resource_filename
+
 from IPython import embed
 
 from pypeit.tests.tstutils import data_path
@@ -17,16 +19,19 @@ from pypeit import pypeitsetup
 
 def make_example_pypeit_file():
 
+    oroot = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                                       'doc', 'include')
+
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
-    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all'])
+    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-d', oroot])
     setup.main(pargs)
 
-    shutil.rmtree(os.path.abspath('setup_files'))
+    shutil.rmtree(os.path.join(oroot, 'setup_files'))
 
-    ofile = '../include/shane_kast_blue_A.pypeit.rst'
+    ofile = os.path.join(oroot, 'shane_kast_blue_A.pypeit.rst')
     with open(ofile, 'w') as f:
-        with open(os.path.abspath('shane_kast_blue_A/shane_kast_blue_A.pypeit'), 'r') as p:
+        with open(os.path.join(oroot, 'shane_kast_blue_A', 'shane_kast_blue_A.pypeit'), 'r') as p:
             lines = p.readlines()
         f.write('.. code-block:: console\n')
         f.write('\n')
@@ -34,7 +39,7 @@ def make_example_pypeit_file():
             f.write('    '+l)
         f.write('\n\n')
 
-    shutil.rmtree(os.path.abspath('shane_kast_blue_A'))
+    shutil.rmtree(os.path.join(oroot, 'shane_kast_blue_A'))
 
 
 def make_example_sorted_file():
@@ -47,7 +52,9 @@ def make_example_sorted_file():
     ps.run(setup_only=True)
 
     sfile = os.path.abspath('keck_deimos.sorted')
-    ofile = '../include/keck_deimos.sorted.rst'
+    oroot = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                                       'doc', 'include')
+    ofile = os.path.join(oroot, 'keck_deimos.sorted.rst')
     with open(ofile, 'w') as f:
         with open(sfile, 'r') as p:
             lines = p.readlines()

@@ -1,3 +1,8 @@
+
+.. include:: include/links.rst
+
+.. _setup_doc:
+
 *****
 Setup
 *****
@@ -68,7 +73,7 @@ Metadata Key    Type    Example         Description
 unique instrument configuration for ``PypeIt`` to consider; these
 configurations can be determined automatically by :ref:`pypeit_setup`
 and will be identified by a capital letter, e.g., **A**. When
-executing :ref:`run_pypeit`, however, the instrument configuration is
+executing :ref:`run-pypeit`, however, the instrument configuration is
 set by the :ref:`setup_block` in the :ref:`pypeit_file` and not
 redetermined by the fits files. The latter allows the user
 flexibility to override ``PypeIt``'s automated configuration

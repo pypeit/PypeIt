@@ -22,7 +22,7 @@ Basics
 Sorting frames by the configuration of the instrument, ensuring that
 this configuration is the same for all coupled sets of calibration and
 science frames, is performed by the :ref:`pypeit_setup` script; see
-:doc:`setup`. :ref:`pypeit_setup` uses automated procedures to sort
+:ref:`setup_doc`. :ref:`pypeit_setup` uses automated procedures to sort
 the frames and write a :ref:`pypeit_file` for each unique
 configuration (or for some down-selected set).
 
@@ -108,39 +108,85 @@ data."
 exception to this is given in the warning above with respect to how
 bias and dark frames are assigned to "calibration groups".
 
+The test used to demonstrate PD-1 is satisfied
+(:ref:`deimos_frames_report`) is also relevant here in that each
+directory in the ``PypeIt`` dev suite with DEIMOS data correctly
+identifies the frame types and associates them with a single
+configuration, all written to a single pypeit file.
 
-as demonstrated by the test at
-``pypeit/tests/test_frametype.py``.  To run the test:
+To test that ``PypeIt`` can successfully identify multiple
+configurations among a set of files, we have added the
+``test_setup_keck_deimos_multiconfig`` and
+``test_setup_keck_deimos_multiconfig_clean`` tests to
+``pypeit/tests/test_setups.py``.
+
+To run these tests:
 
 .. code-block:: bash
 
     cd pypeit/tests
-    pytest test_frametype.py::test_deimos -W ignore
+    pytest test_setup.py::test_setup_keck_deimos_multiconfig -W ignore
+    pytest test_setup.py::test_setup_keck_deimos_multiconfig_clean -W ignore
 
-The test requires that you have downloaded the ``PypeIt``
+The tests require that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
-variable that points to the relevant directory. The algorithm of the
-test is as follows:
+variable that points to the relevant directory.
 
-    1. Find all the directories in the :ref:`dev-suite` with Keck
-       DEIMOS data.
+Both tests collect the names of all files in the following two
+directories::
 
-    2. For each directory (i.e., instrument setup):
+    ${PYPEIT_DEV}/RAW_DATA/keck_deimos/830G_L_8100
+    ${PYPEIT_DEV}/RAW_DATA/keck_deimos/830G_L_8400
 
-        a. Make sure there is a "by-hand" version of the pypeit file
-           for this setup where a human (one of the pypeit
-           developers) has ensured the frame types are correct.
+test_setup_keck_deimos_multiconfig
+----------------------------------
 
-        b. Effectively run :ref:`pypeit_setup` on each of the
-           instrument setups to construct a new pypeit file with the
-           automatically generated frame types.
-           
-        c. Read both the by-hand and automatically generated frame
-           types from these two pypeit files and check that they are
-           identical. This check is *only* performed for the
-           calibration frames, not any ``science`` or ``standard``
-           frames.
+The algorithm for this test is as follows:
 
-Because this test is now included in the ``PypeIt``
-:ref:`unit-tests`, this frame-typing check is performed by the
+    1. Use :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
+       identify the configurations for these files.
+
+    2. Check that the code found two configurations and wrote the
+       pypeit files for each.
+
+    3. For each configuration:
+
+        a. Read the pypeit file
+
+        b. Check that the name for the setup is correct ('A' or 'B')
+
+        c. Check that the calibration group is the same for all frames ('0' or '1')
+
+test_setup_keck_deimos_multiconfig_clean
+----------------------------------------
+
+The algorithm for this test is as follows:
+
+    1. Similar to the previous test, use
+       :class:`~pypeit.pypeitsetup.PypeItSetup` to automatically
+       identify the configurations for these files.
+
+    2. Check that the code found two configurations.
+
+    3. Check that the only bias frame in the list was correctly
+       identified.
+
+    4. Check that the full table containing both configurations
+       contains the correct number of files (25).
+
+    5. Check that "cleaning" the configurations of frames that cannot
+       be reduced by ``PypeIt`` (those with ``MOSMODE != 'Spectral'``
+       or ``AMPMODE != SINGLE:B``), using
+       :func:`~pypeit.metadata.PypeItMetaData.clean_configurations`
+       does not remove any file because all of the dev-suite files
+       are valid.
+
+    6. After artificially changing the metadata for two files so that
+       they *do not* satisfy the necessary metadata restrictions,
+       check that
+       :func:`~pypeit.metadata.PypeItMetaData.clean_configurations`
+       removes both of these files.
+
+Because these tests are now included in the ``PypeIt``
+:ref:`unit-tests`, these configuration checks are performed by the
 developers for every new version of the code.

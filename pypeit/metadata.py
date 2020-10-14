@@ -92,8 +92,6 @@ class PypeItMetaData:
         table (:class:`astropy.table.Table`):
             The table with the relevant metadata for each fits file to
             use in the data reduction.
-        configs (:obj:`dict`):
-            The dictionary with the unique configurations.
     """
     def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, strict=True):
 
