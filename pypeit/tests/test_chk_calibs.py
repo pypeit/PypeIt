@@ -13,13 +13,7 @@ import matplotlib
 matplotlib.use('agg')  # For Travis
 
 from pypeit.scripts import chk_for_calibs
-from pypeit.tests.tstutils import dev_suite_required, cooked_required
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
-
+from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 
 @dev_suite_required
 def test_chk_calibs_not():
@@ -53,4 +47,5 @@ def test_chk_calibs_deimos():
 
     # Cleanup
     shutil.rmtree(data_path('setup_files'))
+
 

@@ -238,7 +238,8 @@ option are:
     - ``-c all``: This will generate folders+files for all
       configurations
 
-For example::
+An example execution that only produces the :ref:`pypeit_file` for
+the A configuration is::
 
     pypeit_setup -r path_to_your_raw_data/LB -s keck_lris_blue -c A
 
