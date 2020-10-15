@@ -374,7 +374,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     # errors described above from Schlegel's code.
     robust_scale = 2.0
     huber_vec = scipy.special.huber(robust_scale*chi_std, chi_vec)
-    loss_function = np.sum(np.square(huber_vec*mask_both))
+    loss_function = np.sum(huber_vec*mask_both)
     #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
