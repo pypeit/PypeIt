@@ -81,7 +81,7 @@ symbols need not align but the number per row must be equal.
     procedure that will work in all cases. The ``PypeIt`` reduction
     file is the ultimate authority in terms of how the data is
     reduced. As such, you should understand how edits to this file
-    work because these edits will *override* anything derived from
+    work because these edits will override *anything* derived from
     the FITS headers!
 
 Most :doc:`spectrographs` require at least one file with each

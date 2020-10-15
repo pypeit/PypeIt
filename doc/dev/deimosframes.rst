@@ -73,9 +73,9 @@ Also note that ``PypeIt`` will ignore frames observed under
 conditions that do not meet the restricted values set by
 :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.valid_configuration_values`.
 This currently requires all frames to have ``MOSMODE == 'Spectral'``
-and ``AMPMODE == 'SINGLE:B'``. These frames will not be included in
-the automatically generated :ref:`pypeit_file` created by
-:ref:`pypeit_setup`.
+and ``AMPMODE == 'SINGLE:B'``. Frames that do not meet these criteria
+will not be included in the automatically generated
+:ref:`pypeit_file` created by :ref:`pypeit_setup`.
 
 Testing
 -------

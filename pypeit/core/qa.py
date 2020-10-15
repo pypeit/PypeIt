@@ -370,11 +370,7 @@ def gen_mf_html(pypeit_file, qa_path):
         for cbset in cbsets:
             for det in dets:
                 # Run
-                try:
-                    idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
-                except:
-                    embed()
-                    exit()
+                idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
                 new_links, new_body = html_mf_pngs(idval)
                 # Save
                 links += new_links

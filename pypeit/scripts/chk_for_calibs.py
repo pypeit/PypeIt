@@ -146,8 +146,7 @@ def main(args):
     # Print
     answers.pprint_all()
     print('======================================================')
-    # Return
-    # TODO: Why does this return
+    # Return objects used by unit tests
     return answers, ps
 
 

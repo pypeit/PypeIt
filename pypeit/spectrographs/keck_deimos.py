@@ -458,11 +458,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if len(fil) != 1:
             msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
         # Read
-        # TODO: Why is this try except here?
-        try:
-            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
-        except AttributeError:
-            print("Reading DEIMOS file: {:s}".format(fil[0]))
+        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
 
         hdu = fits.open(fil[0])
         if hdu[0].header['AMPMODE'] != 'SINGLE:B':

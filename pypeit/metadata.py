@@ -218,62 +218,6 @@ class PypeItMetaData:
         # Return
         return data
 
-    # TODO: This method feels out of place in this class, but I don't
-    # really know how it's used.
-    # TODO: If you can only ever use the first element in the frames
-    # list, why does this method not just require that the first
-    # argument be a single integer?
-    def get_manual_extract(self, frames, det):
-        """
-        Parse the manual_extract column for a given frame and
-        detector.
-
-        Args:
-            frames (:obj:`list`):
-                List of frame indices; can be a single-element list.
-            det (:obj:`int`):
-                Detector number
-
-        Returns:
-            :obj:`dict`: None if manual extraction is not set for
-            this frame+det otherwise a dict of the values.
-        """
-
-        # Manual extract
-        if 'manual_extract' not in self.keys():
-            return None
-        # Warn me
-        if len(frames) > 1:
-            msgs.warn('Taking first science frame in stack for manual extraction.')
-        frame = frames[0]
-        # Empty?
-        if self['manual_extract'][frame] == 'None':
-            return None
-
-        # Parse the input
-        manual_extract_dict = {}
-        items = self['manual_extract'][frame].split(',')
-        dets, spats, specs, fwhms = [], [], [], []
-        for item in items:
-            numbers = item.split(':')
-            det_in = int(numbers[0])
-            # Only keep those on this detector
-            if np.abs(det_in) != det:  # Allow for negative values for negative image
-                continue
-            # Save
-            dets.append(det_in)
-            specs.append(float(numbers[1]))
-            spats.append(float(numbers[2]))
-            fwhms.append(float(numbers[3]))
-
-        # Fill as arrays -- No more lists!
-        manual_extract_dict['hand_extract_spec'] = np.array(specs)
-        manual_extract_dict['hand_extract_spat'] = np.array(spats)
-        manual_extract_dict['hand_extract_det'] = np.array(dets)
-        manual_extract_dict['hand_extract_fwhm'] = np.array(fwhms)
-
-        return manual_extract_dict
-
     # TODO:  In this implementation, slicing the PypeItMetaData object
     # will return an astropy.table.Table, not a PypeItMetaData object.
     def __getitem__(self, item):
