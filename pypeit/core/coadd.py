@@ -701,7 +701,7 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
         `numpy.ndarray`_: smoothed version of inarr.
     """
     spec_vec = np.arange(gdmsk.size)
-    sn_med2 = scipy.interpolate.interp1d(spec_vec[gdmsk], inarr, kind='cubic',
+    sn_med2 = scipy.interpolate.interp1d(spec_vec[gdmsk], inarr[gdmsk], kind='cubic',
                                          bounds_error=False, fill_value=-999)(spec_vec)
     # Fill the S/N weight to the left and right with the nearest value
     mask_good = np.where(sn_med2 != -999)[0]

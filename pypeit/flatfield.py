@@ -26,6 +26,7 @@ from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit.core import fitting
+from pypeit.core import coadd
 from pypeit import slittrace
 
 
@@ -1387,6 +1388,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
     scale_model: `numpy.ndarray`_
         An image containing the appropriate scaling
     """
+    embed()
+
     msgs.info("Performing relative spectral sensitivity correction")
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1408,46 +1411,93 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
     # Get the minimum and maximum wavelengths that are covered in *all* slits.
     minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
 
+    # Prepare reference spectrum
+    specmin = np.argmin(mnmx_wv[:, 0])
+    specmax = np.argmax(mnmx_wv[:, 1])
+    dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
+    numsamp = int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
+    bins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
+    # Ease the minimum and maximum spectra into each other to create a smooth reference
+    ww = np.where((bins > mnmx_wv[specmax, 0]) & (bins < mnmx_wv[specmin, 1]))  # Yes, this is correct
+    easing = np.ones(numsamp)
+    easing[ww] = 1 - np.linspace(0, 1, ww[0].size)
+    easing[ww[0].max():] = 0
+    onslit_specmin = (slitid_img_trim == slits.spat_id[swslt[specmin]])
+    onslit_specmax = (slitid_img_trim == slits.spat_id[swslt[specmax]])
+    weights = np.zeros(rawimg.shape)
+    weights[onslit_specmin] = interpolate.interp1d(bins, easing, kind='linear', bounds_error=False,
+                                                   fill_value="extrapolate")(waveimg[onslit_specmin])
+    weights[onslit_specmax] = interpolate.interp1d(bins, 1-easing, kind='linear', bounds_error=False,
+                                                   fill_value="extrapolate")(waveimg[onslit_specmax])
+    # hist, edge = np.histogram(waveimg, bins=bins, weights=modelimg*weights)
+    # cntr, edge = np.histogram(waveimg, bins=bins, weights=weights)
+    # wave_ref = 0.5 * (edge[1:] + edge[:-1])
+    # sky_ref = hist / cntr
+
+    # TODO ::  Consider using cos^2 weights, and include spectra from all slits.
+
     # Go through the slits and calculate the overlapping flux
     maxiter = 10
-    dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
+    modelimg_cp = modelimg.copy()
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration
         relscl_model = np.ones_like(rawimg)
-        # Generate a master sky frame
-        if rr == 0:
-            numsamp = slits.nslits * int((maxw - minw) / dwav)
-            bins = np.linspace(minw, maxw, numsamp)
-        else:
-            numsamp = slits.nslits * int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
-            bins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
-        # Histogram to get sky spectrum
-        hist, edge = np.histogram(waveimg, bins=bins, weights=modelimg)
-        cntr, edge = np.histogram(waveimg, bins=bins)
+
+        # Generate a reference spectrum
+        hist, edge = np.histogram(waveimg, bins=bins, weights=modelimg_cp * weights)
+        cntr, edge = np.histogram(waveimg, bins=bins, weights=weights)
         wave_ref = 0.5 * (edge[1:] + edge[:-1])
         sky_ref = hist / cntr
-        # Using the reference sky, iterate to calculate the relative spectral response
+
+        # Temporary code
+        sn_smooth_npix = int(np.round(0.1 * wave_ref.size))
         for slit_idx in range(0, slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit_b = (slitid_img_trim == slits.spat_id[swslt[slit_idx]])
             onslit_b_init = (slitid_img_init == slits.spat_id[swslt[slit_idx]])
-            onslit_b_olap = onslit_b & gpm & (waveimg >= minw) & (waveimg <= maxw) & skymask_now
-            idxcls = utils.find_nearest(wave_ref, waveimg[onslit_b_olap])
-            speca = sky_ref[idxcls]
-            # Fit a low order polynomial
-            xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
-            yfit = rawimg_copy[onslit_b_olap] / speca
-            # Rough outlier rejection
-            med = np.median(yfit)
-            mad = 1.4826*np.median(np.abs(med-yfit))
-            msk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
-            pypeitFit = fitting.robust_fit(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1, lower=5, upper=5)
-            relscl_model[onslit_b_init] = pypeitFit.eval((waveimg[onslit_b_init] - minw) / (maxw - minw))
-            #msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
-            #                                      lower=5, upper=5)
-            #relscl_model[onslit_b_init] = utils.func_val(coeff,
-            #                                             (waveimg[onslit_b_init] - minw) / (maxw - minw),
-            #                                             "legendre", minx=0, maxx=1)
+            onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[slit_idx, 0]) & (waveimg <= mnmx_wv[slit_idx, 1]) & skymask_now
+            hist, edge = np.histogram(waveimg[onslit_b_olap], bins=bins, weights=rawimg_copy[onslit_b_olap])
+            cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=bins)
+            cntr = cntr.astype(np.float)
+            cntr *= sky_ref
+            norm = (cntr != 0)/(cntr + (cntr == 0))
+            arr = hist*norm
+            gdmask = (arr != 0)
+            sn_med1 = np.zeros(arr.size)
+            sn_med1[gdmask] = utils.fast_running_median(arr[gdmask], sn_smooth_npix)
+            relscale = coadd.smooth_weights(sn_med1, gdmask, sn_smooth_npix)
+            rescale_model = interpolate.interp1d(wave_ref, relscale, kind='linear', bounds_error=False,
+                                                 fill_value="extrapolate")(waveimg[onslit_b_init])
+            # Store the result
+            relscl_model[onslit_b_init] = rescale_model.copy()
+
+        #
+        #
+        #
+        #
+        #
+        # # Using the reference sky, iterate to calculate the relative spectral response
+        # for slit_idx in range(0, slits.spat_id.size):
+        #     # Only use the overlapping regions of the slits, where the same wavelength range is covered
+        #     onslit_b = (slitid_img_trim == slits.spat_id[swslt[slit_idx]])
+        #     onslit_b_init = (slitid_img_init == slits.spat_id[swslt[slit_idx]])
+        #     onslit_b_olap = onslit_b & gpm & (waveimg >= minw) & (waveimg <= maxw) & skymask_now
+        #     idxcls = utils.find_nearest(wave_ref, waveimg[onslit_b_olap])
+        #     speca = sky_ref[idxcls]
+        #     # Fit a low order polynomial
+        #     xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
+        #     yfit = rawimg_copy[onslit_b_olap] / speca
+        #     # Rough outlier rejection
+        #     med = np.median(yfit)
+        #     mad = 1.4826*np.median(np.abs(med-yfit))
+        #     msk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
+        #     pypeitFit = fitting.robust_fit(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1, lower=5, upper=5)
+        #     relscl_model[onslit_b_init] = pypeitFit.eval((waveimg[onslit_b_init] - minw) / (maxw - minw))
+        #     #msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
+        #     #                                      lower=5, upper=5)
+        #     #relscl_model[onslit_b_init] = utils.func_val(coeff,
+        #     #                                             (waveimg[onslit_b_init] - minw) / (maxw - minw),
+        #     #                                             "legendre", minx=0, maxx=1)
 
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
