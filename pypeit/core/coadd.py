@@ -365,9 +365,11 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     vmult = np.fmax(ymult,1e-4)*(ymult <= 1.0) + np.sqrt(ymult)*(ymult > 1.0)
     ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
+    # Changing the Huber loss parameter from step to step results in instability during optimization MSR.
     # Robustly characterize the dispersion of this distribution
-    chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
-        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    #chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
+    #    chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    chi_std = np.std(chi_vec)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the
     # value of the first argument, which we have set to be 2.0*chi_std, which is 2-sigma given the modified
