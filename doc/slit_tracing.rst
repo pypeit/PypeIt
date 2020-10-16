@@ -77,6 +77,7 @@ keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
         sync_predict = nearest
 
 
+
 Missing a Slit
 --------------
 
