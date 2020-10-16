@@ -10,8 +10,7 @@ This script examines a set of files and generates output
 to help setup the .pypeit file
 """
 
-import pypeit.scripts.setup as setup
+from pypeit.scripts import setup
 
 if __name__ == '__main__':
-    args = setup.parser()
-    setup.main(args)
+    setup.main(setup.parse_args())

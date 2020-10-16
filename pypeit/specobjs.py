@@ -2,7 +2,8 @@
 Module for the SpecObjs and SpecObj classes
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import re
@@ -46,7 +47,7 @@ class SpecObjs:
     version = '1.0.0'
 
     @classmethod
-    def from_fitsfile(cls, fits_file, det=None):
+    def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
         Instantiate from a FITS file
 
@@ -56,6 +57,8 @@ class SpecObjs:
             fits_file (str):
             det (int, optional):
                 Only load SpecObj matching this det value
+            chk_version (:obj:`bool`):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             specobsj.SpecObjs
@@ -67,6 +70,7 @@ class SpecObjs:
         slf = cls()
         # Add on the header
         slf.header = hdul[0].header
+        # Keep track of HDUList for closing later
 
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
@@ -77,7 +81,7 @@ class SpecObjs:
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            sobj = specobj.SpecObj.from_hdu(hdu)
+            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
@@ -87,6 +91,7 @@ class SpecObjs:
             # Append
             slf.add_sobj(sobj)
         # Return
+        hdul.close()
         return slf
 
     def __init__(self, specobjs=None, header=None):
@@ -100,6 +105,7 @@ class SpecObjs:
             self.specobjs = specobjs
 
         self.header = header if header is not None else None
+        self.hdul = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -355,7 +361,6 @@ class SpecObjs:
             except (TypeError,ValueError):
                 pass
 
-
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
@@ -396,7 +401,6 @@ class SpecObjs:
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
-
 
     def slitorder_objid_indices(self, slitorder, objid):
         """

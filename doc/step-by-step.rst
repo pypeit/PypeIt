@@ -1,12 +1,12 @@
-=_===================
+====================
 Step by Step Example
 ====================
 
 Overview
 ========
 
-This doc goes through a full run of *PypeIt* on one of the
-Shane Kastb datasets in the Development Suite.
+This doc goes through a full run of ``PypeIt`` on one of the Shane
+Kast*b* datasets in the Development Suite.
 
 Setup
 =====
@@ -14,21 +14,23 @@ Setup
 Organize data
 -------------
 
-Place all of the files in a single folder.
-Mine is named /home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
-(which I will refer to as RAW_PATH)
-and the files within are:
+Place all of the files in a single folder. Mine is named
+``/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55``
+(which I will refer to as ``RAW_PATH``) and the files within are:
 
-b10.fits.gz  b15.fits.gz  b1.fits.gz   b24.fits.gz  b4.fits.gz  b9.fits.gz
-b11.fits.gz  b16.fits.gz  b20.fits.gz  b27.fits.gz  b5.fits.gz
-b12.fits.gz  b17.fits.gz  b21.fits.gz  b28.fits.gz  b6.fits.gz
-b13.fits.gz  b18.fits.gz  b22.fits.gz  b2.fits.gz   b7.fits.gz
-b14.fits.gz  b19.fits.gz  b23.fits.gz  b3.fits.gz   b8.fits.gz
+.. code-block:: bash
 
-Run pypeit_setup
-----------------
+    $ ls
+    b10.fits.gz  b15.fits.gz  b1.fits.gz   b24.fits.gz  b4.fits.gz  b9.fits.gz
+    b11.fits.gz  b16.fits.gz  b20.fits.gz  b27.fits.gz  b5.fits.gz
+    b12.fits.gz  b17.fits.gz  b21.fits.gz  b28.fits.gz  b6.fits.gz
+    b13.fits.gz  b18.fits.gz  b22.fits.gz  b2.fits.gz   b7.fits.gz
+    b14.fits.gz  b19.fits.gz  b23.fits.gz  b3.fits.gz   b8.fits.gz
 
-The first script you will run with PypeIt is :ref:`pypeit_setup` which
+Run ``pypeit_setup``
+--------------------
+
+The first script you will run with ``PypeIt`` is :ref:`pypeit_setup` which
 examines your raw files and generates a sorted list and (when instructed)
 one :doc:`pypeit_file` per instrument configuration.
 

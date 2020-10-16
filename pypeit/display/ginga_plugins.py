@@ -3,7 +3,7 @@ Pluging for ginga that allows the value of a wavelength map to be
 displayed for any image.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 from IPython import embed

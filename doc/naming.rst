@@ -44,6 +44,8 @@ Instrument
 The second label indicates the instrument.  Here are the
 set of currently supported instruments in PypeIt: 
 
+.. PUT THESE IN include/links.rst
+
 .. _KastWebSite: http://mthamilton.ucolick.org/techdocs/instruments/kast/
 .. _LRISWebSite: https://www2.keck.hawaii.edu/inst/lris/
 .. _LowRedux: http://www.ucolick.org/~xavier/LowRedux/

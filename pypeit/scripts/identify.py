@@ -10,7 +10,7 @@ Launch the identify GUI tool.
 from IPython import embed
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -29,6 +29,9 @@ def parser(options=None):
     parser.add_argument("--slit", type=int, default=0, help="Which slit to load for wavelength calibration")
     parser.add_argument("--det", type=int, default=1, help="Detector index")
     parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

@@ -24,7 +24,7 @@ provide instrument-specific:
     - method to access an archival sky spectrum
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 from copy import deepcopy
@@ -105,8 +105,6 @@ class Spectrograph:
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
-
-        self.minexp = 0  # TODO: NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
         # Init meta
         self.meta_data_model = meta.get_meta_data_model()
@@ -410,6 +408,14 @@ class Spectrograph:
         Empty for base class.  See derived classes.
         """
         return None
+
+    def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
+                                  corners=False):
+        """
+        Returns an error message if `mask_to_pixel_coordinates` crashed because `use_maskdesign`
+        is set to True for a spectrograph that does not support it.
+        """
+        msgs.error('This spectrograph does not support the use of mask design. Set `use_maskdesign=False`')
 
     def configuration_keys(self):
         """
@@ -736,6 +742,29 @@ class Spectrograph:
         astropy.wcs : An astropy WCS object.
         """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
+        return None
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        """Calculate the bin edges to be used when making a datacube
+
+        Parameters
+        ----------
+        slitlength : int
+            Length of the slit in pixels
+        minmax : `numpy.ndarray`_
+            An array of size (nslits, 2), listing the minimum and maximum pixel
+            locations on each slit relative to the reference location (usually
+            the centre of the slit). This array is returned by the function
+            :func:`pypeit.slittrace.SlitTraceSet.get_radec_image`.
+        num_wave : int
+            Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
+
+        Returns
+        -------
+        tuple : Three 1D numpy.ndarray providing the bins to use when constructing a histogram
+                of the spec2d files. The elements are (x, y, lambda).
+        """
+        msgs.warn("No datacube setup for spectrograph: {0:s}".format(self.spectrograph))
         return None
 
     def validate_metadata(self):

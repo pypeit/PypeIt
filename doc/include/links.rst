@@ -52,6 +52,9 @@
 .. _astropy.modeling.FittableModel: http://docs.astropy.org/en/stable/api/astropy.modeling.FittableModel.html
 .. _astropy.cosmology.FlatLambdaCDM: http://docs.astropy.org/en/stable/api/astropy.cosmology.FlatLambdaCDM.html#flatlambdacdm
 .. _astropy.constants: http://docs.astropy.org/en/stable/constants/index.html
+.. _astropy.time.Time: https://docs.astropy.org/en/stable/time/
+.. _astropy.coordinates.SkyCoord: https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html
+.. _astropy.coordinates.EarthLocation: https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html
 
 .. scikit-learn
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
@@ -59,6 +62,9 @@
 .. pydl
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac
 .. _pydl.pydlutils.yanny: http://pydl.readthedocs.io/en/stable/api/pydl.pydlutils.yanny.yanny.html
+
+.. linetools
+.. _linetools.spectra.xspectrum1d.XSpectrum1D: https://linetools.readthedocs.io/en/latest/xspectrum1d.html
 
 .. sphinx
 .. _Sphinx: https://www.sphinx-doc.org/en/master/index.html
@@ -76,6 +82,7 @@
 
 .. ginga
 
+.. _ginga: https://ginga.readthedocs.io/en/stable/
 .. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
 .. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
 
@@ -88,5 +95,6 @@
 .. _Joe Hennawi: joe@physics.ucsb.edu
 .. _X Prochaska: xavier@ucolick.org
 
-
+.. misc
+.. _SDSS bitmasks: https://www.sdss.org/dr16/algorithms/bitmasks/
 

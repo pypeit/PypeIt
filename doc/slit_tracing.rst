@@ -1,3 +1,6 @@
+
+.. _slit_tracing:
+
 ============
 Slit Tracing
 ============
@@ -26,6 +29,22 @@ Viewing
 
 See :doc:`master_edges` for notes on how to view the
 outputs related to `Slit Tracing`_.
+
+Script
+======
+
+Slit tracing is one of the steps in ``PypeIt`` that can be run
+independently of the full reduction, using the ``pypeit_trace_edges``
+script. This can nominally be run just by providing a trace image
+(but this is had limited testing), but it's recommended that you
+first construct the :ref:`pypeit_file` you would use to fully reduce
+the data and supply that as the argument to ``pypeit_trace_edges``.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_trace_edges.rst
+
 
 Known Slit Tracing Issues
 =========================

@@ -2,11 +2,12 @@
 Module to compute moments.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 import numpy as np
 from scipy import special
+
 
 def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighting='uniform',
              order=0, bounds=None, fill_error=-1., mesh=False):

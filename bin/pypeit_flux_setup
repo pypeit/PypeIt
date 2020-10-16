@@ -4,8 +4,8 @@
 Generate pypeit files for fluxing, coadd1d and telluric fitting.
 """
 
-import pypeit.scripts.flux_setup as flux_setup
+from pypeit.scripts import flux_setup
 
 if __name__ == '__main__':
-    args = flux_setup.parser()
-    flux_setup.main(args)
+    flux_setup.main(flux_setup.parse_args())
+

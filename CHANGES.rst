@@ -1,4 +1,26 @@
 
+1.2.0 (15 Oct 2020)
+-------------------
+
+- Frame-typing tweaks for DEIMOS
+    - Exposure-time ranges removed
+    - All frame types now key off OBSTYPE
+- Added more detail on citation policy to main page on readthedocs
+- Added docs for BitMasks
+- Altered scripts interface to allow for dynamically making the help
+  doc files
+- full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
+- optimal weights in datacube generation
+- Docs for skysub, extraction, flat fielding
+- New skysub options for masking and suppressing local
+- Added `pypeit/core/convert_DEIMOSsavfiles.py` to convert .sav files into fits files
+- Added "amap" and "bmap" fits files in `pypeit/data/static_calibs/keck_deimos/` for DEIMOS
+   optical model
+- Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching` to `EdgeTraceSet`
+- Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
+- Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
+- Fix assignment bug in fitting bspline
+
 1.1.1 (10 Sep 2020)
 -------------------
 
@@ -53,7 +75,7 @@
 - Correct det bug in keck_lris
 - Modifications to allow for flailing LRISr detector
 - Modifications for parse LRIS LAMPS prior to 2010 upgrade
-- Add P200/TripleSpec
+- Added support for P200/DBSP and P200/TripleSpec
 
 1.0.6 (22 Jul 2020)
 -------------------
