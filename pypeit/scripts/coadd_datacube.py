@@ -79,7 +79,7 @@ def coadd_cube(files, parset, overwrite=False):
 
     # prep
     numfiles = len(files)
-    combine = True if numfiles > 1 else False
+    combine = cubepar['combine']
 
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
