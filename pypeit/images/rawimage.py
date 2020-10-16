@@ -260,7 +260,7 @@ class RawImage(object):
             if flatimages is None or flatimages.get_pixelflat() is None:
                 msgs.error("Flat fielding desired but not generated/provided.")
             else:
-                self.flatten(flatimages.get_pixelflat()*spec_illum, illum_flat=illum_flat, bpm=self.bpm)
+                self.flatten(flatimages.get_pixelflat()/spec_illum, illum_flat=illum_flat, bpm=self.bpm)
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
