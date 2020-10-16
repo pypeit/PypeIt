@@ -263,6 +263,8 @@ def coadd_cube(files, parset, overwrite=False):
                   msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
                   msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
                   msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
+                  msgs.newline() + "Spaxel size = {0:f}''".format(3600.0*dspat) +
+                  msgs.newline() + "Wavelength step = {0:f} A".format(dwv) +
                   msgs.newline() + "-" * 40)
 
     # Generate the output binning
