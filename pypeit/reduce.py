@@ -1335,9 +1335,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             self.scaleimg = np.ones_like(self.sciImg.image)
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        self.scaleimg *= scaleFact
-        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleFact, self.sciImg.fullmask,
+        self.scaleimg *= scaleImg.copy()
+        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleImg.copy(), self.sciImg.fullmask,
                                         varframe=utils.inverse(self.sciImg.ivar.copy()))
         self.sciImg.image = sciImg.copy()
         self.sciImg.ivar = utils.inverse(varImg)

@@ -1107,9 +1107,10 @@ class CubePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, slit_spec=None, output_filename=None, reference_cube=None, reference_image=None, save_whitelight=None,
+    def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
+                 reference_cube=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, relative_weights=None):
+                 spatial_delta=None, wave_delta=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1138,6 +1139,11 @@ class CubePar(ParSet):
                                     'This only works well if there is a common continuum source in the field of' \
                                     'view of all input observations, and is generally only required if high' \
                                     'relative precision is desired.'
+
+        defaults['combine'] = True
+        dtypes['combine'] = [bool]
+        descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate' \
+                           'datacube will be generated for each input spec2d file.'
 
         defaults['output_filename'] = "datacube.fits"
         dtypes['output_filename'] = str
@@ -1215,7 +1221,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'reference_cube', 'reference_image', 'save_whitelight',
                    'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta', 'relative_weights']
+                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
