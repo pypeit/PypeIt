@@ -35,7 +35,7 @@ PypeIt |stars| |watch|
 
 |pypi| |DOI_latest| |arxiv| |astropy|
 
-**Version**: 1.1.2dev
+**Version**: 1.2.0
 
 ``PypeIt`` is a Python package for semi-automated reduction of
 astronomical, spectroscopic data. Its algorithms build on
