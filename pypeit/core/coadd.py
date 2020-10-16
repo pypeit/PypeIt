@@ -701,7 +701,9 @@ def smooth_weights(inarr, gdmsk, sn_smooth_npix):
         `numpy.ndarray`_: smoothed version of inarr.
     """
     spec_vec = np.arange(gdmsk.size)
-    sn_med2 = scipy.interpolate.interp1d(spec_vec[gdmsk], inarr[gdmsk], kind='cubic',
+    sn_med1 = np.zeros(inarr.size)
+    sn_med1[gdmsk] = utils.fast_running_median(inarr[gdmsk], sn_smooth_npix)
+    sn_med2 = scipy.interpolate.interp1d(spec_vec[gdmsk], sn_med1[gdmsk], kind='cubic',
                                          bounds_error=False, fill_value=-999)(spec_vec)
     # Fill the S/N weight to the left and right with the nearest value
     mask_good = np.where(sn_med2 != -999)[0]
@@ -820,8 +822,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
         if verbose:
             msgs.info("Using ivar weights for merging orders")
         for iexp in range(nstack):
-            sn_med1 = utils.fast_running_median(ivar_stack[mask_stack[:, iexp], iexp], sn_smooth_npix)
-            weights[:, iexp] = smooth_weights(sn_med1, mask_stack[:, iexp], sn_smooth_npix)
+            weights[:, iexp] = smooth_weights(ivar_stack[:, iexp], mask_stack[:, iexp], sn_smooth_npix)
     else:
         for iexp in range(nstack):
             # Now
@@ -834,8 +835,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
                 # transition to using ivar_weights. This needs more work because the spectra are not rescaled at this point.
                 # RJC - also note that nothing should be changed to sn_val is relative_weights=True
                 #sn_val[sn_val[:, iexp] < 1.0, iexp] = ivar_stack[sn_val[:, iexp] < 1.0, iexp]
-                sn_med1 = utils.fast_running_median(sn_val[mask_stack[:, iexp], iexp]**2, sn_smooth_npix)
-                weights[:, iexp] = smooth_weights(sn_med1, mask_stack[:, iexp], sn_smooth_npix)
+                weights[:, iexp] = smooth_weights(sn_val[:, iexp]**2, mask_stack[:, iexp], sn_smooth_npix)
             if verbose:
                 msgs.info('Using {:s} weights for coadding, S/N '.format(weight_method) +
                           '= {:4.2f}, weight = {:4.2f} for {:}th exposure'.format(
