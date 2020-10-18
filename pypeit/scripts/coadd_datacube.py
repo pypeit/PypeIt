@@ -42,11 +42,13 @@ def parse_args(options=None, return_parser=False):
 
 
 def coadd_cube(files, parset, overwrite=False):
-    """ Main routine to coadd spec2D files
+    """ Main routine to coadd spec2D files into a 3D datacube
 
     Args:
         files (list):
             List of all spec2D files
+        parset (:class:`pypeit.par.core.PypeItPar`):
+            An instance of the parameter set.
         overwrite (bool):
             Overwrite the output file, if it exists?
     """

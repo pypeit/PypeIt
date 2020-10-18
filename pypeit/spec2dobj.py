@@ -83,7 +83,10 @@ class Spec2DObj(datamodel.DataContainer):
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
                                                 'the center of each slit'),
-                 'vel_type': dict(otype=str, descr='Type of heliocentric correction (if any)'),
+                 'vel_type': dict(otype=str, descr='Type of reference frame correction (if any). '
+                                                   'Options are listed in the routine: '
+                                                   'WavelengthSolutionPar.valid_reference_frames() '
+                                                   'Current list: observed, heliocentric, barycentric'),
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  'detector': dict(otype=detector_container.DetectorContainer,

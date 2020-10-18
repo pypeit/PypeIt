@@ -75,13 +75,17 @@ class Reduce(object):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
-        sobjs (SpecObsj):
+        sobjs (SpecObjs):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
+        slitshift (`numpy.ndarray`_):
+            Global spectral flexure correction for each slit (in pixels)
+        vel_corr (float):
+            Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
     """
 
