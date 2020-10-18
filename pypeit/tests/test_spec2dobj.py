@@ -51,6 +51,9 @@ def init_dict():
                  tilts=np.ones_like(sciimg).astype(float),
                  #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
                  sci_spat_flexure=3.5,
+                 sci_spec_flexure=np.zeros(left.shape[1]),
+                 vel_type='HELIOCENTRIC',
+                 vel_corr=1.0+1.0e-5
                  )
     return sdict
 
