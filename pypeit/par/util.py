@@ -584,8 +584,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
         if setup_lines is not None:
             f.write("# Setup\n")
             f.write("setup read\n")
-            for sline in setup_lines:
-                f.write(' '+sline+'\n')
+            f.write('\n'.join(setup_lines)+'\n')
             f.write("setup end\n")
             f.write("\n")
         # Data

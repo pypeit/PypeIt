@@ -20,7 +20,7 @@ Basics
 ------
 
 The procedure used to assign DEIMOS slitmask ID to each slit 
-is part of the more general slit tracing procedure described in :doc:`slit_tracing`.
+is part of the more general slit tracing procedure described in :ref:`slit_tracing`.
 
 Slitmask ID assignment
 ----------------------
