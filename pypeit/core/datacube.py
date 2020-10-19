@@ -2,7 +2,7 @@
 Module containing routines used by 3D datacubes.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 from astropy import wcs, units
@@ -30,7 +30,7 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
             The RA and DEC that the model needs to match
         wave (float):
             Wavelength to calculate the DAR
-        location (astropy EarthLocation):
+        location (`astropy.coordinates.EarthLocation`_):
             observatory location
         pressure (float):
             Outside pressure at `location`
@@ -55,36 +55,44 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
 
 def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
                    wave_ref=None, numgrid=10):
-    """Apply a differental atmospheric refraction correction to the input ra/dec.
-    This implementation is based on ERFA, which is called through astropy
+    """
+    Apply a differental atmospheric refraction correction to the
+    input ra/dec.
 
-    Args:
-        wave_arr (`numpy.ndarray`_):
-            wavelengths to obtain ra and dec offsets
-        coord (astropy SkyCoord):
-            ra, dec positions at the centre of the field
-        obstime (astropy Time):
-            time at the midpoint of observation
-        location (astropy EarthLocation):
-            observatory location
-        pressure (float):
-            Outside pressure at `location`
-        temperature (float):
-            Outside ambient air temperature at `location`
-        rel_humidity (float):
-            Outside relative humidity at `location`. This should be between 0 to 1.
-        wave_ref (float):
-            Reference wavelength (The DAR correction will be performed relative to this wavelength)
-        numgrid (int):
-            Number of grid points to evaluate the DAR correction.
+    This implementation is based on ERFA, which is called through
+    astropy.
 
-    Returns:
-        ra_diff (`numpy.ndarray`_):
-            Relative RA shift at each wavelength given by `wave_arr`
-        dec_diff (`numpy.ndarray`_):
-            Relative DEC shift at each wavelength given by `wave_arr`
+    .. todo::
+        There's probably going to be issues when the RA angle is
+        either side of RA=0.
 
-    TODO :: There's probably going to be issues when the RA angle is either side of RA=0
+    Parameters
+    ----------
+    wave_arr : `numpy.ndarray`_
+        wavelengths to obtain ra and dec offsets
+    coord : `astropy.coordinates.SkyCoord`_
+        ra, dec positions at the centre of the field
+    obstime : `astropy.time.Time`_
+        time at the midpoint of observation
+    location : `astropy.coordinates.EarthLocation`_
+        observatory location
+    pressure : :obj:`float`
+        Outside pressure at `location`
+    temperature : :obj:`float`
+        Outside ambient air temperature at `location`
+    rel_humidity : :obj:`float`
+        Outside relative humidity at `location`. This should be between 0 to 1.
+    wave_ref : :obj:`float`
+        Reference wavelength (The DAR correction will be performed relative to this wavelength)
+    numgrid : :obj:`int`
+        Number of grid points to evaluate the DAR correction.
+
+    Returns
+    -------
+    ra_diff : `numpy.ndarray`_
+        Relative RA shift at each wavelength given by `wave_arr`
+    dec_diff : `numpy.ndarray`_
+        Relative DEC shift at each wavelength given by `wave_arr`
     """
     msgs.info("Performing differential atmospheric refraction correction")
 
@@ -202,19 +210,21 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
 
 
 def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
-    """ Generate a WCS that will cover all input spec2D files
+    """
+    Generate a WCS that will cover all input spec2D files
 
     Args:
         crval (list):
-            3 element list containing the [RA, DEC, WAVELENGTH] of the reference pixel
+            3 element list containing the [RA, DEC, WAVELENGTH] of
+            the reference pixel
         cdelt (list):
-            3 element list containing the delta values of the [RA, DEC, WAVELENGTH]
+            3 element list containing the delta values of the [RA,
+            DEC, WAVELENGTH]
         equinox (float):
             Equinox of the WCS
 
     Returns:
-        w (`astropy.WCS`_):
-            astropy WCS to be used for the combined cube
+        `astropy.wcs.wcs.WCS`_ : astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
     msgs.info("Generating Master WCS")
