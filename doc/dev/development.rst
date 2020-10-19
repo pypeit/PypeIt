@@ -551,3 +551,4 @@ Here are some developer-specific docs:
    ../internals
    ../metadata
    reports
+   conda_forge
