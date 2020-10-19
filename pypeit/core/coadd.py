@@ -365,7 +365,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     vmult = np.fmax(ymult,1e-4)*(ymult <= 1.0) + np.sqrt(ymult)*(ymult > 1.0)
     ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
-    # Changing the Huber loss parameter from step to step results in instability during optimization MSR.
+    # Changing the Huber loss parameter from step to step results in instability during optimization --MSR.
     # Robustly characterize the dispersion of this distribution
     #chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
     #    chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
@@ -582,14 +582,15 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
 
     # Here we compute a linear regression to the scaled flux in order to get a better guess.
     if norder > 1:
-            # linear time!
             # we need scale_mask to mask negative points in the polyfit
             scale_mask = mask_fun(flux_ref_med)
-            fit = np.polyfit(wave[mask & scale_mask], scale_fun(flux_ref_med[mask & scale_mask]),
-                deg=1, w=err_scale_fun(flux_ref_med[mask & scale_mask]) * np.sqrt(ivar_ref_med[mask & scale_mask]))
-            leg_slope = fit[0] * (wave_max - wave_min) / 2.0
-            leg_int = fit[1] + fit[0] * (wave_max + wave_min)/2.0
-            guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
+
+            fitter = fitting.PypeItFit(xval=wave, yval=scale_fun(flux_ref_med), order=np.array([1]),
+                weights=err_scale_fun(flux_ref_med)*np.sqrt(ivar_ref_med), gpm=scale_mask & mask,
+                func=func, minx=wave_min, maxx=wave_max)
+
+            if fitter.fit():
+                guess = np.append(fitter.fitc, np.zeros(norder-2))
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
