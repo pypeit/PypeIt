@@ -74,42 +74,52 @@ def main(args):
     msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.spectrograph))
 
     # Unique configurations
-    setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
+    uniq_cfg = ps.fitstbl.unique_configurations(copy=True)
 
+    # Setup the table. Need to use object type for strings so that
+    # they're not truncated.
     answers = table.Table()
-    answers['setups'] = setups
-    passes, scifiles, cfgs = [], [], []
+    answers['setups'] = list(uniq_cfg.keys())
+    # Add the configuration columns
+    for setup, setup_dict in uniq_cfg.items():
+        for key, value in setup_dict.items():
+            answers[key] = np.empty(len(answers), dtype=object) if isinstance(value, str) \
+                                else type(value)(0)
+        break
+    answers['pass'] = False
+    answers['scifiles'] = np.empty(len(answers), dtype=object)
 
-    for setup, i in zip(setups, indx):
-        # Get the setup lines
-        cfg = ps.fitstbl.get_setup(i, config_only=False)
-        cfgs.append(cfg)
+    for i, setup in enumerate(uniq_cfg.keys()):
+        for setup_key, setup_value in uniq_cfg[setup].items():
+            answers[setup_key] = setup_value
         if setup == 'None':
             print("There is a setup without science frames.  Skipping...")
-            passes.append(False)
-            scifiles.append(None)
+            answers['pass'][i] = False
+            answers['scifiles'][i] = None
             continue
-        in_cfg = ps.fitstbl['setup'] == setup
-        # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
-        config_specific_file = None
 
         msgs.info('=======================================================================')
         msgs.info('Working on setup: {}'.format(setup))
-        msgs.info(str(cfg))
+        msgs.info(str(uniq_cfg[setup]))
         msgs.info('=======================================================================')
+
+        # TODO: Make the snippet below, which is also in the init of
+        # PypeIt a method somewhere
+        in_cfg = ps.fitstbl['setup'] == setup
+        config_specific_file = None
 
         # Grab a science/standard frame
         data_files = [os.path.join(row['directory'], row['filename']) for row in ps.fitstbl[in_cfg]]
         for idx, row in enumerate(ps.fitstbl[in_cfg]):
-            if ('science' in row['frametype']) or ('standard' in row['frametype']):
+            if 'science' in row['frametype'] or 'standard' in row['frametype']:
                 config_specific_file = data_files[idx]
         if config_specific_file is not None:
-            msgs.info(
-                'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
+            msgs.info('Setting configuration-specific parameters using {0}'.format(
+                        os.path.split(config_specific_file)[1]))
         else:
             msgs.warn('No science or standard frame.  Punting..')
-            passes.append(False)
-            scifiles.append(None)
+            answers['pass'][i] = False
+            answers['scifiles'][i] = None
             continue
         #
         spectrograph_cfg_lines = ps.spectrograph.config_specific_par(config_specific_file).to_config()
@@ -119,51 +129,24 @@ def main(args):
         par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
         # Print science frames
         if np.any(in_cfg & is_science):
-            msgs.info("Your science frames are: {}".format(ps.fitstbl['filename'][in_cfg & is_science]))
-            scifiles.append(','.join(ps.fitstbl['filename'][in_cfg & is_science]))
+            msgs.info('Your science frames are: {0}'.format(
+                        ps.fitstbl['filename'][in_cfg & is_science].tolist()))
+            answers['scifiles'][i] = ', '.join(ps.fitstbl['filename'][in_cfg & is_science].tolist())
         else:
             msgs.warn("This setup has no science frames!")
-            scifiles.append('')
+            answers['scifiles'][i] = ''
+
         # Check!
-        passed = calibrations.check_for_calibs(par, ps.fitstbl, raise_error=False,
-                                               cut_cfg=in_cfg)
-        if not passed:
+        answers['pass'][i] = calibrations.check_for_calibs(par, ps.fitstbl, raise_error=False,
+                                                           cut_cfg=in_cfg)
+        if not answers['pass'][i]:
             msgs.warn("Setup {} did not pass the calibration check!".format(setup))
-        #
-        passes.append(passed)
 
     print('= RESULTS ============================================')
-
-    # Pass/fail
-    answers['pass'] = passes
-
-    # Parse the configs
-    pcfg = dict(disperser=[], angle=[], dichroic=[], decker=[], slitwid=[], binning=[])
-    for cfg in cfgs:
-        # None?
-        if len(cfg) == 0:
-            for key in pcfg.keys():
-                pcfg[key].append(None)
-            continue
-        # Load it up
-        key0 = list(cfg.keys())[0]
-        subd = cfg[key0]['--'] # for convenience
-        pcfg['disperser'].append(subd['disperser']['name'])
-        pcfg['angle'].append(subd['disperser']['angle'])
-        pcfg['dichroic'].append(subd['dichroic'])
-        pcfg['decker'].append(subd['slit']['decker'])
-        pcfg['slitwid'].append(subd['slit']['slitwid'])
-        pcfg['binning'].append(subd['binning'])
-
-    # Add
-    for key in pcfg.keys():
-        answers[key] = pcfg[key]
-
-    # Sci files [put this last as it can get large]
-    answers['scifiles'] = scifiles
-
     # Print
     answers.pprint_all()
-    print('= ===================================================================================')
-    # Return
+    print('======================================================')
+    # Return objects used by unit tests
     return answers, ps
+
+
