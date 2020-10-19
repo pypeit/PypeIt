@@ -80,7 +80,7 @@ At the top of the file is the Parameter block which allows the user
 to customize the otherwise default parameters for the input spectrograph.
 The two lines shown in this example are the only 2 that are required.
 
-See :ref:`Edits to the Parameter Block` for common edits
+See `Edits to the Parameter Block`_ for common edits
 and also read the instrument specific docs.
 
 

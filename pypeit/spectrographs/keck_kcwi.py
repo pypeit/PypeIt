@@ -1,4 +1,7 @@
 """ Implements KCWI-specific functions.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import glob
@@ -777,10 +780,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         slitlength : int
             Length of the slit in pixels
         minmax : `numpy.ndarray`_
-            An array of size (nslits, 2), listing the minimum and maximum pixel
-            locations on each slit relative to the reference location (usually
-            the centre of the slit). This array is returned by the function
-            `slittrace.SlitTraceSet.get_radec_image`_
+            An array of size (nslits, 2), listing the minimum and
+            maximum pixel locations on each slit relative to the
+            reference location (usually the centre of the slit). This
+            array is returned by
+            :func:`pypeit.slittrace.SlitTraceSet.get_radec_image`.
         num_wave : int
             Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
 

@@ -1,3 +1,6 @@
+
+.. _slit_tracing:
+
 ============
 Slit Tracing
 ============
@@ -72,6 +75,7 @@ keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
     [calibrations]
       [[slitedges]]
         sync_predict = nearest
+
 
 
 Missing a Slit

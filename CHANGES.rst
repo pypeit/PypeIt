@@ -1,6 +1,6 @@
 
-1.1.2dev
---------
+1.2.0 (15 Oct 2020)
+-------------------
 
 - Frame-typing tweaks for DEIMOS
     - Exposure-time ranges removed

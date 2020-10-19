@@ -755,7 +755,7 @@ class Spectrograph:
             An array of size (nslits, 2), listing the minimum and maximum pixel
             locations on each slit relative to the reference location (usually
             the centre of the slit). This array is returned by the function
-            `slittrace.SlitTraceSet.get_radec_image`_
+            :func:`pypeit.slittrace.SlitTraceSet.get_radec_image`.
         num_wave : int
             Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
 
