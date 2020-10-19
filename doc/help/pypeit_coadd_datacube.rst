@@ -3,7 +3,7 @@
     $ pypeit_coadd_datacube -h
     usage: pypeit_coadd_datacube [-h] [--det DET] [-o] file
     
-    Read in an array of spec2D files and convert them into a datacube
+    Read in a spec2D file and convert it to a datacube
     
     positional arguments:
       file             ascii file with list of spec2D files to combine
