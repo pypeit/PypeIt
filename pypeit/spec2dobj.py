@@ -236,11 +236,14 @@ class AllSpec2DObj(object):
     """
     hdr_prefix = 'ALLSPEC2D_'
     @classmethod
-    def from_fits(cls, filename):
+    def from_fits(cls, filename, chk_version=True):
         """
 
         Args:
             filename (str):
+            chk_version (bool, optional):
+                If True, demand the on-disk datamodel equals the current
+                Passed to from_hdu() of DataContainer
 
         Returns:
             :class:`AllSpec2DObj`:
@@ -258,7 +261,7 @@ class AllSpec2DObj(object):
         # Detectors included
         detectors = hdul[0].header[slf.hdr_prefix+'DETS']
         for det in [int(item) for item in detectors.split(',')]:
-            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
+            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det), chk_version=chk_version)
             slf[det] = obj
         # Header
         slf['meta']['head0'] = hdul[0].header
