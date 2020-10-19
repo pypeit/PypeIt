@@ -5,7 +5,6 @@ import pytest
 from pypeit.scripts import coadd_1dspec
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 
-# TODO: Bring this back?
 #def test_lrisr():
 #    dpath = '/home/xavier/scratch/FRB190714/keck_lris_red_C/Science'
 #    file1 = 'spec1d_LR.20200128.55304-frb1907B_LRISr_2020Jan28T152144.726.fits'
@@ -32,3 +31,4 @@ def test_kastb():
     
     for ofile in outfiles:
         os.remove(ofile)
+

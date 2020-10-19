@@ -37,6 +37,8 @@ Configuration`_ are listed below.
    point to the relevant location on disk of whoever generated the
    documentation, which will be different for your installation.
 
+.. _change_par:
+
 How to change a parameter
 =========================
 
@@ -827,6 +829,8 @@ Key                      Type           Options  Default                        
 =======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
 
 
+
+ .. _instr_par:
 
 Instrument-Specific Default Configuration
 +++++++++++++++++++++++++++++++++++++++++

@@ -1,4 +1,42 @@
 
+1.2.1dev
+--------
+
+- DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
+  the first three are now included in the auto-generated pypeit files.
+- DEIMOS AMPMODE is now included in the list of metadata used to
+  determine the DEIMOS configuration (setup).
+- Frames ignored by
+  `pypeit.metadata.PypeItMetaData.unique_configurations` used to
+  establish the unique configurations are now set by
+  `pypeit.spectrographs.spectrograph.Spectrograph.config_independent_frames`.
+  These default to 'bias' and 'dark' frames.
+- `pypeit.spectrographs.spectrograph.Spectrograph.config_independent_frames`
+  can also return a *single* keyword selecting the metadata column used
+  to match these frames to a given configuration.  For DEIMOS, this is
+  used to match bias and dark frames to a configuration observed on the
+  same date.  Currently these frames can only be set to a single
+  configuration.
+- Added `pypeit.metadata.PypeItMetaData.clean_configurations` that
+  ignores frames that cannot be reduced by pypeit, as set by
+  `pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
+  For DEIMOS, this is used to ignore frames that are taken in
+  direct-imaging mode or using anything except the B amplifier to read
+  the data.  The ignored frames are removed from the metadata table
+  (`fitstbl`).
+- `update_docs` script now builds the html as well as the api rst files.
+  It also prints a pass/fail comment.
+- Added tests to `pypeit/tests/test_setups.py` to test that PypeIt
+  correctly and automatically identifies frames from multiple DEIMOS
+  configurations and that `pypeit.pypeitsetup.PypeItSetup` correctly
+  produces separate pypeit files for each configuration.
+- Added a development document reporting that PypeIt now satisfies the
+  `PD-3` requirement Keck outlined for the DEIMOS PypeIt pipeline.
+- Building the docs now dynamically generates an example pypeit and
+  sorted file for inclusion in the PypeIt documentation.
+- The setup block is now a simple listing of the keywords and values
+  used to identify the instrument configuration.
+
 1.2.0 (15 Oct 2020)
 -------------------
 
@@ -7,18 +45,23 @@
     - All frame types now key off OBSTYPE
 - Added more detail on citation policy to main page on readthedocs
 - Added docs for BitMasks
-- Altered scripts interface to allow for dynamically making the help
-  doc files
-- full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
+- Altered scripts interface to allow for dynamically making the help doc
+  files
+- full spatial/spectral flexure and heliocentric corrections implemented
+  for IFU reductions
 - optimal weights in datacube generation
 - Docs for skysub, extraction, flat fielding
 - New skysub options for masking and suppressing local
-- Added `pypeit/core/convert_DEIMOSsavfiles.py` to convert .sav files into fits files
-- Added "amap" and "bmap" fits files in `pypeit/data/static_calibs/keck_deimos/` for DEIMOS
-   optical model
-- Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching` to `EdgeTraceSet`
-- Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
-- Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
+- Added `pypeit/core/convert_DEIMOSsavfiles.py` to convert .sav files
+  into fits files
+- Added "amap" and "bmap" fits files in
+  `pypeit/data/static_calibs/keck_deimos/` for DEIMOS optical model
+- Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching`
+  to `EdgeTraceSet`
+- Added ParSet for switching ON the slit-mask design matching. Default
+  is ON for `keck_deimos`
+- Pypeit registers `maskdef_id` in SlitTraceSet if instrument is
+  `keck_deimos`
 - Fix assignment bug in fitting bspline
 
 1.1.1 (10 Sep 2020)

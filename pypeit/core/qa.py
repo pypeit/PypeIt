@@ -343,6 +343,7 @@ def gen_mf_html(pypeit_file, qa_path):
         qa_path (str):
             Path to the QA folder
     """
+    # TODO: Can this instead just use the pypeit file?
     # Read calib file
     calib_file = pypeit_file.replace('.pypeit', '.calib')
     with open(calib_file, 'r') as infile:

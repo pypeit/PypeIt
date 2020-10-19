@@ -34,6 +34,9 @@
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
 .. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
 
+.. configobj
+.. _configobj: http://configobj.readthedocs.io/en/latest/
+
 .. astropy
 .. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/index.html
 .. _astropy.io.fits.open: http://docs.astropy.org/en/stable/io/fits/api/files.html#astropy.io.fits.open
@@ -90,6 +93,7 @@
 .. _repo: https://github.com/pypeit/PypeIt
 .. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
+.. _Submit an issue: https://github.com/pypeit/PypeIt/issues
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu
