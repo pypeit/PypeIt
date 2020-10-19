@@ -430,7 +430,6 @@ class PypeIt(object):
         """
 
         # TODO:
-        # - bg_frames should be None by default
         # - change doc string to reflect that more than one frame can be
         #   provided
 
@@ -651,29 +650,17 @@ class PypeIt(object):
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile)
+                                                std_outfile=std_outfile,
+                                                basename=self.basename)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
-        # Prep for manual extraction (if requested)
-        #manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
-        # TODO:
-        #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
-        #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
-        #  2d coadd reduce
-        #if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
-        #    #spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
-        #    spats, specs, dets, fwhms = self.par['reduce']['extraction']['manual'].parse()
-        #    manual_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
-        #                             hand_extract_det=dets, hand_extract_fwhm=fwhms)
-        #else:
-        #    manual_extract_dict = None
-
+        # Do it
         skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run(
             std_trace=std_trace, show_peaks=self.show,
-            basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
         # TODO -- Save the slits yet again?
@@ -702,7 +689,6 @@ class PypeIt(object):
 
         # Return
         return spec2DObj, sobjs
-
 
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """

@@ -3,7 +3,6 @@ Module for the SpecObjs and SpecObj classes
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
-
 """
 import os
 import re
@@ -47,7 +46,7 @@ class SpecObjs:
     version = '1.0.0'
 
     @classmethod
-    def from_fitsfile(cls, fits_file, det=None):
+    def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
         Instantiate from a FITS file
 
@@ -57,6 +56,8 @@ class SpecObjs:
             fits_file (str):
             det (int, optional):
                 Only load SpecObj matching this det value
+            chk_version (:obj:`bool`):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             specobsj.SpecObjs
@@ -79,7 +80,7 @@ class SpecObjs:
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            sobj = specobj.SpecObj.from_hdu(hdu)
+            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
@@ -359,7 +360,6 @@ class SpecObjs:
             except (TypeError,ValueError):
                 pass
 
-
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
@@ -400,7 +400,6 @@ class SpecObjs:
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
-
 
     def slitorder_objid_indices(self, slitorder, objid):
         """
@@ -685,8 +684,7 @@ class SpecObjs:
 
             # Optimal profile (FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None:
-                # opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
                 # S2N -- optimal
                 ivar = specobj.OPT_COUNTS_IVAR

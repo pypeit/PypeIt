@@ -92,8 +92,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             is closed.
 
     Returns:
-        `numpy.ndarray`_: Returns the model sky background at the pixels
-        where thismask is True::
+        `numpy.ndarray`_ : The model sky background at the pixels where thismask is True::
 
             >>>  skyframe = np.zeros_like(image)
             >>>  thismask = slitpix == thisslit
@@ -597,7 +596,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         use_2dmodel_mask (bool, optional):
             Use the mask made from profile fitting when extracting?
         no_local_sky (bool, optional):
-            Do not fit local sky, only object profile and extract optimally
+            If True, do not fit local sky model, only object profile and extract optimally
+            The objimage will be all zeros.
 
     Returns:
         :obj:`tuple`:  Returns (skyimage[thismask], objimage[thismask],
@@ -901,7 +901,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
         canvas_list = points_mask + points_omask + text_mask + text_omask
         canvas.add('constructedcanvas', canvas_list)
-        embed(header='903 of skysub')
 
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 

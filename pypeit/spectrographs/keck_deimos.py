@@ -10,8 +10,9 @@ import warnings
 from pkg_resources import resource_filename
 
 from scipy import interpolate
-
 from astropy.io import fits
+
+from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -44,6 +45,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.grating = None
         self.optical_model = None
         self.detector_map = None
+        self.amap = None
+        self.bmap = None
 
     def get_detector_par(self, hdu, det):
         """
@@ -227,6 +230,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 'LVMslit' in self.get_meta_value(headarr, 'decker')):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Turn on the use of mask design
+        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+            par['calibrations']['slitedges']['use_maskdesign'] = True
+
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -248,35 +255,33 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
-
-        Returns:
-            self.meta: dict (generated in place)
-
+        Builds :attr:`meta`, providing the connection to DEIMOS
+        header keywords.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
-        meta['decker'] = dict(ext=0, card='SLMSKNAM')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
-        meta['dispname'] = dict(ext=0, card='GRATENAM')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATENAM')
         # Extras for config and frametyping
-        meta['hatch'] = dict(ext=0, card='HATCHPOS')
-        meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        self.meta['hatch'] = dict(ext=0, card='HATCHPOS')
+        self.meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
         # Image type
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         # Lamps
-        meta['lampstat01'] = dict(ext=0, card='LAMPS')
-
-        # Ingest
-        self.meta = meta
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        # Extras for pypeit file
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
+        self.meta['utc'] = dict(ext=0, card='UTC')
+        self.meta['mode'] = dict(ext=0, card='MOSMODE')
+        self.meta['amp'] = dict(ext=0, card='AMPMODE')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -315,8 +320,50 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             list: List of keywords of data pulled from meta
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        # TODO: Based on a conversation with Carlos, we might want to
+        # include dateobs with this. For now, amp is effectively
+        # redundant because anything with the wrong amplifier used is
+        # removed from the list of valid frames in PypeItMetaData.
+        return ['dispname', 'decker', 'binning', 'dispangle', 'amp']
 
+    def valid_configuration_values(self):
+        """
+        Restricts the valid DEIMOS configurations for use in
+        ``PypeIt``.
+
+        Returns:
+            :obj:`dict`: A dictionary with the configuration keys
+            that have a discrete set of valid values.
+        """
+        return {'amp': ['SINGLE:B'], 'mode':['Spectral']}
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a
+        configuration, but the DATE-OBS keyword is used to assign
+        each to the most-relevant configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame
+            types that are configuration independent and the values
+            are the metadata keywords that can be used to assign the
+            frames to a configuration group.
+        """
+        return {'bias': 'dateobs', 'dark': 'dateobs'}
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file
+
+        Returns:
+            pypeit_keys: list
+
+        """
+        return super().pypeit_file_keys() + ['dateobs', 'utc']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -331,8 +378,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            is_flat = np.isin(fitstbl['idname'], ['IntFlat', 'DmFlat', 'SkyFlat'])
-            return good_exp & is_flat & (fitstbl['hatch'] == 'closed')
+            is_flat = np.any(np.vstack([(fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
+                                    for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
+                                                   ['closed', 'open', 'open'])]), axis=0)
+            return good_exp & is_flat
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
@@ -380,6 +429,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         based on :func:`pypeit.spectrographs.keck_lris.read_lris`, which
         was based on the IDL procedure ``readmhdufits.pro``.
 
+        .. warning::
+
+            ``PypeIt`` currently *cannot* reduce images produced by
+            reading the DEIMOS CCDs with the A amplifier or those
+            taken in imaging mode. All image handling assumes DEIMOS
+            images have been read with the B amplifier in the
+            "Spectral" observing mode. This method will fault if this
+            is not true based on the header keywords MOSMODE and
+            AMPMODE.
+
         Parameters
         ----------
         raw_file : str
@@ -394,21 +453,22 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         # Check for file; allow for extra .gz, etc. suffix
+        # TODO: Why not use os.path.isfile?
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
             msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
         # Read
-        try:
-            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
-        except AttributeError:
-            print("Reading DEIMOS file: {:s}".format(fil[0]))
+        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
 
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
+        if hdu[0].header['AMPMODE'] != 'SINGLE:B':
+            msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
+        if hdu[0].header['MOSMODE'] != 'Spectral':
+            msgs.error('PypeIt can only reduce images with MOSMODE == Spectral.')
 
         # Get post, pre-pix values
-        postpix = head0['POSTPIX']
-        detlsize = head0['DETLSIZE']
+        postpix = hdu[0].header['POSTPIX']
+        detlsize = hdu[0].header['DETLSIZE']
         x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
         # Create final image
@@ -418,7 +478,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             oscansec_img = np.zeros_like(image, dtype=int)
 
         # get the x and y binning factors...
-        binning = head0['BINNING']
+        binning = hdu[0].header['BINNING']
         if binning != '1,1':
             msgs.error("This binning for DEIMOS might not work.  But it might..")
 
@@ -615,7 +675,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         indx = index_of_x_eq_y(mapid, catid)
         #   - Pull out the slit ID, object ID, and object coordinates
         objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
-                            catid.astype(float), hdu['ObjectCat'].data['RA_OBJ'],
+                            catid.astype(float),
+                            hdu['ObjectCat'].data['RA_OBJ'],
                             hdu['ObjectCat'].data['DEC_OBJ']]).T
         #   - Only keep the objects that are in the slit-object mapping
         objects = objects[mapid[indx] == catid]
@@ -713,23 +774,71 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             raise ValueError('Ruling should be 0 if slider in position 2.')
 
         # Use the calibrated coefficients
+        # These orientation coefficients are the newest ones and are meant for
+        # observations obtained Post-2016 Servicing.
+        # TODO: Figure out the impact of these coefficients on the slits identification.
+        # We may not need to change them according to when the observations were taken
         _ruling = int(ruling) if int(ruling) in [600, 831, 900, 1200] else 'other'
-        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.182],
-                                      831: [ 0.143,  0.000, 5.6e-4, -0.182],
-                                      900: [ 0.141,  0.000, 5.6e-4, -0.134],
-                                     1200: [ 0.145,  0.055, 5.6e-4, -0.181],
-                                  'other': [ 0.145,  0.000, 5.6e-4, -0.182] },
-                              4: {    600: [-0.065,  0.063, 6.9e-4, -0.298],
-                                      831: [-0.034,  0.060, 6.9e-4, -0.196],
-                                      900: [-0.064,  0.083, 6.9e-4, -0.277],
-                                     1200: [-0.052,  0.122, 6.9e-4, -0.294],
-                                  'other': [-0.050,  0.080, 6.9e-4, -0.250] } }
+        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.146],
+                                      831: [ 0.143,  0.000, 5.6e-4, -0.018],
+                                      900: [ 0.141,  0.000, 5.6e-4, -0.118],
+                                     1200: [ 0.145,  0.055, 5.6e-4, -0.141],
+                                  'other': [ 0.145,  0.000, 5.6e-4, -0.141] },
+                              4: {    600: [-0.065,  0.063, 6.9e-4, -0.108],
+                                      831: [-0.034,  0.060, 6.9e-4, -0.038],
+                                      900: [-0.064,  0.083, 6.9e-4, -0.060],
+                                     1200: [-0.052,  0.122, 6.9e-4, -0.110],
+                                  'other': [-0.050,  0.080, 6.9e-4, -0.110] } }
+
+        # Orientation coefficients meant for observations taken Pre-2016 Servicing
+        # orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.182],
+        #                               831: [ 0.143,  0.000, 5.6e-4, -0.182],
+        #                               900: [ 0.141,  0.000, 5.6e-4, -0.134],
+        #                              1200: [ 0.145,  0.055, 5.6e-4, -0.181],
+        #                           'other': [ 0.145,  0.000, 5.6e-4, -0.182] },
+        #                       4: {    600: [-0.065,  0.063, 6.9e-4, -0.298],
+        #                               831: [-0.034,  0.060, 6.9e-4, -0.196],
+        #                               900: [-0.064,  0.083, 6.9e-4, -0.277],
+        #                              1200: [-0.052,  0.122, 6.9e-4, -0.294],
+        #                           'other': [-0.050,  0.080, 6.9e-4, -0.250] } }
 
         # Return calbirated roll, yaw, and tilt
         return orientation_coeffs[slider][_ruling][0], \
                 orientation_coeffs[slider][_ruling][1], \
                 tilt*(1-orientation_coeffs[slider][_ruling][2]) \
                     + orientation_coeffs[slider][_ruling][3]
+
+
+
+    def get_amapbmap(self, filename):
+        """
+            Select the pre-grating (amap) and post-grating (bmap) maps according to the slider.
+
+        Args:
+            filename (:obj:`str`, optional):
+                The filename to read the slider information from the header.
+
+        Returns:
+            Two attributes :attr:`amap` and :attr:`bmap`.
+
+        """
+        hdu = fits.open(filename)
+
+        # Grating slider
+        slider = hdu[0].header['GRATEPOS']
+
+        mp_dir = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
+
+        if slider in [3,4]:
+            self.amap = fits.getdata(mp_dir+'amap.s{}.2003mar04.fits'.format(slider))
+            self.bmap = fits.getdata(mp_dir+'bmap.s{}.2003mar04.fits'.format(slider))
+        else:
+            msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
+        #TODO: Figure out which amap and bmap to use for slider 2
+
+        return self.amap, self.bmap
+
+
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
@@ -765,8 +874,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 use the center of the slits in the :attr:`slitmask`.
             wave (array-like, optional):
                 The wavelengths in angstroms for the propagated
-                coordinates.  Default is to use the central wavelength
-                of the :attr:`grating`.
+                coordinates.  If not provided, an array of wavelength
+                covering the full DEIMOS wavelength range will be used.
             order (:obj:`int`, optional):
                 The grating order.  Default is 1.
             filename (:obj:`str`, optional):
@@ -790,8 +899,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Raised if the user provides one but not both of the x
                 and y coordinates, if no coordinates are provided or
                 available within the :attr:`slitmask`, or if the
-                :attr:`grating` hasn't been defined and not file is
-                provided.
+                :attr:`grating`, :attr:`amap` or :attr:`bmap` haven't been
+                defined and not file is provided.
         """
         # Cannot provide just one of x or y
         if x is None and y is not None or x is not None and y is None:
@@ -805,6 +914,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 self.get_slitmask(filename)
             # Reset the grating
             self.get_grating(filename)
+            # Load pre- and post-grating maps
+            self.get_amapbmap(filename)
+
+        if self.amap is None and self.bmap is None:
+            raise ValueError('Must select amap and bmap; provide a file or use get_amapbmap()')
 
         # Check that any coordinates are available
         if x is None and y is None and self.slitmask is None:
@@ -831,16 +945,22 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Instantiate the detector map, if necessary
         self.get_detector_map()
 
-        # Compute the detector image plane coordinates (mm)
-        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
-                                                                      order=order)
+        # hard-coded for DEIMOS: wavelength array if wave is None
+        if wave is None:
+            npoints = 250
+            wave = np.arange(npoints) * 24. + 4000.
+
+        # Compute the detector image plane coordinates (in pixels)
+        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, self.amap, self.bmap,
+                                                                      nslits=self.slitmask.nslits,
+                                                                      wave=wave, order=order)
         # Reshape if computing the corner positions
         if corners:
             x_img = x_img.reshape(self.slitmask.corners.shape[:2])
             y_img = y_img.reshape(self.slitmask.corners.shape[:2])
 
         # Use the detector map to convert to the detector coordinates
-        return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img)
+        return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
 
 class DEIMOSOpticalModel(OpticalModel):
