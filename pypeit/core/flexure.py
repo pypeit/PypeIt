@@ -326,26 +326,29 @@ def flexure_interp(shift, wave):
     return twave
 
 
-def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None, slit_specs=None,
-                      mxshft=None):
+def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None,
+                      slit_specs=None, mxshft=None):
     """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
-        slits (:class:`pypeit.slittrace.SlitTraceSet`_):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
             Slit trace set
         slitord (`numpy.ndarray`_):
             Array of slit/order numbers
         slit_bpm (`numpy.ndarray`_):
             True = masked slit
-        method (:obj:`str`, optional)
-          'boxcar' -- Recommended for object extractions. This method uses the boxcar
-                      extracted sky and wavelength spectra from the input specobjs
-          'slitcen' -- Recommended when no objects are being extracted. This method
-                       uses a spectrum (stored in slitspecs) that is extracted from
-                       the center of each slit.
         sky_file (str):
             Sky file
-        specobjs (:class:`pypeit.specobjs.Specobjs`_, optional):
+        method (:obj:`str`, optional):
+            Two methods are available:
+                - 'boxcar': Recommended for object extractions. This
+                  method uses the boxcar extracted sky and wavelength
+                  spectra from the input specobjs
+                - 'slitcen': Recommended when no objects are being
+                  extracted. This method uses a spectrum (stored in
+                  slitspecs) that is extracted from the center of
+                  each slit.
+        specobjs (:class:`~pypeit.specobjs.Specobjs`, optional):
             Spectral extractions
         slit_specs (list, optional):
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
@@ -354,8 +357,9 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
             Passed to flex_shift()
 
     Returns:
-        list of dicts: A list of dicts containing flexure results of each slit. This is filled
-                       with a basically empty dict if the slit is skipped.
+        :obj:`list`: A list of :obj:`dict` objects containing flexure
+        results of each slit. This is filled with a basically empty
+        dict if the slit is skipped.
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
