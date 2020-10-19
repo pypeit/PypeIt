@@ -559,14 +559,17 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         guess = np.append(ratio, np.zeros(norder-1))
         scale_fun = lambda x: x
         err_scale_fun = lambda x: x
+        mask_fun = lambda x: np.ones_like(x)
     elif 'square' in model:
         guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
         scale_fun = np.sqrt
         err_scale_fun = lambda x: 2 * np.sqrt(x)
+        mask_fun = lambda x: x >= 0
     elif 'exp' in model:
         guess = np.append(np.log(ratio), np.zeros(norder-1))
         scale_fun = np.log
         err_scale_fun = lambda x: x
+        mask_fun = lambda x: x > 0
     else:
         msgs.error('Unrecognized model type')
 
@@ -580,7 +583,10 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     # Here we compute a linear regression to the scaled flux in order to get a better guess.
     if norder > 1:
             # linear time!
-            fit = np.polyfit(wave[mask], scale_fun(flux_ref_med[mask]), 1, w=err_scale_fun(flux_ref_med[mask]) * np.sqrt(ivar_ref_med[mask]))
+            # we need scale_mask to mask negative points in the polyfit
+            scale_mask = mask_fun(flux_ref_med)
+            fit = np.polyfit(wave[mask & scale_mask], scale_fun(flux_ref_med[mask & scale_mask]),
+                deg=1, w=err_scale_fun(flux_ref_med[mask & scale_mask]) * np.sqrt(ivar_ref_med[mask & scale_mask]))
             leg_slope = fit[0] * (wave_max - wave_min) / 2.0
             leg_int = fit[1] + fit[0] * (wave_max + wave_min)/2.0
             guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
