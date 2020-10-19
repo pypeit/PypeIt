@@ -12,10 +12,10 @@ How to manually update the PypeIt conda-forge feedstock (what to do if the bots 
 
     conda install -c conda-forge conda-smithy
 
-3. Now manually update the version field in recipe/meta.yaml
-4. Update the source > sha256 hash in recipe/meta.yaml with the sha256 hash available on
+3. Manually update the ``version`` variable in recipe/meta.yaml
+4. Update the ``source.sha256`` field in recipe/meta.yaml with the sha256 hash available on
    `pypi <https://pypi.org/project/pypeit/#files>`_
-5. Reset the build > number to 0 in recipe/meta.yaml
+5. Reset the ``build.number`` field to 0 in recipe/meta.yaml
 6. Commit your changes
 7. Rerender the feedstock
 
