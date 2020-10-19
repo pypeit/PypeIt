@@ -12,15 +12,13 @@ from IPython import embed
 
 import numpy as np
 
-from scipy import interpolate
-
 from astropy.io import fits
+import astropy
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit import wavetilts
 from pypeit.images import detector_container
 from pypeit.images import imagebitmask
 
@@ -79,7 +77,7 @@ class Spec2DObj(datamodel.DataContainer):
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
-                 'sci_spec_flexure': dict(otype=np.ndarray, atype=np.floating,
+                 'sci_spec_flexure': dict(otype=astropy.table.Table,
                                           descr='Global shift of the spectrum to correct for spectral'
                                                 'flexure (pixels). This is based on the sky spectrum at'
                                                 'the center of each slit'),
@@ -175,9 +173,12 @@ class Spec2DObj(datamodel.DataContainer):
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
-            # SliTraceSet
+            # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # Spectral flexure
+            elif key == 'sci_spec_flexure':
+                d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
