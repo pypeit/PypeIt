@@ -634,7 +634,8 @@ class Identify(object):
         return wvcalib
 
     def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
-                       specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN"):
+                       specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN",
+                       force_yes=False):
         """Check if the user wants to store this solution in the reid arxiv
 
         Parameters
@@ -654,6 +655,8 @@ class Identify(object):
             Grating name
         dispangl : str
             Dispersor Angle (expressed as a name/string)
+        force_yes : bool
+            Force yes to questions
 
         """
         if 'rms' not in final_fit.keys():
@@ -661,8 +664,11 @@ class Identify(object):
             return
         elif final_fit['rms'] < rmstol:
             ans = ''
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
+            if not force_yes:
+                while ans != 'y' and ans != 'n':
+                    ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
+            else:
+                ans = 'y'
             if ans == 'y':
                 #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
@@ -680,22 +686,13 @@ class Identify(object):
             print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
             ans = ''
+        if not force_yes:
             while ans != 'y' and ans != 'n':
                 ans = input("Would you like to store the line IDs? (y/n): ")
-            if ans == 'y':
-                self.save_IDs()
-        ans = ''
-        while ans != 'y' and ans != 'n':
-            ans = input("Would you like to store a FITS file of the final fit (developers only)? (y/n): ")
+        else:
+            ans = 'y'
         if ans == 'y':
-            '''
-            outdict = dict()
-            outdict[self._spatid] = copy.deepcopy(final_fit)
-            jdict = ltu.jsonify(outdict)
-            outname = 'waveids.json'
-            ltu.savejson(outname, jdict, easy_to_read=True, overwrite=True)
-            msgs.info("Wrote: {:s}".format(outname))
-            '''
+            self.save_IDs()
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -1148,9 +1145,9 @@ class Identify(object):
             msgs.info("Loaded line IDs")
         elif os.path.exists(fname):
             data = ascii_io.read(fname, format='fixed_width')
-            self._detns = data['pixel']
-            self._lineids = data['wavelength']
-            self._lineflg = data['flag']
+            self._detns = data['pixel'].data
+            self._lineids = data['wavelength'].data
+            self._lineflg = data['flag'].data
             msgs.info("Loaded line IDs:" + msgs.newline() + fname)
             self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
         else:
