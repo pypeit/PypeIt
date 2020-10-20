@@ -260,7 +260,7 @@ def test_identify():
                             'MasterSlits_A_1_01.fits')
     # Just list
     pargs = identify.parse_args([arc_file, slits_file, '--test'])
-    identify.main(pargs)
+    arcfitter = identify.main(pargs)
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib, identify
