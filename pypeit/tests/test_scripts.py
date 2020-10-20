@@ -18,6 +18,7 @@ from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
+from pypeit.scripts import identify
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.display import display
 from pypeit import edgetrace
@@ -29,7 +30,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
+'''
 @dev_suite_required
 def test_quicklook():
     # The following needs the LRISb calibration files to be
@@ -249,6 +250,17 @@ def test_coadd1d_2():
     hdu.close()
     os.remove(parfile)
     os.remove(coadd_ofile)
+'''
+
+@cooked_required
+def test_identify():
+    arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                             'MasterArc_A_1_01.fits')
+    slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                            'MasterSlits_A_1_01.fits')
+    # Just list
+    pargs = identify.parse_args([arc_file, slits_file, '--test'])
+    identify.main(pargs)
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib, identify

@@ -174,7 +174,8 @@ class Identify(object):
 
     @classmethod
     def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None,
-                   wavelim=None, nonlinear_counts=None, pxtoler=0.1):
+                   wavelim=None, nonlinear_counts=None, pxtoler=0.1,
+                   test=False):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -195,6 +196,8 @@ class Identify(object):
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         wavelim : :obj:`list`, None, optional
             A two element list containing the desired minimum and maximum wavelength of the linelist
+        test : bool, optional
+            If True, this is a unit test
 
         Returns
         -------

@@ -30,6 +30,8 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--det", type=int, default=1, help="Detector index")
     parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
     parser.add_argument("--pixtol", type=float, default=0.1, help="Pixel tolerance for Auto IDs")
+    parser.add_argument('--test', default=False, action='store_true',
+                        help="Unit tests?")
 
     if return_parser:
         return parser
@@ -96,7 +98,10 @@ def main(args):
     arcfitter = Identify.initialise(arccen, slits, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
                                     wavelim=[args.wmin, args.wmax],
                                     nonlinear_counts=spec.nonlinear_counts(msarc.detector),
-                                    pxtoler=args.pixtol)
+                                    pxtoler=args.pixtol, test=args.test)
+    # Testing?
+    if args.test:
+        return
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations
