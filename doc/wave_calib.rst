@@ -148,22 +148,9 @@ Here is a standard sequence of moves once the GUI pops up:
 8. Use '+/-' to modify the order number as desired
 9. Use 'a' to auto ID the rest
 10. Use 'f' to fit again
+11. Use 's' to save the line IDs and the wavelength solution if the
+   RMS of the latter is within tolerance.
 
-Once you have completed the manual calibration, you can save
-your solution (press key 's' while hovering over the plotting
-window). The, update your .pypeit file with the following:
-
-.. code-block:: ini
-
-    [calibrations]
-      [[wavelengths]]
-        method=identify
-
-and a GUI will be launched during the reduction. You can now
-load your manual wavelength solution by pressing the 'l' key
-while hovering over the plotting window.
-
-Alternatively, you can add your solution to the PypeIt database.
 If your solution is good enough (rms < 0.1 pixels), then
 `pypeit_identify`_ will automatically prompt you after you quit the
 GUI to see if you'd like to add your solution to the PypeIt
@@ -179,8 +166,8 @@ Once your solution is in the database, run PypeIt
 in the standard :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
-PypeIt development (e.g. post it on GitHub) team,
-so that others can benefit from your wavelength
+PypeIt development (e.g. post it on GitHub or the Users Slack)
+team, so that others can benefit from your wavelength
 calibration solution.
 
 customizing
