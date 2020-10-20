@@ -14,6 +14,7 @@ from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils, templates
+from pypeit.core import fitting
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
@@ -31,7 +32,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'f' : "Fit the wavelength solution",
                    'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
                    'h' : "Reset ghost parameters",
-                   'l' : "Load saved line IDs from file",
+                   'l' : "Load saved line IDs from file (waveids.ascii in local directory)",
                    'm' : "Select a line",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
@@ -50,7 +51,7 @@ class Identify(object):
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -100,11 +101,14 @@ class Identify(object):
         self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
         self._lflag_color = lflag_color
         self.par = par
+        # Auto ID
+        self.pxtoler = 0.1 if pxtoler is None else pxtoler
         # Fitting properties
         self._fitdict = dict(polyorder=1,
                              scale=self.specdata.size-1,
                              coeff=None,
                              fitc=None,
+                             full_fit=None,
                              res_stats=[]
                              )
         # Initialise the residuals colormap
@@ -169,7 +173,8 @@ class Identify(object):
         self.replot()
 
     @classmethod
-    def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
+    def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None,
+                   wavelim=None, nonlinear_counts=None, pxtoler=0.1):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -245,7 +250,7 @@ class Identify(object):
         residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
         resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
                                c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-        axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+        axres.axhspan(-1*pxtoler, pxtoler, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
         axres.axhline(0.0, color='r', linestyle='-')  # Zero level
         axres.set_xlim((0, thisarc.size - 1))
         axres.set_ylim((-0.3, 0.3))
@@ -276,7 +281,8 @@ class Identify(object):
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib)
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib,
+                         pxtoler=pxtoler)
         plt.show()
 
         # Now return the results
@@ -422,11 +428,12 @@ class Identify(object):
             xnorm = self._fitdict['xnorm']
 
             # Calculate the estimated wavelength of the detections
-            plotx = utils.func_val(self._fitdict['fitc'],
-                                   pixel_fit / xnorm,
-                                   self._fitdict["function"],
-                                   minx=self._fitdict['fmin'],
-                                   maxx=self._fitdict['fmax'])
+            plotx = self._fitdict['full_fit'].eval(pixel_fit / xnorm)
+            #plotx = utils.func_val(self._fitdict['fitc'],
+            #                       pixel_fit / xnorm,
+            #                       self._fitdict["function"],
+            #                       minx=self._fitdict['fmin'],
+            #                       maxx=self._fitdict['fmax'])
         # Plot the lines
         xmn, xmx = self.axes['main'].get_xlim()
         w = np.where((plotx > xmn) & (plotx < xmx))[0]
@@ -475,11 +482,12 @@ class Identify(object):
             ymin, ymax = np.min(wave_soln[wave_soln != 0.0]) * .95, np.max(wave_soln) * 1.05
 
             # Calculate some stats
-            wave_soln_fit = utils.func_val(self._fitdict['fitc'],
-                                           pixel_fit / xnorm,
-                                           self._fitdict["function"],
-                                           minx=self._fitdict['fmin'],
-                                           maxx=self._fitdict['fmax'])
+            wave_soln_fit = self._fitdict['full_fit'].eval(pixel_fit / xnorm)
+            #wave_soln_fit = utils.func_val(self._fitdict['fitc'],
+            #                               pixel_fit / xnorm,
+            #                               self._fitdict["function"],
+            #                               minx=self._fitdict['fmin'],
+            #                               maxx=self._fitdict['fmax'])
             dwv_pix = np.median(np.abs(wave_soln - np.roll(wave_soln, 1)))
             resvals = (wave_fit - wave_soln_fit) / dwv_pix
 
@@ -651,14 +659,20 @@ class Identify(object):
         elif final_fit['rms'] < rmstol:
             ans = ''
             while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+                ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
             if ans == 'y':
-                outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
-                msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
-                          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
-                          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
-                          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
-                          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
+                #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
+                wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
+                                                             (self.specdata.size - 1))
+                templates.write_template(wavelengths, self.specdata, binspec,
+                                         './', 'wvcalib.fits')
+                msgs.info("\nYour wavelength solution has been written to wvcalib.fits")
+                msgs.info("\nPlease consider sending your solution to the PypeIt team!" + msgs.newline())
+                #msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
+                #          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
+                #          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
+                #          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
+                #          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
         else:
             print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
@@ -669,14 +683,16 @@ class Identify(object):
                 self.save_IDs()
         ans = ''
         while ans != 'y' and ans != 'n':
-            ans = input("Would you like to store a JSON file of the final fit (developers only)? (y/n): ")
+            ans = input("Would you like to store a FITS file of the final fit (developers only)? (y/n): ")
         if ans == 'y':
+            '''
             outdict = dict()
             outdict[self._spatid] = copy.deepcopy(final_fit)
             jdict = ltu.jsonify(outdict)
             outname = 'waveids.json'
             ltu.savejson(outname, jdict, easy_to_read=True, overwrite=True)
             msgs.info("Wrote: {:s}".format(outname))
+            '''
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -919,11 +935,12 @@ class Identify(object):
         """
 
         # If the IDs are within an acceptable tolerance, flag them as such
-        wave_est = utils.func_val(self._fitdict['fitc'],
-                                  self._detns / self._fitdict['xnorm'],
-                                  self._fitdict["function"],
-                                  minx=self._fitdict['fmin'],
-                                  maxx=self._fitdict['fmax'])
+        wave_est = self._fitdict['full_fit'].eval(self._detns / self._fitdict['xnorm'])
+        #wave_est = utils.func_val(self._fitdict['fitc'],
+        #                          self._detns / self._fitdict['xnorm'],
+        #                          self._fitdict["function"],
+        #                          minx=self._fitdict['fmin'],
+        #                          maxx=self._fitdict['fmax'])
         for wav in range(wave_est.size):
             if self._lineflg[wav] == 1:
                 # User has manually identified this line already
@@ -932,7 +949,7 @@ class Identify(object):
             amin = np.argmin(pixdiff)
             pxtst = pixdiff[amin]/self._fitdict['cen_disp']
             self._lineids[wav] = self._lines[amin]
-            if pxtst < 0.1:
+            if pxtst < self.pxtoler:
                 # Acceptable
                 self._lineflg[wav] = 2
             else:
@@ -1029,8 +1046,19 @@ class Identify(object):
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
                 # Update the fitdict
-                for key in final_fit:
-                    self._fitdict[key] = final_fit[key]
+                #for key in final_fit:
+                #    self._fitdict[key] = final_fit[key]
+                self._fitdict['polyorder'] = final_fit.pypeitfit['order'][0]
+                self._fitdict['fitc'] = final_fit.pypeitfit['fitc']
+                self._fitdict['full_fit'] = final_fit.pypeitfit
+                self._fitdict['pixel_fit'] = final_fit.pixel_fit
+                self._fitdict['wave_fit'] = final_fit.wave_fit
+                self._fitdict['wave_soln'] = final_fit.wave_soln
+                self._fitdict['xnorm'] = final_fit.xnorm
+                self._fitdict['rms'] = final_fit.rms
+                self._fitdict['tcent'] = final_fit.tcent
+                self._fitdict['cen_disp'] = final_fit.cen_disp
+                self._fitdict['cen_wave'] = final_fit.cen_wave
 
             except TypeError:
                 # Just stick use the basic fit
@@ -1091,11 +1119,12 @@ class Identify(object):
                 xnorm = self._fitdict['xnorm']
 
                 # Calculate the estimated wavelength of the detections
-                specy = utils.func_val(self._fitdict['fitc'],
-                                       np.array([self._startdata, self._middata]) / xnorm,
-                                       self._fitdict["function"],
-                                       minx=self._fitdict['fmin'],
-                                       maxx=self._fitdict['fmax'])
+                specy = self._fitdict['full_fit'].eval(np.array([self._startdata, self._middata]) / xnorm)
+                #specy = utils.func_val(self._fitdict['fitc'],
+                #                       np.array([self._startdata, self._middata]) / xnorm,
+                #                       self._fitdict["function"],
+                #                       minx=self._fitdict['fmin'],
+                #                       maxx=self._fitdict['fmax'])
                 self._ghostparam[0] = specy[1] - specy[0]
             else:
                 # Plotting pixels, but don't have a wavelength solution

@@ -129,6 +129,21 @@ To launch the GUI, use the following command:
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 
+Here is a standard sequence of moves once the GUI pops up:
+
+1. Compare the arc lines to a calibrated spectrum
+2. Use the Magnifying glass to zoom in on one your recognize and
+   which is in the PypeIt linelist(s)
+3. Use 'm' to mark the line (a red line will appear)
+4. Use the slider bar to select the wavelength (vacuum)
+5. Click on Assign Line (it will be blue when you move the mouse back in
+   the plot window)
+6. Repeat 1-5 until you have identified 4+ lines across the spectrum
+7. Use 'f' to fit the current set of lines
+8. Use '+/-' to modify the order number as desired
+9. Use 'a' to auto ID the rest
+10. Use 'f' to fit again
+
 Once you have completed the manual calibration, you can save
 your solution (press key 's' while hovering over the plotting
 window). The, update your .pypeit file with the following:

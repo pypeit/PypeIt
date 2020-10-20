@@ -29,6 +29,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--slit", type=int, default=0, help="Which slit to load for wavelength calibration")
     parser.add_argument("--det", type=int, default=1, help="Detector index")
     parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
+    parser.add_argument("--pixtol", type=float, default=0.1, help="Pixel tolerance for Auto IDs")
 
     if return_parser:
         return parser
@@ -44,7 +45,7 @@ def main(args):
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.core.gui.identify import Identify
     from pypeit.core.wavecal import waveio
-    from pypeit.wavecalib import WaveCalib
+    from pypeit.wavecalib import BuildWaveCalib, WaveCalib
     from pypeit import slittrace
     from pypeit.images.buildimage import ArcImage
 
@@ -87,14 +88,15 @@ def main(args):
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) and args.solution else None
 
     # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
+    wavecal = BuildWaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
                         master_key=mkey, msbpm=msarc.fullmask)
     arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
     # Launch the identify window
     arcfitter = Identify.initialise(arccen, slits, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
                                     wavelim=[args.wmin, args.wmax],
-                                    nonlinear_counts=spec.nonlinear_counts(msarc.detector))
+                                    nonlinear_counts=spec.nonlinear_counts(msarc.detector),
+                                    pxtoler=args.pixtol)
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations
