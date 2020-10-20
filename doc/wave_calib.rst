@@ -131,6 +131,8 @@ the '?' key while hovering your mouse over the plotting window.
 
 Here is a standard sequence of moves once the GUI pops up:
 
+0. Load an existing ID list if you made one already (type 'l').
+   If so, skip to step 7.
 1. Compare the arc lines to a calibrated spectrum
 2. Use the Magnifying glass to zoom in on one your recognize and
    which is in the PypeIt linelist(s)
