@@ -81,6 +81,7 @@ class Identify(object):
             Spatial ID corresponding to slit
         wv_calib : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        pxtoler : float, optional
         """
         # Store the axes
         self.axes = axes
@@ -174,8 +175,8 @@ class Identify(object):
 
     @classmethod
     def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None,
-                   wavelim=None, nonlinear_counts=None, pxtoler=0.1,
-                   test=False):
+                   wavelim=None, nonlinear_counts=None, test=False,
+                   pxtoler=0.1, fwhm=4.):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -198,6 +199,8 @@ class Identify(object):
             A two element list containing the desired minimum and maximum wavelength of the linelist
         test : bool, optional
             If True, this is a unit test
+        fwhm : float, optional
+            FWHM of arc lines in pixels
 
         Returns
         -------
@@ -214,7 +217,9 @@ class Identify(object):
 
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
-        tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
+        tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
+                                                            fwhm=fwhm,
+                                                            sigdetect=par['sigdetect'],
                                                             nonlinear_counts=nonlinear_counts)
         detns = tdetns[icut]
 
@@ -284,8 +289,8 @@ class Identify(object):
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
-                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib,
-                         pxtoler=pxtoler)
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler)
+
         plt.show()
 
         # Now return the results
@@ -659,6 +664,16 @@ class Identify(object):
             Force yes to questions
 
         """
+        # Line IDs
+        ans = ''
+        if not force_yes:
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store the line IDs? (y/n): ")
+        else:
+            ans = 'y'
+        if ans == 'y':
+            self.save_IDs()
+        # Solution
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
             return
@@ -686,13 +701,6 @@ class Identify(object):
             print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
             ans = ''
-        if not force_yes:
-            while ans != 'y' and ans != 'n':
-                ans = input("Would you like to store the line IDs? (y/n): ")
-        else:
-            ans = 'y'
-        if ans == 'y':
-            self.save_IDs()
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -1037,14 +1045,16 @@ class Identify(object):
             bdisp = self.fitsol_deriv(self.specdata.size / (2*self._fitdict["scale"]))  # Angstroms/pixel at the centre of the spectrum
             # Then try a detailed fit
             try:
-                final_fit = wv_fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
-                                                      self._lineids[gd_det[0]], self._line_lists, bdisp,
-                                                      verbose=False, n_first=min(2, self._fitdict["polyorder"]),
-                                                      match_toler=self.par['match_toler'],
-                                                      func=self.par['func'], input_only=True,
-                                                      n_final=self._fitdict["polyorder"],
-                                                      sigrej_first=self.par['sigrej_first'],
-                                                      sigrej_final=self.par['sigrej_final'])
+                final_fit = wv_fitting.iterative_fitting(
+                    self.specdata, self._detns, gd_det[0],
+                    self._lineids[gd_det[0]], self._line_lists, bdisp,
+                    verbose=False, n_first=min(2, self._fitdict["polyorder"]),
+                    match_toler=self.par['match_toler'],
+                    func=self.par['func'], input_only=True,
+                    n_final=self._fitdict["polyorder"],
+                    sigrej_first=self.par['sigrej_first'],
+                    sigrej_final=self.par['sigrej_final'])
+
                 # Update the fitdict
                 #for key in final_fit:
                 #    self._fitdict[key] = final_fit[key]

@@ -126,6 +126,9 @@ To launch the GUI, use the following command:
 
     pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
 
+basics
+------
+
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 
@@ -179,6 +182,16 @@ We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub) team,
 so that others can benefit from your wavelength
 calibration solution.
+
+customizing
+-----------
+
+If your arclines are over-sampled (e.g. Gemini/GMOS)
+you may need to increase the `fwhm` from the default value of 4.
+And also the pixel tolerance `pixtol` for auto ID'ng lines
+from its default of 0.1 pixels.
+And the `rmstol`, if you wish to save the solution to disk!
+
 
 
 Common Failure Modes
