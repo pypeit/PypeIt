@@ -466,7 +466,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # get the x and y binning factors...
-        binning = self.get_meta_value(headarr, 'binning')
+        #binning = self.get_meta_value(headarr, 'binning')
 
         # Always assume normal FITS header formatting
         one_indexed = True
