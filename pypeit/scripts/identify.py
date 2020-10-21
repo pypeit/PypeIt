@@ -29,7 +29,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--slit", type=int, default=0, help="Which slit to load for wavelength calibration")
     parser.add_argument("--det", type=int, default=1, help="Detector index")
     parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
-    parser.add_argument("--fwhm", type=float, help="FWHM for line finding")
+    parser.add_argument("--fwhm", type=float, default=4., help="FWHM for line finding")
     parser.add_argument("--pixtol", type=float, default=0.1, help="Pixel tolerance for Auto IDs")
     parser.add_argument('--test', default=False, action='store_true',
                         help="Unit tests?")
@@ -44,6 +44,7 @@ def main(args):
 
     import os
     import sys
+    import numpy as np
     from pypeit import masterframe
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.core.gui.identify import Identify
@@ -105,5 +106,19 @@ def main(args):
         return arcfitter
     final_fit = arcfitter.get_results()
 
+    # Build here to avoid circular import
+    #  Note:  This needs to be duplicated in test_scripts.py
+    # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
+    if 'WaveFit' in arcfitter._fitdict.keys():
+        waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
+                                    arc_spectra=np.atleast_2d(arcfitter.specdata).T,
+                                    spat_ids=np.atleast_1d(arcfitter._slit),
+                                    PYP_SPEC=specname,
+                                    )
+    else:
+        waveCalib = None
+
     # Ask the user if they wish to store the result in PypeIt calibrations
-    arcfitter.store_solution(final_fit, mdir, slits.binspec, rmstol=args.rmstol, specname=specname)
+    arcfitter.store_solution(final_fit, mdir, slits.binspec,
+                             wvcalib=waveCalib,
+                             rmstol=args.rmstol, specname=specname)

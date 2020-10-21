@@ -149,7 +149,7 @@ Here is a standard sequence of moves once the GUI pops up:
 9. Use 'a' to auto ID the rest
 10. Use 'f' to fit again
 11. Use 's' to save the line IDs and the wavelength solution if the
-   RMS of the latter is within tolerance.
+    RMS of the latter is within tolerance.
 
 If your solution is good enough (rms < 0.1 pixels), then
 `pypeit_identify`_ will automatically prompt you after you quit the
