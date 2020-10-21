@@ -21,6 +21,7 @@ from pypeit.scripts import identify
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
+from pypeit import wavecalib
 
 from pypeit.pypeitsetup import PypeItSetup
 
@@ -272,11 +273,19 @@ def test_identify():
 
     # Write
     final_fit = arcfitter.get_results()
-    arcfitter.store_solution(final_fit, '', 1, force_yes=True)
 
+    waveCalib = wavecalib.WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
+                              arc_spectra=np.atleast_2d(arcfitter.specdata).T,
+                              spat_ids=np.atleast_1d(arcfitter._slit),
+                              PYP_SPEC='shane_kast_blue',
+                              )
+
+    arcfitter.store_solution(final_fit, '', 1, force_yes=True, wvcalib=waveCalib)
+
+    # Clean up -- If these fail then the store solution failed
     os.remove('waveid.ascii')
-    os.remove('wvcalib.fits')
     os.remove('wvarxiv.fits')
+    os.remove('wvcalib.fits')
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib

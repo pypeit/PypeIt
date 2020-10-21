@@ -140,10 +140,6 @@ class Identify(object):
         self.canvas = canvas
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
 
-        # Setup slider for the linelist
-        self._slideval = 0  # Default starting point for the linelist slider
-        self.linelist_init()
-
         # Interaction variables
         self._detns_idx = -1
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
@@ -162,6 +158,11 @@ class Identify(object):
         self._ghostparam = [0.0, 1.0]  # Ghost params [shift, scale] = [wavecen, disp]
         self.gstlines = []
         self.gsttexts = []
+
+        # Setup slider for the linelist
+        self._slideval = 0  # Default starting point for the linelist slider
+        self.linelist_init()
+
 
         # If an initial solution is available, load it
         if wv_calib is not None:
@@ -289,7 +290,8 @@ class Identify(object):
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
                          spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler)
 
-        plt.show()
+        if not test:
+            plt.show()
 
         # Now return the results
         return ident

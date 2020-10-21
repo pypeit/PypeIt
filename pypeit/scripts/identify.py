@@ -107,6 +107,7 @@ def main(args):
     final_fit = arcfitter.get_results()
 
     # Build here to avoid circular import
+    #  Note:  This needs to be duplicated in test_scripts.py
     # Wavecalib (wanted when dealing with multiple detectors, eg. GMOS)
     if 'WaveFit' in arcfitter._fitdict.keys():
         waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
