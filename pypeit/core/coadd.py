@@ -586,7 +586,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
             scale_mask = mask_fun(flux_ref_med)
 
             fitter = fitting.PypeItFit(xval=wave, yval=scale_fun(flux_ref_med), order=np.array([1]),
-                weights=err_scale_fun(flux_ref_med)*np.sqrt(ivar_ref_med), gpm=scale_mask & mask,
+                weights=err_scale_fun(flux_ref_med)*np.sqrt(ivar_ref_med), gpm=(scale_mask & mask).astype('int'),
                 func=func, minx=wave_min, maxx=wave_max)
 
             if fitter.fit():
