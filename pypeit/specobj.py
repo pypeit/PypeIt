@@ -369,11 +369,12 @@ class SpecObj(datamodel.DataContainer):
         Args:
             shift (float):
                 additive spectral flexure in pixels
-            sky_spec (`xspectrum1d.XSpectrum1D`_):
+            sky_spec (`linetools.spectra.xspectrum1d.XSpectrum1D`_):
                 Sky Spectrum
 
         Returns:
-            xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
+            `linetools.spectra.xspectrum1d.XSpectrum1D`_: New sky
+            spectrum (mainly for QA)
         """
         # Simple interpolation to apply
         # Apply

@@ -36,6 +36,10 @@ def init_dict():
     right[:,2] = 31.
     slits = slittrace.SlitTraceSet(left, right, 'MultiSlit',
                                    nspat=1000, PYP_SPEC='dummy')
+    # Construct table of spectral flexure
+    spec_flex_table = Table()
+    spec_flex_table['spat_id'] = slits.spat_id
+    spec_flex_table['sci_spec_flexure'] = np.zeros(left.shape[1])
     #
     sdict = dict(sciimg = sciimg,
                  ivarraw = 0.1 * np.ones_like(sciimg),
@@ -51,7 +55,7 @@ def init_dict():
                  tilts=np.ones_like(sciimg).astype(float),
                  #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
                  sci_spat_flexure=3.5,
-                 sci_spec_flexure=np.zeros(left.shape[1]),
+                 sci_spec_flexure=spec_flex_table,
                  vel_type='HELIOCENTRIC',
                  vel_corr=1.0+1.0e-5
                  )

@@ -69,6 +69,7 @@ PypeIt.
    new_spectrograph
    gemini_gmos
    deimos
+   keck_kcwi
    lris
    mage
    xshooter

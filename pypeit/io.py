@@ -335,6 +335,37 @@ def header_version_check(hdr, warning_only=True):
     return all_identical
 
 
+def dict_to_lines(d, level=0, use_repr=False):
+    """
+    Dump a dictionary to a set of string lines to be written to a
+    file.
+
+    Args:
+        d (:obj:`dict`):
+            The dictionary to convert
+        level (:obj:`int`, optional):
+            An indentation level. Each indentation level is 4 spaces.
+        use_repr (:obj:`bool`, optional):
+            Instead of using string type casting (i.e.,
+            ``str(...)``), use the objects ``__repr__`` attribute.
+
+    Returns:
+        :obj:`list`: A list of strings that represent the lines in a
+        file.
+    """
+    lines = []
+    if len(d) == 0:
+        return lines
+    w = max(len(key) for key in d.keys()) + level*4
+    for key in d.keys():
+        if isinstance(d[key], dict):
+            lines += [key.rjust(w) + ':'] + dict_to_lines(d[key], level=level+1, use_repr=use_repr)
+            continue
+        lines += [key.rjust(w) + ': ' + 
+                  (d[key].__repr__() if use_repr and hasattr(d[key], '__repr__') else str(d[key]))]
+    return lines
+
+
 def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write a dictionary to a fits HDU.

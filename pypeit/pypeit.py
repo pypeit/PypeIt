@@ -10,6 +10,7 @@ import os
 import numpy as np
 import copy
 from astropy.io import fits
+from astropy.table import Table
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -17,7 +18,6 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -667,6 +667,11 @@ class PypeIt(object):
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
 
+        # Construct table of spectral flexure
+        spec_flex_table = Table()
+        spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
+        spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(det=self.det,
                                         sciimg=sciImg.image,
@@ -679,7 +684,7 @@ class PypeIt(object):
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
-                                        sci_spec_flexure=self.redux.slitshift,
+                                        sci_spec_flexure=spec_flex_table,
                                         vel_corr=self.redux.vel_corr,
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
