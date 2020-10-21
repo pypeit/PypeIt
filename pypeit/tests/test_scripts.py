@@ -276,6 +276,7 @@ def test_identify():
 
     os.remove('waveid.ascii')
     os.remove('wvcalib.fits')
+    os.remove('wvarxiv.fits')
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
