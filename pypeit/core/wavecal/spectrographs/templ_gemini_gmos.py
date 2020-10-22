@@ -70,4 +70,4 @@ def gemini_gmos_b600_ham(overwrite=False):
 
 if __name__ == '__main__':
     #gemini_gmos_r400_e2v(overwrite=True)
-    gemini_gmos_b600_ham()
+    gemini_gmos_b600_ham(overwrite=True)
