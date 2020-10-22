@@ -61,7 +61,7 @@ def gemini_gmos_b600_ham(overwrite=False):
     ifiles = [0, 1, 2, 3, 4, 5]
     slits = [0, 0, 0, 0, 0, 1]
     lcut = [4250., 4547., 5250., 5615., 6600.]
-    #
+    # Run
     templates.build_template(files,
         slits, lcut, binspec,
                    outroot, lowredux=False, ifiles=ifiles, chk=True,
