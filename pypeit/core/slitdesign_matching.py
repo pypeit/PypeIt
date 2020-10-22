@@ -316,11 +316,7 @@ def plot_matches(edgetrace, ind, x_model, yref, slit_index, nspat=2048, duplicat
     yref_xdet = np.tile(yref, x_det.size)
     yref_x_model = np.tile(yref, x_model.size)
 
-    # Set the axis size
-    xaxis_min = np.min(x_model[x_model != -1])
-    xaxis_max = np.max([nspat, np.max(x_model[x_model != -1])])
-
-    buffer = 20
+    buffer = 200
     dist = edgetrace.shape[0] - yref
 
     plt.rc('xtick', direction='in')
@@ -365,6 +361,6 @@ def plot_matches(edgetrace, ind, x_model, yref, slit_index, nspat=2048, duplicat
 
     plt.xlabel('Spatial pixels')
     plt.ylabel('Spectral pixels')
-    plt.xlim(xaxis_min-buffer, xaxis_max+buffer)
+    plt.xlim(-buffer, nspat+buffer)
     plt.ylim(0, edgetrace.shape[0])
     plt.legend(loc=1)
