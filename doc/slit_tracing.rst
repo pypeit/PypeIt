@@ -1,3 +1,6 @@
+
+.. _slit_tracing:
+
 ============
 Slit Tracing
 ============

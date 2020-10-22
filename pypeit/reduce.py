@@ -72,6 +72,7 @@ class Reduce(object):
             Final output mask
         extractmask (`numpy.ndarray`_):
             Extraction mask
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
         sobjs (SpecObsj):
@@ -1019,6 +1020,7 @@ class MultiSlitReduce(Reduce):
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
+
             sobjs.add_sobj(sobjs_slit)
 
         # Steps

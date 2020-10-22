@@ -271,7 +271,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`, and
             can be different from ``left`` unless ``synced`` is True.
         slit_ids (:obj:`int`, array-like, optional):
-            ID numbers for the slits. If None, IDs run from -1 to
+            PypeIt ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
             :math:`(N_{\rm slits},)`. These are only used if
             ``synced`` is True.
@@ -390,6 +390,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
+        # Slit IDs
         canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
                    fontsize=20.)
         # TODO -- Fix indices if you really want to show them

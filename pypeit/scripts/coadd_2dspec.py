@@ -13,7 +13,7 @@ from configobj import ConfigObj
 from astropy.io import fits
 
 from pypeit.pypeit import PypeIt
-from pypeit import par, msgs
+from pypeit import par, msgs, io
 from pypeit import coadd2d
 #from pypeit.core import save
 from pypeit import io
@@ -22,58 +22,6 @@ from pypeit import specobjs
 from pypeit import spec2dobj
 
 from IPython import embed
-
-# TODO: We need an 'io' module where we can put functions like this...
-def read_coadd2d_file(ifile):
-    """
-    Read a PypeIt coadd2d file, akin to a standard PypeIt file.
-
-    .. todo::
-
-        - Need a better description of this.  Probably for the PypeIt
-          file itself, too!
-
-    The top is a config block that sets ParSet parameters.  The
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-          Name of the flux file
-
-    Returns:
-        tuple: Returns three objects: (1) The
-        :class:`pypeit.spectrographs.spectrograph.Spectrograph`
-        instance, (2) the list of configuration lines used to modify the
-        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
-        (3) the list of spec2d files to combine.
-    """
-
-    # Read in the pypeit reduction file
-    msgs.info('Loading the coadd2d file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-
-    # Parse the coadd block
-    spec2d_files = []
-    s, e = par.util._find_pypeit_block(lines, 'coadd2d')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'coadd2d end' in {0}".format(ifile))
-    for line in lines[s:e]:
-        prs = line.split(' ')
-        # TODO: This needs to allow for the science directory to be
-        # defined by the user.
-        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
-        spec2d_files.append(prs[0])
-    is_config[s-1:e+1] = False
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name)
-
-    # Return
-    return spectrograph, cfg_lines, spec2d_files
 
 
 def parse_args(options=None, return_parser=False):
@@ -117,7 +65,9 @@ def main(args):
     msgs.warn('PATH =' + os.getcwd())
     # Load the file
     if args.file is not None:
-        spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
+        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd2d")
+        spectrograph = load_spectrograph(spectrograph_name)
+
         # Parameters
         # TODO: Shouldn't this reinstantiate the same parameters used in
         # the PypeIt run that extracted the objects?  Why are we not

@@ -1416,7 +1416,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            thisobj = specobj.SpecObj(**specobj_dict)# 'UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
+            thisobj = specobj.SpecObj(**specobj_dict)
             #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
@@ -1571,15 +1571,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             msgs.warn("No source to use as a trace.  Using the slit boundary")
             trace_model = slit_left
 
-        # Hack me
-        #tmp_dict = copy.deepcopy(specobj_dict)
-        #for key in ['DET', 'PYPELINE']:
-        #    tmp_dict.pop(key)
-
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
             # Proceed
-            # thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
             thisobj = specobj.SpecObj(**specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
@@ -1941,9 +1935,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
-
-        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,
-        # not one at every location on the order
+        
+        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,		
+        # not one at every location on the order            
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
             for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
