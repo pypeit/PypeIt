@@ -1330,6 +1330,8 @@ class PypeItMetaData:
         for setup in cfgs.keys():
             # Get the subtable of frames taken in this configuration
             subtbl = self.table[output_cols][self['setup'] == setup]
+            if len(subtbl) == 0:  # NOT SURE HOW THIS HAPPENS..
+                continue
             # Write the file
             ff.write('##########################################################\n')
             ff.write('Setup {:s}\n'.format(setup))
