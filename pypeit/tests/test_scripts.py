@@ -282,6 +282,7 @@ def test_identify():
 
     arcfitter.store_solution(final_fit, '', 1, force_yes=True, wvcalib=waveCalib)
 
+    pytest.set_trace()
     # Clean up -- If these fail then the store solution failed
     os.remove('waveid.ascii')
     os.remove('wvarxiv.fits')

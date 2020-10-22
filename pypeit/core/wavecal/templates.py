@@ -47,7 +47,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False):
+                   shift_wave=False, binning=None):
     """
     Generate a full_template for a given instrument
 
@@ -89,6 +89,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         shift_wave (bool, optional):
             Shift wavelengths when splicing to sync up precisely (Recommended)
             Requires PypeIt file (old JSON works for now)
+        binning (list, optional):
+            Allows for multiple binnings for input files
     """
     if outdir is None:
         outdir = outpath
@@ -111,7 +113,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             elif ascii_tbl:
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
-                wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit)
+                wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
@@ -204,7 +206,7 @@ def grab_wvlim(kk, wv_cuts, nslits):
     return llow, lhi
 
 
-def pypeit_arcspec(in_file, slit):
+def pypeit_arcspec(in_file, slit, binspec, binning=None):
     """
     Load up the arc spectrum from an input JSON file
 
@@ -220,21 +222,34 @@ def pypeit_arcspec(in_file, slit):
     if 'json' in in_file:
         wv_dict = ltu.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
-        x = np.arange(len(iwv_calib['spec']))
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
                                           func=iwv_calib['function'],
                                           minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+
+        if binning is not None and binning != binspec:
+            embed(header='Not ready for this yet!')
+        else:
+            x = np.arange(len(iwv_calib['spec']))
+
         wv_vac = pypeitFitting.eval(x / iwv_calib['xnorm'])
         #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
     elif 'fits' in in_file:
+        embed(header='239 of templates')
         wvcalib = wavecalib.WaveCalib.from_file(in_file)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
         #
         npix = flux.size
-        wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(np.arange(npix) / (npix - 1))
+        if binning is not None and binning != binspec:
+            npix = int(npix * binning / binspec)
+            embed(header='246 of templates')
+            x = np.arange(npix) / (npix - 1)
+        else:
+            x = np.arange(npix) / (npix - 1)
+        # Evaluate
+        wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(x)
         pypeitFitting = wvcalib.wv_fits[idx].pypeitfit
     else:
         raise IOError("Bad in_file {}".format(in_file))
