@@ -8,13 +8,11 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
-from linetools import utils as ltu
 
 from IPython import embed
 
 from pypeit.par import pypeitpar
 from pypeit.core.wavecal import wv_fitting, waveio, wvutils, templates
-from pypeit.core import fitting
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
@@ -142,10 +140,6 @@ class Identify(object):
         self.canvas = canvas
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
 
-        # Setup slider for the linelist
-        self._slideval = 0  # Default starting point for the linelist slider
-        self.linelist_init()
-
         # Interaction variables
         self._detns_idx = -1
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
@@ -164,6 +158,11 @@ class Identify(object):
         self._ghostparam = [0.0, 1.0]  # Ghost params [shift, scale] = [wavecen, disp]
         self.gstlines = []
         self.gsttexts = []
+
+        # Setup slider for the linelist
+        self._slideval = 0  # Default starting point for the linelist slider
+        self.linelist_init()
+
 
         # If an initial solution is available, load it
         if wv_calib is not None:
@@ -291,7 +290,8 @@ class Identify(object):
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
                          spatid=str(slits.spat_id[slit]), wv_calib=wv_calib, pxtoler=pxtoler)
 
-        plt.show()
+        if not test:
+            plt.show()
 
         # Now return the results
         return ident
@@ -640,7 +640,7 @@ class Identify(object):
 
     def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
                        specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN",
-                       force_yes=False):
+                       force_yes=False, wvcalib=None):
         """Check if the user wants to store this solution in the reid arxiv
 
         Parameters
@@ -685,18 +685,23 @@ class Identify(object):
             else:
                 ans = 'y'
             if ans == 'y':
+                # Arxiv solution
                 #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
                 templates.write_template(wavelengths, self.specdata, binspec,
-                                         './', 'wvcalib.fits')
-                msgs.info("\nYour wavelength solution has been written to wvcalib.fits")
-                msgs.info("\nPlease consider sending your solution to the PypeIt team!" + msgs.newline())
+                                         './', 'wvarxiv.fits')
+                msgs.info("\nYour arxiv solution has been written to wvarxiv.fits")
                 #msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
                 #          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
                 #          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
                 #          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
                 #          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
+                #
+                if wvcalib is not None:
+                    wvcalib.to_file('wvcalib.fits')
+                    msgs.info("\nA WaveCalib container was written to wvcalib.fits")
+                msgs.info("\nPlease consider sending your solution to the PypeIt team!" + msgs.newline())
         else:
             print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
             print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
@@ -1069,6 +1074,7 @@ class Identify(object):
                 self._fitdict['tcent'] = final_fit.tcent
                 self._fitdict['cen_disp'] = final_fit.cen_disp
                 self._fitdict['cen_wave'] = final_fit.cen_wave
+                self._fitdict['WaveFit'] = final_fit
 
             except TypeError:
                 # Just stick use the basic fit
