@@ -261,8 +261,7 @@ def main(args):
     redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=args.show,
                                        det=det, std_outfile=std_outfile)
 
-    manual_extract_dict = None
-    skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = redux.run(
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
         std_trace=std_trace, return_negative=True, show_peaks=args.show)
 
     # TODO -- Do this upstream
@@ -277,7 +276,8 @@ def main(args):
                                       skymodel=skymodel,
                                       objmodel=objmodel,
                                       ivarmodel=ivarmodel,
-                                      waveimg=waveImg,
+                                      scaleimg=scaleimg,
+                                      waveimg=waveimg,
                                       bpmmask=outmask,
                                       detector=sciImg.detector,
                                       sci_spat_flexure=sciImg.spat_flexure,
@@ -297,7 +297,8 @@ def main(args):
                                      skymodel=-skymodel,
                                      objmodel=-objmodel,
                                      ivarmodel=ivarmodel,
-                                     waveimg=waveImg,
+                                     scaleimg=scaleimg,
+                                     waveimg=waveimg,
                                      bpmmask=outmask,
                                      detector=sciImg.detector,
                                      sci_spat_flexure=sciImg.spat_flexure,
