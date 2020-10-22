@@ -4,9 +4,8 @@ Module to run tests on scripts
 import os
 import shutil
 
-from IPython import embed
-
 import numpy as np
+import pytest
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
@@ -18,16 +17,13 @@ from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
-from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit.scripts import identify
+from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import utils
+from pypeit import wavecalib
+
 from pypeit.pypeitsetup import PypeItSetup
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 
 @dev_suite_required
@@ -251,4 +247,45 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 
-# TODO: Include tests for coadd2d, sensfunc, flux_calib, identify
+@cooked_required
+def test_identify():
+    arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                             'MasterArc_A_1_01.fits')
+    slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                            'MasterSlits_A_1_01.fits.gz')
+    # Just list
+    pargs = identify.parse_args([arc_file, slits_file, '--test'])
+    arcfitter = identify.main(pargs)
+
+    # Load line list
+    arcfitter.load_IDs(fname=data_path('waveid.ascii'))
+    assert arcfitter._detns.size == 31, 'Bad load'
+
+    # Fit
+    arcfitter._fitdict['polyorder'] = 3
+    arcfitter.fitsol_fit()
+    assert arcfitter._fitdict['fitc'].size == 4, 'Bad fit'
+
+    # Auto
+    arcfitter.auto_id()
+    assert np.sum(arcfitter._lineflg < 3) > 10, 'Bad auto ID'
+    arcfitter.fitsol_fit()
+
+    # Write
+    final_fit = arcfitter.get_results()
+
+    waveCalib = wavecalib.WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
+                              arc_spectra=np.atleast_2d(arcfitter.specdata).T,
+                              spat_ids=np.atleast_1d(arcfitter._slit),
+                              PYP_SPEC='shane_kast_blue',
+                              )
+
+    arcfitter.store_solution(final_fit, '', 1, force_yes=True, wvcalib=waveCalib)
+
+    # Clean up -- If these fail then the store solution failed
+    os.remove('waveid.ascii')
+    os.remove('wvarxiv.fits')
+    os.remove('wvcalib.fits')
+
+
+# TODO: Include tests for coadd2d, sensfunc, flux_calib

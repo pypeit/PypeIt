@@ -126,24 +126,31 @@ To launch the GUI, use the following command:
 
     pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
 
+basics
+------
+
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
 
-Once you have completed the manual calibration, you can save
-your solution (press key 's' while hovering over the plotting
-window). The, update your .pypeit file with the following:
+Here is a standard sequence of moves once the GUI pops up:
 
-.. code-block:: ini
+0. Load an existing ID list if you made one already (type 'l').
+   If so, skip to step 7.
+1. Compare the arc lines to a calibrated spectrum
+2. Use the Magnifying glass to zoom in on one your recognize and
+   which is in the PypeIt linelist(s)
+3. Use 'm' to mark the line (a red line will appear)
+4. Use the slider bar to select the wavelength (vacuum)
+5. Click on Assign Line (it will be blue when you move the mouse back in
+   the plot window)
+6. Repeat 1-5 until you have identified 4+ lines across the spectrum
+7. Use 'f' to fit the current set of lines
+8. Use '+/-' to modify the order number as desired
+9. Use 'a' to auto ID the rest
+10. Use 'f' to fit again
+11. Use 's' to save the line IDs and the wavelength solution if the
+    RMS of the latter is within tolerance.
 
-    [calibrations]
-      [[wavelengths]]
-        method=identify
-
-and a GUI will be launched during the reduction. You can now
-load your manual wavelength solution by pressing the 'l' key
-while hovering over the plotting window.
-
-Alternatively, you can add your solution to the PypeIt database.
 If your solution is good enough (rms < 0.1 pixels), then
 `pypeit_identify`_ will automatically prompt you after you quit the
 GUI to see if you'd like to add your solution to the PypeIt
@@ -159,9 +166,19 @@ Once your solution is in the database, run PypeIt
 in the standard :ref:`wvcalib-fulltemplate` mode.
 
 We also recommend that you send your solution to the
-PypeIt development (e.g. post it on GitHub) team,
-so that others can benefit from your wavelength
+PypeIt development (e.g. post it on GitHub or the Users Slack)
+team, so that others can benefit from your wavelength
 calibration solution.
+
+customizing
+-----------
+
+If your arclines are over-sampled (e.g. Gemini/GMOS)
+you may need to increase the `fwhm` from the default value of 4.
+And also the pixel tolerance `pixtol` for auto ID'ng lines
+from its default of 0.1 pixels.
+And the `rmstol`, if you wish to save the solution to disk!
+
 
 
 Common Failure Modes
