@@ -25,7 +25,7 @@ from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import reduce
 from pypeit import calibrations
-from pypeit import display
+from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum
@@ -88,7 +88,7 @@ def config_lines(args):
     cfg_lines += ['    use_illumflat = False']
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[wavelengths]]']
-    cfg_lines += ['        frame = observed']
+    cfg_lines += ['        refframe = observed']
     if not args.mask_cr:
         cfg_lines += ['[scienceframe]']
         cfg_lines += ['    [[process]]']
@@ -203,9 +203,9 @@ def main(args):
         msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
 
     # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_E_15_01.fits.gz')
-    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_E_1_01.fits')
-    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_E_1_01.fits')
+    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
+    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
+    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
     # For now don't require a standard
     std_outfile=None
     #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
@@ -234,7 +234,7 @@ def main(args):
     slits.mask = slits.mask_init.copy()
     # Read in the wv_calib
     wv_calib = wavecalib.WaveCalib.from_file(wvcalib_masterframe_name)
-    wv_calib.is_synced(slits)
+    #wv_calib.is_synced(slits)
     slits.mask_wvcalib(wv_calib)
     # Read in the tilts
     tilts_obj = wavetilts.WaveTilts.from_file(tilts_masterframe_name)
@@ -263,7 +263,7 @@ def main(args):
 
     manual_extract_dict = None
     skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = redux.run(
-        std_trace=std_trace, return_negative=True, manual_extract_dict=manual_extract_dict, show_peaks=args.show)
+        std_trace=std_trace, return_negative=True, show_peaks=args.show)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -344,7 +344,7 @@ def main(args):
     ##########################
     # Now display the images #
     ##########################
-    display.display.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     # Bug in ginga prevents me from using cuts here for some reason
     #mean, med, sigma = sigma_clipped_stats(pseudo_dict['imgminsky'][pseudo_dict['inmask']], sigma_lower=5.0,sigma_upper=5.0)
     #cut_min = mean - 4.0 * sigma
@@ -352,18 +352,18 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(pseudo_dict['imgminsky'], chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
+    viewer, ch = display.show_image(pseudo_dict['imgminsky'], chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
                                    clear=True) # cuts=(cut_min, cut_max),
     slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
     slit_id = slits.slitord_id[0]
-    ginga.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slit_id)
+    display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slit_id)
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
+    viewer, ch = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
                                   cuts=(-5.0, 5.0),)
-    ginga.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
+    display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
     shell = viewer.shell()
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
