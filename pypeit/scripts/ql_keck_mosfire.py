@@ -33,8 +33,6 @@ from pypeit.core.parse import get_dnum
 from IPython import embed
 
 
-
-
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
 class SmartFormatter(argparse.HelpFormatter):
@@ -49,8 +47,8 @@ def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)', formatter_class=SmartFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-    parser.add_argument('-A','--Afiles', type=str, nargs='+', help='list of frames at dither position A, i.e. -A A1.fits A2.fits')
-    parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
+    parser.add_argument('files', type=str, nargs='+', help='list of frames i.e. img1.fits img2.fits')
+    #parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--mask_cr", default=False, action='store_true',
@@ -175,20 +173,81 @@ def parse_dither_pattern(file_list, ext):
         dither_pattern.append(hdr['PATTERN'])
         dither_id.append(hdr['FRAMEID'])
         offset_arcsec[ifile] = hdr['YOFFSET']
-    return dither_pattern, dither_id, offset_arcsec
+    return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
+def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits, show=False, std_trace=None):
 
+    # Build Science image
+    sciImg = buildimage.buildimage_fromlist(
+        spectrograph, det, parset['scienceframe'], A_files, bpm=msbpm, slits=slits, ignore_saturation=False)
+
+    # Background Image?
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(
+        spectrograph, det, parset['scienceframe'], B_files, bpm=msbpm, slits=slits, ignore_saturation=False),
+        parset['scienceframe']['process'])
+    # Instantiate Reduce object
+    # Required for pypeline specific object
+    # At instantiaton, the fullmask in self.sciImg is modified
+    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
+                                       det=det, std_outfile=None)
+
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
+        std_trace=std_trace, return_negative=True, show_peaks=show)
+
+    # TODO -- Do this upstream
+    # Tack on detector
+    for sobj in sobjs:
+        sobj.DETECTOR = sciImg.detector
+
+    # Construct the Spec2DObj with the positive image
+    spec2DObj_A = spec2dobj.Spec2DObj(det=det,
+                                      sciimg=sciImg.image,
+                                      ivarraw=sciImg.ivar,
+                                      skymodel=skymodel,
+                                      objmodel=objmodel,
+                                      ivarmodel=ivarmodel,
+                                      scaleimg=scaleimg,
+                                      waveimg=waveimg,
+                                      bpmmask=outmask,
+                                      detector=sciImg.detector,
+                                      sci_spat_flexure=sciImg.spat_flexure,
+                                      tilts=tilts,
+                                      slits=copy.deepcopy(caliBrate.slits))
+    spec2DObj_A.process_steps = sciImg.process_steps
+    all_spec2d = spec2dobj.AllSpec2DObj()
+    all_spec2d['meta']['ir_redux'] = True
+    all_spec2d[det] = spec2DObj_A
+    # Save image A but with all the objects extracted, i.e. positive and negative
+    # outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
+
+    # Construct the Spec2DObj with the negative image
+    spec2DObj_B = spec2dobj.Spec2DObj(det=det,
+                                      sciimg=-sciImg.image,
+                                      ivarraw=sciImg.ivar,
+                                      skymodel=-skymodel,
+                                      objmodel=-objmodel,
+                                      ivarmodel=ivarmodel,
+                                      scaleimg=scaleimg,
+                                      waveimg=waveimg,
+                                      bpmmask=outmask,
+                                      detector=sciImg.detector,
+                                      sci_spat_flexure=sciImg.spat_flexure,
+                                      tilts=tilts,
+                                      slits=copy.deepcopy(caliBrate.slits))
+    return spec2DObj_A, spec2DObj_B
 
 def main(args):
 
 
+    # Calibration Master directory
+    if args.master_dir is None:
+        msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
+
     # Build the fitstable since we currently need it for output. This should not be the case!
-    A_files = [os.path.join(args.full_rawpath, file) for file in args.Afiles]
-    B_files = [os.path.join(args.full_rawpath, file) for file in args.Bfiles]
-    data_files = A_files + B_files
-    ps = pypeitsetup.PypeItSetup(A_files, path='./', spectrograph_name='keck_mosfire')
-    ps.build_fitstbl()
-    fitstbl = ps.fitstbl
+    files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
+    #ps = pypeitsetup.PypeItSetup(files, path='./', spectrograph_name='keck_mosfire')
+    #ps.build_fitstbl()
+    #fitstbl = ps.fitstbl
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -197,9 +256,38 @@ def main(args):
                                           merge_with=config_lines(args))
     science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
 
-    # Calibration Master directory
-    if args.master_dir is None:
-        msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
+    # We need the platescale
+    platescale = spectrograph.get_detector_par(None, 1)['platescale']
+    # Parse the offset information out of the headers. TODO in the future get this out of fitstable
+    dither_pattern, dither_id, offset_arcsec = parse_dither_pattern(files, spectrograph.primary_hdrext)
+    if len(np.unique(dither_pattern)) > 1:
+        msgs.error('Currently this script is supported only for a single type of dither pattern')
+    A_files = files[dither_id == 'A']
+    B_files = files[dither_id == 'B']
+    nA = len(A_files)
+    nB = len(B_files)
+
+    #if uniq_offsets.size == 2:
+    #    mode = 'single'
+    #elif uniq_offsets.size > 2:
+    #    mode = 'stack'
+    #else:
+    #    msgs.error('Problem with your files. Found less than 2 unique dither positions: {:}'.format(uniq_offsets))
+
+    # Print out a report on the offsets
+    msg_string = msgs.newline()  +     '****************************************************'
+    msg_string += msgs.newline() +     ' Summary of offsets for dither pattern:   {:s}'.format(dither_pattern[0])
+    msg_string += msgs.newline() +     '****************************************************'
+    msg_string += msgs.newline() +     'filename     Position         arcsec    pixels    '
+    msg_string += msgs.newline() +     '----------------------------------------------------'
+    for iexp, file in enumerate(files):
+        msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp]/platescale)
+    msg_string += msgs.newline() +     '****************************************************'
+    msgs.info(msg_string)
+
+    #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
+
 
     # Define some hard wired master files here to be later parsed out of the directory
     slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
@@ -240,90 +328,46 @@ def main(args):
     tilts_obj.is_synced(slits)
     slits.mask_wavetilts(tilts_obj)
 
-
-    # Build Science image
-    sciImg = buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], A_files, bpm=msbpm,
-                                            slits=slits, ignore_saturation=False)
-
-    # Background Image?
-    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det,  parset['scienceframe'], B_files, bpm=msbpm,
-                                                       slits=slits,ignore_saturation=False), parset['scienceframe']['process'])
     # Build the Calibrate object
     caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
     caliBrate.slits = slits
     caliBrate.wavetilts = tilts_obj
     caliBrate.wv_calib = wv_calib
 
-    # Instantiate Reduce object
-    # Required for pypeline specific object
-    # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=args.show,
-                                       det=det, std_outfile=std_outfile)
+    embed()
+    # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
+    uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
+    uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
+    nuniq = uniq_throws.size
+    #mode = 'single'
+    mode = 'stack'
+    if mode == 'single':
+        spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
+                                            show=args.show, std_trace=std_trace)
 
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
-        std_trace=std_trace, return_negative=True, show_peaks=args.show)
+        spec2d_list = [spec2DObj_A, spec2DObj_B]
+        offsets_dith_pix = np.array([0.0, (np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)/platescale)])
+    elif mode == 'stack':
+        spec2d_list =[]
+        offset_ref = offset_arcsec[0]
+        for iuniq in range(nuniq):
+            A_ind = (uni_indx == iuniq) & (dither_id == 'A')
+            B_ind = (uni_indx == iuniq) & (dither_id == 'B')
+            A_files = files[A_ind]
+            B_files = files[B_ind]
+            A_offset = offset_arcsec[A_ind]
+            B_offset = offset_arcsec[B_ind]
+            throw = np.abs(A_offset[0])
+            msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
+            spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
+                                                show=args.show, std_trace=std_trace)
+            spec2d_list += [spec2DObj_A, spec2DObj_B]
+            offsets_dith_pix = [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
 
-    # TODO -- Do this upstream
-    # Tack on detector
-    for sobj in sobjs:
-        sobj.DETECTOR = sciImg.detector
+        offset_dith_pix = np.array(offsets_dith_pix)
+    else:
+        msgs.error('Unrecognized mode')
 
-    # Construct the Spec2DObj with the positive image
-    spec2DObj_A = spec2dobj.Spec2DObj(det=det,
-                                      sciimg=sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=skymodel,
-                                      objmodel=objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
-    spec2DObj_A.process_steps = sciImg.process_steps
-    all_spec2d = spec2dobj.AllSpec2DObj()
-    all_spec2d['meta']['ir_redux'] = True
-    all_spec2d[det] = spec2DObj_A
-    # Save image A but with all the objects extracted, i.e. positive and negative
-    #outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
-
-    # Construct the Spec2DObj with the negative image
-    spec2DObj_B= spec2dobj.Spec2DObj(det=det,
-                                     sciimg=-sciImg.image,
-                                     ivarraw=sciImg.ivar,
-                                     skymodel=-skymodel,
-                                     objmodel=-objmodel,
-                                     ivarmodel=ivarmodel,
-                                     scaleimg=scaleimg,
-                                     waveimg=waveimg,
-                                     bpmmask=outmask,
-                                     detector=sciImg.detector,
-                                     sci_spat_flexure=sciImg.spat_flexure,
-                                     tilts=tilts,
-                                     slits=copy.deepcopy(caliBrate.slits))
-
-    # Parse the offset information out of the headers. TODO in the future get this out of fitstable
-    dither_pattern_A, dither_id_A, offset_arcsec_A = parse_dither_pattern(A_files, spectrograph.primary_hdrext)
-    dither_pattern_B, dither_id_B, offset_arcsec_B = parse_dither_pattern(B_files, spectrograph.primary_hdrext)
-    # Print out a report on the offsets
-    msg_string = msgs.newline()  +     '****************************************************'
-    msg_string += msgs.newline() +     ' Summary of offsets for dither pattern:   {:s}'.format(dither_pattern_A[0])
-    msg_string += msgs.newline() +     '****************************************************'
-    msg_string += msgs.newline() +     'Position     filename         arcsec    pixels    '
-    msg_string += msgs.newline() +     '----------------------------------------------------'
-    for iexp, file in enumerate(A_files):
-        msg_string += msgs.newline() + '    A    {:s}   {:6.2f}    {:6.2f}'.format(
-            os.path.basename(file), offset_arcsec_A[iexp], offset_arcsec_A[iexp]/sciImg.detector.platescale)
-    for iexp, file in enumerate(B_files):
-        msg_string += msgs.newline() + '    B    {:s}   {:6.2f}    {:6.2f}'.format(
-            os.path.basename(file), offset_arcsec_B[iexp], offset_arcsec_B[iexp]/sciImg.detector.platescale)
-    msg_string += msgs.newline() +     '****************************************************'
-    msgs.info(msg_string)
-
-    #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
-    offsets_dith_pix = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
     if args.offset is not None:
         offsets_pixels = np.array([0.0, args.offset])
         msgs.info('Using user specified offsets instead: {:5.2f}'.format(args.offset))
@@ -331,7 +375,7 @@ def main(args):
         offsets_pixels = offsets_dith_pix
 
 
-    spec2d_list = [spec2DObj_A, spec2DObj_B]
+
     # Instantiate Coadd2d
     coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
                                          offsets=offsets_pixels, weights='uniform', ir_redux=True,
