@@ -772,13 +772,13 @@ class Reduce(object):
                 Spectrally extracted objects
 
         """
-        radec = ltu.radec_to_coord((ra, dec))
         # Correct Telescope's motion
         refframe = self.par['calibrations']['wavelengths']['refframe']
         if (refframe in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
             # Calculate correction
+            radec = ltu.radec_to_coord((ra, dec))
             vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
