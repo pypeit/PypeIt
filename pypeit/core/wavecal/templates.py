@@ -94,7 +94,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     """
     if outdir is None:
         outdir = outpath
-
+    if binning is None:
+        binning = [None]*len(in_files)
     if ifiles is None:
         ifiles = np.arange(len(in_files))
     # Load xidl file
@@ -236,16 +237,16 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
     elif 'fits' in in_file:
-        embed(header='239 of templates')
         wvcalib = wavecalib.WaveCalib.from_file(in_file)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
         #
         npix = flux.size
         if binning is not None and binning != binspec:
+            embed(header='Not yet tested!')
             npix = int(npix * binning / binspec)
-            embed(header='246 of templates')
             x = np.arange(npix) / (npix - 1)
+            embed(header='246 of templates')
         else:
             x = np.arange(npix) / (npix - 1)
         # Evaluate

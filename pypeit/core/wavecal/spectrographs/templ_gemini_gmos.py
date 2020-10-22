@@ -52,22 +52,21 @@ def gemini_gmos_b600_ham(overwrite=False):
     wfile5 = os.path.join(templates.template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_01.json')  # - 4547
     wfile2 = os.path.join(templates.template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_02.json')
     wfile4 = os.path.join(templates.template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_02.json')  # 4610-5608
-    #wfile3 = os.path.join(templates.template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json')
+    wfile3 = os.path.join(templates.template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json') # xx-6615
     # 1x1 binning from Shenli
     wfile6 = os.path.join(templates.template_path, 'GMOS', 'B600', '1x1',
-                          'B600_0.660', 'chip2', 'wvcalib.fits')
-    files = [wfile1, wfile5, wfile2, wfile4, wfile6]
+                          'B600_0.660', 'chip3', 'wvcalib.fits')
+    files = [wfile1, wfile5, wfile2, wfile4, wfile3, wfile6]
 
-    ifiles = [0, 1, 2, 3, 4]
-    slits = [0, 0, 0, 0, 0]
-    lcut = [4250., 4547., 5250., 5615.]
-    binning = [2,2,2,2,1]
+    ifiles = [0, 1, 2, 3, 4, 5]
+    slits = [0, 0, 0, 0, 0, 1]
+    lcut = [4250., 4547., 5250., 5615., 6600.]
     #
     templates.build_template(files,
         slits, lcut, binspec,
                    outroot, lowredux=False, ifiles=ifiles, chk=True,
                    normalize=True, subtract_conti=True, miny=-100., overwrite=overwrite,
-                   shift_wave=True, binning=binning)
+                   shift_wave=True)
 
 if __name__ == '__main__':
     #gemini_gmos_r400_e2v(overwrite=True)

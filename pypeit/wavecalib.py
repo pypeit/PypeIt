@@ -116,7 +116,7 @@ class WaveCalib(datamodel.DataContainer):
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None, skip_spat_ids=False):
+               hdu_prefix=None):
         """
 
         Args:
@@ -125,8 +125,6 @@ class WaveCalib(datamodel.DataContainer):
             transpose_table_arrays:
             debug:
             hdu_prefix:
-            skip_spat_ids (bool, optiona):
-                If True, skip spat_ids test.  Only should be used for templates
 
         Returns:
 
@@ -159,10 +157,8 @@ class WaveCalib(datamodel.DataContainer):
                 parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
-            if skip_spat_ids:
-                pass
-            else:
-                msgs.error("Bad parsing of WaveCalib")
+            # TODO -- PUT THIS ERROR BACK!
+            msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
         return _d, dm_version_passed, dm_type_passed, parsed_hdus
