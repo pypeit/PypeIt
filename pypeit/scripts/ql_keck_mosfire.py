@@ -175,7 +175,6 @@ def parse_dither_pattern(file_list, ext):
         dither_pattern.append(hdr['PATTERN'])
         dither_id.append(hdr['FRAMEID'])
         offset_arcsec[ifile] = hdr['YOFFSET']
-
     return dither_pattern, dither_id, offset_arcsec
 
 
