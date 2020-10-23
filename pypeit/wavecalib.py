@@ -433,7 +433,8 @@ class BuildWaveCalib:
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, nonlinear_counts=self.nonlinear_counts,
+                                             self.binspectral,
+                                             nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
