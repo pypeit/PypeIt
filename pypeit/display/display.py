@@ -250,6 +250,49 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     return viewer, ch
 
+
+def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
+    """
+
+
+
+    Parameters
+    ----------
+    viewer:
+        (ginga.util.grc.RemoteClient) Ginga RC viewer
+    ch:
+        (ginga.util.grc._channel_proxy) Ginga channel
+    spec (list):
+        List of spectral positions on image to plot
+    spat (list):
+        List of spatial positions on image to plot
+    color (str):
+        Color for points
+    legend (str):
+        Label for a legeng
+    legend_spec (float):
+        Spectral pixel loation for legend
+    legend_spat (float):
+        Pixel loation for legend
+
+
+    Returns
+    -------
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    npoints = len(spec)
+    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
+                         kwargs=dict(style='plus', color=color)) for i in range(npoints)]
+    if legend is not None:
+        spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
+        spat_label = (np.mean(np.array(spat)) + 30) if legend_spat is None else legend_spat
+        text = [dict(type='text', args=(spat_label, spec_label, legend), kwargs=dict(color=color, fontsize=20))]
+        canvas_list += text
+
+    canvas.add('constructedcanvas', canvas_list)
+
+
 # TODO: Should we continue to allow rotate as an option?
 def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, rotate=False,
                pstep=50, clear=False, synced=True):
