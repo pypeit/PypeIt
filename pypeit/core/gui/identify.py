@@ -12,7 +12,7 @@ from matplotlib.widgets import Button, Slider
 from IPython import embed
 
 from pypeit.par import pypeitpar
-from pypeit.core.wavecal import wv_fitting, waveio, wvutils, templates
+from pypeit.core.wavecal import wv_fitting, waveio, wvutils
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
@@ -689,7 +689,7 @@ class Identify(object):
                 #outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
                 wavelengths = self._fitdict['full_fit'].eval(np.arange(self.specdata.size) /
                                                              (self.specdata.size - 1))
-                templates.write_template(wavelengths, self.specdata, binspec,
+                wvutils.write_template(wavelengths, self.specdata, binspec,
                                          './', 'wvarxiv.fits')
                 msgs.info("\nYour arxiv solution has been written to wvarxiv.fits")
                 #msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +

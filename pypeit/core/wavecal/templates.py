@@ -179,7 +179,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         #ax.plot(wave, flux)
         plt.show()
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
+    wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
 def grab_wvlim(kk, wv_cuts, nslits):
     """
@@ -300,39 +300,6 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     return outroot
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
-    """
-    Write the template spectrum into a binary FITS table
-
-    Args:
-        nwwv (`numpy.ndarray`_):
-        nwspec (`numpy.ndarray`_):
-        binspec (float):
-        outpath (str):
-        outroot (str):
-        det_cut (bool, optional):
-        order:
-        overwrite (bool, optional):
-            If True, overwrite any existing file
-    """
-    tbl = Table()
-    tbl['wave'] = nwwv
-    tbl['flux'] = nwspec
-    if order is not None:
-        tbl['order'] = order
-
-    tbl.meta['BINSPEC'] = binspec
-    # Detector snippets??
-    if det_cut is not None:
-        tbl['det'] = 0
-        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
-            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
-            deti = np.sum([2**ii for ii in dets])
-            tbl['det'][gdwv] += deti
-    # Write
-    outfile = os.path.join(outpath, outroot)
-    tbl.write(outfile, overwrite=overwrite)
-    print("Wrote: {}".format(outfile))
 
 
 #####################################################################################################
