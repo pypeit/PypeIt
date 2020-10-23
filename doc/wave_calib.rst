@@ -137,7 +137,7 @@ Here is a standard sequence of moves once the GUI pops up:
 0. Load an existing ID list if you made one already (type 'l').
    If so, skip to step 7.
 1. Compare the arc lines to a calibrated spectrum
-2. Use the Magnifying glass to zoom in on one your recognize and
+2. Use the Magnifying glass to zoom in on one you recognize and
    which is in the PypeIt linelist(s)
 3. Use 'm' to mark the line (a red line will appear)
 4. Use the slider bar to select the wavelength (vacuum)

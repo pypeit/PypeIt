@@ -280,7 +280,7 @@ def test_identify():
                               PYP_SPEC='shane_kast_blue',
                               )
 
-    arcfitter.store_solution(final_fit, '', 1, force_yes=True, wvcalib=waveCalib)
+    arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
     tmp = wavecalib.WaveCalib.from_file('wvcalib.fits')

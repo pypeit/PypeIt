@@ -33,6 +33,8 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--pixtol", type=float, default=0.1, help="Pixel tolerance for Auto IDs")
     parser.add_argument('--test', default=False, action='store_true',
                         help="Unit tests?")
+    parser.add_argument('--force_save', default=False, action='store_true',
+                        help="Save the solutions, despite the RMS")
 
     if return_parser:
         return parser
@@ -121,4 +123,5 @@ def main(args):
     # Ask the user if they wish to store the result in PypeIt calibrations
     arcfitter.store_solution(final_fit, mdir, slits.binspec,
                              wvcalib=waveCalib,
-                             rmstol=args.rmstol, specname=specname)
+                             rmstol=args.rmstol,
+                             specname=specname, force_save=args.force_save)

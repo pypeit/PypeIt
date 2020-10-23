@@ -257,7 +257,7 @@ class Identify(object):
         residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
         resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
                                c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-        axres.axhspan(-1*pxtoler, pxtoler, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+        axres.axhspan(-1*pxtoler, pxtoler, alpha=0.5, color='grey')
         axres.axhline(0.0, color='r', linestyle='-')  # Zero level
         axres.set_xlim((0, thisarc.size - 1))
         axres.set_ylim((-0.3, 0.3))
@@ -491,11 +491,6 @@ class Identify(object):
 
             # Calculate some stats
             wave_soln_fit = self._fitdict['full_fit'].eval(pixel_fit / xnorm)
-            #wave_soln_fit = utils.func_val(self._fitdict['fitc'],
-            #                               pixel_fit / xnorm,
-            #                               self._fitdict["function"],
-            #                               minx=self._fitdict['fmin'],
-            #                               maxx=self._fitdict['fmax'])
             dwv_pix = np.median(np.abs(wave_soln - np.roll(wave_soln, 1)))
             resvals = (wave_fit - wave_soln_fit) / dwv_pix
 
@@ -640,7 +635,7 @@ class Identify(object):
 
     def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
                        specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN",
-                       force_yes=False, wvcalib=None):
+                       force_save=False, wvcalib=None):
         """Check if the user wants to store this solution in the reid arxiv
 
         Parameters
@@ -660,13 +655,13 @@ class Identify(object):
             Grating name
         dispangl : str
             Dispersor Angle (expressed as a name/string)
-        force_yes : bool
-            Force yes to questions
+        force_save : bool
+            Force save
 
         """
         # Line IDs
         ans = ''
-        if not force_yes:
+        if not force_save:
             while ans != 'y' and ans != 'n':
                 ans = input("Would you like to store the line IDs? (y/n): ")
         else:
@@ -679,7 +674,7 @@ class Identify(object):
             return
         elif final_fit['rms'] < rmstol:
             ans = ''
-            if not force_yes:
+            if not force_save:
                 while ans != 'y' and ans != 'n':
                     ans = input("Would you like to write this wavelength solution to disk? (y/n): ")
             else:
@@ -949,11 +944,6 @@ class Identify(object):
 
         # If the IDs are within an acceptable tolerance, flag them as such
         wave_est = self._fitdict['full_fit'].eval(self._detns / self._fitdict['xnorm'])
-        #wave_est = utils.func_val(self._fitdict['fitc'],
-        #                          self._detns / self._fitdict['xnorm'],
-        #                          self._fitdict["function"],
-        #                          minx=self._fitdict['fmin'],
-        #                          maxx=self._fitdict['fmax'])
         for wav in range(wave_est.size):
             if self._lineflg[wav] == 1:
                 # User has manually identified this line already
@@ -1137,11 +1127,6 @@ class Identify(object):
 
                 # Calculate the estimated wavelength of the detections
                 specy = self._fitdict['full_fit'].eval(np.array([self._startdata, self._middata]) / xnorm)
-                #specy = utils.func_val(self._fitdict['fitc'],
-                #                       np.array([self._startdata, self._middata]) / xnorm,
-                #                       self._fitdict["function"],
-                #                       minx=self._fitdict['fmin'],
-                #                       maxx=self._fitdict['fmax'])
                 self._ghostparam[0] = specy[1] - specy[0]
             else:
                 # Plotting pixels, but don't have a wavelength solution
