@@ -339,15 +339,6 @@ def main(args):
     uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
     uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
     nuniq = uniq_throws.size
-    #mode = 'single'
-    #mode = 'stack'
-    #if mode == 'single':
-    #    spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
-    #                                        show=args.show, std_trace=std_trace)
-    #
-    #    spec2d_list = [spec2DObj_A, spec2DObj_B]
-    #    offsets_dith_pix = np.array([0.0, (np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)/platescale)])
-    #elif mode == 'stack':
     spec2d_list =[]
     offset_ref = offset_arcsec[0]
     offsets_dith_pix = []
