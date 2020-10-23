@@ -179,11 +179,11 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slit
 
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], A_files, bpm=msbpm, slits=slits, ignore_saturation=False)
+        spectrograph, det, parset['scienceframe'], list(A_files), bpm=msbpm, slits=slits, ignore_saturation=False)
 
     # Background Image?
     sciImg = sciImg.sub(buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], B_files, bpm=msbpm, slits=slits, ignore_saturation=False),
+        spectrograph, det, parset['scienceframe'], list(B_files), bpm=msbpm, slits=slits, ignore_saturation=False),
         parset['scienceframe']['process'])
     # Instantiate Reduce object
     # Required for pypeline specific object
@@ -334,47 +334,45 @@ def main(args):
     caliBrate.wavetilts = tilts_obj
     caliBrate.wv_calib = wv_calib
 
-    embed()
     # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
     uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
     uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
     nuniq = uniq_throws.size
     #mode = 'single'
-    mode = 'stack'
-    if mode == 'single':
+    #mode = 'stack'
+    #if mode == 'single':
+    #    spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
+    #                                        show=args.show, std_trace=std_trace)
+    #
+    #    spec2d_list = [spec2DObj_A, spec2DObj_B]
+    #    offsets_dith_pix = np.array([0.0, (np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)/platescale)])
+    #elif mode == 'stack':
+    spec2d_list =[]
+    offset_ref = offset_arcsec[0]
+    offsets_dith_pix = []
+    for iuniq in range(nuniq):
+        A_ind = (uni_indx == iuniq) & (dither_id == 'A')
+        B_ind = (uni_indx == iuniq) & (dither_id == 'B')
+        A_files = files[A_ind]
+        B_files = files[B_ind]
+        A_offset = offset_arcsec[A_ind]
+        B_offset = offset_arcsec[B_ind]
+        throw = np.abs(A_offset[0])
+        msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
         spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
-                                            show=args.show, std_trace=std_trace)
+        show=args.show, std_trace=std_trace)
+        spec2d_list += [spec2DObj_A, spec2DObj_B]
+        offsets_dith_pix += [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
 
-        spec2d_list = [spec2DObj_A, spec2DObj_B]
-        offsets_dith_pix = np.array([0.0, (np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)/platescale)])
-    elif mode == 'stack':
-        spec2d_list =[]
-        offset_ref = offset_arcsec[0]
-        for iuniq in range(nuniq):
-            A_ind = (uni_indx == iuniq) & (dither_id == 'A')
-            B_ind = (uni_indx == iuniq) & (dither_id == 'B')
-            A_files = files[A_ind]
-            B_files = files[B_ind]
-            A_offset = offset_arcsec[A_ind]
-            B_offset = offset_arcsec[B_ind]
-            throw = np.abs(A_offset[0])
-            msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
-            spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
-                                                show=args.show, std_trace=std_trace)
-            spec2d_list += [spec2DObj_A, spec2DObj_B]
-            offsets_dith_pix = [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
-
-        offset_dith_pix = np.array(offsets_dith_pix)
-    else:
-        msgs.error('Unrecognized mode')
+    offsets_dith_pix = np.array(offsets_dith_pix)
+    #else:
+    #    msgs.error('Unrecognized mode')
 
     if args.offset is not None:
         offsets_pixels = np.array([0.0, args.offset])
         msgs.info('Using user specified offsets instead: {:5.2f}'.format(args.offset))
     else:
         offsets_pixels = offsets_dith_pix
-
-
 
     # Instantiate Coadd2d
     coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
