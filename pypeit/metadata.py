@@ -1475,19 +1475,30 @@ class PypeItMetaData:
         Returns:
             :obj:`list`: List of ``PypeIt`` files generated.
         """
-        # Grab output columns
-        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
-
-        # Unique configurations, always ignoring any 'None'
-        # configurations...
-        cfg = self.unique_configurations(copy=True, rm_none=True)
-
-        # Output path
+        # Set output path
         if output_path is None:
             output_path = os.getcwd()
 
-        ofiles = [None]*len(cfg)
-        for j,setup in enumerate(cfg.keys()):
+        # Find unique configurations, always ignoring any 'None'
+        # configurations...
+        cfg = self.unique_configurations(copy=True, rm_none=True)
+
+        # Get the setups to write
+        if configs is None or configs == 'all' or configs == ['all']:
+            cfg_keys = list(cfg.keys())
+        else:
+            _configs = configs if isinstance(configs, list) else [configs]
+            cfg_keys = [key for key in cfg.keys() if key in _configs]
+
+        if len(cfg_keys) == 0:
+            msgs.error('No setups to write!')
+
+        # Grab output columns
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
+
+        # Write the pypeit files
+        ofiles = [None]*len(cfg_keys)
+        for j,setup in enumerate(cfg_keys):
             # Create the output directory
             root = '{0}_{1}'.format(self.spectrograph.spectrograph, setup)
             odir = os.path.join(output_path, root)
@@ -1511,6 +1522,7 @@ class PypeItMetaData:
             # Write the file
             make_pypeit_file(ofiles[j], self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
+
         # Return
         return ofiles
 
