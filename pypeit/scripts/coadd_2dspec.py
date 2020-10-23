@@ -222,7 +222,10 @@ def main(args):
                                               slits=sci_dict[det]['slits'],
                                               waveimg=sci_dict[det]['waveimg'],
                                               tilts=sci_dict[det]['tilts'],
-                                              sci_spat_flexure=None)
+                                              sci_spat_flexure=None,
+                                              sci_spec_flexure=None,
+                                              vel_corr=None,
+                                              vel_type=None)
     # Build header
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
