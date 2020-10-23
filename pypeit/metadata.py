@@ -1434,7 +1434,8 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, output_path=None, cfg_lines=None, write_bkg_pairs=False, configs=None):
+    def write_pypeit(self, output_path=None, cfg_lines=None,
+                     write_bkg_pairs=False, configs=None):
         """
         Write a pypeit file in data-table format.
 
@@ -1498,6 +1499,8 @@ class PypeItMetaData:
             setup_lines = dict_to_lines({'Setup {0}'.format(setup): cfg[setup]}, level=1)
             # Get the paths
             in_cfg = self['setup'] == setup
+            if not np.any(in_cfg):
+                continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
