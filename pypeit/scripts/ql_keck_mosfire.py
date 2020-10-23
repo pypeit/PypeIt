@@ -275,13 +275,6 @@ def main(args):
     nA = len(A_files)
     nB = len(B_files)
 
-    #if uniq_offsets.size == 2:
-    #    mode = 'single'
-    #elif uniq_offsets.size > 2:
-    #    mode = 'stack'
-    #else:
-    #    msgs.error('Problem with your files. Found less than 2 unique dither positions: {:}'.format(uniq_offsets))
-
     # Print out a report on the offsets
     msg_string = msgs.newline()  +     '****************************************************'
     msg_string += msgs.newline() +     ' Summary of offsets for dither pattern:   {:s}'.format(dither_pattern[0])
