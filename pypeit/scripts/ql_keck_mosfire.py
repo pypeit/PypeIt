@@ -243,11 +243,6 @@ def main(args):
     if args.master_dir is None:
         msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
 
-    # Build the fitstable since we currently need it for output. This should not be the case!
-    files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
-    #ps = pypeitsetup.PypeItSetup(files, path='./', spectrograph_name='keck_mosfire')
-    #ps.build_fitstbl()
-    #fitstbl = ps.fitstbl
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -255,6 +250,19 @@ def main(args):
     parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                           merge_with=config_lines(args))
     science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
+
+    # Parse the files sort by MJD
+    files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
+    nfiles = len(files)
+    mjds = np.zeros(nfiles)
+    for ifile, file in enumerate(files):
+        hdr = fits.getheader(file, spectrograph.primary_hdrext)
+        try:
+           mjds[ifile] = hdr['MJD-OBS']
+        except:
+            msgs.warn('File {:} has not MJD in header'.format(file))
+            mjds[ifile] = 0
+    files = files[np.argsort(mjds)]
 
     # We need the platescale
     platescale = spectrograph.get_detector_par(None, 1)['platescale']
