@@ -68,6 +68,36 @@ def gemini_gmos_b600_ham(overwrite=False):
                    normalize=True, subtract_conti=True, miny=-100., overwrite=overwrite,
                    shift_wave=True)
 
+def gemini_gmos_r831_ham(overwrite=False):
+    binspec = 1
+    outroot = 'gemini_gmos_r831_ham.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'GMOS', 'R831')
+    basefiles = ['R831_0.740/chip1/wvcalib.fits',  # 0 6170-6970
+                 'R831_0.740/chip2/wvcalib.fits',  # 1 7032-7725
+                 'R831_0.740/chip3/wvcalib.fits',  # 2 8000-8523
+                 'R831_0.830/chip1/wvcalib.fits',  # 3 7200-7725
+                 'R831_0.830/chip2/wvcalib.fits',  # 4 7950 - 8670
+        'R831_0.830/chip3/wvcalib.fits',  # 5 9125 - 9356
+        'R831_0.860/chip1/wvcalib.fits',  # 6 7437 - 8117
+        'R831_0.860/chip2/wvcalib.fits',  # 7 8266 - 8670. (9125)
+        'R831_0.860/chip3/wvcalib.fits',  # 8 9125 - 9800
+    ]
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [1, 6, 2, 7, 5, 8]
+    slits = [1, 1, 1, 1, 1, 2]
+    wv_cuts = [7500., 8100., 8300., 9125, 9300.]
+    assert len(wv_cuts) == len(slits)-1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True, normalize=False, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite, shift_wave=True)
+
+
 if __name__ == '__main__':
     #gemini_gmos_r400_e2v(overwrite=True)
-    gemini_gmos_b600_ham(overwrite=True)
+    #gemini_gmos_b600_ham(overwrite=True)
+    gemini_gmos_r831_ham(overwrite=True)
