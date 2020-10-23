@@ -7,6 +7,7 @@ from IPython import embed
 from matplotlib import pyplot as plt
 
 from pkg_resources import resource_filename
+
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
@@ -134,7 +135,15 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                     # Delta pix -- approximate but should be pretty good
                     dpix = dwv_specs / dwv_snipp[ipix]
                     # Calculate new wavelengths
-                    npix = spec.size
+                    npix = wv_vac.size
+                    # Rebin spec?
+                    if binning is not None and binning[kk] != binspec:
+                        npix_orig = spec.size
+                        x_orig = np.arange(npix_orig) / float(npix_orig - 1)
+                        x = np.arange(npix) / float(npix - 1)
+                        spec = (interp1d(x_orig, spec, axis=0,
+                                         bounds_error=False, fill_value='extrapolate'))(x)
+                    # Evaluate
                     new_wave = pypeitFit.eval((-dpix + np.arange(npix)) / (npix - 1))
                     # Range
                     iend = np.argmin(np.abs(new_wave - wvmax))
@@ -243,10 +252,8 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #
         npix = flux.size
         if binning is not None and binning != binspec:
-            embed(header='Not yet tested!')
             npix = int(npix * binning / binspec)
             x = np.arange(npix) / (npix - 1)
-            embed(header='246 of templates')
         else:
             x = np.arange(npix) / (npix - 1)
         # Evaluate
