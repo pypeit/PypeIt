@@ -1498,6 +1498,8 @@ class PypeItMetaData:
             setup_lines = dict_to_lines({'Setup {0}'.format(setup): cfg[setup]}, level=1)
             # Get the paths
             in_cfg = self['setup'] == setup
+            if not np.any(in_cfg):
+                continue
             paths = np.unique(self['directory'][in_cfg]).tolist()
             # Get the data lines
             subtbl = self.table[output_cols][in_cfg]
