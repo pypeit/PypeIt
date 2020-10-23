@@ -1434,7 +1434,8 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, output_path=None, cfg_lines=None, write_bkg_pairs=False, configs=None):
+    def write_pypeit(self, output_path=None, cfg_lines=None,
+                     write_bkg_pairs=False, configs=None):
         """
         Write a pypeit file in data-table format.
 
