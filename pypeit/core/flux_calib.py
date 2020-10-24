@@ -24,8 +24,9 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl
+from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
+
 
 # TODO: Put these in the relevant functions
 TINY = 1e-15
@@ -623,9 +624,9 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
     """
     # Create copy of the arrays to avoid modification and convert to
     # electrons / s
-    wave_star = wave.copy()
-    flux_star = counts.copy() / exptime
-    ivar_star = counts_ivar.copy() * exptime ** 2
+    delta_wave = wvutils.get_delta_wave(wave, (wave > 1.0))
+    flux_star = counts/exptime/delta_wave
+    ivar_star = delta_wave**2*counts_ivar*exptime**2
 
     # Extinction correction
     msgs.info("Applying extinction correction")
@@ -638,7 +639,7 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
 
     # Interpolate the standard star onto the current set of observed wavelengths
     flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
-                                     fill_value='extrapolate')(wave_star)
+                                     fill_value='extrapolate')(wave)
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
@@ -646,35 +647,30 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         pypeitFit = fitting.robust_fit(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     maxiter=50, lower=3.0, upper=3.0, maxrej=3,
                                                     grow=0, sticky=True, use_mad=True)
-        star_poly = pypeitFit.eval(wave_star.value)
+        star_poly = pypeitFit.eval(wave.value)
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
         if debug:
             plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
             plt.plot(std_dict['wave'],  pypeitFit.eval(std_dict['wave'].value),
                      'k-',label='robust_poly_fit')
-            plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
+            plt.plot(wave,flux_true,'r-',label='Your Final Star Model used for sensfunc')
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    mask_bad, mask_balm, mask_tell = get_mask(wave_star, flux_star, ivar_star, mask_star, mask_abs_lines=mask_abs_lines,
+    mask_bad, mask_balm, mask_tell = get_mask(wave, flux_star, ivar_star, mask_star, mask_abs_lines=mask_abs_lines,
                                               mask_telluric=True, balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
     # Get sensfunc
-    #LBLRTM = False
-    #if LBLRTM:
-    #    # sensfunc = lblrtm_sensfunc() ???
-    #    msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
-    #else:
     sensfunc, mask_sens = standard_sensfunc(
-        wave_star, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
+        wave, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
         mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
-        plt.plot(wave_star[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r', label='Fluxed Observed Star')
+        plt.plot(wave[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
+        plt.plot(wave[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)

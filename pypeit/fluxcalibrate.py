@@ -19,10 +19,14 @@ class FluxCalibrate(object):
 
     Args:
         spec1dfiles (list):
+            List of PypeIt spec1d files that you want to flux calibrate
         sensfiles (list):
+            List of sensitivity function files to use to flux calibrate the spec1d files. This list and the sensfiles
+            list need to have the same length and be aligned
         par (pypeit.par.pypeitpar.FluxCalibrate, optional):
+            Parset object containing parameters governing the flux calibration.
         outfiles (list, optional):
-            Names of the outfiles.  If None, this is set to spec1dfiles and those are overwritten
+            Names of the output files.  If None, this is set to spec1dfiles and those are overwritten
     """
     # Superclass factory method generates the subclass instance
     @classmethod

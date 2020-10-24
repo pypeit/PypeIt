@@ -31,6 +31,36 @@ def parse_param(par, key, slit):
 
     return param
 
+
+def get_delta_wave(wave, gpm):
+    """
+    Given an input wavelength vector and an input good pixel mask, this code computes the delta_wave defined
+    to be wave_old[i]-wave_old[i-1]. The missing point at the end of the array is just appended to have an
+    equal size array.
+
+    Args:
+        wave (float ndarray): shape = (nspec,)
+            Array of input wavelengths. Muse be a one dimensional array.
+        gpm (bool ndarray): shape = (nspec)
+            Boolean good pixel mask defining where the wave_old are good.
+
+    Returns
+    -------
+    delta_wave (float ndarray): shape = (nspec,)
+            Array of wavelength differences using np.diff, where the last pixel has been extrapolated
+
+    """
+
+    delta_wave = np.diff(wave[gpm])
+    delta_wave = np.append(delta_wave, delta_wave[-1])
+
+    # TODO Do this with extrapolation?
+    # Interpolate the delta_wave_old over the mask to make sure all is kosher, since np.diff
+    # techically grows the mask
+    #delta_wave = scipy.interpolate.interp1d(wave[gpm][0:-1], np.diff(wave[gpm]), kind='cubic',
+    #                                               bounds_error=False, fill_value='extrapolate')(wave[gpm])
+    return delta_wave
+
 def get_sampling(waves, pix_per_R=3.0):
     """
     Computes the median wavelength sampling of wavelength vector(s)

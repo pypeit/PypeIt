@@ -647,14 +647,14 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, flux_per_s_ang, ivar, mask, tellmodel):
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
     flam_true_mask = np.isfinite(flam_true)
-    sensguess_arg = obj_params['exptime']*tellmodel*flam_true/(flux + (flux < 0.0))
+    sensguess_arg = obj_params['exptime']*tellmodel*flam_true/(flux_per_s_ang + (flux_per_s_ang < 0.0))
     sensguess = np.log(sensguess_arg)
     fitmask = mask & np.isfinite(sensguess) & (sensguess_arg > 0.0) & np.isfinite(flam_true_mask)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
@@ -705,8 +705,11 @@ def eval_sensfunc_model(theta, obj_dict):
 
     Returns
     -------
-    counts_model : array with same shape as obj_dict['wave_star']
-       Model of the quantity being fit for the sensitivity function which is exptime*f_lam_true/sensfunc
+    counts_per_angstrom_model : array with same shape as obj_dict['wave_star']
+       Model of the quantity being fit for the sensitivity function which is exptime*f_lam_true/sensfunc. Note
+       that this routine is used to fit the counts per angstrom.  The sensitivity function is defined
+       to be S_lam = F_lam/(counts/s/A) where F_lam is in units of 1e-17 erg/s/cm^2/A, and so the sensitivity
+       function has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
 
     gpm : array (bool) with same shape as obj_dict['wave_star']
        Good pixel mask indicating where the model is valid
@@ -721,10 +724,9 @@ def eval_sensfunc_model(theta, obj_dict):
     exptime = obj_dict['exptime']
 
     sensfunc = np.exp(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max))
-    # sensfunc = np.exp(utils.func_val(theta, wave_star, func, minx=wave_min, maxx=wave_max))
-    counts_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
+    counts_per_angstrom_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
 
-    return counts_model, (sensfunc > 0.0)
+    return counts_per_angstrom_model, (sensfunc > 0.0)
 
 ##############
 # QSO Model #
@@ -1233,7 +1235,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       func=func, sigrej=3.0,
                       std_source=std_dict['std_source'], std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
                       std_name=std_dict['name'], std_calfile=std_dict['cal_file'],
-                      output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func', 'std_source',
+                      output_meta_keys=('airmass', 'polyorder_vec', 'func', 'std_source',
                                         'std_ra', 'std_dec', 'std_name', 'std_calfile'),
                       debug=debug_init)
 
@@ -1244,7 +1246,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     else:
         mask_tot = counts_mask
 
-    # parameters lowered for testing
+    # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol,
                       popsize=popsize, recombination=recombination,
@@ -1778,6 +1780,10 @@ class Telluric(object):
             Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
             indicating the status of the optimization. See above for a description of the output and how to know
             if things are working well.
+        sensfunc (bool): default=False
+            This option is used for usage of this class for joint telluric fitting and sensitivity function computation.
+            If True then the input flux is in counts is converted to counts per angstrom, since the sensfunc is obtained by
+            fitting counts per angstrom.
         debug (bool): default=False
             If True, QA plots will be shown to the screen indicating the quality of the fits. Specifically, the residual
             distributions will be shown at each iteration, and the fit will be shown at the end (for each order).
@@ -1790,7 +1796,8 @@ class Telluric(object):
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
                  resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0), pix_stretch_bounds=(0.9,1.1),
                  maxiter=3, sticky=True, lower=3.0, upper=3.0,
-                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, debug=False):
+                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, sensfunc=False,
+                 debug=False):
 
         # Turn on disp for the differential_evolution if debug mode is turned on.
         if debug:
@@ -1824,6 +1831,7 @@ class Telluric(object):
         self.recombination = recombination
         self.polish = polish
         self.disp = disp
+        self.sensfunc = sensfunc
         self.debug = debug
 
         # 2) Reshape all spectra to be (nspec, norders)
@@ -1847,7 +1855,8 @@ class Telluric(object):
 
         # 4) Interpolate the input values onto the fixed telluric wavelength grid, clip S/N and process inmask
         self.flux_arr, self.ivar_arr, self.mask_arr = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
-                                                                        self.ivar_in_arr, self.mask_in_arr)
+                                                                        self.ivar_in_arr, self.mask_in_arr,
+                                                                        sensfunc=self.sensfunc)
         # This is a hack to get an interpolate mask indicating where wavelengths are good on each order
         _, _, self.wave_mask_arr = coadd.interp_spec(
             self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),

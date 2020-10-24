@@ -402,6 +402,8 @@ def main(args):
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
 
+    # TODO extract along a spatial position
+
     if args.embed:
         embed()
 

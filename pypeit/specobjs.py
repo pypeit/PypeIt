@@ -629,7 +629,7 @@ class SpecObjs:
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
-            import pdb; pdb.set_trace()
+            embed()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
