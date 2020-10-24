@@ -29,6 +29,11 @@ from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum
+from pypeit.core.wavecal import wvutils
+from pypeit import sensfunc
+from pypeit.core import flux_calib
+
+
 
 from IPython import embed
 
@@ -403,6 +408,18 @@ def main(args):
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
 
     # TODO extract along a spatial position
+    if args.flux:
+        # Load the sensitivity function
+        wave_sens, sensfunc, _, _, _ = sensfunc.SensFunc.load(sensfile)
+        # Interpolate the sensitivity function onto the wavelength grid of the data
+        sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'], wave_sens, sensfunc, exptime,
+                                                     telluric=telluric, extinct_correct=extinct_correct,
+                                                     airmass=airmass, longitude=longitude, latitude=latitude,
+                                                     extrap_sens=extrap_sens)
+
+        delta_wave = wvutils.get_delta_wave(pseudo_dict['wave_mid'], np.ones_like(pseudo_dict['wave_mid'], dtype=bool))
+
+
 
     if args.embed:
         embed()

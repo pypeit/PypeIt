@@ -51,8 +51,10 @@ def get_delta_wave(wave, gpm):
 
     """
 
-    delta_wave = np.diff(wave[gpm])
-    delta_wave = np.append(delta_wave, delta_wave[-1])
+    delta_wave = np.zeros_like(wave)
+    wave_diff = np.diff(wave[gpm])
+    wave_diff = np.append(wave_diff, wave_diff[-1])
+    delta_wave[gpm] = wave_diff
 
     # TODO Do this with extrapolation?
     # Interpolate the delta_wave_old over the mask to make sure all is kosher, since np.diff

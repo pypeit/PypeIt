@@ -520,7 +520,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     wave_max = np.zeros(norders)
 
     for iord in range(norders):
-        sensfunc[:, iord], mask_sens[:, iord] = sensfunc_eval(
+        sensfunc[:, iord], mask_sens[:, iord] = compute_sensfunc(
             wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord], mask_arr[:,iord], exptime, airmass, std_dict,
             longitude, latitude, mask_abs_lines=mask_abs_lines, telluric=telluric, polyorder=polyorder,
             balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
@@ -549,10 +549,81 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 
     return meta_table, out_table
 
+def get_sensfunc_factor(wave, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
+                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
+    """
+    Get sensitivity function factor that will be multiplied into a spectrum. This code interpolates the sensitivity
+    function and can also multiply in extinction and telluric corrections.
+
+    FLAM, FLAM_SIG, and FLAM_IVAR are generated
+
+    Args:
+        wave (float ndarray): shape = (nspec,)
+           Senstivity
+        wave_sens (float ndarray):
+           Sensfunc wavelength vector shape = (nsens,)
+        sensfunc (float ndarray): shape = (nsens,)
+           Sensitivity function
+        exptime (float):
+        telluric_correct:
+        extinct_correct:
+        airmass (float, optional):
+        longitude (float, optional):
+            longitude in degree for observatory
+        latitude:
+            latitude in degree for observatory
+            Used for extinction correction
+        extrap_sens (bool, optional):
+            Extrapolate the sensitivity function (instead of crashing out)
+
+    Returns:
+        sensfunc_interp/exptime/delta_wave: shape = (nspec,)
+
+    """
+
+    # TODO Telluric corrections via this method are deprecated
+    # Did the user request a telluric correction?
+    if telluric is not None:
+        # This assumes there is a separate telluric key in this dict.
+        msgs.info('Applying telluric correction')
+        sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
+
+    sensfunc_obs = np.zeros_like(wave)
+    wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
+    delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+    try:
+        sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave[wave_mask])
+    except ValueError:
+        if extrap_sens:
+            sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False)(wave[wave_mask])
+            msgs.warn(
+                "Your data extends beyond the bounds of your sensfunc. You should be adjusting "
+                "the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further "
+                "and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
+        else:
+            msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                       "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                       "further and recreate your sensfunc.")
+
+    if extinct_correct:
+        if longitude is None or latitude is None:
+            msgs.error('You must specify longitude and latitude if we are extinction correcting')
+        # Apply Extinction if optical bands
+        msgs.info("Applying extinction correction")
+        msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
+        extinct = load_extinction_data(longitude, latitude)
+        ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
+        senstot = sensfunc_obs * ext_corr
+    else:
+        senstot = sensfunc_obs.copy()
+
+    return senstot/exptime/delta_wave
+
+
 
 
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
-def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
+def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
                   mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
                   trans_thresh=0.9, polycorrect=True, polyfunc=False, debug=False):
 

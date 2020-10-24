@@ -1250,7 +1250,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol,
                       popsize=popsize, recombination=recombination,
-                      polish=polish, disp=disp, debug=debug)
+                      polish=polish, disp=disp, sensfunc=True, debug=debug)
 
     TelObj.run(only_orders=only_orders)
     # Append the sensfunc to the output table for convenience
