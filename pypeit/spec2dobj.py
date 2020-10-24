@@ -12,15 +12,13 @@ from IPython import embed
 
 import numpy as np
 
-from scipy import interpolate
-
 from astropy.io import fits
+import astropy
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit import wavetilts
 from pypeit.images import detector_container
 from pypeit.images import imagebitmask
 
@@ -43,7 +41,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.2'
+    version = '1.0.3'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -79,6 +77,16 @@ class Spec2DObj(datamodel.DataContainer):
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
+                 'sci_spec_flexure': dict(otype=astropy.table.Table,
+                                          descr='Global shift of the spectrum to correct for spectral'
+                                                'flexure (pixels). This is based on the sky spectrum at'
+                                                'the center of each slit'),
+                 'vel_type': dict(otype=str, descr='Type of reference frame correction (if any). '
+                                                   'Options are listed in the routine: '
+                                                   'WavelengthSolutionPar.valid_reference_frames() '
+                                                   'Current list: observed, heliocentric, barycentric'),
+                 'vel_corr': dict(otype=float,
+                                  descr='Relativistic velocity correction for wavelengths'),
                  'detector': dict(otype=detector_container.DetectorContainer,
                                   descr='Detector DataContainer'),
                  'det': dict(otype=int, descr='Detector index')}
@@ -109,7 +117,8 @@ class Spec2DObj(datamodel.DataContainer):
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
+                 scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
+                 vel_type, vel_corr, slits, tilts):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -164,9 +173,12 @@ class Spec2DObj(datamodel.DataContainer):
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
-            # SliTraceSet
+            # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # Spectral flexure
+            elif key == 'sci_spec_flexure':
+                d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
