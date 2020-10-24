@@ -4098,6 +4098,20 @@ class EdgeTraceSet(DataContainer):
                 omodel_bspat[i] = omodel_tspat[i]
                 omodel_tspat[i] = invert_order
 
+        # If there are overlapping slits, i.e., omodel_bspat[i+1]<omodel_tspat[i], switch those
+        for i in range(sortindx.size -1):
+            if omodel_tspat[sortindx][i] != -1 and omodel_bspat[sortindx][i+1] != -1 and \
+                    omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1]:
+                tmt_bspat = omodel_tspat[sortindx][i]
+                omodel_tspat[sortindx[i]] = omodel_bspat[sortindx[i+1]]
+                omodel_bspat[sortindx[i+1]] = tmt_bspat
+                # Re-check If the `omodel_bspat` is greater than `omodel_tspat` and switch the order.
+                # It may happens if 3 slits are overlapping (true story!)
+                if omodel_bspat[sortindx[i]] > omodel_tspat[sortindx[i]]:
+                    invert_order = omodel_bspat[sortindx[i]]
+                    omodel_bspat[sortindx[i]] = omodel_tspat[sortindx[i]]
+                    omodel_tspat[sortindx[i]] = invert_order
+
         # This print a QA table with info on the slits (sorted from left to right) that fall in the current detector.
         # The only info provided here is `slitid`, which is called `dSlitId` in the DEIMOS design file. I had to remove
         # `slitindex` because not always matches `SlitName` from the DEIMOS design file.
@@ -4128,7 +4142,7 @@ class EdgeTraceSet(DataContainer):
             msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format('-' * 4, '-' * 9, '-' * 11,
                                                                                              '-' * 11, '-' * 13,
                                                                                              '-' * 18, '-' * 15))
-            for i in range(sortindx.shape[0]):
+            for i in range(sortindx.size):
                 if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
                     msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f} {4:^14.3f}    {5:^16.2f} {6:^14.2f}'
                               .format(num, self.spectrograph.slitmask.slitid[sortindx][i],
@@ -4907,16 +4921,21 @@ class EdgeTraceSet(DataContainer):
             if np.any(mkd_id_mismatch):
                 msgs.warn("Mismatched `maskdefId` in left and right traces for {}/{} slits. ".format(
                           self.maskdef_id[self.is_left][mkd_id_mismatch].size, self.nslits) +
-                          "Choosing the left edge `maskdefId` if it is not -99`")
+                          "Choosing the left edge `maskdefId` if it is not -99, otherwise choosing right one")
             _maskdef_id = self.maskdef_id[gpm & self.is_left]
             # choose the value of `maskdef_id` that is not -99.
             mkd_id_bad = _maskdef_id == -99
             # this may not work if the corresponding right edge is also -99. Assuming this is not the case
             _maskdef_id[mkd_id_bad] = self.maskdef_id[gpm & self.is_right][mkd_id_bad]
-            # Store the matched slit-design and object information in a table.
-            # TODO: pass the attributes `design` and `object` to `EdgeTraceSet` and/or `SlitTraceSet` datamodel.
-            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
-            self._fill_objects_table(_maskdef_id)
+            if np.any(_maskdef_id == -99):
+                msgs.warn("Some slits don't have `maskdefId` assigned. Slit-mask design matching FAILED")
+                _maskdef_id = None
+                self.align_slit = None
+            else:
+                # Store the matched slit-design and object information in a table.
+                # TODO: pass the attributes `design` and `object` to `EdgeTraceSet` and/or `SlitTraceSet` datamodel.
+                self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
+                self._fill_objects_table(_maskdef_id)
         else:
             _maskdef_id = None
 
@@ -4941,6 +4960,7 @@ class EdgeTraceSet(DataContainer):
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
-                                      maskdef_id=_maskdef_id, ech_order=ech_order)
+                                      maskdef_id=_maskdef_id, maskdef_designtab=self.design,
+                                      maskdef_objtab=self.objects, ech_order=ech_order)
 
 
