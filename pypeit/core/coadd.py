@@ -583,7 +583,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         msgs.error('Unrecognized model type')
 
     pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
-               sticky=False, use_mad=False, debug=True)
+               sticky=False, use_mad=False, debug=debug)
 
     #fitter = fitting.PypeItFit(xval=wave, yval=yval, order=[1], weights=yval_ivar, gpm=(scale_mask & mask).astype('int'),
     #                           func=func, minx=wave_min, maxx=wave_max)
@@ -1306,7 +1306,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         # Decide on the order of the polynomial rescaling
         if npoly is None:
             if sn > 25.0:
-                npoly = 5 # quntic, Is this stable?
+                npoly = 5 # quintic, Is this stable?
             elif sn > 8.0:
                 npoly = 3  # cubic
             elif sn >= 5.0:
