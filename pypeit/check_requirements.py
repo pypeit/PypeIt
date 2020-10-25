@@ -15,6 +15,6 @@ for requirement in install_requires:
         raise ImportError("Package: {:s} not installed!".format(pkg))
     else:
         if pkg_resources.parse_version(pv) < pkg_resources.parse_version(version):
-            raise ImportError('Your version of {0} is incompatible with PypeIt.  '.format(pkg)
+            raise ImportError('Your version of {0} ({1}) is incompatible with PypeIt.  '.format(pkg, pv)
                                 + 'Please update to version >= {0}'.format(version))
 

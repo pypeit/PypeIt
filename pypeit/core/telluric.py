@@ -399,7 +399,7 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
         chi_vec = totalmask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
-        loss_function = np.sum(np.square(huber_vec * totalmask))
+        loss_function = np.sum(huber_vec * totalmask)
         return loss_function
 
 def tellfit(flux, thismask, arg_dict, **kwargs_opt):
