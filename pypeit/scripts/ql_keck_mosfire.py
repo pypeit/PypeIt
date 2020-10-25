@@ -13,7 +13,7 @@ import numpy as np
 import copy
 
 from astropy.io import fits
-
+from astropy.table import Table
 from pypeit import pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
@@ -182,15 +182,15 @@ def parse_dither_pattern(file_list, ext):
         offset_arcsec[ifile] = hdr['YOFFSET']
     return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits, show=False, std_trace=None):
+def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
 
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(A_files), bpm=msbpm, slits=slits, ignore_saturation=False)
+        spectrograph, det, parset['scienceframe'], list(A_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
     # Background Image?
     sciImg = sciImg.sub(buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(B_files), bpm=msbpm, slits=slits, ignore_saturation=False),
+        spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
         parset['scienceframe']['process'])
     # Instantiate Reduce object
     # Required for pypeline specific object
@@ -206,6 +206,11 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slit
     for sobj in sobjs:
         sobj.DETECTOR = sciImg.detector
 
+    # Construct table of spectral flexure
+    spec_flex_table = Table()
+    spec_flex_table['spat_id'] = caliBrate.slits.spat_id
+    spec_flex_table['sci_spec_flexure'] = redux.slitshift
+
     # Construct the Spec2DObj with the positive image
     spec2DObj_A = spec2dobj.Spec2DObj(det=det,
                                       sciimg=sciImg.image,
@@ -218,6 +223,9 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slit
                                       bpmmask=outmask,
                                       detector=sciImg.detector,
                                       sci_spat_flexure=sciImg.spat_flexure,
+                                      sci_spec_flexure=spec_flex_table,
+                                      vel_corr=None,
+                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits))
     spec2DObj_A.process_steps = sciImg.process_steps
@@ -239,6 +247,9 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slit
                                       bpmmask=outmask,
                                       detector=sciImg.detector,
                                       sci_spat_flexure=sciImg.spat_flexure,
+                                      sci_spec_flexure=spec_flex_table,
+                                      vel_corr=None,
+                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits))
     return spec2DObj_A, spec2DObj_B
@@ -340,6 +351,7 @@ def main(args):
     # Build the Calibrate object
     caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
     caliBrate.slits = slits
+    caliBrate.msbpm = msbpm
     caliBrate.wavetilts = tilts_obj
     caliBrate.wv_calib = wv_calib
 
@@ -350,6 +362,8 @@ def main(args):
     spec2d_list =[]
     offset_ref = offset_arcsec[0]
     offsets_dith_pix = []
+    # Generalize to a multiple slits, doing one slit at a time?
+    islit = 0
     for iuniq in range(nuniq):
         A_ind = (uni_indx == iuniq) & (dither_id == 'A')
         B_ind = (uni_indx == iuniq) & (dither_id == 'B')
@@ -359,8 +373,8 @@ def main(args):
         B_offset = offset_arcsec[B_ind]
         throw = np.abs(A_offset[0])
         msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
-        spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, msbpm, slits,
-        show=args.show, std_trace=std_trace)
+        spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset,
+                                            show=args.show, std_trace=std_trace)
         spec2d_list += [spec2DObj_A, spec2DObj_B]
         offsets_dith_pix += [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
 
@@ -383,7 +397,19 @@ def main(args):
     # Create the pseudo images
     pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
 
-    ##########################
+    if args.flux:
+        # Load the sensitivity function
+        wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfuncfile)
+        # Interpolate the sensitivity function onto the wavelength grid of the data
+        sens_factor = flux_calib.get_sensfunc_factor(
+            pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, fits.getheader(files[0])['TRUITIME'],
+            extrap_sens=parset['fluxcalib']['extrap_sens'])
+        sens_factor_img = np.repeat(sens_factor[:, np.newaxis], pseudo_dict['nspat'], axis=1)
+        imgminsky = sens_factor_img*pseudo_dict['imgminsky']
+    else:
+        imgminsky= pseudo_dict['imgminsky']
+
+        ##########################
     # Now display the images #
     ##########################
     display.connect_to_ginga(raise_err=True, allow_new=True)
@@ -394,7 +420,7 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = display.show_image(pseudo_dict['imgminsky'], chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
+    viewer, ch = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
                                    clear=True) # cuts=(cut_min, cut_max),
     slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
     slit_id = slits.slitord_id[0]
@@ -410,16 +436,8 @@ def main(args):
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
 
-    embed()
-    # TODO extract along a spatial position
-    if args.flux:
-        exptime = fits.getheader(files[0])
-        # Load the sensitivity function
-        wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfuncfile)
-        # Interpolate the sensitivity function onto the wavelength grid of the data
-        sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'], wave_sens, sfunc, exptime,
-                                                     extrap_sens=parset['fluxcalib']['extrap_sens'])
 
+    # TODO extract along a spatial position
 
 
 
