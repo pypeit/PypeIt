@@ -184,13 +184,18 @@ If you are confident this is the case, raise an Issue.
 Items to Modify
 ===============
 
+There are several parameters in the Wavelength Calibration
+:ref:`pypeit_par:WavelengthSolutionPar Keywords` that one
+needs to occasionally customize for your specific observations.
+We describe the most common below.
+
 FWHM
 ----
 
-The arc lines are identified and fitted with ane
+The arc lines are identified and fitted with an
 expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
-standard slit is assume for each instrument but
+standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
 than you may need to modify::
 

@@ -71,6 +71,9 @@ if __name__ == '__main__':
     lines += p.to_rst_table()
     lines += ['']
 
+    lines += [' .. _instr_par:']
+    lines += ['']
+
     lines += ['Instrument-Specific Default Configuration']
     lines += ['+++++++++++++++++++++++++++++++++++++++++']
     lines += ['']

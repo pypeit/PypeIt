@@ -1,4 +1,7 @@
 """ Implements KCWI-specific functions.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import glob
@@ -463,7 +466,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # get the x and y binning factors...
-        binning = self.get_meta_value(headarr, 'binning')
+        #binning = self.get_meta_value(headarr, 'binning')
 
         # Always assume normal FITS header formatting
         one_indexed = True
@@ -477,10 +480,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 sec = head0[section+"{0:1d}".format(i+1)]
 
                 # Convert the data section from a string to a slice
-                # TODO :: I fear something has changed here... and the BPM is flipped (ot not flipped) for different amp modes.
+                # TODO :: RJC - I think something has changed here... and the BPM is flipped (or not flipped) for different amp modes.
+                # TODO :: RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an arguement
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
-                                          include_end=include_last, require_dim=2,
-                                          binning=binning)
+                                          include_end=include_last, require_dim=2)#, binning=binning)
                 # Flip the datasec
                 datasec = datasec[::-1]
 
@@ -711,7 +714,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl
+        cdelt1 = -slscl#*(24/23)  # The factor (24/23) is a hack - It is introduced because the centre of 1st and 24th slices are 23 slices apart... TODO :: Need to think of a better way to deal with this
         cdelt2 = pxscl
         if coord is None:
             ra = 0.
@@ -768,3 +771,29 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
 
         return w
+
+    def get_datacube_bins(self, slitlength, minmax, num_wave):
+        """Calculate the bin edges to be used when making a datacube
+
+        Parameters
+        ----------
+        slitlength : int
+            Length of the slit in pixels
+        minmax : `numpy.ndarray`_
+            An array of size (nslits, 2), listing the minimum and
+            maximum pixel locations on each slit relative to the
+            reference location (usually the centre of the slit). This
+            array is returned by
+            :func:`pypeit.slittrace.SlitTraceSet.get_radec_image`.
+        num_wave : int
+            Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
+
+        Returns
+        -------
+        tuple : Three 1D numpy.ndarray providing the bins to use when constructing a histogram
+                of the spec2d files. The elements are (x, y, lambda).
+        """
+        xbins = np.arange(1 + 24) - 12.0 - 0.5
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        spec_bins = np.arange(1+num_wave) - 0.5
+        return xbins, ybins, spec_bins

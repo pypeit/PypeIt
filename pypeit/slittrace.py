@@ -154,7 +154,8 @@ class SlitTraceSet(datamodel.DataContainer):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None, left_tweak=None,
+                 spat_id=None, maskdef_id=None,
+                 ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
         # Instantiate the DataContainer
@@ -389,9 +390,12 @@ class SlitTraceSet(datamodel.DataContainer):
 
         Returns
         -------
-        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
-                           first ndarray is the RA image, and the second ndarray
-                           is the DEC image. RA and DEC are in units degrees.
+        tuple : There are three elements in the tuple. The first two are 2D numpy arrays
+                of shape (nspec, nspat), where the first ndarray is the RA image, and the
+                second ndarray is the DEC image. RA and DEC are in units degrees. The third
+                element of the tuple stores the minimum and maximum difference (in pixels)
+                between the WCS reference (usually the centre of the slit) and the edge of
+                the slits. The third array has a shape of (nslits, 2).
         """
         # Grab the central trace, if none was provided
         if trace_cen is None:

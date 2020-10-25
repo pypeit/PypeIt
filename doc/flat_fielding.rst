@@ -161,10 +161,30 @@ Algorithms
 To be filled in by JFH.
 
 Tuning
-------
+======
 
 If you wish to tune the algorithms used to generate the
 pixel flat and/or illumination flat, you will want to
 modify the :ref:`pypeit_par:FlatFieldPar Keywords`.
 
 JFH+KBW to provide expert advice on that here.
+
+Below we list common modifications.
+
+Saturated Slits
+---------------
+
+Occasionally one or more slits are saturated
+(a common case is the :doc:`deimos` LVMCslitC mask)
+and the code exits in flat field generation.  If you
+wish to continue on with the slits that are ok,
+add this to your :doc:`pypeit_file`::
+
+    [calibrations]
+        [[flatfield]]
+            saturated_slits = mask  # or continue
+
+Using *mask* will preclude the slit from any further
+reduction.  Using *continue* will set the flat to unit value
+and extraction will be attempted.
+
