@@ -731,6 +731,7 @@ def eval_sensfunc_model(theta, obj_dict):
     func = obj_dict['func']
     exptime = obj_dict['exptime']
 
+    # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
     ln_min_float = np.log(sys.float_info.min)
     #ln_max_float = np.log(sys.float_info.max)
     ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
