@@ -313,7 +313,7 @@ class IR(SensFunc):
             #minmax_coeff_bounds=self.par['IR']['min_max_coeff_bounds'],
             tol=self.par['IR']['tol'], popsize=self.par['IR']['popsize'], recombination=self.par['IR']['recombination'],
             polish=self.par['IR']['polish'],
-            disp=self.par['IR']['disp'], debug=self.debug)
+            disp=self.par['IR']['disp'], debug=self.debug, debug_init=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
         self.steps.append(inspect.stack()[0][3])

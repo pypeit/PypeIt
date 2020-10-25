@@ -56,6 +56,8 @@ def parse_args(options=None, return_parser=False):
     #parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument("--flux", default=False, action='store_true',
+                        help="This option will multiply in sensitivity function to obtain a flux calibrated 2d spectrum")
     parser.add_argument("--mask_cr", default=False, action='store_true',
                         help="This option turns on cosmic ray rejection. This improves the reduction but doubles runtime.")
     parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
@@ -299,6 +301,7 @@ def main(args):
     slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
     tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
     wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
+    sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')
     # For now don't require a standard
     std_outfile=None
     #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
@@ -407,17 +410,16 @@ def main(args):
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
 
+    embed()
     # TODO extract along a spatial position
     if args.flux:
+        exptime = fits.getheader(files[0])
         # Load the sensitivity function
-        wave_sens, sensfunc, _, _, _ = sensfunc.SensFunc.load(sensfile)
+        wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfuncfile)
         # Interpolate the sensitivity function onto the wavelength grid of the data
-        sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'], wave_sens, sensfunc, exptime,
-                                                     telluric=telluric, extinct_correct=extinct_correct,
-                                                     airmass=airmass, longitude=longitude, latitude=latitude,
-                                                     extrap_sens=extrap_sens)
+        sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'], wave_sens, sfunc, exptime,
+                                                     extrap_sens=parset['fluxcalib']['extrap_sens'])
 
-        delta_wave = wvutils.get_delta_wave(pseudo_dict['wave_mid'], np.ones_like(pseudo_dict['wave_mid'], dtype=bool))
 
 
 
