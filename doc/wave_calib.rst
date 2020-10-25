@@ -175,11 +175,8 @@ quit the GUI to see if you want to save the solution. Note,
 you can increase this tolerance using the command line option
 `pixtol`, or by setting the `force_save` command line option.
 
-To use this wavelength solution in your reduction, put the
-output MasterWaveCalib_<SETUP>.fits file in the Masters
-directory and rerun the pypeit reduction with the -m flag.
-
-If you'd like to add your solution to the PypeIt database,
+To use this wavelength solution in your reduction, you will
+need to add your solution to the PypeIt database. To do this,
 you will need to move the output file into the master directory,
 which will be similar to the following directory:
 
@@ -187,8 +184,11 @@ which will be similar to the following directory:
 
 Once your solution is in the database, you will be able to
 run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
-If you have any trouble with this step, please contact the
-PypeIt development team.
+Make sure you add the following line to your pypeit file:
+
+[calibrations]
+  [[wavelengths]]
+    reid_arxiv = name_of_your_solution.fits
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)
