@@ -349,7 +349,6 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     wave_max = arg_dict['wave_max']
     func = arg_dict['func']
     model = arg_dict['model']
-    use_huber = arg_dict['use_huber']
     ymult = poly_model_eval(theta, func, model, wave, wave_min, wave_max)
 
     flux_scale = ymult*flux_med
@@ -366,18 +365,19 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     vmult = np.fmax(ymult,1e-4)*(ymult <= 1.0) + np.sqrt(ymult)*(ymult > 1.0)
     ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
+    # Changing the Huber loss parameter from step to step results in instability during optimization --MSR.
     # Robustly characterize the dispersion of this distribution
-    chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
-        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    #chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
+    #    chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    chi_std = np.std(chi_vec)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the
     # value of the first argument, which we have set to be 2.0*chi_std, which is 2-sigma given the modified
     # errors described above from Schlegel's code.
     robust_scale = 2.0
     huber_vec = scipy.special.huber(robust_scale*chi_std, chi_vec)
-    loss_function = np.sum(np.square(huber_vec*mask_both))
-    if not use_huber:
-        loss_function = np.sum(np.square(chi_vec*mask_both))
+    loss_function = np.sum(huber_vec*mask_both)
+    #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
 # TODO: Change thismask to gpm
@@ -478,7 +478,7 @@ def median_filt_spec(flux, ivar, mask, med_width):
 def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, mask_ref = None,
                      scale_min = 0.05, scale_max = 100.0, func='legendre', model ='square',
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01,
-                     ref_percentile=70.0, use_huber=True, debug=False):
+                     ref_percentile=70.0, debug=False):
     """
     Routine for solving for the polynomial rescaling of an input
     spectrum flux to match a reference spectrum flux_ref. The two
@@ -505,8 +505,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         mask_ref: ndarray, bool (nspec,)
             mask for reference flux
         norder: int
-            order of polynomial rescaling.  Note that the code multiplies in by the square of a polynomail of order
-            norder to ensure positivity of the scale factor.
+            order of polynomial rescaling; norder=2 is a linear fit.  Note that the code
+            multiplies in by the square of a polynomial of order norder-1 to ensure
+            positivity of the scale factor.
         scale_min: float, default =0.05
             minimum scaling factor allowed
         scale_max: float, default=100.0
@@ -557,12 +558,18 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     if 'poly' in model:
         guess = np.append(ratio, np.zeros(norder-1))
         scale_fun = lambda x: x
+        err_scale_fun = lambda x: x
+        mask_fun = lambda x: np.ones_like(x)
     elif 'square' in model:
         guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
         scale_fun = np.sqrt
+        err_scale_fun = lambda x: 2 * np.sqrt(x)
+        mask_fun = lambda x: x >= 0
     elif 'exp' in model:
         guess = np.append(np.log(ratio), np.zeros(norder-1))
         scale_fun = np.log
+        err_scale_fun = lambda x: x
+        mask_fun = lambda x: x > 0
     else:
         msgs.error('Unrecognized model type')
 
@@ -573,18 +580,23 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
-    lr = scipy.stats.linregress(wave[mask], scale_fun(flux_ref_med[mask]))
-    if np.abs(lr.rvalue) > 0.8:
-        leg_slope = lr.slope * (wave_max - wave_min) / 2.0
-        leg_int = lr.intercept + lr.slope * (wave_max + wave_min)/2.0
-        guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
+    # Here we compute a linear regression to the scaled flux in order to get a better guess.
+    if norder > 1:
+            # we need scale_mask to mask negative points in the polyfit
+            scale_mask = mask_fun(flux_ref_med)
+
+            fitter = fitting.PypeItFit(xval=wave, yval=scale_fun(flux_ref_med), order=np.array([1]),
+                weights=err_scale_fun(flux_ref_med)*np.sqrt(ivar_ref_med), gpm=(scale_mask & mask).astype('int'),
+                func=func, minx=wave_min, maxx=wave_max)
+
+            if fitter.fit():
+                guess = np.append(fitter.fitc, np.zeros(norder-2))
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
-                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess,
-                    use_huber = use_huber, debug=debug)
+                    wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=debug)
 
     result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
