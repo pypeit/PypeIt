@@ -316,7 +316,7 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     return ymult
 
 
-def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
+def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     """
     Function for computing the chi^2 loss function for solving for the polynomial rescaling of one spectrum to another.
     There are two non-standard things implemented here which increase ther robustness. The first is a non-standard error used for the
@@ -423,7 +423,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
     guess = arg_dict['guess']
-    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(flux_ref, thismask, arg_dict),  **kwargs_opt)
+    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(thismask, arg_dict),  **kwargs_opt)
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
     mask = arg_dict['mask']
@@ -505,9 +505,8 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         mask_ref: ndarray, bool (nspec,)
             mask for reference flux
         norder: int
-            order of polynomial rescaling; norder=2 is a linear fit.  Note that the code
-            multiplies in by the square of a polynomial of order norder-1 to ensure
-            positivity of the scale factor.
+            Order of polynomial rescaling; norder=1 is a linear fit and norder must be >= 1 otherwise the
+            code will fault.
         scale_min: float, default =0.05
             minimum scaling factor allowed
         scale_max: float, default=100.0
@@ -542,6 +541,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         optimization/rejection iterations. True=Good
     """
 
+    if norder < 1:
+        msgs.error('You cannot solve for the polynomial ratio for norder < 1. For rescaling by a constant use robust_median_ratio')
+
     if mask is None:
         mask = (ivar > 0.0)
     if mask_ref is None:
@@ -552,27 +554,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     # Determine an initial guess
     ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref,
                                 ref_percentile=ref_percentile, max_factor=scale_max)
+    # guess = np.append(ratio, np.zeros(norder))
     wave_min = wave.min()
     wave_max = wave.max()
-
-    if 'poly' in model:
-        guess = np.append(ratio, np.zeros(norder-1))
-        scale_fun = lambda x: x
-        err_scale_fun = lambda x: x
-        mask_fun = lambda x: np.ones_like(x)
-    elif 'square' in model:
-        guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
-        scale_fun = np.sqrt
-        err_scale_fun = lambda x: 2 * np.sqrt(x)
-        mask_fun = lambda x: x >= 0
-    elif 'exp' in model:
-        guess = np.append(np.log(ratio), np.zeros(norder-1))
-        scale_fun = np.log
-        err_scale_fun = lambda x: x
-        mask_fun = lambda x: x > 0
-    else:
-        msgs.error('Unrecognized model type')
-
 
     # Now compute median filtered versions of the spectra which we will actually operate on for the fitting. Note
     # that rejection will however work on the non-filtered spectra.
@@ -580,17 +564,30 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
-    # Here we compute a linear regression to the scaled flux in order to get a better guess.
-    if norder > 1:
-            # we need scale_mask to mask negative points in the polyfit
-            scale_mask = mask_fun(flux_ref_med)
+    if 'poly' in model:
+        #guess = np.append(ratio, np.zeros(norder))
+        yval = flux_ref_med
+        yval_ivar = ivar_ref_med
+        scale_mask = np.ones_like(flux_ref_med, dtype=bool)
+    elif 'square' in model:
+        #guess = np.append(np.sqrt(ratio), np.zeros(norder))
+        yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
+        yval_ivar = 4.0*flux_ref_med
+        scale_mask = flux_ref_med >= 0
+    elif 'exp' in model:
+        #guess = np.append(np.log(ratio), np.zeros(norder))
+        yval = np.log(flux_ref_med + (flux_ref_med <= 0))
+        yval_ivar = flux_ref_med**2
+        scale_mask = flux_ref_med > 0
+    else:
+        msgs.error('Unrecognized model type')
 
-            fitter = fitting.PypeItFit(xval=wave, yval=scale_fun(flux_ref_med), order=np.array([1]),
-                weights=err_scale_fun(flux_ref_med)*np.sqrt(ivar_ref_med), gpm=(scale_mask & mask).astype('int'),
-                func=func, minx=wave_min, maxx=wave_max)
+    pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
+               sticky=False, use_mad=False, debug=debug)
 
-            if fitter.fit():
-                guess = np.append(fitter.fitc, np.zeros(norder-2))
+    #fitter = fitting.PypeItFit(xval=wave, yval=yval, order=[1], weights=yval_ivar, gpm=(scale_mask & mask).astype('int'),
+    #                           func=func, minx=wave_min, maxx=wave_max)
+    guess = np.append(pypfit.fitc, np.zeros(norder-2))
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
