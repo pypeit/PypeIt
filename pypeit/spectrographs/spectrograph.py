@@ -1002,25 +1002,63 @@ class Spectrograph:
                 iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
             return self.spec_min_max[:, iorder]/binspectral
 
-    def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
         """
-        Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
 
-        Args:
-            binning:
-            midpoint:
-            samp_fact:
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        with a method that performs the tweaks.
 
-        Returns:
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (astropy.table)
+            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+            for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
 
         """
-        binspectral, binspatial = parse.parse_binning(binning)
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
+        return wave_in, counts_in, counts_ivar_in, gpm_in
 
-        return np.power(10.0,loglam_grid)
+
+#    def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
+#        """
+#        Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
+#
+#        Args:
+#            binning:
+#            midpoint:
+#            samp_fact:
+#
+#        Returns:
+#
+#        """
+#        binspectral, binspatial = parse.parse_binning(binning)
+#        logmin, logmax = self.loglam_minmax
+#        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
+#        if midpoint:
+#            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
+#
+#        return np.power(10.0,loglam_grid)
 
     def __repr__(self):
         # Generate string

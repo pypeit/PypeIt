@@ -8,6 +8,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 import os
+import sys
 import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
@@ -680,10 +681,17 @@ def init_sensfunc_model(obj_params, iord, wave, flux_per_s_ang, ivar, mask, tell
                     polyorder=obj_params['polyorder_vec'][iord])
 
     if obj_params['debug']:
-        plt.plot(wave, sensguess_arg, label='sensfunc estimate')
-        plt.plot(wave, sensfit_guess, label='sensfunc fit')
-        plt.ylim(-0.1 * sensfit_guess.min(), 1.3 * sensfit_guess.max())
+        fig = plt.figure(figsize=(12, 8))
+        rejmask = mask & np.logical_not(pypeitFit.bool_gpm)
+        plt.plot(wave, sensguess_arg, label='sensfunc estimate', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
+        plt.plot(wave, sensfit_guess, label='sensfunc fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
+        plt.plot(wave[rejmask], sensguess_arg[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+        plt.plot(wave[np.logical_not(mask)], sensguess_arg[np.logical_not(mask)], 'v', zorder=9, mfc='None', mec='orange',
+                 label='originally masked')
+        plt.ylim(-2.0, 1.3 * utils.fast_running_median(sensguess_arg[mask], 11).max())
         plt.legend()
+        plt.xlabel('Wavelength')
+        plt.ylabel('Sensitivity Function')
         plt.title('Sensitivity Function Guess for iord={:d}'.format(iord))
         plt.show()
 
@@ -723,10 +731,14 @@ def eval_sensfunc_model(theta, obj_dict):
     func = obj_dict['func']
     exptime = obj_dict['exptime']
 
-    sensfunc = np.exp(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max))
+    ln_min_float = np.log(sys.float_info.min)
+    #ln_max_float = np.log(sys.float_info.max)
+    ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
+    sensfunc = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ln_min_float, None))
     counts_per_angstrom_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
+    gpm = (sensfunc > 0.0) & (ln_sens > ln_min_float) & (counts_per_angstrom_model < sys.float_info.max)
 
-    return counts_per_angstrom_model, (sensfunc > 0.0)
+    return np.clip(counts_per_angstrom_model, None, sys.float_info.max), gpm
 
 ##############
 # QSO Model #

@@ -106,7 +106,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 15
+        par['sensfunc']['polyorder'] = 7
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
 
@@ -233,5 +233,51 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
 
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (astropy.table)
+            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+            for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
+
+        """
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+        if 'Y-spectroscopy' in meta_table['DISPNAME']:
+            #wave_out = np.copy(wave_in)
+            #counts_out = np.copy(counts_in)
+            #counts_ivar_out = np.copy(counts_ivar_in)
+            gpm_out = np.copy(gpm_in)
+            # The blue edge and red edge of the detector are contaiminated by higher order light. These are masked
+            # by hand.
+            second_order_region= (wave_in < 9520.0) | (wave_in > 11256.0)
+            gpm_out = gpm_in & np.logical_not(second_order_region)
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out
 

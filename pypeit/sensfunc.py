@@ -94,7 +94,10 @@ class SensFunc(object):
         # Read in the Standard star data
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
         # Unpack standard
-        self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+        wave, counts, counts_ivar, counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
+        # Perform any instrument
+        self.wave, self.counts, self.counts_ivar, self.counts_mask = self.spectrograph.tweak_standard(
+            wave, counts, counts_ivar, counts_mask, self.meta_spec)
         self.norderdet = 1 if self.wave.ndim == 1 else self.wave.shape[1]
 
         # If the user provided RA and DEC use those instead of what is in meta

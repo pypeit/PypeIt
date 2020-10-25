@@ -212,6 +212,7 @@ class SpecObjs:
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
+        meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
