@@ -506,8 +506,8 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         mask_ref: ndarray, bool (nspec,)
             mask for reference flux
         norder: int
-            order of polynomial rescaling; norder=2 is a linear fit.  Note that the code
-            multiplies in by the square of a polynomial of order norder-1 to ensure
+            order of polynomial rescaling; norder=1 is a linear fit.  Note that the code
+            multiplies in by the square of a polynomial of order norder to ensure
             positivity of the scale factor.
         scale_min: float, default =0.05
             minimum scaling factor allowed
@@ -591,7 +591,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                 func=func, minx=wave_min, maxx=wave_max)
 
             if fitter.fit():
-                guess = np.append(fitter.fitc, np.zeros(norder-2))
+                guess = np.append(fitter.fitc, np.zeros(norder-1))
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
