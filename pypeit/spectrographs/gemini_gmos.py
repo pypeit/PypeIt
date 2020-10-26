@@ -196,7 +196,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading GMOS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = fits.open(fil[0], ignore_missing_end=True)
         head0 = hdu[0].header
         head1 = hdu[1].header
 
@@ -391,7 +391,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             # TODO: Fix this
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = fits.open(filename, ignore_missing_end=True)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -403,7 +403,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = fits.open(filename, ignore_missing_end=True)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -421,7 +421,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = fits.open(filename, ignore_missing_end=True)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -733,7 +733,7 @@ def gemini_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = fits.open(inp, ignore_missing_end=True)
     else:
         hdu = inp
 

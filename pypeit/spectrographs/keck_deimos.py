@@ -460,7 +460,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
 
-        hdu = fits.open(fil[0])
+        hdu = fits.open(fil[0], ignore_missing_end=True)
         if hdu[0].header['AMPMODE'] != 'SINGLE:B':
             msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
@@ -665,7 +665,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Name of the file to read.
         """
         # Open the file
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
 
         # Build the object data
         #   - Find the index of the object IDs in the slit-object
@@ -710,7 +710,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Taken from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
         xidl/DEEP2/spec2d/pro/deimos_grating.pro
         """
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
@@ -822,7 +822,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             Two attributes :attr:`amap` and :attr:`bmap`.
 
         """
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']

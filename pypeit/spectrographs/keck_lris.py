@@ -267,7 +267,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = fits.open(fil[0], ignore_missing_end=True)
         head0 = hdu[0].header
 
         # Get post, pre-pix values
@@ -922,7 +922,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             msgs.info("Using hard-coded BPM for det=2 on LRISr")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = fits.open(filename, ignore_missing_end=True)
             binning = hdu[0].header['BINNING']
             hdu.close()
 
@@ -1071,7 +1071,7 @@ def lris_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = fits.open(inp, ignore_missing_end=True)
     else:
         hdu = inp
     n_ext = len(hdu) - 1  # Number of extensions (usually 4)
@@ -1145,7 +1145,7 @@ def convert_lowredux_pixelflat(infil, outfil):
 
     """
     # Read
-    hdu = fits.open(infil)
+    hdu = fits.open(infil, ignore_missing_end=True)
     data = hdu[0].data
 
     #
@@ -1189,7 +1189,7 @@ def get_orig_rawimage(raw_file, debug=False):
             But note the detector info is *not* returned
     """
     # Open
-    hdul = fits.open(raw_file)
+    hdul = fits.open(raw_file, ignore_missing_end=True)
     head0 = hdul[0].header
     # TODO -- Check date here and error/warn if not after the upgrade
     image = hdul[0].data.astype(float)

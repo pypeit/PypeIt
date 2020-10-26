@@ -403,7 +403,7 @@ def load_multiext_fits(filename, ext):
     _ext = ext if isinstance(ext, list) else [ext]
     n_ext = len(_ext)
     # Open the file
-    hdu = fits.open(filename)
+    hdu = fits.open(filename, ignore_missing_end=True)
     head0 = hdu[0].header
     # Only one extension
     if n_ext == 1:

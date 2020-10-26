@@ -222,7 +222,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return self.bpm_frombias(msbias, det, bpm_img)
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it

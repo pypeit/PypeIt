@@ -145,7 +145,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = fits.open(fil[0], ignore_missing_end=True)
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
@@ -320,7 +320,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # TODO: Fix this
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -431,7 +431,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS1B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -571,7 +571,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS2R")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -685,7 +685,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS2B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = fits.open(filename, ignore_missing_end=True)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()

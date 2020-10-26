@@ -552,7 +552,7 @@ class Spectrograph:
 
         """
         # Open
-        hdu = fits.open(raw_file)
+        hdu = fits.open(raw_file, ignore_missing_end=True)
 
         # Grab the DetectorPar
         detector = self.get_detector_par(hdu, det)
@@ -862,7 +862,7 @@ class Spectrograph:
         # particularly for gzipped files (e.g., DEIMOS)
         if isinstance(inp, str):
             try:
-                hdu = fits.open(inp)
+                hdu = fits.open(inp, ignore_missing_end=True)
             except:
                 if strict:
                     msgs.error('Problem opening {0}.'.format(inp))

@@ -429,7 +429,7 @@ def read_hires(raw_file, det=None):
     except AttributeError:
         print("Reading HIRES file: {:s}".format(fil[0]))
 
-    hdu = fits.open(fil[0])
+    hdu = fits.open(fil[0], ignore_missing_end=True)
     head0 = hdu[0].header
 
     # Get post, pre-pix values
