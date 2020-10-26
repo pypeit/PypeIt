@@ -21,6 +21,8 @@ def parse_args(options=None, return_parser=False):
                                 ', '.join(defs.pypeit_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
+    parser.add_argument('--save_setups', default=False, action='store_true',
+                        help='If not toggled, remove setup_files/ folder and its files.')
 
     if return_parser:
         return parser
@@ -149,7 +151,8 @@ def main(args):
     answers.pprint_all()
     print('======================================================')
     # Remove setup_files
-    shutil.rmtree('setup_files')
+    if not args.save_setups:
+        shutil.rmtree('setup_files')
     # Return objects used by unit tests
     return answers, ps
 
