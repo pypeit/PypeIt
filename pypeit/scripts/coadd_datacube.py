@@ -24,13 +24,15 @@ from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 
+from IPython import embed
+
 
 def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Read in an array of spec2D files and convert them into a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
+    parser.add_argument('file', type = str, default=None, help='filename.coadd3d file')
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
@@ -86,7 +88,7 @@ def coadd_cube(files, parset, overwrite=False):
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
     all_wcs = []
-    dspat = cubepar['spatial_delta']  # binning size on the sky (in arcsec)
+    dspat = None if cubepar['spatial_delta'] is None else  cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
     ref_scale = None  # This will be used to correct relative scaling among the various input frames
     wave_ref = None
@@ -104,7 +106,7 @@ def coadd_cube(files, parset, overwrite=False):
             ref_scale = spec2DObj.scaleimg.copy()
         # Extract the information
         sciimg = (spec2DObj.sciimg-spec2DObj.skymodel) * (ref_scale/spec2DObj.scaleimg)  # Subtract sky and apply relative sky
-        ivar = spec2DObj.ivarraw * (ref_scale/spec2DObj.scaleimg)**2
+        ivar = spec2DObj.ivarraw / (ref_scale/spec2DObj.scaleimg)**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 
@@ -193,19 +195,22 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Register spatial offsets between all frames if several frames are being combined
     if combine:
-        # Generate white light images
-        whitelight_imgs, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                                                      dspat, numfiles=numfiles)
 
         # Check if a reference whitelight image should be used to register the offsets
         if cubepar["reference_image"] is None:
+            # Generate white light images
+            whitelight_imgs, _, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                                                             dspat, numfiles=numfiles)
             # ref_idx will be the index of the cube with the highest S/N
             ref_idx = np.argmax(weights)
             reference_image = whitelight_imgs[:, :, ref_idx].copy()
             msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
         else:
             ref_idx = -1  # Don't use an index
-            reference_image = fits.open(cubepar['reference_image'])[0].data
+            # Load reference information
+            reference_image, whitelight_imgs, wlwcs = \
+                dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                                 cubepar['reference_image'], numfiles=numfiles)
             msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
         # Calculate the image offsets - check the reference is a zero shift
         ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
@@ -226,21 +231,36 @@ def coadd_cube(files, parset, overwrite=False):
             all_ra[all_idx == ff] += ra_shift
             all_dec[all_idx == ff] += dec_shift
 
+        # Generate a white light image of *all* data
+        msgs.info("Generating global white light image")
+        if cubepar["reference_image"] is None:
+            whitelight_img, _, wlwcs = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                                np.zeros(all_ra.size), dspat, numfiles=1)
+        else:
+            _, whitelight_img, wlwcs = \
+                dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
+                                                 dspat, cubepar['reference_image'], numfiles=1)
+
         # Calculate the relative spectral weights of all pixels
-        whitelight_img, all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts,
-                                                             all_idx, dspat, dwv, numfiles=numfiles,
-                                                             relative_weights=cubepar['relative_weights'])
+        all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
+                                             whitelight_img[:, :, 0], dspat, dwv, numfiles=numfiles,
+                                             relative_weights=cubepar['relative_weights'])
     # Check if a whitelight image should be saved
     if cubepar['save_whitelight']:
         # Check if the white light image still needs to be generated - if so, generate it now
         if whitelight_img is None:
             msgs.info("Generating global white light image")
-            whitelight_img, ivar = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                            np.zeros(all_ra.size), dspat, numfiles=1)
-            whitelight_img = whitelight_img[:, :, 0]
+            if cubepar["reference_image"] is None:
+                whitelight_img, _, wlwcs = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                                    np.zeros(all_ra.size), dspat, numfiles=1)
+            else:
+                _, whitelight_img, wlwcs = \
+                    dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                     np.zeros(all_ra.size),
+                                                     dspat, cubepar['reference_image'], numfiles=1)
         # Prepare and save the fits file
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
-        img_hdu = fits.PrimaryHDU(whitelight_img, header=spec2DObj.head0)
+        img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
         img_hdu.writeto(out_whitelight, overwrite=overwrite)
 
     # Setup the cube ranges

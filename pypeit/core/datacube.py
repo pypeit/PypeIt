@@ -7,6 +7,7 @@ Module containing routines used by 3D datacubes.
 
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
+from astropy.io import fits
 import scipy.optimize as opt
 from scipy.interpolate import interp1d
 import numpy as np
@@ -126,8 +127,63 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
+def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                            ref_filename, numfiles=None):
+    """ Generate a whitelight image of every input frame,
+    based on a reference image. Note the, the reference
+    image must have a well-defined WCS.
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            RA values of each pixel from all spec2d files
+        all_dec (`numpy.ndarray`_):
+            DEC values of each pixel from all spec2d files
+        all_wave (`numpy.ndarray`_):
+            Wavelength values of each pixel from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            Counts of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            Weights attributed to each pixel from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            An integer identifier indicating which spec2d file each pixel originates from.
+            For example, a 0 would indicate that a pixel originates from the first spec2d
+            frame listed in the input file. a 1 would indicate that this pixel originates
+            from the second spec2d file, and so forth.
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        ref_filename (str):
+            A fits filename of a reference image to be used when generating white light
+            images. Note, the fits file must have a valid 3D WCS.
+        numfiles (int, optional):
+            Number of spec2d files included. If not provided, it will be calculated from all_idx
+
+    Returns:
+        tuple : two `numpy.ndarray`_ and one WCS will be returned. The first is a 2D reference image
+        loaded from ref_filename. The second element is a 3D array of shape [N, M, numfiles],
+        where N and M are the spatial dimensions of the combined white light images. The third is
+        the WCS of the white light image.
+    """
+    refhdu = fits.open(ref_filename)
+    reference_image = refhdu[0].data.T[:, :, 0]
+    refwcs = wcs.WCS(refhdu[0].header)
+    numra, numdec = reference_image.shape
+    # Generate coordinate system (i.e. update wavelength range to include all values)
+    coord_min = refwcs.wcs.crval
+    coord_dlt = refwcs.wcs.cdelt
+    coord_min[2] = np.min(all_wave)
+    coord_dlt[2] = np.max(all_wave) - np.min(all_wave)  # For white light, we want to bin all wavelength pixels
+    wlwcs = generate_masterWCS(coord_min, coord_dlt)
+
+    # Generate white light images
+    whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                            whitelightWCS=wlwcs, numra=numra, numdec=numdec, numfiles=numfiles)
+    # Return required info
+    return reference_image, whitelight_imgs, wlwcs
+
+
 def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                    dspat, numfiles=None, all_ivar=None):
+                    dspat, numfiles=None, all_ivar=None,
+                    whitelightWCS=None, numra=None, numdec=None):
     """ Generate a whitelight image of every input frame
 
     Args:
@@ -153,6 +209,13 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
         all_ivar (`numpy.ndarray`_, optional):
             Inverse variance of each pixel from all spec2d files. If provided,
             inverse variance images will be calculated and return for each white light image.
+        whitelightWCS (`astropy.wcs.wcs.WCS`_):
+            The WCS of a reference white light image. If supplied, you must also
+            supply numra and numdec.
+        numra (int):
+            Number of RA spaxels in the reference white light image
+        numdec (int):
+            Number of DEC spaxels in the reference white light image
 
     Returns:
         tuple : two 3D arrays will be returned, each of shape [N, M, numfiles],
@@ -164,23 +227,34 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
     if numfiles is None:
         numfiles = np.unique(all_idx).size
 
-    # Generate coordinates
-    cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
-    numra = int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
-    numdec = int((np.max(all_dec) - np.min(all_dec)) / dspat)
+    if whitelightWCS is None:
+        # Generate a master 2D WCS to register all frames
+        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+        coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
+        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+
+        # Generate coordinates
+        cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
+        numra = int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+        numdec = int((np.max(all_dec) - np.min(all_dec)) / dspat)
+    else:
+        # If a WCS is supplied, the numra and numdec must be specified
+        if (numra is None) or (numdec is None):
+            msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
+                       "numra and numdec must also be specified")
+
+    print(numra, numdec)
+
     xbins = np.arange(1 + numra) - 1
     ybins = np.arange(1 + numdec) - 1
     spec_bins = np.arange(2) - 1
     bins = (xbins, ybins, spec_bins)
 
-    # Generate a master 2D WCS to register all frames
-    coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
-    coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
-    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
-
     whitelight_Imgs = np.zeros((numra, numdec, numfiles))
     whitelight_ivar = np.zeros((numra, numdec, numfiles))
     trim = 3
+    #from IPython import embed
+    #embed()
     for ff in range(numfiles):
         msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
         ww = (all_idx == ff)
@@ -206,7 +280,7 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
             minval = np.min(ivar_img[gpm == 1])
             ivar_img[gpm == 0] = minval
             whitelight_ivar[:, :, ff] = ivar_img.copy()
-    return whitelight_Imgs, whitelight_ivar
+    return whitelight_Imgs, whitelight_ivar, whitelightWCS
 
 
 def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
@@ -245,7 +319,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
     return w
 
 
-def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv,
+def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
                     sn_smooth_npix=None, numfiles=None, relative_weights=False):
     """ Calculate wavelength dependent optimal weights. The weighting
         is currently based on a relative (S/N)^2 at each wavelength
@@ -261,13 +335,13 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
             Counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
             Inverse variance of each pixel from all spec2d files
-        all_wghts (`numpy.ndarray`_):
-            Weights attributed to each pixel from all spec2d files
         all_idx (`numpy.ndarray`_):
             An integer identifier indicating which spec2d file each pixel originates from.
             For example, a 0 would indicate that a pixel originates from the first spec2d
             frame listed in the input file. a 1 would indicate that this pixel originates
             from the second spec2d file, and so forth.
+        whitelight_img (`numpy.ndarray`_):
+            A 2D array containing a whitelight image, created with the input arrays.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         dwv (float):
@@ -281,20 +355,14 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
         relative_weights (bool, optional):
             Calculate weights by fitting to the ratio of spectra?
     Returns:
-        tuple : There are two elements in the tuple. The first is a white light image based on all pixels
-                from all frames. The second element is a 1D `numpy.ndarray`_ the same size as all_sci,
-                containing relative wavelength dependent weights for each input pixel.
+        `numpy.ndarray`_ : a 1D array the same size as all_sci, containing relative wavelength
+                           dependent weights of each input pixel.
     """
     msgs.info("Calculating the optimal weights of each pixel")
     # Determine number of files
     if numfiles is None:
         numfiles = np.unique(all_idx).size
 
-    # Generate a white light image of *all* data
-    msgs.info("Generating global white light image")
-    whitelight_img, ivar = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
-                                           dspat, numfiles=1)
-    whitelight_img = whitelight_img[:, :, 0]
     # Find the location of the object with the highest S/N in the combined white light image
     idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)
     msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
@@ -346,5 +414,5 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
 
     msgs.info("Optimal weighting complete")
-    return whitelight_img, all_wghts
+    return all_wghts
 
