@@ -243,8 +243,6 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
             msgs.error("A WCS has been supplied to make_whitelight." + msgs.newline() +
                        "numra and numdec must also be specified")
 
-    print(numra, numdec)
-
     xbins = np.arange(1 + numra) - 1
     ybins = np.arange(1 + numdec) - 1
     spec_bins = np.arange(2) - 1
