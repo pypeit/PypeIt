@@ -85,12 +85,13 @@ def gemini_gmos_r831_ham(overwrite=False):
         'R831_0.860/chip1/wvcalib.fits',  # 6 7437 - 8117
         'R831_0.860/chip2/wvcalib.fits',  # 7 8266 - 8670. (9125)
         'R831_0.860/chip3/wvcalib.fits',  # 8 9125 - 9800
-    ]
+                 'R831_6679/wvcalib.fits',  # 9 6679 -7274
+                 ]
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
     # Snippets
-    ifiles = [1, 6, 2, 7, 5, 8]
-    slits = [1, 1, 1, 1, 1, 2]
-    wv_cuts = [7500., 8100., 8300., 9125, 9300.]
+    ifiles = [0, 9, 1, 6, 2, 7, 5, 8]
+    slits = [1, 1, 1, 1, 1, 1, 1, 2]
+    wv_cuts = [6800., 7200., 7500., 8050., 8300., 9125, 9300.]
     assert len(wv_cuts) == len(slits)-1
     # det_dict
     det_cut = None
@@ -102,5 +103,5 @@ def gemini_gmos_r831_ham(overwrite=False):
 
 if __name__ == '__main__':
     #gemini_gmos_r400_e2v(overwrite=True)
-    gemini_gmos_b600_ham(overwrite=True)
-    #gemini_gmos_r831_ham(overwrite=True)
+    #gemini_gmos_b600_ham(overwrite=True)
+    gemini_gmos_r831_ham(overwrite=True)
