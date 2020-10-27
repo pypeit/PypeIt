@@ -4933,11 +4933,13 @@ class EdgeTraceSet(DataContainer):
                 self.align_slit = None
             else:
                 # Store the matched slit-design and object information in a table.
-                # TODO: pass the attributes `design` and `object` to `EdgeTraceSet` and/or `SlitTraceSet` datamodel.
                 self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
                 self._fill_objects_table(_maskdef_id)
+                _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
+                _merged_designtab.sort('TRACEID')
         else:
             _maskdef_id = None
+            _merged_designtab = None
 
         if self.align_slit is not None:
             if np.any(self.align_slit):
@@ -4954,13 +4956,12 @@ class EdgeTraceSet(DataContainer):
                         self.edge_msk[:, eidx], flag=key)):
                     slit_msk[sidx] = slit_bitmask.turn_on(slit_msk[sidx], key)
 
-
         # Instantiate and return
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
-                                      maskdef_id=_maskdef_id, maskdef_designtab=self.design,
-                                      maskdef_objtab=self.objects, ech_order=ech_order)
+                                      maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
+                                      ech_order=ech_order)
 
 
