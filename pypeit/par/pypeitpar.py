@@ -2515,8 +2515,7 @@ class EdgeTracePar(ParSet):
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
                  use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
-                 maskdesign_sigrej=None, mask_reg_maxiter=None, mask_reg_maxsep=None,
-                 mask_reg_sigrej=None, ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 maskdesign_sigrej=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2849,35 +2848,33 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
-
-
-        # TODO: [DP] I believe the following 3-4 parameters are from a previous attempt to do slit-mask
-        #  design matching, and that they could be deleted.
-        # TODO: Make these mask registration parameters a separate
-        # (nested) parameter set? Would making saving the paramters to
-        # the master file header annoying ...
-        dtypes['mask_reg_maxiter'] = int
-        descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
-                                    'registering slit-mask design and trace locations. If None, ' \
-                                    'rejection iterations are performed until no points are ' \
-                                    'rejected. If 1, only a single fit is performed without any ' \
-                                    'rejection.'
-
-        dtypes['mask_reg_maxsep'] = [int, float]
-        descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
-                                   'coordinates of the designed slit position in pixels and the ' \
-                                   'matched trace. If None, rejection is done iteratively using ' \
-                                   'sigma clipping.  See mask_reg_sigrej.'
-        
-        defaults['mask_reg_sigrej'] = 5
-        dtypes['mask_reg_sigrej'] = [int, float]
-        descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
-                                   'iterations during the slit-mask design registration. If ' \
-                                   'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
-
-        defaults['ignore_alignment'] = False
-        dtypes['ignore_alignment'] = bool
-        descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
+        # [DP] I removed the following 4 parameters, which are from a previous attempt to do slit-mask
+        #  design matching, and have been replaced by the parameters above.
+        # # TODO: Make these mask registration parameters a separate
+        # # (nested) parameter set? Would making saving the paramters to
+        # # the master file header annoying ...
+        # dtypes['mask_reg_maxiter'] = int
+        # descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
+        #                             'registering slit-mask design and trace locations. If None, ' \
+        #                             'rejection iterations are performed until no points are ' \
+        #                             'rejected. If 1, only a single fit is performed without any ' \
+        #                             'rejection.'
+        #
+        # dtypes['mask_reg_maxsep'] = [int, float]
+        # descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
+        #                            'coordinates of the designed slit position in pixels and the ' \
+        #                            'matched trace. If None, rejection is done iteratively using ' \
+        #                            'sigma clipping.  See mask_reg_sigrej.'
+        #
+        # defaults['mask_reg_sigrej'] = 5
+        # dtypes['mask_reg_sigrej'] = [int, float]
+        # descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
+        #                            'iterations during the slit-mask design registration. If ' \
+        #                            'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
+        #
+        # defaults['ignore_alignment'] = False
+        # dtypes['ignore_alignment'] = bool
+        # descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
 
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
@@ -2949,7 +2946,6 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
                    'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
                    'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

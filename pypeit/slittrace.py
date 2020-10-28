@@ -15,6 +15,8 @@ from pypeit import msgs
 from pypeit import datamodel
 from pypeit.bitmask import BitMask
 
+from astropy.table import Table
+
 
 class SlitTraceBitMask(BitMask):
     """
@@ -113,6 +115,7 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Slit ID number from SPAT measured at half way point.'),
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                     descr='Slit ID number slitmask'),
+                 'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
                  'maskdef_file': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
@@ -156,7 +159,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, maskdef_file=None,
+                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskdef_file=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
@@ -254,7 +257,17 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
         always written to a 'SLITS' extension.
         """
-        return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+        bndl = super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+        if self.maskdef_designtab is not None:
+            # save the table
+            tab_detached = bndl[0]['SLITS']['maskdef_designtab']
+            # remove `tab_detached` from the dict
+            bndl[0]['SLITS'].pop('maskdef_designtab')
+            # create a dict for the `tab_detached`
+            tab_dict = {'maskdef_designtab': tab_detached}
+            return [bndl[0], tab_dict]
+        else:
+            return bndl
 
     @classmethod
     def _parse(cls, hdu, hdu_prefix=None):
