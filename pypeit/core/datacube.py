@@ -209,12 +209,12 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
         all_ivar (`numpy.ndarray`_, optional):
             Inverse variance of each pixel from all spec2d files. If provided,
             inverse variance images will be calculated and return for each white light image.
-        whitelightWCS (`astropy.wcs.wcs.WCS`_):
+        whitelightWCS (`astropy.wcs.wcs.WCS`_, optional):
             The WCS of a reference white light image. If supplied, you must also
             supply numra and numdec.
-        numra (int):
+        numra (int, optional):
             Number of RA spaxels in the reference white light image
-        numdec (int):
+        numdec (int, optional):
             Number of DEC spaxels in the reference white light image
 
     Returns:
