@@ -26,12 +26,6 @@ def test_chk_calibs_not():
 
     assert answers['pass'][0], 'One or more failures!'
 
-    # Cleanup
-    shutil.rmtree(data_path('setup_files'))
-
-if __name__ == '__main__':
-    test_chk_calibs_not()
-
 
 @dev_suite_required
 def test_chk_calibs_deimos():
@@ -49,6 +43,7 @@ def test_chk_calibs_deimos():
     assert np.all(answers['pass'][:-1]), 'One or more failures!'
 
     # Cleanup
-    shutil.rmtree(data_path('setup_files'))
+    # NOTE: chk_for_calibs now removes the setup files by default
+    #shutil.rmtree(data_path('setup_files'))
 
 
