@@ -74,10 +74,13 @@ def coadd_cube(files, parset, overwrite=False):
     elif os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
         msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
     # Check the reference cube and image exist, if requested
-    if cubepar['reference_cube'] is not None:
-        if not os.path.exists(cubepar['reference_cube']):
-            msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
-    elif cubepar['reference_image'] is not None:
+    ref_scale = None  # This will be used to correct relative scaling among the various input frames
+    if cubepar['standard_cube'] is not None:
+        if not os.path.exists(cubepar['standard_cube']):
+            msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
+        cube = fits.open(cubepar['standard_cube'])
+        ref_scale = cube['REFSCALE'].data
+    if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
 
@@ -90,7 +93,6 @@ def coadd_cube(files, parset, overwrite=False):
     all_wcs = []
     dspat = None if cubepar['spatial_delta'] is None else  cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
-    ref_scale = None  # This will be used to correct relative scaling among the various input frames
     wave_ref = None
     whitelight_img = None  # This is the whitelight image based on all input spec2d frames
     weights = np.ones(numfiles)  # Weights to use when combining cubes
@@ -324,6 +326,9 @@ def coadd_cube(files, parset, overwrite=False):
     var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
     var_cube *= norm_cube**2
 
+    if cubepar['flux_calibrate']:
+        msgs.error("Flux calibration is not currently implemented")
+
     # Save the datacube
     debug = False
     if debug:
@@ -339,7 +344,8 @@ def coadd_cube(files, parset, overwrite=False):
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
     sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
     var_hdu = fits.ImageHDU(var_cube.T, name="varcube", header=hdr)
-    hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
+    scl_hdu = fits.ImageHDU(ref_scale, name="refscale")
+    hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu, scl_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
 
 

@@ -78,3 +78,6 @@ the reduction process. Instead, PypeIt delivers fully processed
 2D frames, which can be combined into a single datacube using
 the pypeit_coadd_datacube routine (see :doc:`coadd3d` for the
 documentation).
+
+Please note, the RA of the KCWI WCS is not quite correct.
+This is a work in progress.
