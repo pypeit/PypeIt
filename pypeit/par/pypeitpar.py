@@ -1163,7 +1163,10 @@ class CubePar(ParSet):
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
         descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
-                                   'will be given by the "output_filename" variable with a suffix "_whitelight".'
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight".' \
+                                   'Note that the white light image collapses the flux along the wavelength axis,' \
+                                   'so some spaxels in the 2D white light image may have different wavelength' \
+                                   'ranges.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
