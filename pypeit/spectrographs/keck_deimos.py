@@ -697,7 +697,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                strict=True)
 
         # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu['MaskDesign'].data['PA_PNT']
+        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
         if posx_pa < 0.:
             posx_pa += 360.
 

@@ -4390,8 +4390,7 @@ class EdgeTraceSet(DataContainer):
         for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC']):
                 self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(
                                         dtype=self.objects[key].dtype)
-        #TODO it would be good to add also the 'OBJECT' keyword from the slit-mask design.
-        # 'OBJECT' is the name that the observer gives to each target and therefore more easily recognizable
+        self.objects['OBJNAME'] = [item.strip() for item in self.spectrograph.slitmask.object_names[obj_index]]
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data
@@ -4942,9 +4941,12 @@ class EdgeTraceSet(DataContainer):
                 self._fill_objects_table(_maskdef_id)
                 _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
                 _merged_designtab.sort('TRACEID')
+            # One more item
+            _posx_pa = float(self.spectrograph.slitmask.posx_pa)
         else:
             _maskdef_id = None
             _merged_designtab = None
+            _posx_pa = None
 
         if self.align_slit is not None:
             if np.any(self.align_slit):
@@ -4969,6 +4971,7 @@ class EdgeTraceSet(DataContainer):
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
+                                      maskdef_posx_pa=_posx_pa,
                                       #maskdef_file=self.maskdef_file,  # ADD THIS BACK WHEN FITS ISSUE IS RESOLVED
                                       ech_order=ech_order)
 

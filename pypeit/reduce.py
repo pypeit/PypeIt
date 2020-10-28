@@ -390,8 +390,8 @@ class Reduce(object):
 
         # Assign here -- in case we make another pass to add in missing targets
         if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.spectrograph.slitmask is not None:
-            self.spectrograph.slitmask.assign_maskinfo(self.slits, self.sobjs_obj, self.get_platescale(None),
-                                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
+            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
+                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
