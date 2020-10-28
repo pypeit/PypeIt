@@ -82,6 +82,10 @@ class Reduce(object):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
+        slitshift (`numpy.ndarray`_):
+            Global spectral flexure correction for each slit (in pixels)
+        vel_corr (float):
+            Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
     """
 
@@ -190,6 +194,7 @@ class Reduce(object):
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
+        self.vel_corr = None
 
     def initialise_slits(self, initial=False):
         """
@@ -803,6 +808,7 @@ class Reduce(object):
                         specobj.apply_helio(vel_corr, refframe)
 
             # Apply correction to wavelength image
+            self.vel_corr = vel_corr
             self.waveimg *= vel_corr
 
         else:
@@ -1338,9 +1344,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             self.scaleimg = np.ones_like(self.sciImg.image)
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        self.scaleimg *= scaleFact
-        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleFact, self.sciImg.fullmask,
+        self.scaleimg *= scaleImg.copy()
+        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleImg.copy(), self.sciImg.fullmask,
                                         varframe=utils.inverse(self.sciImg.ivar.copy()))
         self.sciImg.image = sciImg.copy()
         self.sciImg.ivar = utils.inverse(varImg)

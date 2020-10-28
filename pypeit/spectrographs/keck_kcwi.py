@@ -466,7 +466,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # get the x and y binning factors...
-        binning = self.get_meta_value(headarr, 'binning')
+        #binning = self.get_meta_value(headarr, 'binning')
 
         # Always assume normal FITS header formatting
         one_indexed = True
@@ -480,10 +480,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 sec = head0[section+"{0:1d}".format(i+1)]
 
                 # Convert the data section from a string to a slice
-                # TODO :: I fear something has changed here... and the BPM is flipped (ot not flipped) for different amp modes.
+                # TODO :: RJC - I think something has changed here... and the BPM is flipped (or not flipped) for different amp modes.
+                # TODO :: RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an arguement
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
-                                          include_end=include_last, require_dim=2,
-                                          binning=binning)
+                                          include_end=include_last, require_dim=2)#, binning=binning)
                 # Flip the datasec
                 datasec = datasec[::-1]
 
@@ -714,7 +714,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl
+        cdelt1 = -slscl#*(24/23)  # The factor (24/23) is a hack - It is introduced because the centre of 1st and 24th slices are 23 slices apart... TODO :: Need to think of a better way to deal with this
         cdelt2 = pxscl
         if coord is None:
             ra = 0.

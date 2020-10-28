@@ -21,6 +21,8 @@ def parse_args(options=None, return_parser=False):
                                 ', '.join(defs.pypeit_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
+    parser.add_argument('--save_setups', default=False, action='store_true',
+                        help='If not toggled, remove setup_files/ folder and its files.')
 
     if return_parser:
         return parser
@@ -51,6 +53,8 @@ def main(args):
     from pypeit import calibrations
     from pypeit import msgs
     from pypeit.par import PypeItPar
+
+    import shutil
 
     # Check that the spectrograph is provided if using a file root
     if args.root is not None:
@@ -137,8 +141,8 @@ def main(args):
             answers['scifiles'][i] = ''
 
         # Check!
-        answers['pass'][i] = calibrations.check_for_calibs(par, ps.fitstbl, raise_error=False,
-                                                           cut_cfg=in_cfg)
+        answers['pass'][i] = calibrations.check_for_calibs(par, ps.fitstbl,
+                                                           raise_error=False, cut_cfg=in_cfg)
         if not answers['pass'][i]:
             msgs.warn("Setup {} did not pass the calibration check!".format(setup))
 
@@ -146,6 +150,9 @@ def main(args):
     # Print
     answers.pprint_all()
     print('======================================================')
+    # Remove setup_files
+    if not args.save_setups:
+        shutil.rmtree('setup_files')
     # Return objects used by unit tests
     return answers, ps
 
