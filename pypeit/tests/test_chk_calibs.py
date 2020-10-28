@@ -29,6 +29,9 @@ def test_chk_calibs_not():
     # Cleanup
     shutil.rmtree(data_path('setup_files'))
 
+if __name__ == '__main__':
+    test_chk_calibs_not()
+
 
 @dev_suite_required
 def test_chk_calibs_deimos():
