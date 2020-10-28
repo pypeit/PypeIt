@@ -36,6 +36,7 @@
   sorted file for inclusion in the PypeIt documentation.
 - The setup block is now a simple listing of the keywords and values
   used to identify the instrument configuration.
+- Refactor identify GUI and improve its docs
 
 1.2.0 (15 Oct 2020)
 -------------------
