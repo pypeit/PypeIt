@@ -83,6 +83,9 @@ def coadd_cube(files, parset, overwrite=False):
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
+    if cubepar['flux_calibrate']:
+        msgs.error("Flux calibration is not currently implemented" + msgs.newline() +
+                   "Please set 'flux_calibrate = False'")
 
     # prep
     numfiles = len(files)
@@ -274,22 +277,17 @@ def coadd_cube(files, parset, overwrite=False):
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
     # Generate a master WCS to register all frames
-    if cubepar['reference_cube'] is not None:
-        # Use a reference cube to generate the WCS
-        cube = fits.open(cubepar['reference_cube'])
-        masterwcs = WCS(cube['SCICUBE'].header)
-    else:
-        coord_min = [ra_min, dec_min, wav_min]
-        coord_dlt = [dspat, dspat, dwv]
-        masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt)
-        msgs.info(msgs.newline()+"-"*40 +
-                  msgs.newline() + "Parameters of the WCS:" +
-                  msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
-                  msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
-                  msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
-                  msgs.newline() + "Spaxel size = {0:f}''".format(3600.0*dspat) +
-                  msgs.newline() + "Wavelength step = {0:f} A".format(dwv) +
-                  msgs.newline() + "-" * 40)
+    coord_min = [ra_min, dec_min, wav_min]
+    coord_dlt = [dspat, dspat, dwv]
+    masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt)
+    msgs.info(msgs.newline()+"-"*40 +
+              msgs.newline() + "Parameters of the WCS:" +
+              msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
+              msgs.newline() + "DEC  min, max = {0:f}, {1:f}".format(dec_min, dec_max) +
+              msgs.newline() + "WAVE min, max = {0:f}, {1:f}".format(wav_min, wav_max) +
+              msgs.newline() + "Spaxel size = {0:f}''".format(3600.0*dspat) +
+              msgs.newline() + "Wavelength step = {0:f} A".format(dwv) +
+              msgs.newline() + "-" * 40)
 
     # Generate the output binning
     if combine:
@@ -325,9 +323,6 @@ def coadd_cube(files, parset, overwrite=False):
     all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
     var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
     var_cube *= norm_cube**2
-
-    if cubepar['flux_calibrate']:
-        msgs.error("Flux calibration is not currently implemented")
 
     # Save the datacube
     debug = False
