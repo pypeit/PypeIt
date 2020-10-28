@@ -13,6 +13,7 @@ from astropy import units
 from linetools import utils as ltu
 
 from pypeit import utils
+from pypeit import io
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
@@ -820,7 +821,7 @@ def main(flg):
         iout = 'p200_triplespec.fits'
         # Load
         old_file = os.path.join(reid_path, iroot)
-        par = fits.open(old_file)
+        par = io.fits_open(old_file)
         pyp_spec = par[0].header['PYP_SPEC']
         spectrograph  = load_spectrograph(pyp_spec)
         orders = spectrograph.orders

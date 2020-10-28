@@ -205,7 +205,7 @@ def coadd_cube(files, parset, overwrite=False):
             msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
         else:
             ref_idx = -1  # Don't use an index
-            reference_image = fits.open(cubepar['reference_image'])[0].data
+            reference_image = io.fits_open(cubepar['reference_image'])[0].data
             msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
         # Calculate the image offsets - check the reference is a zero shift
         ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
@@ -254,7 +254,7 @@ def coadd_cube(files, parset, overwrite=False):
     # Generate a master WCS to register all frames
     if cubepar['reference_cube'] is not None:
         # Use a reference cube to generate the WCS
-        cube = fits.open(cubepar['reference_cube'])
+        cube = io.fits_open(cubepar['reference_cube'])
         masterwcs = WCS(cube['SCICUBE'].header)
     else:
         coord_min = [ra_min, dec_min, wav_min]

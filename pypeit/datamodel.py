@@ -1397,7 +1397,7 @@ class DataContainer:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
 
         # Do it
-        with fits.open(ifile) as hdu:
+        with io.fits_open(ifile) as hdu:
             obj = cls.from_hdu(hdu, chk_version=chk_version)
             if hasattr(obj, 'head0'):
                 obj.head0 = hdu[0].header

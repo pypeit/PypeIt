@@ -14,14 +14,13 @@ matplotlib.use('agg')  # For Travis
 #import warnings
 #warnings.simplefilter('error', FutureWarning)
 
-from astropy.io import fits
-
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.display import display
 from pypeit import edgetrace
 from pypeit import utils
+from pypeit import io
 from pypeit.pypeitsetup import PypeItSetup
 
 
@@ -216,7 +215,7 @@ def test_coadd1d_1():
     coadd_ifile = data_path('shane_kast_blue.coadd1d')
     coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
 
-    hdu = fits.open(coadd_ofile)
+    hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
 
@@ -241,7 +240,7 @@ def test_coadd1d_2():
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
     coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
 
-    hdu = fits.open(coadd_ofile)
+    hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
 
