@@ -87,7 +87,39 @@ class DataCube(datamodel.DataContainer):
         self.spectrograph = None
         self.spect_meta = None
 
-    def to_file(self, ofile, primary_hdr=None, **kwargs):
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to separate the DetectorContainer
+        into its own HDU
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+        """
+        d = []
+        # Rest of the datamodel
+        for key in self.keys():
+            # Skip Nones
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray:
+                tmp = {}
+                if self.datamodel[key]['atype'] == np.floating:
+                    tmp[key] = self[key].astype(np.float32)
+                else:
+                    tmp[key] = self[key]
+                d.append(tmp)
+            # Spectral flexure
+#            elif key == 'sci_spec_flexure':
+#                d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
+            else: # Add to header of the primary image
+                d[0][key] = self[key]
+        # Return
+        return d
+
+    def to_file(self, ofile, primary_hdr=None, hdr=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
         to deal with the header
@@ -95,6 +127,8 @@ class DataCube(datamodel.DataContainer):
         Args:
             ofile (:obj:`str`): Filename
             primary_hdr (`astropy.io.fits.Header`_, optional):
+            wcs (`astropy.io.fits.Header`_, optional):
+                The World Coordinate System, represented by a fits header
             **kwargs:  Passed to super.to_file()
 
         """
@@ -110,7 +144,7 @@ class DataCube(datamodel.DataContainer):
         for key in subheader:
             primary_hdr[key] = subheader[key]
         # Do it
-        super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, **kwargs)
+        super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, hdr=hdr, **kwargs)
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):

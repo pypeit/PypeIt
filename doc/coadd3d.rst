@@ -128,8 +128,8 @@ plot a wavelength slice of the cube::
 
     filename = "datacube.fits"
     cube = fits.open(filename)
-    hdu_sci = cube['SCICUBE']
-    hdu_var = cube['VARCUBE']
+    hdu_sci = cube['FLUX']
+    hdu_var = cube['VARIANCE']
     wcs = WCS(hdu_sci.header)
     wave_slice = 1000
     norm = ImageNormalize(hdu_sci.data[wave_slice,:,:], interval=ZScaleInterval())

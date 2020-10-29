@@ -1328,7 +1328,7 @@ class DataContainer:
                 Passed to :func:`to_hdu`; see usage there
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
-                                     limit_hdus=limit_hdus),
+                                     limit_hdus=limit_hdus, hdr=hdr),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     # TODO: This requires that master_key be an attribute... This

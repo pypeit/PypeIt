@@ -279,7 +279,7 @@ def coadd_cube(files, parset, overwrite=False):
     # Generate a master WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwv]
-    masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt)
+    masterwcs = dc_utils.generate_masterWCS(coord_min, coord_dlt, name=specname)
     msgs.info(msgs.newline()+"-"*40 +
               msgs.newline() + "Parameters of the WCS:" +
               msgs.newline() + "RA   min, max = {0:f}, {1:f}".format(ra_min, ra_max) +
@@ -338,7 +338,7 @@ def coadd_cube(files, parset, overwrite=False):
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = dc_utils.DataCube(datacube.T, var_cube.T, specname,
                                    refscale=ref_scale, fluxed=cubepar['flux_calibrate'])
-    final_cube.to_file(outfile, primary_hdr=spec2DObj.head0, hdr=hdr, overwrite=overwrite)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
 def main(args):
