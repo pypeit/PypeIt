@@ -97,6 +97,31 @@ for LRISr::
 Known issues
 ++++++++++++
 
+LRISb Slit Edges
+----------------
+
+When observing in long-slit mode, PypeIt might set the slit incorrectly
+for detector 2.  This may occur if the counts from the flat field
+are too low (e.g., using internal flats rather than twilight
+flats with a higher signal in the blue).
+Therefore, if you use internal flats, be careful to inspect the
+slits defined by PypeIt as described in :doc:`master_edges`.
+
+If the defined slit(s) does not cover the portion of
+the illuminated detector where your source falls, you
+can manually define the slit position as described
+in :ref:`slit_tracing:Missing A Slit`.
+
+
+Here is an example for the PypeIt file::
+
+    [calibrations]
+       [[slitedges]]
+         add_slits = 2:788:10:650
+         sync_predict = nearest
+
+This will force a slit onto the detector for reduction.
+
 Multi-slit
 ----------
 
