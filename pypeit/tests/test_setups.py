@@ -17,7 +17,7 @@ from pypeit.pypmsgs import PypeItError
 from pypeit.metadata import PypeItMetaData
 from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file
-from pypeit.scripts import setup
+from pypeit.scripts import setup, chk_for_calibs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit import pypeit
@@ -508,6 +508,31 @@ def test_setup_not_alfosc():
     # Clean-up
     shutil.rmtree(setup_dir)
     shutil.rmtree(data_path('not_alfosc_A'))
+
+@dev_suite_required
+def test_setup_vlt_fors2():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_fors2/300I/')
+    droot += '/FORS2'
+    pargs = setup.parse_args(['-r', droot, '-s', 'vlt_fors2'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'vlt_fors2*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = expected_file_extensions()
+    assert np.all([e in ext for e in expected]), \
+        'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+    # Now chk calib
+    pargs = chk_for_calibs.parse_args([droot, '-s', 'vlt_fors2'])
+    answers, ps = chk_for_calibs.main(pargs)
+    assert answers['pass'][0], 'A must pass!'
 
 # TODO: Add other instruments!
 

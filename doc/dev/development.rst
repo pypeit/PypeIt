@@ -491,7 +491,7 @@ The tagging process is as follows:
    `conda-forge/pypeit-feedstock <https://github.com/conda-forge/pypeit-feedstock>`_ repository.
    Follow the commit checklist there before merging that PR, which will trigger the release of a new
    pypeit package on conda-forge. For more information on how to manually update the conda-forge
-   pypeit package, see `conda_forge`_.
+   pypeit package, see :ref:`conda_forge`.
 
  * Now we need to advance the version of the code to a new development
    version and merge ``develop`` with the new ``master``:

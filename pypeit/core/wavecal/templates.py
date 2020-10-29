@@ -244,6 +244,7 @@ def pypeit_arcspec(in_file, slit):
     return wv_vac, flux, pypeitFitting
 
 
+
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
     """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
 
