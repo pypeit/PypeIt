@@ -5,6 +5,8 @@ Module containing routines used by 3D datacubes.
 .. include:: ../include/links.rst
 """
 
+import inspect
+
 from astropy import wcs, units
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.io import fits
@@ -14,7 +16,101 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.core.procimg import grow_masked
-from pypeit.core import fitting, coadd
+from pypeit.core import coadd
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit import datamodel
+from pypeit import io
+
+
+class DataCube(datamodel.DataContainer):
+    """
+    DataContainer to hold the products of a datacube
+
+    See the datamodel for argument descriptions
+
+    Args:
+        wave:
+        flux:
+        PYP_SPEC:
+
+    Attributes:
+        head0 (`astropy.io.fits.Header`):  Primary header
+        spect_meta (:obj:`dict`): Parsed meta from the header
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
+
+    """
+    version = '1.0.0'
+
+    datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
+                 'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
+                 'refscale': dict(otype=np.ndarray, atype=np.floating, descr='Reference scaling used for each slit'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
+                 'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.'),
+                 'spect_meta': dict(otype=dict, descr='header dict')}
+
+    @classmethod
+    def from_file(cls, ifile):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        to deal with the header
+
+        Args:
+            ifile (str):  Filename holding the object
+
+        Returns:
+            :class:`OneSpec`:
+
+        """
+        hdul = fits.open(ifile)
+        slf = super(DataCube, cls).from_hdu(hdul)
+
+        # Internals
+        slf.filename = ifile
+        slf.head0 = hdul[0].header
+        # Meta
+        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
+        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
+        #
+        return slf
+
+    def __init__(self, flux, variance, PYP_SPEC, refscale=None, fluxed=None):
+
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=_d)
+
+    def _init_internals(self):
+        self.head0 = None
+        self.filename = None
+        self.spectrograph = None
+        self.spect_meta = None
+
+    def to_file(self, ofile, primary_hdr=None, **kwargs):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.to_file`
+        to deal with the header
+
+        Args:
+            ofile (:obj:`str`): Filename
+            primary_hdr (`astropy.io.fits.Header`_, optional):
+            **kwargs:  Passed to super.to_file()
+
+        """
+        if primary_hdr is None:
+            primary_hdr = io.initialize_header(primary=True)
+        # Build the header
+        if self.head0 is not None and self.PYP_SPEC is not None:
+            spectrograph = load_spectrograph(self.PYP_SPEC)
+            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
+        else:
+            subheader = {}
+        # Add em in
+        for key in subheader:
+            primary_hdr[key] = subheader[key]
+        # Do it
+        super(DataCube, self).to_file(ofile, primary_hdr=primary_hdr, **kwargs)
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):

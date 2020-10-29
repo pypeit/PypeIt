@@ -336,12 +336,9 @@ def coadd_cube(files, parset, overwrite=False):
         hdu.writeto(outfile, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
-    sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
-    var_hdu = fits.ImageHDU(var_cube.T, name="varcube", header=hdr)
-    scl_hdu = fits.ImageHDU(ref_scale, name="refscale")
-    hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu, scl_hdu])
-    hdulist.writeto(outfile, overwrite=overwrite)
+    final_cube = dc_utils.DataCube(datacube.T, var_cube.T, specname,
+                                   refscale=ref_scale, fluxed=cubepar['flux_calibrate'])
+    final_cube.to_file(outfile, primary_hdr=spec2DObj.head0, hdr=hdr, overwrite=overwrite)
 
 
 def main(args):
