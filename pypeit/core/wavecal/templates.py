@@ -210,6 +210,7 @@ def pypeit_arcspec(in_file, slit):
 
     Args:
         in_file (str):
+            File containing the arc spectrum and or fit
         slit (int):
             slit index
 
@@ -289,12 +290,18 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=
 
     Args:
         nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
         nwspec (`numpy.ndarray`_):
-        binspec (float):
+            Flux of the template
+        binspec (int):
+            Binning of the template
         outpath (str):
         outroot (str):
         det_cut (bool, optional):
-        order:
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
     """
@@ -373,10 +380,13 @@ def read_ascii(tbl_file, in_vac=True):
     And the data should be monoonically increasing in wavelength
 
     Args:
-        tbl_file:
-        in_vac:
+        tbl_file (str):
+            file of the table
+        in_vac (bool, optional):
+            If True, wavelenghts are already in vacuum
 
     Returns:
+        tuple: np.ndarray, np.ndarray  of wavelength, flux
 
     """
     arc_spec = Table.read(tbl_file, format='ascii')
