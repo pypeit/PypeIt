@@ -31,7 +31,6 @@ import sklearn
 import pypeit
 import time
 
-
 from IPython import embed
 
 # TODO -- Move this module to core/
