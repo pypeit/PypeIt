@@ -226,18 +226,18 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'].lower() == 'object')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
         if ftype == 'standard':
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'].lower() == 'object')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
         if ftype in ['arc', 'tilt']:
             # should flesh this out to include all valid arc lamp combos
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'].lower() == 'comp')
+            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] == 'comp') & (fitstbl['decker'] != '5.0x180')
         if ftype in ['trace']:
             # i think the bright lamp, BC, is the only one ever used for this
             return good_exp & (fitstbl['lampstat01'] == 'BC')
         if ftype in ['pixelflat', 'illumflat']:
             # imagetyp should always be set to flat for these
-            return good_exp & (fitstbl['idname'].lower() == 'flat')
+            return good_exp & (fitstbl['idname'] == 'flat')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
