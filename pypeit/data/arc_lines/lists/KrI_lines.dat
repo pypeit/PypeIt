@@ -3,6 +3,12 @@
 # Creation Date: 2017-Mar-26
 # Creation Date: 2016-Dec-21
 | ion |       wave | NIST | Instr | amplitude |                    Source |
+| KrI |  4275.1719 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4320.7938 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4377.3507 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4455.1662 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4464.9418 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4503.5980 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
 | KrI |  5571.8362 |    1 |    16 |      2000 |           deimos_600      |
 | KrI |  5872.5432 |    1 |     1 |       741 | lrisr_600_7500_PYPIT.json |
 | KrI |  7589.5025 |    1 |    17 |     23900 | lrisr_600_7500_PYPIT.json |

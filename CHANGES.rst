@@ -37,6 +37,8 @@
 - The setup block is now a simple listing of the keywords and values
   used to identify the instrument configuration.
 - Refactor identify GUI and improve its docs
+- Modest refactoring of templates.py
+- Construction of wavelength arxiv files for DEIMOS 1200B and blue 1200G
 
 1.2.0 (15 Oct 2020)
 -------------------

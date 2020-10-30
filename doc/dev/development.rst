@@ -214,7 +214,7 @@ file name be lower case and named after the instrument and setup, for example:
 ``pypeit_coadd_1dspec``, ``pypeit_coadd_2dspec`` to the `PypeIt-development-suite`_ repo under
 ``sensfunc_files``, ``fluxing_files``, ``coadd1d_files``, ``coadd2d_files`` respectively.
 
-4. Edit pypeit_setups.py in the `PypeIt-development-suite`_ under test_scripts. Follow
+4. Edit test_setups.py in the `PypeIt-development-suite`_ under test_scripts. Follow
 the instructions at the top of that file.
 
 5. Run the full development test suite to completion. Once all tests pass,
