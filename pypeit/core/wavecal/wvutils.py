@@ -110,7 +110,8 @@ def get_sampling(waves, pix_per_R=3.0):
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
+def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
+                        fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
     Simple wrapper to arc.detect_lines.
@@ -125,29 +126,25 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, con
         max_frac_fwhm:
         cont_samp:
         niter_cont:
-        nonlinear_counts:
+        nonlinear_counts (float, optional):
+            Counts where the arc is presumed to go non-linear
         debug:
 
     Returns:
-        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub. See arc.detect_lines
+        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub.
+        See arc.detect_lines for details
 
     """
 
     # Find peaks
-    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
-                                                                               fit_frac_fwhm=fit_frac_fwhm,
-                                                                               cont_frac_fwhm=cont_frac_fwhm,
-                                                                               max_frac_fwhm=max_frac_fwhm,
-                                                                               cont_samp=cont_samp,niter_cont = niter_cont,
-                                                                               nonlinear_counts = nonlinear_counts, debug=debug)
+    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
+        spec, sigdetect = sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
+        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
+        cont_samp=cont_samp,niter_cont = niter_cont, nonlinear_counts = nonlinear_counts,
+        debug=debug)
     all_tcent = tcent[w]
-    all_tampl = tampl[w]
     all_ecent = centerr[w]
     all_nsig = nsig[w]
-
-    # Old code cut on amplitude
-    # Cut on Amplitude
-    #cut_amp = all_tampl > min_ampl
 
     # Cut on significance
     cut_sig = all_nsig > sigdetect
