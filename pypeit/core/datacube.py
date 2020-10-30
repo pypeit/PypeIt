@@ -29,13 +29,24 @@ class DataCube(datamodel.DataContainer):
     See the datamodel for argument descriptions
 
     Args:
-        wave:
-        flux:
-        PYP_SPEC:
+        flux (`numpy.ndarray`_):
+            The science datacube (nwave, nspaxel_y, nspaxel_x)
+        variance (`numpy.ndarray`_):
+            The variance datacube (nwave, nspaxel_y, nspaxel_x)
+        refscale (`numpy.ndarray`_):
+            An image containing the relative scale of each pixel on the detector (nspec, nspat)
+        PYP_SPEC (str):
+            Name of the PypeIt Spectrograph
+        fluxed (bool):
+            If the cube has been flux calibrated, this will be set to "True"
 
     Attributes:
-        head0 (`astropy.io.fits.Header`):  Primary header
-        spect_meta (:obj:`dict`): Parsed meta from the header
+        head0 (`astropy.io.fits.Header`):
+            Primary header
+        filename (str):
+            Filename to use when loading from file
+        spect_meta (:obj:`dict`):
+            Parsed meta from the header
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Build from PYP_SPEC
 
@@ -46,8 +57,7 @@ class DataCube(datamodel.DataContainer):
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
                  'refscale': dict(otype=np.ndarray, atype=np.floating, descr='Reference scaling used for each slit'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
-                 'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.'),
-                 'spect_meta': dict(otype=dict, descr='header dict')}
+                 'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
     @classmethod
     def from_file(cls, ifile):
@@ -71,7 +81,6 @@ class DataCube(datamodel.DataContainer):
         # Meta
         slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
         slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
-        #
         return slf
 
     def __init__(self, flux, variance, PYP_SPEC, refscale=None, fluxed=None):
@@ -111,10 +120,8 @@ class DataCube(datamodel.DataContainer):
                 else:
                     tmp[key] = self[key]
                 d.append(tmp)
-            # Spectral flexure
-#            elif key == 'sci_spec_flexure':
-#                d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
-            else: # Add to header of the primary image
+            else:
+                # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
         return d
@@ -265,20 +272,20 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
 
     Args:
         all_ra (`numpy.ndarray`_):
-            RA values of each pixel from all spec2d files
+            1D flattened array containing the RA values of each pixel from all spec2d files
         all_dec (`numpy.ndarray`_):
-            DEC values of each pixel from all spec2d files
+            1D flattened array containing the DEC values of each pixel from all spec2d files
         all_wave (`numpy.ndarray`_):
-            Wavelength values of each pixel from all spec2d files
+            1D flattened array containing the wavelength values of each pixel from all spec2d files
         all_sci (`numpy.ndarray`_):
-            Counts of each pixel from all spec2d files
+            1D flattened array containing the counts of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
-            Weights attributed to each pixel from all spec2d files
+            1D flattened array containing the weights attributed to each pixel from all spec2d files
         all_idx (`numpy.ndarray`_):
-            An integer identifier indicating which spec2d file each pixel originates from.
-            For example, a 0 would indicate that a pixel originates from the first spec2d
-            frame listed in the input file. a 1 would indicate that this pixel originates
-            from the second spec2d file, and so forth.
+            1D flattened array containing an integer identifier indicating which spec2d file
+            each pixel originates from. For example, a 0 would indicate that a pixel originates
+            from the first spec2d frame listed in the input file. a 1 would indicate that this
+            pixel originates from the second spec2d file, and so forth.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         ref_filename (str):
@@ -318,20 +325,20 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
 
     Args:
         all_ra (`numpy.ndarray`_):
-            RA values of each pixel from all spec2d files
+            1D flattened array containing the RA values of each pixel from all spec2d files
         all_dec (`numpy.ndarray`_):
-            DEC values of each pixel from all spec2d files
+            1D flattened array containing the DEC values of each pixel from all spec2d files
         all_wave (`numpy.ndarray`_):
-            Wavelength values of each pixel from all spec2d files
+            1D flattened array containing the wavelength values of each pixel from all spec2d files
         all_sci (`numpy.ndarray`_):
-            Counts of each pixel from all spec2d files
+            1D flattened array containing the counts of each pixel from all spec2d files
         all_wghts (`numpy.ndarray`_):
-            Weights attributed to each pixel from all spec2d files
+            1D flattened array containing the weights attributed to each pixel from all spec2d files
         all_idx (`numpy.ndarray`_):
-            An integer identifier indicating which spec2d file each pixel originates from.
-            For example, a 0 would indicate that a pixel originates from the first spec2d
-            frame listed in the input file. a 1 would indicate that this pixel originates
-            from the second spec2d file, and so forth.
+            1D flattened array containing an integer identifier indicating which spec2d file
+            each pixel originates from. For example, a 0 would indicate that a pixel originates
+            from the first spec2d frame listed in the input file. a 1 would indicate that this
+            pixel originates from the second spec2d file, and so forth.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         numfiles (int, optional):
@@ -454,22 +461,22 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
     Args:
         all_ra (`numpy.ndarray`_):
-            RA values of each pixel from all spec2d files
+            1D flattened array containing the RA values of each pixel from all spec2d files
         all_dec (`numpy.ndarray`_):
-            DEC values of each pixel from all spec2d files
+            1D flattened array containing the DEC values of each pixel from all spec2d files
         all_wave (`numpy.ndarray`_):
-            Wavelength values of each pixel from all spec2d files
+            1D flattened array containing the wavelength values of each pixel from all spec2d files
         all_sci (`numpy.ndarray`_):
-            Counts of each pixel from all spec2d files
+            1D flattened array containing the counts of each pixel from all spec2d files
         all_ivar (`numpy.ndarray`_):
-            Inverse variance of each pixel from all spec2d files
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
         all_idx (`numpy.ndarray`_):
-            An integer identifier indicating which spec2d file each pixel originates from.
-            For example, a 0 would indicate that a pixel originates from the first spec2d
-            frame listed in the input file. a 1 would indicate that this pixel originates
-            from the second spec2d file, and so forth.
+            1D flattened array containing an integer identifier indicating which spec2d file
+            each pixel originates from. For example, a 0 would indicate that a pixel originates
+            from the first spec2d frame listed in the input file. a 1 would indicate that this
+            pixel originates from the second spec2d file, and so forth.
         whitelight_img (`numpy.ndarray`_):
-            A 2D array containing a whitelight image, created with the input arrays.
+            A 2D array containing a whitelight image, that was created with the input all_* arrays.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
         dwv (float):
