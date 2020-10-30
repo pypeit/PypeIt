@@ -1,7 +1,7 @@
 .. code-block:: console
 
     # Auto-generated PypeIt file
-    # Wed 14 Oct 2020 15:00:09
+    # Wed 28 Oct 2020 09:54:26
     
     # User-defined execution parameters
     [rdx]

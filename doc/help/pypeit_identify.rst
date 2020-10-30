@@ -3,6 +3,7 @@
     $ pypeit_identify -h
     usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
                            [--slit SLIT] [--det DET] [--rmstol RMSTOL]
+                           [--fwhm FWHM] [--pixtol PIXTOL] [--test] [--force_save]
                            arc_file slits_file
     
     Launch PypeIt identify tool, display extracted MasterArc, and load
@@ -23,4 +24,8 @@
       --slit SLIT      Which slit to load for wavelength calibration (default: 0)
       --det DET        Detector index (default: 1)
       --rmstol RMSTOL  RMS tolerance (default: 0.1)
+      --fwhm FWHM      FWHM for line finding (default: 4.0)
+      --pixtol PIXTOL  Pixel tolerance for Auto IDs (default: 0.1)
+      --test           Unit tests? (default: False)
+      --force_save     Save the solutions, despite the RMS (default: False)
     
