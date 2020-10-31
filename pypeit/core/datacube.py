@@ -264,8 +264,7 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
-def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                            ref_filename, numfiles=None):
+def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
     """ Generate a whitelight image of every input frame,
     based on a reference image. Note the, the reference
     image must have a well-defined WCS.
@@ -291,8 +290,6 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
         ref_filename (str):
             A fits filename of a reference image to be used when generating white light
             images. Note, the fits file must have a valid 3D WCS.
-        numfiles (int, optional):
-            Number of spec2d files included. If not provided, it will be calculated from all_idx
 
     Returns:
         tuple : two `numpy.ndarray`_ and one WCS will be returned. The first is a 2D reference image
@@ -313,14 +310,13 @@ def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_i
 
     # Generate white light images
     whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                            whitelightWCS=wlwcs, numra=numra, numdec=numdec, numfiles=numfiles)
+                                            whitelightWCS=wlwcs, numra=numra, numdec=numdec)
     # Return required info
     return reference_image, whitelight_imgs, wlwcs
 
 
-def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                    dspat, numfiles=None, all_ivar=None,
-                    whitelightWCS=None, numra=None, numdec=None):
+def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                    all_ivar=None, whitelightWCS=None, numra=None, numdec=None):
     """ Generate a whitelight image of every input frame
 
     Args:
@@ -341,8 +337,6 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
             pixel originates from the second spec2d file, and so forth.
         dspat (float):
             The size of each spaxel on the sky (in degrees)
-        numfiles (int, optional):
-            Number of spec2d files included. If not provided, it will be calculated from all_idx
         all_ivar (`numpy.ndarray`_, optional):
             Inverse variance of each pixel from all spec2d files. If provided,
             inverse variance images will be calculated and return for each white light image.
@@ -361,8 +355,7 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
         inverse variance image. If all_ivar is None, this will be an empty array.
     """
     # Determine number of files
-    if numfiles is None:
-        numfiles = np.unique(all_idx).size
+    numfiles = np.unique(all_idx).size
 
     if whitelightWCS is None:
         # Generate a master 2D WCS to register all frames
@@ -455,7 +448,7 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0, name="Instrument Unknown"):
 
 
 def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, whitelight_img, dspat, dwv,
-                    sn_smooth_npix=None, numfiles=None, relative_weights=False):
+                    sn_smooth_npix=None, relative_weights=False):
     """ Calculate wavelength dependent optimal weights. The weighting
         is currently based on a relative (S/N)^2 at each wavelength
 
@@ -485,8 +478,6 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
             Number of pixels used for determining smoothly varying S/N ratio weights.
             This is currently not required, since a relative weighting scheme with a
             polynomial fit is used to calculate the S/N weights.
-        numfiles (int, optional):
-            Number of spec2d files included. If not provided, it will be calculated from all_idx
         relative_weights (bool, optional):
             Calculate weights by fitting to the ratio of spectra?
     Returns:
@@ -495,8 +486,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     """
     msgs.info("Calculating the optimal weights of each pixel")
     # Determine number of files
-    if numfiles is None:
-        numfiles = np.unique(all_idx).size
+    numfiles = np.unique(all_idx).size
 
     # Find the location of the object with the highest S/N in the combined white light image
     idx_max = np.unravel_index(np.argmax(whitelight_img), whitelight_img.shape)

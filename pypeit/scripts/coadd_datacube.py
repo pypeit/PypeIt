@@ -205,7 +205,7 @@ def coadd_cube(files, parset, overwrite=False):
         if cubepar["reference_image"] is None:
             # Generate white light images
             whitelight_imgs, _, _ = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
-                                                             dspat, numfiles=numfiles)
+                                                             dspat)
             # ref_idx will be the index of the cube with the highest S/N
             ref_idx = np.argmax(weights)
             reference_image = whitelight_imgs[:, :, ref_idx].copy()
@@ -215,7 +215,7 @@ def coadd_cube(files, parset, overwrite=False):
             # Load reference information
             reference_image, whitelight_imgs, wlwcs = \
                 dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                                 cubepar['reference_image'], numfiles=numfiles)
+                                                 cubepar['reference_image'])
             msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
         # Calculate the image offsets - check the reference is a zero shift
         ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
@@ -240,15 +240,15 @@ def coadd_cube(files, parset, overwrite=False):
         msgs.info("Generating global white light image")
         if cubepar["reference_image"] is None:
             whitelight_img, _, wlwcs = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                                np.zeros(all_ra.size), dspat, numfiles=1)
+                                                                np.zeros(all_ra.size), dspat)
         else:
             _, whitelight_img, wlwcs = \
                 dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
-                                                 dspat, cubepar['reference_image'], numfiles=1)
+                                                 dspat, cubepar['reference_image'])
 
         # Calculate the relative spectral weights of all pixels
         all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
-                                             whitelight_img[:, :, 0], dspat, dwv, numfiles=numfiles,
+                                             whitelight_img[:, :, 0], dspat, dwv,
                                              relative_weights=cubepar['relative_weights'])
     # Check if a whitelight image should be saved
     if cubepar['save_whitelight']:
@@ -257,12 +257,12 @@ def coadd_cube(files, parset, overwrite=False):
             msgs.info("Generating global white light image")
             if cubepar["reference_image"] is None:
                 whitelight_img, _, wlwcs = dc_utils.make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                                    np.zeros(all_ra.size), dspat, numfiles=1)
+                                                                    np.zeros(all_ra.size), dspat)
             else:
                 _, whitelight_img, wlwcs = \
                     dc_utils.make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts,
                                                      np.zeros(all_ra.size),
-                                                     dspat, cubepar['reference_image'], numfiles=1)
+                                                     dspat, cubepar['reference_image'])
         # Prepare and save the fits file
         msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
         img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
