@@ -1404,8 +1404,6 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
         onslit_init = (slitid_img_init == slit_spat)
         mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
-    # Sort by increasing minimum wavelength
-    swslt = np.argsort(mnmx_wv[:, 0])
 
     # Prepare reference spectrum
     specmin = np.argmin(mnmx_wv[:, 0])
@@ -1418,8 +1416,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
     easing = np.ones(numsamp)
     easing[ww] = 1 - np.linspace(0, 1, ww[0].size)
     easing[ww[0].max():] = 0
-    onslit_specmin = (slitid_img_trim == slits.spat_id[swslt[specmin]])
-    onslit_specmax = (slitid_img_trim == slits.spat_id[swslt[specmax]])
+    onslit_specmin = (slitid_img_trim == slits.spat_id[specmin])
+    onslit_specmax = (slitid_img_trim == slits.spat_id[specmax])
     weights = np.zeros(rawimg.shape)
     weights[onslit_specmin] = interpolate.interp1d(bins, easing, kind='linear', bounds_error=False,
                                                    fill_value="extrapolate")(waveimg[onslit_specmin])
@@ -1442,8 +1440,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
         # Temporary code
         for slit_idx in range(0, slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
-            onslit_b = (slitid_img_trim == slits.spat_id[swslt[slit_idx]])
-            onslit_b_init = (slitid_img_init == slits.spat_id[swslt[slit_idx]])
+            onslit_b = (slitid_img_trim == slits.spat_id[slit_idx])
+            onslit_b_init = (slitid_img_init == slits.spat_id[slit_idx])
             onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[slit_idx, 0]) & (waveimg <= mnmx_wv[slit_idx, 1]) & skymask_now
             hist, edge = np.histogram(waveimg[onslit_b_olap], bins=bins, weights=rawimg_copy[onslit_b_olap])
             cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=bins)
