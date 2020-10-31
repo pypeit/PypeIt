@@ -4214,10 +4214,15 @@ class EdgeTraceSet(DataContainer):
             plt.legend()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
+        # We compute the predicted edge positions from the optical model after the x-correlation with the traced edges
+        # bottom edges
         bot_edge_pred = omodel_bspat.copy()
+        # Predictions that are outside the detector have values = -1.
         bot_edge_pred[omodel_bspat!=-1] = coeff_b[0] + coeff_b[1] * omodel_bspat[omodel_bspat!=-1] if not switched else\
                                           coeff_b[0] + coeff_b[1] * omodel_tspat[omodel_bspat!=-1]
+        # top edges
         top_edge_pred = omodel_tspat.copy()
+        # Predictions that are outside the detector have values = -1.
         top_edge_pred[omodel_tspat!=-1] = coeff_t[0] + coeff_t[1]*omodel_tspat[omodel_tspat!=-1] if not switched else\
                                           coeff_t[0] + coeff_t[1]*omodel_bspat[omodel_tspat!=-1]
 
@@ -4317,6 +4322,21 @@ class EdgeTraceSet(DataContainer):
         Fill :attr:`design` based on the results of the design
         registration.
 
+        The :attr:`design` is an `astropy.table.Table`_ with 13 columns:
+            - 'TRACEID': Trace ID Number
+            - 'TRACESROW': Spectral row for provided left and right edges
+            - 'TRACELPIX': Spatial pixel coordinate for left edge
+            - 'TRACERPIX': Spatial pixel coordinate for right edge
+            - 'SLITID': Slit ID Number
+            - 'SLITLOPT': Left edge of the slit in pixel from optical model before x-correlation
+            - 'SLITROPT': Right edge of the slit in pixel from optical model before x-correlation
+            - 'SLITRA': Right ascension of the slit center (deg)
+            - 'SLITDEC': Declination of the slit center (deg)
+            - 'SLITLEN': Slit length (arcsec)
+            - 'SLITWID': Slit width (arcsec)
+            - 'SLITPA': Slit position angle on sky (deg from N through E)
+            - 'ALIGN': Slit used for alignment (1-yes; 0-no), not target observations.
+
         Args:
             maskdef_id (:obj:`numpy.array`):
                 Slit ID number from slit-mask design matched to traced slits.
@@ -4325,6 +4345,8 @@ class EdgeTraceSet(DataContainer):
                 and traced edges for the left and right edges.
             omodel_bspat, omodel_tspat (:obj:`numpy.array`):
                 Left and right spatial position of the slit edges from optical model
+
+
         """
         # Number of slits
         nslits = self.nslits
