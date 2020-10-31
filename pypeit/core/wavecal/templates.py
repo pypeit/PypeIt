@@ -1,4 +1,7 @@
-""" Module to generate templates for the PypeIt full_template wavelength calibration routine"""
+""" Module to generate templates for the PypeIt full_template wavelength calibration routine
+
+.. include:: ../include/links.rst
+"""
 
 import os
 import numpy as np
