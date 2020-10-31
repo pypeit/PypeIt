@@ -29,16 +29,16 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         self.camera = 'Blue Channel'
 
     def get_detector_par(self, hdu, det):
+        header = hdu[0].header
+
         # Binning
-        raw_binning = self.get_meta_value(self.get_headarr(hdu), 'CCDSUM')
-        spec_binning, spatial_binning = raw_binning.split()
-        binning = parse.binning2string(binspec, binspatial)
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 1,
+            dataext         = 0,
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
@@ -46,13 +46,15 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.3,
-            darkcurr        = self.get_meta_value(self.get_headarr(hdu), 'DARKCUR'),
+            darkcurr        = header['DARKCUR'],
             saturation      = 65535.,
-            nonlinear       = 0.95,  #ToDO: To Be update
+            nonlinear       = 0.95,  # need to look up and update
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = self.get_meta_value(self.get_headarr(hdu), 'GAIN'),
-            ronoise         = self.get_meta_value(self.get_headarr(hdu), 'RDNOISE')
+            gain            = np.atleast_1d(header['GAIN']),
+            ronoise         = np.atleast_1d(header['RDNOISE']),
+            datasec         = np.atleast_1d(header['DATASEC']),
+            oscansec        = np.atleast_1d(header['BIASSEC'])
         )
 
         return detector_container.DetectorContainer(**detector_dict)
@@ -73,7 +75,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         meta['target'] = dict(ext=0, card='OBJECT')
         meta['decker'] = dict(ext=0, card='APERTURE')
         meta['dichroic'] = dict(ext=0, card='INSFILTE')
-        meta['binning'] = dict(ext=0, card='CCDSUM', compound=True)
+        meta['binning'] = dict(ext=0, card=None, compound=True)
         meta['mjd'] = dict(ext=0, card=None, compound=True)
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -83,7 +85,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         meta['idname'] = dict(ext=0, card='IMAGETYP')
 
         # used for arc and continuum lamps
-        meta['lampstat01'] = dict(ext=1, card=None, compound=True)
+        meta['lampstat01'] = dict(ext=0, card=None, compound=True)
 
         # Ingest
         self.meta = meta
@@ -104,7 +106,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             """
             Binning in blue channel headers is space-separated rather than comma-separated.
             """
-            binspatial, binspec = headarr[0]['CCDSUM'].split()
+            binspec, binspatial = headarr[0]['CCDSUM'].split()
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif meta_key == 'mjd':
@@ -203,14 +205,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         if det == 1:
             msgs.info("Using hard-coded BPM for  Blue Channel")
 
-            # Get the binning
-            hdu = fits.open(filename)
-            binning = hdu[0].header['CCDSUM']
-            hdu.close()
-
-            # Apply the mask
-            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
-            bpm_img[:, 512 // ybin] = 1
+            bpm_img[:, -1] = 1
 
         else:
             msgs.error(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
