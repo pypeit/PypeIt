@@ -53,8 +53,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(header['GAIN']),
             ronoise         = np.atleast_1d(header['RDNOISE']),
-            datasec         = np.atleast_1d(header['DATASEC']),
-            oscansec        = np.atleast_1d(header['BIASSEC'])
+            # hard-code these since the header entries use the binned sizes
+            datasec         = np.atleast_1d('[1:512, 1:2688]'),
+            oscansec        = np.atleast_1d('[1:512, 2689:2708]')
         )
 
         return detector_container.DetectorContainer(**detector_dict)

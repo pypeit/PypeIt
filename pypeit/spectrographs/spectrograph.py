@@ -564,6 +564,7 @@ class Spectrograph:
                                               binning=binning_raw)
                     # Assign the amplifier
                     pix_img[datasec] = i+1
+
             # Finish
             if section == 'datasec':
                 rawdatasec_img = pix_img.copy()
