@@ -10,6 +10,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -250,7 +251,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         msgs.info("Using hard-coded BPM for det=1 on MMIRS")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         binning = hdu[1].header['CCDSUM']
         hdu.close()
 
@@ -285,7 +286,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading MMIRS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head1 = fits.getheader(fil[0],1)
 
         detector_par = self.get_detector_par(hdu, det if det is None else 1)

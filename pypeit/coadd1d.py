@@ -67,7 +67,7 @@ class OneSpec(datamodel.DataContainer):
             :class:`OneSpec`:
 
         """
-        hdul = fits.open(ifile)
+        hdul = io.fits_open(ifile)
         slf = super(OneSpec, cls).from_hdu(hdul)
 
         # Internals

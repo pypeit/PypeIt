@@ -15,7 +15,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import specobj
-from pypeit.io import initialize_header
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -64,7 +64,7 @@ class SpecObjs:
 
         """
         # HDUList
-        hdul = fits.open(fits_file)
+        hdul = io.fits_open(fits_file)
         # Init
         slf = cls()
         # Add on the header
@@ -565,7 +565,7 @@ class SpecObjs:
             _specobjs = self.specobjs
 
         # Build up the Header
-        header = initialize_header(primary=True)
+        header = io.initialize_header(primary=True)
         for key in subheader.keys():
             header[key.upper()] = subheader[key]
 
@@ -624,7 +624,7 @@ class SpecObjs:
         prihdu.header['NSPEC'] = nspec
 
         # Code versions
-        initialize_header(hdr=prihdu.header)
+        io.initialize_header(hdr=prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)
