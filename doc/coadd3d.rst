@@ -14,8 +14,6 @@ This must be done outside of the data reduction pipeline,
 i.e. PypeIt will *not* coadd your spectra as
 part of the data reduction process.
 
-THESE DOCS ARE CURRENTLY A WORK IN PROGRESS
-
 pypeit_coadd_datacube
 =====================
 
@@ -65,13 +63,55 @@ The opening block sets parameters for the reduction steps
 
 The spec2d block provides a list of :doc:`out_spec2D` files.
 
-
 run
 ---
 
 Then run the script::
 
     pypeit_coadd_datacube BB1245p4238.coadd3d -o
+
+Flux calibration
+================
+
+If you would like to flux calibrate your datacube, you need to
+produce your standard star datacube first, and when generating
+the datacube of the science frame you must pass in the name of
+the standard star cube so that the relative scales of all the
+slits are correct. If you want to also flux calibrate, you
+will also need to set the flux calibrate argument to True.
+You can specify the standard star cube in your coadd3d file
+as follows::
+
+    [reduce]
+      [[cube]]
+        standard_datacube = standard_star_cube.fits
+        flux_calibrate = True
+
+
+Spatial alignment with different setups
+=======================================
+
+If you have multiple setups that you want to align so that all
+pixels are spatially coincident, you must first produce the
+datacube that you wish to use as a reference. Then, define the
+WCS parameters using the keyword arguments in your coadd3d file::
+
+    [reduce]
+      [[cube]]
+        reference_image = reference_cube_whitelight.fits
+        ra_min = 191.398441
+        ra_max = 191.401419
+        dec_min = 42.634352
+        dec_max = 42.639988
+        spatial_delta = 0.339462
+
+where these values are printed as terminal output after
+reference_cube.fits is generated.
+
+Note that PypeIt is not currently setup to stitch together
+cubes covering different wavelength range, but it can coadd
+multiple spec2D files into a single datacube if the wavelength
+setup overlaps.
 
 Current Coadd3D Data Model
 ==========================
@@ -88,8 +128,8 @@ plot a wavelength slice of the cube::
 
     filename = "datacube.fits"
     cube = fits.open(filename)
-    hdu_sci = cube['SCICUBE']
-    hdu_var = cube['VARCUBE']
+    hdu_sci = cube['FLUX']
+    hdu_var = cube['VARIANCE']
     wcs = WCS(hdu_sci.header)
     wave_slice = 1000
     norm = ImageNormalize(hdu_sci.data[wave_slice,:,:], interval=ZScaleInterval())

@@ -11,6 +11,7 @@ from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -279,7 +280,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading LRIS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head0 = hdu[0].header
 
         # Get post, pre-pix values
@@ -934,7 +935,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             msgs.info("Using hard-coded BPM for det=2 on LRISr")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[0].header['BINNING']
             hdu.close()
 
@@ -1083,7 +1084,7 @@ def lris_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = io.fits_open(inp)
     else:
         hdu = inp
     n_ext = len(hdu) - 1  # Number of extensions (usually 4)
@@ -1157,7 +1158,7 @@ def convert_lowredux_pixelflat(infil, outfil):
 
     """
     # Read
-    hdu = fits.open(infil)
+    hdu = io.fits_open(infil)
     data = hdu[0].data
 
     #
@@ -1201,7 +1202,7 @@ def get_orig_rawimage(raw_file, debug=False):
             But note the detector info is *not* returned
     """
     # Open
-    hdul = fits.open(raw_file)
+    hdul = io.fits_open(raw_file)
     head0 = hdul[0].header
     # TODO -- Check date here and error/warn if not after the upgrade
     image = hdul[0].data.astype(float)
