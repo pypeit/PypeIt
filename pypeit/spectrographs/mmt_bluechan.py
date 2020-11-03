@@ -53,9 +53,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(header['GAIN']),
             ronoise         = np.atleast_1d(header['RDNOISE']),
-            # hard-code these since the header entries use the binned sizes
-            datasec         = np.atleast_1d('[1:512, 1:2688]'),
-            oscansec        = np.atleast_1d('[1:512, 2689:2708]')
+            # note that the header entries use the binned sizes
+            datasec         = np.atleast_1d(header['DATASEC']),
+            oscansec        = np.atleast_1d(header['BIASSEC'])
         )
 
         return detector_container.DetectorContainer(**detector_dict)
@@ -206,7 +206,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         if det == 1:
             msgs.info("Using hard-coded BPM for  Blue Channel")
 
-            bpm_img[:, -1] = 1
+            bpm_img[-1, :] = 1
 
         else:
             msgs.error(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
@@ -237,3 +237,58 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Load up the raw image and generate a few other bits and pieces
+        that are key for image processing
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple:
+                raw_img (np.ndarray) -- Raw image for this detector
+                hdu (astropy.io.fits.HDUList)
+                exptime (float)
+                rawdatasec_img (np.ndarray)
+                oscansec_img (np.ndarray)
+
+        """
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
+
+        # Read
+        msgs.info("Reading MMT Blue Channel file: {:s}".format(fil[0]))
+        hdu = fits.open(fil[0])
+        hdr = hdu[0].header
+
+        # we're flipping FITS x/y to pypeit y/x here...
+        rawdata = hdu[0].data.astype(float).transpose()
+
+        exptime = hdr['EXPTIME']
+
+        # TOdO Store these parameters in the DetectorPar.
+        # Number of amplifiers
+        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        numamp = detector_par['numamplifiers']
+
+        # First read over the header info to determine the size of the output array...
+        datasec = hdr['DATASEC']
+        xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
+
+        # Get the overscan section
+        biassec = hdr['BIASSEC']
+        xbias1, xbias2, ybias1, ybias2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
+
+        # allocate output arrays and fill in with mask values
+        rawdatasec_img = np.zeros_like(rawdata, dtype=int)
+        oscansec_img = np.zeros_like(rawdata, dtype=int)
+
+        rawdatasec_img[xdata1-1:xdata2, ydata1-1:ydata2] = 1
+        oscansec_img[xbias1+1:xbias2, ybias1-1:ybias2] = 1
+
+        return detector_par, rawdata, hdu, exptime, rawdatasec_img, oscansec_img
