@@ -107,7 +107,7 @@ class Spec2DObj(datamodel.DataContainer):
             `Spec2DObj`:
 
         """
-        hdul = fits.open(file)
+        hdul = io.fits_open(file)
         # Quick check on det
         if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
             msgs.error("Requested detector {} is not in this file - {}".format(det, file))
@@ -264,7 +264,7 @@ class AllSpec2DObj(object):
         # Instantiate
         slf = cls()
         # Open
-        hdul = fits.open(filename)
+        hdul = io.fits_open(filename)
         # Meta
         hkeys = list(hdul[0].header.keys())
         for key in hkeys:

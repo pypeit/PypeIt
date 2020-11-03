@@ -11,10 +11,9 @@ import numpy as np
 
 from scipy import interpolate
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -429,7 +428,7 @@ def read_hires(raw_file, det=None):
     except AttributeError:
         print("Reading HIRES file: {:s}".format(fil[0]))
 
-    hdu = fits.open(fil[0])
+    hdu = io.fits_open(fil[0])
     head0 = hdu[0].header
 
     # Get post, pre-pix values
