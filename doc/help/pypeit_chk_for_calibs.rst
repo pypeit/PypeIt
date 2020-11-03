@@ -1,7 +1,9 @@
 .. code-block:: console
 
     $ pypeit_chk_for_calibs -h
-    usage: pypeit_chk_for_calibs [-h] [-s SPECTROGRAPH] [-e EXTENSION] root
+    usage: pypeit_chk_for_calibs [-h] [-s SPECTROGRAPH] [-e EXTENSION]
+                                 [--save_setups]
+                                 root
     
     Script to check for calibrations [v1]
     
@@ -29,4 +31,6 @@
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
+      --save_setups         If not toggled, remove setup_files/ folder and its
+                            files. (default: False)
     

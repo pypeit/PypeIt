@@ -34,10 +34,10 @@ from abc import ABCMeta
 from pkg_resources import resource_filename
 
 import numpy as np
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import io
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -552,7 +552,7 @@ class Spectrograph:
 
         """
         # Open
-        hdu = fits.open(raw_file)
+        hdu = io.fits_open(raw_file)
 
         # Grab the DetectorPar
         detector = self.get_detector_par(hdu, det)
@@ -862,7 +862,7 @@ class Spectrograph:
         # particularly for gzipped files (e.g., DEIMOS)
         if isinstance(inp, str):
             try:
-                hdu = fits.open(inp)
+                hdu = io.fits_open(inp)
             except:
                 if strict:
                     msgs.error('Problem opening {0}.'.format(inp))

@@ -7,8 +7,6 @@ import pytest
 
 import numpy as np
 
-from astropy.io import fits
-
 from linetools.spectra.io import readspec
 
 import pypeit

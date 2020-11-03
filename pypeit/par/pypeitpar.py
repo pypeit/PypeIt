@@ -1108,7 +1108,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 reference_cube=None, reference_image=None, save_whitelight=None,
+                 standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None):
 
@@ -1149,10 +1149,16 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'Output filename of the combined datacube.'
 
-        defaults['reference_cube'] = None
-        dtypes['reference_cube'] = str
-        descr['reference_cube'] = 'Filename of another datacube. The WCS of the specified datacube will' \
-                                  'be used to construct the WCS of the newly combined datacube.'
+        defaults['standard_cube'] = None
+        dtypes['standard_cube'] = str
+        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct' \
+                                 'the relative scales of the slits, and to flux calibrate the science' \
+                                 'datacube.'
+
+        defaults['flux_calibrate'] = False
+        dtypes['flux_calibrate'] = bool
+        descr['flux_calibrate'] = 'Flux calibrate the data? If True, you must also provide a standard star' \
+                                  'cube using the standard_cube parameter.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1163,7 +1169,10 @@ class CubePar(ParSet):
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
         descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
-                                   'will be given by the "output_filename" variable with a suffix "_whitelight".'
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight".' \
+                                   'Note that the white light image collapses the flux along the wavelength axis,' \
+                                   'so some spaxels in the 2D white light image may have different wavelength' \
+                                   'ranges.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1219,8 +1228,8 @@ class CubePar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'reference_cube', 'reference_image', 'save_whitelight',
-                   'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
+                   'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

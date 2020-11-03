@@ -13,8 +13,6 @@ from IPython import embed
 
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
@@ -28,6 +26,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit import io
 from pypeit import utils
 
 
@@ -512,7 +511,7 @@ class Calibrations(object):
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
                 msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-                with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
                     flatimages = flatfield.merge(flatimages, nrm_image)
             self.flatimages = flatimages
@@ -572,7 +571,7 @@ class Calibrations(object):
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-            with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+            with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                 flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
         self.flatimages = flatimages
