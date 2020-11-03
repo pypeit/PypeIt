@@ -2298,13 +2298,6 @@ class WavelengthSolutionPar(ParSet):
         dtypes['IDwaves'] = [int, float, list]
         descr['IDwaves'] = 'Wavelengths of the manually identified lines'
 
-        # TODO: Not used
-        defaults['medium'] = 'vacuum'
-        options['medium'] = WavelengthSolutionPar.valid_media()
-        dtypes['medium'] = str
-        descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
-                          'Options are: {0}'.format(', '.join(options['medium']))
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
