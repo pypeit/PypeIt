@@ -288,7 +288,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.zeros_like(rawdata, dtype=int)
         oscansec_img = np.zeros_like(rawdata, dtype=int)
 
-        rawdatasec_img[xdata1-1:xdata2, ydata1-1:ydata2] = 1
-        oscansec_img[xbias1+1:xbias2, ybias1-1:ybias2] = 1
+        # trim bad sections at beginning of data and bias sections
+        rawdatasec_img[xdata1+2:xdata2, ydata1-1:ydata2] = 1
+        oscansec_img[xbias1+2:xbias2, ybias1-1:ybias2] = 1
 
         return detector_par, rawdata, hdu, exptime, rawdatasec_img, oscansec_img
