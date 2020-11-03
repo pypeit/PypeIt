@@ -4327,7 +4327,7 @@ class EdgeTraceSet(DataContainer):
             - 'TRACESROW': Spectral row for provided left and right edges
             - 'TRACELPIX': Spatial pixel coordinate for left edge
             - 'TRACERPIX': Spatial pixel coordinate for right edge
-            - 'SLITID': Slit ID Number
+            - 'SLITID': Slit ID Number (`maskdef_id`)
             - 'SLITLOPT': Left edge of the slit in pixel from optical model before x-correlation
             - 'SLITROPT': Right edge of the slit in pixel from optical model before x-correlation
             - 'SLITRA': Right ascension of the slit center (deg)
@@ -4354,7 +4354,11 @@ class EdgeTraceSet(DataContainer):
         reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
                             else self.pca.reference_row
         # matched index for the slit-mask design data.
-        ind = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid, maskdef_id, strict=True)
+        ind = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid, maskdef_id, strict=False)
+        # if not all the element of self.spectrograph.slitmask.slitid[ind] are equal to maskdef_id, keep only the
+        # elements that are equal (matched)
+        matched = np.where(self.spectrograph.slitmask.slitid[ind] == maskdef_id)[0]
+        ind = ind[matched]
 
         # Instantiate as an empty table
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
@@ -4386,6 +4390,13 @@ class EdgeTraceSet(DataContainer):
         Fill :attr:`objects` based on the result of the design
         registration.
 
+        The :attr:`objects` is an `astropy.table.Table`_ with 5 columns:
+        - 'OBJID': Object ID Number
+        - 'OBJRA': Right ascension of the object (deg)
+        - 'OBJDEC': Declination of the object (deg)
+        - 'SLITID': Slit ID Number (`maskdef_id`)
+        - 'SLITINDX': Row index of relevant slit in the design table
+
         Args:
             maskdef_id (:obj:`numpy.array`):
                 Slit ID number from slit-mask design matched to traced slits.
@@ -4398,7 +4409,12 @@ class EdgeTraceSet(DataContainer):
         # The index in the objects table are found by mapping the slit
         # index of each object in the design file to the slit index
         # included in the registration
-        obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.objects[:,0], maskdef_id, strict=True)
+        obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.objects[:,0], maskdef_id, strict=False)
+        # if not all the element of self.spectrograph.slitmask.objects[obj_index,0] are equal to maskdef_id,
+        # keep only the elements that are equal (matched)
+        matched = np.where(self.spectrograph.slitmask.objects[obj_index,0] == maskdef_id)[0]
+        obj_index = obj_index[matched]
+
         # Number of objects
         nobj = len(obj_index)
         # Instantiate an empty table
@@ -4904,6 +4920,10 @@ class EdgeTraceSet(DataContainer):
         :attr:`reuse_masters` as this parent :class:`EdgeTraceSet`
         object.
 
+        The :class:`~pypeit.slittrace.SlitTraceSet` object will have
+        an `astropy.table.Table`_ resulted from merging :attr:`design`
+        and :attr:`objects` together.
+
         Returns:
             :class:`~pypeit.slittrace.SlitTraceSet`: Object holding
             the slit traces.
@@ -4950,15 +4970,14 @@ class EdgeTraceSet(DataContainer):
             # this may not work if the corresponding right edge is also -99. Assuming this is not the case
             _maskdef_id[mkd_id_bad] = self.maskdef_id[gpm & self.is_right][mkd_id_bad]
             if np.any(_maskdef_id == -99):
-                msgs.warn("Some slits don't have `maskdefId` assigned. Slit-mask design matching FAILED")
-                _maskdef_id = None
-                self.align_slit = None
-            else:
-                # Store the matched slit-design and object information in a table.
-                self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
-                self._fill_objects_table(_maskdef_id)
-                _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
-                _merged_designtab.sort('TRACEID')
+                msgs.warn("{} slits do not have `maskdefId` assigned.".format(_maskdef_id[_maskdef_id == -99].size) +
+                          "They will not be included in the design table")
+
+            # Store the matched slit-design and object information in a table.
+            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
+            self._fill_objects_table(_maskdef_id)
+            _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
+            _merged_designtab.sort('TRACEID')
         else:
             _maskdef_id = None
             _merged_designtab = None
