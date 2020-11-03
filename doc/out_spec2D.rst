@@ -112,6 +112,8 @@ Internally, the image is held in
 :class:`~pypeit.spec2dobj.AllSpec2DObj`, which holds the full set of
 :class:`~pypeit.spec2dobj.Spec2DObj` objects.
 
+All wavelengths are in vacuum.
+
 The data model for the latter is:
 
 .. include:: include/datamodel_spec2dobj.rst
