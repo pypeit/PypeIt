@@ -2794,34 +2794,6 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
-        # [DP] I removed the following 4 parameters, which are from a previous attempt to do slit-mask
-        #  design matching, and have been replaced by the parameters above.
-        # # TODO: Make these mask registration parameters a separate
-        # # (nested) parameter set? Would making saving the paramters to
-        # # the master file header annoying ...
-        # dtypes['mask_reg_maxiter'] = int
-        # descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
-        #                             'registering slit-mask design and trace locations. If None, ' \
-        #                             'rejection iterations are performed until no points are ' \
-        #                             'rejected. If 1, only a single fit is performed without any ' \
-        #                             'rejection.'
-        #
-        # dtypes['mask_reg_maxsep'] = [int, float]
-        # descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
-        #                            'coordinates of the designed slit position in pixels and the ' \
-        #                            'matched trace. If None, rejection is done iteratively using ' \
-        #                            'sigma clipping.  See mask_reg_sigrej.'
-        #
-        # defaults['mask_reg_sigrej'] = 5
-        # dtypes['mask_reg_sigrej'] = [int, float]
-        # descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
-        #                            'iterations during the slit-mask design registration. If ' \
-        #                            'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
-        #
-        # defaults['ignore_alignment'] = False
-        # dtypes['ignore_alignment'] = bool
-        # descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
-
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
