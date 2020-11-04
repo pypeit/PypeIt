@@ -160,7 +160,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['binning'] = dict(card=None, compound=True)
 
         meta['mjd'] = dict(ext=0, card='MJD')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        meta['exptime'] = dict(ext=0, compound=True, card='ELAPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         # Extras for config and frametyping
@@ -262,6 +262,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'exptime':
+            try:
+                return headarr[0]['ELAPTIME']
+            except KeyError:
+                return headarr[0]['TELAPSE']
         elif meta_key == 'slitwid':
             # Get the slice scale
             slicescale = 0.00037718  # Degrees per 'large slicer' slice
@@ -284,11 +289,23 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                     hdrstr = ''
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
-            return headarr[0]['WXPRESS'] * 0.001 * units.bar
+            try:
+                return headarr[0]['WXPRESS'] * 0.001 * units.bar
+            except KeyError:
+                msgs.warn("Pressure is not in header")
+                return 0.0 * units.bar
         elif meta_key == 'temperature':
-            return headarr[0]['WXOUTTMP'] * units.deg_C
+            try:
+                return headarr[0]['WXOUTTMP'] * units.deg_C
+            except KeyError:
+                msgs.warn("Temperature is not in header")
+                return 0.0 * units.deg_C
         elif meta_key == 'humidity':
-            return headarr[0]['WXOUTHUM'] / 100.0
+            try:
+                return headarr[0]['WXOUTHUM'] / 100.0
+            except KeyError:
+                msgs.warn("Humidity is not in header")
+                return 0.0
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         else:

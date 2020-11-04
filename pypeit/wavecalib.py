@@ -4,8 +4,6 @@ Module for guiding 1D Wavelength Calibration
 .. include:: ../include/links.rst
 
 """
-import os
-import copy
 import inspect
 import json
 
@@ -21,8 +19,6 @@ from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, wv_fitting
-from pypeit.core.gui.identify import Identify
-from pypeit import utils
 from pypeit import datamodel
 
 class WaveCalib(datamodel.DataContainer):
@@ -399,14 +395,13 @@ class BuildWaveCalib:
         elif method == 'identify':
             final_fit = {}
             # Manually identify lines
-            msgs.info("Initializing the wavelength calibration tool")
-            embed(header='line 222 wavecalib.py')
-            for slit_idx in ok_mask_idx:
-                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
-                final_fit[str(slit_idx)] = arcfitter.get_results()
-                arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
-                                         specname=self.spectrograph.spectrograph,
-                                         gratname="UNKNOWN", dispangl="UNKNOWN")
+            msgs.error("Please use the pypeit_identify script to manually calibrate the spectrograph")
+            # for slit_idx in ok_mask_idx:
+            #     arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
+            #     final_fit[str(slit_idx)] = arcfitter.get_results()
+            #     arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
+            #                              specname=self.spectrograph.spectrograph,
+            #                              gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
