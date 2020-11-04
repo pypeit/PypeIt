@@ -70,7 +70,7 @@ class Spec2DObj(datamodel.DataContainer):
                                   descr='2D multiplicative scale image that has been applied to '
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
-                                 descr='2D wavelength image (float64)'),
+                                 descr='2D wavelength image in vacuum (float64)'),
                  'bpmmask': dict(otype=np.ndarray, atype=np.integer,
                                  descr='2D bad-pixel mask for the image'),
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
