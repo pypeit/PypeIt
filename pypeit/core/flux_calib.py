@@ -18,14 +18,11 @@ from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 
-from linetools.spectra.xspectrum1d import XSpectrum1D
-
 from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
 from pypeit import io
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl
 from pypeit.core import fitting
 
 # TODO: Put these in the relevant functions
@@ -67,7 +64,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['xshooter', 'calspec', 'esofil']
+    std_sets = ['blackbody', 'xshooter', 'calspec', 'esofil']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -135,8 +132,15 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    units.erg / units.s / units.cm ** 2 / units.AA
                 # At this low resolution, best to throw out entries affected by A and B-band absorption
                 mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
-                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
+                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
+                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
+            elif sset == 'blackbody':
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = table.Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = std_spec['col2'] * 1e-17 / PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
             msgs.info("Fluxes are flambda, normalized to 1e-17")
