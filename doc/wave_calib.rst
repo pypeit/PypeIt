@@ -103,7 +103,7 @@ Identify
 --------
 
 If you would prefer to manually wavelength calibrate, then
-you can do so with the 'identify' task. To launch this task,
+you can do so with the 'pypeit_identify' task. To launch this task,
 you need to have successfully traced the slit edges (i.e. a
 :doc:`master_edges` file must exist), and generated a
 :doc:`master_arc`
@@ -131,6 +131,9 @@ basics
 
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
+You might find it helpful to specify the wavelength range of the
+linelist and the lamps to use using the pypeit_identify command
+line options.
 
 Here is a standard sequence of moves once the GUI pops up:
 
@@ -139,31 +142,53 @@ Here is a standard sequence of moves once the GUI pops up:
 1. Compare the arc lines to a calibrated spectrum
 2. Use the Magnifying glass to zoom in on one you recognize and
    which is in the PypeIt linelist(s)
-3. Use 'm' to mark the line (a red line will appear)
+3. To select a line, use 'm' to mark the line near the cursor,
+   or use a left mouse button click near the line (a red line
+   will appear on the selected line)
 4. Use the slider bar to select the wavelength (vacuum)
 5. Click on Assign Line (it will be blue when you move the mouse back in
    the plot window)
-6. Repeat 1-5 until you have identified 4+ lines across the spectrum
+6. Repeat steps 1-5 until you have identified 4+ lines across the spectrum
 7. Use 'f' to fit the current set of lines
-8. Use '+/-' to modify the order number as desired
+8. Use '+/-' to modify the order of the polyonmial fit
 9. Use 'a' to auto ID the rest
 10. Use 'f' to fit again
 11. Use 's' to save the line IDs and the wavelength solution if the
     RMS of the latter is within tolerance.
 
-If your solution is good enough (rms < 0.1 pixels), then
-`pypeit_identify`_ will automatically prompt you after you quit the
-GUI to see if you'd like to add your solution to the PypeIt
-database.
+Some tips: Pressing the left/right keys will advance the
+line list by one. You may find it helpful to toggle between
+pixel coordinates and wavelength coordinates (use the 'w' key
+to toggle between these two settings). Wavelength coordinates
+can only be accessed once you have a preliminary fit to the
+spectrum. When plotting in wavelength coordinates, you can
+overplot a 'ghost' spectrum (press the 'g' key to activate
+or deactivate) based on the linelist which may help you to
+identify lines. You can shift and stretch the ghost spectrum
+by clicking and dragging the left and right mouse buttons,
+respectively (if you're not in 'pan' mode). To reset the
+shift/stretch, press the 'h' key.
 
-If so, you will need to move the output file into
-the master directory, which will be similar to the following
-directory:
+If your solution is good enough (rms < 0.1 pixels), then
+`pypeit_identify`_ will automatically prompt you after you
+quit the GUI to see if you want to save the solution. Note,
+you can increase this tolerance using the command line option
+`pixtol`, or by setting the `force_save` command line option.
+
+To use this wavelength solution in your reduction, you will
+need to add your solution to the PypeIt database. To do this,
+you will need to move the output file into the master directory,
+which will be similar to the following directory:
 
 ``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
 
-Once your solution is in the database, run PypeIt
-in the standard :ref:`wvcalib-fulltemplate` mode.
+Once your solution is in the database, you will be able to
+run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
+Make sure you add the following line to your pypeit file:
+
+[calibrations]
+  [[wavelengths]]
+    reid_arxiv = name_of_your_solution.fits
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)

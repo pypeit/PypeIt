@@ -24,7 +24,7 @@ The package and version requirements for ``PypeIt`` are:
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5
+* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later

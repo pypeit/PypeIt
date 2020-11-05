@@ -97,7 +97,8 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
         max_frac_fwhm:
         cont_samp:
         niter_cont:
-        nonlinear_counts:
+        nonlinear_counts (float, optional):
+            Counts where the arc is presumed to go non-linear
         debug:
 
     Returns:

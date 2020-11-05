@@ -18,6 +18,7 @@ from astropy import units
 from linetools import utils as ltu
 
 from pypeit import utils
+from pypeit import io
 from pypeit import wavecalib
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
@@ -222,6 +223,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
 
     Args:
         in_file (str):
+            File containing the arc spectrum and or fit
         slit (int):
             slit index
 
@@ -307,6 +309,45 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     return outroot
 
 
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
+    """
+    Write the template spectrum into a binary FITS table
+
+    Args:
+        nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
+        nwspec (`numpy.ndarray`_):
+            Flux of the template
+        binspec (int):
+            Binning of the template
+        outpath (str):
+        outroot (str):
+        det_cut (bool, optional):
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
+        overwrite (bool, optional):
+            If True, overwrite any existing file
+    """
+    tbl = Table()
+    tbl['wave'] = nwwv
+    tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
+    tbl.meta['BINSPEC'] = binspec
+    # Detector snippets??
+    if det_cut is not None:
+        tbl['det'] = 0
+        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
+            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
+            deti = np.sum([2**ii for ii in dets])
+            tbl['det'][gdwv] += deti
+    # Write
+    outfile = os.path.join(outpath, outroot)
+    tbl.write(outfile, overwrite=overwrite)
+    print("Wrote: {}".format(outfile))
 
 
 #####################################################################################################
@@ -364,10 +405,13 @@ def read_ascii(tbl_file, in_vac=True):
     And the data should be monoonically increasing in wavelength
 
     Args:
-        tbl_file:
-        in_vac:
+        tbl_file (str):
+            file of the table
+        in_vac (bool, optional):
+            If True, wavelenghts are already in vacuum
 
     Returns:
+        tuple: np.ndarray, np.ndarray  of wavelength, flux
 
     """
     arc_spec = Table.read(tbl_file, format='ascii')
@@ -821,7 +865,7 @@ def main(flg):
         iout = 'p200_triplespec.fits'
         # Load
         old_file = os.path.join(reid_path, iroot)
-        par = fits.open(old_file)
+        par = io.fits_open(old_file)
         pyp_spec = par[0].header['PYP_SPEC']
         spectrograph  = load_spectrograph(pyp_spec)
         orders = spectrograph.orders

@@ -2,10 +2,10 @@
 """
 import glob
 import numpy as np
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -191,7 +191,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
             # TODO: Fix this
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -204,7 +204,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             msgs.info("Using hard-coded BPM for det=2 on BINOSPEC")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[5].header['CCDSUM']
             hdu.close()
 
@@ -269,7 +269,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head1 = hdu[1].header
 
         # TOdO Store these parameters in the DetectorPar.
@@ -376,7 +376,7 @@ def binospec_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = io.fits_open(inp)
     else:
         hdu = inp
     # get entire extension...

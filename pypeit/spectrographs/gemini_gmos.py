@@ -4,11 +4,10 @@ import glob
 import os
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
 from .. import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -203,7 +202,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading GMOS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head0 = hdu[0].header
         head1 = hdu[1].header
 
@@ -413,7 +412,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             # TODO: Fix this
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -425,7 +424,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -443,7 +442,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -778,7 +777,7 @@ def gemini_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = io.fits_open(inp)
     else:
         hdu = inp
 

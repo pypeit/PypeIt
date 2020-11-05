@@ -31,7 +31,6 @@ import sklearn
 import pypeit
 import time
 
-
 from IPython import embed
 
 # TODO -- Move this module to core/
@@ -755,3 +754,19 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     return ext if isinstance(ext, list) else [ext], _hdu
 
+def fits_open(filename, **kwargs):
+    """
+    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+
+    Args:
+        filename (:obj:`str`):
+            File name for the fits file to open
+    Returns:
+        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
+        HDUs in the fits file
+    """
+    try:
+        return fits.open(filename, **kwargs)
+    except OSError as e:
+        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
+        return fits.open(filename, ignore_missing_end=True, **kwargs)

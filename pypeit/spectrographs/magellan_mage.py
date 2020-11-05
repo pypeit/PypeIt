@@ -3,10 +3,10 @@
 import numpy as np
 
 from astropy.time import Time
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.par import pypeitpar
@@ -222,7 +222,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return self.bpm_frombias(msbias, det, bpm_img)
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it

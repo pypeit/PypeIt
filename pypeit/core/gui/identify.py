@@ -80,6 +80,7 @@ class Identify(object):
         wv_calib : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         pxtoler : float, optional
+            Tolerance in pixels for adding lines with the auto option
         """
         # Store the axes
         self.axes = axes
@@ -198,8 +199,14 @@ class Identify(object):
             A two element list containing the desired minimum and maximum wavelength of the linelist
         test : bool, optional
             If True, this is a unit test
+        nonlinear_counts : float, optional
+            Counts where the arc is presumed to go non-linear
+            Passed to arc_lines_from_spec()
         fwhm : float, optional
             FWHM of arc lines in pixels
+        pxtoler : float, optional
+            Tolerance in pixels for adding lines with the auto option
+
 
         Returns
         -------
@@ -634,7 +641,6 @@ class Identify(object):
         return wvcalib
 
     def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
-                       specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN",
                        force_save=False, wvcalib=None):
         """Check if the user wants to store this solution in the reid arxiv
 
@@ -644,19 +650,15 @@ class Identify(object):
         final_fit : dict
             Dict of wavelength calibration solutions (see self.get_results())
         master_dir : str
-            Master directory
+            Master directory -- NOT USED
         binspec : int
             Spectral binning
         rmstol : float
             RMS tolerance allowed for the wavelength solution to be stored in the archive
-        specname : str
-            Spectrograph name
-        gratname : str
-            Grating name
-        dispangl : str
-            Dispersor Angle (expressed as a name/string)
         force_save : bool
             Force save
+        wvcalib : :class:`pypeit.wavecalib.WaveCalib`
+            Wavelength solution
 
         """
         # Line IDs

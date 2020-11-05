@@ -5,7 +5,6 @@ import os
 from pkg_resources import resource_filename
 
 from astropy.time import Time
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
