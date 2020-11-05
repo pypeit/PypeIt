@@ -4,8 +4,8 @@
 Computes sensitivity function
 """
 
-import pypeit.scripts.tellfit as tellfit
+from pypeit.scripts import tellfit
 
 if __name__ == '__main__':
-    args = tellfit.parser()
-    tellfit.main(args)
+    tellfit.main(tellfit.parse_args())
+

@@ -9,7 +9,7 @@ TODO: Is there a way that we could define this link so that it's
 accessible by the docstring of all modules?
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 from collections import Counter
 
@@ -461,9 +461,9 @@ def most_common_trace_row(trace_bpm, valid_frac=1/3.):
     s,e = ((0.5 + np.array([-1,1])*valid_frac/2)*trace_bpm.shape[0]).astype(int)
     gpm = np.invert(trace_bpm[s:e,:])
     n_good = np.sum(gpm, axis=0)
-    if np.all(n_good == n_good[0]):
-        # All the traces have the same number of unmasked pixels at any
-        # spectral row, so use the central row
+    if np.all(n_good == e-s):
+        # Trace positions are all valid over this section of the
+        # detector, so just so use the central row
         return trace_bpm.shape[0]//2
 
     # Return the row with the most unmasked trace positions

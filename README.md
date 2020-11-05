@@ -41,7 +41,8 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * MMT/MMIRS (HK_zJ, J_zJ, and K_K tested)
 * MDM/OSMOS
 * Keck/DEIMOS (600ZD, 830G, 1200G)
-* Keck/LRIS 
+* Keck/KCWI (BM, BH2)
+* Keck/LRIS
 * Keck/MOSFIRE  (J and Y gratings tested)
 * Keck/NIRES
 * Keck/NIRSPEC (low-dispersion)

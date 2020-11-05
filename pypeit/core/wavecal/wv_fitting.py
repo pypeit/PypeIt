@@ -1,7 +1,7 @@
 """ Module for finding patterns in arc line spectra
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 """
 import numpy as np
@@ -339,7 +339,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Final fit (originals can now be rejected)
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
-                                   lower=sigrej_final, upper=sigrej_final,
+                                   lower=sigrej_final, upper=sigrej_final, maxrej=1, sticky=True,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
     irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:

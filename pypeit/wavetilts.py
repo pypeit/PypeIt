@@ -2,7 +2,8 @@
 Module for guiding Arc/Sky line tracing
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import copy

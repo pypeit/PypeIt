@@ -2,19 +2,20 @@
 """
 Built HTML for PYPIT QA
 """
-import argparse
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]')
+def parse_args(options=None, return_parser=False):
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("pypeit_file", type=str, help="PYPIT file")
     parser.add_argument("type", type=str, help="QA Type (MF, exp, all)")
     parser.add_argument("--qapath", type=str, default='QA/', help="Path the QA folder including QA/)")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args, unit_test=False, path=''):

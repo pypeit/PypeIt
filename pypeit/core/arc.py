@@ -1,7 +1,8 @@
 """
 Module with core arc-lamp methods.
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 
 import inspect

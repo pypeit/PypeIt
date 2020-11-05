@@ -13,7 +13,5 @@ from pypeit.scripts import ql_keck_nires
 import sys
 
 if __name__ == '__main__':
-    args = ql_keck_nires.parser()
-    rtval = ql_keck_nires.main(args)
-    sys.exit(rtval)
+    sys.exit(ql_keck_nires.main(ql_keck_nires.parse_args()))
 

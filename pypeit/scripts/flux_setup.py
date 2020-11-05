@@ -5,6 +5,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from pypeit import msgs
+from pypeit import io
 from pypeit.par.util import make_pypeit_file
 
 
@@ -16,8 +17,9 @@ class SmartFormatter(argparse.HelpFormatter):
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
+def parse_args(options=None, return_parser=False):
+    parser = argparse.ArgumentParser(description='Setup to perform flux calibration',
+                                     formatter_class=SmartFormatter)
     parser.add_argument("sci_path", type=str, help="Path for Science folder")
     parser.add_argument("--objmodel", type=str, default='qso', choices=['qso', 'star', 'poly'],
                         help="R|Science object model used in the telluric fitting.\n"
@@ -31,11 +33,10 @@ def parser(options=None):
                         "           and norder in the tell_file."
                         )
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -65,7 +66,7 @@ def main(args):
                 msgs.info('\t {:}'.format(spec2dfiles[ii]))
 
     if len(spec1dfiles) > 0:
-        par = fits.open(os.path.join(args.sci_path, spec1dfiles[0]))
+        par = io.fits_open(os.path.join(args.sci_path, spec1dfiles[0]))
 
         ## fluxing pypeit file
         spectrograph = par[0].header['PYP_SPEC']

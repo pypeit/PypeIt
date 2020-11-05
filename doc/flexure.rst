@@ -119,9 +119,12 @@ Alternate sky models
 You may find that the default sky models are not the best suited 
 for your data.There is a script that allows the user to plot the 
 extracted sky spectrum for their data against any of the sky models 
-in the PypeIt archive. To use this script::
+in the PypeIt archive.
 
-    pypeit_compare_sky <Name of 1D spectrum> <Name of sky model>
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_compare_sky.rst
 
 As noted above, the Paranal sky model is the default reference.
 Presently, we are finding that the sky spectrum at Mauna Kea (measured
@@ -131,10 +134,11 @@ Fair results are achieved by using the instrument-specific sky spectra
 in the LowRedux package. The best practice currently is to use the one 
 that best matches as an optional parameter
 
-You can use a different sky model than the default by placing the 
-following line under the ''Reduce'' block in your .pypeit file::
+.. THIS IS OUT OF DATE!
+.. You can use a different sky model than the default by placing the 
+.. following line under the ''Reduce'' block in your .pypeit file::
 
-    reduce flexure spectrum <Name of sky model>
+.. reduce flexure spectrum <Name of sky model>
 
 The models supplied with PypeIt are,
 

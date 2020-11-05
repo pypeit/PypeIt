@@ -90,8 +90,10 @@ def read_fluxfile(ifile):
     # Return
     return cfg_lines, spec1dfiles, sensfiles
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
+def parse_args(options=None, return_parser=False):
+
+    parser = argparse.ArgumentParser(description='Flux calibrate spectra',
+                                     formatter_class=SmartFormatter)
     parser.add_argument("flux_file", type=str,
                         help="R|File to guide fluxing process.\n"
                              "This file must have the following format: \n"
@@ -119,12 +121,10 @@ def parser(options=None):
     parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
 
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

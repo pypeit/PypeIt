@@ -5,7 +5,8 @@
 """
 Implements the bspline class
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 
 import copy

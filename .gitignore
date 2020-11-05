@@ -1,5 +1,9 @@
 # Folders#
 .idea/
+.vscode/
+build/*
+dist/*
+doc/build_
 
 # Compiled source #
 ###################
@@ -10,9 +14,12 @@
 *.exe
 *.o
 *.so
+*.pyd
 *.pyc
 *_rjc*
- 
+*.nbi
+*.nbc
+
 # Packages #
 ############
 # it's better to unpack these files and commit the raw source
@@ -25,13 +32,13 @@
 *.rar
 *.tar
 *.zip
- 
+
 # Logs and databases #
 ######################
 *.log
 *.sql
 *.sqlite
- 
+
 # OS generated files #
 ######################
 .DS_Store
@@ -49,6 +56,8 @@ Thumbs.db
 *.pytest_cache
 *.swp
 pypeit/_compiler.c
+pypeit/data/telluric/*.pckl
 pypeit/data/telluric/*.fits
 pypeit/data/telluric/*.fits.gz
 
+*.pckl

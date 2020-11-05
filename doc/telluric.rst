@@ -64,11 +64,16 @@ See `Parameters`_ for details.
 run
 ---
 
-Then run the script::
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_tellfit.rst
+
+Example script executions would be::
 
     pypeit_tellfit J1342_GNIRS.fits -t gemini_gnirs.tell
 
-    OR
+or::
 
     pypeit_tellfit J1342_GNIRS.fits --objmodel qso -r 7.52
 

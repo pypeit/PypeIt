@@ -13,15 +13,15 @@ import argparse
 import numpy as np
 
 from astropy.table import Table
-from astropy.io import fits
 
-from pypeit.core import gui
 from pypeit import msgs
-from pypeit.core.parse import get_dnum
+from pypeit import io
 from pypeit import slittrace
+from pypeit.core import gui
+from pypeit.core.parse import get_dnum
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in the'
                                                  'interactive object finding GUI.  Run above'
@@ -33,6 +33,9 @@ def parser(options=None):
                         action="store_true")
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -60,7 +63,7 @@ def main(args):
     raise NotImplementedError('This script is currently out of date.')
 
     # List only?
-    hdu = fits.open(args.file)
+    hdu = io.fits_open(args.file)
     head0 = hdu[0].header
     if args.list:
         hdu.info()
@@ -106,7 +109,7 @@ def main(args):
 
     # Assumes a MasterSlit file has been written
     #slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
-                                               mdir)
+    #                                           mdir)
     # Load the slits information
     slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 
@@ -117,7 +120,7 @@ def main(args):
     # Get object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
     if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
+        hdulist_1d = io.fits_open(spec1d_file)
     else:
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +

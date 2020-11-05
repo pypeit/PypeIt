@@ -7,9 +7,9 @@
 This script displays the Trace image and the traces
 in an RC Ginga window (must be previously launched)
 """
-import argparse
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
     parser = argparse.ArgumentParser(description='Display MasterAlignment image and the trace data',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -17,6 +17,9 @@ def parser(options=None):
                         help='PypeIt Master Alignment file [e.g. MasterAlignment_A_1_01.fits]')
     parser.add_argument('--chname', default='Alignments', type=str,
                         help='Channel name for image in Ginga')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

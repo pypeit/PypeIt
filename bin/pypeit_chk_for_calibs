@@ -10,8 +10,7 @@ This script examines a set of files and figures
 out which have sufficient calibrations and which do not!
 """
 
-import pypeit.scripts.chk_calibs as chk_calibs
+from pypeit.scripts import chk_for_calibs
 
 if __name__ == '__main__':
-    args = chk_calibs.parser()
-    chk_calibs.main(args)
+    chk_for_calibs.main(chk_for_calibs.parse_args())

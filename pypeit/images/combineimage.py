@@ -1,7 +1,7 @@
 """ Class to generate an image from one or more files (and other pieces).
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 import inspect

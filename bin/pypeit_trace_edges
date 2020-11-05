@@ -13,5 +13,5 @@ from pypeit.scripts import trace_edges
 import sys
 
 if __name__ == '__main__':
-    sys.exit(trace_edges.main(trace_edges.parser()))
+    sys.exit(trace_edges.main(trace_edges.parse_args()))
 

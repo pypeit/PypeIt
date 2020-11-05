@@ -4,7 +4,8 @@
 """
 Module implements a set of basis functions for fitting.
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 from IPython import embed
 

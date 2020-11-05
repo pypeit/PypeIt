@@ -18,8 +18,14 @@ Inspecting
 ==========
 
 PypeIt provides the `pypeit_chk_flats` script to inspect
-the key `MasterFlat`_ outputs.  See below
+the key `MasterFlat`_ outputs.
 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_flats.rst
+
+.. _pypeit_chk_flats:
 
 pypeit_chk_flats
 ----------------

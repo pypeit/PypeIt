@@ -40,6 +40,8 @@ spectrum.  Fits to the identified lines (vs. pixel) are
 performed with the same, iterative algorithm to generate
 the final wavelength solution.
 
+.. _wvcalib-holygrail:
+
 Holy Grail
 ----------
 
@@ -92,15 +94,16 @@ observations, long-slit observations where wavelengths
 vary (e.g. grating tilts).  We are likely to implement
 this for echelle observations (e.g. HIRES).
 
+.. _wvcalib-byhand:
+
 By-Hand Approach
 ================
-
 
 Identify
 --------
 
 If you would prefer to manually wavelength calibrate, then
-you can do so with the 'identify' task. To launch this task,
+you can do so with the 'pypeit_identify' task. To launch this task,
 you need to have successfully traced the slit edges (i.e. a
 :doc:`master_edges` file must exist), and generated a
 :doc:`master_arc`
@@ -112,31 +115,10 @@ pypeit_identify
 usage
 -----
 
-Here is the usage::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
-                           [--slit SLIT] [--det DET] [--rmstol RMSTOL]
-                           arc_file slits_file
-
-    Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
-    above the Masters/ folder
-
-    positional arguments:
-      arc_file         PypeIt MasterArc file
-      slits_file       PypeIt MasterSlits file
-
-    optional arguments:
-      -h, --help       show this help message and exit
-      --lamps LAMPS    Comma separated list of calibration lamps (no spaces)
-                       (default: None)
-      -s, --solution   Load a wavelength solution from the arc_file (if it exists)
-                       (default: False)
-      --wmin WMIN      Minimum wavelength range (default: 3000.0)
-      --wmax WMAX      Maximum wavelength range (default: 10000.0)
-      --slit SLIT      Which slit to load for wavelength calibration (default: 0)
-      --det DET        Detector index (default: 1)
-      --rmstol RMSTOL  RMS tolerance (default: 0.1)
-
+.. include:: help/pypeit_identify.rst
 
 To launch the GUI, use the following command:
 
@@ -144,42 +126,84 @@ To launch the GUI, use the following command:
 
     pypeit_identify MasterArc_A_1_01.fits MasterSlits_A_1_01.fits.gz
 
+basics
+------
+
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
+You might find it helpful to specify the wavelength range of the
+linelist and the lamps to use using the pypeit_identify command
+line options.
 
-Once you have completed the manual calibration, you can save
-your solution (press key 's' while hovering over the plotting
-window). The, update your .pypeit file with the following:
+Here is a standard sequence of moves once the GUI pops up:
 
-.. code-block:: ini
+0. Load an existing ID list if you made one already (type 'l').
+   If so, skip to step 7.
+1. Compare the arc lines to a calibrated spectrum
+2. Use the Magnifying glass to zoom in on one you recognize and
+   which is in the PypeIt linelist(s)
+3. To select a line, use 'm' to mark the line near the cursor,
+   or use a left mouse button click near the line (a red line
+   will appear on the selected line)
+4. Use the slider bar to select the wavelength (vacuum)
+5. Click on Assign Line (it will be blue when you move the mouse back in
+   the plot window)
+6. Repeat steps 1-5 until you have identified 4+ lines across the spectrum
+7. Use 'f' to fit the current set of lines
+8. Use '+/-' to modify the order of the polyonmial fit
+9. Use 'a' to auto ID the rest
+10. Use 'f' to fit again
+11. Use 's' to save the line IDs and the wavelength solution if the
+    RMS of the latter is within tolerance.
 
-    [calibrations]
-      [[wavelengths]]
-        method=identify
+Some tips: Pressing the left/right keys will advance the
+line list by one. You may find it helpful to toggle between
+pixel coordinates and wavelength coordinates (use the 'w' key
+to toggle between these two settings). Wavelength coordinates
+can only be accessed once you have a preliminary fit to the
+spectrum. When plotting in wavelength coordinates, you can
+overplot a 'ghost' spectrum (press the 'g' key to activate
+or deactivate) based on the linelist which may help you to
+identify lines. You can shift and stretch the ghost spectrum
+by clicking and dragging the left and right mouse buttons,
+respectively (if you're not in 'pan' mode). To reset the
+shift/stretch, press the 'h' key.
 
-and a GUI will be launched during the reduction. You can now
-load your manual wavelength solution by pressing the 'l' key
-while hovering over the plotting window.
-
-Alternatively, you can add your solution to the PypeIt database.
 If your solution is good enough (rms < 0.1 pixels), then
-`pypeit_identify`_ will automatically prompt you after you quit the
-GUI to see if you'd like to add your solution to the PypeIt
-database.
+`pypeit_identify`_ will automatically prompt you after you
+quit the GUI to see if you want to save the solution. Note,
+you can increase this tolerance using the command line option
+`pixtol`, or by setting the `force_save` command line option.
 
-If so, you will need to move the output file into
-the master directory, which will be similar to the following
-directory:
+To use this wavelength solution in your reduction, you will
+need to add your solution to the PypeIt database. To do this,
+you will need to move the output file into the master directory,
+which will be similar to the following directory:
 
 ``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
 
-Once your solution is in the database, run PypeIt
-in the standard :ref:`wvcalib-fulltemplate` mode.
+Once your solution is in the database, you will be able to
+run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
+Make sure you add the following line to your pypeit file:
+
+[calibrations]
+  [[wavelengths]]
+    reid_arxiv = name_of_your_solution.fits
 
 We also recommend that you send your solution to the
-PypeIt development (e.g. post it on GitHub) team,
-so that others can benefit from your wavelength
+PypeIt development (e.g. post it on GitHub or the Users Slack)
+team, so that others can benefit from your wavelength
 calibration solution.
+
+customizing
+-----------
+
+If your arclines are over-sampled (e.g. Gemini/GMOS)
+you may need to increase the `fwhm` from the default value of 4.
+And also the pixel tolerance `pixtol` for auto ID'ng lines
+from its default of 0.1 pixels.
+And the `rmstol`, if you wish to save the solution to disk!
+
 
 
 Common Failure Modes
@@ -190,7 +214,7 @@ or if the calibrations for Echelle are considerably
 different from expectation.
 
 As regards Multislit, the standard failure modes of
-the :ref:`full-template` method that is now preferred
+the :ref:`wvcalib-fulltemplate` method that is now preferred
 are:
 
  1. The lamps used are different from those archived.
@@ -202,13 +226,18 @@ If you are confident this is the case, raise an Issue.
 Items to Modify
 ===============
 
+There are several parameters in the Wavelength Calibration
+:ref:`pypeit_par:WavelengthSolutionPar Keywords` that one
+needs to occasionally customize for your specific observations.
+We describe the most common below.
+
 FWHM
 ----
 
-The arc lines are identified and fitted with ane
+The arc lines are identified and fitted with an
 expected knowledge of their FWHM (future versions
 should solve for this).  A fiducial value for a
-standard slit is assume for each instrument but
+standard slit is assumed for each instrument but
 if you are using particularly narrow/wide slits
 than you may need to modify::
 
@@ -255,41 +284,44 @@ By default, the code will calculate a flexure shift based on the
 extracted sky spectrum (boxcar). See :doc:`flexure` for
 further details.
 
-Wavelength Frame
-================
-
-THESE ARE OUT OF DATE
-
-PypeIt offers several frames of reference that can used for the
-wavelength scale. The first choice is whether you would like the
-data to be calibrated to air or vacuum wavelengths. This option
-is controlled by the argument::
-
-    reduce calibrate wavelength air
-
-where the default value is to calibrate to vacuum. You can also
-specify 'pixel', which will save the pixel values instead of the
-wavelength values (i.e. a wavelength calibration will not be
-performed).  The calibration follows the Ciddor schema
-(Ciddor 1996, Applied Optics 62, 958).
-
-
-You can also choose if you want the wavelength scale corrected
-to the heliocentric (Sun-centered), barycentric (Solar system
-barycentre), or topocentric (telescope centered). None is also
-an option, but this defaults to topocentric. This option
-is governed by the command::
-
-    reduce calibrate refframe barycentric
-
-where the default value is a heliocentric wavelength scale.
-More details are provided in :doc:`heliocorr`.
-
+.. _wvcalib-develop:
 
 Developers
 ==========
 
-.. _full-template:
+Adding a new Solution
+---------------------
+
+When adding a new instrument or grating, one generally has
+to perform a series of steps to enable accurate and precise
+wavelength calibration with PypeIt.  We recommend the following
+procedure, when possible:
+
+- Perform wavelength calibration with a previous pipeline
+   * Record a calibrated, arc spectrum, i.e. wavelength vs. counts
+   * In vaccuum or convert from air to vacuum
+
+- If no other DRP exists..
+   * Try running PypeIt with the :ref:`wvcalib-holygrail` algorithm and use that output
+   * And if that fails, generate a solution with the :ref:`wvcalib-byhand`
+
+- Build a template from the arc spectrum
+   * For fixed-format spectrographs, one spectrum (or one per order) should
+     be sufficient.
+   * For gratings that tilt, one may need to splice together a series
+     of arc spectra to cover the full spectral range.
+   * See examples in the `templates.py` module.
+
+- Augment the line list
+   * We are very conservative about adding new lines to the existing line lists.
+     One bad line can have large, negative consequences.
+   * Therefore, carefully vet the line by insuring it is frequently
+     detected
+   * And that it does not have large systematic residuals in good
+     wavelength solutions.
+   * Then add to one of the files in data/arc_lines/lists
+
+.. _full-template-dev:
 
 Full Template Dev
 -----------------
@@ -335,8 +367,14 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
-Validation
-==========
 
-See the iPython Notebook under test_suite for a comparison of the
-wavelength solution for PypeIt vs. LowRedux.
+Additional Reading
+==================
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   flexure
+   heliocorr
+   wavetilts

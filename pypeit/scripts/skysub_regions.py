@@ -9,17 +9,8 @@ and define the sky background regions interactively.
 Run above the Science/ folder.
 """
 
-import os
-import argparse
-
-from pypeit.core.gui.skysub_regions import SkySubGUI
-from pypeit.core import flexure
-from pypeit.scripts import utils
-from pypeit import masterframe
-from pypeit.images import buildimage
-
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
 
     parser = argparse.ArgumentParser(description='Display a Raw science image and interactively define'
                                                  'the sky regions using a GUI. Run in the same folder'
@@ -37,10 +28,21 @@ def parser(options=None):
     parser.add_argument('-s', '--standard', default=False, action='store_true',
                         help='List standard stars as well?')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
+
+    import os
+
+    from pypeit.core.gui.skysub_regions import SkySubGUI
+    from pypeit.core import flexure
+    from pypeit.scripts import utils
+    from pypeit import masterframe
+    from pypeit.images import buildimage
 
     # Generate a utilities class
     info = utils.Utilities(args.file, args.det)

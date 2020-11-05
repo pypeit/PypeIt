@@ -37,6 +37,8 @@ Configuration`_ are listed below.
    point to the relevant location on disk of whoever generated the
    documentation, which will be different for your installation.
 
+.. _change_par:
+
 How to change a parameter
 =========================
 
@@ -319,6 +321,9 @@ Key                          Type              Options                          
 ``mask_reg_maxiter``         int               ..                                           ..              Maximum number of fit iterations to perform for registering slit-mask design and trace locations. If None, rejection iterations are performed until no points are rejected. If 1, only a single fit is performed without any rejection.                                                                                                                                                                                                                                                                                                                                           
 ``mask_reg_maxsep``          int, float        ..                                           ..              Maximum allowed separation between the calibrated coordinates of the designed slit position in pixels and the matched trace. If None, rejection is done iteratively using sigma clipping.  See mask_reg_sigrej.                                                                                                                                                                                                                                                                                                                                                                   
 ``mask_reg_sigrej``          int, float        ..                                           5               Number of sigma for sigma-clipping during rejection iterations during the slit-mask design registration. If None, uses default set by `astropy.stats.sigma_clipped_stats`.                                                                                                                                                                                                                                                                                                                                                                                                        
+``maskdesign_maxsep``        int, float        ..                                           50              Maximum allowed offset in pixels between the slit edges defined by the slit-mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+``maskdesign_sigrej``        int, float        ..                                           3               Number of sigma for sigma-clipping rejection during slit-mask design matching.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``maskdesign_step``          int, float        ..                                           1               Step in pixels used to generate a list of possible offsets (within +/- `maskdesign_maxsep`) between the slit edges defined by the mask design and the traced edges.                                                                                                                                                                                                                                                                                                                                                                                                               
 ``match_tol``                int, float        ..                                           3.0             Same-side slit edges below this separation in pixels are considered part of the same edge.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``max_nudge``                int               ..                                           ..              If parts of any (predicted) trace fall off the detector edge, allow them to be nudged away from the detector edge up to and including this maximum number of pixels.  If None, no limit is set; otherwise should be 0 or larger.                                                                                                                                                                                                                                                                                                                                                  
 ``max_shift_abs``            int, float        ..                                           0.5             Maximum spatial shift in pixels between an input edge location and the recentroided value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
@@ -348,6 +353,7 @@ Key                          Type              Options                          
 ``sync_to_edge``             bool              ..                                           True            If adding a first left edge or a last right edge, ignore `center_mode` for these edges and place them at the edge of the detector (with the relevant shape).                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``trace_median_frac``        int, float        ..                                           ..              After detection of peaks in the rectified Sobel-filtered image and before refitting the edge traces, the rectified image is median filtered with a kernel width of `trace_median_frac*nspec` along the spectral dimension.                                                                                                                                                                                                                                                                                                                                                        
 ``trace_thresh``             int, float        ..                                           ..              After rectification and median filtering of the Sobel-filtered image (see `trace_median_frac`), values in the median-filtered image *below* this threshold are masked in the refitting of the edge trace data.  If None, no masking applied.                                                                                                                                                                                                                                                                                                                                      
+``use_maskdesign``           bool              ..                                           False           Use slit-mask designs to identify slits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ===========================  ================  ===========================================  ==============  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -398,7 +404,6 @@ Key                   Type                       Options                        
 ``ech_nspec_coeff``   int                        ..                                                                                                      4                 For echelle spectrographs, this is the order of the final 2d fit to the spectral dimension.  You should choose this to be the n_final of the fits to the individual orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``ech_sigrej``        int, float                 ..                                                                                                      2.0               For echelle spectrographs, this is the sigma-clipping rejection threshold in the 2d fit to spectral and order dimensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``echelle``           bool                       ..                                                                                                      False             Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function of spectral pixel and order number to improve the wavelength solution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``frame``             str                        ``observed``, ``heliocentric``, ``barycentric``                                                         ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``func``              str                        ..                                                                                                      ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``fwhm``              int, float                 ..                                                                                                      4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use None for no calibration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
@@ -413,6 +418,7 @@ Key                   Type                       Options                        
 ``nsnippet``          int                        ..                                                                                                      2                 Number of spectra to chop the arc spectrum into when ``method`` is 'full_template'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
 ``numsearch``         int                        ..                                                                                                      20                Number of brightest arc lines to search for in preliminary identification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ``reference``         str                        ``arc``, ``sky``, ``pixel``                                                                             ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``refframe``          str                        ``observed``, ``heliocentric``, ``barycentric``                                                         ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``reid_arxiv``        str                        ..                                                                                                      ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification.  Only used if ``method`` is 'reidentify'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``rms_threshold``     float, list, ndarray       ..                                                                                                      0.15              Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``sigdetect``         int, float, list, ndarray  ..                                                                                                      5.0               Sigma threshold above fluctuations for arc-line detection.  Arcs are continuum subtracted and the fluctuations are computed after continuum subtraction.  This can be a single number or a vector (list or numpy array) that provides the detection threshold for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
@@ -514,19 +520,19 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
-``slitspatnum``         str, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_orig``, ``keck_lris_blue_orig``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``keck_kcwi``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``, ``mmt_mmirs``, ``mdm_osmos_mdm4k``, ``not_alfosc``, ``p200_dbsp_blue``, ``p200_dbsp_red``  ..                                            Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_orig, keck_lris_blue_orig, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, keck_kcwi, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec, mmt_mmirs, mdm_osmos_mdm4k, not_alfosc, p200_dbsp_blue, p200_dbsp_red
-======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``slitspatnum``         str, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_orig``, ``keck_lris_blue_orig``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``keck_kcwi``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``, ``mmt_mmirs``, ``mdm_osmos_mdm4k``, ``not_alfosc``, ``p200_dbsp_blue``, ``p200_dbsp_red``, ``p200_tspec``  ..                                            Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_orig, keck_lris_blue_orig, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, keck_kcwi, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec, mmt_mmirs, mdm_osmos_mdm4k, not_alfosc, p200_dbsp_blue, p200_dbsp_red, p200_tspec
+======================  ==========  ====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -554,16 +560,25 @@ CubePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.CubePar`
 
-=================  ==========  =======  =======  ============================================================================================================================================================================================
-Key                Type        Options  Default  Description                                                                                                                                                                                 
-=================  ==========  =======  =======  ============================================================================================================================================================================================
-``cube_spat_num``  int, float  ..       ..       Number of pixels in the spatial dimension. If None, the number ofpixels in the spatial direction of the slit will be used. If youare reducing fibre IFU data, this parameter will be ignored
-``cube_wave_max``  float       ..       ..       Maximum wavelength to use. If None, default is maximum wavelengthbased on wavelength solution of all spaxels                                                                                
-``cube_wave_min``  float       ..       ..       Minimum wavelength to use. If None, default is minimum wavelengthbased on wavelength solution of all spaxels                                                                                
-``cube_wave_num``  int, float  ..       ..       Number of pixels in the wavelength dimension. If None, the numberof pixels in the spectral direction on the raw science frame willbe used.                                                  
-``make_cube``      bool        ..       True     Set this to False if you do not wish to generate a data cube.                                                                                                                               
-``slit_spec``      bool        ..       True     If the data use slits in one spatial direction, set this to True.If the data uses fibres for all spaxels, set this to False.                                                                
-=================  ==========  =======  =======  ============================================================================================================================================================================================
+====================  =====  =======  =================  =======================================================================================================================================================================================================================================================
+Key                   Type   Options  Default            Description                                                                                                                                                                                                                                            
+====================  =====  =======  =================  =======================================================================================================================================================================================================================================================
+``combine``           bool   ..       True               If set to True, the input frames will be combined. Otherwise, a separatedatacube will be generated for each input spec2d file.                                                                                                                         
+``dec_max``           float  ..       ..                 Maximum DEC to use when generating the WCS. If None, the default is maximum DECbased on the WCS of all spaxels. Units should be degrees.                                                                                                               
+``dec_min``           float  ..       ..                 Minimum DEC to use when generating the WCS. If None, the default is minimum DECbased on the WCS of all spaxels. Units should be degrees.                                                                                                               
+``output_filename``   str    ..       ``datacube.fits``  Output filename of the combined datacube.                                                                                                                                                                                                              
+``ra_max``            float  ..       ..                 Maximum RA to use when generating the WCS. If None, the default is maximum RAbased on the WCS of all spaxels. Units should be degrees.                                                                                                                 
+``ra_min``            float  ..       ..                 Minimum RA to use when generating the WCS. If None, the default is minimum RAbased on the WCS of all spaxels. Units should be degrees.                                                                                                                 
+``reference_cube``    str    ..       ..                 Filename of another datacube. The WCS of the specified datacube willbe used to construct the WCS of the newly combined datacube.                                                                                                                       
+``reference_image``   str    ..       ..                 White light image of a previously combined datacube. The white lightimage will be used as a reference when calculating the offsets of theinput spec2d files.                                                                                           
+``relative_weights``  bool   ..       False              If set to True, the combined frames will use a relative weighting scheme.This only works well if there is a common continuum source in the field ofview of all input observations, and is generally only required if highrelative precision is desired.
+``save_whitelight``   bool   ..       False              Save a white light image of the combined datacube. The output filenamewill be given by the "output_filename" variable with a suffix "_whitelight".                                                                                                     
+``slit_spec``         bool   ..       True               If the data use slits in one spatial direction, set this to True.If the data uses fibres for all spaxels, set this to False.                                                                                                                           
+``spatial_delta``     float  ..       ..                 The spatial size of each spaxel to use when generating the WCS (in arcsec).If None, the default is set by the spectrograph file.                                                                                                                       
+``wave_delta``        float  ..       ..                 The wavelength step to use when generating the WCS (in Angstroms).If None, the default is set by the wavelength solution.                                                                                                                              
+``wave_max``          float  ..       ..                 Maximum wavelength to use when generating the WCS. If None, the default ismaximum wavelength based on the WCS of all spaxels. Units should be Angstroms.                                                                                               
+``wave_min``          float  ..       ..                 Minimum wavelength to use when generating the WCS. If None, the default isminimum wavelength based on the WCS of all spaxels. Units should be Angstroms.                                                                                               
+====================  =====  =======  =================  =======================================================================================================================================================================================================================================================
 
 
 ----
@@ -643,6 +658,8 @@ Key                  Type        Options  Default  Description
 ``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                           
 ``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits.                                                                                                                                                                                                                                                                                                                                         
 ``load_mask``        bool        ..       False    Load a user-defined sky regions mask to be used for the sky regions. Note,if you set this to True, you must first run the pypeit_skysub_regions GUIto manually select and store the regions to file.                                                                                                                                                                                                               
+``mask_by_boxcar``   bool        ..       False    In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).                                                                                                                                                                                                                                                                                                       
+``no_local_sky``     bool        ..       False    If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction                                                                                                                                                                                                                                                                                                             
 ``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                     
 ``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                      
 ``user_regions``     str, list   ..       ..       A user-defined sky regions mask can be set using this keyword. To allowthe code to identify the sky regions automatically, set this variable toan empty string. If you wish to set the sky regions, The text should bea comma separated list of percentages to apply to _all_ slits For example: The following string   :10,35:65,80:   would select thefirst 10%, the inner 30%, and the final 20% of _all_ slits.
@@ -822,6 +839,8 @@ Key                      Type           Options  Default                        
 
 
 
+ .. _instr_par:
+
 Instrument-Specific Default Configuration
 +++++++++++++++++++++++++++++++++++++++++
 
@@ -839,7 +858,6 @@ Alterations to the default parameters are::
       spectrograph = keck_deimos
   [calibrations]
       [[biasframe]]
-          exprng = None, 2
           [[[process]]]
               apply_gain = False
               combine = median
@@ -847,7 +865,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 999999, None
           [[[process]]]
               apply_gain = False
               use_biasimage = False
@@ -867,7 +884,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
           [[[process]]]
               combine = median
               satpix = nothing
@@ -876,7 +892,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
-          exprng = 999999, None
           [[[process]]]
               use_biasimage = False
       [[alignframe]]
@@ -887,7 +902,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -912,7 +926,6 @@ Alterations to the default parameters are::
           minimum_slit_length_sci = 4.0
           minimum_slit_gap = 0.25
   [scienceframe]
-      exprng = 30, None
       [[process]]
           mask_cr = True
           sigclip = 4.0
@@ -920,6 +933,9 @@ Alterations to the default parameters are::
           use_biasimage = False
   [flexure]
       spec_method = boxcar
+  [sensfunc]
+      [[IR]]
+          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK LRISb (``keck_lris_blue``)
 -------------------------------
@@ -955,7 +971,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -969,7 +985,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -979,6 +995,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -997,7 +1014,7 @@ Alterations to the default parameters are::
           sync_center = gap
           minimum_slit_length_sci = 6
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           spat_flexure_correct = True
@@ -1038,7 +1055,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1052,7 +1069,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1062,6 +1079,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1081,7 +1099,7 @@ Alterations to the default parameters are::
           maxdev2d = 1.0
           sigrej2d = 5.0
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           sigclip = 5.0
@@ -1127,7 +1145,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1141,7 +1159,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1151,6 +1169,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1170,7 +1189,7 @@ Alterations to the default parameters are::
           maxdev2d = 1.0
           sigrej2d = 5.0
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           sigclip = 5.0
@@ -1216,7 +1235,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1230,7 +1249,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1240,6 +1259,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1258,7 +1278,7 @@ Alterations to the default parameters are::
           sync_center = gap
           minimum_slit_length_sci = 6
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           spat_flexure_correct = True
@@ -1748,6 +1768,8 @@ Alterations to the default parameters are::
           joint_fit = True
       [[extraction]]
           skip_optimal = True
+  [flexure]
+      spec_method = slitcen
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -4403,11 +4425,15 @@ Alterations to the default parameters are::
           method = full_template
           lamps = FeI, FeII, ArI, ArII
       [[slitedges]]
+          fit_min_spec_length = 0.55
           sync_predict = nearest
   [scienceframe]
       exprng = 90, None
       [[process]]
           mask_cr = True
+  [sensfunc]
+      [[UVIS]]
+          nresln = 5
 
 P200 DBSPr (``p200_dbsp_red``)
 ------------------------------
@@ -4483,4 +4509,125 @@ Alterations to the default parameters are::
           mask_cr = True
           sigclip = 4.0
           objlim = 1.5
+  [sensfunc]
+      [[UVIS]]
+          polycorrect = False
+      [[IR]]
+          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Lick_3100_11100_R10000.fits
+
+P200 TSPEC (``p200_tspec``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = p200_tspec
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 0, None
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 100, None
+          [[[process]]]
+              sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          exprng = 100, None
+          [[[process]]]
+              sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 60
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[wavelengths]]
+          method = reidentify
+          echelle = True
+          ech_norder_coeff = 6
+          ech_sigrej = 3.0
+          lamps = OH_NIRES
+          fwhm = 5.0
+          reid_arxiv = p200_triplespec.fits
+          rms_threshold = 0.3
+          n_final = 3, 4, 4, 4, 4
+      [[slitedges]]
+          fit_min_spec_length = 0.3
+          left_right_pca = True
+          trace_thresh = 5.0
+          fwhm_gaussian = 4.0
+      [[tilts]]
+          tracethresh = 10.0
+  [scienceframe]
+      exprng = 60, None
+      [[process]]
+          satpix = nothing
+          mask_cr = True
+          sigclip = 20.0
+          use_biasimage = False
+          use_overscan = False
+          use_illumflat = False
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 0.8
+      [[extraction]]
+          boxcar_radius = 0.75
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 

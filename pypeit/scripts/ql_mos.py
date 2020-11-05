@@ -6,35 +6,36 @@
 """
 This script runs PypeIt on a set of MultiSlit images
 """
-import argparse
 
-from pypeit import msgs
+def parse_args(options=None, return_parser=False):
+    import argparse
 
-import warnings
-
-def parser(options=None):
-
-    parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of MOS files')
+    parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of '
+                                                 'MOS files',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('spectrograph', type=str, help='Name of spectograph, e.g. shane_kast_blue')
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('arc', type=str, help='Arc frame filename')
     parser.add_argument('flat', type=str, help='Flat frame filename')
     parser.add_argument('science', type=str, help='Science frame filename')
-    parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction (arcsec)')
-    parser.add_argument('-d', '--det', type=int, default=1, help='Detector number. Cannot use with --slit_spat')
-    parser.add_argument("--ignore_headers", default=False, action="store_true",
-                        help="Ignore bad headers?")
-    parser.add_argument("--user_pixflat", type=str, help="Use a user-supplied pixel flat (e.g. keck_lris_blue)")
-    parser.add_argument("--slit_spat", type=str, help="Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175")
+    parser.add_argument('-b', '--box_radius', type=float,
+                        help='Set the radius for the boxcar extraction (arcsec)')
+    parser.add_argument('-d', '--det', type=int, default=1,
+                        help='Detector number. Cannot use with --slit_spat')
+    parser.add_argument('--ignore_headers', default=False, action='store_true',
+                        help='Ignore bad headers?')
+    parser.add_argument('--user_pixflat', type=str,
+                        help='Use a user-supplied pixel flat (e.g. keck_lris_blue)')
+    parser.add_argument('--slit_spat', type=str,
+                        help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175')
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    return pargs
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def main(pargs):
+def main(args):
 
     import os
     import numpy as np
@@ -46,21 +47,21 @@ def main(pargs):
     from pypeit.core import framematch
     from pypeit import msgs
 
-    spec = pargs.spectrograph
+    spec = args.spectrograph
 
     # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
-    if pargs.slit_spat is not None:
+    if args.slit_spat is not None:
         msgs.info("--slit_spat provided.  Ignoring --det")
     else:
-        cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+        cfg_lines += ['    detnum = {0}'.format(args.det)]
     # Restrict on slit
-    if pargs.slit_spat is not None:
-        cfg_lines += ['    slitspatnum = {0}'.format(pargs.slit_spat)]
+    if args.slit_spat is not None:
+        cfg_lines += ['    slitspatnum = {0}'.format(args.slit_spat)]
     # Allow for bad headers
-    if pargs.ignore_headers:
+    if args.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
     cfg_lines += ['    [[process]]']
@@ -70,23 +71,23 @@ def main(pargs):
     cfg_lines += ['    use_biasimage = False']
     cfg_lines += ['[calibrations]']
     # Input pixel flat?
-    if pargs.user_pixflat is not None:
+    if args.user_pixflat is not None:
         cfg_lines += ['    [[flatfield]]']
-        cfg_lines += ['        pixelflat_file = {0}'.format(pargs.user_pixflat)]
+        cfg_lines += ['        pixelflat_file = {0}'.format(args.user_pixflat)]
     # Reduction restrictions
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
     # Set boxcar radius
-    if pargs.box_radius is not None:
-        cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
+    if args.box_radius is not None:
+        cfg_lines += ['    boxcar_radius = {0}'.format(args.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['         skip_second_find = True']
 
     # Data files
-    data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
-                  os.path.join(pargs.full_rawpath, pargs.flat),
-                  os.path.join(pargs.full_rawpath,pargs.science)]
+    data_files = [os.path.join(args.full_rawpath, args.arc),
+                  os.path.join(args.full_rawpath, args.flat),
+                  os.path.join(args.full_rawpath,args.science)]
 
     # Setup
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
@@ -96,8 +97,9 @@ def main(pargs):
     bm = framematch.FrameTypeBitMask()
     file_bits = np.zeros(3, dtype=bm.minimum_dtype())
     file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
-    file_bits[1] = bm.turn_on(file_bits[1],
-                              ['pixelflat', 'trace', 'illumflat'] if pargs.user_pixflat is None else ['trace', 'illumflat'])
+    file_bits[1] = bm.turn_on(file_bits[1], ['pixelflat', 'trace', 'illumflat']
+                                             if args.user_pixflat is None 
+                                             else ['trace', 'illumflat'])
     file_bits[2] = bm.turn_on(file_bits[2], 'science')
 
     # PypeItSetup sorts according to MJD
@@ -116,7 +118,7 @@ def main(pargs):
     ps.fitstbl['setup'] = 'A'
 
     # Write
-    ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
+    ofiles = ps.fitstbl.write_pypeit(configs='A', write_bkg_pairs=True, cfg_lines=cfg_lines)
     if len(ofiles) > 1:
         msgs.error("Bad things happened..")
 

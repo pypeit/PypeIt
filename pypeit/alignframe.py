@@ -2,7 +2,7 @@
 Module for generating an Alignment image to map constant spatial locations
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import inspect
 import numpy as np
