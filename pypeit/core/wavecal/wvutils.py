@@ -6,6 +6,7 @@
 
 """
 import numpy as np
+import os
 import numba as nb
 
 from matplotlib import pyplot as plt
@@ -15,6 +16,9 @@ import scipy
 from scipy.optimize import curve_fit
 from pypeit import msgs
 from IPython import embed
+
+from astropy.table import Table
+
 
 from pypeit.core import arc
 
