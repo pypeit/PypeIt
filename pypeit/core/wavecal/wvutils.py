@@ -558,3 +558,44 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     return wave_grid
 
+
+
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
+    """
+    Write the template spectrum into a binary FITS table
+
+    Args:
+        nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
+        nwspec (`numpy.ndarray`_):
+            Flux of the template
+        binspec (int):
+            Binning of the template
+        outpath (str):
+        outroot (str):
+        det_cut (bool, optional):
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
+        overwrite (bool, optional):
+            If True, overwrite any existing file
+    """
+    tbl = Table()
+    tbl['wave'] = nwwv
+    tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
+    tbl.meta['BINSPEC'] = binspec
+    # Detector snippets??
+    if det_cut is not None:
+        tbl['det'] = 0
+        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
+            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
+            deti = np.sum([2**ii for ii in dets])
+            tbl['det'][gdwv] += deti
+    # Write
+    outfile = os.path.join(outpath, outroot)
+    tbl.write(outfile, overwrite=overwrite)
+    print("Wrote: {}".format(outfile))
