@@ -23,6 +23,7 @@ Contents
    master_arc
    master_tilt
    master_edges
+   master_slits
    master_wvcalib
    master_tilts
    master_flat
