@@ -288,9 +288,6 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     # Return
     return outroot
 
-def write_template():
-    pass
-
 #####################################################################################################
 #####################################################################################################
 ## Low-Redux routines
