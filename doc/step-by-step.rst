@@ -1,3 +1,5 @@
+.. _step_by_step:
+
 ====================
 Step by Step Example
 ====================
