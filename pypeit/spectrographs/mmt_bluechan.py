@@ -143,7 +143,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI', 'ThAr']
+        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Tilt and slit parameters
@@ -266,8 +266,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         hdu = fits.open(fil[0])
         hdr = hdu[0].header
 
-        # we're flipping FITS x/y to pypeit y/x here...
-        rawdata = hdu[0].data.astype(float).transpose()
+        # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the bottom, slit bottom on the right...
+        rawdata = np.fliplr(hdu[0].data.astype(float).transpose())
 
         exptime = hdr['EXPTIME']
 
@@ -289,7 +289,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         oscansec_img = np.zeros_like(rawdata, dtype=int)
 
         # trim bad sections at beginning of data and bias sections
-        rawdatasec_img[xdata1+2:xdata2, ydata1-1:ydata2] = 1
-        oscansec_img[xbias1+2:xbias2, ybias1-1:ybias2] = 1
+        rawdatasec_img[xdata1+2:xdata2, ydata1:ydata2-1] = 1
+        oscansec_img[xbias1+2:xbias2, ybias1:ybias2-1] = 1
 
         return detector_par, rawdata, hdu, exptime, rawdatasec_img, oscansec_img
