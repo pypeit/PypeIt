@@ -27,7 +27,7 @@ Underlying the effort is the :class:`pypeit.edgetrace.EdgeTraceSet` class.
 Viewing
 =======
 
-See :doc:`master_edges` for notes on how to view the
+See :doc:`master_edges` and :doc:`master_slits` for notes on how to view the
 outputs related to `Slit Tracing`_.
 
 Script

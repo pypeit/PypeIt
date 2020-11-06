@@ -5000,6 +5000,7 @@ class EdgeTraceSet(DataContainer):
             self._fill_objects_table(_maskdef_id)
             _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
             _merged_designtab.sort('TRACEID')
+            _merged_designtab.remove_column('SLITINDX')
         else:
             _maskdef_id = None
             _merged_designtab = None
