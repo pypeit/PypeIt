@@ -1,6 +1,6 @@
 .. include:: include/links.rst
 
-.. _master-slits:
+.. _master_slits:
 
 ===========
 MasterSlits
