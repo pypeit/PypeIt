@@ -562,18 +562,25 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
     return wave_grid
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
+                   order=None, overwrite=True):
     """
     Write the template spectrum into a binary FITS table
 
     Args:
         nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
         nwspec (`numpy.ndarray`_):
-        binspec (float):
+            Flux of the template
+        binspec (int):
+            Binning of the template
         outpath (str):
         outroot (str):
         det_cut (bool, optional):
-        order:
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
         overwrite (bool, optional):
             If True, overwrite any existing file
     """
