@@ -39,6 +39,12 @@
 - Refactor identify GUI and improve its docs
 - Modest refactoring of templates.py
 - Construction of wavelength arxiv files for DEIMOS 1200B and blue 1200G
+- Pypeit now adds DEIMOS slits that are expected from the slitmask design
+  but not found in the tracing process.
+- PypeIt now flags as “BOXSLT” DEIMOS slits that are expected to be
+  alignment boxes from slitmask design.
+- Added a table with DEIMOS slitmask design and objects info to the
+  SlitTraceSet datamodel
 
 1.2.0 (15 Oct 2020)
 -------------------
