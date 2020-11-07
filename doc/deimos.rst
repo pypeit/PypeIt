@@ -53,6 +53,14 @@ Edge Tracing
 It has been reported that the default `edge_thresh` of 50
 for DEIMOS is too high for some setups.
 
+Slit-mask design matching
+-------------------------
+``PypeIt`` is able to match the traced slit to the slit-mask design information
+contained as meta data in the DEIMOS observations. This functionality at the moment is
+implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
+:ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
+except when *LongMirr* mask is used.
+
 Flat Fielding
 -------------
 

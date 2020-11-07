@@ -1,4 +1,7 @@
-""" Module to generate templates for the PypeIt full_template wavelength calibration routine"""
+""" Module to generate templates for the PypeIt full_template wavelength calibration routine
+
+.. include:: ../include/links.rst
+"""
 
 import os
 import numpy as np
@@ -307,8 +310,6 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
     return outroot
-
-
 
 #####################################################################################################
 #####################################################################################################
@@ -732,7 +733,7 @@ def main(flg):
         wv_vac = airtovac(wave * units.AA)
         xidl_dict = readsav(spec_file)
         flux = xidl_dict['arc1d']
-        write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+        wvutils.write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
 
     # Gemini/Flamingos2
     if flg & (2**26):
