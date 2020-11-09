@@ -209,7 +209,7 @@ class Reduce(object):
         self.slits = self.caliBrate.slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-                = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
