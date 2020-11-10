@@ -280,6 +280,7 @@ def test_identify():
                               PYP_SPEC='shane_kast_blue',
                               )
 
+    # If you touch the following line, you probably need to update the call in scripts/identify.py
     arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
