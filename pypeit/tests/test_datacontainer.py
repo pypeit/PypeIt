@@ -16,10 +16,10 @@ import numpy as np
 #import pypeit
 
 from astropy.table import Table
-from astropy.io import fits
 
 from pypeit.datamodel import DataContainer
 from pypeit.images import pypeitimage
+from pypeit.io import fits_open
 
 #-----------------------------------------------------------------------
 # Example derived classes
@@ -288,7 +288,7 @@ def test_basic():
     data.to_file(ofile)
 
     # Test written data against input
-    with fits.open(ofile) as hdu:
+    with fits_open(ofile) as hdu:
         assert len(hdu) == 2, 'Should be two extensions'
         # This tests hdu_prefix
         assert hdu[1].name == 'TST_BASIC', 'Incorrect extension Name'
@@ -305,7 +305,7 @@ def test_basic():
     data = BasicContainer(np.arange(10).astype(float), 'length=1', np.arange(30).astype(float).reshape(3,10))
     data.to_file(ofile)
 
-    with fits.open(ofile) as hdu:
+    with fits_open(ofile) as hdu:
         assert len(hdu) == 2, 'Should be two extensions'
         assert hdu[1].name == 'TST_BASIC', 'Incorrect extension Name'
         assert len(hdu[1].data) == 1, 'Incorrect number of rows'
@@ -342,7 +342,7 @@ def test_case():
 
     # HDU items are not
     data.to_file(ofile)
-    with fits.open(ofile) as hdu:
+    with fits_open(ofile) as hdu:
         assert hdu['mixedcase'].header['UpPeRcAsE'] == 5, 'Bad header access'
         assert hdu['mixedcase'].header['CaMeLcAsE'] == 8.2, 'Bad header access'
 

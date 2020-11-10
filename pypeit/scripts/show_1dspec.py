@@ -28,20 +28,28 @@ def main(args):
     import sys
     import numpy as np
 
-    from PyQt5.QtWidgets import QApplication
+    from PySide2.QtWidgets import QApplication
 
     from linetools.guis.xspecgui import XSpecGui
 
     from pypeit import specobjs
     from pypeit import msgs
 
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
+
     # List only?
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            name = sobjs[ii].NAME
-            print("EXT{:07d} = {}".format(ii+1, name))
+            line = ''
+            line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
+            if sobjs[ii].RA is not None:
+                line += " {:0.4f} {:0.4f} {:s}".format(
+                    sobjs[ii].RA,
+                    sobjs[ii].DEC,
+                    sobjs[ii].MASKDEF_OBJNAME)
+            #
+            print(line)
         return
 
     if args.obj is not None:

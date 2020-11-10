@@ -19,6 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit import io
 
 from pypeit.display import display
 from pypeit.core.parse import get_dnum
@@ -68,7 +69,7 @@ def main(args):
 
     # List only?
     if args.list:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         hdu.info()
         return
 
@@ -155,7 +156,7 @@ def main(args):
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)  # sky residual map
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm #(spec2DObj.bpmmask == 0)  # sky residual map
     viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:

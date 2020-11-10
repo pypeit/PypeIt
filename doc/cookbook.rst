@@ -164,8 +164,10 @@ a sensitivity function and one to apply it.
 ===========
 
 There are scripts for coadding both the 2D spectra
-(undocumented) and to :doc:`coadd1d`.
-These are run separately from and after the main run.
+(undocumented) and to :doc:`coadd1d`. In the case of
+IFU reductions, there are scripts to coadd the reduced
+spec2d files into combined 3D datacubes (see :doc:`coadd3d`).
+These are all run separately from and after the main run.
 
 
 

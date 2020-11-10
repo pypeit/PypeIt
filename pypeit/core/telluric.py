@@ -17,6 +17,7 @@ from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import coadd1d
+from pypeit import io
 from astropy.io import fits
 from sklearn import mixture
 
@@ -143,7 +144,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
 
     """
 
-    hdul = fits.open(filename)
+    hdul = io.fits_open(filename)
     wave_grid_full = 10.0*hdul[1].data
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size

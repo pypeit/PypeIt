@@ -19,7 +19,7 @@ from astropy import table
 from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
-from pypeit.io import initialize_header
+from pypeit import io
 from pypeit.core import meta
 
 
@@ -60,7 +60,7 @@ class SensFunc(object):
     def load(cls, sensfile):
         # Write to outfile
         msgs.info('Reading sensitivity function from file: {:}'.format(sensfile))
-        hdulist = fits.open(sensfile)
+        hdulist = io.fits_open(sensfile)
         header = hdulist[0].header
         wave = hdulist['WAVE'].data
         sensfunc = hdulist['SENSFUNC'].data
@@ -157,7 +157,7 @@ class SensFunc(object):
         msgs.info('Writing sensitivity function results to file: {:}'.format(self.sensfile))
 
         # Standard init
-        hdr = initialize_header()
+        hdr = io.initialize_header()
 
         hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
         hdr['PYPELINE'] = self.spectrograph.pypeline
