@@ -45,6 +45,8 @@
   alignment boxes from slitmask design.
 - Added a table with DEIMOS slitmask design and objects info to the
   SlitTraceSet datamodel
+- Incorporates a procedure to enable GMOS N-S observations
+- New GMOS wavelength solutions
 
 1.2.0 (15 Oct 2020)
 -------------------

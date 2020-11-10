@@ -157,7 +157,6 @@ class WaveCalib(datamodel.DataContainer):
                 parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
-            # TODO -- PUT THIS ERROR BACK!
             msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
