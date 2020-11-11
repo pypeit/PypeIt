@@ -181,7 +181,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+        par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
         # Set the default exposure time ranges for the frame typing
 #        par['calibrations']['biasframe']['exprng'] = [None, 2]
