@@ -4283,6 +4283,17 @@ class EdgeTraceSet(DataContainer):
             ind_b = ind_b[np.logical_not(dupl_b)]
             ind_t = ind_t[np.logical_not(dupl_t)]
 
+        # RE-CHECK for missing traces after removing the duplicates
+        # bottom edges
+        needadd_b = need.copy()
+        needadd_b[ind_b] = False
+        needind_b = np.where(needadd_b)[0]  # edges we are missing
+
+        # top edges
+        needadd_t = need.copy()
+        needadd_t[ind_t] = False
+        needind_t = np.where(needadd_t)[0]  # edges we are missing
+
         #  The code below is to add traces that are predicted but not found.
         if needind_b.size > 0:
             msgs.info('Adding {} left missing edge(s)'.format(needind_b.size))
