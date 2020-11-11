@@ -283,8 +283,8 @@ class ProcessImagesPar(ParSet):
 
         defaults['comb_sigrej'] = None
         dtypes['comb_sigrej'] = float
-        descr['comb_sigrej'] = 'Sigma-clipping level clip=True; ' \
-                           'Use None for automatic limit.  '
+        descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
+                           'Use None for automatic limit (recommended).  '
 
         defaults['satpix'] = 'reject'
         options['satpix'] = ProcessImagesPar.valid_saturation_handling()
