@@ -16,6 +16,7 @@ matplotlib.use('agg')  # For Travis
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.scripts import identify
+from pypeit.scripts import parse_slits
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -290,5 +291,19 @@ def test_identify():
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
 
+@cooked_required
+def test_parse_slits():
+    slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                              'MasterSlits_A_1_01.fits.gz')
+    spec2d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+
+    # Slits
+    pargs = parse_slits.parse_args([slits_file])
+    parse_slits.main(pargs)
+
+    # Spec2d
+    pargs = parse_slits.parse_args([spec2d_file])
+    parse_slits.main(pargs)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib

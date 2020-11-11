@@ -269,7 +269,9 @@ class PypeIt(object):
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
                     self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                    show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                    show=self.show,
+                    user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                                         self.par['rdx']['maskIDs']))
                 # Do it
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
                 self.caliBrate.run_the_steps()
@@ -459,7 +461,8 @@ class PypeIt(object):
             self.caliBrate = calibrations.Calibrations.get_instance(
                 self.fitstbl, self.par['calibrations'], self.spectrograph,
                 self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                show=self.show,
+                user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
@@ -710,6 +713,7 @@ class PypeIt(object):
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
                                        slitspatnum=self.par['rdx']['slitspatnum'])

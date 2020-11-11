@@ -192,6 +192,8 @@ def parse_args(options=None, return_parser=False):
                         help='Ignore bad headers?')
     parser.add_argument('--user_pixflat', type=str,
                         help='Use a user-supplied pixel flat (e.g. keck_lris_blue)')
+    parser.add_argument('--maskID', type=int,
+                        help='Reduce this slit as specified by the maskID value')
     parser.add_argument('--slit_spat', type=str,
                         help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175')
 
@@ -224,6 +226,8 @@ def main(pargs):
 
     # Slurp the afternoon runs and grab the right PypeIt file
     calib_pypeit_file, ps_sci = get_science_setup(pargs, script_Utils)
+
+    # Run on the science frame
     run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci)
     embed(header='133 of ql')
 

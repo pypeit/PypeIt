@@ -431,6 +431,9 @@ class AllSpec2DObj(object):
         if pri_hdr is not None:
             prihdu.header = pri_hdr
 
+        # Add class name
+        prihdu.header['PYP_CLS'] = self.__class__.__name__
+
         # Add meta to Primary Header
         for key in self['meta']:
             # This is not a header card
