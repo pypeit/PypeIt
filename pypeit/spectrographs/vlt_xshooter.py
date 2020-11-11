@@ -3,12 +3,12 @@
 import glob
 
 import numpy as np
-from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -394,7 +394,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
+                bpm_fits = io.fits_open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format

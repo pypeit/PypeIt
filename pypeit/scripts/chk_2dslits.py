@@ -23,7 +23,7 @@ def main(args):
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
     # Load
-    allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.spec2d_file)
+    allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.spec2d_file, chk_version=False)
     # Loop on Detectors
     for det in allspec2D.detectors:
         print("================ DET {:02d} ======================".format(det))

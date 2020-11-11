@@ -34,7 +34,7 @@ env:
         - SKLEARN_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
-        - CONDA_DEPENDENCIES='scipy pyyaml matplotlib future numba scikit-learn configobj IPython'
+        - CONDA_DEPENDENCIES='scipy pyyaml matplotlib future numba scikit-learn configobj IPython pytest'
         - PIP_DEPENDENCIES='extension_helpers ginga linetools'
         - EVENT_TYPE='pull_request push'
         - TASK='test'

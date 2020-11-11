@@ -14,5 +14,5 @@ IPython>=7.2.0
 ginga>=3.0
 numba>=0.39.0
 linetools==0.3.dev2147
-pytest>=3.0.7
+#pytest>=6.0.0   # JXP -- Started failing Travis on 02 Oct 2020 [not sure why]
 

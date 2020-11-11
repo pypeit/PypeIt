@@ -24,6 +24,7 @@ from astropy.io import fits
 from ginga.util import grc
 
 from pypeit import msgs
+from pypeit import io
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
     """
@@ -142,7 +143,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
-    img = fits.open(inp)[exten].data if isinstance(inp, str) else inp
+    img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
 
     # Instantiate viewer
     viewer = connect_to_ginga()
@@ -250,9 +251,10 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     return viewer, ch
 
+
 # TODO: Should we continue to allow rotate as an option?
-def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, rotate=False,
-               pstep=50, clear=False, synced=True):
+def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, maskdef_ids=None, rotate=False,
+               pstep=50, clear=False, synced=True, **extras):
     r"""
     Overplot slits on the image in Ginga in the given channel
 
@@ -271,7 +273,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`, and
             can be different from ``left`` unless ``synced`` is True.
         slit_ids (:obj:`int`, array-like, optional):
-            ID numbers for the slits. If None, IDs run from -1 to
+            PypeIt ID numbers for the slits. If None, IDs run from -1 to
             :math:`-N_{\rm slits}`. If not None, shape must be
             :math:`(N_{\rm slits},)`. These are only used if
             ``synced`` is True.
@@ -285,6 +287,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             to :math:`-N_{\rm r-edge}`. If not None, shape must be
             :math:`(N_{\rm r-edge},)`. These are only used if
             ``synced`` is False.
+        maskdef_ids (:obj:`int`, array-like, optional):
+            slitmask IDs assigned to each slits. If None, IDs will not
+            be shown. If not None, shape must be
+            :math:`(N_{\rm slits},)`. These are only used if
+            ``synced`` is True.
         rotate (:obj:`bool`, optional):
             Rotate the image?
         pstep (:obj:`bool`, optional):
@@ -324,6 +331,10 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if len(_slit_ids) != nslits:
             msgs.error('Incorrect number of slit IDs provided.')
         _slit_id_loc = _left + 0.45*(_right - _left)
+        if maskdef_ids is not None and maskdef_ids.size == nslits:
+            _maskdef_ids = np.atleast_1d(maskdef_ids)
+        else:
+            _maskdef_ids = None
     else:
         _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
         if len(_left_ids) != nleft:
@@ -390,8 +401,13 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
+        # Slit IDs
         canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
                    fontsize=20.)
+        # maskdef_ids
+        if _maskdef_ids is not None:
+            canvas.add(str('text'), xb, yb-50, str('{0}'.format(_maskdef_ids[i])), color=str('orange'),
+                       fontsize=20.)
         # TODO -- Fix indices if you really want to show them
         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
         #           fontsize=20.)

@@ -40,10 +40,11 @@ def main(args):
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
     from pypeit import msgs
+    from pypeit import io
 
     # List only?
     if args.list:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         print(hdu.info())
         return
 
@@ -82,7 +83,7 @@ def main(args):
         gen_mmirs = mmt_mmirs.MMTMMIRSSpectrograph()
         img = gen_mmirs.get_rawimage(args.file, args.det)[1]
     else:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         img = hdu[args.exten].data
         # Write
 

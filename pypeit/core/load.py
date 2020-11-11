@@ -15,6 +15,7 @@ from linetools.spectra.utils import collate
 import linetools.utils
 
 from pypeit import msgs
+from pypeit import io
 from IPython import embed
 from pypeit.core import parse
 
@@ -120,7 +121,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         nexp = 1
         fname0 = fnames
 
-    hdulist = fits.open(fname0)
+    hdulist = io.fits_open(fname0)
     header = hdulist[0].header
     npix = header['NPIX']
     pypeline = header['PYPELINE']
@@ -184,7 +185,7 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
         masks = np.zeros_like(waves,dtype=bool)
 
         for iexp in range(nexp):
-            hdulist_iexp = fits.open(fnames[iexp])
+            hdulist_iexp = io.fits_open(fnames[iexp])
 
             # ToDo: The following part can be removed if all data are reduced using the leatest pipeline
             if pypeline == "Echelle":
@@ -369,7 +370,7 @@ def load_sens_dict(filename):
 
 
 def waveids(fname):
-    infile = fits.open(fname)
+    infile = io.fits_open(fname)
     pixels=[]
     msgs.info("Loading fitted arc lines")
     try:
@@ -403,7 +404,7 @@ def load_multiext_fits(filename, ext):
     _ext = ext if isinstance(ext, list) else [ext]
     n_ext = len(_ext)
     # Open the file
-    hdu = fits.open(filename)
+    hdu = io.fits_open(filename)
     head0 = hdu[0].header
     # Only one extension
     if n_ext == 1:

@@ -6,6 +6,7 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -145,7 +146,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
@@ -320,7 +321,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # TODO: Fix this
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -431,7 +432,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS1B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -571,7 +572,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS2R")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -685,7 +686,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         msgs.info("Using hard-coded BPM for  MODS2B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()

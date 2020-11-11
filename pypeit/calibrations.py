@@ -13,8 +13,6 @@ from IPython import embed
 
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
@@ -28,6 +26,7 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit import io
 from pypeit import utils
 
 
@@ -512,7 +511,7 @@ class Calibrations(object):
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
                 msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-                with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
                     flatimages = flatfield.merge(flatimages, nrm_image)
             self.flatimages = flatimages
@@ -572,7 +571,7 @@ class Calibrations(object):
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-            with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+            with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                 flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
         self.flatimages = flatimages
@@ -644,6 +643,17 @@ class Calibrations(object):
         # User mask?
         if self.slitspat_num is not None:
             self.slits.user_mask(self.det, self.slitspat_num)
+
+        # FOR TESTING -- REMOVE WHEN maskdef_file is written correctly to disk
+        if self.slits.maskdef_id is not None and self.spectrograph.slitmask is None:
+            self.slits.maskdef_file = os.path.join(os.getenv('PYPEIT_DEV'),
+                                      'RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57161.fits.gz')
+
+        # Ingest slitmask definition?
+        if self.slits.maskdef_file is not None and self.spectrograph.slitmask is None:
+            self.spectrograph.get_slitmask(self.slits.maskdef_file)
+            # TODO -- REMOVE THIS WHEN WE FIX writing issue
+            self.slits.maskdef_file = None
 
         return self.slits
 

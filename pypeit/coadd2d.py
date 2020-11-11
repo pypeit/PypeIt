@@ -851,8 +851,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         ivar[:, iobj] = spec.OPT_COUNTS_IVAR
                         wave[:, iobj] = spec.OPT_WAVE
                         mask[:, iobj] = spec.OPT_MASK
-                    if np.any(np.isnan(flux)):
-                        embed(header='855 of coadd2d')
                     rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]

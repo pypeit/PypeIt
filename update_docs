@@ -1,12 +1,29 @@
 #!/bin/bash
 
 cd doc
-make clean ; make apirst
+printf "\n\nUpdating API documentation and testing html compilation\n\n"
+sleep 1
+make clean ; make html
+git add api
+git add pypeit_par.rst
 cd ../
-git add doc/api
-git add doc/pypeit_par.rst
 
-printf "Now check the modified files with:\n\n    git status\n\nAnd commit the changes with: \n\n   git commit -m 'updated docs'\n\n"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+nwarnings=$(wc -l "doc/sphinx_warnings.out" | awk '{print $1}')
+if [ ${nwarnings} -ne 0 ]; then
+    printf "\n\n${RED}====================${NC}\n"
+    printf "${RED}Sphinx build FAILED: ${nwarnings} warnings found.${NC}\n"
+    printf "${RED}====================${NC}\n\n"
+else
+    printf "\n\n${GREEN}========================${NC}\n"
+    printf "${GREEN}Sphinx build successful.${NC}\n"
+    printf "${GREEN}========================${NC}\n\n"
+fi
+
+printf "Check the modified files with:\n\n    git status\n\nFix any errors/warnings in:\n\n    doc/sphinx_warnings.out\n\nAdd any additional changes with:\n\n    git add -u\n\nAnd commit the changes with: \n\n   git commit -m 'updated docs'\n\n"
 
 exit 0
 

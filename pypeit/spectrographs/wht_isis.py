@@ -2,7 +2,6 @@
 """
 import numpy as np
 
-from astropy.io import fits
 from pkg_resources import resource_filename
 
 from pypeit import msgs
