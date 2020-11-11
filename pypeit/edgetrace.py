@@ -419,6 +419,9 @@ class EdgeTraceSet(DataContainer):
                  'traceid': dict(otype=np.ndarray, atype=(int, np.integer),
                                  descr='ID number for the edge traces.  Negative and positive '
                                        'IDs are for, respectively, left and right edges.'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=(int, np.integer),
+                                 descr='slitmask ID number for the edge traces. '
+                                       'IDs are for, respectively, left and right edges.'),
                  'orderid': dict(otype=np.ndarray, atype=(int, np.integer),
                                  descr='For echelle spectrographs, this is the order ID number '
                                        'for the edge traces.  Negative and positive IDs are for, '
@@ -480,6 +483,8 @@ class EdgeTraceSet(DataContainer):
         self.dispname = spectrograph.dispname           # Spectrograph disperser
         self.par = par                                  # Parameters used for slit edge tracing
         self.qa_path = qa_path                          # Directory for QA plots
+        self.maskdef_id = None                          # Slit ID number from slit-mask design
+                                                        # matched to traced slits
 
         # NOTE: This means that, no matter what, every instance of
         # EdgeTraceSet should have a sobelsig attribute that is *not*
@@ -506,7 +511,6 @@ class EdgeTraceSet(DataContainer):
         self.log = None                 # Log of methods applied
         self.master_key = None          # Calibration key for master frame
         self.master_dir = None          # Directory for Master frames
-        self.maskdef_id = None          # Slit ID number from slit-mask design matched to traced slits
         self.omodel_bspat = None        # Left edges predicted by the optical model (before x-correlation)
         self.omodel_tspat = None        # Right edges predicted by the optical model (before x-correlation)
         self.coeff_b = None             # Coefficients of the x-correlation between LEFT edges predicted
@@ -1336,12 +1340,16 @@ class EdgeTraceSet(DataContainer):
             nslits = np.amax(traceid)   # Only used if synced is True
             synced = self.is_synced
             slit_ids = None
+            maskdef_ids = None
             if synced:
                 _trc = cen if fit is None else fit
                 half = _trc.shape[0] // 2
                 slit_ids = ((_trc[half, gpm & is_left]
                              + _trc[half, gpm & is_right]) / 2.).astype(int)
-            maskdef_ids = None
+                if self.maskdef_id is not None:
+                    maskdef_ids = self.maskdef_id[gpm & self.is_left]
+                    maskdef_ids[maskdef_ids == -99] = self.maskdef_id[gpm & self.is_right][maskdef_ids == -99]
+
         else:
             # Use the provided SlitTraceSet
             _include_error = False
@@ -4318,7 +4326,6 @@ class EdgeTraceSet(DataContainer):
         align_slit[self.is_right] = self.spectrograph.slitmask.alignment_slit[ind_t]
         self.edge_msk[:, align_slit] = self.bitmask.turn_on(self.edge_msk[:, align_slit], 'BOXSLIT')
 
-
         # Propagate the coefficients, `coeff_b` and `coeff_t`, of the x-correlation and the
         # left and right spatial position of the slit edges from optical model (before x-correlation)
         # with the purpose to fill a table with the information on slitmask design matching. The table will
@@ -4412,6 +4419,7 @@ class EdgeTraceSet(DataContainer):
         - 'OBJRA': Right ascension of the object (deg)
         - 'OBJDEC': Declination of the object (deg)
         - 'SLITID': Slit ID Number (`maskdef_id`)
+        - 'OBJNAME': Object name assigned by the observer
         - 'SLITINDX': Row index of relevant slit in the design table
 
         Args:
