@@ -183,8 +183,9 @@ class ProcessImagesPar(ParSet):
     def __init__(self, trim=None, apply_gain=None, orient=None,
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
-                 mask_cr=None,
-                 sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 mask_cr=None, clip=None,
+                 cr_sigrej=None, n_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
@@ -276,6 +277,15 @@ class ProcessImagesPar(ParSet):
         descr['combine'] = 'Method used to combine multiple frames.  Options are: {0}'.format(
                                        ', '.join(options['combine']))
 
+        defaults['clip'] = True
+        dtypes['clip'] = bool
+        descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=weightmean'
+
+        defaults['comb_sigrej'] = None
+        dtypes['comb_sigrej'] = float
+        descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
+                           'Use None for automatic limit (recommended).  '
+
         defaults['satpix'] = 'reject'
         options['satpix'] = ProcessImagesPar.valid_saturation_handling()
         dtypes['satpix'] = str
@@ -287,19 +297,14 @@ class ProcessImagesPar(ParSet):
         dtypes['mask_cr'] = bool
         descr['mask_cr'] = 'Identify CRs and mask them'
 
-        defaults['sigrej'] = 20.0
-        dtypes['sigrej'] = [int, float]
-        descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
+        defaults['cr_sigrej'] = 20.0
+        dtypes['cr_sigrej'] = [int, float]
+        descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
         descr['n_lohi'] = 'Number of pixels to reject at the lowest and highest ends of the ' \
                           'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
-
-        defaults['sig_lohi'] = [3.0, 3.0]
-        dtypes['sig_lohi'] = list
-        descr['sig_lohi'] = 'Sigma-clipping level at the low and high ends of the distribution; ' \
-                            'i.e., sig_lohi = low, high.  Use None for no limit.'
 
         defaults['replace'] = 'maxnonsat'
         options['replace'] = ProcessImagesPar.valid_rejection_replacements()
@@ -349,8 +354,8 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
-                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
-                   'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
+                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -397,8 +402,6 @@ class ProcessImagesPar(ParSet):
 
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
-        if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
-            raise ValueError('n_lohi must be a list of two numbers.')
 
         if not self.data['use_overscan']:
             return
@@ -433,8 +436,7 @@ class ProcessImagesPar(ParSet):
                                 'Cosmic-ray sigma rejection when combining')
         hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
                                 'N low and high pixels rejected when combining')
-        hdr['COMBSLH'] = (','.join([ '{0:.1f}'.format(s) for s in self.data['sig_lohi']]),
-                                'Low and high sigma rejection when combining')
+        hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
         hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
         hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
         hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
@@ -454,10 +456,10 @@ class ProcessImagesPar(ParSet):
                    overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
                    match=eval(hdr['COMBMAT']),
                    combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   sigrej=eval(hdr['COMBSIGR']),
                    n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
+                   comb_sigrej=float(hdr['COMBSRJ']),
                    replace=hdr['COMBREPL'],
+                   cr_sigrej=eval(hdr['LASIGR']),
                    lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
                    rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
                    sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
@@ -3664,21 +3666,21 @@ class CalibrationsPar(ParSet):
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
-                                                                        sigrej=-1,
+                                                                        cr_sigrej=-1,
                                                                         use_pixelflat=False,
                                                                         use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
-                                             process=ProcessImagesPar(sigrej=-1,
+                                             process=ProcessImagesPar(cr_sigrej=-1,
                                                                       use_pixelflat=False,
                                                                       use_illumflat=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
-                                              process=ProcessImagesPar(sigrej=-1,
+                                              process=ProcessImagesPar(cr_sigrej=-1,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
         dtypes['tiltframe'] = [ ParSet, dict ]

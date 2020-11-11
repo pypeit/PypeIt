@@ -44,7 +44,8 @@
 - PypeIt now flags as “BOXSLT” DEIMOS slits that are expected to be
   alignment boxes from slitmask design.
 - Added a table with DEIMOS slitmask design and objects info to the
-  SlitTraceSet datamodel
+- Assign RA/DEC to DEIMOS extractions
+- Fix sigma clipping bug!
 
 1.2.0 (15 Oct 2020)
 -------------------
