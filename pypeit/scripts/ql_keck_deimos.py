@@ -12,6 +12,7 @@ import copy
 import yaml
 import io
 import numpy as np
+import argparse
 
 from pypeit.scripts.utils import Utilities
 from pypeit.par import PypeItPar
@@ -24,7 +25,16 @@ from pypeit import utils
 
 from IPython import embed
 
+
 def process_calibs(pargs, script_Utils):
+    """
+    Process the calibration files
+
+    Args:
+        pargs (argparse.ArgumentParser):
+            Command line arguments
+        script_Utils (:class:`pypeit.scripts.utilts.Utilities`):
+    """
     # Slurp
     output_path = pargs.redux_path
 
@@ -59,7 +69,20 @@ def process_calibs(pargs, script_Utils):
                                            '-c'])
         run_pypeit.main(run_pargs)
 
+
 def get_science_setup(pargs, script_Utils):
+    """
+    Figure out the matching setup for the science file
+
+    Args:
+        pargs (argparse.ArgumentParser):
+            Command line arguments
+        script_Utils (:class:`pypeit.scripts.utilts.Utilities`):
+
+    Returns:
+        tuple: int, :class:`pypeit.pypeitsetup.PypeItSetup`
+
+    """
     # Check file exists
     science_file = os.path.join(pargs.full_rawpath, pargs.science)
     if not os.path.isfile(science_file):
@@ -86,6 +109,16 @@ def get_science_setup(pargs, script_Utils):
     return mtch[0], ps_sci
 
 def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
+    """
+    Process a science frame
+
+    Args:
+        pargs (argparse.ArgumentParser):
+            Command line arguments
+        script_Utils:
+        calib_pypeit_file (str):
+        ps_sci (:class:`pypeit.pypeitsetup.PypeItSetup`):
+    """
     # Load up and slurp PypeIt file
     ps = PypeItSetup.from_pypeit_file(calib_pypeit_file)
     # Parse science file info
@@ -138,7 +171,6 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
 
 
 def parse_args(options=None, return_parser=False):
-    import argparse
 
     parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of '
                                                  'Keck/DEIMOS files',
