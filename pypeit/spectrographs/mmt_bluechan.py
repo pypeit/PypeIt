@@ -143,6 +143,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
+        # HeNeAr is by far most commonly used, though ThAr is used for some situations.
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
@@ -177,7 +178,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -261,7 +262,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         if len(fil) != 1:
             msgs.error("Found {:d} files matching {:s}".format(len(fil)))
 
-        # Read
+        # Read FITS image
         msgs.info("Reading MMT Blue Channel file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
         hdr = hdu[0].header
@@ -271,7 +272,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         exptime = hdr['EXPTIME']
 
-        # TOdO Store these parameters in the DetectorPar.
+        # TODO Store these parameters in the DetectorPar.
         # Number of amplifiers
         detector_par = self.get_detector_par(hdu, det if det is None else 1)
         numamp = detector_par['numamplifiers']
