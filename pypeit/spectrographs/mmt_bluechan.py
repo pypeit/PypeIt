@@ -26,7 +26,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         super(MMTBlueChannelSpectrograph, self).__init__()
         self.spectrograph = 'mmt_bluechannel'
         self.telescope = telescopes.MMTTelescopePar()
-        self.camera = 'Blue Channel'
+        self.camera = 'Blue_Channel'
 
     def get_detector_par(self, hdu, det):
         header = hdu[0].header
