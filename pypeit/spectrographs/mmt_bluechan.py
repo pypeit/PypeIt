@@ -145,13 +145,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         # HeNeAr is by far most commonly used, though ThAr is used for some situations.
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
-
-        # Tilt and slit parameters
-        par['calibrations']['tilts']['tracethresh'] =  10.0
-        par['calibrations']['tilts']['spat_order'] = 6
-        par['calibrations']['tilts']['spec_order'] = 6
-        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['wavelengths']['method'] = 'holy-grail
 
         # Processing steps
         turn_off = dict(use_biasimage=False, use_darkimage=False)
@@ -162,9 +156,6 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
         ## Do not perform global sky subtraction for standard stars
         par['reduce']['skysub']['global_sky_std']  = False
-
-        # Flexure
-        par['flexure']['spec_method'] = 'boxcar'
 
         # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0

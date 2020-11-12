@@ -38,7 +38,8 @@ magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput 
 magellan_mage           Magellan    :doc:`mage` spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
 mmt_mmirs               MMT         MMIRS spectrometer
-mmt_binospec            MMT         BINSOSPEC spectrometer
+mmt_binospec            MMT         Binospec spectrometer
+mmt_bluechannel         MMT         Blue Channel spectrometer
 not_alfosc              NOT         ALFOSC spectrometer (grisms 4, 19)
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red          Lick 3m     Kast dual spectrometer; red camera
