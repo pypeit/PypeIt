@@ -145,7 +145,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         # HeNeAr is by far most commonly used, though ThAr is used for some situations.
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'HeI', 'NeI']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Processing steps
         turn_off = dict(use_biasimage=False, use_darkimage=False)
