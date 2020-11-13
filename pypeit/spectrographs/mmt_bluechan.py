@@ -167,6 +167,9 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [300, None]
         par['scienceframe']['exprng'] = [10, None]
 
+        # Need to specify this for long-slit data
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
