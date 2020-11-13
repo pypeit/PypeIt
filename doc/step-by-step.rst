@@ -264,7 +264,7 @@ Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det01) after using
 :ref:`pypeit_show_2dspec`, with this explicit call::
 
-    pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
+    pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
 
 .. image:: figures/kastb_spec2d.png
 
@@ -284,7 +284,7 @@ Here is a screen shot from the GUI showing the
 1D spectrum after using
 :ref:`pypeit_show_1dspec`, with this explicit call::
 
-    pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
+    pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
 
 .. image:: figures/kastb_spec1d.png
 
@@ -301,6 +301,6 @@ Now that we have a reduced standard star spectrum, we can
 use that to generate a sensitivity file.  Here is the
 call for this example, which I run in the Science/ folder::
 
-    pypeit_sensfunc spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits -o Kastb_feige66_sens.fits
+    pypeit_sensfunc spec1d_b24-Feige66_KASTb_2015may20T041246.960.fits -o Kastb_feige66_sens.fits
 
 See :doc:`fluxing` for further details.
