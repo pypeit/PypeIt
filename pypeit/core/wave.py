@@ -28,13 +28,11 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specObjs, radec, time, gd_slitord, longitude, latitude,
-                      elevation, refframe):
+def geomotion_correct(radec, time, longitude, latitude, elevation, refframe):
     """
     Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
     Args:
-        specObjs (SpecObjs object):
         radec (astropy.coordiantes.SkyCoord):
         time (:obj:`astropy.time.Time`):
         gd_slitord (`numpy.ndarray`_):
@@ -60,17 +58,8 @@ def geomotion_correct(specObjs, radec, time, gd_slitord, longitude, latitude,
     vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    # Loop on slits to apply
-    for slitord in gd_slitord:
-        indx = specObjs.slitorder_indices(slitord)
-        this_specobjs = specObjs[indx]
-        # Loop on objects
-        for specobj in this_specobjs:
-            if specobj is None:
-                continue
-            specobj.apply_helio(vel_corr, refframe)
     # Return
-    return vel, vel_corr  # Mainly for debugging
+    return vel, vel_corr
 
 
 def geomotion_velocity(time, skycoord, frame="heliocentric"):

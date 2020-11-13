@@ -31,3 +31,4 @@ def test_kastb():
     
     for ofile in outfiles:
         os.remove(ofile)
+

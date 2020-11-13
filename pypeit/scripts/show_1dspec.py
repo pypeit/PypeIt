@@ -28,14 +28,14 @@ def main(args):
     import sys
     import numpy as np
 
-    from PyQt5.QtWidgets import QApplication
+    from PySide2.QtWidgets import QApplication
 
     from linetools.guis.xspecgui import XSpecGui
 
     from pypeit import specobjs
     from pypeit import msgs
 
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
     # List only?
     if args.list:
         print("Showing object names for input file...")

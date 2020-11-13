@@ -311,12 +311,12 @@ class BitMask:
 
         out = value ^ (1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out ^= (1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def turn_on(self, value, flag):
         """
@@ -345,12 +345,12 @@ class BitMask:
 
         out = value | (1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out |= (1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def turn_off(self, value, flag):
         """
@@ -378,12 +378,12 @@ class BitMask:
 
         out = value & ~(1 << self.bits[_flag[0]])
         if len(_flag) == 1:
-            return out
+            return out.astype(value.dtype)
 
         nn = len(_flag)
         for i in range(1,nn):
             out &= ~(1 << self.bits[_flag[i]])
-        return out
+        return out.astype(value.dtype)
 
     def consolidate(self, value, flag_set, consolidated_flag):
         """

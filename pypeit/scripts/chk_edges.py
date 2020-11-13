@@ -39,7 +39,9 @@ def parse_args(options=None, return_parser=False):
 def main(pargs):
     from pypeit import edgetrace
 
+    # Load
     edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
+
     if pargs.mpl:
         edges.show(thin=10, include_img=True, idlabel=True)
     else:

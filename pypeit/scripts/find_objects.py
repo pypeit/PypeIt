@@ -13,12 +13,12 @@ import argparse
 import numpy as np
 
 from astropy.table import Table
-from astropy.io import fits
 
-from pypeit.core import gui
 from pypeit import msgs
-from pypeit.core.parse import get_dnum
+from pypeit import io
 from pypeit import slittrace
+from pypeit.core import gui
+from pypeit.core.parse import get_dnum
 
 
 def parse_args(options=None, return_parser=False):
@@ -63,7 +63,7 @@ def main(args):
     raise NotImplementedError('This script is currently out of date.')
 
     # List only?
-    hdu = fits.open(args.file)
+    hdu = io.fits_open(args.file)
     head0 = hdu[0].header
     if args.list:
         hdu.info()
@@ -120,7 +120,7 @@ def main(args):
     # Get object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
     if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
+        hdulist_1d = io.fits_open(spec1d_file)
     else:
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +

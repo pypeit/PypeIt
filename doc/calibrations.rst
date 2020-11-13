@@ -37,6 +37,7 @@ instrument):
    master_arc
    master_bias
    master_edges
+   master_slits
    master_flat
    master_tilt
    master_tilts
