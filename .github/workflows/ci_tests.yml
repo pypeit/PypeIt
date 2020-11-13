@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-ver: [7, 8]
+        python-ver: [3.7, 3.8]
         deps: [current, numpy118, dev]
 
     steps:
