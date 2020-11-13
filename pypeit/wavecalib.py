@@ -118,6 +118,7 @@ class WaveCalib(datamodel.DataContainer):
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
                hdu_prefix=None):
         """
+        See datamodel.DataContainer for docs
 
         Args:
             hdu:
