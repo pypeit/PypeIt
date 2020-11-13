@@ -9,13 +9,13 @@ env:
 
 jobs:
   ci-tests:
-    name: Python-3.${{ matrix.python-ver }}, ${{ matrix.deps }}
+    name: Python-${{ matrix.python }}, dependencies=${{ matrix.deps }}
     runs-on: ${{ matrix.os }}
     if: "!(contains(github.event.head_commit.message, '[skip ci]') || contains(github.event.head_commit.message, '[ci skip]'))"
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-ver: [3.7, 3.8]
+        python: [3.7, 3.8]
         deps: [current, numpy118, dev]
 
     steps:
