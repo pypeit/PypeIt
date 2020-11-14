@@ -16,6 +16,7 @@ from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -233,6 +234,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Turn on the use of mask design
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['use_maskdesign'] = True
+            # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
+            par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
+            # Sometime the added missing slits at the edge of the detector are to small to be useful.
+            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
+            par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -245,6 +252,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
+        elif self.get_meta_value(headarr, 'dispname') == '1200B':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -255,35 +265,33 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
-
-        Returns:
-            self.meta: dict (generated in place)
-
+        Builds :attr:`meta`, providing the connection to DEIMOS
+        header keywords.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
-        meta['decker'] = dict(ext=0, card='SLMSKNAM')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
-        meta['dispname'] = dict(ext=0, card='GRATENAM')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATENAM')
         # Extras for config and frametyping
-        meta['hatch'] = dict(ext=0, card='HATCHPOS')
-        meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        self.meta['hatch'] = dict(ext=0, card='HATCHPOS')
+        self.meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
         # Image type
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         # Lamps
-        meta['lampstat01'] = dict(ext=0, card='LAMPS')
-
-        # Ingest
-        self.meta = meta
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        # Extras for pypeit file
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
+        self.meta['utc'] = dict(ext=0, card='UTC')
+        self.meta['mode'] = dict(ext=0, card='MOSMODE')
+        self.meta['amp'] = dict(ext=0, card='AMPMODE')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -322,8 +330,50 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             list: List of keywords of data pulled from meta
         """
-        return ['dispname', 'decker', 'binning', 'dispangle']
+        # TODO: Based on a conversation with Carlos, we might want to
+        # include dateobs with this. For now, amp is effectively
+        # redundant because anything with the wrong amplifier used is
+        # removed from the list of valid frames in PypeItMetaData.
+        return ['dispname', 'decker', 'binning', 'dispangle', 'amp']
 
+    def valid_configuration_values(self):
+        """
+        Restricts the valid DEIMOS configurations for use in
+        ``PypeIt``.
+
+        Returns:
+            :obj:`dict`: A dictionary with the configuration keys
+            that have a discrete set of valid values.
+        """
+        return {'amp': ['SINGLE:B'], 'mode':['Spectral']}
+
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a
+        configuration, but the DATE-OBS keyword is used to assign
+        each to the most-relevant configuration frame group. See
+        :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame
+            types that are configuration independent and the values
+            are the metadata keywords that can be used to assign the
+            frames to a configuration group.
+        """
+        return {'bias': 'dateobs', 'dark': 'dateobs'}
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file
+
+        Returns:
+            pypeit_keys: list
+
+        """
+        return super().pypeit_file_keys() + ['dateobs', 'utc']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -338,9 +388,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            is_flat = np.any(np.vstack(((fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
+            is_flat = np.any(np.vstack([(fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
                                     for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
-                                                   ['closed', 'open', 'open']))), axis=0)
+                                                   ['closed', 'open', 'open'])]), axis=0)
             return good_exp & is_flat
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
@@ -389,6 +439,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         based on :func:`pypeit.spectrographs.keck_lris.read_lris`, which
         was based on the IDL procedure ``readmhdufits.pro``.
 
+        .. warning::
+
+            ``PypeIt`` currently *cannot* reduce images produced by
+            reading the DEIMOS CCDs with the A amplifier or those
+            taken in imaging mode. All image handling assumes DEIMOS
+            images have been read with the B amplifier in the
+            "Spectral" observing mode. This method will fault if this
+            is not true based on the header keywords MOSMODE and
+            AMPMODE.
+
         Parameters
         ----------
         raw_file : str
@@ -403,21 +463,22 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         # Check for file; allow for extra .gz, etc. suffix
+        # TODO: Why not use os.path.isfile?
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
             msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
         # Read
-        try:
-            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
-        except AttributeError:
-            print("Reading DEIMOS file: {:s}".format(fil[0]))
+        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
 
-        hdu = fits.open(fil[0])
-        head0 = hdu[0].header
+        hdu = io.fits_open(fil[0])
+        if hdu[0].header['AMPMODE'] != 'SINGLE:B':
+            msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
+        if hdu[0].header['MOSMODE'] != 'Spectral':
+            msgs.error('PypeIt can only reduce images with MOSMODE == Spectral.')
 
         # Get post, pre-pix values
-        postpix = head0['POSTPIX']
-        detlsize = head0['DETLSIZE']
+        postpix = hdu[0].header['POSTPIX']
+        detlsize = hdu[0].header['DETLSIZE']
         x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
         # Create final image
@@ -427,7 +488,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             oscansec_img = np.zeros_like(image, dtype=int)
 
         # get the x and y binning factors...
-        binning = head0['BINNING']
+        binning = hdu[0].header['BINNING']
         if binning != '1,1':
             msgs.error("This binning for DEIMOS might not work.  But it might..")
 
@@ -614,7 +675,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Name of the file to read.
         """
         # Open the file
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Build the object data
         #   - Find the index of the object IDs in the slit-object
@@ -659,7 +720,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Taken from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
         xidl/DEEP2/spec2d/pro/deimos_grating.pro
         """
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
@@ -771,7 +832,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             Two attributes :attr:`amap` and :attr:`bmap`.
 
         """
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']

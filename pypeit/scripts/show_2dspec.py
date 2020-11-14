@@ -19,6 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit import io
 
 from pypeit.display import display
 from pypeit.core.parse import get_dnum
@@ -68,7 +69,7 @@ def main(args):
 
     # List only?
     if args.list:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         hdu.info()
         return
 
