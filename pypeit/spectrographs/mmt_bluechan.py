@@ -216,6 +216,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         Check for frames of the provided type.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype == 'bias':
+            return fitstbl['idname'] == 'zero'
         if ftype == 'science':
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
         if ftype == 'standard':
