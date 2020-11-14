@@ -1,5 +1,4 @@
 
- Updated upstream
 - Add GitHub Actions CI workflow
 - Add support for MMTO Blue Channel Spectrograph
 
