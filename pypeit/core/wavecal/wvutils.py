@@ -5,26 +5,24 @@
 .. include:: ../include/links.rst
 
 """
-import os
 import numpy as np
 import os
 import numba as nb
 
-from astropy.table import Table
 
 from matplotlib import pyplot as plt
+
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
-from pypeit import msgs
-from IPython import embed
 
 from astropy.table import Table
 
-
+from pypeit import msgs
 from pypeit.core import arc
 
+from IPython import embed
 
 def parse_param(par, key, slit):
     # Find good lines for the tilts

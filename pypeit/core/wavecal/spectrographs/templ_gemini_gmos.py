@@ -1,4 +1,4 @@
-""" Generate the wavelength templates for Keck/DEIMOS"""
+""" Generate the wavelength templates for Gemini/GMOS"""
 import os
 
 from pypeit.core.wavecal import templates
