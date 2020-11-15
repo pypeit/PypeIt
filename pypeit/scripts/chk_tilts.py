@@ -23,8 +23,8 @@ def parse_args(options=None, return_parser=False):
 
     parser.add_argument('option', type = str, default = None,
                         help='Item to show [fweight, model, tilts, final_tilts]')
-    parser.add_argument('setup', type = str, default = None,
-                        help='setup  -- Run from MF folder (e.g. A_01_aa)')
+    parser.add_argument('master_file', type = str, default = None,
+                        help='path to Master file, e.g. Masters/MasterTilts_C_1_03.fits')
     parser.add_argument('--slit', type=int, default=None, help='Slit/Order [0,1,2..]')
 
     if return_parser:
@@ -39,7 +39,7 @@ def main(args):
     from pypeit.display import display
 
     # Load up
-    wTilts = wavetilts.WaveTilts.from_master_files(args.setup)
+    wTilts = wavetilts.WaveTilts.from_file(args.master_file)
 
     # Connect to the ginga viewer
     # TODO: I don't think raise_err needs to be specified here, but
