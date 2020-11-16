@@ -117,6 +117,19 @@ class WaveCalib(datamodel.DataContainer):
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
                hdu_prefix=None):
+        """
+        See datamodel.DataContainer for docs
+
+        Args:
+            hdu:
+            ext:
+            transpose_table_arrays:
+            debug:
+            hdu_prefix:
+
+        Returns:
+
+        """
         # Grab everything but the bspline's
         _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
         # Now the wave_fits
@@ -145,7 +158,7 @@ class WaveCalib(datamodel.DataContainer):
                 parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_ids'].tolist():
-            msgs.error("Bad parsing of the MasterFlat")
+            msgs.error("Bad parsing of WaveCalib")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
         return _d, dm_version_passed, dm_type_passed, parsed_hdus
@@ -420,7 +433,8 @@ class BuildWaveCalib:
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
-                                             self.binspectral, nonlinear_counts=self.nonlinear_counts,
+                                             self.binspectral,
+                                             nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))

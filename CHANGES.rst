@@ -46,6 +46,8 @@
 - Added a table with DEIMOS slitmask design and objects info to the
   SlitTraceSet datamodel
 - Add GitHub Actions CI workflow
+- Incorporates a procedure to enable GMOS Nod and Shuffle observations
+- New GMOS wavelength solutions
 
 1.2.0 (15 Oct 2020)
 -------------------
