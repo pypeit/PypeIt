@@ -18,5 +18,6 @@ dependencies:
   - ipython>=7.2
   - extension-helpers>=0.1
   - ginga>=3.0
-  - linetools>=0.2
+  - linetools>=0.3
+  - PySide2>=5.0
   - pytest>=3.0.7
