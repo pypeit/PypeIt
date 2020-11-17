@@ -1,0 +1,142 @@
+# Mimicing Kirkby's speclite travis file
+#
+# We set the language to c because python isn't supported on the MacOS X nodes
+# on Travis. However, the language ends up being irrelevant anyway, since we
+# install Python ourselves using conda.
+language: c
+
+os:
+    - linux
+
+# Setting sudo to false opts in to Travis-CI container-based builds.
+sudo: false
+
+# The apt packages below are needed for sphinx builds, which can no longer
+# be installed with sudo apt-get.
+addons:
+    apt:
+        packages:
+            - graphviz
+            - texlive-latex-extra
+            - dvipng
+            - libgsl0-dev
+
+env:
+    global:
+
+        # The following versions are the 'default' for tests, unless
+        # overridden underneath. They are defined here in order to save having
+        # to repeat them for all configurations.
+        - FOLDERNAME='pypeit'
+        - PYTHON_VERSION=3.7
+        - ASTROPY_VERSION=stable
+        - NUMPY_VERSION=stable
+        - SKLEARN_VERSION=stable
+        - MAIN_CMD='python setup.py'
+        - SETUP_CMD='test'
+        - CONDA_DEPENDENCIES='scipy pyyaml matplotlib future numba scikit-learn configobj IPython pytest PySide2'
+        - PIP_DEPENDENCIES='extension_helpers ginga linetools'
+        - EVENT_TYPE='pull_request push'
+        - TASK='test'
+
+        # Conda packages for affiliated packages are hosted in channel
+        # "astropy" while builds for astropy LTS with recent numpy versions
+        # are in astropy-ci-extras. If your package uses either of these,
+        # add the channels to CONDA_CHANNELS along with any other channels
+        # you want to use.
+        - CONDA_CHANNELS='astropy-ci-extras'
+
+        # If there are matplotlib or other GUI tests, uncomment the following
+        # line to use the X virtual framebuffer.
+        - SETUP_XVFB=True
+
+    matrix:
+      # Extra context is a way to override options that the user normally
+      # specifies during the questions phase of the cookiecutter setup. The keys
+      # being overridden here must exist in the cookiecutter.json
+      # See https://cookiecutter.readthedocs.io/en/0.9.1/advanced_usage.html#injecting-extra-context
+      #- EXTRA_CONTEXT=''
+      #- EXTRA_CONTEXT='include_example_cython_code=y'
+      #- EXTRA_CONTEXT="package_name=AstropyProject" FOLDERNAME='AstropyProject'
+      #- EXTRA_CONTEXT='_parent_project=sunpy'
+      #- TASK='render' EXTRA_CONTEXT='include_example_cython_code=y initialize_git_repo=n'
+      #- PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+      - PYTHON_VERSION=3.7 SETUP_CMD='egg_info'
+
+matrix:
+
+    # Don't wait for allowed failures
+    fast_finish: true
+
+    include:
+        # Try MacOS X
+        #- os: osx
+        #  env: SETUP_CMD='test'
+
+        # Do a coverage test.
+        #- os: linux
+        #  env: SETUP_CMD='test --coverage'
+
+        # Check for sphinx doc build warnings - we do this first because it
+        # may run for a long time
+        #- os: linux
+        #  env: SETUP_CMD='build_docs -w'
+
+        # Now try Astropy dev and LTS vesions with the latest 3.x and 2.7.
+        #- os: linux
+        #  env: PYTHON_VERSION=2.7 ASTROPY_VERSION=development
+        #       EVENT_TYPE='pull_request push cron'
+        - os: linux
+          env: ASTROPY_VERSION=development
+               EVENT_TYPE='pull_request push cron'
+        #- os: linux
+        #  env: PYTHON_VERSION=2.7 ASTROPY_VERSION=lts
+        #- os: linux
+        #  env: ASTROPY_VERSION=lts
+
+        # Try all python versions and Numpy versions. Since we can assume that
+        # the Numpy developers have taken care of testing Numpy with different
+        # versions of Python, we can vary Python and Numpy versions at the same
+        # time.
+
+        # Try numpy 1.17
+        #- os: linux
+        #  env: NUMPY_VERSION=1.17
+        # Try numpy 1.18
+        - os: linux
+          env: NUMPY_VERSION=1.18
+        # Try numpy 1.19
+        - os: linux
+          env: NUMPY_VERSION=1.19
+        # Try numpy pre-release
+        - os: linux
+          env: NUMPY_VERSION=prerelease
+               EVENT_TYPE='pull_request push cron'
+
+        # Do a PEP8 test with pycodestyle
+        - os: linux
+          env: MAIN_CMD='pycodestyle pypeit --count' SETUP_CMD=''
+
+    allow_failures:
+        # Do a PEP8 test with pycodestyle
+        # (allow to fail unless your code completely compliant)
+        - os: linux
+          env: MAIN_CMD='pycodestyle pypeit --count' SETUP_CMD=''
+
+install:
+
+    - git clone git://github.com/astropy/ci-helpers.git
+    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
+    #- conda install numpy
+    #- conda install configobj
+    #- conda install scikit-learn
+
+script:
+    - $MAIN_CMD $SETUP_CMD
+
+
+after_success:
+    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='pypit/tests/coveragerc'; fi
+
