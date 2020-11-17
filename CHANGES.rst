@@ -46,6 +46,7 @@
 - Added a table with DEIMOS slitmask design and objects info to the
   SlitTraceSet datamodel
 - Add support for MMTO Blue Channel Spectrograph
+- Add GitHub Actions CI workflow
 - Incorporates a procedure to enable GMOS Nod and Shuffle observations
 - New GMOS wavelength solutions
 
