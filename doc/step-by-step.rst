@@ -9,6 +9,7 @@ Overview
 
 This doc goes through a full run of ``PypeIt`` on one of the Shane
 Kast*b* datasets in the Development Suite.
+`(see here) <https://wiki.qt.io/Qt_for_Python>`_
 
 Setup
 =====
@@ -45,6 +46,8 @@ Here is my call for these data::
 
 This creates a :doc:`pypeit_file` in the folder named
 *shane_kast_blue_A* beneath where the script was run.
+Note that RAW_PATH should be the *full* path, i.e. including a /
+at the start.
 
 It looks like this::
 
