@@ -1,0 +1,76 @@
+name: CI Tests
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+  pull_request:
+
+env:
+  SETUP_XVFB: True  # avoid issues if mpl tries to open a GUI window
+
+jobs:
+  ci-tests:
+    name: Python-${{ matrix.python }}, deps=${{ matrix.deps }}
+    runs-on: ${{ matrix.os }}
+    if: "!(contains(github.event.head_commit.message, '[skip ci]') || contains(github.event.head_commit.message, '[ci skip]'))"
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.7, 3.8]
+        deps: [current, numpy118, astropydev, numpydev, astropydev-numpydev]
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install base dependencies
+      run: |
+        python -m pip install --upgrade pip
+    - name: Test with numpy = 1.18
+      if: "contains(matrix.deps, 'numpy118')"
+      run: |
+        python -m pip install numpy==1.18
+    - name: Test with dev version of numpy
+      if: "contains(matrix.deps, 'numpydev')"
+      run: |
+        python -m pip install git+https://github.com/numpy/numpy.git#egg=numpy
+    - name: Test with dev version astropy
+      if: "contains(matrix.deps, 'astropydev')"
+      run: |
+        python -m pip install git+https://github.com/astropy/astropy.git#egg=astropy
+    - name: Install pypeit requirements
+      run: |
+        python -m pip install wheel scipy pyyaml matplotlib future numba scikit-learn configobj IPython
+        python -m pip install -r pypeit/requirements.txt
+    - name: Print Python, pip, astropy, numpy, and setuptools versions
+      run: |
+        python -c "import sys; print(f'Python {sys.version}')"
+        python -c "import pip; print(f'pip {pip.__version__}')"
+        python -c "import astropy; print(f'astropy {astropy.__version__}')"
+        python -c "import numpy; print(f'numpy {numpy.__version__}')"
+        python -c "import setuptools; print(f'setuptools {setuptools.__version__}')"
+    - name: Run tests
+      run: python setup.py test
+
+  codestyle:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    steps:
+    - uses: actions/checkout@v2
+    - name: Python codestyle check
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Install base dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pycodestyle
+    - name: Check for runtime errors using pycodestyle
+      run: |
+        pycodestyle pypeit --count --select=E9

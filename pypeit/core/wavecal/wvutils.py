@@ -9,19 +9,20 @@ import numpy as np
 import os
 import numba as nb
 
+
 from matplotlib import pyplot as plt
+
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
-from pypeit import msgs
-from IPython import embed
 
 from astropy.table import Table
 
-
+from pypeit import msgs
 from pypeit.core import arc
 
+from IPython import embed
 
 def parse_param(par, key, slit):
     # Find good lines for the tilts
@@ -563,8 +564,8 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
     return wave_grid
 
 
-
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
+                   order=None, overwrite=True):
     """
     Write the template spectrum into a binary FITS table
 

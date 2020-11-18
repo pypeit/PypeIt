@@ -317,7 +317,7 @@ class BuildWaveTilts:
 
 
     def fit_tilts(self, trc_tilt_dict, thismask, slit_cen, spat_order, spec_order, slit_idx,
-                  show_QA=False, doqa=True, debug=False):
+                  show_QA=False, doqa=True):
         """
         Fit the tilts
 
@@ -335,8 +335,6 @@ class BuildWaveTilts:
                 show the QA instead of writing it out to the outfile
             doqa: bool, default = True
                 Construct the QA plot
-            debug: bool, default = False
-                Show additional plots useful for debugging.
 
         Returns:
             `numpy.ndarray`_: coeff: ndarray (spat_order + 1, spec_order+1)
@@ -350,7 +348,7 @@ class BuildWaveTilts:
                                       doqa=doqa, master_key=self.master_key,
                                       slitord_id=self.slits.slitord_id[slit_idx],
                                       minmax_extrap=self.par['minmax_extrap'],
-                                      show_QA=show_QA, out_dir=self.qa_path, debug=debug)
+                                      show_QA=show_QA, out_dir=self.qa_path)
 
         self.steps.append(inspect.stack()[0][3])
         return self.all_fit_dict[slit_idx]['coeff2']
@@ -625,7 +623,7 @@ class BuildWaveTilts:
             coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,slit_idx],
                                        self.spat_order[slit_idx], self.spec_order[slit_idx],
                                        slit_idx,
-                                       doqa=doqa, show_QA=show, debug=show)
+                                       doqa=doqa, show_QA=show)
             self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx] = coeff_out
 
             # TODO: Need a way to assess the success of fit_tilts and
@@ -645,14 +643,14 @@ class BuildWaveTilts:
             vmin, vmax = visualization.ZScaleInterval().get_limits(_mstilt)
             plt.imshow(_mstilt, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=vmin, vmax=vmax)
-            for slit in self.slit_idx:
-                spat = self.all_trace_dict[slit]['tilts_spat']
-                spec = self.all_trace_dict[slit]['tilts']
-                spec_fit = self.all_trace_dict[slit]['tilts_fit']
-                in_fit = self.all_trace_dict[slit]['tot_mask']
+            for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+                spat = self.all_trace_dict[slit_idx]['tilts_spat']
+                spec = self.all_trace_dict[slit_idx]['tilts']
+                spec_fit = self.all_trace_dict[slit_idx]['tilts_fit']
+                in_fit = self.all_trace_dict[slit_idx]['tot_mask']
                 not_fit = np.invert(in_fit) & (spec > 0)
-                fit_rej = in_fit & np.invert(self.all_trace_dict[slit]['fit_mask'])
-                fit_keep = in_fit & self.all_trace_dict[slit]['fit_mask']
+                fit_rej = in_fit & np.invert(self.all_trace_dict[slit_idx]['fit_mask'])
+                fit_keep = in_fit & self.all_trace_dict[slit_idx]['fit_mask']
                 plt.scatter(spat[not_fit], spec[not_fit], color='C1', marker='.', s=30, lw=0)
                 plt.scatter(spat[fit_rej], spec[fit_rej], color='C3', marker='.', s=30, lw=0)
                 plt.scatter(spat[fit_keep], spec[fit_keep], color='k', marker='.', s=30, lw=0)
