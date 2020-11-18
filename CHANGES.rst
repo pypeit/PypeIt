@@ -48,6 +48,7 @@
 - Add GitHub Actions CI workflow
 - Incorporates a procedure to enable GMOS Nod and Shuffle observations
 - New GMOS wavelength solutions
+- Remove Travis CI config
 
 1.2.0 (15 Oct 2020)
 -------------------
