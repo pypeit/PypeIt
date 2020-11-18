@@ -41,9 +41,9 @@ mdm_osmos                 MDM         OSMOS spectrometer
 mmt_mmirs                 MMT         MMIRS spectrometer
 mmt_binospec              MMT         BINSOSPEC spectrometer
 not_alfosc                NOT         ALFOSC spectrometer (grisms 4, 19)
-shane_kast_blue           Lick 3m     Kast dual spectrometer; blue camera
-shane_kast_red            Lick 3m     Kast dual spectrometer; red camera
-shane_kast_red_ret        Lick 3m     Kast dual spectrometer; red reticon
+shane_kast_blue           Lick 3m     :doc:`shane_kast` spectrometer; blue camera
+shane_kast_red            Lick 3m     :doc:`shane_kast` spectrometer; red camera
+shane_kast_red_ret        Lick 3m     :doc:`shane_kast` spectrometer; red reticon
 tng_dolores               TNG         DOLORES (LRS) spectrograph; LR-R
 vlt_fors2                 VLT         FORS2 spectrometer; only a few gratings
 vlt_xshooter_uvb          VLT         :doc:`xshooter` spectrometer; UVB camera
@@ -73,4 +73,5 @@ PypeIt.
    keck_kcwi
    lris
    mage
+   shane_kast
    xshooter
