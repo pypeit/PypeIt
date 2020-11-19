@@ -730,7 +730,7 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
             raise TypeError('Provided ext object must be a str, int, or list.')
         if isinstance(ext, list):
             for e in ext:
-                if not isinstance(ext, (str, int)):
+                if not isinstance(e, (str, int)):
                     raise TypeError('Provided ext elements  must be a str or int.')
     if ext is None and isinstance(hdu, fits.HDUList):
         ext = [h.name if h.name != '' else i for i,h in enumerate(hdu)]

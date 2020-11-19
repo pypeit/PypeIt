@@ -406,7 +406,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                    fontsize=20.)
         # maskdef_ids
         if _maskdef_ids is not None:
-            canvas.add(str('text'), xb, yb-50, str('{0}'.format(_maskdef_ids[i])), color=str('orange'),
+            canvas.add(str('text'), xb, yb-100, str('{0}'.format(_maskdef_ids[i])), color=str('cyan'),
                        fontsize=20.)
         # TODO -- Fix indices if you really want to show them
         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),

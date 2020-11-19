@@ -643,7 +643,9 @@ class SpecObjs:
             pypeline (:obj:`str`): PypeIt pipeline mode
         """
         # TODO -- Deal with update_det
-        slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+        # Lists for a Table
+        slits, names, maskdef_id, objname, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
+            [], [], [], [], [], [], [], [], []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
@@ -698,6 +700,10 @@ class SpecObjs:
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            if specobj.MASKDEF_ID is not None:
+                maskdef_id.append(specobj.MASKDEF_ID)
+            if specobj.MASKDEF_OBJNAME is not None:
+                objname.append(specobj.MASKDEF_OBJNAME)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -712,6 +718,11 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
+            if specobj.MASKDEF_ID is not None:
+                obj_tbl['maskdef_id'] = maskdef_id
+                obj_tbl['maskdef_id'].format = 'd'
+            if specobj.MASKDEF_OBJNAME is not None:
+                obj_tbl['objname'] = objname
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos

@@ -206,8 +206,8 @@ class SlitMask:
         self.slitindx = None
         if objects is not None:
             self.objects = numpy.atleast_2d(objects)
-            if self.objects.shape[1] != 4:
-                raise ValueError('Must provide the slit ID and sky coordinates for each object.')
+            if self.objects.shape[1] != 5:
+                raise ValueError('Must provide the slit ID, sky coordinates and object name for each object.')
             try:
                 self.slitindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
                                                 strict=True)

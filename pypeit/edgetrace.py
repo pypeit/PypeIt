@@ -631,6 +631,8 @@ class EdgeTraceSet(DataContainer):
                                  description='Right ascension of the object (deg)'),
                     table.Column(name='OBJDEC', dtype=float, length=length,
                                  description='Declination of the object (deg)'),
+                    table.Column(name='OBJNAME', dtype=str, length=length,
+                                 description='Object Name'),
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='SLITINDX', dtype=int, length=length,
@@ -4429,8 +4431,8 @@ class EdgeTraceSet(DataContainer):
         - 'OBJID': Object ID Number
         - 'OBJRA': Right ascension of the object (deg)
         - 'OBJDEC': Declination of the object (deg)
-        - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'OBJNAME': Object name assigned by the observer
+        - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'SLITINDX': Row index of relevant slit in the design table
 
         Args:
@@ -4456,10 +4458,10 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC']):
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME']):
                 self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(
                                         dtype=self.objects[key].dtype)
-        self.objects['OBJNAME'] = [item.strip() for item in self.spectrograph.slitmask.object_names[obj_index]]
+        self.objects['OBJNAME'] = [item.strip() for item in self.objects['OBJNAME']]
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data

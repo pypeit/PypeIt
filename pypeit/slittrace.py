@@ -283,7 +283,12 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
+        try:
+            return super(SlitTraceSet, cls)._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
+                                                   transpose_table_arrays=True)
+        except KeyError:
+            return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS',
+                                                   transpose_table_arrays=True)
 
     def init_tweaked(self):
         """
@@ -764,6 +769,24 @@ class SlitTraceSet(datamodel.DataContainer):
         slit_to_obj_sep = obj_slit_coords.separation(obj_coords)
         slit_to_obj_pa = obj_slit_coords.position_angle(obj_coords)
 
+        # Exact pixel positions of the slit center (instead of using sobj.SLITID)
+        censpat = (self.maskdef_designtab['TRACELPIX'].data + self.maskdef_designtab['TRACERPIX'].data)/2.
+        # Measure distance of center from left and right edges
+        fromleft_censpat = censpat - self.maskdef_designtab['TRACELPIX'].data
+        fromright_censpat = censpat - self.maskdef_designtab['TRACERPIX'].data
+        # Pixel position of the slit center predicted from the slitmask info
+        maskdef_censpat = (self.maskdef_designtab['SLITLOPT'].data + self.maskdef_designtab['SLITROPT'].data)/2.
+        # Measure distance of center from left and right edges
+        fromleft_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITLOPT'].data
+        fromright_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITROPT'].data
+        # Find the differences. This allows to take into account the slits that are smaller than what
+        # should be because they are cut by the detector edges
+        diff_dist = fromleft_maskdef_censpat - fromleft_censpat
+        # For the leftmost slit we use the distance from right
+        diff_dist[0] = fromright_maskdef_censpat[0] - fromright_censpat[0]
+        # we define the new slit center which is consistent with the one from slitmask
+        new_censpat = censpat + diff_dist
+
         # First pass
         measured, expected = [], []
         for sobj in cut_sobjs:
@@ -775,7 +798,7 @@ class SlitTraceSet(datamodel.DataContainer):
             oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
             expected_offset = slit_to_obj_sep[oidx].to('arcsec').value
             # Actual offset (arcsec)
-            dpix = sobj.SPAT_PIXPOS - sobj.SLITID
+            dpix = sobj.SPAT_PIXPOS - new_censpat[self.spat_id == sobj.SLITID][0]
             darcsec = dpix * plate_scale
             # Direction -- Allows for 180deg rotation
             true_pa = slit_to_obj_pa[oidx].to('deg').value
