@@ -542,6 +542,7 @@ class EdgeTraceSet(DataContainer):
         self.omodel_tspat = None
         self.coeff_b = None
         self.coeff_t = None
+        self.maskdef_file = None
 
     @property
     def ntrace(self):
@@ -590,9 +591,9 @@ class EdgeTraceSet(DataContainer):
                     # table.Column(name='SLITRFOC', dtype=float, length=length,
                     #              description='Right edge of the slit in mm at the focal plane'),
                     table.Column(name='SLITLOPT', dtype=float, length=length,
-                                description='Left edge of the slit in pixel from optical model before x-correlation'),
+                                description='Left edge of the slit in pixel predicted by optical model'),
                     table.Column(name='SLITROPT', dtype=float, length=length,
-                                description='Right edge of the slit in pixel from optical model before x-correlation'),
+                                description='Right edge of the slit in pixel predicted optical model'),
                     table.Column(name='SLITRA', dtype=float, length=length,
                                  description='Right ascension of the slit center (deg)'),
                     table.Column(name='SLITDEC', dtype=float, length=length,
@@ -631,8 +632,6 @@ class EdgeTraceSet(DataContainer):
                                  description='Right ascension of the object (deg)'),
                     table.Column(name='OBJDEC', dtype=float, length=length,
                                  description='Declination of the object (deg)'),
-                    table.Column(name='OBJNAME', dtype=str, length=length,
-                                 description='Object Name'),
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='SLITINDX', dtype=int, length=length,
@@ -4067,13 +4066,13 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
 
         # `traceimg` must have knowledge of the flat frame that built it
-        if self.spectrograph.get_slitmask(self.traceimg.files[0]) is None:
-            msgs.error('Unable to read slitmask design info')
-        if self.spectrograph.get_grating(self.traceimg.files[0]) is None:
-            msgs.error('Unable to read grating info')
-        if self.spectrograph.get_amapbmap(self.traceimg.files[0]) is None:
-            msgs.error('Unable to read amap and bmap')
         self.maskdef_file = self.traceimg.files[0]
+        if self.spectrograph.get_slitmask(self.maskdef_file) is None:
+            msgs.error('Unable to read slitmask design info')
+        if self.spectrograph.get_grating(self.maskdef_file) is None:
+            msgs.error('Unable to read grating info')
+        if self.spectrograph.get_amapbmap(self.maskdef_file) is None:
+            msgs.error('Unable to read amap and bmap')
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
@@ -4345,8 +4344,8 @@ class EdgeTraceSet(DataContainer):
         # be filled out at the very end of the slit tracing process, in `get_slits()`.
         self.coeff_b = coeff_b
         self.coeff_t = coeff_t
-        self.omodel_bspat = omodel_bspat
-        self.omodel_tspat = omodel_tspat
+        self.omodel_bspat = bot_edge_pred
+        self.omodel_tspat = top_edge_pred
 
     def _fill_design_table(self, maskdef_id, coeff_b, coeff_t, omodel_bspat, omodel_tspat):
         """
@@ -4400,7 +4399,7 @@ class EdgeTraceSet(DataContainer):
         # Instantiate as an empty table
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
         # Save the fit parameters and the source file as table metadata
-        self.design.meta['MASKFILE'] = None
+        self.design.meta['MASKFILE'] = self.maskdef_file
         self.design.meta['MASKOFF'] = coeff_b[0], coeff_t[0]
         self.design.meta['MASKSCL'] = coeff_b[1], coeff_t[1]
         # Fill the columns
@@ -4450,7 +4449,7 @@ class EdgeTraceSet(DataContainer):
         obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.objects[:,0], maskdef_id, strict=False)
         # if not all the element of self.spectrograph.slitmask.objects[obj_index,0] are equal to maskdef_id,
         # keep only the elements that are equal (matched)
-        matched = np.where(self.spectrograph.slitmask.objects[obj_index,0] == maskdef_id)[0]
+        matched = np.where(self.spectrograph.slitmask.objects[obj_index,0].astype(int) == maskdef_id)[0]
         obj_index = obj_index[matched]
 
         # Number of objects
@@ -4458,10 +4457,10 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME']):
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC']):
                 self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(
                                         dtype=self.objects[key].dtype)
-        self.objects['OBJNAME'] = [item.strip() for item in self.objects['OBJNAME']]
+        self.objects['OBJNAME'] = [item.strip() for item in self.spectrograph.slitmask.objects[obj_index,4]]
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data
@@ -5042,7 +5041,7 @@ class EdgeTraceSet(DataContainer):
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                       maskdef_posx_pa=_posx_pa,
-                                      #maskdef_file=self.maskdef_file,  # ADD THIS BACK WHEN FITS ISSUE IS RESOLVED
+                                      maskdef_file=self.maskdef_file,
                                       ech_order=ech_order)
 
 
