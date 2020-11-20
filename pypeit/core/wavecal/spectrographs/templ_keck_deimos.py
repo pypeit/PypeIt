@@ -92,7 +92,7 @@ def keck_deimos_900ZD(overwrite=False):
     binspec = 1
     outroot = 'keck_deimos_900ZD.fits'
     # PypeIt fits
-    wpath = os.path.join(templates.template_path, 'Keck_DEIMOS', '1200B')
+    wpath = os.path.join(templates.template_path, 'Keck_DEIMOS', '900ZD')
     bmwv_file = 'MasterWaveCalib_A_1_03_UseS0725.fits'
     # 4000 to 5571 S0725
     gbmwv_file = 'MasterWaveCalib_A_1_01_UseS0922.fits'
