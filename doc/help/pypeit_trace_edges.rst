@@ -32,11 +32,12 @@
                             vlt_fors2, gemini_gnirs, gemini_flamingos1,
                             gemini_flamingos2, gemini_gmos_south_ham,
                             gemini_gmos_north_e2v, gemini_gmos_north_ham,
-                            magellan_fire, magellan_fire_long, magellan_mage,
-                            lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b,
-                            lbt_luci1, lbt_luci2, mmt_binospec, mmt_mmirs,
-                            mdm_osmos_mdm4k, not_alfosc, p200_dbsp_blue,
-                            p200_dbsp_red, p200_tspec (default: None)
+                            gemini_gmos_north_ham_ns, magellan_fire,
+                            magellan_fire_long, magellan_mage, lbt_mods1r,
+                            lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1,
+                            lbt_luci2, mmt_binospec, mmt_mmirs, mdm_osmos_mdm4k,
+                            not_alfosc, p200_dbsp_blue, p200_dbsp_red, p200_tspec
+                            (default: None)
       -b BINNING, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used ifproviding files directly; default is 1,1.
