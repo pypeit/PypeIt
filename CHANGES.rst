@@ -49,6 +49,7 @@
 - Incorporates a procedure to enable GMOS Nod and Shuffle observations
 - New GMOS wavelength solutions
 - Remove Travis CI config
+- Add support for the DEIMOS 900ZD grating  
 
 1.2.0 (15 Oct 2020)
 -------------------
