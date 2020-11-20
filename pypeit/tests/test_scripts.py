@@ -258,11 +258,8 @@ def test_identify():
     arcfitter = identify.main(pargs)
 
     # Load line list
-    arcfitter.load_IDs(fname=data_path('waveid.ascii'))
+    arcfitter.load_IDs(fname=data_path('waveid_tests.ascii'))
     assert arcfitter._detns.size == 31, 'Bad load'
-
-    # Move waveid.ascii so it does not get overwritten
-    shutil.move(data_path('waveid.ascii'), data_path('waveid.ascii.tmp'))
 
     # Fit
     arcfitter._fitdict['polyorder'] = 3
@@ -293,9 +290,6 @@ def test_identify():
     os.remove('waveid.ascii')
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
-
-    # Move old waveid.ascii back to keep git clean
-    shutil.move(data_path('waveid.ascii.tmp'), data_path('waveid.ascii'))
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
