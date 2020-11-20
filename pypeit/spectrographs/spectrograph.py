@@ -86,12 +86,15 @@ class Spectrograph:
     __metaclass__ = ABCMeta
 
     ndet = None
+    name = None
+    telescope = None
+    camera = None
 
     def __init__(self):
-        self.spectrograph = 'base'
-        self.camera = 'base'
-        self.telescope = None
-        self.camera = None
+#        self.spectrograph = 'base'
+#        self.camera = 'base'
+#        self.telescope = None
+#        self.camera = None
         self.dispname = None
         self.detector = None
         self.naxis = None
@@ -114,9 +117,11 @@ class Spectrograph:
         # Validate detector
         assert self.ndet > 0
 
-    @staticmethod
-    def default_pypeit_par():
-        return pypeitpar.PypeItPar()
+    @classmethod
+    def default_pypeit_par(cls):
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = cls.name
+        return par
 
     def nonlinear_counts(self, detector_par, datasec_img=None, apply_gain=True):
         """

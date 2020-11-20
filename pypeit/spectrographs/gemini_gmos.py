@@ -19,7 +19,8 @@ from IPython import embed
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Gemini/GMOS specific code
+    Child to handle Gemini/GMOS specific code. This is a base class that
+    should not be instantiated.
     """
     ndet = 3
 
@@ -28,7 +29,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(GeminiGMOSSpectrograph, self).__init__()
         self.timeunit = 'isot'  # Synthesizes date+time
-
         # Nod & Shuffle
         self.nod_shuffle_pix = None
 
@@ -76,7 +76,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
-            return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') & (fitstbl['target'] != 'Bias')
+            return good_exp & (fitstbl['target'] != 'CuAr') & (fitstbl['target'] != 'GCALflat') \
+                    & (fitstbl['target'] != 'Bias')
             #& (fitstbl['idname'] == 'OBJECT')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
@@ -206,7 +207,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         head0 = hdu[0].header
         head1 = hdu[1].header
 
-        # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
+        # TODO: I don't understand this comment, why not use self.ndet?
+
+        # Number of amplifiers (could pull from DetectorPar but this avoids
+        # needing the spectrograph, e.g. view_fits)
         numamp = (len(hdu) - 1) // 3
 
         # get the x and y binning factors...
@@ -280,8 +284,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         oscansec_img = oscansec_img.T
 
         # Hack me
-        if self.spectrograph == 'gemini_gmos_north_ham_ns' and (
-                head0['object'] in ['GCALflat', 'CuAr', 'Bias']) and self.nod_shuffle_pix is not None:
+        if self.spectrograph == 'gemini_gmos_north_ham_ns' \
+                and head0['object'] in ['GCALflat', 'CuAr', 'Bias'] \
+                and self.nod_shuffle_pix is not None:
             # TODO -- Should double check NOD&SHUFFLE was not on
             row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
             nodpix = self.nod_shuffle_pix
@@ -297,13 +302,14 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-S instrument with Hamamatsu detector
     """
-    def __init__(self):
 
+    name = 'gemini_gmos_south_ham'
+    camera = 'GMOS-S'
+    telescope = telescopes.GeminiSTelescopePar()
+
+    def __init__(self):
         # Get it started
         super(GeminiGMOSSHamSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos_south_ham'
-        self.camera = 'GMOS-S'
-        self.telescope = telescopes.GeminiSTelescopePar()
 
     def get_detector_par(self, hdu, det):
         """
@@ -314,13 +320,15 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
                 HDUList of the image of interest.
                 Ought to be the raw file, or else..
             det (int):
+                1-indexed detector number.
 
         Returns:
             :class:`pypeit.images.detector_container.DetectorContainer`:
 
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -383,7 +391,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         Set default parameters for XSHOOTER NIR reductions.
         """
         par = GeminiGMOSSpectrograph.default_pypeit_par()
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):

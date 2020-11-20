@@ -16,8 +16,8 @@ import inspect
 import scipy
 import numpy
 import astropy
+import pypeit
 
-from pypeit import __version__ #, __last_updated__
 from pypeit.core.qa import close_qa
 from pypeit import defs
 
@@ -58,8 +58,6 @@ class Messages:
         if getpass.getuser() in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
-#        self._last_updated = __last_updated__
-        self._version = __version__
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
@@ -132,9 +130,8 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-#        self._log.write("PypeIt was last updated {0:s}\n".format(self._last_updated))
         self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
-                                                                                    self._version))
+                        pypeit.__version__))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
         self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
@@ -162,18 +159,18 @@ class Messages:
 
     # Headers and usage
     # TODO: Move this to the ARMED class...
-    def armedheader(self, prognm):
-        """
-        Get the info header for ARMED
-        """
-        header = '##  '
-        header += self._start + self._white_GR + 'ARMED : '
-        header += 'Automated Reduction and Modelling of Echelle Data v{0:s}'.format(
-                        self._version) + self._end + '\n'
-        header += '##  '
-        header += 'Usage : '
-        header += 'python %s [options] filelist'.format(prognm)
-        return header
+#    def armedheader(self, prognm):
+#        """
+#        Get the info header for ARMED
+#        """
+#        header = '##  '
+#        header += self._start + self._white_GR + 'ARMED : '
+#        header += 'Automated Reduction and Modelling of Echelle Data v{0:s}'.format(
+#                        self._version) + self._end + '\n'
+#        header += '##  '
+#        header += 'Usage : '
+#        header += 'python %s [options] filelist'.format(prognm)
+#        return header
 
     def pypeitheader(self, prognm):
         """
@@ -182,7 +179,7 @@ class Messages:
         header = '##  '
         header += self._start + self._white_GR + 'PypeIt : '
         header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
-                        self._version) + self._end + '\n'
+                        pypeit.__version__) + self._end + '\n'
         header += '##  '
         return header
 
@@ -206,7 +203,7 @@ class Messages:
         #    spclist += ', ' + istsp.split('.')[-1]
 
         spclist = ', '.join(spectrographs)
-        spcl = textwrap.wrap(spclist, width=60)
+        spcl = textwrap.wrap(spclist, width=70)
         descs = self.pypeitheader(prognm)
 
         #descs += '\n##  Available pipelines include (OUTDATED):'
