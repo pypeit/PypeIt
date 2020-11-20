@@ -150,7 +150,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
         .. todo::
