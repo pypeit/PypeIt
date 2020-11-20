@@ -24,10 +24,11 @@ exposures of arc lamps to cover the full range.
 Using the Holy Grail Algorithm
 ==============================
 
-Once a set of different arc lamp exposures that cover the desired range,
+Once you have a set of different arc lamp exposures that cover the desired range,
 run through the data using the option of the Holy Grail to generate a
-master wavelength calibration, see :doc:`master_wvcalib` for example
-QA plots that illustrate a good wavelength solution.
+master wavelength calibration and select the slits where the technique is
+successful. See :doc:`master_wvcalib` for an example QA plot that illustrates
+a good wavelength solution.
 
 With a complete set of correctly calibrated arc line data, identify wavelength
 regions, with no gaps, that cover the full range in wavelength desired.
