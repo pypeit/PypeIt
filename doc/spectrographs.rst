@@ -27,7 +27,7 @@ keck_lris_red_orig        Keck        :doc:`lris` spectrometer; red camera + ori
 keck_mosfire              Keck        MOSFIRE spectrometer; J and Y gratings tested
 keck_nires                Keck        NIRES spectrometer
 keck_nirspec_low          Keck        NIRSPEC spectrometer; low-dispersion
-keck_deimos               Keck        :doc:`deimos` spectrometer (600ZD, 830G, 1200G)
+keck_deimos               Keck        :doc:`deimos` spectrometer (600ZD, 830G, 1200G, 1200B, 900ZD)
 lbt_luci1                 LBT         LUCI-I spectrometer
 lbt_luci2                 LBT         LUCI-II spectrometer
 lbt_mods1r                LBT         MODS-I red spectrometer
