@@ -1328,18 +1328,33 @@ def convert_lowredux_pixelflat(infil, outfil):
 
 def get_orig_rawimage(raw_file, debug=False):
     """
-    Read a raw, original LRIS data frame
+    Read a raw, original LRIS data frame.
 
     Ported from LOWREDUX long_oscan.pro lris_oscan()
 
-    Args:
-        raw_file : str
-          Filename
+    Parameters
+    ----------
+    raw_file : :obj:`str`
+        Filename
+    debug : :obj:`bool`, optional
+        Run in debug mode (doesn't do anything)
 
-    Returns:
-        tuple
-            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-            But note the detector info is *not* returned
+    Returns
+    -------
+    raw_img : `numpy.ndarray`_
+        Raw image for this detector.
+    hdu : `astropy.io.fits.HDUList`_
+        Opened fits file
+    exptime : :obj:`float`
+        Exposure time read from the file header
+    rawdatasec_img : `numpy.ndarray`_
+        Data (Science) section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
+    oscansec_img : `numpy.ndarray`_
+        Overscan section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
     """
     # Open
     hdul = io.fits_open(raw_file)

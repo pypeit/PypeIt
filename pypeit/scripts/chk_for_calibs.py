@@ -75,7 +75,7 @@ def main(args):
     ps.run(setup_only=True)#, write_bkg_pairs=args.background)
     is_science = ps.fitstbl.find_frames('science')
 
-    msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.spectrograph))
+    msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.name))
 
     # Unique configurations
     uniq_cfg = ps.fitstbl.unique_configurations(copy=True)
