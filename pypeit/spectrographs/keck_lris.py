@@ -463,6 +463,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     name = 'keck_lris_blue'
     camera = 'LRISb'
     supported = True
+    comment = 'Blue camera; see :doc:`lris`'
     
     def get_detector_par(self, hdu, det):
         """
@@ -666,7 +667,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     name = 'keck_lris_blue_orig'
     camera = 'LRISb'
     supported = True    # TODO: Is this true?
-    comment = 'Original detector; replaced in 20??'
+    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
 
     def init_meta(self):
         """
@@ -786,6 +787,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     name = 'keck_lris_red'
     camera = 'LRISr'
     supported = True
+    comment = 'Red camera; see :doc:`lris`'
     
     def get_detector_par(self, hdu, det):
         """
@@ -1052,7 +1054,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced in 20??'
+    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):

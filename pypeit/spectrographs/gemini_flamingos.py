@@ -54,6 +54,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     name = 'gemini_flamingos2'
     camera = 'FLAMINGOS'
     supported = True
+    comment = 'Flamingos-2 NIR spectrograph'
 
     def get_detector_par(self, hdu, det):
         """

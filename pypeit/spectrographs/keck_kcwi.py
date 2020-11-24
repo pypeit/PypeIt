@@ -39,7 +39,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     camera = 'KCWI'
     pypeline = 'IFU'
     supported = True
-    comment = 'Supported setups: BM, BH2'
+    comment = 'Supported setups: BM, BH2; see :doc:`keck_kcwi`'
 
     def __init__(self):
         super().__init__()
