@@ -30,7 +30,6 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
     Child to handle P200/DBSP specific code
     """
     ndet = 1
-    name = 'p200_dbsp'
     telescope = telescopes.P200TelescopePar()
 
     def configuration_keys(self):
@@ -155,6 +154,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_blue'
     camera = 'DBSPb'
+    supported = True
+    comment = 'Blue camera'
     
     def compound_meta(self, headarr: List[fits.Header], meta_key: str):
         """
@@ -321,6 +322,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_red'
     camera = 'DBSPr'
+    supported = True
+    comment = 'Red camera'
     
     def compound_meta(self, headarr: List[fits.Header], meta_key: str):
         """

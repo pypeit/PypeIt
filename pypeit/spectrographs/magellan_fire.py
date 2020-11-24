@@ -74,6 +74,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     name = 'magellan_fire'
     camera = 'FIRE'
     pypeline = 'Echelle'
+    supported = True
+    comment = 'Magellan/FIRE in echelle mode'
 
     def get_detector_par(self, hdu, det):
         """
@@ -313,6 +315,8 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
     """
     name = 'magellan_fire_long'
     camera = 'FIRE'
+    supported = True
+    comment = 'Magellan/FIRE in long-slit/high-throughput mode'
 
     def get_detector_par(self, hdu, det):
         """

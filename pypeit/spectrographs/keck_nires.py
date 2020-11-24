@@ -23,6 +23,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRES'
     pypeline = 'Echelle'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         # Detector 1

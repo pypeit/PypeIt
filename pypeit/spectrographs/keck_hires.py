@@ -224,10 +224,12 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
     """
     Child to handle KECK/HIRES-R specific code
+
+    .. warning::
+        Spectrograph not yet supported
     """
     name = 'keck_hires_red'
-    # TODO: Set camera when spectrograph is supported
-    # camera = 'HIRES_R'
+    camera = 'HIRES_R'
 
     @classmethod
     def default_pypeit_par(cls):

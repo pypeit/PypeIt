@@ -53,6 +53,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     """
     name = 'gemini_flamingos2'
     camera = 'FLAMINGOS'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -219,9 +220,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
     """
 
     name = 'gemini_flamingos1'
-    camera = None
-    # TODO: Assign the camera name when the spectrograph is supported!
-    #camera = 'FLAMINGOS'
+    camera = 'FLAMINGOS'
 
     def get_detector_par(self, hdu, det):
         """

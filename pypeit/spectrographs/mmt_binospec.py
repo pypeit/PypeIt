@@ -27,6 +27,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_binospec'
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """

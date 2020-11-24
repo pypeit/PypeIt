@@ -73,6 +73,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRATNAME')
 
+    # TODO: Deal with isot time here.
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
@@ -149,9 +150,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             elif ((filter1 == 'blind') or
                   (filter2 == 'blind')):
                 return 'dark'
-
-        else:
-            msgs.error("Not ready for this compound meta")
+        msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
@@ -238,6 +237,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
     """
     name = 'lbt_luci1'
     camera = 'LUCI1'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -365,6 +365,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
     """
     name = 'lbt_luci2'
     camera = 'LUCI2'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -469,3 +470,5 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 #                            '0.NAXIS': 2 }
 #        super(LBTLUCI1Spectrograph, self).check_headers(headers,
 #                                                              expected_values=expected_values)
+
+

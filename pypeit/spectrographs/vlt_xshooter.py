@@ -162,6 +162,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     name = 'vlt_xshooter_nir'
     camera = 'XShooter_NIR'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -534,6 +535,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     name = 'vlt_xshooter_vis'
     camera = 'XShooter_VIS'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """

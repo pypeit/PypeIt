@@ -345,6 +345,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     name = 'gemini_gmos_south_ham'
     camera = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
+    supported = True
+    comment = 'Hamamatsu detector (R400, B600, R831)'
 
     def get_detector_par(self, hdu, det):
         """
@@ -556,6 +558,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     Used since February 2017
     """
     name = 'gemini_gmos_north_ham'
+    supported = True
+    comment = 'Hamamatsu detector (R400, B600, R831); Used since Feb 2017'
 
     def get_detector_par(self, hdu, det):
         """
@@ -665,6 +669,8 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
     and Nod+Shuffle in an not-really NS manner (for now)
     """
     name = 'gemini_gmos_north_ham_ns'
+    supported = True
+    comment = 'Same as gemini_gmos_north_ham when used in nod-and-shuffle mode'
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -697,6 +703,8 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     Used until February 2017
     """
     name = 'gemini_gmos_north_e2v'
+    supported = True
+    comment = 'E2V detector'
 
     def get_detector_par(self, hdu, det):
         """

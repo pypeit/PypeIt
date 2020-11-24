@@ -27,13 +27,12 @@ from pypeit.spectrographs import spectrograph
 class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/MMIRS specific code
-
-
     """
     ndet = 1
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    supported = True
 
     def init_meta(self):
         """

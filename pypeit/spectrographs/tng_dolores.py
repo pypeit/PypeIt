@@ -23,6 +23,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     name = 'tng_dolores'
     telescope = telescopes.TNGTelescopePar()
     camera = 'DOLORES'
+    comment = 'DOLORES (LRS) spectrograph; LR-R'
 
 #    def __init__(self):
 #        super().__init__()

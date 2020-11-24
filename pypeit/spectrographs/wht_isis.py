@@ -105,6 +105,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
     name = 'wht_isis_blue'
     camera = 'ISISb'
+    comment = 'Blue camera'
     
     def get_detector_par(self, hdu, det):
         """
@@ -262,6 +263,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
     name = 'wht_isis_red'
     camera = 'ISISr'
+    comment = 'Red camera'
 
     def get_detector_par(self, hdu, det):
         """

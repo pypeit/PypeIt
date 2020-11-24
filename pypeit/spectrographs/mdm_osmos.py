@@ -25,6 +25,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     name = 'mdm_osmos_mdm4k'
     telescope = telescopes.KPNOTelescopePar()
     camera = 'MDM4K'
+    supported = True
+    comment = 'MDM OSMOS spectrometer'
 
     def get_detector_par(self, hdu, det):
         """

@@ -309,10 +309,7 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     Child to handle NIRSPEC low-dispersion specific code
     """
     name = 'keck_nirspec_low'
+    supported = True
+    comment = 'Low-dispersion grating'
 
-# TODO: This is outdated
-#    @property
-#    def telluric_grid_file(self):
-#        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-#        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 

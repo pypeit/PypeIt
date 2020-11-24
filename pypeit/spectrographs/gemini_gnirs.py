@@ -22,6 +22,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     camera = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """

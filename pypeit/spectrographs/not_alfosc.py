@@ -25,6 +25,8 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     name = 'not_alfosc'
     telescope = telescopes.NOTTelescopePar()
     camera = 'ALFOSC'
+    supported = True
+    comment = 'Grisms 4, 19'
 
     def get_detector_par(self, hdu, det):
         """

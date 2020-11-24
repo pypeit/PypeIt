@@ -25,6 +25,8 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.P200TelescopePar()
     camera = 'TSPEC'
     pypeline = 'Echelle'
+    supported = True
+    comment = 'TripleSpec spectrograph'
 
     def init_meta(self):
         """

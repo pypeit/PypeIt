@@ -196,6 +196,8 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
     name = 'vlt_fors2'
     camera = 'FORS2'
+    supported = True
+    comment = '300I, 300V gratings'
 
     def get_detector_par(self, hdu, det):
         """

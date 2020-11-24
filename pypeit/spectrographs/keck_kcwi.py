@@ -38,6 +38,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
     pypeline = 'IFU'
+    supported = True
+    comment = 'Supported setups: BM, BH2'
 
     def __init__(self):
         super().__init__()

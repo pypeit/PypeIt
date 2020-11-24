@@ -27,6 +27,8 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     camera = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
+    supported = True
+    comment = 'See :doc:`mage`.'
 
     def get_detector_par(self, hdu, det):
         """

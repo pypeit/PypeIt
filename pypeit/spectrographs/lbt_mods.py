@@ -239,6 +239,8 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods1r'
     camera = 'MODS1R'
+    supported = True
+    comment = 'MODS-I red spectrometer'
 
     def get_detector_par(self, hdu, det):
         """
@@ -401,6 +403,8 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
     name = 'lbt_mods1b'
     camera = 'MODS1B'
+    supported = True
+    comment = 'MODS-I blue spectrometer'
 
     def get_detector_par(self, hdu, det):
         """
@@ -527,6 +531,8 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2r'
     camera = 'MODS2R'
+    supported = True
+    comment = 'MODS-II red spectrometer'
 
     def get_detector_par(self, hdu, det):
         """
@@ -686,6 +692,8 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2b'
     camera = 'MODS2B'
+    supported = True
+    comment = 'MODS-II blue spectrometer'
 
     def get_detector_par(self, hdu, det):
         """

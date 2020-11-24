@@ -25,7 +25,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     Child to handle Shane/Kast specific code
     """
     ndet = 1
-    name = 'shane_kast'
     telescope = telescopes.ShaneTelescopePar()
 
     @classmethod
@@ -197,6 +196,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
 
     name = 'shane_kast_blue'
     camera = 'KASTb'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -325,6 +325,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
     name = 'shane_kast_red'
     camera = 'KASTr'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -445,6 +446,8 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_red_ret'
     # WARNING: This camera name is not unique wrt ShaneKastRed...
     camera = 'KASTr'
+    supported = True
+    comment = 'Red reticon'
 
     def get_detector_par(self, hdu, det):
         """

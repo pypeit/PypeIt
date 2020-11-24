@@ -23,6 +23,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     name = 'keck_mosfire'
     telescope = telescopes.KeckTelescopePar()
     camera = 'MOSFIRE'
+    supported = True
+    comment = 'Gratings tested: Y, J, K'
 
     def get_detector_par(self, hdu, det):
         """
