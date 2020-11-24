@@ -1,21 +1,24 @@
-""" Module for LRIS specific codes
+"""
+Module for Gemini GMOS specific methods.
+
+.. include: ../include/links.rst
 """
 import glob
-import os
+from pkg_resources import resource_filename
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
-from .. import telescopes
+from pypeit import telescopes
 from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
-from pkg_resources import resource_filename
 
-
-from IPython import embed
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -25,16 +28,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     ndet = 3
 
     def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSSpectrograph, self).__init__()
+        super().__init__()
         self.timeunit = 'isot'  # Synthesizes date+time
-        # Nod & Shuffle
-        self.nod_shuffle_pix = None
+        self.nod_shuffle_pix = None # Nod & Shuffle
 
     def init_meta(self):
         """
-        Generate the meta data dictionary.
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
@@ -56,14 +59,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
@@ -73,6 +79,21 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
@@ -89,14 +110,16 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Gemini GMOS reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-
-
+        par = super().default_pypeit_par()
 
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['fit_order'] = 3
@@ -134,22 +157,19 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
@@ -168,34 +188,52 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
-        cfg_keys = super(GeminiGMOSSpectrograph, self).configuration_keys()
-        # Add grating tilt
-        return cfg_keys+['dispangle', 'datasec']
+        return super().configuration_keys() + ['dispangle', 'datasec']
 
     def get_rawimage(self, raw_file, det):
         """
-        Load up the raw image and generate a few other bits and pieces
-        that are key for image processing
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple: See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
+        # TODO: I don't remember what we decided about this use of glob...
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
         if len(fil) != 1:
@@ -233,6 +271,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
+        # TODO: Why is this stuff here and not in the relevant subclass?
         if numamp == 2:  # E2V
             if det == 1:  # BLUEST DETECTOR
                 order = range(6, 4, -1)
@@ -283,8 +322,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = rawdatasec_img.T
         oscansec_img = oscansec_img.T
 
+        # TODO: Move to the relevant subclass.
         # Hack me
-        if self.spectrograph == 'gemini_gmos_north_ham_ns' \
+        if self.name == 'gemini_gmos_north_ham_ns' \
                 and head0['object'] in ['GCALflat', 'CuAr', 'Bias'] \
                 and self.nod_shuffle_pix is not None:
             # TODO -- Should double check NOD&SHUFFLE was not on
@@ -302,29 +342,23 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-S instrument with Hamamatsu detector
     """
-
     name = 'gemini_gmos_south_ham'
     camera = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
 
-    def __init__(self):
-        # Get it started
-        super(GeminiGMOSSHamSpectrograph, self).__init__()
-
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
                 1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         # TODO: Could this be detector dependent??
@@ -385,38 +419,52 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for XSHOOTER NIR reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = GeminiGMOSSpectrograph.default_pypeit_par()
+        par = super().default_pypeit_par()
         par['sensfunc']['IR']['telgridfile'] \
                 = resource_filename('pypeit',
                                     '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        Generate a default bad-pixel mask.
 
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        # Add to it
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
 
@@ -467,26 +515,23 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super(GeminiGMOSSHamSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
@@ -501,12 +546,8 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument
     """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSNSpectrograph, self).__init__()
-        self.telescope = telescopes.GeminiNTelescopePar()
-        self.camera = 'GMOS-N'
+    telescope = telescopes.GeminiNTelescopePar()
+    camera = 'GMOS-N'
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
@@ -514,28 +555,25 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
     Used since February 2017
     """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSNHamSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos_north_ham'
+    name = 'gemini_gmos_north_ham'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
+        # TODO: Could this be detector dependent?
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -592,29 +630,25 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super(GeminiGMOSNHamSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
@@ -624,21 +658,32 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r831_ham.fits'
         return par
 
+
 class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
     """
     Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
     and Nod+Shuffle in an not-really NS manner (for now)
-
     """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSNHamNSSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gmos_north_ham_ns'
+    name = 'gemini_gmos_north_ham_ns'
 
     def config_specific_par(self, scifile, inp_par=None):
-        # Start with instrument wide
-        par = super(GeminiGMOSNHamNSSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
         # Slurp the NOD&Shuffle
         headarr = self.get_headarr(scifile)
         self.nod_shuffle_pix = headarr[0]['NODPIX']
@@ -651,29 +696,25 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     Child to handle Gemini/GMOS-N instrument with E2V detector
     Used until February 2017
     """
-    def __init__(self):
-
-        # Get it started
-        super(GeminiGMOSNE2VSpectrograph, self).__init__()
-
-        self.spectrograph = 'gemini_gmos_north_e2v'
+    name = 'gemini_gmos_north_e2v'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
+        # TODO: Could this be detector dependent?
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -732,64 +773,61 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        # Start with instrument wide
-        par = super(GeminiGMOSNE2VSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'
         #
         return par
 
+# TODO: Someone please check the docstring
 def gemini_read_amp(inp, ext):
     """
     Read one amplifier of an Gemini GMOS multi-extension FITS image
 
     Parameters
     ----------
-    inp: tuple 
-      (str,int) filename, extension
-      (hdu,int) FITS hdu, extension
+    inp: :obj:`tuple`
+        A two-tuple with either the filename and extension ``(str,int)`` with
+        the data to read or the already opened `astropy.io.fits.HDUList`_
+        object and extension ``(hdu,int)``.
 
     Returns
     -------
-    data
-    predata
-    postdata
-    x1
-    y1
-
-    ;------------------------------------------------------------------------
-    function lris_read_amp, filename, ext, $
-      linebias=linebias, nobias=nobias, $
-      predata=predata, postdata=postdata, header=header, $
-      x1=x1, x2=x2, y1=y1, y2=y2, GAINDATA=gaindata
-    ;------------------------------------------------------------------------
-    ; Read one amp from LRIS mHDU image
-    ;------------------------------------------------------------------------
+    data : `numpy.ndarray`_
+        2D array with the science region of the raw image.
+    overscan : `numpy.ndarray`_
+        2D array with the overscan region of the raw image.
+    datasec : :obj:`str`
+        String representation of the section in the raw image with the
+        science data.
+    baissec : :obj:`str`
+        String representation of the section in the raw image with the
+        overscan.
+    x1 : :obj:`int`
+        Starting pixel along the first axis with the science data in the raw
+        image.
+    y1 : :obj:`int`
+        Starting pixel along the second axis with the science data in the raw
+        image.
     """
     # Parse input
-    if isinstance(inp, str):
-        hdu = io.fits_open(inp)
-    else:
-        hdu = inp
+    hdu = io.fits_open(inp) if isinstance(inp, str) else inp
 
     # get entire extension...
     temp = hdu[ext].data.transpose()
@@ -803,14 +841,16 @@ def gemini_read_amp(inp, ext):
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 \
+            = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
 
     # grab the components...
     data = temp[xdata1-1:xdata2,:]
 
     # Overscan
     biassec = header['BIASSEC']
-    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
+    xdata1, xdata2, ydata1, ydata2 \
+            = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
     overscan = temp[xdata1-1:xdata2,:]
 
     # Return

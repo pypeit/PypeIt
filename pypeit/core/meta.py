@@ -76,6 +76,7 @@ def define_core_meta():
     """
     # Mainly to format output to PypeIt file
     # TODO: dicts in python 3.7 are automatically ordered, I think ...
+    # TODO: Change this to a normal dict?
     core_meta = OrderedDict()
 
     # Target

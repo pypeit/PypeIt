@@ -1,35 +1,34 @@
 """
-Module for Gemini flamingos
+Module for Gemini FLAMINGOS.
 
 .. include: ../include/links.rst
 """
+from pkg_resources import resource_filename
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
-from pkg_resources import resource_filename
 
 
 class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Gemini/Flamingos specific code
+    Base class for the Gemini FLAMINGOS spectrograph.
     """
     ndet = 1
-    # NOTE: This is a base class for the two main spectrograph classes below,
-    # so this one does not have a name.
-    name = None
     telescope = telescopes.GeminiSTelescopePar()
-
-    def __init__(self):
-        super().__init__()
 
     def init_meta(self):
         """
-        Generate the metadata dictionary.
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
@@ -50,28 +49,24 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
 
 class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     """
-    Child to handle Gemini/Flamingos2 Echelle data
+    Gemini/Flamingos2 Echelle spectrograph methods.
     """
     name = 'gemini_flamingos2'
     camera = 'FLAMINGOS'
 
-    def __init__(self):
-        super().__init__()
-
-    # TODO: Can these be made static or class methods?
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
                 1-indexed detector number.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -97,7 +92,11 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     @classmethod
     def default_pypeit_par(cls):
         """
-        Set default parameters for the reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
         par = super().default_pypeit_par()
 
@@ -153,9 +152,6 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
             scifile (:obj:`str`):
                 File to use when determining the configuration and how
@@ -185,8 +181,18 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         Args:
             ftype (:obj:`str`):
-                Type of frame to check.  Must be a valid frame type.
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
 
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
@@ -206,7 +212,10 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
 class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
     """
-    TODO: Place holder, NOT works yet.
+    Gemini/Flamingos1 Echelle spectrograph methods.
+
+    .. todo::
+        This is a placeholder class that is not yet supported.
     """
 
     name = 'gemini_flamingos1'
@@ -214,23 +223,19 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
     # TODO: Assign the camera name when the spectrograph is supported!
     #camera = 'FLAMINGOS'
 
-    def __init__(self):
-        super().__init__()
-
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
                 1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -256,7 +261,11 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
     @classmethod
     def default_pypeit_par(cls):
         """
-        Set default parameters.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
         par = super().default_pypeit_par()
 
@@ -300,6 +309,21 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
