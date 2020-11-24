@@ -678,7 +678,8 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
         """
         super().init_meta()
         # Remove the lamps
-        for key in self.meta.keys():
+        keys = list(self.meta.keys())
+        for key in keys:
             if 'lampstat' in key:
                 self.meta.pop(key)
 
@@ -1125,7 +1126,8 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         """
         super().init_meta()
         # Remove the lamps
-        for key in self.meta.keys():
+        keys = list(self.meta.keys())
+        for key in keys:
             if 'lampstat' in key:
                 self.meta.pop(key)
 

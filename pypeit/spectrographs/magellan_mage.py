@@ -92,7 +92,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
@@ -111,7 +110,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
+        par['calibrations']['tilts']['tracethresh'] = 10. #[10]*self.norders
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 3.
         par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
