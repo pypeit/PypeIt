@@ -237,9 +237,10 @@ def test_setup_keck_deimos_multiconfig():
     output_path = os.path.join(os.getcwd(), 'output')
     if os.path.isdir(output_path):
         shutil.rmtree(output_path)
+    os.makedirs(output_path)
 
     ps = pypeitsetup.PypeItSetup(files, spectrograph_name='keck_deimos')
-    ps.run(setup_only=True)
+    ps.run(setup_only=True, sort_dir=output_path)
     # Write the automatically generated pypeit data
     pypeit_files = ps.fitstbl.write_pypeit(output_path, cfg_lines=ps.user_cfg,
                                            write_bkg_pairs=True)

@@ -258,7 +258,7 @@ def test_identify():
     arcfitter = identify.main(pargs)
 
     # Load line list
-    arcfitter.load_IDs(fname=data_path('waveid.ascii'))
+    arcfitter.load_IDs(fname=data_path('waveid_tests.ascii'))
     assert arcfitter._detns.size == 31, 'Bad load'
 
     # Fit
