@@ -1,6 +1,7 @@
-""" Module for Keck/NIRES specific methods.
+"""
+Module for Keck/NIRES specific methods.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 
 from pkg_resources import resource_filename
@@ -161,7 +162,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list`: The list of keywords in the relevant
             :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :doc:`pypeit_file`.
+            :ref:`pypeit_file`.
         """
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See

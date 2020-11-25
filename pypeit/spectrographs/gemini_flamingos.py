@@ -1,7 +1,7 @@
 """
 Module for Gemini FLAMINGOS.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 from pkg_resources import resource_filename
 

@@ -10,7 +10,7 @@ Trace slit edges for a set of images.
 def parse_args(options=None, return_parser=False):
 
     import argparse
-    from pypeit import defs
+    from pypeit.spectrographs import available_spectrographs
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -27,7 +27,7 @@ def parse_args(options=None, return_parser=False):
                              'detectors selected by the pypeit file, if provided.')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier, which is only used if providing'
-                             'files directly: {0}'.format(', '.join(defs.pypeit_spectrographs)))
+                             'files directly: {0}'.format(', '.join(available_spectrographs)))
     parser.add_argument('-b', '--binning', default=None, type=str,
                         help='Image binning in spectral and spatial directions.  Only used if'
                              'providing files directly; default is 1,1.')

@@ -1,7 +1,7 @@
 """
 Module for TNG/Dolores
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 
 import numpy as np

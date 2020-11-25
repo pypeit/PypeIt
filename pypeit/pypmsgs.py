@@ -19,7 +19,7 @@ import astropy
 import pypeit
 
 from pypeit.core.qa import close_qa
-from pypeit import defs
+#from pypeit import defs
 
 #pypeit_logger = None
 
@@ -172,50 +172,50 @@ class Messages:
 #        header += 'python %s [options] filelist'.format(prognm)
 #        return header
 
-    def pypeitheader(self, prognm):
-        """
-        Get the info header for PypeIt
-        """
-        header = '##  '
-        header += self._start + self._white_GR + 'PypeIt : '
-        header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
-                        pypeit.__version__) + self._end + '\n'
-        header += '##  '
-        return header
-
-    def usage(self, prognm):
-        """
-        Print pypeit usage data.
-        """
-        # TODO: This is outdated
-        #stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
-        #stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
-        #stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
-        spectrographs = defs.pypeit_spectrographs
-
-        #armlist = os.path.basename(stgs_arm[0]).split('.')[-1]
-        #for i in range(1, len(stgs_arm)):
-        #    armlist += ', ' + os.path.basename(stgs_arm[i]).split('.')[-1]
-        #spclist = os.path.basename(stgs_spc[0]).split('.')[-1]
-        #for kk,istsp in enumerate(stgs_spc):
-        #    if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
-        #        continue
-        #    spclist += ', ' + istsp.split('.')[-1]
-
-        spclist = ', '.join(spectrographs)
-        spcl = textwrap.wrap(spclist, width=70)
-        descs = self.pypeitheader(prognm)
-
-        #descs += '\n##  Available pipelines include (OUTDATED):'
-        #descs += '\n##   ' + armlist
-
-        descs += '\n##  Available spectrographs include:'
-        for ispcl in spcl:
-            descs += '\n##   ' + ispcl
-
-#        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
-
-        return descs
+#    def pypeitheader(self, prognm):
+#        """
+#        Get the info header for PypeIt
+#        """
+#        header = '##  '
+#        header += self._start + self._white_GR + 'PypeIt : '
+#        header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
+#                        pypeit.__version__) + self._end + '\n'
+#        header += '##  '
+#        return header
+#
+#    def usage(self, prognm):
+#        """
+#        Print pypeit usage data.
+#        """
+#        # TODO: This is outdated
+#        #stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
+#        #stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
+#        #stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
+#        spectrographs = defs.pypeit_spectrographs
+#
+#        #armlist = os.path.basename(stgs_arm[0]).split('.')[-1]
+#        #for i in range(1, len(stgs_arm)):
+#        #    armlist += ', ' + os.path.basename(stgs_arm[i]).split('.')[-1]
+#        #spclist = os.path.basename(stgs_spc[0]).split('.')[-1]
+#        #for kk,istsp in enumerate(stgs_spc):
+#        #    if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
+#        #        continue
+#        #    spclist += ', ' + istsp.split('.')[-1]
+#
+#        spclist = ', '.join(spectrographs)
+#        spcl = textwrap.wrap(spclist, width=70)
+#        descs = self.pypeitheader(prognm)
+#
+#        #descs += '\n##  Available pipelines include (OUTDATED):'
+#        #descs += '\n##   ' + armlist
+#
+#        descs += '\n##  Available spectrographs include:'
+#        for ispcl in spcl:
+#            descs += '\n##   ' + ispcl
+#
+##        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
+#
+#        return descs
 
     def close(self):
         '''
@@ -246,7 +246,7 @@ class Messages:
 #            self.close()
 #            sys.exit()
 
-    def error(self, msg, usage=False):
+    def error(self, msg): #, usage=False):
         """
         Print an error message
         """
@@ -257,9 +257,9 @@ class Messages:
         # TODO: This no longer "closes" the QA plots
         self.close()
 
-        # Print command line usage
-        if usage:
-            self.usage(None)
+#        # Print command line usage
+#        if usage:
+#            self.usage(None)
         #
         raise PypeItError(msg)
         sys.exit(1)

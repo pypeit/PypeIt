@@ -1,29 +1,30 @@
-""" Utilities for spectograph codes
 """
+Spectrograph utility methods.
+"""
+from IPython import embed
+
 import numpy as np
 
 from pypeit import spectrographs
 from pypeit import msgs
-from IPython import embed
-
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.
 
-
 def load_spectrograph(spectrograph):
     """
-    Instantiate a :class:`spectrographs.spectrograph.Spectrograph`, if
-    possible.
+    Instantiate a :class:`~pypeit.spectrographs.spectrograph.Spectrograph`,
+    if possible.
 
     Args:
-        spectrograph (:obj:`str`, :class:`spectrographs.spectrograph.Spectrograph`): The
-            spectrograph to instantiate.  If the input is a spectrograph
-            instance, the instance is simply returned.  If a string, the
-            string is used to select the spectrograph to instantiate.
-            If None, None is returned.
+        spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph to instantiate. If the input is a spectrograph
+            instance, the instance is simply returned. If a string, the
+            string is used to select the spectrograph to instantiate. If
+            None, None is returned.
 
     Returns:
-        :class:`spectrographs.spectrograph.Spectrograph`: The spectrograph used to obtain the data to be reduced.
+        :class:`~pypeit.spectrographs.spectrograph.Spectrograph`: The spectrograph
+        used to obtain the data to be reduced.
 
     """
 
@@ -164,7 +165,6 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'p200_tspec':
         return spectrographs.p200_tspec.P200TSPECSpectrograph()
-
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 

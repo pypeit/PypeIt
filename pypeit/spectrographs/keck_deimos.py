@@ -1,7 +1,8 @@
 """
-Implements DEIMOS-specific functions, including reading in slitmask design files.
+Implements DEIMOS-specific functions, including reading in slitmask design
+files.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 
 import glob
@@ -385,7 +386,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list`: The list of keywords in the relevant
             :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :doc:`pypeit_file`.
+            :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['dateobs', 'utc']
 

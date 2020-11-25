@@ -8,7 +8,7 @@ This script examines a set of files and indicates which do and
 which do not have sufficient calibs
 """
 
-from pypeit import defs
+from pypeit.spectrographs import available_spectrographs
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -18,7 +18,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument('root', type=str, default=None, help='File path+root, e.g. /data/Kast/b ')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
-                                ', '.join(defs.pypeit_spectrographs)))
+                                ', '.join(available_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument('--save_setups', default=False, action='store_true',
@@ -61,10 +61,9 @@ def main(args):
         if args.spectrograph is None:
             raise ValueError('Must provide spectrograph identifier with file root.')
         # Check that input spectrograph is supported
-        instruments_served = defs.pypeit_spectrographs
-        if args.spectrograph not in instruments_served:
+        if args.spectrograph not in available_spectrographs:
             raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
-                             + '\tOptions are: {0}\n'.format(', '.join(instruments_served))
+                             + '\tOptions are: {0}\n'.format(', '.join(available_spectrographs))
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
 

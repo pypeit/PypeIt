@@ -1,5 +1,5 @@
 """
-Module for Magellan/FIRE specific codes
+Module for Magellan/FIRE specific methods.
 
 Important Notes:
 
@@ -7,7 +7,7 @@ Important Notes:
       in 2016), please change the ord_spat_pos array (see lines from
       ~220 to ~230)
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 from pkg_resources import resource_filename
 

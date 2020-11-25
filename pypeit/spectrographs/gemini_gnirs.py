@@ -1,4 +1,7 @@
-""" Module for Gemini/GNIRS specific codes
+"""
+Module for Gemini/GNIRS specific methods.
+
+.. include:: ../include/links.rst
 """
 from pkg_resources import resource_filename
 

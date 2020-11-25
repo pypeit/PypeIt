@@ -1,7 +1,7 @@
 """
 Module for Shane/Kast specific methods.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 import os
 from pkg_resources import resource_filename

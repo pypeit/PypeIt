@@ -66,8 +66,6 @@ class Spectrograph:
         primary_hdrext (:obj:`int`):
             0-indexed number of the extension in the raw frames with the
             primary header data.
-        meta_data_model (:obj:`dict`, OrderedDict):
-            Dictionary that defines the instrument-specific metadata model.
         meta (:obj:`dict`):
             Instrument-specific metadata model, linking header information to
             metadata elements required by ``PypeIt``.
@@ -554,7 +552,7 @@ class Spectrograph:
         Returns:
             :obj:`list`: The list of keywords in the relevant
             :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :doc:`pypeit_file`.
+            :ref:`pypeit_file`.
         """
         pypeit_keys = ['filename', 'frametype']
         # Core

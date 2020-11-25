@@ -1,6 +1,8 @@
 
 from pypeit.spectrographs import spectrograph
 
+# The import of all the spectrograph modules here is what enables the dynamic
+# compiling of all the available spectrographs below
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
@@ -27,7 +29,7 @@ from pypeit.spectrographs import vlt_fors
 from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import wht_isis
 
-# Build the names of the supported spectrographs
+# Build the list of names for the available spectrographs
 import numpy as np
 
 def all_subclasses(cls):

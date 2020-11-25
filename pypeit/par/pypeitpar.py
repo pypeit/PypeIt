@@ -70,7 +70,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit import defs
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -2026,10 +2025,15 @@ class ReduxPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        options['spectrograph'] = ReduxPar.valid_spectrographs()
+
+        # NOTE: The validity of the spectrograph is checked by
+        # load_spectrograph, so the specification of the viable options here is
+        # not really necessary.
+#        options['spectrograph'] = ReduxPar.valid_spectrographs()
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
-                                'Options are: {0}'.format(', '.join(options['spectrograph']))
+                                'See :ref:`instruments` for valid options.'
+#                                'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices.' \
@@ -2101,9 +2105,9 @@ class ReduxPar(ParSet):
         # Finish
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_spectrographs():
-        return defs.pypeit_spectrographs
+#    @staticmethod
+#    def valid_spectrographs():
+#        return available_spectrographs
 
     def validate(self):
         pass

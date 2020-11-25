@@ -1,7 +1,7 @@
 """
 Module for P200/DBSP specific methods.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 from typing import List
 from pkg_resources import resource_filename
@@ -109,7 +109,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`list`: The list of keywords in the relevant
             :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :doc:`pypeit_file`.
+            :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['slitwid']
     

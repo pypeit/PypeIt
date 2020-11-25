@@ -1,7 +1,7 @@
 """
 Module for Magellan/MAGE specific methods.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 
 from IPython import embed

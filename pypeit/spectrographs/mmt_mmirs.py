@@ -1,7 +1,7 @@
 """
 Module for MMT MMIRS
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 import glob
 from pkg_resources import resource_filename

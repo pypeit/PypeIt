@@ -1,7 +1,7 @@
 """
 Module for NOT ALFOSC spectrograph
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 from IPython import embed
 

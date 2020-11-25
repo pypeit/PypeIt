@@ -6,7 +6,7 @@ import numpy as np
 
 try:
     from shapely.geometry import Polygon
-else:
+except:
     Polygon = None
 
 from pypeit import msgs

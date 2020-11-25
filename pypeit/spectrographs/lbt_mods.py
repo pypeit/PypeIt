@@ -1,7 +1,7 @@
 """
 Module for LBT/MODS specific methods.
 
-.. include: ../include/links.rst
+.. include:: ../include/links.rst
 """
 import glob
 import numpy as np

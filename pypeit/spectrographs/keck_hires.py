@@ -1,5 +1,6 @@
 """
-Implements HIRES-specific functions, including reading in slitmask design files.
+Implements HIRES-specific functions, including reading in slitmask design
+files.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
