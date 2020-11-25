@@ -91,7 +91,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
@@ -449,7 +449,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             header file or table downstream.
         """
         _extra_header_cards = ['GRANAME', 'GRISNAME', 'SLITNAME']
-        if extra_headers_cards is not None:
+        if extra_header_cards is not None:
             _extra_header_cards += extra_header_cards
         return super().subheader_for_spec(row_fitstbl, raw_header,
                                           extra_header_cards=_extra_header_cards,
