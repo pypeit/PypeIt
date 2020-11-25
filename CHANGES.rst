@@ -49,6 +49,14 @@
 - Incorporates a procedure to enable GMOS Nod and Shuffle observations
 - New GMOS wavelength solutions
 - Remove Travis CI config
+- General housecleaning of spectrographs
+    - Documentation improvements
+    - Dynamically builds table of available spectrographs; see
+      `pypeit.spectrographs.available_spectrographs`
+    - Many Spectrograph instance attributes are now class attributes; in
+      particular, previous instance attribute `spectrograph` is now `name`.
+    - Added class attributes that set if the spectrograph is supported and any
+      comments for the summary table.
 
 1.2.0 (15 Oct 2020)
 -------------------
