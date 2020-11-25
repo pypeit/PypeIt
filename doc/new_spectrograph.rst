@@ -48,9 +48,8 @@ new spectrograph are as follows:
 #. Build a new file called ``name_of_spectrograph.py`` file and put it in the
    ``pypeit/spectrographs/`` directory.
 
-#. Add the new module to the list in ``pypeit/spectrographs/__init__.py`` and
-   add the approprite instantation to ``pypeit/spectrographs/util.py``
-   (specifically see :func:`pypeit.spectrographs.util.load_spectrograph`).
+#. Add the new module to the list imported by
+   ``pypeit/spectrographs/__init__.py``.
 
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultSlit'``, ``'Echelle'``, or ``'IFU'``.
