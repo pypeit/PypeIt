@@ -235,7 +235,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for NIRES")
         # Call the base-class method to generate the empty bpm
-        return super().bpm(filename, det, shape=shape, msbias=msbias)
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             bpm_img[:, :20] = 1.

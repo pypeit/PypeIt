@@ -101,7 +101,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # This might only be required for det=2, but we'll see..
-            if self.spectrograph == 'keck_lris_red':
+            # TODO: Why is this here and not in KeckLRISRSpectrograph???
+            if self.name == 'keck_lris_red':
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
@@ -1024,7 +1025,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             0.
         """
         # Call the base-class method to generate the empty bpm
-        return super().bpm(filename, det, shape=shape, msbias=msbias)
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Only defined for det=2
         if det == 2:
