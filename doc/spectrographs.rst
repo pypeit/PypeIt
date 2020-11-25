@@ -16,7 +16,7 @@ in-development; however, the development timescle is undefined.
 For instructions on how to add a new spectrograph see:
 :doc:`new_spectrograph`.
 
-.. include:: include/specrographs_table.rst
+.. include:: include/spectrographs_table.rst
 
 Instrument-specific Details
 ===========================
