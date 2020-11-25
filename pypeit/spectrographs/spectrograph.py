@@ -61,8 +61,6 @@ class Spectrograph:
             Provides slit and object coordinate data for an
             observation. Not necessarily populated for all
             spectrograph instantiations.
-        timeunit (:obj:`str`):
-            The unit of time used by the frame headers.
         primary_hdrext (:obj:`int`):
             0-indexed number of the extension in the raw frames with the
             primary header data.
@@ -80,8 +78,7 @@ class Spectrograph:
     # TODO: Fix docstring
     name = None
     """
-    The name of the spectrograph. See
-    :func:`pypeit.spectrographs.util.valid_spectrographs` for the currently
+    The name of the spectrograph. See :ref:`instruments` for the currently
     supported spectrographs.
     """
 
