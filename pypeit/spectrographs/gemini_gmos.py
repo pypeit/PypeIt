@@ -29,7 +29,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         super().__init__()
-        self.timeunit = 'isot'  # Synthesizes date+time
+#        self.timeunit = 'isot'  # Synthesizes date+time
         self.nod_shuffle_pix = None # Nod & Shuffle
 
     def init_meta(self):

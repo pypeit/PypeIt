@@ -22,9 +22,9 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.LBTTelescopePar()
 
-    def __init__(self):
-        super().__init__()
-        self.timeunit = 'isot'
+#    def __init__(self):
+#        super().__init__()
+#        self.timeunit = 'isot'
 
     @classmethod
     def default_pypeit_par(cls):

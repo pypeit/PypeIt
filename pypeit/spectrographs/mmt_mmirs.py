@@ -71,8 +71,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        # TODO: Why do we have this as well as timeunit = 'isot' for some
-        # spectrographs?
+        # TODO: This should be how we always deal with timeunit = 'isot'. Are
+        # we doing that for all the relevant spectrographs?
         if meta_key == 'mjd':
             time = headarr[1]['DATE-OBS']
             ttime = Time(time, format='isot')

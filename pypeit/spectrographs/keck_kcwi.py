@@ -53,10 +53,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # EarthLocation. KBW: Fine with me!
         self.location = EarthLocation.of_site('Keck Observatory')
 
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file ?
-
     def get_detector_par(self, hdu, det):
         """
         Return metadata for the selected detector.
