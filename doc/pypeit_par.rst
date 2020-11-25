@@ -2389,7 +2389,6 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci1
   [calibrations]
       [[biasframe]]
-          exprng = None, 1
           [[[process]]]
               apply_gain = False
               combine = median
@@ -2398,7 +2397,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 999999, None
           [[[process]]]
               apply_gain = False
               use_biasimage = False
@@ -2406,7 +2404,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = None, 60
           [[[process]]]
               sigrej = -1
               use_biasimage = False
@@ -2421,7 +2418,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -2429,7 +2425,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
-          exprng = 999999, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2443,7 +2438,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = 0, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2457,7 +2451,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = 1, 200
           [[[process]]]
               mask_cr = True
               use_biasimage = False
@@ -2471,7 +2464,6 @@ Alterations to the default parameters are::
           edge_thresh = 300.0
           sync_predict = nearest
   [scienceframe]
-      exprng = 200, None
       [[process]]
           satpix = nothing
           mask_cr = True
@@ -2493,7 +2485,6 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci2
   [calibrations]
       [[biasframe]]
-          exprng = None, 1
           [[[process]]]
               apply_gain = False
               combine = median
@@ -2502,7 +2493,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 999999, None
           [[[process]]]
               apply_gain = False
               use_biasimage = False
@@ -2510,7 +2500,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = None, 60
           [[[process]]]
               sigrej = -1
               use_biasimage = False
@@ -2525,7 +2514,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_biasimage = False
@@ -2533,7 +2521,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
-          exprng = 999999, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2547,7 +2534,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = 0, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
@@ -2561,7 +2547,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
-          exprng = 1, 200
           [[[process]]]
               mask_cr = True
               use_biasimage = False
@@ -2576,7 +2561,6 @@ Alterations to the default parameters are::
           fit_order = 8
           sync_predict = nearest
   [scienceframe]
-      exprng = 200, None
       [[process]]
           satpix = nothing
           mask_cr = True

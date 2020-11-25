@@ -26,31 +26,31 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 #        super().__init__()
 #        self.timeunit = 'isot'
 
-    @classmethod
-    def default_pypeit_par(cls):
-        """
-        Return the default parameters to use for this instrument.
-        
-        Returns:
-            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
-            all of ``PypeIt`` methods.
-        """
-        par = super().default_pypeit_par()
-
-        # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
-                        use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-        par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['arcframe']['exprng'] = [None, 60]
-        par['calibrations']['standardframe']['exprng'] = [1, 200]
-        par['scienceframe']['exprng'] = [200, None]
-        return par
+#    @classmethod
+#    def default_pypeit_par(cls):
+#        """
+#        Return the default parameters to use for this instrument.
+#        
+#        Returns:
+#            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+#            all of ``PypeIt`` methods.
+#        """
+#        par = super().default_pypeit_par()
+#
+#        # Processing steps
+#        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+#                        use_darkimage=False)
+#        par.reset_all_processimages_par(**turn_off)
+#
+#        par['calibrations']['biasframe']['exprng'] = [None, 1]
+#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+#        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+#        par['calibrations']['traceframe']['exprng'] = [0, None]
+#        par['calibrations']['arcframe']['exprng'] = [None, 60]
+#        par['calibrations']['standardframe']['exprng'] = [1, 200]
+#        par['scienceframe']['exprng'] = [200, None]
+#        return par
 
     def init_meta(self):
         """
