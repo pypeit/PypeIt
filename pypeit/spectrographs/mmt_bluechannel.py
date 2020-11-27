@@ -162,17 +162,25 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0
 
         # Set the default exposure time ranges for the frame typing
+        ## Appropriate exposure times for Blue Channel can vary a lot depending on grating and wavelength.
+        ## E.g. 300 and 500 line gratings need very short exposures for flats to avoid saturation, but
+        ## the 1200 and 832 can use much longer exposures due to the higher resolution and the continuum lamp
+        ## not being very bright in the blue/near-UV.
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 100]
+        par['calibrations']['traceframe']['exprng'] = [None, 100]
         par['calibrations']['standardframe']['exprng'] = [None, 600]
         par['calibrations']['arcframe']['exprng'] = [10, None]
         par['calibrations']['darkframe']['exprng'] = [300, None]
-        par['scienceframe']['exprng'] = [10, None]
+
+        # less than 30 sec implies conditions are bright enough for scattered light to be significant
+        # which affects the illumination of the slit.
+        par['calibrations']['illumflatframe']['exprng'] = [30, None]
 
         # Need to specify this for long-slit data
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -218,19 +226,17 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'bias':
             return fitstbl['idname'] == 'zero'
-        if ftype == 'science':
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
-        if ftype == 'standard':
+        if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
         if ftype in ['arc', 'tilt']:
             # should flesh this out to include all valid arc lamp combos
             return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] == 'comp') & (fitstbl['decker'] != '5.0x180')
-        if ftype in ['trace']:
-            # i think the bright lamp, BC, is the only one ever used for this
-            return good_exp & (fitstbl['lampstat01'] == 'BC')
-        if ftype in ['pixelflat', 'illumflat']:
-            # imagetyp should always be set to flat for these
-            return good_exp & (fitstbl['idname'] == 'flat')
+        if ftype in ['trace', 'pixelflat']:
+            # i think the bright lamp, BC, is the only one ever used for this. imagetyp should always be set to flat.
+            return good_exp & (fitstbl['lampstat01'] == 'BC') & (fitstbl['idname'] == 'flat')
+        if ftype in ['illumflat']:
+            # these can be set to flat or object depending if they're twilight or dark sky
+            return good_exp & (fitstbl['idname'] in ['flat', 'object']) & (fitstbl['lampstat01'] == 'off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
