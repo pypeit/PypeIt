@@ -4,6 +4,8 @@ which is how the ScienceImage is most frequently generated. """
 
 import numpy as np
 
+# NOTE: This is currently the only use of shapely in pypeit! See
+# ScienceCube.calculate_area().
 try:
     from shapely.geometry import Polygon
 except:

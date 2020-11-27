@@ -366,8 +366,7 @@ class AllSpec2DObj(object):
         # TODO Should the spectrograph be written to the header?
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
-        # TODO: Why isn't this PYP_SPEC like it is everywhere else?
-        hdr['SPECTROG'] = spectrograph.name
+        hdr['PYP_SPEC'] = spectrograph.name
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
 
         # MasterFrame info
