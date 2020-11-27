@@ -1,5 +1,5 @@
 """
-Dynamically build tables for the bitmasks.
+Dynamically build table listing available spectrographs.
 """
 
 import os

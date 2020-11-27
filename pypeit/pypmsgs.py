@@ -19,7 +19,6 @@ import astropy
 import pypeit
 
 from pypeit.core.qa import close_qa
-#from pypeit import defs
 
 #pypeit_logger = None
 

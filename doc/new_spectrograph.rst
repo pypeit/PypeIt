@@ -39,8 +39,10 @@ spectrograph has a similar set of modes, see
 
 .. note::
 
-    The class-hierarchy is *not* meant to capture different instrument
-    configurations (gratings, filters, etc).
+    - The class-hierarchy is *not* meant to capture different instrument
+      configurations (gratings, filters, etc).
+    - The `name` attribute of a spectrograph *should be None* if the class is
+      only a base class.
 
 Having said all of that, the basic steps one needs to follow to introduce a
 new spectrograph are as follows:
@@ -52,7 +54,7 @@ new spectrograph are as follows:
    ``pypeit/spectrographs/__init__.py``.
 
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
-   ``'MultSlit'``, ``'Echelle'``, or ``'IFU'``.
+   ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
 #. Set the default parameters ``PypeIt`` uses during the reduction; see
    :ref:`pypeitpar`, and, e.g.,

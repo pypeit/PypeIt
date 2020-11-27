@@ -103,7 +103,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
-            :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['dither']
@@ -337,7 +337,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         Returns:
             :obj:`list`: The list of keywords in the relevant
-            :func:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
         pypeit_keys = super().pypeit_file_keys()

@@ -289,9 +289,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         Return the platescale for each echelle order.
 
-        This routine is only defined for echelle spectrographs, and it is
-        undefined in the base class.
-
         Args:
             order_vec (`numpy.ndarray`_):
                 The vector providing the order numbers.

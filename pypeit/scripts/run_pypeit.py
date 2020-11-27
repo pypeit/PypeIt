@@ -11,7 +11,7 @@ from pypeit import msgs
 
 def run_pypeit_usage():
     """
-    Print pypeit usage data.
+    Print pypeit usage description.
     """
 
     import textwrap
