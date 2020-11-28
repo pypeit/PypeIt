@@ -53,7 +53,7 @@ wht_isis_blue             WHT         ISIS spectrometer; blue camera?
 p200_dbsp_blue            P200        DBSP spectrograph; blue camera
 p200_dbsp_red             P200        DBSP spectrograph; red camera
 p200_tspec                P200        TripleSpec spectrograph
-======================    =========   =======================================
+========================  =========   =======================================
 
 
 List of Spectrographs
