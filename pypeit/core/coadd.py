@@ -564,6 +564,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
+    # Use robust_fit to get a best-guess linear fit as the starting point. The logic below deals with whether
+    # we re fitting a polynomial model to the data model='poly', to the square model='square', or taking the exponential
+    # of a polynomial fit model='exp'
     if 'poly' in model:
         #guess = np.append(ratio, np.zeros(norder))
         yval = flux_ref_med
@@ -572,12 +575,12 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     elif 'square' in model:
         #guess = np.append(np.sqrt(ratio), np.zeros(norder))
         yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
-        yval_ivar = 4.0*flux_ref_med
+        yval_ivar = 4.0*flux_ref_med*ivar_ref_med
         scale_mask = flux_ref_med >= 0
     elif 'exp' in model:
         #guess = np.append(np.log(ratio), np.zeros(norder))
         yval = np.log(flux_ref_med + (flux_ref_med <= 0))
-        yval_ivar = flux_ref_med**2
+        yval_ivar = flux_ref_med**2*ivar_ref_med
         scale_mask = flux_ref_med > 0
     else:
         msgs.error('Unrecognized model type')
@@ -625,7 +628,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False
             Old ivar on the wave_old grid
        mask_old: ndarray, bool, (nspec_old),
             Old mask on the wave_old grid. True=Good
-       sensfunc: bool
+       sensfunc: bool (optional)
             If set the quantities flux*delta_wave and the corresponding ivar/delta_wave**2 will be interpolated and
             returned instead of flux and ivar. This is useful for sensitivity function computation where we need
             flux*(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
@@ -679,7 +682,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks, sensfunc=False):
              same shape as waves, old ivar
         masks: ndarray, bool,
              same shape as waves, old mask, True=Good
-        sensfunc: bool
+        sensfunc: bool (optional)
              If set the quantities flux*delta_wave and the corresponding ivar/delta_wave**2 will be interpolated and
              returned instead of flux and ivar. This is useful for sensitivity function computation where we need
              flux*(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
