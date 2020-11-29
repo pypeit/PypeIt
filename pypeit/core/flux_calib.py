@@ -566,7 +566,8 @@ def get_sensfunc_factor(wave, wave_sens, sensfunc, exptime, telluric=None, extin
         sensfunc (float `numpy.ndarray`_): shape = (nsens,)
            Sensitivity function
         exptime (float):
-        telluric_correct:
+        telluric (float  `numpy.ndarray`_, optional): shape = (nspec,)
+           Apply telluric correction if it is passed it. Note this is deprecated. 
         extinct_correct:
         airmass (float, optional):
         longitude (float, optional):
