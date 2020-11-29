@@ -53,7 +53,6 @@ def parse_args(options=None, return_parser=False):
     parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)', formatter_class=SmartFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('files', type=str, nargs='+', help='list of frames i.e. img1.fits img2.fits')
-    #parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--flux", default=False, action='store_true',
@@ -183,6 +182,38 @@ def parse_dither_pattern(file_list, ext):
     return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
 def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
+    """
+    Peform 2d extraction for a set of files at the same unique A-B offset location.
+
+    Parameters
+    ----------
+    A_files (list of strings):
+       Files at A position for this offset
+    B_files (list of strings)
+       Files at B position for this offeset
+    caliBrate (object):
+       CaliBrate object
+    spectrograph (object):
+       spectrograph object
+    det (int):
+       Detector number
+    parset (parsect object)
+       Parset
+    show (bool, optional):
+       Show 2d reduction outputs. Default=False
+    std_trace (string, optional)
+       Trace for standard star. Default=None
+
+    Returns
+    -------
+    spec2DObj_A, spec2DObj_B
+
+    spec2DObj_A (object, Spec2D):
+       Spec2d Object for extraction at A position
+    spec2DObj_B (object, Spec2D)
+       Spec2d Object for extraction at B position
+
+    """
 
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
