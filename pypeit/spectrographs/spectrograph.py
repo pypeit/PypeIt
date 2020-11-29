@@ -1066,25 +1066,6 @@ class Spectrograph:
         return wave_in, counts_in, counts_ivar_in, gpm_in
 
 
-#    def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
-#        """
-#        Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
-#
-#        Args:
-#            binning:
-#            midpoint:
-#            samp_fact:
-#
-#        Returns:
-#
-#        """
-#        binspectral, binspatial = parse.parse_binning(binning)
-#        logmin, logmax = self.loglam_minmax
-#        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
-#        if midpoint:
-#            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
-#
-#        return np.power(10.0,loglam_grid)
 
     def __repr__(self):
         # Generate string

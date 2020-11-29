@@ -285,7 +285,7 @@ def main(args):
     wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
     sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')
     if  (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
-         not os.path.isfile(tilts_masterframe_name)): 
+         not os.path.isfile(tilts_masterframe_name)):
         msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
 
     # For now don't require a standard
@@ -378,14 +378,18 @@ def main(args):
     caliBrate.wv_calib = wv_calib
 
     # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
-    uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
+    #uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
     uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
+    # uniq_throws = uniq values of the dither throw
+    # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
     nuniq = uniq_throws.size
     spec2d_list =[]
     offset_ref = offset_arcsec[0]
     offsets_dith_pix = []
     # Generalize to a multiple slits, doing one slit at a time?
     islit = 0
+    # Loop over the unique throws and create a spec2d_A and spec2D_B for each, which are then
+    # fed into coadd2d with the correct offsets
     for iuniq in range(nuniq):
         A_ind = (uni_indx == iuniq) & (dither_id == 'A')
         B_ind = (uni_indx == iuniq) & (dither_id == 'B')

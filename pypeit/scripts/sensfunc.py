@@ -97,9 +97,6 @@ def parse_args(options=None, return_parser=False):
                              "written to sens_b24-Feige66_KASTb_foo.fits")
     parser.add_argument("-s", "--sens_file", type=str, help="Configuration file to change default sensivity function parameters")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-    #parser.add_argument("--debug_init", default=False, action="store_true",
-    #                    help="debug the initilization of the sensfunc + telluric fit for the IR algorithm")
-    #parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--par_outfile", default='sensfunc.par', help="Name of outut file to save the parameters used by the fit")
 
     if return_parser:
