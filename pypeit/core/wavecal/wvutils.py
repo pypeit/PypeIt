@@ -44,14 +44,14 @@ def get_delta_wave(wave, gpm):
     equal size array.
 
     Args:
-        wave (float ndarray): shape = (nspec,)
+        wave (float `numpy.ndarray`_): shape = (nspec,)
             Array of input wavelengths. Muse be a one dimensional array.
-        gpm (bool ndarray): shape = (nspec)
+        gpm (bool `numpy.ndarray`_): shape = (nspec)
             Boolean good pixel mask defining where the wave_old are good.
 
     Returns
     -------
-    delta_wave (float ndarray): shape = (nspec,)
+    delta_wave (float `numpy.ndarray`_): shape = (nspec,)
             Array of wavelength differences using np.diff, where the last pixel has been extrapolated
 
     """
@@ -73,7 +73,7 @@ def get_sampling(waves, pix_per_R=3.0):
     Computes the median wavelength sampling of wavelength vector(s)
 
     Args:
-        waves (float ndarray): shape = (nspec,) or (nspec, nimgs)
+        waves (float `numpy.ndarray`_): shape = (nspec,) or (nspec, nimgs)
             Array of wavelengths. Can be one or two dimensional where
             the nimgs dimension can represent the orders, exposures, or
             slits
@@ -211,11 +211,11 @@ def zerolag_shift_stretch(theta, y1, y2):
 
     Parameters
     ----------
-    theta: ndarray
+    theta (float `numpy.ndarray`_):
         Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-    y1: ndarray, shape = (nspec,)
+    y1 (float `numpy.ndarray`_):  shape = (nspec,)
         First spectrum which acts as the refrence
-    y2: ndarray,  shape = (nspec,)
+    y2 (float `numpy.ndarray`_):  shape = (nspec,)
         Second spectrum which will be transformed by a shift and stretch to match y1
 
     Returns
