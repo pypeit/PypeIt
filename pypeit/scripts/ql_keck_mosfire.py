@@ -168,19 +168,6 @@ def save_exposure(fitstbl, frame, spectrograph, science_path, par, caliBrate, al
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=par['rdx']['detnum'])
     return outfile2d, outfile1d
 
-def parse_dither_pattern(file_list, ext):
-
-    nfiles = len(file_list)
-    offset_arcsec = np.zeros(nfiles)
-    dither_pattern = []
-    dither_id = []
-    for ifile, file in enumerate(file_list):
-        hdr = fits.getheader(file, ext)
-        dither_pattern.append(hdr['PATTERN'])
-        dither_id.append(hdr['FRAMEID'])
-        offset_arcsec[ifile] = hdr['YOFFSET']
-    return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
-
 def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
@@ -316,7 +303,7 @@ def main(args):
     # We need the platescale
     platescale = spectrograph.get_detector_par(None, 1)['platescale']
     # Parse the offset information out of the headers. TODO in the future get this out of fitstable
-    dither_pattern, dither_id, offset_arcsec = parse_dither_pattern(files, spectrograph.primary_hdrext)
+    dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
     if len(np.unique(dither_pattern)) > 1:
         msgs.error('Currently this script is supported only for a single type of dither pattern')
     A_files = files[dither_id == 'A']
