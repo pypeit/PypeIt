@@ -52,8 +52,6 @@ class Reduce(object):
           True = Masked
         show (bool, optional):
            Show plots along the way?
-        std_outfile (str):
-           Filename of the standard star output
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -97,7 +95,7 @@ class Reduce(object):
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None, basename=None):
+                 binning=None, setup=None, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -121,12 +119,11 @@ class Reduce(object):
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
             sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, det=det,
-            std_redux=std_redux, show=show,binning=binning, setup=setup,
-            std_outfile=std_outfile, basename=basename)
+            std_redux=std_redux, show=show,binning=binning, setup=setup, basename=basename)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None, basename=None):
+                 binning=None, setup=None, basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -136,7 +133,6 @@ class Reduce(object):
         self.objtype = objtype
         self.par = par
         self.caliBrate = caliBrate
-        #self.std_outfile = std_outfile  # TODO Why is this here, appears to not be used??
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         # Parse

@@ -650,7 +650,6 @@ class PypeIt(object):
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile,
                                                 basename=self.basename)
         # Show?
         if self.show:
