@@ -136,7 +136,7 @@ class Reduce(object):
         self.objtype = objtype
         self.par = par
         self.caliBrate = caliBrate
-        self.std_outfile = std_outfile  # TODO Why is this here, appears to not be used??
+        #self.std_outfile = std_outfile  # TODO Why is this here, appears to not be used??
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         # Parse

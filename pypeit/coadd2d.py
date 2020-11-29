@@ -445,16 +445,6 @@ class CoAdd2D:
         if self.ir_redux:
             sobjs.purge_neg()
 
-        # TODO: Removed this, but I'm not sure that's what you want...
-#        # Add the information about the fixed wavelength grid to the sobjs
-#        for spec in sobjs:
-#            idx = spec.slit_orderindx
-#            # Fill
-#            spec.BOX_WAVE_GRID_MASK, spec.OPT_WAVE_GRID_MASK = [pseudo_dict['wave_mask'][:,idx]]*2
-#            spec.BOX_WAVE_GRID, spec.OPT_WAVE_GRID = [pseudo_dict['wave_mid'][:,idx]]*2
-#            spec.BOX_WAVE_GRID_MIN, spec.OPT_WAVE_GRID_MIN = [pseudo_dict['wave_min'][:,idx]]*2
-#            spec.BOX_WAVE_GRID_MAX, spec.OPT_WAVE_GRID_MAX = [pseudo_dict['wave_max'][:,idx]]*2
-
         # Add the rest to the pseudo_dict
         pseudo_dict['skymodel'] = skymodel_pseudo
         pseudo_dict['objmodel'] = objmodel_pseudo

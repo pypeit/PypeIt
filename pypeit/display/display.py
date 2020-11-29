@@ -259,10 +259,10 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
 
     Parameters
     ----------
-    viewer:
-        (ginga.util.grc.RemoteClient) Ginga RC viewer
-    ch:
-        (ginga.util.grc._channel_proxy) Ginga channel
+    viewer (ginga.util.grc.RemoteClient):
+        Ginga RC viewer
+    ch (ginga.util.grc._channel_proxy):
+        Ginga channel
     spec (list):
         List of spectral positions on image to plot
     spat (list):
@@ -275,10 +275,6 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
         Spectral pixel loation for legend
     legend_spat (float):
         Pixel loation for legend
-
-
-    Returns
-    -------
 
     """
     canvas = viewer.canvas(ch._chname)
