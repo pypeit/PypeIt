@@ -567,19 +567,23 @@ def get_sensfunc_factor(wave, wave_sens, sensfunc, exptime, telluric=None, extin
            Sensitivity function
         exptime (float):
         telluric (float  `numpy.ndarray`_, optional): shape = (nspec,)
-           Apply telluric correction if it is passed it. Note this is deprecated. 
-        extinct_correct:
+           Apply telluric correction if it is passed it. Note this is deprecated.
+        extinct_correct (bool, optional)
+           If True perform an extinction correction. Deafult = False
         airmass (float, optional):
+           Airmass used if extinct_correct=True. This is required if extinct_correct=True
         longitude (float, optional):
             longitude in degree for observatory
+            Required for extinction correction
         latitude:
             latitude in degree for observatory
-            Used for extinction correction
+            Required  for extinction correction
         extrap_sens (bool, optional):
             Extrapolate the sensitivity function (instead of crashing out)
 
     Returns:
-        sensfunc_interp/exptime/delta_wave: shape = (nspec,)
+    sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
+            This quantity is defined to be sensfunc_interp/exptime/delta_wave
 
     """
 
