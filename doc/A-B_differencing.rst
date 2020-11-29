@@ -73,7 +73,7 @@ The user needs to edit ``comb_id``, and ``bkg_id`` in order to
 control how PypeIt combines and subtracts the spectroscopic data.
 
 Here is an example of a portion of the :ref:`pypeit_file:Data Block` for the science files for a hypothetical
-sequence which we could represent an ABAB dither pattern::
+sequence which we could represent as an ABAB dither pattern::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
     | m190627_0001.fits | tilt,arc,science | ... |     0 |       1 |      2 |      # Position A
@@ -98,7 +98,7 @@ modeled). Thus for the example above, PypeIt produces four 2D spectral images::
     Science/spec2d-m190627_0004...fits      # m190627_0004.fits - m190627_0003.fits (B-A)
 
 
-If each frame has a unique ``comb_id`` (as in the example above) the imgaes will *not* be combined before
+If each frame has a unique ``comb_id`` (as in the example above) the images will *not* be combined before
 the reduction.
 
 Alternatively, frames with common values of ``comb_id`` can be coadded. In this case, a common ``bkg_id``
