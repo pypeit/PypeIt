@@ -277,8 +277,22 @@ def main(args):
 
     # Calibration Master directory
     if args.master_dir is None:
-        msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
+        msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
 
+    # Define some hard wired master files here to be later parsed out of the directory
+    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
+    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
+    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
+    sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')
+    if  (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
+         not os.path.isfile(tilts_masterframe_name)): 
+        msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
+
+    # For now don't require a standard
+    std_outfile=None
+    #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
+    #                           'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
+    # make the get_std from pypeit a utility function or class method
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -326,16 +340,6 @@ def main(args):
     #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
 
 
-    # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
-    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
-    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
-    sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')
-    # For now don't require a standard
-    std_outfile=None
-    #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
-    #                           'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
-    # make the get_std from pypeit a utility function or class method
     det = 1 # MOSFIRE has a single detector
     if std_outfile is not None:
         # Get the standard trace if need be
@@ -427,7 +431,7 @@ def main(args):
     else:
         imgminsky= pseudo_dict['imgminsky']
 
-        ##########################
+    ##########################
     # Now display the images #
     ##########################
     display.connect_to_ginga(raise_err=True, allow_new=True)
