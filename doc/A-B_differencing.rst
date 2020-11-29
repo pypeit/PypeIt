@@ -72,7 +72,7 @@ Image Differencing
 The user needs to edit ``comb_id``, and ``bkg_id`` in order to
 control how PypeIt combines and subtracts the spectroscopic data.
 
-Here is an example of a portion of the :ref:`pypeit_file:Data Block` for the science files for a hypotbetical
+Here is an example of a portion of the :ref:`pypeit_file:Data Block` for the science files for a hypothetical
 sequence which we could represent an ABAB dither pattern::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
