@@ -309,7 +309,7 @@ def main(args):
         try:
            mjds[ifile] = hdr['MJD-OBS']
         except:
-            msgs.warn('File {:} has not MJD in header'.format(file))
+            msgs.warn('File {:} has no MJD in header'.format(file))
             mjds[ifile] = 0
     files = files[np.argsort(mjds)]
 

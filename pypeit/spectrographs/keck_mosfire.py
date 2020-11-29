@@ -2,6 +2,7 @@
 """
 from pkg_resources import resource_filename
 import numpy as np
+from astropy.io import fits
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
@@ -232,6 +233,43 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat01'] == '1'
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+
+    # TODO: Shold this be a class method?
+    def parse_dither_pattern(self, file_list, ext):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int):
+            Extension containing the relevant header for these files
+
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = []
+        dither_id = []
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, ext)
+            dither_pattern.append(hdr['PATTERN'])
+            dither_id.append(hdr['FRAMEID'])
+            offset_arcsec[ifile] = hdr['YOFFSET']
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
     def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
         """
