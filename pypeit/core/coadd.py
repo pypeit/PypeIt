@@ -39,17 +39,17 @@ from pypeit.core import flux_calib
 # rcdefaults.
 
 ## Plotting parameters
-plt.rcdefaults()
-plt.rcParams['font.family'] = 'times new roman'
-plt.rcParams["xtick.top"] = True
-plt.rcParams["ytick.right"] = True
-plt.rcParams["xtick.minor.visible"] = True
-plt.rcParams["ytick.minor.visible"] = True
-plt.rcParams["ytick.direction"] = 'in'
-plt.rcParams["xtick.direction"] = 'in'
-plt.rcParams["xtick.labelsize"] = 15
-plt.rcParams["ytick.labelsize"] = 15
-plt.rcParams["axes.labelsize"] = 17
+#plt.rcdefaults()
+#plt.rcParams['font.family'] = 'times new roman'
+#plt.rcParams["xtick.top"] = True
+#plt.rcParams["ytick.right"] = True
+#plt.rcParams["xtick.minor.visible"] = True
+#plt.rcParams["ytick.minor.visible"] = True
+#plt.rcParams["ytick.direction"] = 'in'
+#plt.rcParams["xtick.direction"] = 'in'
+#plt.rcParams["xtick.labelsize"] = 15
+#plt.rcParams["ytick.labelsize"] = 15
+#plt.rcParams["axes.labelsize"] = 17
 
 # TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
@@ -564,33 +564,42 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
-    # Use robust_fit to get a best-guess linear fit as the starting point. The logic below deals with whether
-    # we re fitting a polynomial model to the data model='poly', to the square model='square', or taking the exponential
-    # of a polynomial fit model='exp'
     if 'poly' in model:
-        #guess = np.append(ratio, np.zeros(norder))
-        yval = flux_ref_med
-        yval_ivar = ivar_ref_med
-        scale_mask = np.ones_like(flux_ref_med, dtype=bool)
+        guess = np.append(ratio, np.zeros(norder))
     elif 'square' in model:
-        #guess = np.append(np.sqrt(ratio), np.zeros(norder))
-        yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
-        yval_ivar = 4.0*flux_ref_med*ivar_ref_med
-        scale_mask = flux_ref_med >= 0
+        guess = np.append(np.sqrt(ratio), np.zeros(norder))
     elif 'exp' in model:
-        #guess = np.append(np.log(ratio), np.zeros(norder))
-        yval = np.log(flux_ref_med + (flux_ref_med <= 0))
-        yval_ivar = flux_ref_med**2*ivar_ref_med
-        scale_mask = flux_ref_med > 0
+        guess = np.append(np.log(ratio), np.zeros(norder))
     else:
         msgs.error('Unrecognized model type')
 
-    pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
-               sticky=False, use_mad=False, debug=debug)
+    ## JFH I'm not convinced any of this below is right or necessary. Going back to previous logic but
+    ## leaving this here for now
 
-    #fitter = fitting.PypeItFit(xval=wave, yval=yval, order=[1], weights=yval_ivar, gpm=(scale_mask & mask).astype('int'),
-    #                           func=func, minx=wave_min, maxx=wave_max)
-    guess = np.append(pypfit.fitc, np.zeros(norder-2))
+    # Use robust_fit to get a best-guess linear fit as the starting point. The logic below deals with whether
+    # we re fitting a polynomial model to the data model='poly', to the square model='square', or taking the exponential
+    # of a polynomial fit model='exp'
+    #if 'poly' in model:
+    #    #guess = np.append(ratio, np.zeros(norder))
+    #    yval = flux_ref_med
+    #    yval_ivar = ivar_ref_med
+    #    scale_mask = np.ones_like(flux_ref_med, dtype=bool) & (wave > 1.0)
+    #elif 'square' in model:
+    #    #guess = np.append(np.sqrt(ratio), np.zeros(norder))
+    #    yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
+    #    yval_ivar = 4.0*flux_ref_med*ivar_ref_med
+    #    scale_mask = (flux_ref_med >= 0) & (wave > 1.0)
+    #elif 'exp' in model:
+    #    #guess = np.append(np.log(ratio), np.zeros(norder))
+    #    yval = np.log(flux_ref_med + (flux_ref_med <= 0))
+    #    yval_ivar = flux_ref_med**2*ivar_ref_med
+    #    scale_mask = (flux_ref_med > 0) & (wave > 1.0)
+    #else:
+    #    msgs.error('Unrecognized model type')
+
+    #pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
+    #           sticky=False, use_mad=False, debug=debug, upper=3.0, lower=3.0)
+    #guess = np.append(pypfit.fitc, np.zeros(norder - 2)) if norder > 1 else pypfit.fitc
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
