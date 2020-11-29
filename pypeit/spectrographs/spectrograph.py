@@ -1003,7 +1003,7 @@ class Spectrograph:
             return self.spec_min_max[:, iorder]/binspectral
 
     # TODO: Shold this be a class method?
-    def parse_dither_pattern(self, file_list, ext):
+    def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
 
@@ -1011,8 +1011,9 @@ class Spectrograph:
         ----------
         file_list (list of strings):
             List of files for which dither pattern is desired
-        ext (int):
-            Extension containing the relevant header for these files
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
 
 
         Returns

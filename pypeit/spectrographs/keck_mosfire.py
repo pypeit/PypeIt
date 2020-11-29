@@ -235,8 +235,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
 
-    # TODO: Shold this be a class method?
-    def parse_dither_pattern(self, file_list, ext):
+    def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
 
@@ -244,9 +243,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         ----------
         file_list (list of strings):
             List of files for which dither pattern is desired
-        ext (int):
-            Extension containing the relevant header for these files
-
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
 
         Returns
         -------
@@ -259,13 +258,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         offset_arc (float `numpy.ndarray`_):
             Array of dither pattern offsets
         """
-
         nfiles = len(file_list)
         offset_arcsec = np.zeros(nfiles)
         dither_pattern = []
         dither_id = []
         for ifile, file in enumerate(file_list):
-            hdr = fits.getheader(file, ext)
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
             dither_pattern.append(hdr['PATTERN'])
             dither_id.append(hdr['FRAMEID'])
             offset_arcsec[ifile] = hdr['YOFFSET']
