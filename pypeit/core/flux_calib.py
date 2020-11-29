@@ -177,9 +177,9 @@ def stellar_model(V, sptype):
 
     Returns
     -------
-    loglam: ndarray
+    loglam: `numpy.ndarray`_
         log wavelengths
-    flux: ndarray
+    flux: `numpy.ndarray`_
         SED f_lambda (cgs units, I think, probably per Ang)
     """
 
@@ -356,7 +356,7 @@ def extinction_correction(wave, airmass, extinct):
 
     Parameters
     ----------
-    wave : ndarray
+    wave : `numpy.ndarray`_
         Wavelengths for interpolation. Should be sorted Assumes
         Angstroms
     airmass : float
@@ -366,7 +366,7 @@ def extinction_correction(wave, airmass, extinct):
 
     Returns
     -------
-    flux_corr : ndarray
+    flux_corr : `numpy.ndarray`_
         Flux corrections at the input wavelengths
     """
     # Checks
@@ -462,13 +462,13 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     IS DEPRECATED, use telluric.sensfunc_telluric instead
 
     Args:
-        wave (ndarray):
+        wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,) or (nspec, norders)
         counts (ndarray):
             Flux (in counts) of the star. Shape (nspec,) or (nspec, norders)
-        counts_ivar (ndarray):
+        counts_ivar (`numpy.ndarray`_):
             Inverse variance of the star counts. Shape (nspec,) or (nspec, norders)
-        counts_mask (ndarray):
+        counts_mask (`numpy.ndarray`_):
             Good pixel mask for the counts. Shape (nspec,) or (nspec, norders)
         exptime (float):
             Exposure time in seconds
@@ -483,7 +483,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
         telluric (bool):
             If True attempts to fit telluric absorption. This feature is deprecated, as one should instead
             use telluric.sensfunc_telluric. Default=False
-        ech_orders (ndarray, int):
+        ech_orders (int `numpy.ndarray`_):
             If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
             with the shape (norders,) giving the order numbers
         mask_abs_lines (bool):
@@ -559,11 +559,11 @@ def get_sensfunc_factor(wave, wave_sens, sensfunc, exptime, telluric=None, extin
     FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
     Args:
-        wave (float ndarray): shape = (nspec,)
+        wave (float `numpy.ndarray`_): shape = (nspec,)
            Senstivity
-        wave_sens (float ndarray):
+        wave_sens (float `numpy.ndarray`_):
            Sensfunc wavelength vector shape = (nsens,)
-        sensfunc (float ndarray): shape = (nsens,)
+        sensfunc (float `numpy.ndarray`_): shape = (nsens,)
            Sensitivity function
         exptime (float):
         telluric_correct:
@@ -648,13 +648,13 @@ def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, s
           be replaced by a smoothed polynomial function.
 
     Args:
-        wave (ndarray):
+        wave (`numpy.ndarray`_):
             Wavelength of the star. Shape (nspec,)
-        counts (ndarray):
+        counts (`numpy.ndarray`_):
             Flux (in counts) of the star. Shape (nspec,)
-        counts_ivar (ndarray):
+        counts_ivar (`numpy.ndarray`_):
             Inverse variance of the star counts. Shape (nspec,)
-        counts_mask (ndarray):
+        counts_mask (`numpy.ndarray`_):
             Good pixel mask for the counts.
         exptime (float):
             Exposure time in seconds
@@ -690,8 +690,8 @@ def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, s
     Returns:
         tuple: Returns:
 
-            - sensfunc (ndarray) -- Sensitivity function with same shape as wave (nspec,)
-            - mask_sens (ndarray, bool) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
+            - sensfunc (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
+            - mask_sens (bool `numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
 
     """
     # Create copy of the arrays to avoid modification and convert to
@@ -887,19 +887,19 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
 
     Parameters
     ----------
-    wave : ndarray
+    wave : `numpy.ndarray`_
       wavelength as observed
-    flux : ndarray
+    flux : `numpy.ndarray`_
       counts/s as observed
-    ivar : ndarray
+    ivar : `numpy.ndarray`_
       inverse variance
     flux_std : Quantity array
       standard star true flux (erg/s/cm^2/A)
-    msk_bad : ndarray
+    msk_bad : `numpy.ndarray`_
       mask for bad pixels. True is good.
-    msk_star: ndarray
+    msk_star: `numpy.ndarray`_
       mask for hydrogen recombination lines. True is good.
-    msk_tell:ndarray
+    msk_tell: `numpy.ndarray`_
       mask for telluric regions. True is good.
     maxiter : integer
       maximum number of iterations for polynomial fit
@@ -1092,7 +1092,7 @@ def load_filter_file(filter):
         filter (str): Name of filter
 
     Returns:
-        ndarray, ndarray: wavelength, instrument throughput
+        `numpy.ndarray`_: wavelength, instrument throughput
 
     """
     '''
@@ -1152,9 +1152,9 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
       - 'masks' (list, optional): Wavelength ranges to mask in calculation
 
     Args:
-        wave (np.ndarray):
-        flux (np.ndarray):
-        gpm (np.ndarray):
+        wave (`numpy.ndarray`_):
+        flux (`numpy.ndarray`_):
+        gpm (`numpy.ndarray`_):
             True is good
         scale_dict (dict like):
             Usually is a Coadd1DPar() object
