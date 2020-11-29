@@ -1690,13 +1690,13 @@ class Telluric(object):
     average down the residuals from the telluric model fit in the final averaged spectrum.
 
     Args:
-        wave (np.ndarray):
+        wave (float `numpy.ndarray`_):
             Wavelength array. Must either have shape (nspec,) or (nspec, norders), the latter being for echelle data.
-        flux (np.ndarray):
+        flux (float `numpy.ndarray`_):
             Flux for the object in question. Same shape as wave.
-        ivar (np.ndarray):
+        ivar (float `numpy.ndarray`):
             Inverse variance for the object in question. Same shape as wave.
-        mask (np.ndarray):
+        mask (float `numpy.ndarray`_):
             Good pixel mask for the object in question. Same shape as wave.
         telgridfile (str):
             File containing grid of HITRAN atmosphere models. This file is given by spectrograph.telluric_grid_file
@@ -1717,41 +1717,41 @@ class Telluric(object):
 
             Where obj_dict is one of the return values from the init_obj_model above. See eval_star_model above for a
             detailed explanation of these paramaters and return values.
-        ech_orders (ndarray, int):
+        ech_orders (int `numpy.ndarray`_, optional):
             If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
             with the shape (norders,) giving the order numbers
-        sn_clip (float): default = 30.0
+        sn_clip (float, optional): default = 30.0
             This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars,
             bright objects) using the function utils.clip_ivar. A small erorr is added to the input ivar so that the
             output ivar_out will never give S/N greater than sn_clip. This prevents overly aggressive rejection in high
             S/N ratio spectra which neverthless differ at a level greater than the formal S/N due to the fact
             that our telluric models are only good to about 3%.
-        airmass_guess (float): default = 1.5
+        airmass_guess (float, optinoal): default = 1.5
             A guess for the airmass of your object. The code fits the airmass as part of the telluric model, but this
             initial guess is useful for initializing the object model to determine the bounds for the object model
             parameter optimization via init_obj_model, since typically that is done by dividing out a guess for the
             telluric absorption and then performing some kind of intial fit.
-        resln_guess (float): default = None
+        resln_guess (float, optional): default = None
             A guess for the resolution of your spectrum expressed as lambda/dlambda. The resolution is fit explicitly
             as part of the telluric model fitting, but this guess helps determine the bounds for the optimization (see next).
             If not provided, the  wavelength sampling of your spectrum will be used and the resolution calculated using a typical sampling
             of 3 spectral pixels per resolution element.
-        resln_frac_bounds (tuple of floats): default = (0.5,1.5)
+        resln_frac_bounds (tuple of floats, optional): default = (0.5,1.5)
             Bounds for the resolution fit optimization which is part of the telluric model. This range is in units of
             the resln_guess, so the (0.5, 1.5) would bound the spectral resolution fit to be within the range
             bounds_resln = (0.5*resln_guess, 1.5*resln_guess)
-        pix_shift_bounds (tuple of floats): default = (-5.0, 5.0)
+        pix_shift_bounds (tuple of floats, optional): default = (-5.0, 5.0)
             Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere
             will be allowed to shift within this range during the fit.
-        pix_stretch_bounds (tuple of floats): default = (0.9, 1.1)
+        pix_stretch_bounds (tuple of floats, optional): default = (0.9, 1.1)
             Bounds for the pixel scale stretch optimization in telluric model fit in units of pixels. The atmosphere
             will be allowed to stretch within this range during the fit.
-        maxiter (int): default = 3
+        maxiter (int, optional): default = 3
             Maximum number of iterations for the telluric + object model fitting. The code performs multiple
             iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
             For this reason if you run with the disp=True option, you will see that the f(x) loss function gets
             progressively better during the iterations.
-        sticky (bool): default=True
+        sticky (bool, optional): default=True
             Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  If set to True then
             points rejected from a previous iteration are kept rejected, in other words the bad pixel mask is the OR
             of all previous iterations and rejected pixels accumulate. If set to False, the bad pixel mask is the mask
@@ -1761,7 +1761,7 @@ class Telluric(object):
             be so large that they dominate the loss function, and one never iteratively converges to a good model fit. In
             other words, the deformations in the model between iterations with sticky=False are too small to approach
             a reasonable fit.
-        lower (float): default = 3.0
+        lower (float, optional): default = 3.0
             Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and
             sigma_corr is an empirically determined correction to the formal error. The distribution of input chi
             (defined by chi = (data - model)/sigma) values is analyzed, and a correction factor to the formal error
@@ -1770,35 +1770,35 @@ class Telluric(object):
             coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in cases where the
             empirical errors determined from the chi-distribution differ significantly from the formal noise which is
             used to determine chi.
-        upper (float): upper = 3.0
+        upper (float, optional): upper = 3.0
             Upper rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and
             sigma_corr is an empirically determined correction to the formal error. See above for description.
-        seed (int): default = 777
+        seed (int, optional): default = 777
             An initial seed for the differential evolution optimization, which is a random process. The default is
             a seed = 777 which will be used to generate a unique seed for every order. A specific seed is used
             because otherwise the random number generator will use the time for the seed, and the results will not
             be reproducible.
-        tol (float): default = 1e-3
+        tol (float, optional): default = 1e-3
             Relative tolerance for converage of the differential evolution optimization. See
             scipy.optimize.differential_evolution for details.
-        popsize (int): default = 30
+        popsize (int, optional): default = 30
             A multiplier for setting the total population size for the differential evolution optimization. See
             scipy.optimize.differential_evolution for details.
-        recombination (float): default = 0.7
+        recombination (float, optional): default = 0.7
             The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
             See scipy.optimize.differential_evolution for details.
-        polish (bool): default=True
+        polish (bool, optional): default=True
             If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
             at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
-        disp (bool): default=True
+        disp (bool, optional): default=True
             Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
             indicating the status of the optimization. See above for a description of the output and how to know
             if things are working well.
-        sensfunc (bool): default=False
+        sensfunc (bool, optional): default=False
             This option is used for usage of this class for joint telluric fitting and sensitivity function computation.
             If True then the input flux is in counts is converted to counts per angstrom, since the sensfunc is obtained by
             fitting counts per angstrom.
-        debug (bool): default=False
+        debug (bool, optional): default=False
             If True, QA plots will be shown to the screen indicating the quality of the fits. Specifically, the residual
             distributions will be shown at each iteration, and the fit will be shown at the end (for each order).
             This is useful if you are running the code for the first time, but since the algorithm is slow, particularly
