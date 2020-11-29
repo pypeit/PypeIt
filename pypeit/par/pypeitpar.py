@@ -1108,7 +1108,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 reference_cube=None, reference_image=None, save_whitelight=None,
+                 standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None):
 
@@ -1149,10 +1149,16 @@ class CubePar(ParSet):
         dtypes['output_filename'] = str
         descr['output_filename'] = 'Output filename of the combined datacube.'
 
-        defaults['reference_cube'] = None
-        dtypes['reference_cube'] = str
-        descr['reference_cube'] = 'Filename of another datacube. The WCS of the specified datacube will' \
-                                  'be used to construct the WCS of the newly combined datacube.'
+        defaults['standard_cube'] = None
+        dtypes['standard_cube'] = str
+        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct' \
+                                 'the relative scales of the slits, and to flux calibrate the science' \
+                                 'datacube.'
+
+        defaults['flux_calibrate'] = False
+        dtypes['flux_calibrate'] = bool
+        descr['flux_calibrate'] = 'Flux calibrate the data? If True, you must also provide a standard star' \
+                                  'cube using the standard_cube parameter.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1163,7 +1169,10 @@ class CubePar(ParSet):
         defaults['save_whitelight'] = False
         dtypes['save_whitelight'] = bool
         descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
-                                   'will be given by the "output_filename" variable with a suffix "_whitelight".'
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight".' \
+                                   'Note that the white light image collapses the flux along the wavelength axis,' \
+                                   'so some spaxels in the 2D white light image may have different wavelength' \
+                                   'ranges.'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
@@ -1219,8 +1228,8 @@ class CubePar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'reference_cube', 'reference_image', 'save_whitelight',
-                   'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
+                   'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -2452,8 +2461,7 @@ class EdgeTracePar(ParSet):
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
                  use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
-                 maskdesign_sigrej=None, mask_reg_maxiter=None, mask_reg_maxsep=None,
-                 mask_reg_sigrej=None, ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 maskdesign_sigrej=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2786,36 +2794,6 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
-
-
-        # TODO: [DP] I believe the following 3-4 parameters are from a previous attempt to do slit-mask
-        #  design matching, and that they could be deleted.
-        # TODO: Make these mask registration parameters a separate
-        # (nested) parameter set? Would making saving the paramters to
-        # the master file header annoying ...
-        dtypes['mask_reg_maxiter'] = int
-        descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
-                                    'registering slit-mask design and trace locations. If None, ' \
-                                    'rejection iterations are performed until no points are ' \
-                                    'rejected. If 1, only a single fit is performed without any ' \
-                                    'rejection.'
-
-        dtypes['mask_reg_maxsep'] = [int, float]
-        descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
-                                   'coordinates of the designed slit position in pixels and the ' \
-                                   'matched trace. If None, rejection is done iteratively using ' \
-                                   'sigma clipping.  See mask_reg_sigrej.'
-        
-        defaults['mask_reg_sigrej'] = 5
-        dtypes['mask_reg_sigrej'] = [int, float]
-        descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
-                                   'iterations during the slit-mask design registration. If ' \
-                                   'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
-
-        defaults['ignore_alignment'] = False
-        dtypes['ignore_alignment'] = bool
-        descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
-
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -2886,7 +2864,6 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
                    'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
                    'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

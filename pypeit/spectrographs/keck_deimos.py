@@ -16,6 +16,7 @@ from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -233,6 +234,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Turn on the use of mask design
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['use_maskdesign'] = True
+            # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
+            par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
+            # Sometime the added missing slits at the edge of the detector are to small to be useful.
+            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
+            par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -245,6 +252,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
+        elif self.get_meta_value(headarr, 'dispname') == '1200B':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -460,7 +470,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
 
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         if hdu[0].header['AMPMODE'] != 'SINGLE:B':
             msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
@@ -665,7 +675,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Name of the file to read.
         """
         # Open the file
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Build the object data
         #   - Find the index of the object IDs in the slit-object
@@ -710,7 +720,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Taken from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
         xidl/DEEP2/spec2d/pro/deimos_grating.pro
         """
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
@@ -822,7 +832,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             Two attributes :attr:`amap` and :attr:`bmap`.
 
         """
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
 
         # Grating slider
         slider = hdu[0].header['GRATEPOS']

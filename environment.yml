@@ -10,7 +10,7 @@ dependencies:
   - scipy>=1.4
   - scikit-learn>=0.20
   - astropy>=4.0
-  - pyqt>=5.12
+  - pyside2>=5.12
   - setuptools>=46.4
   - numba>=0.39
   - matplotlib>=3.1
@@ -18,5 +18,6 @@ dependencies:
   - ipython>=7.2
   - extension-helpers>=0.1
   - ginga>=3.0
-  - linetools>=0.2
+  - linetools>=0.3
+  - PySide2>=5.0
   - pytest>=3.0.7

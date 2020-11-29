@@ -10,6 +10,14 @@ This file summarizes several instrument specific
 settings that are related to the Gemini/GMOS spectrograph.
 
 
+Nod and Shuffle
+===============
+
+For the time being, we have enabled reductions of data
+taken in Nod+Shuffle mode by simply replicating the calibrations.
+That is, we do *not* subtract the nodded images but reduce
+it as if it were a separate slit.
+
 Arcs
 ====
 

@@ -11,6 +11,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import specobj
+from pypeit import io
 from pypeit.tests import tstutils
 
 msgs.reset(verbosity=2)
@@ -103,7 +104,7 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
         os.remove(ofile)
     sobjs.write_to_fits(header, ofile, overwrite=False)
     # Read
-    hdul = fits.open(ofile)
+    hdul = io.fits_open(ofile)
     assert len(hdul) == 7  # Primary + 4 Obj + 2 Detectors
     assert hdul[0].header['NSPEC'] == 4
     hdul.close()

@@ -13,14 +13,14 @@ matplotlib.use('agg')  # For Travis
 #import warnings
 #warnings.simplefilter('error', FutureWarning)
 
-from astropy.io import fits
-
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.scripts import identify
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
+from pypeit import utils
+from pypeit import io
 from pypeit import wavecalib
 
 from pypeit.pypeitsetup import PypeItSetup
@@ -212,7 +212,7 @@ def test_coadd1d_1():
     coadd_ifile = data_path('shane_kast_blue.coadd1d')
     coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
 
-    hdu = fits.open(coadd_ofile)
+    hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
 
@@ -237,7 +237,7 @@ def test_coadd1d_2():
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
     coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
 
-    hdu = fits.open(coadd_ofile)
+    hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
 
@@ -258,7 +258,7 @@ def test_identify():
     arcfitter = identify.main(pargs)
 
     # Load line list
-    arcfitter.load_IDs(fname=data_path('waveid.ascii'))
+    arcfitter.load_IDs(fname=data_path('waveid_tests.ascii'))
     assert arcfitter._detns.size == 31, 'Bad load'
 
     # Fit
@@ -280,6 +280,7 @@ def test_identify():
                               PYP_SPEC='shane_kast_blue',
                               )
 
+    # If you touch the following line, you probably need to update the call in scripts/identify.py
     arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it

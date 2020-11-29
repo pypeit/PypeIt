@@ -4,11 +4,10 @@ import glob
 import os
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
 from .. import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -29,6 +28,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(GeminiGMOSSpectrograph, self).__init__()
         self.timeunit = 'isot'  # Synthesizes date+time
+
+        # Nod & Shuffle
+        self.nod_shuffle_pix = None
 
     def init_meta(self):
         """
@@ -157,6 +159,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if 'arcsec' in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Allow for various binning
+        binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+        par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[1]
+
         return par
 
     def configuration_keys(self):
@@ -196,7 +202,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading GMOS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head0 = hdu[0].header
         head1 = hdu[1].header
 
@@ -267,9 +273,24 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+
+        # Transpose now (helps with debuggin)
+        array = array.T
+        rawdatasec_img = rawdatasec_img.T
+        oscansec_img = oscansec_img.T
+
+        # Hack me
+        if self.spectrograph == 'gemini_gmos_north_ham_ns' and (
+                head0['object'] in ['GCALflat', 'CuAr', 'Bias']) and self.nod_shuffle_pix is not None:
+            # TODO -- Should double check NOD&SHUFFLE was not on
+            row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
+            nodpix = self.nod_shuffle_pix
+            # Shuffle me
+            array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
+
         # Return, transposing array back to orient the overscan properly
         return self.get_detector_par(hdu, det if det is None else 1), \
-                array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+                array, hdu, exptime, rawdatasec_img, oscansec_img
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
@@ -391,7 +412,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             # TODO: Fix this
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -403,7 +424,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=2 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -421,7 +442,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             msgs.info("Using hard-coded BPM for det=3 on GMOSs")
 
             # Get the binning
-            hdu = fits.open(filename)
+            hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
             hdu.close()
 
@@ -589,6 +610,29 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
+        elif self.get_meta_value(scifile, 'dispname')[0:4] == 'R831':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r831_ham.fits'
+        return par
+
+class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
+    """
+    Child to handle Gemini/GMOS-N instrument with Hamamatsu detector
+    and Nod+Shuffle in an not-really NS manner (for now)
+
+    """
+    def __init__(self):
+
+        # Get it started
+        super(GeminiGMOSNHamNSSpectrograph, self).__init__()
+        self.spectrograph = 'gemini_gmos_north_ham_ns'
+
+    def config_specific_par(self, scifile, inp_par=None):
+        # Start with instrument wide
+        par = super(GeminiGMOSNHamNSSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        # Slurp the NOD&Shuffle
+        headarr = self.get_headarr(scifile)
+        self.nod_shuffle_pix = headarr[0]['NODPIX']
+        #
         return par
 
 
@@ -733,7 +777,7 @@ def gemini_read_amp(inp, ext):
     """
     # Parse input
     if isinstance(inp, str):
-        hdu = fits.open(inp)
+        hdu = io.fits_open(inp)
     else:
         hdu = inp
 

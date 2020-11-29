@@ -24,6 +24,7 @@ from astropy.io import fits
 from ginga.util import grc
 
 from pypeit import msgs
+from pypeit import io
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
     """
@@ -142,7 +143,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
-    img = fits.open(inp)[exten].data if isinstance(inp, str) else inp
+    img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
 
     # Instantiate viewer
     viewer = connect_to_ginga()

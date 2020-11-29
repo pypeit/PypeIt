@@ -9,7 +9,6 @@ from collections import OrderedDict
 import numpy as np
 
 from astropy.table import Table, Column, vstack
-from astropy.io import fits
 
 import linetools.utils
 

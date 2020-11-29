@@ -60,3 +60,4 @@ pypeit/data/telluric/*.pckl
 pypeit/data/telluric/*.fits
 pypeit/data/telluric/*.fits.gz
 
+*.pckl
