@@ -60,12 +60,6 @@ def get_delta_wave(wave, gpm):
     wave_diff = np.diff(wave[gpm])
     wave_diff = np.append(wave_diff, wave_diff[-1])
     delta_wave[gpm] = wave_diff
-
-    # TODO Do this with extrapolation?
-    # Interpolate the delta_wave_old over the mask to make sure all is kosher, since np.diff
-    # techically grows the mask
-    #delta_wave = scipy.interpolate.interp1d(wave[gpm][0:-1], np.diff(wave[gpm]), kind='cubic',
-    #                                               bounds_error=False, fill_value='extrapolate')(wave[gpm])
     return delta_wave
 
 def get_sampling(waves, pix_per_R=3.0):
