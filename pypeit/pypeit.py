@@ -91,7 +91,7 @@ class PypeIt(object):
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters

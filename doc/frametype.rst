@@ -30,6 +30,8 @@ instruments:
 However, automated typing of ``science`` versus ``standard`` frames
 is not generally robust.
 
+.. _frame_type_defs:
+
 Definitions
 ===========
 

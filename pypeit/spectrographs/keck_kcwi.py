@@ -1,12 +1,15 @@
-""" Implements KCWI-specific functions.
+"""
+Implements KCWI-specific functions.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
 
 import glob
-import numpy as np
+
 from IPython import embed
+
+import numpy as np
 
 from astropy import wcs, units
 from astropy.io import fits
@@ -19,7 +22,6 @@ from pypeit import io
 from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -28,44 +30,42 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/KCWI specific code
 
-    TODO :: Need to apply spectral flexure and heliocentric correction to waveimg
+    .. todo::
+        Need to apply spectral flexure and heliocentric correction to waveimg
+
     """
     ndet = 1
+    name = 'keck_kcwi'
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'KCWI'
+    pypeline = 'IFU'
+    supported = True
+    comment = 'Supported setups: BM, BH2; see :doc:`keck_kcwi`'
 
     def __init__(self):
-        # Get it started
-        # TODO :: Might need to change the tolerance of disperser angle in pypeit setup (two BH2 nights where sufficiently different that this was important).
-        super(KeckKCWISpectrograph, self).__init__()
-        self.spectrograph = 'keck_kcwi'
-        self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'KCWI'
-        self.location = EarthLocation.of_site('Keck Observatory')  # TODO :: Might consider changing TelescopePar to use the astropy EarthLocation
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file ?
+        super().__init__()
 
-        # Don't instantiate these until they're needed
-        self.grating = None
-        self.optical_model = None
-        self.detector_map = None
+        # TODO :: Might need to change the tolerance of disperser angle in
+        # pypeit setup (two BH2 nights where sufficiently different that this
+        # was important).
 
-    @property
-    def pypeline(self):
-        return 'IFU'
+        # TODO :: Might consider changing TelescopePar to use the astropy
+        # EarthLocation. KBW: Fine with me!
+        self.location = EarthLocation.of_site('Keck Observatory')
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Some properties of the image
         head0 = hdu[0].header
@@ -102,25 +102,22 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
 
@@ -143,57 +140,57 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card=None, compound=True)
-        meta['dec'] = dict(ext=0, card=None, compound=True)
-        meta['target'] = dict(ext=0, card='TARGNAME')
-        meta['dispname'] = dict(ext=0, card='BGRATNAM')
-        meta['decker'] = dict(ext=0, card='IFUNAM')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card=None, compound=True)
+        self.meta['dec'] = dict(ext=0, card=None, compound=True)
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['dispname'] = dict(ext=0, card='BGRATNAM')
+        self.meta['decker'] = dict(ext=0, card='IFUNAM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         # Extras for config and frametyping
-        meta['hatch'] = dict(ext=0, card='HATNUM')
-        meta['idname'] = dict(ext=0, card='CALXPOS')
-        meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
-        meta['slitwid'] = dict(card=None, compound=True)
+        self.meta['hatch'] = dict(ext=0, card='HATNUM')
+        self.meta['idname'] = dict(ext=0, card='CALXPOS')
+        self.meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+        self.meta['slitwid'] = dict(card=None, compound=True)
 
         # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
-        meta['obstime'] = dict(card=None, compound=True, required=False)
-        meta['pressure'] = dict(card=None, compound=True, required=False)
-        meta['temperature'] = dict(card=None, compound=True, required=False)
-        meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['obstime'] = dict(card=None, compound=True, required=False)
+        self.meta['pressure'] = dict(card=None, compound=True, required=False)
+        self.meta['temperature'] = dict(card=None, compound=True, required=False)
+        self.meta['humidity'] = dict(card=None, compound=True, required=False)
 
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
         for kk, lamp_name in enumerate(lamp_names):
-            meta['lampstat{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'STAT')
+            self.meta['lampstat{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'STAT')
         for kk, lamp_name in enumerate(lamp_names):
             if lamp_name == 'LMP3':
                 # There is no shutter on LMP3
-                meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
+                self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
                 continue
-            meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
-        # Ingest
-        self.meta = meta
+            self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck KCWI reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_kcwi'
+        par = super().default_pypeit_par()
 
         # Subtract the detector pattern from certain frames
         par['calibrations']['biasframe']['process']['use_pattern'] = True
@@ -258,6 +255,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return par
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
@@ -296,16 +306,16 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from file headers and
-            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
         return ['dispname', 'decker', 'binning', 'dispangle']
@@ -313,6 +323,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
@@ -342,14 +367,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         Check the lamp status.
 
         Args:
-            fitstbl (:obj:`astropy.table.Table`):
+            fitstbl (`astropy.table.Table`_):
                 The table with the fits header meta data.
             status (:obj:`str`):
-                The status to check.  Can be `off`, `arcs`, or `dome`.
+                The status to check. Can be ``'off'``, ``'arcs'``, or
+                ``'dome'``.
 
         Returns:
-            numpy.ndarray: A boolean array selecting fits files that
-            meet the selected lamp status.
+            `numpy.ndarray`_: A boolean array selecting fits files that meet
+            the selected lamp status.
 
         Raises:
             ValueError:
@@ -392,14 +418,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def get_lamps_status(self, headarr):
         """
-        Return a string containing the information on the lamp status
+        Return a string containing the information on the lamp status.
 
         Args:
-            headarr (list of fits headers):
-              list of headers
+            headarr (:obj:`list`):
+                A list of 1 or more `astropy.io.fits.Header`_ objects.
 
         Returns:
-            str: A string that uniquely represents the lamp status
+            :obj:`str`: A string that uniquely represents the lamp status.
         """
         # Loop through all lamps and collect their status
         kk = 1
@@ -432,21 +458,29 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        raw_file : str
-            Filename
-        det (int or None):
-            Detector number
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
         Returns
         -------
-        array : ndarray
-            Combined image
-        hdu : HDUList
-            Opened fits file.
-        sections : list
-            List of datasec, oscansec, ampsec sections. datasec,
-            oscansec needs to be for an *unbinned* image as per
-            standard convention
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -504,9 +538,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
-        """Calculate the pattern frequency using the overscan region that
-        covers the overscan and data sections. Using a larger range allows
-        the frequency to be pinned down with high accuracy.
+        """
+        Calculate the pattern frequency using the overscan region that covers
+        the overscan and data sections. Using a larger range allows the
+        frequency to be pinned down with high accuracy.
 
         NOTE: The amplifiers are arranged as follows:
 
@@ -516,25 +551,30 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         |           | 1 | 2 |
         |     (0,0) --------- (nx, 0)
 
-        TODO :: PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
+        .. todo::
+
+            PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
 
         Parameters
         ----------
-        frame : ndarray
-            Raw data frame to be used to estimate the pattern frequency
-        rawdatasec_img : ndarray
-            array the same shape as frame, used as a mask to identify the
-            data pixels (0 is no data, non-zero values indicate the amplifier number)
-        oscansec_img : ndarray
-            array the same shape as frame, used as a mask to identify the
-            overscan pixels (0 is no data, non-zero values indicate the amplifier number)
-        hdu : HDUList
+        frame : `numpy.ndarray`_
+            Raw data frame to be used to estimate the pattern frequency.
+        rawdatasec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier
+            number).
+        oscansec_img : `numpy.ndarray`_
+            Array the same shape as ``frame``, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the
+            amplifier number).
+        hdu : `astropy.io.fits.HDUList`_
             Opened fits file.
 
         Returns
         -------
-        hdu : HDUList
-            The input HDUList, with header updated to include the frequency of each amplifier
+        hdu : `astropy.io.fits.HDUList`_
+            The input HDUList, with header updated to include the frequency
+            of each amplifier.
         """
         msgs.info("Calculating pattern noise frequency")
 
@@ -575,25 +615,34 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to KCWI.
+        Generate a default bad-pixel mask.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Returns
-        -------
-        bpix : ndarray
-            0 = ok; 1 = Mask
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels. **This is
+                ignored for KCWI.**
 
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        # if msbias is not None:
-        #     return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm; msbias is always set to None.
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=None)
 
         # Extract some header info
         #msgs.info("Reading AMPMODE and BINNING from KCWI file: {:s}".format(filename))
@@ -643,44 +692,38 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     @staticmethod
     def is_nasmask(hdr):
-        """Determine if a frame used NAS
-
-        Parameters
-        ----------
-        hdr : fits header
-            The header of the raw frame.
-
-        Returns
-        -------
-        bool : True if NAS used
         """
-        if 'Mask' in hdr['BNASNAM']:
-            return True
-        else:
-            return False
+        Determine if a frame used nod-and-shuffle.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame.
+
+        Returns:
+            :obj:`bool`: True if NAS used.
+        """
+        return 'Mask' in hdr['BNASNAM']
 
     def get_wcs(self, hdr, slits, platescale, wave0, dwv):
-        """Get the WCS for a frame
+        """
+        Construct/Read a World-Coordinate System for a frame.
 
-        Parameters
-        ----------
-        detector : DetectorContainer
-            A DetectorContainer object containing parameters of the detector
-        hdr : fits header
-            The header of the raw frame. The information in this
-            header will be extracted and returned as a WCS.
-        slits : :class:`pypeit.slittrace.SlitTraceSet`
-            Master slit edges
-        platescale : float
-            platescale of an unbinned pixel in arcsec/pixel (e.g. detector.platescale)
-        wave0 : float
-            wavelength zeropoint
-        dwv : float
-            delta wavelength per spectral pixel
+        Args:
+            hdr (`astropy.io.fits.Header`_):
+                The header of the raw frame. The information in this
+                header will be extracted and returned as a WCS.
+            slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+                Slit traces.
+            platescale (:obj:`float`): 
+                The platescale of an unbinned pixel in arcsec/pixel (e.g.
+                detector.platescale).
+            wave0 (:obj:`float`):
+                The wavelength zeropoint.
+            dwv (:obj:`float`):
+                Change in wavelength per spectral pixel.
 
-        Returns
-        -------
-        astropy.wcs : An astropy WCS object.
+        Returns:
+            `astropy.wcs.wcs.WCS`_: The world-coordinate system.
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
@@ -774,27 +817,30 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return w
 
     def get_datacube_bins(self, slitlength, minmax, num_wave):
-        """Calculate the bin edges to be used when making a datacube
+        r"""
+        Calculate the bin edges to be used when making a datacube.
 
-        Parameters
-        ----------
-        slitlength : int
-            Length of the slit in pixels
-        minmax : `numpy.ndarray`_
-            An array of size (nslits, 2), listing the minimum and
-            maximum pixel locations on each slit relative to the
-            reference location (usually the centre of the slit). This
-            array is returned by
-            :func:`pypeit.slittrace.SlitTraceSet.get_radec_image`.
-        num_wave : int
-            Number of wavelength steps = int(round((wavemax-wavemin)/delta_wave))
+        Args:
+            slitlength (:obj:`int`): 
+                Length of the slit in pixels
+            minmax (`numpy.ndarray`_):
+                An array with the minimum and maximum pixel locations on each
+                slit relative to the reference location (usually the centre
+                of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
+                typically the array returned by
+                :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
+            num_wave (:obj:`int`): 
+                Number of wavelength steps.  Given by::
+                    int(round((wavemax-wavemin)/delta_wave))
 
-        Returns
-        -------
-        tuple : Three 1D numpy.ndarray providing the bins to use when constructing a histogram
-                of the spec2d files. The elements are (x, y, lambda).
+        Args:
+            :obj:`tuple`: Three 1D `numpy.ndarray`_ providing the bins to use
+            when constructing a histogram of the spec2d files. The elements
+            are :math:`(x,y,\lambda)`.
         """
         xbins = np.arange(1 + 24) - 12.0 - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
         spec_bins = np.arange(1+num_wave) - 0.5
         return xbins, ybins, spec_bins
+
+

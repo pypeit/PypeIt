@@ -471,12 +471,11 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Input par must be an EdgeTracePar object.')
 
         # TODO:
-        #   - Change spectrograph.spectrograph to spectrograph.name
         #   - Change self.PYP_SPEC to self.specname
         self.traceimg = traceimg                        # Input TraceImage
         self.nspec, self.nspat = self.traceimg.shape    # The shape of the trace image
         self.spectrograph = spectrograph                # Spectrograph used to take the data
-        self.PYP_SPEC = spectrograph.spectrograph       # For the Header.  Will be in datamodel
+        self.PYP_SPEC = spectrograph.name               # For the Header.  Will be in datamodel
         self.dispname = spectrograph.dispname           # Spectrograph disperser
         self.par = par                                  # Parameters used for slit edge tracing
         self.qa_path = qa_path                          # Directory for QA plots
@@ -5007,7 +5006,7 @@ class EdgeTraceSet(DataContainer):
 
         # Instantiate and return
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
-                                      PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
+                                      PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
