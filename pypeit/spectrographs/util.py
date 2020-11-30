@@ -81,6 +81,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'magellan_fire_long':
         return spectrographs.magellan_fire.MagellanFIRELONGSpectrograph()
 
+    if spectrograph == 'magellan_ldss3':
+        return spectrographs.magellan_ldss3.MagellanLDSS3Spectrograph()
+
     if spectrograph == 'magellan_mage':
         return spectrographs.magellan_mage.MagellanMAGESpectrograph()
 

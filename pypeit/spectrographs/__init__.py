@@ -11,6 +11,7 @@ from pypeit.spectrographs import keck_hires
 from pypeit.spectrographs import keck_nirspec
 from pypeit.spectrographs import keck_mosfire
 from pypeit.spectrographs import magellan_fire
+from pypeit.spectrographs import magellan_ldss3
 from pypeit.spectrographs import magellan_mage
 from pypeit.spectrographs import shane_kast
 from pypeit.spectrographs import tng_dolores

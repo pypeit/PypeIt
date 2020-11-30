@@ -38,6 +38,7 @@ def main(args):
     from pypeit.spectrographs import keck_deimos
     from pypeit.spectrographs import gemini_gmos
     from pypeit.display import display
+    from pypeit.spectrographs import magellan_ldss3
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
     from pypeit.spectrographs import util
@@ -84,6 +85,11 @@ def main(args):
         #
         gen_mmirs = mmt_mmirs.MMTMMIRSSpectrograph()
         img = gen_mmirs.get_rawimage(args.file, args.det)[1]
+    # RAW_LDSS3
+    elif args.spectrograph == 'magellan_ldss3':
+        #
+        gen_ldss3 = magellan_ldss3.MagellanLDSS3Spectrograph()
+        img = gen_ldss3.get_rawimage(args.file, args.det)[1]
     else:
         hdu = io.fits_open(args.file)
         img = hdu[args.exten].data
