@@ -687,6 +687,7 @@ class Spectrograph:
                                               binning=binning_raw)
                     # Assign the amplifier
                     pix_img[datasec] = i+1
+
             # Finish
             if section == 'datasec':
                 rawdatasec_img = pix_img.copy()
@@ -926,7 +927,7 @@ class Spectrograph:
 
         # Check for rtol for config keys that are type float
         config_keys = np.array(self.configuration_keys())
-        indx = ['rtol' not in self.meta[key].keys() if self.meta_data_model[key]['dtype'] == float 
+        indx = ['rtol' not in self.meta[key].keys() if self.meta_data_model[key]['dtype'] == float
                     else False for key in config_keys]
         if np.any(indx):
             msgs.error('rtol not set for {0} keys in spectrograph meta!'.format(config_keys[indx]))

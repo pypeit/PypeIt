@@ -157,7 +157,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             idx = int(meta_key[-2:])
             curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
-            t_newlamp = time.Time("2010-12-03", format='isot')  # LAMPS changed in Header
+            t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
                 lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                               'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']

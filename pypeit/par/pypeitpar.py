@@ -2127,7 +2127,7 @@ class WavelengthSolutionPar(ParSet):
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, refframe=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
                  nsnippet=None):
 
         # Grab the parameter names and values from the function
@@ -2360,13 +2360,6 @@ class WavelengthSolutionPar(ParSet):
         dtypes['IDwaves'] = [int, float, list]
         descr['IDwaves'] = 'Wavelengths of the manually identified lines'
 
-        # TODO: Not used
-        defaults['medium'] = 'vacuum'
-        options['medium'] = WavelengthSolutionPar.valid_media()
-        dtypes['medium'] = str
-        descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
-                          'Options are: {0}'.format(', '.join(options['medium']))
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -2391,7 +2384,7 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'medium', 'refframe', 'nsnippet']
+                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

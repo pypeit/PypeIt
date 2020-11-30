@@ -41,6 +41,7 @@ def main(args):
     from pypeit.display import display
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
+    from pypeit.spectrographs import mmt_bluechannel
     from pypeit.spectrographs import util
     from pypeit import msgs
     from pypeit import io
@@ -82,9 +83,12 @@ def main(args):
         img = gen_bino.get_rawimage(args.file, args.det)[1]
     # RAW_MMIRS
     elif args.spectrograph == 'mmt_mmirs':
-        #
         gen_mmirs = mmt_mmirs.MMTMMIRSSpectrograph()
         img = gen_mmirs.get_rawimage(args.file, args.det)[1]
+    # RAW MMT blue channel
+    elif args.spectrograph == 'mmt_bluechannel':
+        gen_bluechan = mmt_bluechannel.MMTBlueChannelSpectrograph()
+        img = gen_bluechan.get_rawimage(args.file, args.det)[1]
     else:
         hdu = io.fits_open(args.file)
         img = hdu[args.exten].data
