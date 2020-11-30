@@ -11,7 +11,7 @@ from pypeit import msgs
 
 def load_spectrograph(spec):
     """
-    Instantiate a spectrograph from the avaiable subclasses of
+    Instantiate a spectrograph from the available subclasses of
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph`.
 
     Args:
@@ -35,10 +35,9 @@ def load_spectrograph(spec):
         return spec
 
     classes = spectrographs.spectrograph_classes()
-    for key,value in classes.items():
-        if key == spec:
-            return value()
+    if spec in classes.keys():
+        return classes[spec]()
 
-    msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
+    msgs.error('{0} is not a supported spectrograph.'.format(spec))
 
 
