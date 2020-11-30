@@ -1,4 +1,7 @@
-""" Module for MMT/Blue Channel specific codes
+"""
+Module for MMT/Blue Channel specific methods.
+
+.. include:: ../include/links.rst
 """
 import glob
 import numpy as np
@@ -20,15 +23,24 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     Child to handle MMT/Blue Channel specific code
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(MMTBlueChannelSpectrograph, self).__init__()
-        self.spectrograph = 'mmt_bluechannel'
-        self.telescope = telescopes.MMTTelescopePar()
-        self.camera = 'Blue_Channel'
+    name = 'mmt_bluechannel'
+    telescope = telescopes.MMTTelescopePar()
+    camera = 'Blue_Channel'
 
     def get_detector_par(self, hdu, det):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
         header = hdu[0].header
 
         # Binning
@@ -62,46 +74,43 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='APERTURE')
-        meta['dichroic'] = dict(ext=0, card='INSFILTE')
-        meta['binning'] = dict(ext=0, card=None, compound=True)
-        meta['mjd'] = dict(ext=0, card=None, compound=True)
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='APERTURE')
+        self.meta['dichroic'] = dict(ext=0, card='INSFILTE')
+        self.meta['binning'] = dict(ext=0, card=None, compound=True)
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='DISPERSE')
-        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispname'] = dict(ext=0, card='DISPERSE')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
 
         # used for arc and continuum lamps
-        meta['lampstat01'] = dict(ext=0, card=None, compound=True)
-
-        # Ingest
-        self.meta = meta
-
+        self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             """
@@ -128,16 +137,20 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['COMPLAMP']
             else:
                 return 'off'
-        else:
-            msgs.error(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
+        
+        msgs.error(f"Not ready for compound meta, {meta_key}, for MMT Blue Channel.")
 
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
-    def default_pypeit_par(self):
-        """
-        Set default parameters for MMT/Blue Channel reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'mmt_bluechannel'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
@@ -162,18 +175,20 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 2.0
 
         # Set the default exposure time ranges for the frame typing
-        ## Appropriate exposure times for Blue Channel can vary a lot depending on grating and wavelength.
-        ## E.g. 300 and 500 line gratings need very short exposures for flats to avoid saturation, but
-        ## the 1200 and 832 can use much longer exposures due to the higher resolution and the continuum lamp
-        ## not being very bright in the blue/near-UV.
+
+        # Appropriate exposure times for Blue Channel can vary a lot depending
+        # on grating and wavelength. E.g. 300 and 500 line gratings need very
+        # short exposures for flats to avoid saturation, but the 1200 and 832
+        # can use much longer exposures due to the higher resolution and the
+        # continuum lamp not being very bright in the blue/near-UV.
         par['calibrations']['pixelflatframe']['exprng'] = [None, 100]
         par['calibrations']['traceframe']['exprng'] = [None, 100]
         par['calibrations']['standardframe']['exprng'] = [None, 600]
         par['calibrations']['arcframe']['exprng'] = [10, None]
         par['calibrations']['darkframe']['exprng'] = [300, None]
 
-        # less than 30 sec implies conditions are bright enough for scattered light to be significant
-        # which affects the illumination of the slit.
+        # less than 30 sec implies conditions are bright enough for scattered
+        # light to be significant which affects the illumination of the slit.
         par['calibrations']['illumflatframe']['exprng'] = [30, None]
 
         # Need to specify this for long-slit data
@@ -186,25 +201,33 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Generate a BPM
+        Generate a default bad-pixel mask.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Returns
-        -------
-        badpix : ndarray
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for  Blue Channel")
@@ -217,11 +240,39 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         return bpm_img
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['dispname']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'bias':
@@ -243,21 +294,34 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Load up the raw image and generate a few other bits and pieces
-        that are key for image processing
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple:
-                raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
-                exptime (float)
-                rawdatasec_img (np.ndarray)
-                oscansec_img (np.ndarray)
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -269,7 +333,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         hdu = fits.open(fil[0])
         hdr = hdu[0].header
 
-        # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the bottom, slit bottom on the right...
+        # we're flipping FITS x/y to pypeit y/x here. pypeit wants blue on the
+        # bottom, slit bottom on the right...
         rawdata = np.fliplr(hdu[0].data.astype(float).transpose())
 
         exptime = hdr['EXPTIME']
@@ -296,3 +361,5 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
         oscansec_img[xbias1+2:xbias2, ybias1:ybias2-1] = 1
 
         return detector_par, rawdata, hdu, exptime, rawdatasec_img, oscansec_img
+
+
