@@ -22,7 +22,7 @@
                             provided. (default: None)
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier, which is only used if
-                            providingfiles directly: gemini_flamingos1,
+                            providing files directly: gemini_flamingos1,
                             gemini_flamingos2, gemini_gmos_north_e2v,
                             gemini_gmos_north_ham, gemini_gmos_north_ham_ns,
                             gemini_gmos_south_ham, gemini_gnirs, keck_deimos,
@@ -40,7 +40,7 @@
                             wht_isis_red (default: None)
       -b BINNING, --binning BINNING
                             Image binning in spectral and spatial directions. Only
-                            used ifproviding files directly; default is 1,1.
+                            used if providing files directly; default is 1,1.
                             (default: None)
       -p REDUX_PATH, --redux_path REDUX_PATH
                             Path to top-level output directory. Default is the
