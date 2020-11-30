@@ -78,7 +78,7 @@ the publication, please include the following acknowledgement
 What this version provides
 ++++++++++++++++++++++++++
 
-* Support for 10+ :doc:`spectrographs`
+* Support for 20+ :doc:`spectrographs`
 
   * Gemini/GNIRS
   * Gemini/GMOS

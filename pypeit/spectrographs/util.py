@@ -150,6 +150,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'mmt_mmirs':
         return spectrographs.mmt_mmirs.MMTMMIRSSpectrograph()
 
+    if spectrograph == 'mmt_bluechannel':
+        return spectrographs.mmt_bluechannel.MMTBlueChannelSpectrograph()
+
     if spectrograph == 'mdm_osmos_mdm4k':
         return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
 
@@ -158,7 +161,7 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'p200_dbsp_red':
         return spectrographs.p200_dbsp.P200DBSPRedSpectrograph()
-    
+
     if spectrograph == 'p200_dbsp_blue':
         return spectrographs.p200_dbsp.P200DBSPBlueSpectrograph()
 

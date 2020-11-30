@@ -67,7 +67,7 @@ class SpecObj(datamodel.DataContainer):
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
-                                  descr='Optimal Wavelengths (Angstroms)'),
+                                  descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal flux (erg/s/cm^2/Ang)'),
                  'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float,
@@ -99,7 +99,7 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Number of pixels used for the boxcar extraction; can be '
                                         'fractional'),
                  'BOX_WAVE': dict(otype=np.ndarray, atype=float,
-                                  descr='Boxcar Wavelengths (Angstroms)'),
+                                  descr='Boxcar Wavelengths in vacuum (Angstroms)'),
                  'BOX_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Boxcar flux (erg/s/cm^2/Ang)'),
                  'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float,
