@@ -67,7 +67,7 @@
       new strucuture.  The parameter `par['rdx']['spectrograph']` is virtually
       always checked by `load_spectrograph`, so I don't think this is a
       problem.
-      
+- Kastr 300 grating solutions
 
 1.2.0 (15 Oct 2020)
 -------------------
