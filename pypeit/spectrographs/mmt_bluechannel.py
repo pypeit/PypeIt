@@ -26,6 +26,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_bluechannel'
     telescope = telescopes.MMTTelescopePar()
     camera = 'Blue_Channel'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """

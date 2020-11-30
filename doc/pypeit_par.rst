@@ -404,7 +404,6 @@ Key                   Type                       Options                        
 ``fwhm``              int, float                 ..                                                                                                      4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use None for no calibration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``match_toler``       float                      ..                                                                                                      2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list.  This parameter is also used as the matching tolerance in pixels for a line reidentification.  A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                                                                                                                                                                                             
-``medium``            str                        ``vacuum``, ``air``                                                                                     ``vacuum``        Medium used when wavelength calibrating the data.  Options are: vacuum, air                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``method``            str                        ``simple``, ``semi-brute``, ``basic``, ``holy-grail``, ``identify``, ``reidentify``, ``full_template``  ``holy-grail``    Method to use to fit the individual arc lines.  Note that most of the available methods should not be used; they are unstable and require significant parameter tweaking to succeed.  You should useeither 'holy-grail' or 'reidentify': 'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations.  It is fully automated.  When it works, it works well; however, it can fail catastrophically.  Instead, 'reidentify' is the preferred method.  It requires an archived wavelength solution for your specific instrument/grating combination as a reference.  This is used to anchor the wavelength solution for the data being reduced.  All options are: simple, semi-brute, basic, holy-grail, identify, reidentify, full_template
 ``n_final``           int, float, list, ndarray  ..                                                                                                      4                 Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``n_first``           int                        ..                                                                                                      2                 Order of first guess fit to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
@@ -3373,6 +3372,95 @@ Alterations to the default parameters are::
       polyorder = 7
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+
+MMT Blue_Channel (``mmt_bluechannel``)
+--------------------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = mmt_bluechannel
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 300, None
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = 10, None
+          [[[process]]]
+              sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 100
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 100
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          exprng = 30, None
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 600
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+      [[wavelengths]]
+          lamps = ArI, ArII, HeI, NeI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
+          use_biasimage = False
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 0.8
+          global_sky_std = False
+  [sensfunc]
+      polyorder = 7
 
 MMT MMIRS (``mmt_mmirs``)
 -------------------------
