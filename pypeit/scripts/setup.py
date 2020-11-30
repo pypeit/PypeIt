@@ -7,7 +7,7 @@
 This script generates files to setup a PypeIt run
 """
 import os
-from pypeit import defs
+from pypeit.spectrographs import available_spectrographs
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -22,7 +22,7 @@ def parse_args(options=None, return_parser=False):
                        help='File path+root, e.g. /data/Kast/b ')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
-                                ', '.join(defs.pypeit_spectrographs)))
+                                ', '.join(available_spectrographs)))
 
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
@@ -57,9 +57,9 @@ def main(args):
                       'command-line option.')
 
     # Check that input spectrograph is supported
-    if args.spectrograph not in defs.pypeit_spectrographs:
+    if args.spectrograph not in available_spectrographs:
         raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
-                         + '\tOptions are: {0}\n'.format(', '.join(defs.pypeit_spectrographs))
+                         + '\tOptions are: {0}\n'.format(', '.join(available_spectrographs))
                          + '\tSelect an available instrument or consult the documentation '
                          + 'on how to add a new instrument.')
 

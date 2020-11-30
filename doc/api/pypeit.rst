@@ -29,7 +29,6 @@ Submodules
    pypeit.coadd2d
    pypeit.compiler_version
    pypeit.datamodel
-   pypeit.defs
    pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxcalibrate

@@ -350,7 +350,7 @@ class PypeItSetup:
                 The name of the file to write.  See description above.
         """
         if ofile is None:
-            ofile = self.spectrograph.spectrograph + '.lst' if self.pypeit_file is None \
+            ofile = self.spectrograph.name + '.lst' if self.pypeit_file is None \
                         else self.pypeit_file.replace('.pypeit', '.lst')
             if sort_dir is not None:
                 ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
@@ -458,7 +458,7 @@ class PypeItSetup:
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
-            sorted_file = self.spectrograph.spectrograph + '.sorted' \
+            sorted_file = self.spectrograph.name + '.sorted' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.sorted')
             if sort_dir is not None:
@@ -469,7 +469,7 @@ class PypeItSetup:
         else:
             # Write the calib file
             # This is currently needed for QA
-            calib_file = self.spectrograph.spectrograph + '.calib' \
+            calib_file = self.spectrograph.name + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')
             if sort_dir is not None:

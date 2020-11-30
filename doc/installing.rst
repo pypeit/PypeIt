@@ -34,7 +34,11 @@ The package and version requirements for ``PypeIt`` are:
 * `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
 * `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later
 * `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
-* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later
+* `shapely <https://pypi.org/project/Shapely/>`_ -- version 1.7 or later; optional, **required for KCWI only**
+* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later; optional, developers only
+* `Sphinx <https://pypi.org/project/Sphinx/>`_ -- version 3.0 or later; optional, developers only
+* `sphinx-automodapi <https://pypi.org/project/sphinx-automodapi/>`_ : version 0.12 or later; optional, developers only
+* `sphinx_rtd_theme <https://pypi.org/project/sphinx-rtd-theme/>`_ : version 0.5 or later; optional, developers only
 
 Create a conda environment (recommended)
 ----------------------------------------
@@ -71,6 +75,29 @@ To install the dependencies using `pip <https://pypi.org/project/pip/>`_:
 Note that this is a "system-wide" installation, and will
 replace/upgrade any current versions of the packages you already have
 installed.
+
+Dependency Caveats
+------------------
+
+Some users have run into the following complications when installing the
+``PypeIt`` dependencies:
+
+ - Installation of ``numba`` has been known to fault because of an issue with
+   the LLVM compiler. For one particular case, the solution was to revert to
+   llvm version 9.0.1 using `Homebrew <https://brew.sh/>`_ and then add
+   environmental variables to your shell rc that point to the reverted
+   directory structure.
+ 
+ - At the moment, an implicit dependency on PyQt5 remains (in addition to
+   PySide2) because of our dependence on ``linetools``.
+
+ - Note that ``shapely`` is listed as an optional dependency, but is only
+   currently used by one method that calculates the spaxel area for KCWI
+   output datacubes.
+
+ - For the developer-only (``Sphinx``) packages, download
+   `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
+   and install with ``pip install -r requirements_doc.txt``.
 
 ----
 

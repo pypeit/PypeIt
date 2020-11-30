@@ -53,9 +53,11 @@ def test_telluric():
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
-def test_spectrographs():
-    s = pypeitpar.ReduxPar.valid_spectrographs()
-    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
+# TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
+# a circular import.
+#def test_spectrographs():
+#    s = pypeitpar.ReduxPar.valid_spectrographs()
+#    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
 
 def test_redux():
     pypeitpar.ReduxPar()

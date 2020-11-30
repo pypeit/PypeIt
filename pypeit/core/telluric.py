@@ -582,7 +582,7 @@ def general_spec_reader(specfile, ret_flam=False):
         except:
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
-        head['PYP_SPEC'] = spectrograph.spectrograph
+        head['PYP_SPEC'] = spectrograph.name
     except:
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
