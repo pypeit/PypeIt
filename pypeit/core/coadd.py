@@ -658,8 +658,8 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False
     wave_mask = wave_old > 1.0 # Deal with the zero wavelengths
     if sensfunc:
         delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_mask)
-        flux_interp = flux_old[wave_mask]*delta_wave_interp
-        ivar_interp = ivar_old[wave_mask]/delta_wave_interp**2
+        flux_interp = flux_old[wave_mask]*delta_wave_interp[wave_mask]
+        ivar_interp = ivar_old[wave_mask]/delta_wave_interp[wave_mask]**2
     else:
         flux_interp = flux_old[wave_mask]
         ivar_interp = ivar_old[wave_mask]
