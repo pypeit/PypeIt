@@ -697,10 +697,10 @@ def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol
             msgs.error('Overscan sections do not match amplifier sections for'
                        'amplifier {0}'.format(i+1))
         compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
-        
+
         # Fit/Model the overscan region
         osfit = np.median(overscan) if method.lower() == 'median' \
-                        else np.median(overscan, axis=compress_axis) 
+                        else np.median(overscan, axis=compress_axis)
         if method.lower() == 'polynomial':
             # TODO: Use np.polynomial.polynomial.polyfit instead?
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])

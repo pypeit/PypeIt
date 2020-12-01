@@ -162,7 +162,7 @@ class SensFunc(object):
         # Standard init
         hdr = io.initialize_header()
 
-        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        hdr['PYP_SPEC'] = (self.spectrograph.name, 'PypeIt: Spectrograph name')
         hdr['PYPELINE'] = self.spectrograph.pypeline
         #   - List the completed steps
         hdr['STEPS'] = (','.join(self.steps), 'Completed sensfunc steps')

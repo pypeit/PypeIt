@@ -460,30 +460,6 @@ def main(flg):
         xidl_file = os.path.join(template_path, 'Keck_LRIS', 'B1200', 'lris_blue_1200.sav')
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
 
-    # Shane Kastb
-    if flg & (2**4):  # 452/3306
-        binspec = 1
-        slits = [0]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '452_3306', 'kast_452_3306.sav')
-        outroot = 'shane_kast_blue_452.fits'
-        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
-
-    if flg & (2**5):  # 600/4310
-        binspec = 1
-        slits = [0,3]
-        lcut = [4550.]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '600_4310', 'kast_600_4310.sav')
-        outroot = 'shane_kast_blue_600.fits'
-        build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
-
-    if flg & (2**6):  # 830/3460
-        binspec = 1
-        slits = [0]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '830_3460', 'kast_830_3460.sav')
-        outroot = 'shane_kast_blue_830.fits'
-        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
-
-
     # ###############################################3
     # Keck/LRISr
     if flg & (2**10): # R400
@@ -860,17 +836,9 @@ if __name__ == '__main__':
     #flg += 2**2  # LRISb 600, all lamps
     #flg += 2**3  # LRISb 1200, all lamps?
 
-    # Shane/Kastb
-    #flg += 2**4  # Kastb 452/3306 -- Not yet tested
-    #flg += 2**5  # Kastb 600/4310
-    #flg += 2**6  # Kastb 830/3460 -- Not yet tested
-
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
-
-    # Shane/Kastr
-    #  Need several arcs to proceed this way
 
     # MagE
     #flg += 2**13

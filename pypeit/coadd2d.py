@@ -335,7 +335,7 @@ class CoAdd2D:
 
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
-                                         PYP_SPEC=self.spectrograph.spectrograph,
+                                         PYP_SPEC=self.spectrograph.name,
                                          specmin=spec_min1, specmax=spec_max1, ech_order=slits.ech_order)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
@@ -670,7 +670,7 @@ class CoAdd2D:
                     tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
                     redux_path=redux_path,
                     detectors=detectors_list,
-                    spectrograph=self.spectrograph.spectrograph,
+                    spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline)
 
 # Multislit can coadd with:

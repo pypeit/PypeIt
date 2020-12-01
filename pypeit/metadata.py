@@ -233,13 +233,13 @@ class PypeItMetaData:
         return self.table._base_repr_(html=False,
                             descr_vals=['PypeItMetaData:\n',
                                         '              spectrograph={0}\n'.format(
-                                                                    self.spectrograph.spectrograph),
+                                                                    self.spectrograph.name),
                                         '              length={0}\n'.format(len(self))])
 
     def _repr_html_(self):
         return self.table._base_repr_(html=True, max_width=-1,
                             descr_vals=['PypeItMetaData: spectrograph={0}, length={1}\n'.format(
-                                                    self.spectrograph.spectrograph, len(self))])
+                                                    self.spectrograph.name, len(self))])
 
     @staticmethod
     def default_keys():
@@ -424,7 +424,7 @@ class PypeItMetaData:
                        'run set_configurations and set_calibration_groups.')
         if det <= 0 or det > self.spectrograph.ndet:
             raise IndexError('{0} is not a valid detector for {1}!'.format(det,
-                             self.spectrograph.spectrograph))
+                             self.spectrograph.name))
         return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
 
     def construct_obstime(self, row):
@@ -1500,7 +1500,7 @@ class PypeItMetaData:
         ofiles = [None]*len(cfg_keys)
         for j,setup in enumerate(cfg_keys):
             # Create the output directory
-            root = '{0}_{1}'.format(self.spectrograph.spectrograph, setup)
+            root = '{0}_{1}'.format(self.spectrograph.name, setup)
             odir = os.path.join(output_path, root)
             if not os.path.isdir(odir):
                 os.makedirs(odir)
@@ -1520,7 +1520,7 @@ class PypeItMetaData:
                 subtbl.write(ff, format='ascii.fixed_width')
                 data_lines = ff.getvalue().split('\n')[:-1]
             # Write the file
-            make_pypeit_file(ofiles[j], self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
+            make_pypeit_file(ofiles[j], self.spectrograph.name, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
 
         # Return
