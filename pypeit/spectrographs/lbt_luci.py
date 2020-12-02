@@ -1,12 +1,16 @@
-""" Module for LBT/LUCI specific codes
 """
-import numpy as np
+Module for LBT/LUCI specific methods.
 
+.. include:: ../include/links.rst
+"""
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -16,75 +20,74 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     Class to handle LBT/LUCI specific code
     """
     ndet = 1
+    telescope = telescopes.LBTTelescopePar()
 
-    def __init__(self):
-        # Get it started
-        super(LBTLUCISpectrograph, self).__init__()
-        self.spectrograph = 'lbt_luci'
-        self.telescope = telescopes.LBTTelescopePar()
-        self.timeunit = 'isot'
+#    def __init__(self):
+#        super().__init__()
+#        self.timeunit = 'isot'
 
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for  LBT/LUCI reductions.
-
-        OLD CODE from LBT MODS
-        """
-        par = pypeitpar.PypeItPar()
-
-        # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
-
-
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-        par['calibrations']['traceframe']['exprng'] = [0, None]
-        par['calibrations']['arcframe']['exprng'] = [None, 60]
-        par['calibrations']['standardframe']['exprng'] = [1, 200]
-        par['scienceframe']['exprng'] = [200, None]
-        return par
+#    @classmethod
+#    def default_pypeit_par(cls):
+#        """
+#        Return the default parameters to use for this instrument.
+#        
+#        Returns:
+#            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+#            all of ``PypeIt`` methods.
+#        """
+#        par = super().default_pypeit_par()
+#
+#        # Processing steps
+#        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+#                        use_darkimage=False)
+#        par.reset_all_processimages_par(**turn_off)
+#
+#        par['calibrations']['biasframe']['exprng'] = [None, 1]
+#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+#        par['calibrations']['pixelflatframe']['exprng'] = [0, None]
+#        par['calibrations']['traceframe']['exprng'] = [0, None]
+#        par['calibrations']['arcframe']['exprng'] = [None, 60]
+#        par['calibrations']['standardframe']['exprng'] = [1, 200]
+#        par['scienceframe']['exprng'] = [200, None]
+#        return par
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='OBJRA')
-        meta['dec'] = dict(ext=0, card='OBJDEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='MASKID')
-        meta['binning'] = dict(ext=0, card=None, default='1,1')
-        meta['filter1'] = dict(ext=0, card='FILTERS')
-        meta['idname'] = dict(card=None, compound=True)
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
-        meta['dispname'] = dict(ext=0, card='GRATNAME')
-        self.meta = meta
+        self.meta['ra'] = dict(ext=0, card='OBJRA')
+        self.meta['dec'] = dict(ext=0, card='OBJDEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='MASKID')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['filter1'] = dict(ext=0, card='FILTERS')
+        self.meta['idname'] = dict(card=None, compound=True)
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATNAME')
 
+    # TODO: Deal with isot time here.
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
-
         # Populate the idname based on the header information of LUCI
         # This is an implicit way of pre-typing without adding too many
         # variables to the self.meta.
@@ -147,23 +150,58 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             elif ((filter1 == 'blind') or
                   (filter2 == 'blind')):
                 return 'dark'
-
-        else:
-            msgs.error("Not ready for this compound meta")
-
-    # Uses parent metadata keys
+        msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['decker', 'dispname']
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(LBTLUCISpectrograph, self).pypeit_file_keys()
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        # TODO: This should only add idname
         pypeit_keys += ['calib', 'comb_id', 'bkg_id', 'idname']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # ATTENTION: Standards have to be added manually for LUCI because
@@ -189,8 +227,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
             return (good_exp & ((fitstbl['idname'] == 'object') |
                     (fitstbl['idname'] == 'arc')))
 
-
-
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
@@ -199,25 +235,23 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
     """
     Child to handle LBT/LUCI1 specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTLUCI1Spectrograph, self).__init__()
-        self.spectrograph = 'lbt_luci1'
-        self.camera = 'LUCI1'
+    name = 'lbt_luci1'
+    camera = 'LUCI1'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -258,13 +292,16 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-         Set default parameters for Keck/MOSFIRE
-         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'lbt_luci1'
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
@@ -292,7 +329,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
-
         # Processing steps
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
@@ -306,45 +342,44 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LBT LUCI1 exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LUCI1',
-                            '0.NAXIS': 2 }
-        super(LBTLUCI1Spectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
+# TODO: OUT OF DATE
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for an LBT LUCI1 exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = { '0.INSTRUME': 'LUCI1',
+#                            '0.NAXIS': 2 }
+#        super(LBTLUCI1Spectrograph, self).check_headers(headers,
+#                                                              expected_values=expected_values)
 
 class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
     """
     Child to handle LBT/LUCI2 specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTLUCI2Spectrograph, self).__init__()
-        self.spectrograph = 'lbt_luci2'
-        self.camera = 'LUCI2'
+    name = 'lbt_luci2'
+    camera = 'LUCI2'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -369,13 +404,16 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-         Set default parameters for Keck/MOSFIRE
-         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'lbt_luci2'
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution
@@ -388,7 +426,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         #par['calibrations']['wavelengths']['nonlinear_counts'] = \
         #    self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
-
 
         par['calibrations']['slitedges']['edge_thresh'] = 300
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -415,23 +452,23 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
 
-
         return par
 
+# TODO: OUT OF DATE
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for an LBT LUCI1 exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = { '0.INSTRUME': 'LUCI2',
+#                            '0.NAXIS': 2 }
+#        super(LBTLUCI1Spectrograph, self).check_headers(headers,
+#                                                              expected_values=expected_values)
 
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LBT LUCI1 exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'LUCI2',
-                            '0.NAXIS': 2 }
-        super(LBTLUCI1Spectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)

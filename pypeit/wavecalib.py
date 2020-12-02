@@ -418,7 +418,7 @@ class BuildWaveCalib:
                 arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
-                                         specname=self.spectrograph.spectrograph,
+                                         specname=self.spectrograph.name,
                                          gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
@@ -454,7 +454,7 @@ class BuildWaveCalib:
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
                                   spat_ids=self.slits.spat_id,
-                                  PYP_SPEC=self.spectrograph.spectrograph,
+                                  PYP_SPEC=self.spectrograph.name,
                                   )
 
         # Update mask

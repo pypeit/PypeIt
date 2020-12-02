@@ -75,17 +75,23 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
+        # Set up logging
+        self.logname = logname
+        self.verbosity = verbosity
+        self.pypeit_file = pypeit_file
+        
+        self.msgs_reset()
+        
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
-        self.pypeit_file = pypeit_file
         self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -132,7 +138,6 @@ class PypeIt(object):
         self.fitstbl.write_calib(calib_file)
 
         # Other Internals
-        self.logname = logname
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
@@ -159,7 +164,6 @@ class PypeIt(object):
         # An html file wrapping them all too
 
         # Init
-        self.verbosity = verbosity
         # TODO: I don't think this ever used
 
         self.det = None

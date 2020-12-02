@@ -81,3 +81,8 @@ documentation).
 
 Please note, the RA of the KCWI WCS is not quite correct.
 This is a work in progress.
+
+.. note::
+
+    - Construction of the KCWI datacube requires the python package
+      ``shapely``; see :doc:`installing`.
