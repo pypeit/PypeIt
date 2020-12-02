@@ -120,7 +120,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                     descr='Slit ID number slitmask'),
                  'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
-                 'maskdef_file': dict(otype=str, descr='Data file that yielded the slitmask info'),
+                 'maskfile': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'maskdef_posx_pa': dict(otype=float, descr='PA that aligns with spatial dimension of the detector'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
@@ -164,7 +164,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskdef_file=None,
+                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):

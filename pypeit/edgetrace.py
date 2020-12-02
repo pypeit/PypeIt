@@ -374,11 +374,11 @@ class EdgeTraceSet(DataContainer):
         omodel_bspat (`numpy.ndarray`_):
             A floating-point array with the location of the slit LEFT edge,
             averaged along the spectral direction, predicted by the optical model
-            (before x-correlation with traced edges)
+            (after x-correlation with traced edges)
         omodel_tspat (`numpy.ndarray`_):
             A floating-point array with the location of the slit RIGHT edge,
             averaged along the spectral direction, predicted by the optical model
-            (before x-correlation with traced edges)
+            (after x-correlation with traced edges)
         coeff_b (`numpy.ndarray`_):
             A floating-point array with the coefficients (offset, scale) of the
             x-correlation between LEFT edges predicted by the optical model and the
@@ -387,6 +387,8 @@ class EdgeTraceSet(DataContainer):
             A floating-point array with the coefficients (offset, scale) of the
             x-correlation between RIGHT edges predicted by the optical model and the
             ones traced on the image.
+        maskfile (:obj:`str`):
+            Full path to the file used to extract slit-mask information
     """
 
     master_type = 'Edges'
@@ -510,13 +512,13 @@ class EdgeTraceSet(DataContainer):
         self.log = None                 # Log of methods applied
         self.master_key = None          # Calibration key for master frame
         self.master_dir = None          # Directory for Master frames
-        self.omodel_bspat = None        # Left edges predicted by the optical model (before x-correlation)
-        self.omodel_tspat = None        # Right edges predicted by the optical model (before x-correlation)
+        self.omodel_bspat = None        # Left edges predicted by the optical model (after x-correlation)
+        self.omodel_tspat = None        # Right edges predicted by the optical model (after x-correlation)
         self.coeff_b = None             # Coefficients of the x-correlation between LEFT edges predicted
                                         # by the optical model and traced on the image.
         self.coeff_t = None             # Coefficients of the x-correlation between LEFT edges predicted
                                         # by the optical model and traced on the image.
-        self.maskdef_file = None        # File used to slurp in slit-mask design
+        self.maskfile = None            # File used to slurp in slit-mask design
 
     def _reinit_trace_data(self):
         """
@@ -541,7 +543,7 @@ class EdgeTraceSet(DataContainer):
         self.omodel_tspat = None
         self.coeff_b = None
         self.coeff_t = None
-        self.maskdef_file = None
+        self.maskfile = None
 
     @property
     def ntrace(self):
@@ -4065,12 +4067,12 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
 
         # `traceimg` must have knowledge of the flat frame that built it
-        self.maskdef_file = self.traceimg.files[0]
-        if self.spectrograph.get_slitmask(self.maskdef_file) is None:
+        self.maskfile = self.traceimg.files[0]
+        if self.spectrograph.get_slitmask(self.maskfile) is None:
             msgs.error('Unable to read slitmask design info')
-        if self.spectrograph.get_grating(self.maskdef_file) is None:
+        if self.spectrograph.get_grating(self.maskfile) is None:
             msgs.error('Unable to read grating info')
-        if self.spectrograph.get_amapbmap(self.maskdef_file) is None:
+        if self.spectrograph.get_amapbmap(self.maskfile) is None:
             msgs.error('Unable to read amap and bmap')
 
         # Match left and right edges separately
@@ -4338,7 +4340,7 @@ class EdgeTraceSet(DataContainer):
         self.edge_msk[:, align_slit] = self.bitmask.turn_on(self.edge_msk[:, align_slit], 'BOXSLIT')
 
         # Propagate the coefficients, `coeff_b` and `coeff_t`, of the x-correlation and the
-        # left and right spatial position of the slit edges from optical model (before x-correlation)
+        # left and right spatial position of the slit edges from optical model (after x-correlation)
         # with the purpose to fill a table with the information on slitmask design matching. The table will
         # be filled out at the very end of the slit tracing process, in `get_slits()`.
         self.coeff_b = coeff_b
@@ -4398,7 +4400,7 @@ class EdgeTraceSet(DataContainer):
         # Instantiate as an empty table
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
         # Save the fit parameters and the source file as table metadata
-        self.design.meta['MASKFILE'] = self.maskdef_file
+        self.design.meta['MASKFILE'] = self.maskfile
         self.design.meta['MASKOFF'] = coeff_b[0], coeff_t[0]
         self.design.meta['MASKSCL'] = coeff_b[1], coeff_t[1]
         # Fill the columns
@@ -5038,5 +5040,5 @@ class EdgeTraceSet(DataContainer):
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
-                                      maskdef_posx_pa=_posx_pa, maskdef_file=self.maskdef_file,
+                                      maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                       ech_order=ech_order)
