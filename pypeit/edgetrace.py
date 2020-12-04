@@ -585,8 +585,10 @@ class EdgeTraceSet(DataContainer):
                                  description='Spatial pixel coordinate for left edge'),
                     table.Column(name='TRACERPIX', dtype=float, length=length,
                                  description='Spatial pixel coordinate for right edge'),
+                    table.Column(name='SPAT_ID', dtype=int, length=length,
+                                 description='ID Number assigned by the pypeline to each slit'),
                     table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
+                                 description='Slit ID Number from slit-mask design'),
                     # table.Column(name='SLITLFOC', dtype=float, length=length,
                     #              description='Left edge of the slit in mm at the focal plane'),
                     # table.Column(name='SLITRFOC', dtype=float, length=length,
@@ -4328,6 +4330,20 @@ class EdgeTraceSet(DataContainer):
             if (needind_t.size > 0) | np.any(dupl_t):
                 slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, top_edge_pred, reference_row,
                                                  self.spectrograph.slitmask.slitindx, nspat=self.nspat, edge='right')
+        self.spatial_sort()
+        # Re-sorting traceid to be synchronized, i.e., self.is_synced=True. This allows to skip a step in sync()
+        # that is useless in this case and counter-productive.
+        ltraceid = self.traceid[self.traceid < 0]
+        rtraceid = self.traceid[self.traceid > 0]
+        if self.traceid[0] < 0:
+            self.traceid[::2] = ltraceid
+            self.traceid[1::2] = rtraceid
+        else:
+            self.traceid[::2] = rtraceid
+            self.traceid[1::2] = ltraceid
+
+        if self.is_synced:
+            msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED')
 
         self.maskdef_id = np.zeros(self.ntrace, dtype=int)
         self.maskdef_id[self.is_left] = self.spectrograph.slitmask.slitid[ind_b]
@@ -4348,7 +4364,7 @@ class EdgeTraceSet(DataContainer):
         self.omodel_bspat = bot_edge_pred
         self.omodel_tspat = top_edge_pred
 
-    def _fill_design_table(self, maskdef_id, coeff_b, coeff_t, omodel_bspat, omodel_tspat):
+    def _fill_design_table(self, maskdef_id, coeff_b, coeff_t, omodel_bspat, omodel_tspat, spat_id):
         """
         Fill :attr:`design` based on the results of the design
         registration.
@@ -4382,6 +4398,8 @@ class EdgeTraceSet(DataContainer):
                 and traced edges for the left and right edges.
             omodel_bspat, omodel_tspat (:obj:`numpy.array`):
                 Left and right spatial position of the slit edges from optical model
+            spat_id (:obj:`numpy.array`):
+                ID assigned by PypeIt to each slit. same as in `SlitTraceSet`.
 
 
         """
@@ -4411,6 +4429,7 @@ class EdgeTraceSet(DataContainer):
                                         dtype=self.design['TRACELPIX'].dtype)
         self.design['TRACERPIX'] = self.edge_fit[reference_row,self.traceid>0][matched].astype(
                                         dtype=self.design['TRACERPIX'].dtype)
+        self.design['SPAT_ID'] = spat_id[matched].astype(dtype=self.design['SPAT_ID'].dtype)
         self.design['SLITID'] = self.spectrograph.slitmask.slitid[ind].astype(
                                         dtype=self.design['SLITID'].dtype)
         self.design['SLITLOPT'] = omodel_bspat[ind].astype(dtype=self.design['SLITLOPT'].dtype)
@@ -5004,6 +5023,11 @@ class EdgeTraceSet(DataContainer):
             specmin = specmin[indx]/binspec
             specmax = specmax[indx]/binspec
 
+        # Define spat_id (in the same way is done in SlitTraceSet) to add it in the astropy table. It
+        # is useful to have spat_id in that table.
+        center = (left + right) / 2
+        spat_id = np.round(center[int(np.round(0.5 * self.nspec)), :]).astype(int)
+
         if self.maskdef_id is not None:
             # Check for mismatched `maskdef_id` in the left and right edges
             mkd_id_mismatch = self.maskdef_id[self.is_left] != self.maskdef_id[self.is_right]
@@ -5021,11 +5045,14 @@ class EdgeTraceSet(DataContainer):
                           "They will not be included in the design table")
 
             # Store the matched slit-design and object information in a table.
-            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat, self.omodel_tspat)
+            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat,
+                                    self.omodel_tspat, spat_id)
             self._fill_objects_table(_maskdef_id)
-            _merged_designtab = table.join(self.design, self.objects, keys=['SLITID'])
-            _merged_designtab.sort('TRACEID')
-            _merged_designtab.remove_column('SLITINDX')
+            # This changes the name of the column in order to be able to merge the two tables
+            self.objects.rename_column('SLITINDX', 'TRACEID')
+            _merged_designtab = table.join(self.design, self.objects, keys=['TRACEID'])
+            _merged_designtab.remove_column('SLITID_2')
+            _merged_designtab.rename_column('SLITID_1', 'SLITID')
             # One more item
             _posx_pa = float(self.spectrograph.slitmask.posx_pa)
         else:
