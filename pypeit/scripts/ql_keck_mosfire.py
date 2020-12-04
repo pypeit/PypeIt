@@ -214,7 +214,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
     redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
-                                       det=det, std_outfile=None)
+                                       det=det)
 
     skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
         std_trace=std_trace, return_negative=True, show_peaks=show)
@@ -280,7 +280,7 @@ def main(args):
         msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
 
     # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_1_01.fits.gz')
+    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_8191_01.fits.gz')
     tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
     wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
     sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')

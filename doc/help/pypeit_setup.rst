@@ -32,7 +32,7 @@
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /Users/joe/python/PypeIt/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT

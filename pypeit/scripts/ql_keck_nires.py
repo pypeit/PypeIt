@@ -40,7 +40,7 @@ def main(args):
 
     # Setup
     data_files = [os.path.join(args.full_rawpath, args.fileA),
-                  os.path.join(args.full_rawpath,args.fileB)]
+                  os.path.join(args.full_rawpath, args.fileB)]
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name='keck_nires')
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'

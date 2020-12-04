@@ -2,7 +2,7 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI]
-                           [-o OUTFILE] [-s SENS_FILE] [--debug] [--debug_init]
+                           [-o OUTFILE] [-s SENS_FILE] [--debug]
                            [--par_outfile PAR_OUTFILE]
                            spec1dfile
     
@@ -50,8 +50,6 @@
                             Configuration file to change default sensivity
                             function parameters
       --debug               show debug plots?
-      --debug_init          debug the initilization of the sensfunc + telluric fit
-                            for the IR algorithm
       --par_outfile PAR_OUTFILE
                             Name of outut file to save the parameters used by the
                             fit
