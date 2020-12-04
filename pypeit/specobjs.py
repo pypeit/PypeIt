@@ -728,9 +728,9 @@ class SpecObjs:
                 obj_tbl['objname'] = objname
             if specobj.RA is not None:
                 obj_tbl['objra'] = objra
-                obj_tbl['objra'].format = '.4f'
+                obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
-                obj_tbl['objdec'].format = '.4f'
+                obj_tbl['objdec'].format = '.5f'
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos

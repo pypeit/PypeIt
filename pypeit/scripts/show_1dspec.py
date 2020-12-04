@@ -44,7 +44,7 @@ def main(args):
             line = ''
             line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
             if sobjs[ii].RA is not None:
-                line += " {:0.4f} {:0.4f} {:s}".format(
+                line += " {:0.5f} {:0.5f} {:s}".format(
                     sobjs[ii].RA,
                     sobjs[ii].DEC,
                     sobjs[ii].MASKDEF_OBJNAME)

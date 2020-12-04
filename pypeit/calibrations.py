@@ -644,6 +644,7 @@ class Calibrations(object):
         if self.slitspat_num is not None:
             self.slits.user_mask(self.det, self.slitspat_num)
 
+        # [DP] Let me know if you are OK with removing these lines below
         # # FOR TESTING -- REMOVE WHEN maskdef_file is written correctly to disk
         # if self.slits.maskdef_id is not None and self.spectrograph.slitmask is None:
         #     self.slits.maskdef_file = os.path.join(os.getenv('PYPEIT_DEV'),
