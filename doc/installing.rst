@@ -25,7 +25,6 @@ The package and version requirements for ``PypeIt`` are:
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
 * `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
-* `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
@@ -136,7 +135,27 @@ from GitHub.
 
         git clone https://github.com/pypeit/PypeIt.git
 
- #. This will create a ``PypeIt`` directory in your current path. To install::
+ #. This will create a ``PypeIt`` directory in your current path.
+
+Install the dependencies in the pypeit/requirements.txt file:
+
+        conda install configobj
+        conda install -c conda-forge extension-helpers
+
+In the directory where you keep your python codes, clone ejeschke/ginga from https://github.com/ejeschke/ginga
+
+        git clone https://github.com/ejeschke/ginga.git
+        cd ginga
+        python setup.py install
+
+Similar for linetools, i.e. clone from https://github.com/linetools/linetools
+
+        git clone https://github.com/linetools/linetools.git
+        cd linetools
+        python setup.py install
+
+
+ #. To install::
 
         cd PypeIt
         python setup.py develop
@@ -144,6 +163,7 @@ from GitHub.
 Installing the code this way ensures that virtually all changes to files in
 the ``PypeIt`` directory take immediate effect the next time you
 import the code.
+
 
 ----
 
