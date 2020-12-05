@@ -129,15 +129,45 @@ Install from the git source
 
 If ``pip`` is unsuccessful or if you are planning to use any of the
 ``PypeIt`` development branches, then you should install directly
-from GitHub.
+from GitHub. These instructions assume that you are using an anaconda python
+installation.
 
- #. Clone the repository::
+#. Note it would be a very good idea to nuke your current anaconda installation and start
+this whole procedure with a clean slate. You could choose not to do this if you know what you are doing,
+but beware that you may encounter conflicts::
+
+
+        rm -r -f /Users/Yourpath/opt/anaconda3
+
+OR
+
+        sudo rm -r -f /Volumes/opt/anaconda3
+
+Depending on where you installed anaconda
+
+
+#. Clone the PypeIt repository::
 
         git clone https://github.com/pypeit/PypeIt.git
 
- #. This will create a ``PypeIt`` directory in your current path.
+#. This will create a ``PypeIt`` directory in your current path.
 
-Install the dependencies in the pypeit/requirements.txt file:
+#. Install the dependencies in the pypeit/requirements.txt file.
+
+#. Note there is conflict between the required pyside2 package and other anaconda packages. To fix this
+you need to run::.
+
+        conda uninstall spyder
+
+Then after that successfully runs, install pyside2::.
+
+        conda install pyside2
+
+#. The spyder uninstall might cause you to lose some familiar Anaconda python packages that you need so run
+
+        conda install scipy matplotlib scikit-learn
+
+#. Install a few other dependencies
 
         conda install configobj
         conda install -c conda-forge extension-helpers
@@ -155,7 +185,7 @@ Similar for linetools, i.e. clone from https://github.com/linetools/linetools
         python setup.py install
 
 
- #. To install::
+ #. Finally to complete the PypeIt install::
 
         cd PypeIt
         python setup.py develop
