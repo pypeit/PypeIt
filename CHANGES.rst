@@ -68,6 +68,7 @@
       always checked by `load_spectrograph`, so I don't think this is a
       problem.
 - Kastr 300 grating solutions
+- Hotfix to include the solutions!
 
 1.2.0 (15 Oct 2020)
 -------------------
