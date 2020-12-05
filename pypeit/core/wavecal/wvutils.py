@@ -7,8 +7,6 @@
 """
 import numpy as np
 import os
-import numba as nb
-
 
 from matplotlib import pyplot as plt
 
