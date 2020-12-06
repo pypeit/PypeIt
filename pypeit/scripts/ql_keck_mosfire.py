@@ -283,16 +283,12 @@ def main(args):
     slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_8191_01.fits.gz')
     tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
     wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
-    sensfuncfile = os.path.join(args.master_dir, 'FILL_ME_IN')
-    if  (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
-         not os.path.isfile(tilts_masterframe_name)):
+    std_spec1d_file = os.path.join(args.master_dir, 'spec1d_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
+    sensfunc_masterframe_name = os.path.join(args.master_dir, 'sens_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
+    if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
+        not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
+        not os.path.isfile(std_spec1d_file)):
         msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
-
-    # For now don't require a standard
-    std_outfile=None
-    #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
-    #                           'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
-    # make the get_std from pypeit a utility function or class method
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -339,11 +335,12 @@ def main(args):
 
     #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
 
-
+    ## Read in the master frames that we need
+    ##
     det = 1 # MOSFIRE has a single detector
-    if std_outfile is not None:
+    if std_spec1d_file is not None:
         # Get the standard trace if need be
-        sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
+        sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
         this_det = sobjs.DET == det
         if np.any(this_det):
             sobjs_det = sobjs[this_det]
