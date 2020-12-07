@@ -254,7 +254,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     return viewer, ch
 
 
-def show_points(viewer, ch, spec, spat, color='cyan', spec_off = -1, spat_off =-1, legend=None, legend_spec=None, legend_spat=None):
+def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
     """
 
 
@@ -269,10 +269,6 @@ def show_points(viewer, ch, spec, spat, color='cyan', spec_off = -1, spat_off =-
         List of spectral positions on image to plot
     spat (list):
         List of spatial positions on image to plot
-    spec_off (float, optional):
-        ginga uses one based pixels for some silly reason. Default = -1
-    spat_off (float, optional):
-        ginga uses one based pixels for some silly reason. Default = -1
     color (str):
         Color for points
     legend (str):
@@ -285,7 +281,7 @@ def show_points(viewer, ch, spec, spat, color='cyan', spec_off = -1, spat_off =-
     """
     canvas = viewer.canvas(ch._chname)
     npoints = len(spec)
-    canvas_list = [dict(type='point', args=(float(spat[i] + spat_off), float(spec[i] + spec_off), 2),
+    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
                          kwargs=dict(style='plus', color=color)) for i in range(npoints)]
     if legend is not None:
         spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
