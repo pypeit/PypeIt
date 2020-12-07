@@ -32,6 +32,7 @@ from pypeit.core.parse import get_dnum
 from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
+from astropy.stats import sigma_clipped_stats
 
 
 
@@ -422,13 +423,19 @@ def main(args):
 
     if args.flux:
         # Load the sensitivity function
-        wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfuncfile)
-        # Interpolate the sensitivity function onto the wavelength grid of the data
+        wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
+        # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
+        # this is trivial and we don't need to do a 2d interpolation
         sens_factor = flux_calib.get_sensfunc_factor(
             pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, fits.getheader(files[0])['TRUITIME'],
             extrap_sens=parset['fluxcalib']['extrap_sens'])
-        sens_factor_img = np.repeat(sens_factor[:, np.newaxis], pseudo_dict['nspat'], axis=1)
+        # Compute the median sensitivity and set the sensitivity to zero at locations 100 times the median. This
+        # prevents the 2d image from blowing up where the sens_factor explodes because there is no throughput
+        sens_gpm = sens_factor < 100.0*np.median(sens_factor)
+        sens_factor_masked = sens_factor*sens_gpm
+        sens_factor_img = np.repeat(sens_factor_masked[:, np.newaxis], pseudo_dict['nspat'], axis=1)
         imgminsky = sens_factor_img*pseudo_dict['imgminsky']
+        imgminsky_gpm = sens_gpm[:, np.newaxis] & pseudo_dict['inmask']
     else:
         imgminsky= pseudo_dict['imgminsky']
 
@@ -436,15 +443,21 @@ def main(args):
     # Now display the images #
     ##########################
     display.connect_to_ginga(raise_err=True, allow_new=True)
-    # Bug in ginga prevents me from using cuts here for some reason
-    #mean, med, sigma = sigma_clipped_stats(pseudo_dict['imgminsky'][pseudo_dict['inmask']], sigma_lower=5.0,sigma_upper=5.0)
-    #cut_min = mean - 4.0 * sigma
-    #cut_max = mean + 4.0 * sigma
-    chname_skysub='skysub-det{:s}'.format(sdet)
+    # TODO: Bug in ginga prevents me from using cuts here for some reason
+    if args.flux:
+        mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=5.0,sigma_upper=5.0)
+        cuts_skysub = (mean - 4.0 * sigma, mean + 4.0 * sigma)
+        cuts_resid = None
+        chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet)
+    else:
+        cuts_skysub = None
+        cuts_resid = (-5.0, 5.0)
+        chname_skysub = 'skysub-det{:s}'.format(sdet)
+
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
     viewer, ch = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
-                                   clear=True) # cuts=(cut_min, cut_max),
+                                   clear=True, cuts=cuts_skysub)
     slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
     slit_id = slits.slitord_id[0]
     display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slit_id)
@@ -453,7 +466,7 @@ def main(args):
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
     viewer, ch = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
-                                  cuts=(-5.0, 5.0),)
+                                  cuts=cuts_resid)
     display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
     shell = viewer.shell()
     out = shell.start_global_plugin('WCSMatch')

@@ -168,6 +168,7 @@ def main(args):
                                              debug_offsets=args.debug_offsets, debug=args.debug,
                                              samp_fact=args.samp_fact)
 
+        # TODO Add this stuff to a run method in coadd2d
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
         # Create the pseudo images

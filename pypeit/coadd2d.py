@@ -673,6 +673,62 @@ class CoAdd2D:
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline)
 
+
+    def parse_weights(self, weights):
+        """
+        Dummy method to parse weights. Overloaded by child methods
+
+
+        Parameters
+        ----------
+        weights
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def compute_offsets(self):
+        """
+        Dummy method to compute offsets. Overloaded by child methods.
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def get_brightest_object(self, specobjs_list, spat_ids):
+        """
+        Dummy method to identify the brightest object. Overloaded by child methods.
+
+        Parameters
+        ----------
+        specobjs_list
+        spat_ids
+
+        Returns
+        -------
+
+        """
+        pass
+
+    def reference_trace_stack(self, slitid, offsets=None, objid=None):
+        """
+        Dummy method to obtain the stack of reference traces. Overloaded by child methods.
+
+        Args:
+            slitid:
+            offsets:
+            objid:
+
+        Returns:
+
+        """
+        pass
+
+
 # Multislit can coadd with:
 # 1) input offsets or if offsets is None, it will find the brightest trace and compute them
 # 2) specified weights, or if weights is None and auto_weights=True, it will compute weights using the brightest object
@@ -986,7 +1042,7 @@ class EchelleCoAdd2D(CoAdd2D):
             #. ``offsets``: We stack about the center of the slit for
                the slit in question with the input offsets added
 
-            #. ``ojbid``: We stack about the trace ofa reference
+            #. ``ojbid``: We stack about the trace of a reference
                object for this slit given for each exposure by the
                input objid
 

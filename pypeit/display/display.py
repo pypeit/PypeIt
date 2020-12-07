@@ -173,8 +173,6 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # These commands set up the viewer. They can be found at
     # ginga/ginga/ImageView.py
     out = canvas.clear()
-    if cuts is not None:
-        out = ch.cut_levels(cuts[0], cuts[1])
     out = ch.set_color_map('ramp')
     out = ch.set_intensity_map('ramp')
     out = ch.set_color_algorithm('linear')
@@ -187,6 +185,10 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         shell = viewer.shell()
         out = shell.start_global_plugin('WCSMatch')
         out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
+
+    if cuts is not None:
+        out = ch.cut_levels(cuts[0], cuts[1])
+
 
     # TODO: I would prefer to change the color map to indicate these
     # pixels rather than overplot points. Because for large numbers of
@@ -252,7 +254,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     return viewer, ch
 
 
-def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
+def show_points(viewer, ch, spec, spat, color='cyan', spec_off = -1, spat_off =-1, legend=None, legend_spec=None, legend_spat=None):
     """
 
 
@@ -267,6 +269,10 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
         List of spectral positions on image to plot
     spat (list):
         List of spatial positions on image to plot
+    spec_off (float, optional):
+        ginga uses one based pixels for some silly reason. Default = -1
+    spat_off (float, optional):
+        ginga uses one based pixels for some silly reason. Default = -1
     color (str):
         Color for points
     legend (str):
@@ -279,7 +285,7 @@ def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=N
     """
     canvas = viewer.canvas(ch._chname)
     npoints = len(spec)
-    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
+    canvas_list = [dict(type='point', args=(float(spat[i] + spat_off), float(spec[i] + spec_off), 2),
                          kwargs=dict(style='plus', color=color)) for i in range(npoints)]
     if legend is not None:
         spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
