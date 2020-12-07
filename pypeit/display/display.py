@@ -8,7 +8,6 @@ import os
 import numpy as np
 import time
 from IPython import embed
-
 import subprocess
 
 # A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
@@ -141,18 +140,15 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     if mask is not None and bitmask is None:
         raise ValueError('If providing a mask, must also provide the bitmask.')
 
+    # Instantiate viewer
+    viewer = connect_to_ginga()
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
     img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
 
-    # Instantiate viewer
-    viewer = connect_to_ginga()
     if clear:
-        # Clear existing channels
-        shell = viewer.shell()
-        chnames = shell.get_channel_names()
-        for ch in chnames:
-            shell.delete_channel(ch)
+        clear_all()
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -168,16 +164,18 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)
-    canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
     # ginga/ginga/ImageView.py
+    canvas = viewer.canvas(ch._chname)
     out = canvas.clear()
     out = ch.set_color_map('ramp')
     out = ch.set_intensity_map('ramp')
     out = ch.set_color_algorithm('linear')
     out = ch.restore_contrast()
     out = ch.restore_cmap()
+    if cuts is not None:
+        out = ch.cut_levels(cuts[0], cuts[1])
 
     # WCS Match this to other images with this as the reference image?
     if wcs_match:
@@ -185,9 +183,6 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         shell = viewer.shell()
         out = shell.start_global_plugin('WCSMatch')
         out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
-
-    if cuts is not None:
-        out = ch.cut_levels(cuts[0], cuts[1])
 
 
     # TODO: I would prefer to change the color map to indicate these

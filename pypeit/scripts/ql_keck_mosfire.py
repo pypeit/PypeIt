@@ -33,9 +33,6 @@ from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
 from astropy.stats import sigma_clipped_stats
-
-
-
 from IPython import embed
 
 
@@ -444,33 +441,33 @@ def main(args):
     ##########################
     display.connect_to_ginga(raise_err=True, allow_new=True)
     # TODO: Bug in ginga prevents me from using cuts here for some reason
-    if args.flux:
-        mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=5.0,sigma_upper=5.0)
-        cuts_skysub = (mean - 4.0 * sigma, mean + 4.0 * sigma)
-        cuts_resid = None
-        chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet)
-    else:
-        cuts_skysub = None
-        cuts_resid = (-5.0, 5.0)
-        chname_skysub = 'skysub-det{:s}'.format(sdet)
+    mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=5.0, sigma_upper=5.0)
+    chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet) if args.flux else 'skysub-det{:s}'.format(sdet)
+    cuts_skysub = (med - 4.0 * sigma, med + 4.0 * sigma)
+    cuts_resid = (-5.0, 5.0)
+    #fits.writeto('/Users/joe/ginga_test.fits',imgminsky, overwrite=True)
+    #fits.writeto('/Users/joe/ginga_mask.fits',imgminsky_gpm.astype(float), overwrite=True)
+    #embed()
+
 
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
-                                   clear=True, cuts=cuts_skysub)
+    viewer, ch_skysub = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
+                                   clear=True, cuts= cuts_skysub)
     slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
     slit_id = slits.slitord_id[0]
-    display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slit_id)
+    display.show_slits(viewer, ch_skysub, slit_left, slit_righ, slit_ids=slit_id)
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
-    viewer, ch = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
+    viewer, ch_skyresids = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
                                   cuts=cuts_resid)
-    display.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
+
+    display.show_slits(viewer, ch_skyresids, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
     shell = viewer.shell()
     out = shell.start_global_plugin('WCSMatch')
-    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
+    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skysub], {})
 
 
     # TODO extract along a spatial position
