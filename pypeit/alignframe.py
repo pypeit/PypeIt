@@ -177,7 +177,8 @@ class TraceAlignment(object):
              show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
              show_trace (bool, optional):
-               Generate QA showing traces identified. Requires an open ginga RC modules window
+               Generate QA showing traces identified. Requires an open ginga RC modules window.
+               Launch with ``ginga --modules=RC,SlitWavelength &``
              debug (bool, optional):
                Debug the alignment tracing algorithm
 

@@ -56,7 +56,7 @@ class PypeIt(object):
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via ``ginga --modules=RC &``
+            remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):

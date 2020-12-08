@@ -115,7 +115,7 @@ def main(args):
     # Show the bitmask?
     mask_in = None
     if args.showmask:
-        viewer, ch = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
+        viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
         #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
 
     # SCIIMG
@@ -124,13 +124,13 @@ def main(args):
                                            sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
-    chname_skysub='sciimg-det{:s}'.format(sdet)
+    chname_sci ='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+    viewer, ch_sci = display.show_image(image, chname=chname_sci, waveimg=spec2DObj.waveimg, clear=True, cuts=(cut_min, cut_max))
 
     if sobjs is not None:
-        show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+        show_trace(sobjs, args.det, viewer, ch_sci)
+    display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -146,32 +146,31 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
-                                  bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
+    viewer, ch_skysub = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
+                                  bitmask=bitMask, mask=mask_in, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
-            show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+            show_trace(sobjs, args.det, viewer, ch_skysub)
+    display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs)
 
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm #(spec2DObj.bpmmask == 0)  # sky residual map
-    viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
+    viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
-            show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+            show_trace(sobjs, args.det, viewer, ch_sky_resids)
+    display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
-    viewer, ch = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
+    viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
-            show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+            show_trace(sobjs, args.det, viewer, ch_resids)
+    display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

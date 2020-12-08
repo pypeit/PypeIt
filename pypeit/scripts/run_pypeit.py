@@ -50,7 +50,7 @@ def parse_args(options=None, return_parser=False):
                         help='Do not load previously generated MasterFrames, even ones made during the run.')
     parser.add_argument('-s', '--show', default=False, action='store_true',
                         help='Show reduction steps via plots (which will block further execution until clicked on) '
-                             'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
+                             'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC,SlitWavelength &"')
     # JFH Should the default now be true with the new definition.
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')

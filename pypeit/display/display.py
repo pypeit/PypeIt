@@ -52,7 +52,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=RC'])
+            subprocess.Popen(['ginga', '--modules=RC,SlitWavelength'])
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
@@ -71,7 +71,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                     break
             if i == maxiter-1:
                 msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC` on the command line.  In either case, wait for '
+                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either case, wait for '
                            'the ginga viewer to open and try the pypeit command again.')
             return viewer
 
@@ -79,7 +79,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             raise ValueError
         else:
             msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      'then continue: \n    ginga --modules=RC')
+                      'then continue: \n    ginga --modules=RC,SlitWavelength')
 
     # Return
     return viewer
@@ -175,7 +175,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     out = ch.restore_contrast()
     out = ch.restore_cmap()
     if cuts is not None:
-        out = ch.cut_levels(cuts[0], cuts[1])
+        out = ch.cut_levels(float(cuts[0]), float(cuts[1]))
 
     # WCS Match this to other images with this as the reference image?
     if wcs_match:
