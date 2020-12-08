@@ -48,8 +48,8 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
                             nonlinear       = 0.85,
                             mincounts       = -1e10,
                             numamplifiers   = 2,
-                            gain            = np.atleast_1d([1.5,1.8]),
-                            ronoise         = np.atleast_1d([6.0,6.5]),
+                            gain            = np.atleast_1d([1.65,1.47]),
+                            ronoise         = np.atleast_1d([4.67,5.06]),
                             )
 
         # Instantiate
@@ -146,6 +146,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [200, None]
 
         # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 7
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 
@@ -244,7 +245,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['amp'] == '1')
         if ftype in ['arc', 'tilt']:
-            arc1 = good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['amp'] == '1')
+            arc1 = good_exp & (fitstbl['idname'] == 'Object')
             arc2 = (fitstbl['dispname'] == 'VPH-Red') & (fitstbl['idname'] == 'Object') &  (fitstbl['exptime'] >600)
             return (arc1 | arc2) & (fitstbl['amp'] == '1')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
