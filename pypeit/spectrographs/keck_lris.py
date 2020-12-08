@@ -136,6 +136,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Ingest
         self.meta = meta
 
+    # TODO Compound meta should have an ignore_bad_headers which should be True by default. Same goes for other meta data.
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
@@ -143,13 +144,32 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            # JFH: Since the golden rule is pypeit_setup should NEVER CRASH, even if headers are corrupt, we throw
+            # warnings and attempt to determine the date as best we can. If not a bogus MJD is used.
+            # TODO Which BOGUS MJD should we use??
+            try:
+                curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            except KeyError:
+                msgs.warn("This file does not have the MJD-OBS header keyword. "
+                          "Check your data headers, something is probably wrong. We will try to use 'DATE' instead")
+                try:
+                    curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+                except KeyError:
+                    msgs.warn("Could not parse date from your header. Using 1/1/2020 instead to avoid a crash. Check your headers!!!")
+                    # JFH 58849 = 1/1/2020
+                    curr_date = time.Time(58849, format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
                 lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                               'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-                return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
+                # TODO Make this a sens
+                try:
+                    return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
+                except KeyError:
+                    msgs.warn('Could not determine which lamps are on for this file. Your headers probably have a problem. '
+                              'Returning None to avoid a crash')
+                    return 'None'
             else:  # Original lamps
                 plamps = headarr[0]['LAMPS'].split(',')
                 # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
