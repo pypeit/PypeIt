@@ -400,7 +400,7 @@ class EdgeTraceSet(DataContainer):
     bitmask = EdgeTraceBitMask()
     """BitMask instance."""
 
-    version = '1.0.0'
+    version = '1.0.1'
     """DataContainer datamodel version."""
 
     output_float_dtype = np.float32
@@ -4060,6 +4060,10 @@ class EdgeTraceSet(DataContainer):
                 Run in debug mode.
         """
 
+        # Remove any fully masked traces. Keeps any inserted or
+        # box-slit traces.
+        self.clean_traces(rebuild_pca=True)
+
         # Check that there are traces to match!
         if self.is_empty:
             msgs.error('No traces to match.')
@@ -4248,7 +4252,7 @@ class EdgeTraceSet(DataContainer):
 
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
-        buffer = 20.
+        buffer = self.par['det_buffer']+1
         need = ((top_edge_pred > buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer))) & \
                ((omodel_bspat != -1) | (omodel_tspat != -1))
 
@@ -4306,22 +4310,59 @@ class EdgeTraceSet(DataContainer):
             sortind_b = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
                                                          self.spectrograph.slitmask.slitid[ind_b], strict=True))
             ind_b = ind_b[sortind_b]
+            # check if any of traces that will be added is off detector
+            loffdet = bot_edge_pred[needind_b] < self.par['det_buffer']
+            if np.any(loffdet):
+                # IF any, add a trace parallel to the detector edge (i.e., no pca)
+                self.insert_traces(-1, np.full(self.nspec, self.par['det_buffer']), mode='mask', nudge=False)
+                needind_b = needind_b[np.logical_not(loffdet)]
+            # We try to ensure that the left edge is inserted after the right edge of previous slit
+            for i in range(bot_edge_pred[needind_b].size):
+                # Find index of smaller closest trace
+                indx_smaller = np.where(self.edge_fit[self.pca.reference_row, :] < bot_edge_pred[needind_b][i])[0]
+                if (indx_smaller.size > 0) & (indx_smaller.size < self.traceid.size):
+                    indx = indx_smaller[-1]
+                    # If close trace is "left" and next one is "right", add the new trace after "right" one
+                    if (self.traceid[indx] < 0) & (self.traceid[indx+1] > 0) & \
+                            (self.edge_fit[self.pca.reference_row, indx + 1] - bot_edge_pred[needind_b][i] < 5):
+                        bot_edge_pred[needind_b[i]] = self.edge_fit[self.pca.reference_row, indx + 1] + 1
             # define which side to add the trace and insert it
             lside = -np.ones(bot_edge_pred[needind_b].shape[0], dtype=int)
+            # Predict trace
             missing_left_traces = self.predict_traces(bot_edge_pred[needind_b], side=lside)
-            self.insert_traces(lside, missing_left_traces, mode='mask')
+            # Add
+            self.insert_traces(lside, missing_left_traces, mode='mask', nudge=False)
 
         if needind_t.size > 0:
             msgs.info('Adding {} right missing edge(s)'.format(needind_t.size))
             # Append the missing indices and re-sort all
             ind_t = np.append(ind_t, needind_t)
             sortind_t = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
-                                                         self.spectrograph.slitmask.slitid[ind_t],strict=True))
+                                                         self.spectrograph.slitmask.slitid[ind_t], strict=True))
             ind_t = ind_t[sortind_t]
+            # check if any of traces that will be added is off detector
+            roffdet = top_edge_pred[needind_t] > self.nspat - self.par['det_buffer']
+            if np.any(roffdet):
+                # IF any, add a trace parallel to the detector edge (i.e., no pca)
+                self.insert_traces(1, np.full(self.nspec, self.nspat - (self.par['det_buffer'])),
+                                   mode='mask', nudge=False)
+                needind_t = needind_t[np.logical_not(roffdet)]
+            # We try to ensure that the left edge is inserted after the right edge of previous slit
+            for i in range(top_edge_pred[needind_t].size):
+                # Find index of larger closest trace
+                indx_larger = np.where(self.edge_fit[self.pca.reference_row, :] < top_edge_pred[needind_t][i])[0]
+                if (indx_larger.size > 0) & (indx_larger.size < self.traceid.size):
+                    indx = indx_larger[0]
+                    # If close trace is "right" and previous one is "left", add new trace before "left" one
+                    if (self.traceid[indx] > 0) & (self.traceid[indx-1] < 0) & \
+                            (top_edge_pred[needind_t][i] - self.edge_fit[self.pca.reference_row, indx - 1] < 5):
+                        top_edge_pred[needind_t[i]] = self.edge_fit[self.pca.reference_row, indx - 1] - 1
             # define which side to add the trace and insert it
             rside = np.ones(top_edge_pred[needind_t].shape[0], dtype=int)
+            # Predict trace
             missing_right_traces = self.predict_traces(top_edge_pred[needind_t], side=rside)
-            self.insert_traces(rside, missing_right_traces, mode='mask')
+            # Add
+            self.insert_traces(rside, missing_right_traces, mode='mask', nudge=False)
 
         if debug:
             if (needind_b.size > 0) | np.any(dupl_b):
@@ -4330,20 +4371,11 @@ class EdgeTraceSet(DataContainer):
             if (needind_t.size > 0) | np.any(dupl_t):
                 slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, top_edge_pred, reference_row,
                                                  self.spectrograph.slitmask.slitindx, nspat=self.nspat, edge='right')
-        self.spatial_sort()
-        # Re-sorting traceid to be synchronized, i.e., self.is_synced=True. This allows to skip a step in sync()
-        # that is useless in this case and counter-productive.
-        ltraceid = self.traceid[self.traceid < 0]
-        rtraceid = self.traceid[self.traceid > 0]
-        if self.traceid[0] < 0:
-            self.traceid[::2] = ltraceid
-            self.traceid[1::2] = rtraceid
-        else:
-            self.traceid[::2] = rtraceid
-            self.traceid[1::2] = ltraceid
 
         if self.is_synced:
-            msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED')
+            msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED AFTER MASK DESIGN MATCHING')
+        else:
+            msgs.warn('LEFT AND RIGHT EDGES *NOT* SYNCHRONIZED AFTER MASK DESIGN MATCHING')
 
         self.maskdef_id = np.zeros(self.ntrace, dtype=int)
         self.maskdef_id[self.is_left] = self.spectrograph.slitmask.slitid[ind_b]
