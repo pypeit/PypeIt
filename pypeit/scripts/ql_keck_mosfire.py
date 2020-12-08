@@ -205,9 +205,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
         spectrograph, det, parset['scienceframe'], list(A_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
     # Background Image?
-    sciImg = sciImg.sub(buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
-        parset['scienceframe']['process'])
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
+            parset['scienceframe']['process'])
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
@@ -385,19 +384,33 @@ def main(args):
     islit = 0
     # Loop over the unique throws and create a spec2d_A and spec2D_B for each, which are then
     # fed into coadd2d with the correct offsets
+    # TODO Rework the logic here so that we can print out a unified report on what was actually reduced.
     for iuniq in range(nuniq):
         A_ind = (uni_indx == iuniq) & (dither_id == 'A')
         B_ind = (uni_indx == iuniq) & (dither_id == 'B')
-        A_files = files[A_ind]
-        B_files = files[B_ind]
+        A_files_uni = files[A_ind]
+        A_dither_id_uni = dither_id[A_ind]
+        B_dither_id_uni = dither_id[B_ind]
+        B_files_uni = files[B_ind]
         A_offset = offset_arcsec[A_ind]
         B_offset = offset_arcsec[B_ind]
         throw = np.abs(A_offset[0])
         msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
-        spec2DObj_A, spec2DObj_B = run_pair(A_files, B_files, caliBrate, spectrograph, det, parset,
-                                            show=args.show, std_trace=std_trace)
-        spec2d_list += [spec2DObj_A, spec2DObj_B]
-        offsets_dith_pix += [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
+        if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
+            spec2DObj_A, spec2DObj_B = run_pair(A_files_uni, B_files_uni, caliBrate, spectrograph, det, parset,
+                                                show=args.show, std_trace=std_trace)
+            spec2d_list += [spec2DObj_A, spec2DObj_B]
+            offsets_dith_pix += [(np.mean(A_offset) - offset_ref)/platescale, (np.mean(B_offset) - offset_ref)/platescale]
+        else:
+            msgs.warn('Skpping files that do not have an A-B match with the same throw:')
+            for iexp in range(len(A_files_uni)):
+                msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+                    os.path.basename(A_files_uni[iexp]), A_dither_id_uni[iexp], A_offset[iexp], A_offset[iexp] / platescale)
+            for iexp in range(len(B_files_uni)):
+                msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
+                    os.path.basename(B_files_uni[iexp]), B_dither_id_uni[iexp], B_offset[iexp], B_offset[iexp] / platescale)
+
+
 
     offsets_dith_pix = np.array(offsets_dith_pix)
     #else:
