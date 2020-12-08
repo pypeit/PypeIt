@@ -110,8 +110,13 @@ def main(args):
 
     head2d = fits.getheader(spec2d_files[0])
     if args.basename is None:
-        filename = os.path.basename(spec2d_files[0])
-        basename = filename.split('_')[2]
+        #TODO Fix this, currently does not work if target names have - or _
+        filename_first = os.path.basename(spec2d_files[0])
+        filename_last = os.path.basename(spec2d_files[-1])
+        prefix_first = (filename_first.split('_')[1]).split('-')[0]
+        prefix_last = (filename_last.split('_')[1]).split('-')[0]
+        objname = (filename_first.split('-')[1]).split('_')[0]
+        basename = '{:s}-{:s}-{:s}'.format(prefix_first,prefix_last,objname)
     else:
         basename = args.basename
 

@@ -441,9 +441,9 @@ def main(args):
     ##########################
     display.connect_to_ginga(raise_err=True, allow_new=True)
     # TODO: Bug in ginga prevents me from using cuts here for some reason
-    mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=5.0, sigma_upper=5.0)
+    mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=3.0, sigma_upper=3.0)
     chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet) if args.flux else 'skysub-det{:s}'.format(sdet)
-    cuts_skysub = (med - 4.0 * sigma, med + 4.0 * sigma)
+    cuts_skysub = (med - 3.0 * sigma, med + 3.0 * sigma)
     cuts_resid = (-5.0, 5.0)
     #fits.writeto('/Users/joe/ginga_test.fits',imgminsky, overwrite=True)
     #fits.writeto('/Users/joe/ginga_mask.fits',imgminsky_gpm.astype(float), overwrite=True)

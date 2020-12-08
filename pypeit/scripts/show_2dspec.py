@@ -47,6 +47,8 @@ def parse_args(options=None, return_parser=False):
                         action='store_true')
     parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
+    parser.add_argument("--sensfunc", type=str, default=None, help="Pass in a sensfunc to display the sky-subtracted image with a flux calibration")
+
 
     if return_parser:
         return parser
@@ -138,6 +140,25 @@ def main(args):
         gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
     else:
         gpm = spec2DObj.bpmmask == 0
+
+    #if args.sensfunc:
+    #    # Load the sensitivity function
+    #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
+    #    # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
+    #    # this is trivial and we don't need to do a 2d interpolation
+    #    sens_factor = flux_calib.get_sensfunc_factor(
+    #        pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, fits.getheader(files[0])['TRUITIME'],
+    #        extrap_sens=parset['fluxcalib']['extrap_sens'])
+    #    # Compute the median sensitivity and set the sensitivity to zero at locations 100 times the median. This
+    #    # prevents the 2d image from blowing up where the sens_factor explodes because there is no throughput
+    #    sens_gpm = sens_factor < 100.0*np.median(sens_factor)
+    #    sens_factor_masked = sens_factor*sens_gpm
+    #    sens_factor_img = np.repeat(sens_factor_masked[:, np.newaxis], pseudo_dict['nspat'], axis=1)
+    #    imgminsky = sens_factor_img*pseudo_dict['imgminsky']
+    #    imgminsky_gpm = sens_gpm[:, np.newaxis] & pseudo_dict['inmask']
+    #else:
+    #    imgminsky= pseudo_dict['imgminsky']
+
 
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm #(spec2DObj.mask == 0)  # sky subtracted image
     mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
