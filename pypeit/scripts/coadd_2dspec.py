@@ -41,8 +41,12 @@ def parse_args(options=None, return_parser=False):
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None,
                         help="Basename of files to save the parameters, spec1d, and spec2d")
-    parser.add_argument('--samp_fact', default=1.0, type=float,
-                        help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                        help="Make the wavelength grid finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spec_samp_fact are pixels.")
+    parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                        help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser (spat_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spat_samp_fact are pixels.")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     # TODO implement an option to only do certian slits
@@ -169,9 +173,9 @@ def main(args):
         coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
                                              offsets=parset['coadd2d']['offsets'],
                                              weights=parset['coadd2d']['weights'],
+                                             spec_samp_fact=args.spec_samp_fact, spat_samp_fact=args.spat_samp_fact,
                                              ir_redux=ir_redux,
-                                             debug_offsets=args.debug_offsets, debug=args.debug,
-                                             samp_fact=args.samp_fact)
+                                             debug_offsets=args.debug_offsets, debug=args.debug)
 
         # TODO Add this stuff to a run method in coadd2d
         # Coadd the slits

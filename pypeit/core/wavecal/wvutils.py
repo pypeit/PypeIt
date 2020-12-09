@@ -467,7 +467,7 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
 
 
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
+def wavegrid(wave_min, wave_max, dwave, spec_samp_fact=1.0, log10=False):
     """
 
     Utility routine to generate a uniform grid of wavelengths
@@ -479,10 +479,10 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
            Maximum wavelength. Must be linear even if log10 is requested.
         dwave (float):
            Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
-        samp_fact (float):
-           sampling factor to make the wavelength grid finer or coarser.
-           samp_fact > 1.0 oversamples (finer), samp_fact < 1.0
-           undersamples (coarser)
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
 
     Returns:
         `numpy.ndarray`_: Wavelength grid in Angstroms (i.e. log10 even
@@ -490,7 +490,7 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     """
 
-    dwave_eff = dwave/samp_fact
+    dwave_eff = dwave*spec_samp_fact
     if log10:
         ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
         loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)

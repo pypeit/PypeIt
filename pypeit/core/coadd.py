@@ -53,7 +53,7 @@ from pypeit.core import flux_calib
 
 # TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
-                  dwave=None, dv=None, dloglam=None, samp_fact=1.0):
+                  dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0):
     """
     Create a new wavelength grid for the spectra to be rebinned and coadded on
 
@@ -85,9 +85,10 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             If not input, the median km/s per pixel is calculated and used
         dloglam (float): optional
             Pixel size in log10(wave) for the log10 method.
-        samp_fact (float): optional
-            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-            samp_fact < 1.0 undersamples (coarser)
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
 
     Returns:
         tuple: Returns two numpy.ndarray objects and a float:
@@ -127,8 +128,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         else:
             dloglam_pix = dloglam_data
         # Generate wavelength array
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dloglam_pix, samp_fact=samp_fact, log10=True)
-        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix/samp_fact/2.0
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dloglam_pix, spec_samp_fact=spec_samp_fact, log10=True)
+        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix*spec_samp_fact/2.0
         wave_grid_mid = np.power(10.0,loglam_grid_mid)
         dsamp = dloglam_pix
 
@@ -138,8 +139,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         else:
             dwave_pix = dwave_data
         # Generate wavelength array
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dwave_pix, samp_fact=samp_fact)
-        wave_grid_mid = wave_grid + dwave_pix/samp_fact/2.0
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dwave_pix, spec_samp_fact=spec_samp_fact)
+        wave_grid_mid = wave_grid + dwave_pix*spec_samp_fact/2.0
         dsamp = dwave_pix
 
     elif 'concatenate' in wave_method:  # Concatenate
@@ -2142,7 +2143,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 
 
 def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
-             wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+             wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
              ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2166,9 +2167,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         dv: float,
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact: float, default=1.0
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser).
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min: float, default=None
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max: float, default=None
@@ -2248,7 +2250,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks = masks, wave_method=wave_method, wave_grid_min=wave_grid_min,
-                                    wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
+                                    wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam,
+                                    spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
@@ -2270,7 +2273,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
-                   wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
+                   wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2302,9 +2305,10 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         dv (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact (float): optional
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser). Default=1.0
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min (float): optional
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional
@@ -2387,7 +2391,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
     wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
-        samp_fact=samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
+        spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
         const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
@@ -2403,7 +2407,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
 
 def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
-                 dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+                 dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2440,9 +2444,10 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
         v_pix (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact (float): optional, default=1.0
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser).
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min (float): optional, default=None
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional, default=None
@@ -2566,7 +2571,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                     wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
-                                    dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
+                                    dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
@@ -2826,10 +2831,12 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     return wave_grid[ind_lower:ind_upper + 1]
 
 
-def get_spat_bins(thismask_stack, trace_stack):
+def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
-
-    ..todo.. Explain what this method does
+    Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
+    images being coadded and creates an image of spatial positions relative to the reference trace for each image.
+    The minimum and maximum relative pixel positions are then used to define a spatial position grid with whatever
+    desired pixel spatial sampling.
 
     Parameters
     ----------
@@ -2839,6 +2846,9 @@ def get_spat_bins(thismask_stack, trace_stack):
     trace_stack : array of shape (nspec, nimgs)
         Array holding the stack of traces for each image in the stack. This is either the trace of the center of the slit
         or the trace of the object in question that we are stacking about.
+    spat_samp_fact (float, optional):
+        Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
+        will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
 
     Returns
     -------
@@ -2854,29 +2864,33 @@ def get_spat_bins(thismask_stack, trace_stack):
     # Create the slit_cen_stack and determine the minimum and maximum
     # spatial offsets that we need to cover to determine the spatial
     # bins
-    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    spat_img = np.repeat(np.arange(nspat)[np.newaxis,:], nspec, axis=0)
     dspat_stack = np.zeros_like(thismask_stack,dtype=float)
     spat_min = np.inf
     spat_max = -np.inf
     for img in range(nimgs):
         # center of the slit replicated spatially
-        slit_cen_img = np.outer(trace_stack[:, img], np.ones(nspat))
+        slit_cen_img = np.repeat(trace_stack[:, img][:,np.newaxis], nspat, axis=1)
         dspat_iexp = (spat_img - slit_cen_img)
         dspat_stack[img, :, :] = dspat_iexp
         thismask_now = thismask_stack[img, :, :]
+        # Find the minimum and maximum relative spatial position in pixels that occurs on any of the images, as this
+        # is the domain that our stack needs to cover.
         spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
         spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
 
-    spat_min_int = int(np.floor(spat_min))
-    spat_max_int = int(np.ceil(spat_max))
-    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
-
+    spat_min_all = np.floor(spat_min)
+    spat_max_all = np.ceil(spat_max)
+    nspat_pix = int(np.ceil((spat_max_all-spat_min_all)/spat_samp_fact)) + 1
+    dspat_bins = spat_min_all + spat_samp_fact*np.arange(nspat_pix)
+    #dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
     return dspat_bins, dspat_stack
 
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, weights='uniform', interp_dspat=True):
+                    thismask_stack, waveimg_stack, wave_grid, spat_samp_fact=1.0,
+                    weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2930,6 +2944,10 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             correct size of the image stacks (see
             :func:`broadcast_weights`), as necessary.  Shape must be
             (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
+        spat_samp_fact (float, optional):
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
+            will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
+
         loglam_grid (`numpy.ndarray`_, optional):
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
@@ -2987,7 +3005,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
 
     sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
                 waveimg_stack, dspat_stack]

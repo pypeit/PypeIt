@@ -51,8 +51,12 @@ def parse_args(options=None, return_parser=False):
     parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)', formatter_class=SmartFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('files', type=str, nargs='+', help='list of frames i.e. img1.fits img2.fits')
-    parser.add_argument('--samp_fact', default=1.0, type=float,
-                        help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                        help="Make the wavelength grid finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spec_samp_fact are pixels.")
+    parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                        help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser (spat_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spat_samp_fact are pixels.")
     parser.add_argument("--flux", default=False, action='store_true',
                         help="This option will multiply in sensitivity function to obtain a flux calibrated 2d spectrum")
     parser.add_argument("--mask_cr", default=False, action='store_true',
@@ -424,8 +428,9 @@ def main(args):
 
     # Instantiate Coadd2d
     coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
-                                         offsets=offsets_pixels, weights='uniform', ir_redux=True,
-                                         debug=args.show, samp_fact=args.samp_fact)
+                                         offsets=offsets_pixels, weights='uniform',
+                                         spec_samp_fact=args.spec_samp_fact, spat_samp_fact=args.spat_samp_fact,
+                                         ir_redux=True, debug=args.show)
     # Coadd the slits
     coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)  # TODO implement only_slits later
     # Create the pseudo images

@@ -43,6 +43,7 @@ class CoAdd2D:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec2dfiles, spectrograph, par, det=1, offsets=None, weights='auto',
+                     spec_samp_fact=1.0, spat_samp_fact=1.0,
                      sn_smooth_npix=None, ir_redux=False, show=False,
                      show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
@@ -61,11 +62,13 @@ class CoAdd2D:
         return next(c for c in cls.__subclasses__() 
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
+                        spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
                         sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux,
                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                         **kwargs_wave)
 
     def __init__(self, spec2d, spectrograph, par, det=1, offsets=None, weights='auto',
+                 spec_samp_fact=1.0, spat_samp_fact=1.0,
                  sn_smooth_npix=None, ir_redux=False, show=False,
                  show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
@@ -87,6 +90,14 @@ class CoAdd2D:
                 Mode for the weights used to coadd images. Options are 'auto' (default), 'uniform', or list/array of
                 weights with shape = (nexp,) can be input and will be applied to the image. Note 'auto' is not allowed
                 if offsets are input, and if set this will cause an exception.
+            spec_samp_fact (float, optional):
+                Make the wavelength grid  sampling finer (samp_fact < 1.0) or coarser (samp_fact > 1.0) by this
+                sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+                spec_samp_fact are pixels.
+            spat_samp_fact (float, optional):
+                Make the spatial wavelength finer (samp_fact < 1.0) or coarser (samp_fact > 1.0) by this spatial
+                sampling factor.  This increases the spatial pixel size by spat_samp_fact, i.e. units
+                of spat_samp_fact are pixels.
             sn_smooth_npix (int): optional, default=None
                 Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
                 set to None, the code will simply take 10% of the image size in the spectral direction.
@@ -120,6 +131,8 @@ class CoAdd2D:
         self.det = det
         self.offsets = offsets
         self.weights = weights
+        self.spec_samp_fact = spec_samp_fact
+        self.spat_samp_fact = spat_samp_fact
         self.ir_redux = ir_redux
         self.show = show
         self.show_peaks = show_peaks
@@ -204,12 +217,25 @@ class CoAdd2D:
 
     def coadd(self, only_slits=None, interp_dspat=True):
         """
-        ..todo.. We need a proper doc string
+        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs. This method calls loops over
+        slits/orders and performs the 2d-coadd by calling coadd.compute.coadd2d, which 'rectifies' images by
+        coadding them about the reference_trace_stack.
 
-        Args:
-            only_slits:
 
-        Returns:
+        Parameters
+        ----------
+        only_slits (list, optional):
+           List of slits to operate on. Not currently supported, i.e. the code can currently only stack everything
+           because the slit/reduction bitmask checking is not yet implemented. Default = None
+        interp_dspat (bool, optional):
+           Interpolate in the spatial coordinate image to faciliate running through core.extract.local_skysub_extract.
+           Default=True
+
+        Returns
+        -------
+           coadd_list (list):
+               List of dictionaries, one for each slit, containing the 2d stack.
+               # TODO Make this a PypeIt object, with data model yada-yada.
 
         """
 
@@ -248,7 +274,8 @@ class CoAdd2D:
                                            self.stack_dict['tilts_stack'],
                                                thismask_stack,
                                            self.stack_dict['waveimg_stack'],
-                                           self.wave_grid, weights=weights, interp_dspat=interp_dspat)
+                                           self.wave_grid, self.spat_samp_fact,
+                                           weights=weights, interp_dspat=interp_dspat)
             coadd_list.append(coadd_dict)
 
         return coadd_list
@@ -595,7 +622,8 @@ class CoAdd2D:
                     gpm[:, indx] = spec.OPT_MASK
                     indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, spec_samp_fact=self.spec_samp_fact,
+                                                              **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
 
     def load_coadd2d_stacks(self, spec2d):
@@ -748,10 +776,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
 
     """
-    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
+    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
+                 spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         super(MultiSlitCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                        sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
+                                               spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
+                                               sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
                                         debug=debug, **kwargs_wave)
 
@@ -786,6 +816,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
+    # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
+    # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
+    # reference objects into the same frame without first rebinning them onto the same grid.
     def compute_offsets(self):
 
         objid_bri, slitidx_bri, spatid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'],
@@ -799,6 +832,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
 #            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
 #                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
         # Determine the wavelength grid that we will use for the current slit/order
+
+        ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
+        ## compute offsets at full resolution??
         wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
         dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
@@ -951,12 +987,14 @@ class EchelleCoAdd2D(CoAdd2D):
           objects ``objid`` on each order
 
     """
-    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
+    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
+                 spec_samp_fact=1.0, spat_samp_fact=1.0, sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         super(EchelleCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                      sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
-                                      show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
-                                      **kwargs_wave)
+                                             spec_samp_fact=spec_samp_fact, spat_samp_fact=spat_samp_fact,
+                                             sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
+                                             show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
+                                             **kwargs_wave)
 
         # Default wave_method for Echelle is log10
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
