@@ -666,12 +666,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mapid = hdu['SlitObjMap'].data['ObjectID']
         catid = hdu['ObjectCat'].data['ObjectID']
         indx = index_of_x_eq_y(mapid, catid)
-        #   - Pull out the slit ID, object ID, name, and object coordinates
+        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
         objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
                             catid.astype(int),
                             hdu['ObjectCat'].data['RA_OBJ'],
                             hdu['ObjectCat'].data['DEC_OBJ'],
-                            hdu['ObjectCat'].data['OBJECT']]).T
+                            objname,
+                            hdu['SlitObjMap'].data['TopDist'][indx],
+                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
         #   - Only keep the objects that are in the slit-object mapping
         objects = objects[mapid[indx] == catid]
 
