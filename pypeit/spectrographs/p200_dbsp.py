@@ -417,7 +417,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+        # par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'NeI', 'HeI']
