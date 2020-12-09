@@ -2834,9 +2834,9 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
-    images being coadded and creates an image of spatial positions relative to the reference trace for each image.
-    The minimum and maximum relative pixel positions are then used to define a spatial position grid with whatever
-    desired pixel spatial sampling.
+    images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
+    in used of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
+    in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
 
     Parameters
     ----------
@@ -2871,7 +2871,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     for img in range(nimgs):
         # center of the slit replicated spatially
         slit_cen_img = np.repeat(trace_stack[:, img][:,np.newaxis], nspat, axis=1)
-        dspat_iexp = (spat_img - slit_cen_img)
+        dspat_iexp = (spat_img - slit_cen_img)/spat_samp_fact
         dspat_stack[img, :, :] = dspat_iexp
         thismask_now = thismask_stack[img, :, :]
         # Find the minimum and maximum relative spatial position in pixels that occurs on any of the images, as this
@@ -2881,9 +2881,9 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
     spat_min_all = np.floor(spat_min)
     spat_max_all = np.ceil(spat_max)
-    nspat_pix = int(np.ceil((spat_max_all-spat_min_all)/spat_samp_fact)) + 1
-    dspat_bins = spat_min_all + spat_samp_fact*np.arange(nspat_pix)
-    #dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
+    #nspat_pix = int(np.ceil((spat_max_all-spat_min_all + 1.0))
+    #dspat_bins = spat_min_all + spat_samp_fact*np.arange(nspat_pix)
+    dspat_bins = np.arange(spat_min_all, spat_max_all + 1.0, 1.0,dtype=float)
     return dspat_bins, dspat_stack
 
 
@@ -3028,7 +3028,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciivar = utils.calc_ivar(var_list_out[0])
 
-    # Compute the midpoints vectors, and lower/upper bins of the rectified image
+    # Compute the midpoints vectors, and lower/upper bins of the rectified image in spectral and spatial directions
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
     wave_min = wave_bins[:-1]
     wave_max = wave_bins[1:]

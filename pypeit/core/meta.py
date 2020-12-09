@@ -50,7 +50,8 @@ def convert_radec(ra, dec):
     else:
         return ra, dec
 
-
+# TODO JFH define_core_meta and define_additional_meta should be moved to the spectrograph.py modules, or added there as
+# methods. It is easier to understand all the meta tools if their definitions are all in one place.
 def define_core_meta():
     """
     Define the core set of meta data that must be defined

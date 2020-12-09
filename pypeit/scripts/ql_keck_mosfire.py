@@ -61,6 +61,7 @@ def parse_args(options=None, return_parser=False):
                         help="This option will multiply in sensitivity function to obtain a flux calibrated 2d spectrum")
     parser.add_argument("--mask_cr", default=False, action='store_true',
                         help="This option turns on cosmic ray rejection. This improves the reduction but doubles runtime.")
+    parser.add_argument("--writefits", default=False, action='store_true', help="Write the ouputs to a fits file")
     parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
     parser.add_argument('--offset', type=float, default=None,
                         help='R|Override the automatic offsets determined from the headers. Offset is in pixels.\n'
@@ -109,66 +110,6 @@ def config_lines(args):
 
     return cfg_lines
 
-
-def save_exposure(fitstbl, frame, spectrograph, science_path, par, caliBrate, all_spec2d, all_specobjs):
-    """
-    Save the outputs from extraction for a given exposure
-
-    Args:
-        frame (:obj:`int`):
-            0-indexed row in the metadata table with the frame
-            that has been reduced.
-        all_spec2d(:class:`pypeit.spec2dobj.AllSpec2DObj`):
-        sci_dict (:obj:`dict`):
-            Dictionary containing the primary outputs of
-            extraction
-        basename (:obj:`str`):
-            The root name for the output file.
-
-    Returns:
-        None or SpecObjs:  All of the objects saved to disk
-
-    """
-    # TODO: Need some checks here that the exposure has been reduced?
-
-    # Get the basename
-    basename = fitstbl.construct_basename(frame)
-
-    # Determine the headers
-    row_fitstbl = fitstbl[frame]
-    # Need raw file header information
-    rawfile = fitstbl.frame_paths(frame)
-    head2d = fits.getheader(rawfile, ext=spectrograph.primary_hdrext)
-
-    # Check for the directory
-    if not os.path.isdir(science_path):
-        os.makedirs(science_path)
-
-    subheader = spectrograph.subheader_for_spec(row_fitstbl, head2d)
-    # 1D spectra
-    if all_specobjs.nobj > 0:
-        # Spectra
-        outfile1d = os.path.join(science_path, 'spec1d_{:s}.fits'.format(basename))
-        all_specobjs.write_to_fits(subheader, outfile1d,
-                                   update_det=par['rdx']['detnum'],
-                                   slitspatnum=par['rdx']['slitspatnum'])
-        # Info
-        outfiletxt = os.path.join(science_path, 'spec1d_{:s}.txt'.format(basename))
-        all_specobjs.write_info(outfiletxt, spectrograph.pypeline)
-    else:
-        outfile1d = None
-
-    # 2D spectra
-    outfile2d = os.path.join(science_path, 'spec2d_{:s}.fits'.format(basename))
-    # Build header
-    pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
-                                           redux_path=par['rdx']['redux_path'],
-                                           master_key_dict=caliBrate.master_key_dict,
-                                           master_dir=caliBrate.master_dir,
-                                           subheader=subheader)
-    # Write
-    all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=par['rdx']['detnum'])
-    return outfile2d, outfile1d
 
 def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
     """
@@ -251,8 +192,6 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = True
     all_spec2d[det] = spec2DObj_A
-    # Save image A but with all the objects extracted, i.e. positive and negative
-    # outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
 
     # Construct the Spec2DObj with the negative image
     spec2DObj_B = spec2dobj.Spec2DObj(det=det,
@@ -301,14 +240,10 @@ def main(args):
     # Parse the files sort by MJD
     files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
     nfiles = len(files)
+    target = spectrograph.get_meta_value(files[0], 'target')
     mjds = np.zeros(nfiles)
     for ifile, file in enumerate(files):
-        hdr = fits.getheader(file, spectrograph.primary_hdrext)
-        try:
-           mjds[ifile] = hdr['MJD-OBS']
-        except:
-            msgs.warn('File {:} has no MJD in header'.format(file))
-            mjds[ifile] = 0
+        mjds[ifile] = spectrograph.get_meta_value(file,'mjd', ignore_bad_header=True, no_fussing=True)
     files = files[np.argsort(mjds)]
 
     # We need the platescale
@@ -323,15 +258,15 @@ def main(args):
     nB = len(B_files)
 
     # Print out a report on the offsets
-    msg_string = msgs.newline()  +     '****************************************************'
-    msg_string += msgs.newline() +     ' Summary of offsets for dither pattern:   {:s}'.format(dither_pattern[0])
-    msg_string += msgs.newline() +     '****************************************************'
+    msg_string = msgs.newline()  +     '*******************************************************'
+    msg_string += msgs.newline() +     ' Summary of offsets for target {:s} with dither pattern:   {:s}'.format(target, dither_pattern[0])
+    msg_string += msgs.newline() +     '*******************************************************'
     msg_string += msgs.newline() +     'filename     Position         arcsec    pixels    '
     msg_string += msgs.newline() +     '----------------------------------------------------'
     for iexp, file in enumerate(files):
         msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
             os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp]/platescale)
-    msg_string += msgs.newline() +     '****************************************************'
+    msg_string += msgs.newline() +     '********************************************************'
     msgs.info(msg_string)
 
     #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
@@ -441,9 +376,9 @@ def main(args):
         wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
         # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
         # this is trivial and we don't need to do a 2d interpolation
+        exptime = spectrograph.get_meta_value(files[0],'exptime')
         sens_factor = flux_calib.get_sensfunc_factor(
-            pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, fits.getheader(files[0])['TRUITIME'],
-            extrap_sens=parset['fluxcalib']['extrap_sens'])
+            pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, exptime, extrap_sens=parset['fluxcalib']['extrap_sens'])
         # Compute the median sensitivity and set the sensitivity to zero at locations 100 times the median. This
         # prevents the 2d image from blowing up where the sens_factor explodes because there is no throughput
         sens_gpm = sens_factor < 100.0*np.median(sens_factor)
@@ -487,9 +422,17 @@ def main(args):
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skysub], {})
 
-
     # TODO extract along a spatial position
-
+    if args.writefits:
+        head0 = fits.getheader(files[0])
+        # TODO use meta tools for the object name in the future.
+        outfile = target + '_specXspat_{:3.2f}X{:3.2f}.fits'.format(args.spec_samp_fact, args.spat_samp_fact)
+        hdu = fits.PrimaryHDU(imgminsky, header=head0)
+        hdu_resid = fits.ImageHDU(pseudo_dict['imgminsky'] *np.sqrt(pseudo_dict['sciivar'])*pseudo_dict['inmask'])
+        hdu_wave = fits.ImageHDU(pseudo_dict['waveimg'])
+        hdul = fits.HDUList([hdu, hdu_resid, hdu_wave])
+        msgs.info('Writing sky subtracted image to {:s}'.format(outfile))
+        hdul.writeto(outfile, overwrite=True)
 
 
     if args.embed:
