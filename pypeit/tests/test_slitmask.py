@@ -25,7 +25,7 @@ def deimos_flat_files():
 
 
 @dev_suite_required
-#@cooked_required
+@cooked_required
 def test_assign_maskinfo():
 
     # Spectrograph
@@ -53,11 +53,11 @@ def test_assign_maskinfo():
     hdul = fits.open(slits.maskfile)
     det_par = keck_deimos.get_detector_par(hdul, det=det)
 
-    # specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-    #                         'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
-    specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'keck_deimos',
-                                 '830G_M_8500', 'Science',
-                                 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    # specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'keck_deimos',
+    #                              '830G_M_8500', 'Science',
+    #                              'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
     sobjs = specobjs.SpecObjs.from_fitsfile(specobjs_file)
     # Init at null
     for sobj in sobjs:
