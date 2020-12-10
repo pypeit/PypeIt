@@ -68,6 +68,7 @@
       always checked by `load_spectrograph`, so I don't think this is a
       problem.
 - Kastr 300 grating solutions
+- Hotfix to include the solutions!
 - Assign RA/DEC to DEIMOS extractions
 - Fix sigma clipping bug!
 
