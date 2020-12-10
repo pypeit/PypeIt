@@ -744,6 +744,7 @@ class SlitTraceSet(datamodel.DataContainer):
                               dec=self.maskdef_designtab['OBJDEC'], frame='fk5', unit='deg')
         obj_slit_coords = SkyCoord(ra=self.maskdef_designtab['SLITRA'],
                                    dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
+        obj_slit_pa = self.maskdef_designtab['SLITPA']
         obj_topdist = self.maskdef_designtab['OBJ_TOPDIST'].data
 
         '''
@@ -830,11 +831,22 @@ class SlitTraceSet(datamodel.DataContainer):
         # Exclude the objects that have maskdef_id=-99
         uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
         for maskid in uni_maskid:
-            # SpecObjs on this slit
+            # Index for SpecObjs on this slit
             idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+            # Index for slitmask
+            sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
+            # measured coordinates
+            measured_coord = obj_slit_coords[sidx].directional_offset_by(
+                np.radians(obj_slit_pa[sidx]), (measured[idx] + median_off) * units.arcsec)
+            # separation from the expected coordinates
+            separ = obj_coords[sidx].separation(measured_coord)
             # Within TOLER?
-            in_toler = np.abs(expected[idx]-measured[idx] - median_off) < TOLER
-            if np.any(in_toler):
+            # in_toler = np.abs(expected[idx]-measured[idx] - median_off) < TOLER
+            # I used separ rather than the diff between `expected` and `measured` distance from the slit center,
+            # because sometimes it does not work.
+            in_toler = np.where(separ.to('arcsec').value < TOLER)[0]
+            # if np.any(in_toler):
+            if in_toler.size > 0:
                 # Parse the peak fluxes
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
                 imx_peak = np.argmax(peak_flux)
@@ -855,12 +867,11 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj = cut_sobjs[ss]
                 # Slit PA
                 sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
-                slit_pa = self.maskdef_designtab['SLITPA'][sidx]
-                pos_pa, neg_pa = slitmask.fuss_with_maskpa(slit_pa)
+                # pos_pa, neg_pa = slitmask.fuss_with_maskpa(obj_slit_pa[sidx])
                 # Do it
-                obj_pa = pos_pa if measured[ss] > 0 else neg_pa
+                # obj_pa = pos_pa if measured[ss] > 0 else neg_pa
                 new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                    np.radians(obj_pa), (measured[ss]+median_off)*units.arcsec)
+                    np.radians(obj_slit_pa[sidx]), (measured[ss]+median_off)*units.arcsec)
                 # Assign
                 sobj.RA = new_obj_coord.ra.value
                 sobj.DEC = new_obj_coord.dec.value
