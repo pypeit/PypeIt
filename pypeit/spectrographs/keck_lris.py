@@ -148,16 +148,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             # warnings and attempt to determine the date as best we can. If not a bogus MJD is used.
             # TODO Which BOGUS MJD should we use??
             try:
-                curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+                curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd') if 'MJD-OBS' in headarr[0] else time.Time(headarr[0]['DATE'])
             except KeyError:
-                msgs.warn("This file does not have the MJD-OBS header keyword. "
-                          "Check your data headers, something is probably wrong. We will try to use 'DATE' instead")
-                try:
-                    curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
-                except KeyError:
-                    msgs.warn("Could not parse date from your header. Using 1/1/2020 instead to avoid a crash. Check your headers!!!")
-                    # JFH 58849 = 1/1/2020
-                    curr_date = time.Time(58849, format='mjd')
+                msgs.warn("This file does not have the MJD-OBS or DATE header keyword. "
+                          "Check your data headers, something is probably wrong. Using 1/1/2020 instead to avoid a crash. Check your headers!!!")
+                # JFH 58849 = 1/1/2020
+                curr_date = time.Time(58849, format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
