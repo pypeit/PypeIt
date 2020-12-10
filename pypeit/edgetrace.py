@@ -643,8 +643,8 @@ class EdgeTraceSet(DataContainer):
                                  description='Projected position of the object w.r.t. the top of the slit (arcsec)'),
                     table.Column(name='OBJ_BOTDIST', dtype=float, length=length,
                                  description='Projected position of the object w.r.t. the bottom of the slit (arcsec)'),
-                    table.Column(name='SLITINDX', dtype=int, length=length,
-                                 description='Row index of relevant slit in the design table')
+                    table.Column(name='TRACEID', dtype=int, length=length,
+                                 description='Row index that matches TRACEID in the design table')
                            ])
 
     def rectify(self, flux, bpm=None, extract_width=None, mask_threshold=0.5, side='left'):
@@ -4044,6 +4044,7 @@ class EdgeTraceSet(DataContainer):
     
     def maskdesign_matching(self, debug=False):
         """
+        # TODO - break up this method (too long)
         Match slit info from the mask design data to the traced slits.
 
         Use of this method requires:
@@ -4387,7 +4388,7 @@ class EdgeTraceSet(DataContainer):
         self.edge_msk[:, align_slit] = self.bitmask.turn_on(self.edge_msk[:, align_slit], 'BOXSLIT')
 
         # Propagate the coefficients, `coeff_b` and `coeff_t`, of the x-correlation and the
-        # left and right spatial position of the slit edges from optical model (after x-correlation)
+        # left and right spatial position of the slit edges from optical model (before x-correlation)
         # with the purpose to fill a table with the information on slitmask design matching. The table will
         # be filled out at the very end of the slit tracing process, in `get_slits()`.
         self.coeff_b = coeff_b
@@ -4497,7 +4498,7 @@ class EdgeTraceSet(DataContainer):
         - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'OBJ_TOPDIST': Projected position of the object w.r.t. the top of the slit (arcsec)
         - 'OBJ_BOTDIST': Projected position of the object w.r.t. the bottom of the slit (arcsec)
-        - 'SLITINDX': Row index of relevant slit in the design table
+        - 'TRACEID': Row index that matches 'TRACEID' in the design table
 
         Args:
             maskdef_id (:obj:`numpy.array`):
@@ -4527,9 +4528,8 @@ class EdgeTraceSet(DataContainer):
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data
-        self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
+        self.objects['TRACEID'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
-
 
 # NOTE: I'd like us to keep this commented mask_refine function around
 # for the time being.
@@ -5091,8 +5091,7 @@ class EdgeTraceSet(DataContainer):
             self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat,
                                     self.omodel_tspat, spat_id)
             self._fill_objects_table(_maskdef_id)
-            # This changes the name of the column in order to be able to merge the two tables
-            self.objects.rename_column('SLITINDX', 'TRACEID')
+            # TODO - instead of merging the two tables, just create a single one
             _merged_designtab = table.join(self.design, self.objects, keys=['TRACEID'])
             _merged_designtab.remove_column('SLITID_2')
             _merged_designtab.rename_column('SLITID_1', 'SLITID')

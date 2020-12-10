@@ -78,6 +78,7 @@ def test_io():
 
 
 def test_io_single():
+    # NOTE this is just a test string. The file itself is not actually read, so it is not required to run the test.
     file = '/home/xavier/Projects/PypeIt-development-suite/RAW_DATA/keck_deimos/830G_M_8500/DE.20100913.57006.fits.gz'
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
                          'MultiSlit',

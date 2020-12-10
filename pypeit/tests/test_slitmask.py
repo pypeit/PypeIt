@@ -24,7 +24,6 @@ def deimos_flat_files():
             for ifile in ['DE.20100913.57161.fits.gz', 'DE.20100913.57006.fits.gz']]
 
 
-@dev_suite_required
 @cooked_required
 def test_assign_maskinfo():
 

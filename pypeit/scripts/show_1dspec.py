@@ -41,8 +41,7 @@ def main(args):
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            line = ''
-            line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
+            line = "EXT{:07d} = {}".format(ii + 1, sobjs[ii].NAME)
             if sobjs[ii].RA is not None:
                 line += " {:0.5f} {:0.5f} {:s}".format(
                     sobjs[ii].RA,

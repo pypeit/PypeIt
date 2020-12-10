@@ -747,26 +747,6 @@ class SlitTraceSet(datamodel.DataContainer):
         obj_slit_pa = self.maskdef_designtab['SLITPA']
         obj_topdist = self.maskdef_designtab['OBJ_TOPDIST'].data
 
-        '''
-        # Slit coordinates for each object
-        obj_slit_coords = []
-        for obj_mid in obj_maskdef_id:
-            # Get the slit index
-            idx = np.where(self.slitid == obj_mid)[0]
-            if len(idx) != 1:
-                import pdb;
-                pdb.set_trace()
-            idx = idx[0]
-            # Fill
-            obj_slit_coords.append(slit_coords[idx])
-        #
-        obj_slit_coords = SkyCoord(obj_slit_coords)
-        '''
-
-        # Offsets, PA:  Slit to object
-        # slit_to_obj_sep = obj_slit_coords.separation(obj_coords)
-        # slit_to_obj_pa = obj_slit_coords.position_angle(obj_coords)
-
         # Exact pixel positions of the slit center (instead of using sobj.SLITID)
         censpat = (self.maskdef_designtab['TRACELPIX'].data + self.maskdef_designtab['TRACERPIX'].data)/2.
         # Measure distance of center from left and right edges
@@ -804,12 +784,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 oidx = oidx[0]
                 expected_offset = obj_topdist[oidx] - \
                                   ((maskdef_censpat[oidx] - self.maskdef_designtab['SLITLOPT'].data[oidx])*plate_scale)
-                # expected_offset = slit_to_obj_sep[oidx].to('arcsec').value
-                # # Direction -- Allows for 180deg rotation
-                # true_pa = slit_to_obj_pa[oidx].to('deg').value
-                # imin = np.argmin(np.abs(true_pa - np.array([posx_pa, negx_pa])))
-                # sign = -1 if imin == 1 else 1
-                # expected_offset *= sign
                 # Measured offset (arcsec)
                 dpix = sobj.SPAT_PIXPOS - new_censpat[self.maskdef_designtab['SPAT_ID'].data == sobj.SLITID][0]
                 darcsec = dpix * plate_scale
@@ -845,7 +819,6 @@ class SlitTraceSet(datamodel.DataContainer):
             # I used separ rather than the diff between `expected` and `measured` distance from the slit center,
             # because sometimes it does not work.
             in_toler = np.where(separ.to('arcsec').value < TOLER)[0]
-            # if np.any(in_toler):
             if in_toler.size > 0:
                 # Parse the peak fluxes
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
@@ -865,11 +838,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # Fill in the rest
             for ss in idx:
                 sobj = cut_sobjs[ss]
-                # Slit PA
-                sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
-                # pos_pa, neg_pa = slitmask.fuss_with_maskpa(obj_slit_pa[sidx])
-                # Do it
-                # obj_pa = pos_pa if measured[ss] > 0 else neg_pa
+                # Measured coordinates
                 new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
                     np.radians(obj_slit_pa[sidx]), (measured[ss]+median_off)*units.arcsec)
                 # Assign

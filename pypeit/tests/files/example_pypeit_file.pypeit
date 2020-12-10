@@ -8,10 +8,6 @@
 [baseprocess]
     combine = median
     sigrej = 30
-[calibrations]
-    [[biasframe]]
-        [[[process]]]
-            sig_lohi = 10, 10
 [scienceframe]
     [[process]]
         n_lohi = 8, 8
