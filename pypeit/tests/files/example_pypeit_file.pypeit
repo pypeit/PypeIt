@@ -7,7 +7,7 @@
 
 [baseprocess]
     combine = median
-    sigrej = 30
+    cr_sigrej = 30
 [scienceframe]
     [[process]]
         n_lohi = 8, 8
