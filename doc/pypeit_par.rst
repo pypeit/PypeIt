@@ -169,6 +169,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[cube]]``: `CubePar Keywords`_
 
+        ``[[slitmask]]``: `SlitMaskPar Keywords`_
+
     ``[flexure]``: `FlexurePar Keywords`_
 
     ``[fluxcalib]``: `FluxCalibratePar Keywords`_
@@ -484,13 +486,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-Key                Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-``spec_maxshift``  int, float  ..                                 20                                                                              Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
-``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
-``spectrum``       str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
+Key                Type        Options                            Default                                                                    Description                                                                                                                                                                                                           
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
+``spec_maxshift``  int, float  ..                                 20                                                                         Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
+``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                   Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
+``spectrum``       str         ..                                 ``/Users/dpelliccia/PypeIt/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
 
 
 ----
@@ -515,19 +517,19 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
-Key                     Type        Options  Default                                       Description                                                                                                                                                                                                                                                                   
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
-``calwin``              int, float  ..       0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                              
-``detnum``              int, list   ..       ..                                            Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                       
-``ignore_bad_headers``  bool        ..       False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                              
-``qadir``               str         ..       ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                    
-``redux_path``          str         ..       ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                          
-``scidir``              str         ..       ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                               
-``slitspatnum``         str, list   ..       ..                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum
-``sortroot``            str         ..       ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                        
-``spectrograph``        str         ..       ..                                            Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                 
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
+Key                     Type        Options  Default                                  Description                                                                                                                                                                                                                                                                   
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
+``calwin``              int, float  ..       0                                        The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                              
+``detnum``              int, list   ..       ..                                       Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                       
+``ignore_bad_headers``  bool        ..       False                                    Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                              
+``qadir``               str         ..       ``QA``                                   Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                    
+``redux_path``          str         ..       ``/Users/dpelliccia/PypeIt/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                          
+``scidir``              str         ..       ``Science``                              Directory relative to calling directory to write science files.                                                                                                                                                                                                               
+``slitspatnum``         str, list   ..       ..                                       Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum
+``sortroot``            str         ..       ..                                       A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                        
+``spectrograph``        str         ..       ..                                       Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                 
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
 
 
 ----
@@ -544,6 +546,7 @@ Key             Type                                         Options  Default   
 ``extraction``  :class:`pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                                     
 ``findobj``     :class:`pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms                    
 ``skysub``      :class:`pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms                                
+``slitmask``    :class:`pypeit.par.pypeitpar.SlitMaskPar`    ..       `SlitMaskPar Keywords`_    Parameters for slitmask                                                  
 ``trim_edge``   list                                         ..       0, 0                       Trim the slit by this number of pixels left/right when performing sky sub
 ==============  ===========================================  =======  =========================  =========================================================================
 
@@ -664,6 +667,21 @@ Key                  Type        Options  Default  Description
 
 ----
 
+SlitMaskPar Keywords
+--------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
+
+==============  =====  =======  =======  ===============================================================
+Key             Type   Options  Default  Description                                                    
+==============  =====  =======  =======  ===============================================================
+``assign_obj``  bool   ..       False    If SlitMask object was generated, assign RA,DEC,name to objects
+``obj_toler``   float  ..       5.0      Tolerance (arcsec) to match source to targeted object          
+==============  =====  =======  =======  ===============================================================
+
+
+----
+
 FrameGroupPar Keywords
 ----------------------
 
@@ -690,7 +708,10 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 Key                       Type        Options                                                                Default         Description                                                                                                                                                                                                                                
 ========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
 ``apply_gain``            bool        ..                                                                     True            Convert the ADUs to electrons using the detector gain                                                                                                                                                                                      
+``clip``                  bool        ..                                                                     True            Perform sigma clipping when combining.  Only used with combine=weightmean                                                                                                                                                                  
+``comb_sigrej``           float       ..                                                                     ..              Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                       
 ``combine``               str         ``median``, ``weightmean``                                             ``weightmean``  Method used to combine multiple frames.  Options are: median, weightmean                                                                                                                                                                   
+``cr_sigrej``             int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
 ``grow``                  int, float  ..                                                                     1.5             Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
 ``lamaxiter``             int         ..                                                                     1               Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
 ``mask_cr``               bool        ..                                                                     False           Identify CRs and mask them                                                                                                                                                                                                                 
@@ -702,10 +723,8 @@ Key                       Type        Options                                   
 ``replace``               str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``   If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
 ``rmcompact``             bool        ..                                                                     True            Remove compact detections in LA cosmics routine                                                                                                                                                                                            
 ``satpix``                str         ``reject``, ``force``, ``nothing``                                     ``reject``      Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
-``sig_lohi``              list        ..                                                                     3.0, 3.0        Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                     
 ``sigclip``               int, float  ..                                                                     4.5             Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
 ``sigfrac``               int, float  ..                                                                     0.3             Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
-``sigrej``                int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
 ``spat_flexure_correct``  bool        ..                                                                     False           Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                         
 ``trim``                  bool        ..                                                                     True            Trim the image to the detector supplied region                                                                                                                                                                                             
 ``use_biasimage``         bool        ..                                                                     True            Use a bias image.  If True, one or more must be supplied in the PypeIt file.                                                                                                                                                               
@@ -804,34 +823,34 @@ TellFitPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.TellFitPar`
 
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
-Key                      Type           Options  Default                                                                               Description                                                                                                                                                                                                                             
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
-``bal_wv_min_max``       list, ndarray  ..       ..                                                                                    Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
-``bounds_norm``          list           ..       0.1, 3.0                                                                              Normalization bounds for scaling the initial object model                                                                                                                                                                               
-``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                           Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
-``delta_redshift``       int, float     ..       0.1                                                                                   variable redshift range during the fit                                                                                                                                                                                                  
-``fit_wv_min_max``       list           ..       ..                                                                                    Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
-``func``                 str            ..       ``legendre``                                                                          object polynomial model function                                                                                                                                                                                                        
-``mask_abs_lines``       bool           ..       True                                                                                  Mask stellar absorption line?                                                                                                                                                                                                           
-``mask_lyman_a``         bool           ..       True                                                                                  Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
-``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                             Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
-``model``                str            ..       ``exp``                                                                               different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
-``npca``                 int            ..       8                                                                                     Number of pca                                                                                                                                                                                                                           
-``objmodel``             str            ..       ..                                                                                    which object model you want to use for telluric fit                                                                                                                                                                                     
-``only_orders``          int            ..       ..                                                                                    order number if you only want to fit a single order                                                                                                                                                                                     
-``pca_file``             str            ..       ``/Users/westfall/Work/packages/pypeit/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
-``pca_lower``            int, float     ..       1220.0                                                                                minimum wavelength for the pca model                                                                                                                                                                                                    
-``pca_upper``            int, float     ..       3100.0                                                                                maximum wavelength for the pca model                                                                                                                                                                                                    
-``polyorder``            int            ..       3                                                                                     polynomial order for the object model                                                                                                                                                                                                   
-``redshift``             int, float     ..       0.0                                                                                   redshift for your object model                                                                                                                                                                                                          
-``star_dec``             float          ..       ..                                                                                    Object declination in decimal deg                                                                                                                                                                                                       
-``star_mag``             float, int     ..       ..                                                                                    AB magnitude in V band                                                                                                                                                                                                                  
-``star_ra``              float          ..       ..                                                                                    Object right-ascension in decimal deg                                                                                                                                                                                                   
-``star_type``            str            ..       ..                                                                                    stellar type                                                                                                                                                                                                                            
-``tell_grid``            str            ..       ..                                                                                    telluric grid file. needed when you use qso_telluric                                                                                                                                                                                    
-``tell_norm_thresh``     int, float     ..       0.9                                                                                   Threshold of telluric absorption region                                                                                                                                                                                                 
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
+Key                      Type           Options  Default                                                                          Description                                                                                                                                                                                                                             
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
+``bal_wv_min_max``       list, ndarray  ..       ..                                                                               Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
+``bounds_norm``          list           ..       0.1, 3.0                                                                         Normalization bounds for scaling the initial object model                                                                                                                                                                               
+``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                      Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``delta_redshift``       int, float     ..       0.1                                                                              variable redshift range during the fit                                                                                                                                                                                                  
+``fit_wv_min_max``       list           ..       ..                                                                               Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
+``func``                 str            ..       ``legendre``                                                                     object polynomial model function                                                                                                                                                                                                        
+``mask_abs_lines``       bool           ..       True                                                                             Mask stellar absorption line?                                                                                                                                                                                                           
+``mask_lyman_a``         bool           ..       True                                                                             Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
+``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                        Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``model``                str            ..       ``exp``                                                                          different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
+``npca``                 int            ..       8                                                                                Number of pca                                                                                                                                                                                                                           
+``objmodel``             str            ..       ..                                                                               which object model you want to use for telluric fit                                                                                                                                                                                     
+``only_orders``          int            ..       ..                                                                               order number if you only want to fit a single order                                                                                                                                                                                     
+``pca_file``             str            ..       ``/Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``pca_lower``            int, float     ..       1220.0                                                                           minimum wavelength for the pca model                                                                                                                                                                                                    
+``pca_upper``            int, float     ..       3100.0                                                                           maximum wavelength for the pca model                                                                                                                                                                                                    
+``polyorder``            int            ..       3                                                                                polynomial order for the object model                                                                                                                                                                                                   
+``redshift``             int, float     ..       0.0                                                                              redshift for your object model                                                                                                                                                                                                          
+``star_dec``             float          ..       ..                                                                               Object declination in decimal deg                                                                                                                                                                                                       
+``star_mag``             float, int     ..       ..                                                                               AB magnitude in V band                                                                                                                                                                                                                  
+``star_ra``              float          ..       ..                                                                               Object right-ascension in decimal deg                                                                                                                                                                                                   
+``star_type``            str            ..       ..                                                                               stellar type                                                                                                                                                                                                                            
+``tell_grid``            str            ..       ..                                                                               telluric grid file. needed when you use qso_telluric                                                                                                                                                                                    
+``tell_norm_thresh``     int, float     ..       0.9                                                                              Threshold of telluric absorption region                                                                                                                                                                                                 
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
 
 
 
@@ -872,14 +891,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -899,7 +918,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -975,7 +994,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 50, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -983,7 +1002,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 50, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1003,7 +1022,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1058,7 +1077,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
@@ -1083,25 +1102,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1156,25 +1174,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1229,25 +1246,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1302,25 +1318,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1352,7 +1367,7 @@ Alterations to the default parameters are::
   [sensfunc]
       multi_spec_det = 1, 2, 3
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
@@ -1378,14 +1393,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1406,7 +1421,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1457,7 +1472,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 6
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
@@ -1482,13 +1497,13 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1496,7 +1511,7 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
+              comb_sigrej = 10.0
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1506,7 +1521,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1544,7 +1559,7 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
@@ -1570,12 +1585,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1586,7 +1601,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1644,12 +1659,12 @@ Alterations to the default parameters are::
               use_pattern = True
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1657,7 +1672,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -1665,7 +1679,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[alignment]]
@@ -1736,12 +1750,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1755,7 +1769,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1820,12 +1834,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1839,7 +1853,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1904,12 +1918,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1923,7 +1937,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1994,12 +2008,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2013,7 +2027,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2085,14 +2099,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2111,7 +2125,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2157,7 +2171,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRES (``keck_nires``)
 ---------------------------
@@ -2185,7 +2199,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2193,7 +2207,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2213,7 +2227,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2273,7 +2287,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
@@ -2301,14 +2315,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2328,7 +2342,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2378,7 +2392,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
@@ -2404,14 +2418,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2431,7 +2445,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2500,14 +2514,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2527,7 +2541,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2600,12 +2614,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2619,7 +2633,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2680,12 +2694,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2699,7 +2713,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2762,12 +2776,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2781,7 +2795,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2842,12 +2856,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2861,7 +2875,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2925,14 +2939,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2952,7 +2966,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3014,7 +3028,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
@@ -3042,14 +3056,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3069,7 +3083,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3120,7 +3134,7 @@ Alterations to the default parameters are::
           find_trim_edge = 50, 50
   [sensfunc]
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN MagE (``magellan_mage``)
 ---------------------------------
@@ -3147,12 +3161,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3163,7 +3177,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3230,19 +3244,18 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3250,7 +3263,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3303,13 +3316,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3325,7 +3338,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3371,7 +3384,7 @@ Alterations to the default parameters are::
   [sensfunc]
       polyorder = 7
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 MMT Blue_Channel (``mmt_bluechannel``)
 --------------------------------------
@@ -3398,13 +3411,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 10, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3421,7 +3434,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3487,7 +3500,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 60, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3495,7 +3508,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 60, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3515,7 +3528,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3572,7 +3585,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 NOT ALFOSC (``not_alfosc``)
 ---------------------------
@@ -3600,13 +3613,13 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3614,7 +3627,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3625,7 +3637,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3684,19 +3696,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3704,7 +3715,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3761,19 +3772,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3781,7 +3791,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3812,7 +3822,7 @@ Alterations to the default parameters are::
       [[UVIS]]
           polycorrect = False
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Lick_3100_11100_R10000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Lick_3100_11100_R10000.fits
 
 P200 TSPEC (``p200_tspec``)
 ---------------------------
@@ -3840,7 +3850,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3848,7 +3858,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3868,7 +3878,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3928,7 +3938,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -3956,12 +3966,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3975,7 +3985,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4010,7 +4020,7 @@ Alterations to the default parameters are::
           mask_cr = True
   [flexure]
       spec_method = boxcar
-      spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
+      spectrum = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
 
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
@@ -4038,12 +4048,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4057,7 +4067,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4111,12 +4121,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4130,7 +4140,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4184,12 +4194,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4202,7 +4212,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4248,13 +4258,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4270,7 +4280,7 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4330,14 +4340,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4358,7 +4368,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4434,7 +4444,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
@@ -4460,13 +4470,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4478,7 +4488,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4538,14 +4548,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4566,7 +4576,7 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4629,7 +4639,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 11
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 WHT ISISb (``wht_isis_blue``)
 -----------------------------
@@ -4659,13 +4669,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4673,7 +4683,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4684,7 +4693,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4747,19 +4756,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -4767,7 +4775,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]

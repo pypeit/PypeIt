@@ -34,4 +34,5 @@ instrument-specific details for running ``PypeIt``.
    keck_kcwi
    lris
    mage
+   shane_kast
    xshooter

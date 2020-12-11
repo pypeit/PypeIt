@@ -128,11 +128,11 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
-        posx_pa (:ob:`float`):
+        posx_pa (:obj:`float`):
             Sky PA that points to positive x (spatial) on the detector
-        negx_pa (:ob:`float`):
+        negx_pa (:obj:`float`):
             Sky PA that points to negative x (spatial) on the detector
-        object_names (`numpy.ndarray`_): str
+        object_names (`numpy.ndarray`_):
             Object names
 
     Raises:
