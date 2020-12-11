@@ -272,9 +272,9 @@ class SpecObjs:
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
                     # Grab SNR
-                    if self.OPT_COUNTS[0] is not None:
+                    if spec[0].OPT_COUNTS[0] is not None:
                         SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif self.BOX_COUNTS[0] is not None:
+                    elif spec[0].BOX_COUNTS[0] is not None:
                         SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
                     else:
                         return None
