@@ -36,9 +36,15 @@ The package and version requirements for ``PypeIt`` are:
 * `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
 * `shapely <https://pypi.org/project/Shapely/>`_ -- version 1.7 or later; optional, **required for KCWI only**
 * `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later; optional, developers only
-* `Sphinx <https://pypi.org/project/Sphinx/>`_ -- version 3.0 or later; optional, developers only
-* `sphinx-automodapi <https://pypi.org/project/sphinx-automodapi/>`_ : version 0.12 or later; optional, developers only
-* `sphinx_rtd_theme <https://pypi.org/project/sphinx-rtd-theme/>`_ : version 0.5 or later; optional, developers only
+
+Developer-only items
+--------------------
+
+If you are developing, you may need the following packages:
+
+* `sphinx <https://www.sphinx-doc.org/en/master/>`_ -- version 4.0 or later
+* sphinx_automodapi (pip install only)
+* sphinx_rtd_theme (pip install only)
 
 Create a conda environment (recommended)
 ----------------------------------------

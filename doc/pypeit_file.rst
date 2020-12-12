@@ -110,6 +110,7 @@ Here are additional docs on common edits that ``PypeIt`` users make:
    :caption: More reading
    :maxdepth: 1
 
+   calibrations
    frametype
    bias_dark
    flat_fielding
