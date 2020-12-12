@@ -1,7 +1,9 @@
 .. code-block:: console
 
     $ run_pypeit -h
-    usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r REDUX_PATH] [-m] [-s] [-o] [-d DETECTOR] [-c] pypeit_file
+    usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r REDUX_PATH] [-m] [-s] [-o]
+                      [-d DETECTOR] [-c]
+                      pypeit_file
     
     ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.2.1dev[0m
     ##  
@@ -25,15 +27,22 @@
       -h, --help            show this help message and exit
       -v VERBOSITY, --verbosity VERBOSITY
                             Verbosity level between 0 [none] and 2 [all]
-      -t, --hdrframetype    Use file headers and the instument-specific keywords to determinethe type of each frame
+      -t, --hdrframetype    Use file headers and the instument-specific keywords
+                            to determinethe type of each frame
       -r REDUX_PATH, --redux_path REDUX_PATH
-                            Path to directory for the reduction. Only advised for testing
+                            Path to directory for the reduction. Only advised for
+                            testing
       -m, --do_not_reuse_masters
-                            Do not load previously generated MasterFrames, even ones made during the run.
-      -s, --show            Show reduction steps via plots (which will block further execution until clicked on) and outputs to ginga. Requires remote control ginga session via
+                            Do not load previously generated MasterFrames, even
+                            ones made during the run.
+      -s, --show            Show reduction steps via plots (which will block
+                            further execution until clicked on) and outputs to
+                            ginga. Requires remote control ginga session via
                             "ginga --modules=RC &"
       -o, --overwrite       Overwrite any existing files/directories
       -d DETECTOR, --detector DETECTOR
-                            Detector to limit reductions on. If the output files exist and -o is used, the outputs for the input detector will be replaced.
+                            Detector to limit reductions on. If the output files
+                            exist and -o is used, the outputs for the input
+                            detector will be replaced.
       -c, --calib_only      Only run on calibrations
     
