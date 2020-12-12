@@ -27,9 +27,8 @@ settings that are related to the Keck/DEIMOS spectrograph.
 Deviations
 ==========
 
-Here are the main deviations from the default settings
-for DEIMOS
-(see :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`).
+The default changes to the ``PypeIt`` parameters specific to DEIMOS
+data are listed here: :ref:`instr_par`.
 
 These are tuned to the standard calibration
 set taken with DEIMOS.
