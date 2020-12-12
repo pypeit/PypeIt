@@ -9,7 +9,6 @@ from collections import OrderedDict
 import numpy as np
 
 from astropy.table import Table, Column, vstack
-from astropy.io import fits
 
 import linetools.utils
 
@@ -451,45 +450,45 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
         return line_list[msk]
 
 
-def load_spectrum(spec_file, index=0):
-    """
-    Load a simple spectrum from input file
-
-    Parameters
-    ----------
-    spec_file : str
-        Possible formats are:
-
-            - .fits --  Assumes simple ndarray in 0 extension
-            - .ascii -- Assumes Table.read(format='ascii') will work with single column
-
-    Returns
-    -------
-
-    """
-    import h5py
-    iext = spec_file.rfind('.')
-    if 'ascii' in spec_file[iext:]:
-        tbl = Table.read(spec_file, format='ascii')
-        key = tbl.keys()[0]
-        spec = tbl[key].data
-    elif 'fits' in spec_file[iext:]:
-        spec = fits.open(spec_file)[0].data
-    elif 'hdf5' in spec_file[iext:]:
-        hdf = h5py.File(spec_file, 'r')
-        if 'arcs' in hdf.keys():
-            print("Taking arc={:d} in this file".format(index))
-            spec = hdf['arcs/'+str(index)+'/spec'].value
-        else:
-            raise IOError("Not ready for this hdf5 file")
-    elif 'json' in spec_file[iext:]:
-        jdict = linetools.utils.loadjson(spec_file)
-        try:
-            spec = np.array(jdict['spec'])
-        except KeyError:
-            raise IOError("spec not in your JSON dict")
-    # Return
-    return spec
+#def load_spectrum(spec_file, index=0):
+#    """
+#    Load a simple spectrum from input file
+#
+#    Parameters
+#    ----------
+#    spec_file : str
+#        Possible formats are:
+#
+#            - .fits --  Assumes simple ndarray in 0 extension
+#            - .ascii -- Assumes Table.read(format='ascii') will work with single column
+#
+#    Returns
+#    -------
+#
+#    """
+#    import h5py
+#    iext = spec_file.rfind('.')
+#    if 'ascii' in spec_file[iext:]:
+#        tbl = Table.read(spec_file, format='ascii')
+#        key = tbl.keys()[0]
+#        spec = tbl[key].data
+#    elif 'fits' in spec_file[iext:]:
+#        spec = fits.open(spec_file)[0].data
+#    elif 'hdf5' in spec_file[iext:]:
+#        hdf = h5py.File(spec_file, 'r')
+#        if 'arcs' in hdf.keys():
+#            print("Taking arc={:d} in this file".format(index))
+#            spec = hdf['arcs/'+str(index)+'/spec'].value
+#        else:
+#            raise IOError("Not ready for this hdf5 file")
+#    elif 'json' in spec_file[iext:]:
+#        jdict = linetools.utils.loadjson(spec_file)
+#        try:
+#            spec = np.array(jdict['spec'])
+#        except KeyError:
+#            raise IOError("spec not in your JSON dict")
+#    # Return
+#    return spec
 
 
 def write_line_list(tbl, outfile):

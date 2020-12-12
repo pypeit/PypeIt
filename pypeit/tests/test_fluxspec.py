@@ -65,6 +65,7 @@ def test_from_sens_func(kast_blue_files):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
+    #
     # Instantiate and run
     outfile = data_path(os.path.basename(sci_file))
     fluxCalibrate = fluxcalibrate.MultiSlitFC([sci_file], [sens_file], par=par['fluxcalib'],
@@ -72,4 +73,7 @@ def test_from_sens_func(kast_blue_files):
     # Test
     sobjs = specobjs.SpecObjs.from_fitsfile(outfile)
     assert 'OPT_FLAM' in sobjs[0].keys()
+
+    os.remove(sens_file)
+    os.remove(outfile)
 

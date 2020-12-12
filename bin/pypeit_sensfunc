@@ -4,8 +4,8 @@
 Computes sensitivity function
 """
 
-import pypeit.scripts.sensfunc as sensfunc
+from pypeit.scripts import sensfunc
 
 if __name__ == '__main__':
-    args = sensfunc.parser()
-    sensfunc.main(args)
+    sensfunc.main(sensfunc.parse_args())
+

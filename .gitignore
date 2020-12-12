@@ -1,5 +1,9 @@
 # Folders#
 .idea/
+.vscode/
+build/*
+dist/*
+doc/build_
 
 # Compiled source #
 ###################
@@ -10,8 +14,11 @@
 *.exe
 *.o
 *.so
+*.pyd
 *.pyc
 *_rjc*
+*.nbi
+*.nbc
  
 # Packages #
 ############
@@ -49,6 +56,8 @@ Thumbs.db
 *.pytest_cache
 *.swp
 pypeit/_compiler.c
+pypeit/data/telluric/*.pckl
 pypeit/data/telluric/*.fits
 pypeit/data/telluric/*.fits.gz
 
+*.pckl

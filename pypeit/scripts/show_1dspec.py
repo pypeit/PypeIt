@@ -2,18 +2,13 @@
 """
 Wrapper to the linetools XSpecGUI
 """
-import argparse
-import sys
-from linetools.guis.xspecgui import XSpecGui
-from PyQt5.QtWidgets import QApplication
-
-from pypeit import specobjs
-from pypeit import msgs
-import numpy as np
 from IPython import embed
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse')
+def parse_args(options=None, return_parser=False):
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Show a 1D spectrum',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--exten", type=int, default=1, help="FITS extension")
@@ -21,23 +16,39 @@ def parser(options=None):
     parser.add_argument("--extract", type=str, default='OPT', help="Extraction method. Default is OPT. ['BOX', 'OPT']")
     parser.add_argument("--flux", default=False, action="store_true", help="Show fluxed spectrum?")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
+
 
 def main(args):
     """ Runs the XSpecGui on an input file
     """
+    import sys
+    import numpy as np
 
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    from PySide2.QtWidgets import QApplication
+
+    from linetools.guis.xspecgui import XSpecGui
+
+    from pypeit import specobjs
+    from pypeit import msgs
+
+    sobjs = specobjs.SpecObjs.from_fitsfile(args.file, chk_version=False)
+
     # List only?
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            name = sobjs[ii].NAME
-            print("EXT{:07d} = {}".format(ii+1, name))
+            line = "EXT{:07d} = {}".format(ii + 1, sobjs[ii].NAME)
+            if sobjs[ii].RA is not None:
+                line += " {:0.5f} {:0.5f} {:s}".format(
+                    sobjs[ii].RA,
+                    sobjs[ii].DEC,
+                    sobjs[ii].MASKDEF_OBJNAME)
+            #
+            print(line)
         return
 
     if args.obj is not None:
@@ -50,7 +61,7 @@ def main(args):
     # Check Extraction
     if args.extract == 'OPT':
         if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+                msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
     spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 

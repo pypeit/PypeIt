@@ -97,3 +97,12 @@ class NOTTelescopePar(TelescopePar):
                                               longitude=17.88432979,
                                               latitude=28.7543303,
                                               elevation=2465.5)
+
+class P200TelescopePar(TelescopePar):
+    def __init__(self):
+        super(P200TelescopePar, self).__init__(name='P200',
+                                               longitude=116.86489,
+                                               latitude=33.35631,
+                                               elevation=1713.)
+
+

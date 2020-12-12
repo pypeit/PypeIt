@@ -1,47 +1,45 @@
-""" Module for Gemini/GNIRS specific codes
 """
+Module for Gemini/GNIRS specific methods.
+
+.. include:: ../include/links.rst
+"""
+from pkg_resources import resource_filename
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.images import detector_container
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pkg_resources import resource_filename
-from IPython import embed
 
-
-from pypeit import debugger
 
 class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Gemini/GNIRS specific code
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(GeminiGNIRSSpectrograph, self).__init__()
-        self.spectrograph = 'gemini_gnirs'
-        self.telescope = telescopes.GeminiNTelescopePar()
-        self.camera = 'GNIRS'
-        self.dispname = None # TODO We need a model for setting setup specific parameters in spectrograph
-        self.numhead = 2
+    name = 'gemini_gnirs'
+    camera = 'GNIRS'
+    telescope = telescopes.GeminiNTelescopePar()
+    pypeline = 'Echelle'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -62,23 +60,22 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             datasec         = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]',
             oscansec        = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]'
         )
-
         return detector_container.DetectorContainer(**detector_dict)
 
-    @property
-    def pypeline(self):
-        return 'Echelle'
-
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Gemini GNIRS reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'gemini_gnirs'
+        par = super().default_pypeit_par()
 
         # Image processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Flats
@@ -107,31 +104,32 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 6
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for specific instrument configurations.
-
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
 
         Args:
-           scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-           inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-           :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set  adjusted for configuration specific parameter values.
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
         """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        # TODO This is a hack for now until we figure out how to set dispname and other meta information in the
-        # spectrograph class itself
+        # TODO This is a hack for now until we figure out how to set dispname
+        # and other meta information in the spectrograph class itself
         self.dispname = self.get_meta_value(scifile, 'dispname')
         # 32/mmSB_G5533 setup, covering XYJHK with short blue camera
         if '32/mm' in self.dispname:
@@ -203,45 +201,68 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['tilts']['sig_neigh'] = 5.0
             par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
         else:
-            msgs.erro('Unrecognized GNIRS dispname')
+            msgs.error('Unrecognized GNIRS dispname')
 
         return par
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='SLIT')
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='SLIT')
 
-        meta['binning'] = dict(ext=0, card=None, default='1,1')
-        meta['mjd'] = dict(ext=0, card='MJD_OBS')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['mjd'] = dict(ext=0, card='MJD_OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='GRATING')
-        meta['hatch'] = dict(ext=0, card='COVER')
-        meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card='GRATING')
+        self.meta['hatch'] = dict(ext=0, card='COVER')
+        self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['decker', 'dispname', 'dispangle']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
@@ -264,26 +285,21 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-#    def parse_binning(self, inp, det=1):
-#        return '1,1'
-
     def order_platescale(self, order_vec, binning=None):
         """
-        Returns the plate scale in arcseconds for each order
+        Return the platescale for each echelle order.
 
-        Parameters
-        ----------
-        None
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
 
-        Optional Parameters
-        --------------------
-        binning: str
-
-        Returns
-        -------
-        order_platescale: ndarray, float
-
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
+        # TODO: Binning is ignored.  Should it be?
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.full(order_vec.size, 0.05)
@@ -294,6 +310,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def norders(self):
+        """
+        Number of orders for this spectograph.
+        """
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return 4
@@ -304,6 +323,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.array([0.050, 0.215, 0.442, 0.759])
@@ -316,13 +338,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized disperser')
 
-#    @property
-#    def match_tol_spat_pos(self):
-#        # Making this larger than the default value of 0.05 because the order moves considerably in some cases
-#        return 0.1
-
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.arange(6,2,-1, dtype=int)
@@ -333,6 +353,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         # TODO: Why aren't these numbers in fraction of the detector
         # size instead of the pixel number?
         self.check_disperser()
@@ -347,32 +371,36 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized disperser')
 
-
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to Gemini/GNIRS
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
         msgs.info("Custom bad pixel mask for GNIRS")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # JFH Changed. Dealing with detector scratch
         if det == 1:

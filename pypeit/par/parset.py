@@ -3,42 +3,8 @@
 """
 Define a utility base class used to hold parameters.
 
-*License*:
-    Copyright (c) 2015, SDSS-IV/MaNGA Pipeline Group
-        Licensed under BSD 3-clause license - see LICENSE.rst
-
-*Class usage examples*:
-    to be added
-
-.. todo::
-    - Add range and length parameters allowing one to define the range
-      allowed for the parameter values and number of elements required
-      (if the parameter is an array)
-    - Allow for a from_par_file classmethod to initialize the parameter
-      set based on a yanny parameter file.
-    - Save the defaults and allow for a revert_to_default function.
-    - Write an __add__ function that will all you to add multiple
-      parameter sets.
-
-*Revision history*:
-    | **16 Jun 2015**: Original implementation by K. Westfall (KBW)
-    | **18 Mar 2016**: (KBW) Change dtype checking
-    | **23 Mar 2016**: (KBW) Changed initialization type checking of
-        lists to use `isinstance`_.
-    | **02 Apr 2016**: (KBW) Allow input parameters to be callable
-        functions.
-    | **05 Apr 2018**: (KBW) Added to pypeit repo
-    | **18 Apr 2018**: (KBW) Add parameter descriptions; keep default
-        values as attributes
-    | **19 Apr 2018**: (KBW) Spruce up the __repr__ function and add the
-        info function.  Add to_config function to write to a
-        configuration file.
-    | **28 Jun 2018**: (KBW) Change config_lines to a static method, and
-        allow it to print the configuration lines for a dictionary, not
-        just ParSets.
-
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 import warnings
@@ -377,7 +343,7 @@ class ParSet(object):
 
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatum=False):
+    def _data_string(data, use_repr=True, verbatim=False):
         """
         Convert a single datum into a string
         
@@ -391,20 +357,20 @@ class ParSet(object):
             use_repr (:obj:`bool`, optional):
                 Use the objects :attr:`__repr__` method; otherwise, use
                 a direct string conversion.
-            verbatum (:obj:`bool`, optional):
+            verbatim (:obj:`bool`, optional):
                 Use quotes around the provided string to indicate that
-                the string should be representated in a verbatum (fixed
+                the string should be representated in a verbatim (fixed
                 width) font.
         
         Returns:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            return data if not verbatum else '``' + data + '``'
+            return data if not verbatim else '``' + data + '``'
         if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
-                                                             verbatum=verbatum) for d in data ])
+                                                             verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
 
     def _wrap_print(self, head, output, tcols):
@@ -741,7 +707,7 @@ class ParSet(object):
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
         sorted_keys = numpy.sort(self.keys())
         for i,k in enumerate(sorted_keys):
-            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
+            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatim=True)
             if isinstance(self.data[k], ParSet):
                 if type(self.data[k]).__name__ not in parsets_listed:
                     new_parsets += [k]
@@ -752,11 +718,11 @@ class ParSet(object):
                 data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
 
             data_table[i+1,2] = '..' if self.options[k] is None \
                                     else ParSet._data_string(self.options[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
             data_table[i+1,4] = '..' if self.descr[k] is None \
                                     else ParSet._data_string(self.descr[k])
 

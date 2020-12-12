@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+This script examines a set of files and figures
+out which have sufficient calibrations and which do not!
+"""
+
+from pypeit.scripts import chk_for_calibs
+
+if __name__ == '__main__':
+    chk_for_calibs.main(chk_for_calibs.parse_args())

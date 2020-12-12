@@ -12,9 +12,11 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.scripts.coadd_datacube import coadd_cube
 from pypeit import msgs
 from pypeit import utils
 from IPython import embed
+from pypeit.tests.tstutils import cooked_required
 
 kast_blue = load_spectrograph('shane_kast_blue')
 
@@ -339,3 +341,13 @@ def test_sigma_clip():
 
 
 '''
+
+@cooked_required
+def test_coadd_datacube():
+    """ Test the coaddition of spec2D files into datacubes """
+    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
+    spec2d_file1 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits')
+    spec2d_file2 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits')
+    files = [spec2d_file1, spec2d_file2]
+    coadd_cube(files, None, overwrite=True)
+    os.remove('datacube.fits')

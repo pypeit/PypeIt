@@ -23,8 +23,12 @@ Submodules
    pypeit.spectrographs.magellan_mage
    pypeit.spectrographs.mdm_osmos
    pypeit.spectrographs.mmt_binospec
+   pypeit.spectrographs.mmt_bluechannel
+   pypeit.spectrographs.mmt_mmirs
    pypeit.spectrographs.not_alfosc
    pypeit.spectrographs.opticalmodel
+   pypeit.spectrographs.p200_dbsp
+   pypeit.spectrographs.p200_tspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
    pypeit.spectrographs.spectrograph

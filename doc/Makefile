@@ -60,10 +60,25 @@ apirst:
 	python3 ./scripts/build_par_rst.py
 	python3 ./scripts/build_specobj_rst.py
 	python3 ./scripts/build_calib_images_rst.py
+	python3 ./scripts/write_script_help.py
+	python3 ./scripts/build_bitmask_rst.py
+	python3 ./scripts/build_spectbl_rst.py
+	python3 ./scripts/make_example_files.py
 
 html:
 	make apirst
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+htmlonly:
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+picky:
+	make apirst
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) -n $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 

@@ -1,7 +1,7 @@
 """ Class to generate an image from one or more files (and other pieces).
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 import inspect
@@ -23,7 +23,7 @@ from pypeit.images import imagebitmask
 from IPython import embed
 
 
-class CombineImage(object):
+class CombineImage:
     """
     Class to generate an image from one or more files (and other pieces).
 
@@ -67,7 +67,7 @@ class CombineImage(object):
             slits (:class:`pypeit.slittrace.SlitTraceSet`, optional): Slit object
             sigma_clip (bool, optional):
                 Perform sigma clipping
-            sigrej (int or float, optional): Rejection threshold for sigma clipping.
+            sigrej (tuple, optional): Rejection thresholds (lo/hi) for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
                 Number of iterations for the clipping

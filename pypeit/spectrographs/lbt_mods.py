@@ -1,4 +1,7 @@
-""" Module for LBT/MODS specific codes
+"""
+Module for LBT/MODS specific methods.
+
+.. include:: ../include/links.rst
 """
 import glob
 import numpy as np
@@ -6,32 +9,36 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
-# FW ToDo: test MODS1B and MODS2B
+# TODO: FW: test MODS1B and MODS2B
 
 class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
     ndet = 1
+    telescope = telescopes.LBTTelescopePar()
 
-    def __init__(self):
-        # Get it started
-        super(LBTMODSSpectrograph, self).__init__()
-        self.spectrograph = 'lbt_mods_base'
-        self.telescope = telescopes.LBTTelescopePar()
-        self.timeunit = 'isot'
+#    def __init__(self):
+#        super().__init__()
+#        self.timeunit = 'isot'
 
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Shane Kast reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
+        par = super().default_pypeit_par()
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
@@ -47,12 +54,10 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
@@ -68,17 +73,19 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = dict(ext=0, card='FILTNAME')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
 
-
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(np.array([headarr[0]['CCDXBIN'], headarr[0]['CCDYBIN']]))
@@ -88,11 +95,17 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Set the configuration keys
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
 
         Returns:
-            cfg_keys: list
-
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         # decker is not included because standards are usually taken with a 5" slit and arc using 0.8" slit
         return ['dispname', 'binning' ]
@@ -100,6 +113,21 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
@@ -107,7 +135,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
                    & (fitstbl['dispname'] != 'Flat')
         if ftype == 'bias':
             return good_exp  & (fitstbl['idname'] == 'BIAS')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp  & (fitstbl['idname'] == 'FLAT') & (fitstbl['decker'] != 'Imaging')
         if ftype in ['pinhole', 'dark']:
@@ -121,21 +149,34 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Load up the raw image and generate a few other bits and pieces
-        that are key for image processing
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple:
-                raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
-                exptime (float)
-                rawdatasec_img (np.ndarray)
-                oscansec_img (np.ndarray)
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -144,13 +185,14 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
 
         # Read
         msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
-        hdu = fits.open(fil[0])
+        hdu = io.fits_open(fil[0])
         head = hdu[0].header
 
         # TODO These parameters should probably be stored in the detector par
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        numamp = 4
+        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
         xbin, ybin = head['CCDXBIN'], head['CCDYBIN']
@@ -188,27 +230,71 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img), np.flipud(oscansec_img)
+        return detector_par,np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img), np.flipud(oscansec_img)
 
 
 class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
     """
     Child to handle LBT/MODS1R specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTMODS1RSpectrograph, self).__init__()
-        self.spectrograph = 'lbt_mods1r'
-        self.camera = 'MODS1R'
-        self.numhead = 1
+    name = 'lbt_mods1r'
+    camera = 'MODS1R'
+    supported = True
+    comment = 'MODS-I red spectrometer'
 
+    def get_detector_par(self, hdu, det):
+        """
+        Return metadata for the selected detector.
 
-    def default_pypeit_par(self):
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-        Set default parameters for LBT MODS1R reductions.
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.123,
+            darkcurr        = 0.4,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.38,2.50,2.46,2.81]),
+            ronoise         = np.atleast_1d([3.78,4.04,4.74,4.14]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        par = LBTMODSSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'lbt_mods1r'
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
@@ -217,14 +303,12 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
-        #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 5
@@ -232,39 +316,68 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
+        return par
 
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
 
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1r_red.fits'
 
         return par
 
-
-    def bpm(self, filename, det, shape=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
+        Generate a default bad-pixel mask.
 
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         msgs.info("Using hard-coded BPM for  MODS1R")
 
         # TODO: Fix this
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -287,70 +400,117 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
     """
     Child to handle LBT/MODS1R specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTMODS1BSpectrograph, self).__init__()
-        self.spectrograph = 'lbt_mods1b'
-        self.camera = 'MODS1B'
-        self.numhead = 1
 
+    name = 'lbt_mods1b'
+    camera = 'MODS1B'
+    supported = True
+    comment = 'MODS-I blue spectrometer'
 
-    def default_pypeit_par(self):
+    def get_detector_par(self, hdu, det):
         """
-        Set default parameters for LBT MODS1B reductions.
+        Return metadata for the selected detector.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-        par = LBTMODSSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'lbt_mods1b'
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.120,
+            darkcurr        = 0.5,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
+            ronoise         = np.atleast_1d([3.41,2.93,2.92,2.76]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
-        # ToDo: check whether MODS1B has the same flip direction with MODS1R
-        #       and modify the BPM accordingly
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        Generate a default bad-pixel mask.
 
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
         msgs.info("Using hard-coded BPM for  MODS1B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -365,25 +525,68 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         return bpm_img
 
 
-
 class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
     """
     Child to handle LBT/MODS1R specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTMODS2RSpectrograph, self).__init__()
-        self.spectrograph = 'lbt_mods2r'
-        self.camera = 'MODS2R'
-        self.numhead = 1
+    name = 'lbt_mods2r'
+    camera = 'MODS2R'
+    supported = True
+    comment = 'MODS-II red spectrometer'
 
+    def get_detector_par(self, hdu, det):
+        """
+        Return metadata for the selected detector.
 
-    def default_pypeit_par(self):
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-        Set default parameters for LBT MODS2R reductions.
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.123,
+            darkcurr        = 0.4,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.70,1.67,1.66,1.66]),
+            ronoise         = np.atleast_1d([2.95,2.65,2.78,2.87]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        par = LBTMODSSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'lbt_mods2r'
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
@@ -392,51 +595,77 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
-        #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 300.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
+    def config_specific_par(self, scifile, inp_par=None):
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
 
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods2r_red.fits'
+        return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
         msgs.info("Using hard-coded BPM for  MODS2R")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()
@@ -461,71 +690,116 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
     Child to handle LBT/MODS1R specific code
     """
-    def __init__(self):
-        # Get it started
-        super(LBTMODS2BSpectrograph, self).__init__()
-        self.spectrograph = 'lbt_mods2b'
-        self.camera = 'MODS2B'
-        self.numhead = 1
+    name = 'lbt_mods2b'
+    camera = 'MODS2B'
+    supported = True
+    comment = 'MODS-II blue spectrometer'
 
+    def get_detector_par(self, hdu, det):
+        """
+        Return metadata for the selected detector.
 
-    def default_pypeit_par(self):
+        Args:
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-        Set default parameters for LBT MODS2B reductions.
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.120,
+            darkcurr        = 0.5,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
+            ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        par = LBTMODSSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'lbt_mods2b'
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
+
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
-        # ToDo: check whether MODS2B has the same flip direction with MODS1R
-        #       and modify the BPM accordingly
+        Generate a default bad-pixel mask.
 
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
         msgs.info("Using hard-coded BPM for  MODS2B")
 
         # Get the binning
-        hdu = fits.open(filename)
+        hdu = io.fits_open(filename)
         header = hdu[0].header
         xbin, ybin = header['CCDXBIN'], header['CCDYBIN']
         hdu.close()

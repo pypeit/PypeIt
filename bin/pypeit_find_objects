@@ -8,8 +8,9 @@
 This script opens the interactive object finding/tracing
 """
 
-import pypeit.scripts.object_finding as object_finding
+from pypeit.scripts import find_objects
 
 if __name__ == '__main__':
-    args = object_finding.parser()
-    object_finding.main(args)
+    find_objects.main(find_objects.parse_args())
+
+

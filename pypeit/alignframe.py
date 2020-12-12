@@ -2,15 +2,15 @@
 Module for generating an Alignment image to map constant spatial locations
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import ginga, msgs
+from pypeit.display import display
 from pypeit.core import extract
-from pypeit import datamodel
+from pypeit import datamodel, msgs
 
 
 class Alignments(datamodel.DataContainer):
@@ -32,15 +32,15 @@ class Alignments(datamodel.DataContainer):
     master_type = 'Alignment'
     master_file_format = 'fits'
 
-    datamodel = {
-        'alignframe':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined alignment frames'),
-        'nspec':  dict(otype=int, desc='The number of spectral elements'),
-        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
-        'nslits':  dict(otype=int, desc='The number of slits'),
-        'traces': dict(otype=np.ndarray, atype=np.floating, desc='Traces of the alignment frame'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-    }
+    datamodel = {'alignframe': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Processed, combined alignment frames'),
+                 'nspec': dict(otype=int, descr='The number of spectral elements'),
+                 'nalign': dict(otype=int, descr='Number of alignment traces in each slit'),
+                 'nslits': dict(otype=int, descr='The number of slits'),
+                 'traces': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Traces of the alignment frame'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
                  traces=None, PYP_SPEC=None, spat_id=None):
@@ -91,23 +91,33 @@ class TraceAlignment(object):
     Class to guide the determination of the alignment traces
 
     Args:
-        rawalignimg (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
-            Align image, created by the AlignFrame class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
-            Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
-            The `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set
-            :attr:`spectrograph`.
-        alignpar (:class:`pypeit.par.pypeitpar.AlignPar`):
+        rawalignimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Align image, created by the AlignFrame class. Can be
+            None.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit edge traces.  Can be None.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the instrument used
+            to take the observations. Can be None.
+        alignpar (:class:`~pypeit.par.pypeitpar.AlignPar`):
             The parameters used for the align traces
-        det (int, optional): Detector number
-        qa_path (str, optional):  For QA
-        msbpm (ndarray, optional): Bad pixel mask image
+        det (:obj:`int`, optional):
+            Detector number
+        binning (:obj:`str`, optional):
+            Detector binning in comma separated numbers for the
+            spectral and spatial binning.
+        qa_path (:obj:`str`, optional):
+            Directory for QA plots
+        msbpm (`numpy.ndarray`_, optional):
+            Bad pixel mask image
 
     Attributes:
         steps (:obj:`list`):
             List of the processing steps performed.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Relevant spectrograph.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit edge traces.
     """
     version = '1.0.0'
 
@@ -125,7 +135,7 @@ class TraceAlignment(object):
 
         # Defaults
         self.spectrograph = spectrograph
-        self.PYP_SPEC = spectrograph.spectrograph
+        self.PYP_SPEC = spectrograph.name
         self.binning = binning
         # Alignment parameters
         self.alignpar = alignpar
@@ -214,7 +224,7 @@ class TraceAlignment(object):
 
         Returns
         -------
-        align_traces : :obj:`numpy.ndarray`
+        align_traces : `numpy.ndarray`_
             Spatial traces (3D array of shape [nspec, ntraces, nslits])
         """
         nbars = len(self.alignpar['locations'])
@@ -266,27 +276,27 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     Parameters
     ----------
 
-    alignframe: ndarray
+    alignframe : `numpy.ndarray`_
         Image to be plotted (i.e. the master align frame)
     align_traces : list, optional
         The align traces
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
         properties of the slits, including traces.
-    clear : bool
+    clear : bool, optional
         Clear the plotting window in ginga?
 
     Returns
     -------
 
     """
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     ch_name = 'alignment'
-    viewer, channel = ginga.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
+    viewer, channel = display.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
 
     # Display the slit edges
     if slits is not None and viewer is not None:
         left, right, mask = slits.select_edges()
-        ginga.show_slits(viewer, channel, left, right)
+        display.show_slits(viewer, channel, left, right)
 
     # Display the alignment traces
     if align_traces is not None and viewer is not None:
@@ -297,4 +307,4 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                ginga.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)

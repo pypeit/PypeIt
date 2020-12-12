@@ -49,6 +49,228 @@ def bspline_inner_knots(all_knots):
     return all_knots[i0:i1]
 
 
+def func_fit(x, y, func, deg, x2=None, minx=None, maxx=None, minx2=None, maxx2=None,
+             w=None, inmask=None, guesses=None, return_errors=False):
+    """
+
+    Args:
+        x (`numpy.ndarray`_):
+        y (`numpy.ndarray`_):
+        func (:obj:`str`):
+            polynomial, legendre, chebyshev, gaussian
+        deg (:obj:`int`):
+            degree of the fit
+        x2 (`numpy.ndarray`_, optional):
+        minx:
+        maxx:
+        minx2:
+        maxx2:
+        w (`numpy.ndarray`_, optional):
+        inmask (`numpy.ndarray`_, optional):
+        guesses:
+        return_errors:
+
+    Returns:
+        PypeItFit:
+
+    """
+    if return_errors:
+        msgs.error("Need to deal with this")
+    # Init
+    pcov = None
+
+    # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
+    # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
+    # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
+    # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
+    # removing the locations you want to mask.
+    if inmask is not None:
+        x_out = x[inmask]
+        y_out = y[inmask]
+        if x2 is not None:
+            x2_out = x2[inmask]
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w[inmask]
+        else:
+            w_out = None
+    else:
+        x_out = x
+        y_out = y
+        if x2 is not None:
+            x2_out = x2
+        else:
+            x2_out = None
+        if w is not None:
+            w_out = w
+        else:
+            w_out = None
+
+    # For two-d fits x = x, y = x2, y = z
+    if ('2d' in func) and (x2_out is not None):
+        # Is this a 2d fit?
+        fitc = polyfit2d_general(x_out, x2_out, y_out, deg, w=w_out, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
+    elif func == "polynomial":
+        fitc = np.polynomial.polynomial.polyfit(x_out, y_out, deg, w=w_out)
+    elif func == "legendre":
+        if minx is None or maxx is None:
+            if np.size(x_out) == 1:
+                xmin, xmax = -1.0, 1.0
+            else:
+                xmin, xmax = np.min(x_out), np.max(x_out)
+        else:
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        fitc = np.polynomial.legendre.legfit(xv, y_out, deg, w=w_out)
+    elif func == "chebyshev":
+        if minx is None or maxx is None:
+            if np.size(x_out) == 1:
+                xmin, xmax = -1.0, 1.0
+            else:
+                xmin, xmax = np.min(x_out), np.max(x_out)
+        else:
+            xmin, xmax = minx, maxx
+        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
+        fitc = np.polynomial.chebyshev.chebfit(xv, y_out, deg, w=w_out)
+    elif func == "bspline":
+        msgs.error("Need to update whatever is calling this to call bspline instead..")
+        #if bspline_par is None:
+        #    bspline_par = {}
+        ## TODO -- Deal with this kwargs-like kludge
+        #fitc = bspline_fit(x_out, y_out, order=deg, w=w_out, **bspline_par)
+    elif func == "gaussian":
+        # Guesses
+        if guesses is None:
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
+            # As first guess choose slope and intercept to be zero
+            b = 0
+            m = 0
+        else:
+            if deg == 2:
+                ampl, sigma = guesses
+            elif deg == 3:
+                ampl, cent, sigma = guesses
+            elif deg == 4:
+                b, ampl, cent, sigma = guesses
+            elif deg == 5:
+                m, b, ampl, cent, sigma = guesses
+        # Error
+        if w_out is not None:
+            sig_y = 1./w_out
+        else:
+            sig_y = None
+        if deg == 2:  # 2 parameter fit
+            fitc, pcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
+        elif deg == 3:  # Standard 3 parameters
+            fitc, pcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
+                                   sigma=sig_y)
+        elif deg == 4:  # 4 parameters
+            fitc, pcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma],sigma=sig_y)
+        elif deg == 5:  # 5 parameters
+            fitc, pcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
+    elif func == "moffat":
+        # Guesses
+        if guesses is None:
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
+            p0 = ampl
+            p2 = 3. # Standard guess
+            p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
+        else:
+            p0,p1,p2 = guesses
+        # Error
+        if w_out is not None:
+            sig_y = 1./w_out
+        else:
+            sig_y = None
+        if deg == 3:  # Standard 3 parameters
+            fitc, pcov = curve_fit(moffat, x_out, y_out, p0=[p0,p1,p2], sigma=sig_y)
+        else:
+            msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
+    else:
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
+    # DataContainer
+    pypeitFit = PypeItFit(xval=x, yval=y, weights=w, fitc=fitc, fitcov=pcov, func=func,
+                          minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
+    if inmask is not None:
+        pypeitFit.gpm = inmask.astype(int)
+    return pypeitFit
+
+
+def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
+    """ bspline fit to x,y
+    Should probably only be called from func_fit
+
+    Parameters
+    ----------
+    x: ndarray
+    y: ndarray
+    func: str
+        Name of the fitting function:  polynomial, legendre, chebyshev, bspline
+    deg: int
+        deg of the spline.  Default=3 (cubic)
+    xmin: float, optional
+        Minimum value in the array  [both must be set to normalize]
+    xmax: float, optional
+        Maximum value in the array  [both must be set to normalize]
+    w: ndarray, optional
+        weights to be used in the fitting (weights = 1/sigma)
+    knots: ndarray, optional
+        Internal knots only.  External ones are added by scipy
+    everyn: int
+        Knot everyn good pixels, if used
+    bkspace: float
+        Spacing of breakpoints in units of x
+
+    Returns
+    -------
+    tck : tuple
+        describes the bspline
+    """
+    task = 0  # Default of splrep
+    if w is None:
+        ngd = x.size
+        gd = np.arange(ngd)
+        weights = None
+    else:
+        gd = np.where(w > 0.)[0]
+        weights = w[gd]
+        ngd = len(gd)
+    # Make the knots
+    if knots is None:
+        if bkspace is not None:
+            xrnge = (np.max(x[gd]) - np.min(x[gd]))
+            startx = np.min(x[gd])
+            nbkpts = max(int(xrnge/bkspace) + 1,2)
+            tempbkspace = xrnge/(nbkpts-1)
+            knots = np.arange(1, nbkpts-1)*tempbkspace + startx
+            # Remove cases where two knots have no data between them
+            keep_knots = np.array([True]*len(knots))
+            for ii in range(1,len(knots)): # Ugly for loop..
+                if not np.any((x[gd] > knots[ii-1]) & (x[gd] < knots[ii])):
+                    keep_knots[ii] = False
+            knots = knots[keep_knots]
+        elif everyn is not None:
+            # A knot every good N pixels
+            idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
+            knots = x[gd[idx_knots]]
+        else:
+            msgs.error("No method specified to generate knots")
+    else:
+        task = -1
+    # Generate spline
+    try:
+        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
+    except ValueError:
+        # Knot problem (usually)
+        msgs.warn("Problem in the bspline knot")
+        raise ValueError("Crashing out of bspline fitting")
+    return tck
+
+
 # JFH Testing
 def zerocross1d(x, y, getIndices=False):
     """

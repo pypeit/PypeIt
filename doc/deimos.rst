@@ -8,33 +8,67 @@ Overview
 This file summarizes several instrument specific
 settings that are related to the Keck/DEIMOS spectrograph.
 
+.. warning::
+
+    ``PypeIt`` currently *cannot* reduce images produced by reading
+    the DEIMOS CCDs with the A amplifier or those taken in imaging
+    mode. All image-handling assumes DEIMOS images have been read
+    with the B amplifier in the "Spectral" observing mode. ``PypeIt``
+    handles files that do not meet these criteria in two ways:
+
+        - When running :ref:`pypeit_setup`, any frames not in
+          Spectral mode and read by the B amplifier will be ignored
+          and should not appear in your :ref:`pypeit_file`.
+
+        - If you add frames to the :ref:`pypeit_file` that are not in
+          Spectral mode and read by the B amplifier, the method used
+          to read the DEIMOS files will fault.
 
 Deviations
 ==========
 
-Here are the deviations from the default settings
-for DEIMOS (set in the settings.keck_deimos file)::
+Here are the main deviations from the default settings
+for DEIMOS
+(see :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`)::
 
-    settings trace slits sigdetect 50.0
-    settings trace slits number -1
-    settings trace slits tilts params 1,1,1
-    settings trace slits tilts method spca
-    settings trace slits pca params [3,2,1,0]
-    settings trace slits polyorder  3
-    settings trace slits sobel mode nearest
-    settings trace slits fracignore  0.02   # 0.02 removes star boxes of 40pix size or less (and any real ones too!)
-    settings bias useframe overscan
-    settings pixelflat combine method median
-    settings pixelflat combine reject level [10.0,10.0]
+
+    # Default lamps
+    par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+    # Do not require bias frames
+    turn_off = dict(use_biasimage=False)
+    par.reset_all_processimages_par(**turn_off)
+    # Spectral flexure correction
+    par['flexure']['spec_method'] = 'boxcar'
+
 
 These are tuned to the standard calibration
-set taken with DEIMOS.  Note that the *fracignore*
-setting is designed to remove alignment star boxes
-from the analysis.  If you have real slits which are
-the same size (or smaller) they too will be eliminated.
+set taken with DEIMOS.
 
 Calibrations
 ============
+
+Edge Tracing
+------------
+
+It has been reported that the default `edge_thresh` of 50
+for DEIMOS is too high for some setups.
+
+Slit-mask design matching
+-------------------------
+``PypeIt`` is able to match the traced slit to the slit-mask design information
+contained as meta data in the DEIMOS observations. This functionality at the moment is
+implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
+:ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
+except when *LongMirr* mask is used.
+
+Flat Fielding
+-------------
+
+When using the *LVMslitC* mask, it is common for the
+widest slits to have saturated flat fields.  If so, the
+code will exit during flat fielding. You can skip over them
+as described in :ref:`flat_fielding:Saturated Slits`.
+
 
 Fluxing
 -------

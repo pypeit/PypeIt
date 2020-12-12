@@ -1,77 +1,74 @@
-""" Module for VLT X-Shooter
+"""
+Module for VLT X-Shooter
+
+.. include:: ../include/links.rst
 """
 import glob
+from pkg_resources import resource_filename
+
+from IPython import embed
 
 import numpy as np
-from astropy.io import fits
+
 from astropy.coordinates import SkyCoord
 from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from IPython import embed
 
-from pkg_resources import resource_filename
-
-from pypeit import debugger
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_base'
-        self.telescope = telescopes.VLTTelescopePar()
-
-    @property
-    def pypeline(self):
-        return 'Echelle'
-
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for VLT XSHOOTER reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        return par
+    telescope = telescopes.VLTTelescopePar()
+    pypeline = 'Echelle'
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
-        meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card=None, default='default')
-        meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
-        meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card=None, default='default')
+        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
+        # Dithering
+        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
+                                   required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             if 'HIERARCH ESO DET WIN1 BINX' in headarr[0]:
                 binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
@@ -81,18 +78,54 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
                 binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
             else:
                 binspec = 1
-            binning = parse.binning2string(binspec, binspatial)
-            return binning
-        else:
-            msgs.error("Not ready for this compound meta")
+            return parse.binning2string(binspec, binspatial)
+        msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['arm']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['dither']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
@@ -121,34 +154,30 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    @property
-    def norders(self):
-        return None
-
 
 class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterNIRSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_nir'
-        self.camera = 'XShooter_NIR'
+
+    name = 'vlt_xshooter_nir'
+    camera = 'XShooter_NIR'
+    supported = True
+    comment = 'See :doc:`xshooter`'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -176,13 +205,16 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for XSHOOTER NIR reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = VLTXShooterSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
+        par = super().default_pypeit_par()
 
         # Turn off illumflat
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
@@ -217,7 +249,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
@@ -262,37 +293,38 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
-
-
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
 
         return par
 
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an VLT/XSHOOTER exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'XSHOOTER',
-                            '0.HIERARCH ESO SEQ ARM': 'NIR',
-                            '0.NAXIS': 2 }
-        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
-                                                              expected_values=expected_values)
+# TODO: out-of-date
+#    def check_headers(self, headers):
+#        """
+#        Check headers match expectations for an VLT/XSHOOTER exposure.
+#
+#        See also
+#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
+#
+#        Args:
+#            headers (list):
+#                A list of headers read from a fits file
+#        """
+#        expected_values = { '0.INSTRUME': 'XSHOOTER',
+#                            '0.HIERARCH ESO SEQ ARM': 'NIR',
+#                            '0.NAXIS': 2 }
+#        super(VLTXShooterNIRSpectrograph, self).check_headers(headers,
+#                                                              expected_values=expected_values)
 
     def init_meta(self):
         """
-        Meta data specific to VLT NIR
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(VLTXShooterNIRSpectrograph, self).init_meta()
+        super().init_meta()
         # No binning in the NIR
         self.meta['binning'] = dict(card=None, default='1,1')
 
@@ -300,36 +332,95 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype == 'science':
+            return good_exp & ((fitstbl['idname'] == 'SCIENCE')
+                                | (fitstbl['target'] == 'STD,TELLURIC')
+                                | (fitstbl['target'] == 'STD,SKY'))
+        if ftype == 'standard':
+            return good_exp & (fitstbl['target'] == 'STD,FLUX')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['target'] == 'BIAS')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['target'] == 'DARK')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
+                               | (fitstbl['target'] == 'LAMP,QFLAT')
+                               | (fitstbl['target'] == 'LAMP,FLAT'))
+        if ftype == 'pinhole':
+            # Don't type pinhole
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            return good_exp & ((fitstbl['target'] == 'LAMP,WAVE') | (fitstbl['target'] == 'SCIENCE'))
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
@@ -337,7 +428,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = fits.open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
+                bpm_fits = io.fits_open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -359,13 +450,19 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         return bpm_img
 
-
     @property
     def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
         return 16
 
     @property
     def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
         return np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
                          0.33141317, 0.38813936, 0.44310197, 0.49637422,
                          0.54839496, 0.59948157, 0.65005956, 0.70074477,
@@ -373,33 +470,39 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         return np.arange(26, 10, -1, dtype=int)
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
         spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """
-        Returns the spatial plate scale in arcseconds for each order
+        Return the platescale for each echelle order.
 
-        Parameters
-        ----------
-        None
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
 
-        Optional Parameters
-        --------------------
-        binning: str
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
 
-        Returns
-        -------
-        order_platescale: ndarray, float
-
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
-
-        # ToDO Either assume a linear trend or measure this
+        # TODO: Either assume a linear trend or measure this
         # X-shooter manual says, but gives no exact numbers per order.
         # NIR: 52.4 pixels (0.210"/pix) at order 11 to 59.9 pixels (0.184"/pix) at order 26.
 
@@ -407,15 +510,22 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         plate_scale = 0.184 + (order_vec - 26)*(0.184-0.210)/(26 - 11)
         return plate_scale
 
-
     @property
     def dloglam(self):
-        # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
-        # loglam across the orders deviates from this value by +-6% from this first to final order
+        """
+        Return the logarithmic step in wavelength for output spectra.
+        """
+        # This number was computed by taking the mean of the dloglam for all
+        # the X-shooter orders. The specific loglam across the orders deviates
+        # from this value by +-6% from this first to final order
         return 1.93724e-5
 
     @property
     def loglam_minmax(self):
+        """
+        Return the base-10 logarithm of the first and last wavelength for
+        ouput spectra.
+        """
         return np.log10(9500.0), np.log10(26000)
 
 
@@ -423,25 +533,25 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterVISSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_vis'
-        self.camera = 'XShooter_VIS'
+
+    name = 'vlt_xshooter_vis'
+    camera = 'XShooter_VIS'
+    supported = True
+    comment = 'See :doc:`xshooter`'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -467,23 +577,31 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         )
         return detector_container.DetectorContainer(**detector_dict)
 
-
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for VLT XSHOOTER VIS reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = VLTXShooterSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
+        par = super().default_pypeit_par()
 
         # Adjustments to parameters for VIS
-        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median', use_darkimage=False, use_illumflat=False, use_pixelflat=False)
+        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
+                       use_darkimage=False, use_illumflat=False, use_pixelflat=False)
         par.reset_all_processimages_par(**turn_on)
-        # X-SHOOTER arcs/tilts are also have different binning with bias frames, so don't use bias frames
-        # Don't use the biases for any calibrations since it appears to be a different amplifier readout
+
+        # X-SHOOTER arcs/tilts are also have different binning with bias
+        # frames, so don't use bias frames. Don't use the biases for any
+        # calibrations since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
-        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
-        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
+
+        # Right now we are using the overscan and not biases becuase the
+        # standards are read with a different read mode and we don't yet have
+        # the option to use different sets of biases for different standards,
+        # or use the overscan for standards but not for science frames
         par['scienceframe']['process']['use_biasimage']=True
         par['scienceframe']['process']['use_illumflat']=True
         par['scienceframe']['process']['use_pixelflat']=True
@@ -505,15 +623,16 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.50
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
-        par['calibrations']['wavelengths']['fwhm'] = 11.0 # This is for 1x1 binning. Needs to be divided by binning for binned data!!
+        # This is for 1x1 binning. Needs to be divided by binning for binned data!!
+        par['calibrations']['wavelengths']['fwhm'] = 11.0
         # Reidentification parameters
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        # ToDo the arxived solution is for 1x1 binning. It needs to be generalized for different binning!
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.json'
+        # TODO: the arxived solution is for 1x1 binning. It needs to be
+        # generalized for different binning!
         par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_xshooter_vis1x1.fits'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
         par['calibrations']['wavelengths']['cc_local_thresh'] = 0.50
@@ -531,26 +650,31 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.5
         par['reduce']['skysub']['global_sky_std'] = False
-        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
-        par['reduce']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
-        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
-        par['reduce']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
+        # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True
+        # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['reduce']['findobj']['find_trim_edge'] = [3,3]
+        # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_npoly_cont'] = 0
+        # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['findobj']['find_cont_fit'] = False
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 11
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
-
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
         return par
 
     def init_meta(self):
         """
-        Meta data specific to VLT NIR
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(VLTXShooterVISSpectrograph, self).init_meta()
+        super().init_meta()
         # Add the name of the dispersing element
         # dispangle and filter1 are not defined for Shane Kast Blue
 
@@ -559,22 +683,33 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def norders(self):
+        """
+        Number of orders observed for this spectograph.
+        """
         return 15
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
-                                 0.41289127, 0.4733839 , 0.53072208, 0.58509916,
-                                 0.63671413, 0.685754, 0.73236772, 0.77676367,
-                                 0.8191196 , 0.85968302, 0.89877932])
-        return ord_spat_pos
+        """
+        Return the expected spatial position of each echelle order.
+        """
+        return np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542, 0.41289127, 0.4733839 ,
+                         0.53072208, 0.58509916, 0.63671413, 0.685754, 0.73236772, 0.77676367,
+                         0.8191196 , 0.85968302, 0.89877932])
 
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         return np.arange(30, 15, -1, dtype=int)
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         spec_max = np.asarray([4000]*14 + [3000])
         spec_min = np.asarray([2000,1000] + [0]*13)
         return np.vstack((spec_min, spec_max))
@@ -582,15 +717,20 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     def order_platescale(self, order_vec, binning=None):
         """
-        Returns the plate scale in arcseconds for each order
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
 
         Args:
-            order_vec (np.ndarray): Order numbers
-            binning (optional):
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
 
         Returns:
-            np.ndarray: Platescale
-
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
         # VIS has no binning, but for an instrument with binning we would do this
         binspectral, binspatial = parse.parse_binning(binning)
@@ -603,50 +743,60 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         plate_scale = 0.153 + (order_vec - 30)*(0.153-0.167)/(30 - 17)
         return plate_scale*binspatial
 
-
-
     @property
     def dloglam(self):
-        # This number was computed by taking the mean of the dloglam for all the X-shooter orders. The specific
-        # loglam across the orders deviates from this value by +-7% from this first to final order. This is the
-        # unbinned value. It was actually measured  to be 1.69207e-5  from a 2x1 data and then divided by two.
+        """
+        Return the logarithmic step in wavelength for output spectra.
+        """
+        # This number was computed by taking the mean of the dloglam for all
+        # the X-shooter orders. The specific loglam across the orders deviates
+        # from this value by +-7% from this first to final order. This is the
+        # unbinned value. It was actually measured to be 1.69207e-5 from a 2x1
+        # data and then divided by two.
         return 8.46035e-06
 
     @property
     def loglam_minmax(self):
+        """
+        Return the base-10 logarithm of the first and last wavelength for
+        ouput spectra.
+        """
         return np.log10(5000.0), np.log10(11000)
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         shape = bpm_img.shape
         #
-        # ToDo Ema: This is just a workaround to deal with
-        # different binning. I guess binspatial and binspectral
-        # should be passed in.
+        # TODO: Ema: This is just a workaround to deal with different binning.
+        # I guess binspatial and binspectral should be passed in.
         if shape[0]<3000.:
             binspectral_bpm=2
         else:
@@ -661,30 +811,28 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         return bpm_img
 
 
-
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
-    def __init__(self):
-        # Get it started
-        super(VLTXShooterUVBSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_xshooter_uvb'
-        self.camera = 'XShooter_UVB'
 
+    name = 'vlt_xshooter_uvb'
+    camera = 'XShooter_UVB'
+    comment = 'See :doc:`xshooter`'
+    
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -711,14 +859,16 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detector_dict)
 
-
-#    @staticmethod
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for VLT XSHOOTER UVB reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = VLTXShooterSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'vlt_xshooter_uvb'
+        par = super().default_pypeit_par()
 
         # Adjustments to slit and tilts for UVB
         par['calibrations']['slitedges']['edge_thresh'] = 8.
@@ -758,63 +908,36 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
     def init_meta(self):
         """
-        Meta data specific to VLT NIR
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(VLTXShooterUVBSpectrograph, self).init_meta()
+        super().init_meta()
         # Add the name of the dispersing element
         # dispangle and filter1 are not defined for Shane Kast Blue
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
 
-#    def slit2order(self, islit, nslit):
-#
-#        """
-#        Parameters
-#        ----------
-#        islit: int, float, or string, slit number
-#
-#        Returns
-#        -------
-#        order: int
-#        """
-#        msgs.error("Refactor to use slit_spat_pos!!")
-#
-#        if isinstance(islit, str):
-#            islit = int(islit)
-#        elif isinstance(islit, np.ndarray):
-#            islit = islit.astype(int)
-#        elif isinstance(islit, float):
-#            islit = int(islit)
-#        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-#            pass
-#        else:
-#            msgs.error('Unrecognized type for islit')
-#
-#        orders = np.arange(24,12,-1, dtype=int)
-#        return orders[islit]
-
-
     def order_platescale(self, binning = None):
         """
-        Returns the plate scale in arcseconds for each order
+        Return the platescale for each echelle order.
 
-        Parameters
-        ----------
-        None
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
 
-        Optional Parameters
-        --------------------
-        binning: str
+        Args:
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
 
-        Returns
-        -------
-        order_platescale: ndarray, float
-
+        Returns:
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
+        # TODO: So UVB is not supported?
         msgs.error("REFACTOR")
 
         binspectral, binspatial = parse.parse_binning(binning)
@@ -828,29 +951,33 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to X-Shooter UVB.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             # TODO: This is for the 1x1 binning it should

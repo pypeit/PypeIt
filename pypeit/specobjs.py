@@ -2,7 +2,7 @@
 Module for the SpecObjs and SpecObj classes
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 import re
@@ -15,7 +15,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import specobj
-from pypeit.io import initialize_header
+from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -24,7 +24,7 @@ from pypeit import slittrace
 from IPython import embed
 
 
-class SpecObjs(object):
+class SpecObjs:
     """
     Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
 
@@ -46,7 +46,7 @@ class SpecObjs(object):
     version = '1.0.0'
 
     @classmethod
-    def from_fitsfile(cls, fits_file, det=None):
+    def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
         Instantiate from a FITS file
 
@@ -56,17 +56,20 @@ class SpecObjs(object):
             fits_file (str):
             det (int, optional):
                 Only load SpecObj matching this det value
+            chk_version (:obj:`bool`):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             specobsj.SpecObjs
 
         """
         # HDUList
-        hdul = fits.open(fits_file)
+        hdul = io.fits_open(fits_file)
         # Init
         slf = cls()
         # Add on the header
         slf.header = hdul[0].header
+        # Keep track of HDUList for closing later
 
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
@@ -77,7 +80,7 @@ class SpecObjs(object):
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            sobj = specobj.SpecObj.from_hdu(hdu)
+            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
@@ -87,6 +90,7 @@ class SpecObjs(object):
             # Append
             slf.add_sobj(sobj)
         # Return
+        hdul.close()
         return slf
 
     def __init__(self, specobjs=None, header=None):
@@ -100,6 +104,7 @@ class SpecObjs(object):
             self.specobjs = specobjs
 
         self.header = header if header is not None else None
+        self.hdul = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -267,9 +272,9 @@ class SpecObjs(object):
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
                     # Grab SNR
-                    if self.OPT_COUNTS[0] is not None:
+                    if spec[0].OPT_COUNTS is not None:
                         SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif self.BOX_COUNTS[0] is not None:
+                    elif spec[0].BOX_COUNTS is not None:
                         SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
                     else:
                         return None
@@ -331,6 +336,30 @@ class SpecObjs(object):
             self.remove_sobj(index)
 
 
+    def make_neg_pos(self):
+        """
+        Purge negative objects from specobjs for IR reductions
+
+        """
+        # Assign the sign and the objids
+        if self.nobj > 0:
+            if self[0].PYPELINE == 'Echelle':
+                index = self.ECH_OBJID < 0
+            elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            elif self[0].PYPELINE == 'IFU':
+                index = self.OBJID < 0
+            else:
+                msgs.error("Should not get here")
+            try:
+                self[index].OPT_COUNTS *= -1
+            except (TypeError,ValueError):
+                pass
+            try:
+                self[index].BOX_COUNTS *= -1
+            except (TypeError,ValueError):
+                pass
+
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
@@ -371,7 +400,6 @@ class SpecObjs(object):
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
-
 
     def slitorder_objid_indices(self, slitorder, objid):
         """
@@ -500,8 +528,8 @@ class SpecObjs(object):
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
-            outfile (str):
             subheader (:obj:`dict`):
+            outfile (str):
             overwrite (bool, optional):
             slitspatnum (:obj:`str` or :obj:`list`, optional):
                 Restricted set of slits for reduction
@@ -537,7 +565,7 @@ class SpecObjs(object):
             _specobjs = self.specobjs
 
         # Build up the Header
-        header = initialize_header(primary=True)
+        header = io.initialize_header(primary=True)
         for key in subheader.keys():
             header[key.upper()] = subheader[key]
 
@@ -596,7 +624,7 @@ class SpecObjs(object):
         prihdu.header['NSPEC'] = nspec
 
         # Code versions
-        initialize_header(hdr=prihdu.header)
+        io.initialize_header(hdr=prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)
@@ -615,7 +643,9 @@ class SpecObjs(object):
             pypeline (:obj:`str`): PypeIt pipeline mode
         """
         # TODO -- Deal with update_det
-        slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+        # Lists for a Table
+        slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
+            [], [], [], [], [], [], [], [], [], [], []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
@@ -656,8 +686,7 @@ class SpecObjs(object):
 
             # Optimal profile (FWHM)
             # S2N -- default to boxcar
-            if specobj.FWHMFIT is not None:
-                # opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            if specobj.FWHMFIT is not None and specobj.OPT_COUNTS is not None:
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
                 # S2N -- optimal
                 ivar = specobj.OPT_COUNTS_IVAR
@@ -671,6 +700,13 @@ class SpecObjs(object):
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            if specobj.MASKDEF_ID is not None:
+                maskdef_id.append(specobj.MASKDEF_ID)
+            if specobj.MASKDEF_OBJNAME is not None:
+                objname.append(specobj.MASKDEF_OBJNAME)
+            if specobj.RA is not None:
+                objra.append(specobj.RA)
+                objdec.append(specobj.DEC)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -685,6 +721,16 @@ class SpecObjs(object):
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
+            if specobj.MASKDEF_ID is not None:
+                obj_tbl['maskdef_id'] = maskdef_id
+                obj_tbl['maskdef_id'].format = 'd'
+            if specobj.MASKDEF_OBJNAME is not None:
+                obj_tbl['objname'] = objname
+            if specobj.RA is not None:
+                obj_tbl['objra'] = objra
+                obj_tbl['objra'].format = '.5f'
+                obj_tbl['objdec'] = objdec
+                obj_tbl['objdec'].format = '.5f'
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos

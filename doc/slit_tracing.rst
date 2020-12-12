@@ -1,3 +1,6 @@
+
+.. _slit_tracing:
+
 ============
 Slit Tracing
 ============
@@ -19,13 +22,29 @@ edge cases (pun intended) is challenging if not impossible.
 Therefore, there are a number of user-input parameters
 that one may need to consider when running PypeIt (see below).
 
-Underlying the effort is the :class:`pypeit.edgetrace.EdgeTrace` class.
+Underlying the effort is the :class:`pypeit.edgetrace.EdgeTraceSet` class.
 
 Viewing
 =======
 
-See :doc:`master_edges` for notes on how to view the
+See :doc:`master_edges` and :doc:`master_slits` for notes on how to view the
 outputs related to `Slit Tracing`_.
+
+Script
+======
+
+Slit tracing is one of the steps in ``PypeIt`` that can be run
+independently of the full reduction, using the ``pypeit_trace_edges``
+script. This can nominally be run just by providing a trace image
+(but this is had limited testing), but it's recommended that you
+first construct the :ref:`pypeit_file` you would use to fully reduce
+the data and supply that as the argument to ``pypeit_trace_edges``.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_trace_edges.rst
+
 
 Known Slit Tracing Issues
 =========================
@@ -56,6 +75,7 @@ keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
     [calibrations]
       [[slitedges]]
         sync_predict = nearest
+
 
 
 Missing a Slit

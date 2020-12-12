@@ -59,8 +59,9 @@ def read_sensfile(ifile):
 
 
 # TODO Need an option here for multi_spec_det detectors, passed as a list of numbers in the SensFunc parset, or as --det 3 7 on the command line
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
+def parse_args(options=None, return_parser=False):
+    parser = argparse.ArgumentParser(description='Compute a sensitivity function',
+                                     formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
     parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
@@ -101,12 +102,10 @@ def parser(options=None):
     #parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
     parser.add_argument("--par_outfile", default='sensfunc.par', help="Name of outut file to save the parameters used by the fit")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
 
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

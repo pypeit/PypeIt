@@ -4,14 +4,16 @@
 #
 # -*- coding: utf-8 -*-
 
-from pypeit import par, msgs
+import os
+import argparse
+from pkg_resources import resource_filename
+
 from astropy.io import fits
+
+from pypeit import par, msgs
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-import argparse
 from pypeit.core import telluric
-import os
-from pkg_resources import resource_filename
 
 
 # A trick from stackoverflow to allow multi-line output in the help:
@@ -52,10 +54,11 @@ def read_tellfile(ifile):
     # Return
     return cfg_lines
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
+def parse_args(options=None, return_parser=False):
+    parser = argparse.ArgumentParser(description='Telluric correct a spectrum',
+                                     formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
-                        help="spec1d file for the standard that will be used to compute sensitivity function")
+                        help="spec1d file that will be used for telluric correction.")
     parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
                         help="R|science object model used in the fitting.\n"
                         "The options are:\n"
@@ -99,11 +102,10 @@ def parser(options=None):
     parser.add_argument("--plot", default=False, action="store_true", help="Show the telluric corrected spectrum")
     parser.add_argument("--par_outfile", default='telluric.par', help="Name of outut file to save the parameters used by the fit")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -134,11 +136,13 @@ def main(args):
 
     if args.tell_grid is not None:
         par['tellfit']['tell_grid'] = args.tell_grid
-    elif par['sensfunc']['IR']['telgridfile'] is not None:
-        par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
-    else:
-        msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-        par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+    if par['tellfit']['tell_grid'] is None:
+        if par['sensfunc']['IR']['telgridfile'] is not None:
+            par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
+        else:
+            msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
+            par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))

@@ -13,7 +13,7 @@ from configobj import ConfigObj
 from astropy.io import fits
 
 from pypeit.pypeit import PypeIt
-from pypeit import par, msgs
+from pypeit import par, msgs, io
 from pypeit import coadd2d
 #from pypeit.core import save
 from pypeit import io
@@ -23,61 +23,11 @@ from pypeit import spec2dobj
 
 from IPython import embed
 
-# TODO: We need an 'io' module where we can put functions like this...
-def read_coadd2d_file(ifile):
-    """
-    Read a PypeIt coadd2d file, akin to a standard PypeIt file.
 
-    .. todo::
+def parse_args(options=None, return_parser=False):
 
-        - Need a better description of this.  Probably for the PypeIt
-          file itself, too!
-
-    The top is a config block that sets ParSet parameters.  The
-    spectrograph is required.
-
-    Args:
-        ifile (:obj:`str`):
-          Name of the flux file
-
-    Returns:
-        tuple: Returns three objects: (1) The
-        :class:`pypeit.spectrographs.spectrograph.Spectrograph`
-        instance, (2) the list of configuration lines used to modify the
-        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
-        (3) the list of spec2d files to combine.
-    """
-
-    # Read in the pypeit reduction file
-    msgs.info('Loading the coadd2d file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-    is_config = np.ones(len(lines), dtype=bool)
-
-
-    # Parse the coadd block
-    spec2d_files = []
-    s, e = par.util._find_pypeit_block(lines, 'coadd2d')
-    if s >= 0 and e < 0:
-        msgs.error("Missing 'coadd2d end' in {0}".format(ifile))
-    for line in lines[s:e]:
-        prs = line.split(' ')
-        # TODO: This needs to allow for the science directory to be
-        # defined by the user.
-        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
-        spec2d_files.append(prs[0])
-    is_config[s-1:e+1] = False
-    # Construct config to get spectrograph
-    cfg_lines = list(lines[is_config])
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name)
-
-    # Return
-    return spectrograph, cfg_lines, spec2d_files
-
-
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse')
+    parser = argparse.ArgumentParser(description='Coadd 2D spectra',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
     parser.add_argument('--det', default=None, type=int, help="Only coadd this detector number")
     parser.add_argument("--obj", type=str, default=None,
@@ -103,6 +53,8 @@ def parser(options=None):
     #parser.add_argument("--std", default=False, action="store_true",
     #                    help="This is a standard star reduction.")
 
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -113,7 +65,9 @@ def main(args):
     msgs.warn('PATH =' + os.getcwd())
     # Load the file
     if args.file is not None:
-        spectrograph, config_lines, spec2d_files = read_coadd2d_file(args.file)
+        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd2d")
+        spectrograph = load_spectrograph(spectrograph_name)
+
         # Parameters
         # TODO: Shouldn't this reinstantiate the same parameters used in
         # the PypeIt run that extracted the objects?  Why are we not
@@ -128,7 +82,7 @@ def main(args):
         # TODO: This needs to define the science path
         spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
         head0 = fits.getheader(spec2d_files[0])
-        spectrograph_name = head0['SPECTROG']
+        spectrograph_name = head0['PYP_SPEC']
         spectrograph = load_spectrograph(spectrograph_name)
         parset = spectrograph.default_pypeit_par()
     else:
@@ -212,7 +166,7 @@ def main(args):
                                              weights=parset['coadd2d']['weights'],
                                              ir_redux=ir_redux,
                                              debug_offsets=args.debug_offsets, debug=args.debug,
-                                             samp_fact=args.samp_fact, master_dir=master_dir)
+                                             samp_fact=args.samp_fact)
 
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
@@ -226,7 +180,9 @@ def main(args):
         # TODO -- JFH -- Check that the slits we are using are correct
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'], \
-            sci_dict[det]['slits'] = coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
+            sci_dict[det]['slits'], sci_dict[det]['tilts'], sci_dict[det]['waveimg'] = coadd.reduce(
+            pseudo_dict, show = args.show, show_peaks = args.peaks)
+
         # Save pseudo image master files
         #coadd.save_masters()
 
@@ -260,13 +216,16 @@ def main(args):
                                               skymodel=sci_dict[det]['skymodel'],
                                               objmodel=sci_dict[det]['objmodel'],
                                               ivarmodel=sci_dict[det]['ivarmodel'],
+                                              scaleimg=np.array([1.0], dtype=np.float),
                                               bpmmask=sci_dict[det]['outmask'],
                                               detector=sci_dict[det]['detector'],
                                               slits=sci_dict[det]['slits'],
-                                        # TODO -- JFH :: Fill in all of these
-                                        waveimg=None,
-                                        sci_spat_flexure=None,
-                                        tilts=None)
+                                              waveimg=sci_dict[det]['waveimg'],
+                                              tilts=sci_dict[det]['tilts'],
+                                              sci_spat_flexure=None,
+                                              sci_spec_flexure=None,
+                                              vel_corr=None,
+                                              vel_type=None)
     # Build header
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,

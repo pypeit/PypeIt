@@ -2,17 +2,20 @@
 Module to define the SlitMask class
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 from collections import OrderedDict
 import warnings
 import numpy
 from scipy import optimize, fftpack, signal
 from matplotlib import pyplot
-from astropy.stats import sigma_clip, sigma_clipped_stats
+
+from astropy.stats import sigma_clip
 
 from pypeit.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
+
+from IPython import embed
 
 class SlitMaskBitMask(BitMask):
     """
@@ -125,6 +128,12 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
+        posx_pa (:obj:`float`):
+            Sky PA that points to positive x (spatial) on the detector
+        negx_pa (:obj:`float`):
+            Sky PA that points to negative x (spatial) on the detector
+        object_names (`numpy.ndarray`_):
+            Object names
 
     Raises:
         ValueError:
@@ -133,7 +142,16 @@ class SlitMask:
             slits provided.
     """
     bitmask = SlitMaskBitMask()
-    def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None):
+    def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None,
+                 posx_pa=None, object_names=None):
+
+        # PA
+        if posx_pa is not None:
+            self.posx_pa, self.negx_pa = fuss_with_maskpa(posx_pa)
+        else:
+            self.posx_pa, self.negx_pa = None, None
+
+        self.object_names=object_names
 
         # TODO: Allow random input order and then fix
 
@@ -188,8 +206,9 @@ class SlitMask:
         self.slitindx = None
         if objects is not None:
             self.objects = numpy.atleast_2d(objects)
-            if self.objects.shape[1] != 4:
-                raise ValueError('Must provide the slit ID and sky coordinates for each object.')
+            if self.objects.shape[1] != 7:
+                raise ValueError('Must provide the slit ID, sky coordinates, object name, top '
+                                 'and bottom distance for each object.')
             try:
                 self.slitindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
                                                 strict=True)
@@ -216,6 +235,7 @@ class SlitMask:
                                               numpy.diff(self.corners[:,0:2,0], axis=1))).ravel()
         self.pa[self.pa < -90] += 180
         self.pa[self.pa > 90] -= 180
+
 
     def __repr__(self):
         return '<{0}: nslits={1}>'.format(self.__class__.__name__, self.nslits)
@@ -884,4 +904,11 @@ def build_slit_function(edges, size=None, oversample=1, sigma=None):
     return offset, slit_func_x, slit_func_y
 
 
-
+def fuss_with_maskpa(pa):
+    # Require it be positive
+    if pa < 0.:
+        pa += 360.
+    # Now the complement -- also require it be positive
+    comp_pa = pa - 180. if pa > 180. else pa + 180.
+    # Return
+    return pa, comp_pa

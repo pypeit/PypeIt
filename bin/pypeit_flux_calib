@@ -4,8 +4,8 @@
 Flux the spectra and/or generate a sensitity function
 """
 
-import pypeit.scripts.flux_calib as flux_calib
+from pypeit.scripts import flux_calib
 
 if __name__ == '__main__':
-    args = flux_calib.parser()
-    flux_calib.main(args)
+    flux_calib.main(flux_calib.parse_args())
+

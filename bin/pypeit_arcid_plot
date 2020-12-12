@@ -8,8 +8,8 @@
 This script generates an ArcID plot from a Master WaveSoln file
 """
 
-import pypeit.scripts.arcid_plot as arcid_plot
+from pypeit.scripts import arcid_plot
 
 if __name__ == '__main__':
-    args = arcid_plot.parser()
-    arcid_plot.main(args)
+    arcid_plot.main(arcid_plot.parse_args())
+

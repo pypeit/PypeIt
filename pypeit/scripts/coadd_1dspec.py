@@ -112,6 +112,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         show:
 
     Returns:
+        outfiles (list): list of files written to
 
     """
     # Build sync_dict
@@ -126,6 +127,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     par['coadd1d']['flux_value'] = False
 
     sensfile = None
+    outfiles = []
     # Loop on entries
     for key in sync_dict:
 
@@ -139,9 +141,13 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         coAdd1d.run()
         # Save to file
         coAdd1d.save(coaddfile)
+        outfiles.append(coaddfile)
+    
+    return outfiles
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("coadd1d_file", type=str,
                         help="R|File to guide coadding process. This file must have the following format: \n"
@@ -181,11 +187,10 @@ def parser(options=None):
     parser.add_argument("--test_spec_path", type=str, help="Path for testing")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):
@@ -224,7 +229,7 @@ def main(args):
             sensfile = os.path.join(args.test_spec_path, sensfile)
         coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
-    if spectrograph.pypeline is 'Echelle' and sensfile is None:
+    if spectrograph.pypeline == 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
     # Instantiate

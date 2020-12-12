@@ -1,46 +1,48 @@
-""" Module for Magellan/MAGE specific codes
 """
+Module for Magellan/MAGE specific methods.
+
+.. include:: ../include/links.rst
+"""
+
+from IPython import embed
+
 import numpy as np
 
 from astropy.time import Time
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit import debugger
-
-from IPython import embed
 
 class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Magellan/MAGE specific code
     """
-    def __init__(self):
-        # Get it started
-        super(MagellanMAGESpectrograph, self).__init__()
-        self.spectrograph = 'magellan_mage'
-        self.camera = 'MagE'
-        self.telescope = telescopes.MagellanTelescopePar()
     ndet = 1
+    name = 'magellan_mage'
+    camera = 'MagE'
+    telescope = telescopes.MagellanTelescopePar()
+    pypeline = 'Echelle'
+    supported = True
+    comment = 'See :doc:`mage`'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -72,16 +74,17 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # 20-6
         return detector_container.DetectorContainer(**detector_dict)
 
-    @property
-    def pypeline(self):
-        return 'Echelle'
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
-    def default_pypeit_par(self):
-        """
-        Set default parameters for magellan MagE reduction.
-        """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'magellan_mage'
         # Bias
         #par['calibrations']['biasframe']['useframe'] = 'overscan'
         # Wavelengths
@@ -89,7 +92,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
@@ -108,7 +110,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
 
         # Set slits and tilts parameters
-        par['calibrations']['tilts']['tracethresh'] = [10]*self.norders
+        par['calibrations']['tilts']['tracethresh'] = 10. #[10]*self.norders
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 3.
         par['calibrations']['slitedges']['edge_thresh'] = 10.  # Tough to get the bluest orders
@@ -128,42 +130,40 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
         #TODO: Check decker is correct
-        meta['decker'] = dict(ext=0, card='SLITNAME')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['decker'] = dict(ext=0, card='SLITNAME')
+        self.meta['binning'] = dict(card=None, compound=True)
 #        self.meta['binning'] = dict(ext=0, card='BINNING')
-        meta['mjd'] = dict(ext=0, card=None, compound=True)
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='INSTRUME')
-        meta['idname'] = dict(ext=0, card='EXPTYPE')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card='INSTRUME')
+        self.meta['idname'] = dict(ext=0, card='EXPTYPE')
 
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
@@ -176,11 +176,39 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return []
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         if ftype in ['pinhole', 'dark']:
             # No pinhole or bias or dark frames
@@ -197,33 +225,37 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        msgs.info("Custom bad pixel mask for MAGE")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Get the binning
-        hdu = fits.open(filename)
+        msgs.info("Custom bad pixel mask for MAGE")
+        hdu = io.fits_open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
         hdu.close()
         # Do it
@@ -232,71 +264,56 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
-# TODO: Not sure if this was ever used.
-#    @staticmethod
-#    def slitmask(tslits_dict, pad=None, binning=None):
-#        """
-#         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-#         overload this function to implement instrument specific slitmask behavior, for example setting
-#         where the orders on an echelle spectrograph end
-#
-#         Parameters
-#         -----------
-#         tslits_dict: dict
-#            Trace slits dictionary with slit boundary information
-#
-#         Optional Parameters
-#         pad: int or float
-#            Padding of the slit boundaries
-#         binning: tuple
-#            Spectrograph binning in spectral and spatial directions
-#
-#         Returns
-#         -------
-#         slitmask: ndarray int
-#            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-#            indicating the slit number going from 0 to nslit-1 from left to right.
-#
-#         """
-#
-#        # These lines are always the same
-#        pad = tslits_dict['pad'] if pad is None else pad
-#        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-#
-#        return slitmask
-
     @property
     def norders(self):
-        return 15   # 20-6
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
+        return 12   # 20-6
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos =  np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
-               0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
+        """
+        Return the expected spatial position of each echelle order.
+        """
+        ord_spat_pos =  np.array([0.316, 0.399, 0.475, 0.545, 0.609, 0.669, 0.723, 0.774, 0.823,
+                                  0.869, 0.915, 0.965])
         return ord_spat_pos
 
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         return  np.arange(17, 5, -1, dtype=int)
-
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         spec_max = np.full(self.norders, np.inf)
         spec_min = np.full(self.norders, -np.inf)
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """
-        Returns the plate scale in arcseconds for each order
+        Return the platescale for each echelle order.
+
+        This routine is only defined for echelle spectrographs, and it is
+        undefined in the base class.
 
         Args:
-            order_vec (np.ndarray): Order numbers
-            binning (optional):
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning.
 
         Returns:
-            np.ndarray: Platescale
-
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
         norders = len(order_vec)
         binspatial, binspec = parse.parse_binning(binning)

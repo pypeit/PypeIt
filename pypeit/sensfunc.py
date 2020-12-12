@@ -10,17 +10,16 @@ import inspect
 from matplotlib import pyplot as plt
 
 from pypeit import msgs
-from pypeit import ginga
 from pypeit import specobjs
 from pypeit.core import flux_calib
-from pypeit.core import telluric
+from pypeit.core import telluric, fitting
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
 from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
-from pypeit.io import initialize_header
+from pypeit import io
 from pypeit.core import meta
 
 
@@ -61,7 +60,7 @@ class SensFunc(object):
     def load(cls, sensfile):
         # Write to outfile
         msgs.info('Reading sensitivity function from file: {:}'.format(sensfile))
-        hdulist = fits.open(sensfile)
+        hdulist = io.fits_open(sensfile)
         header = hdulist[0].header
         wave = hdulist['WAVE'].data
         sensfunc = hdulist['SENSFUNC'].data
@@ -158,9 +157,9 @@ class SensFunc(object):
         msgs.info('Writing sensitivity function results to file: {:}'.format(self.sensfile))
 
         # Standard init
-        hdr = initialize_header()
+        hdr = io.initialize_header()
 
-        hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        hdr['PYP_SPEC'] = (self.spectrograph.name, 'PypeIt: Spectrograph name')
         hdr['PYPELINE'] = self.spectrograph.pypeline
         #   - List the completed steps
         hdr['STEPS'] = (','.join(self.steps), 'Completed sensfunc steps')
@@ -343,7 +342,8 @@ class IR(SensFunc):
         polyorder_vec = self.meta_table['POLYORDER_VEC'][0]
         func = self.meta_table['FUNC'][0]
         coeff = self.out_table[iorddet]['OBJ_THETA'][0:polyorder_vec[iorddet] + 2]
-        sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
+        sensfunc = np.exp(fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max))
+        #sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
         return sensfunc
 
 
@@ -369,15 +369,17 @@ class UVIS(SensFunc):
         """
 
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
-                                                              self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
-                                                              self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
-                                                              self.meta_spec['ECH_ORDERS'], 
-                                                              telluric=False, polyorder=self.par['polyorder'],
-                                                              balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
-                                                              nresln=self.par['UVIS']['nresln'],
-                                                              resolution=self.par['UVIS']['resolution'],
-                                                              trans_thresh=self.par['UVIS']['trans_thresh'],
-                                                              polycorrect=True, debug=self.debug)
+                                                    self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
+                                                    self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
+                                                    self.meta_spec['ECH_ORDERS'],
+                                                    telluric=False, polyorder=self.par['polyorder'],
+                                                    balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
+                                                    nresln=self.par['UVIS']['nresln'],
+                                                    resolution=self.par['UVIS']['resolution'],
+                                                    trans_thresh=self.par['UVIS']['trans_thresh'],
+                                                    polycorrect=self.par['UVIS']['polycorrect'],
+                                                    polyfunc=self.par['UVIS']['polyfunc'],
+                                                    debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
 

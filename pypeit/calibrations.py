@@ -2,7 +2,7 @@
 Class for guiding calibration object generation in PypeIt
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 
@@ -12,8 +12,6 @@ from collections import Counter
 from IPython import embed
 
 import numpy as np
-
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import alignframe
@@ -28,6 +26,8 @@ from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit import io
+from pypeit import utils
 
 
 class Calibrations(object):
@@ -62,14 +62,18 @@ class Calibrations(object):
     .. todo: Fix these
 
     Attributes:
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+            Table with metadata for all fits files to reduce.
         wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
         mstilt (:class:`pypeit.images.buildimage.TiltImage`):
         flatimages (:class:`pypeit.flatfield.FlatImages`):
         msbias (:class:`pypeit.images.buildimage.BiasImage`):
         msdark (:class:`pypeit.images.buildimage.DarkImage`):
         msbpm (`numpy.ndarray`_):
+        msarc (:class:`pypeit.images.buildimage.ArcImage`):
+            Master arc-lamp image.
         alignments (:class:`pypeit.alignframe.Alignments`):
-        wv_calib (:obj:`dict`):
+        wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         write_qa
@@ -197,7 +201,7 @@ class Calibrations(object):
         Args:
             frame (int): Frame index in the fitstbl
             det (int): Detector number
-            par (:class:`pypeit.par.pypeitpar.CalibrationPar`):
+            par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
 
         """
         # Reset internals to None
@@ -227,7 +231,7 @@ class Calibrations(object):
         Args:
 
         Returns:
-            ndarray: :attr:`msarc` image
+            `numpy.ndarray`_: :attr:`msarc` image
 
         """
         # Check internals
@@ -265,7 +269,7 @@ class Calibrations(object):
         Args:
 
         Returns:
-            ndarray: :attr:`mstilt` image
+            `numpy.ndarray`_: :attr:`mstilt` image
 
         """
         # Check internals
@@ -412,6 +416,7 @@ class Calibrations(object):
         elif len(dark_files) == 0:
             self.msdark = None
         else:
+            # TODO: Should this include the bias?
             # Build it
             self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['darkframe'], dark_files)
@@ -436,7 +441,7 @@ class Calibrations(object):
            Instrument dependent
 
         Returns:
-            `numpy.ndarray`: :attr:`msbpm` image of bad pixel mask
+            `numpy.ndarray`_: :attr:`msbpm` image of bad pixel mask
 
         """
         # Check internals
@@ -450,7 +455,7 @@ class Calibrations(object):
 
         # Check if a bias frame exists, and if a BPM should be generated
         msbias = None
-        if self.par['bpm_usebias'] and self._cached('bias', self.master_key_dict['bias']):
+        if self.par['bpm_usebias']:
             msbias = self.msbias
         # Build it
         self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
@@ -467,8 +472,8 @@ class Calibrations(object):
         Requires :attr:`slits`, :attr:`wavetilts`, :attr:`det`,
         :attr:`par`.
 
-        Returns:
-            :class:`pypeit.flatfield.Flats`:
+        Constructs :attr:`flatimages`.
+
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
@@ -506,7 +511,7 @@ class Calibrations(object):
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
                 msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-                with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
                     flatimages = flatfield.merge(flatimages, nrm_image)
             self.flatimages = flatimages
@@ -566,7 +571,7 @@ class Calibrations(object):
         if self.par['flatfield']['pixelflat_file'] is not None:
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
-            with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+            with io.fits_open(self.par['flatfield']['pixelflat_file']) as hdu:
                 flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
         self.flatimages = flatimages
@@ -581,9 +586,8 @@ class Calibrations(object):
         :attr:`calib_ID`, :attr:`det`.
 
         Returns:
-            :class:`pypeit.slittrace.SlitTraceSet`:
-                Returns the :class:`SlitTraceSet` object (also kept
-                internally as :attr:`slits`)
+            :class:`pypeit.slittrace.SlitTraceSet`: Traces of the
+            slit edges; also kept internally as :attr:`slits`.
 
         """
         # Check for existing data
@@ -614,7 +618,7 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
             elif len(trace_image_files) == 0:
                 msgs.warn("No frametype=trace files to build slits")
-                return
+                return None
             else:
                 # Build the trace image
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -623,14 +627,12 @@ class Calibrations(object):
                                                         dark=self.msdark)
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
-                                                    det=self.det, auto=True,
-                                                    files=trace_image_files)
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
+                                                    auto=True)
+                self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
                 if self.show:
-                    self.edges.show(thin=10, in_ginga=True)
+                    self.edges.show(in_ginga=True)
 
             # Get the slits from the result of the edge tracing, delete
             # the edges object, and save the slits, if requested
@@ -674,23 +676,23 @@ class Calibrations(object):
         # TODO : Do this internally when we have a wv_calib DataContainer
         binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
 
-        # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.slits, self.spectrograph,
+        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib,
+                                                           self.master_key_dict['arc'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
+            self.wv_calib.chk_synced(self.slits)
+            self.slits.mask_wvcalib(self.wv_calib)
+        else:
+            # Instantiate
+            self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], binspectral=binspec,
                                              det=self.det,
                                              master_key=self.master_key_dict['arc'],  # For QA naming
                                              qa_path=self.qa_path, msbpm=self.msbpm)
-        # Load from disk (MasterFrame)?
-        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, self.master_key_dict['arc'],
-                                                           master_dir=self.master_dir)
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            # Load from disk
-            self.wv_calib = self.waveCalib.load(masterframe_name)
-            self.slits.mask_wvcalib(self.wv_calib)
-        else:
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
-            self.waveCalib.save(outfile=masterframe_name)
+            self.wv_calib.to_master_file(masterframe_name)
 
         # Return
         return self.wv_calib
@@ -847,20 +849,28 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats']
 
 
-def check_for_calibs(par, fitstbl, raise_error=True):
+def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """
     Perform a somewhat quick and dirty check to see if the user
     has provided all of the calibration frametype's to reduce
     the science frames
 
     Args:
-        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         raise_error (:obj:`bool`, optional):
             If True, crash out
+        cut_cfg (`numpy.ndarray`_, optional):
+            Also cut on this restricted configuration (mainly for chk_calibs)
+
+    Returns:
+        bool: True if we passed all checks
     """
+    if cut_cfg is None:
+        cut_cfg = np.ones(len(fitstbl), dtype=bool)
+    pass_calib = True
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
@@ -868,7 +878,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
 
     for i in range(fitstbl.n_calib_groups):
         in_grp = fitstbl.find_calib_group(i)
-        grp_science = frame_indx[is_science & in_grp]
+        grp_science = frame_indx[is_science & in_grp & cut_cfg]
         u_combid = np.unique(fitstbl['comb_id'][grp_science])
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
@@ -880,6 +890,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                 if len(rows) == 0:
                     # Fail
                     msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    pass_calib = False
                     if raise_error:
                         msgs.error(msg)
                     else:
@@ -892,12 +903,16 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
                         # Allow for pixelflat inserted
-                        if ftype is 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                        if ftype == 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
                         # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
+                        pass_calib = False
                         if raise_error:
                             msgs.error(msg)
                         else:
                             msgs.warn(msg)
 
+    if pass_calib:
+        msgs.info("Congrats!!  You passed the calibrations inspection!!")
+    return pass_calib

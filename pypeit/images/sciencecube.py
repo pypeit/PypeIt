@@ -2,20 +2,18 @@
 This module also includes the build_from_list() method
 which is how the ScienceImage is most frequently generated. """
 
-import inspect
-
-import os
 import numpy as np
-from shapely.geometry import Polygon
+
+# NOTE: This is currently the only use of shapely in pypeit! See
+# ScienceCube.calculate_area().
+try:
+    from shapely.geometry import Polygon
+except:
+    Polygon = None
 
 from pypeit import msgs
-
-from pypeit.core import procimg
 from pypeit.par import pypeitpar
-from pypeit import utils
-
 from pypeit.images import pypeitimage
-from pypeit.images import combineimage
 
 from IPython import embed
 
@@ -48,12 +46,12 @@ class ScienceCube(pypeitimage.PypeItImage):
     """
     frametype = 'cube'
 
-    def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
+    def __init__(self, spectrograph, det, par, cube, ivar, bpm, rn2img=None,
                  crmask=None, mask=None, files=None):
 
         # Init me
-        pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
-                                         bpm=bpm, crmask=crmask, mask=mask)
+        pypeitimage.PypeItImage.__init__(self, cube, ivar=ivar, rn2img=rn2img,
+                                         bpm=bpm, crmask=crmask, fullmask=mask)
 
         if files is None:
             files = []
@@ -70,6 +68,8 @@ class ScienceCube(pypeitimage.PypeItImage):
 
     def calculate_area(self):
         """Calculate the overlapping area of a pixel and voxel"""
+        if Polygon is None:
+            msgs.error('Shapley python package is required to calculate spaxel area.')
         voxel = Polygon([(0.1, 0.2), (1.2, 1.23), (2.5, 0.8), (0.5, 0.12)])
         pixel = Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])
         area = voxel.intersection(pixel).area

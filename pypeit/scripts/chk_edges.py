@@ -7,9 +7,10 @@
 This script displays the Trace image and the traces
 in an RC Ginga window (must be previously launched)
 """
-import argparse
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
+
     parser = argparse.ArgumentParser(description='Display MasterEdges image and trace data',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -19,6 +20,11 @@ def parser(options=None):
                         help='Channel name for image in Ginga')
     parser.add_argument('--mpl', default=False, action='store_true',
                         help='Use a matplotlib window instead of ginga to show the trace')
+    parser.add_argument('--try_old', default=False, action='store_true',
+                        help='Attempt to load old datamodel versions.  A crash may ensue..')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -29,10 +35,13 @@ def parser(options=None):
 # should be showing not the edgetrace object. This has the advantage
 # that then orders are correctly labeled for Echelle which is not the
 # case with the current show method.
+
 def main(pargs):
     from pypeit import edgetrace
 
-    edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file)
+    # Load
+    edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
+
     if pargs.mpl:
         edges.show(thin=10, include_img=True, idlabel=True)
     else:

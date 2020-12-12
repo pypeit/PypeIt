@@ -3,7 +3,7 @@
 Coadding module.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import inspect
 import os
@@ -42,18 +42,18 @@ class OneSpec(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {
-        'wave': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength array'),
-        'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
-        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array (0=Good???)'),
-        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
-        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
-        'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
-        'fluxed': dict(otype=bool, desc='Fluxed?'),
-        'spect_meta': dict(otype=dict, desc='header dict'),
-    }
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang)'),
+                 'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
+                 'ivar': dict(otype=np.ndarray, atype=np.floating, descr='Inverse variance array (matches units of flux)'),
+                 'mask': dict(otype=np.ndarray, atype=np.integer, descr='Mask array (1=Good,0=Bad)'),
+                 'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
+                 'obj_model': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Object model for tellurics'),
+                 'ext_mode': dict(otype=str, descr='Extraction mode (options: BOX, OPT)'),
+                 'fluxed': dict(otype=bool, descr='Boolean indicating if the spectrum is fluxed.'),
+                 'spect_meta': dict(otype=dict, descr='header dict')}
+
     @classmethod
     def from_file(cls, ifile):
         """
@@ -67,7 +67,7 @@ class OneSpec(datamodel.DataContainer):
             :class:`OneSpec`:
 
         """
-        hdul = fits.open(ifile)
+        hdul = io.fits_open(ifile)
         slf = super(OneSpec, cls).from_hdu(hdul)
 
         # Internals
@@ -90,7 +90,7 @@ class OneSpec(datamodel.DataContainer):
 
     def _init_internals(self):
         self.head0 = None
-        self.spec_meta = None
+        self.filename = None
         self.spectrograph = None
         self.spect_meta = None
 
@@ -160,7 +160,7 @@ class CoAdd1D(object):
             header = fits.getheader(spec1dfiles[0])
             self.spectrograph = load_spectrograph(header['PYP_SPEC'])
         if par is None:
-            self.par = spectrograph.default_pypeit_par()['coadd1d']
+            self.par = self.spectrograph.default_pypeit_par()['coadd1d']
         else:
             self.par = par
         #
@@ -200,7 +200,7 @@ class CoAdd1D(object):
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
-                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
+                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
@@ -230,7 +230,7 @@ class CoAdd1D(object):
         # Generate the DataContainer
         onespec = OneSpec(self.wave_coadd[wave_mask],
                           self.flux_coadd[wave_mask],
-                          PYP_SPEC=self.spectrograph.spectrograph,
+                          PYP_SPEC=self.spectrograph.name,
                           ivar=self.ivar_coadd[wave_mask],
                           mask=self.mask_coadd[wave_mask].astype(int),
                           ext_mode=self.par['ex_value'],
@@ -325,6 +325,6 @@ class EchelleCoAdd1D(CoAdd1D):
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
             sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug = self.debug, show = self.show)
+            debug = self.debug, show = self.show, extrap_sens=self.par['extrap_sens'])
 
         return wave_coadd, flux_coadd, ivar_coadd, mask_coadd

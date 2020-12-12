@@ -1,61 +1,57 @@
 """
-Implements HIRES-specific functions, including reading in slitmask design files.
+Implements HIRES-specific functions, including reading in slitmask design
+files.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import glob
-import re
-import os
+
+from IPython import embed
+
 import numpy as np
 
 from scipy import interpolate
 
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import telescopes
+from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
-from pypeit.spectrographs.slitmask import SlitMask
-from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
-
-from pypeit import debugger
-
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle KECK/HIRES specific code
+    Child to handle KECK/HIRES specific code.
+
+    This spectrograph is not yet supported.
     """
     ndet = 1
+    telescope = telescopes.KeckTelescopePar()
+    pypeline = 'Echelle'
 
-    def __init__(self):
-        # Get it started
-        super(KECKHIRESSpectrograph, self).__init__()
-        self.spectrograph = 'keck_hires_base'
-        self.telescope = telescopes.KeckTelescopePar()
-
-    @property
-    def pypeline(self):
-        return 'Echelle'
-
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for KECK HIRES reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
+        par = super().default_pypeit_par()
         # Correct for flexure using the default approach
         par['flexure'] = pypeitpar.FlexurePar()
         return par
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
@@ -76,6 +72,21 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
@@ -97,78 +108,79 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
-        """
-        Wrapper to the raw image reader for HIRES
-
-        Args:
-            raw_file (:obj:`str`):
-                filename
-            det (:obj:`int`, optional):
-              Desired detector.  Despite default value, cannot be
-              ``None`` (todo: set a sensible default).
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            tuple: Raw image and header
-
-        """
-        raw_img, head0, _ = read_hires(raw_file, det=det)
-
-        return raw_img, head0
-
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function to use :func:`read_hires` to get
-        the image sections.
-
-        .. todo ::
-            - It is really ineffiecient.  Can we parse
-              :func:`read_hires` into something that can give you the
-              image section directly?
-
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Keck HIRES file to get image section.')
-        elif not os.path.isfile(inp):
-            msgs.error('File {0} does not exist!'.format(inp))
-        temp, head0, secs = read_hires(inp, det)
-        if section == 'datasec':
-            return secs[0], False, False
-        elif section == 'oscansec':
-            return secs[1], False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
+# TODO: This spectrograph is way out of date
+#    def load_raw_img_head(self, raw_file, det=None, **null_kwargs):
+#        """
+#        Wrapper to the raw image reader for HIRES
+#
+#        Args:
+#            raw_file (:obj:`str`):
+#                filename
+#            det (:obj:`int`, optional):
+#              Desired detector.  Despite default value, cannot be
+#              ``None`` (todo: set a sensible default).
+#            **null_kwargs:
+#              Captured and never used
+#
+#        Returns:
+#            tuple: Raw image and header
+#
+#        """
+#        raw_img, head0, _ = read_hires(raw_file, det=det)
+#
+#        return raw_img, head0
+#
+#    def get_image_section(self, inp=None, det=1, section='datasec'):
+#        """
+#        Return a string representation of a slice defining a section of
+#        the detector image.
+#
+#        Overwrites base class function to use :func:`read_hires` to get
+#        the image sections.
+#
+#        .. todo ::
+#            - It is really ineffiecient.  Can we parse
+#              :func:`read_hires` into something that can give you the
+#              image section directly?
+#
+#        This is done separately for the data section and the overscan
+#        section in case one is defined as a header keyword and the other
+#        is defined directly.
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+#                String providing the file name to read, or the relevant
+#                header object.  Default is None, meaning that the
+#                detector attribute must provide the image section
+#                itself, not the header keyword.
+#            det (:obj:`int`, optional):
+#                1-indexed detector number.
+#            section (:obj:`str`, optional):
+#                The section to return.  Should be either 'datasec' or
+#                'oscansec', according to the
+#                :class:`pypeitpar.DetectorPar` keywords.
+#
+#        Returns:
+#            tuple: Returns three objects: (1) A list of string
+#            representations for the image sections, one string per
+#            amplifier.  The sections are *always* returned in PypeIt
+#            order: spectral then spatial.  (2) Boolean indicating if the
+#            slices are one indexed.  (3) Boolean indicating if the
+#            slices should include the last pixel.  The latter two are
+#            always returned as True following the FITS convention.
+#        """
+#        # Read the file
+#        if inp is None:
+#            msgs.error('Must provide Keck HIRES file to get image section.')
+#        elif not os.path.isfile(inp):
+#            msgs.error('File {0} does not exist!'.format(inp))
+#        temp, head0, secs = read_hires(inp, det)
+#        if section == 'datasec':
+#            return secs[0], False, False
+#        elif section == 'oscansec':
+#            return secs[1], False, False
+#        else:
+#            raise ValueError('Unrecognized keyword: {0}'.format(section))
 #
 #     def get_datasec_img(self, filename, det=1, force=True):
 #         """
@@ -213,19 +225,23 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
 class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
     """
     Child to handle KECK/HIRES-R specific code
-    """
-    def __init__(self):
-        # Get it started
-        super(KECKHIRESRSpectrograph, self).__init__()
-        self.spectrograph = 'keck_hires_red'
-        self.camera = 'HIRES_R'
 
-    def default_pypeit_par(self):
+    .. warning::
+        Spectrograph not yet supported
+    """
+    name = 'keck_hires_red'
+    camera = 'HIRES_R'
+
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for HIRES RED reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = KECKHIRESSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'keck_hires_red'
+        par = super().default_pypeit_par()
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 600.
@@ -261,59 +277,15 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         return par
 
-#    def check_headers(self, headers):
-#        """
-#        Check headers match expectations for an KECK/HIRES-R exposure.
-#
-#        See also
-#        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-#
-#        Args:
-#            headers (list):
-#                A list of headers read from a fits file
-#        """
-#        expected_values = { '0.INSTRUME': 'HIRES: High Resolution Echelle Spectrometer',
-#                            '0.XDISPERS': 'RED'}
-#        super(KECKHIRESRSpectrograph, self).check_headers(headers,
-#                                                              expected_values=expected_values)
-#
-#    def header_keys(self):
-#        hdr_keys = super(KECKHIRESRSpectrograph, self).header_keys()
-#        hdr_keys[0]['decker'] = 'DECKNAME'
-#        return hdr_keys
-
     def init_meta(self):
-        super(KECKHIRESRSpectrograph, self).init_meta()
+        """
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
+        """
+        super().init_meta()
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
-
-    def bpm(self, shape=None, filename=None, det=None, msbias=None, **null_kwargs):
-        """
-        Override parent bpm function with BPM specific to X-ShooterNIR.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-
-        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
-
-        return bpm_img
 
 
 def indexing(itt, postpix, det=None,xbin=None,ybin=None):
@@ -431,7 +403,7 @@ def read_hires(raw_file, det=None):
     except AttributeError:
         print("Reading HIRES file: {:s}".format(fil[0]))
 
-    hdu = fits.open(fil[0])
+    hdu = io.fits_open(fil[0])
     head0 = hdu[0].header
 
     # Get post, pre-pix values
@@ -487,3 +459,5 @@ def read_hires(raw_file, det=None):
         osec.append(iosec)
     # Return
     return image, head0, (dsec,osec)
+
+

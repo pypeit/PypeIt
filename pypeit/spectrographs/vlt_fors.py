@@ -1,6 +1,10 @@
-""" Module for VLT FORS (1 and 2)
+"""
+Module for VLT FORS (1 and 2)
+
+.. include:: ../include/links.rst
 """
 import glob
+from pkg_resources import resource_filename
 
 import numpy as np
 
@@ -8,13 +12,9 @@ from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-from pkg_resources import resource_filename
-
-from pypeit import debugger
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
@@ -22,23 +22,18 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     Parent for FORS1 and FORS2
     """
     ndet = 1  # Because each detector is written to a separate FITS file
+    telescope = telescopes.VLTTelescopePar()
 
-    def __init__(self):
-        # Get it started
-        super(VLTFORSSpectrograph, self).__init__()
-        self.spectrograph = 'vlt_fors_base'
-        self.telescope = telescopes.VLTTelescopePar()
-
-    @property
-    def pypeline(self):
-        return 'MultiSlit'
-
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for FORS Reductions
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
+        par = super().default_pypeit_par()
 
         # Always correct for flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'
@@ -74,35 +69,43 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
-        meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         #
-        meta['decker'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
+        self.meta['decker'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
-        meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
-        meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
-        meta['detector'] = dict(ext=0, card='EXTNAME')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
+        self.meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
+        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        self.meta['detector'] = dict(ext=0, card='EXTNAME')
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
             binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
@@ -121,11 +124,39 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return []
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         # TODO: Allow for 'sky' frame type, for now include sky in
@@ -141,7 +172,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'DARK')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
@@ -162,26 +193,25 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
     """
     Child to handle VLT/FORS2 specific code
     """
-    def __init__(self):
-        # Get it started
-        super(VLTFORS2Spectrograph, self).__init__()
-        self.spectrograph = 'vlt_fors2'
-        self.camera = 'FORS2'
-        self.numhead = 1
+
+    name = 'vlt_fors2'
+    camera = 'FORS2'
+    supported = True
+    comment = '300I, 300V gratings'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -234,37 +264,25 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif chip == 'CHIP2':
             return detector_container.DetectorContainer(**detector_dict2)
 
-
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Keck LRISr reductions.
-        """
-        par = VLTFORSSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = self.spectrograph
-
-        return par
-
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-        
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
         # TODO: Should we allow the user to override these?
 
         #detector = self.get_meta_value(scifile, 'detector')
@@ -285,7 +303,19 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         return par
 
     def configuration_keys(self):
-        #return ['dispname', 'dispangle', 'decker', 'detector']
+        """
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
+        """
         return ['dispname', 'dispangle', 'decker', 'detector']
 
 

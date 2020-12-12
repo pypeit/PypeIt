@@ -1,19 +1,18 @@
-""" Module for WHT/ISIS specific codes
 """
-import numpy as np
+Module for WHT/ISIS specific methods.
 
-from astropy.io import fits
+.. include:: ../include/links.rst
+"""
 from pkg_resources import resource_filename
+
+import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-
-from pypeit import debugger
 
 
 class WHTISISSpectrograph(spectrograph.Spectrograph):
@@ -21,97 +20,106 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
     Child to handle WHT/ISIS specific code
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(WHTISISSpectrograph, self).__init__()
-        self.spectrograph = 'wht_isis'
-        self.telescope = telescopes.WHTTelescopePar()
+    telescope = telescopes.WHTTelescopePar()
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         return ['dispname', 'decker', 'binning', 'dispangle', 'dichroic']
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(card=None, compound=True)
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(card=None, compound=True)
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
-        meta['decker'] = dict(ext=0, card='ISISLITU')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['decker'] = dict(ext=0, card='ISISLITU')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='ISIGRAT')
-        meta['dichroic'] = dict(ext=0, card='ISIDICHR')
-        meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-3)
-        meta['slitwid'] = dict(ext=0, card='ISISLITW')
-        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispname'] = dict(ext=0, card='ISIGRAT')
+        self.meta['dichroic'] = dict(ext=0, card='ISIDICHR')
+        self.meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-3)
+        self.meta['slitwid'] = dict(ext=0, card='ISISLITW')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
-        meta['lampstat01'] = dict(ext=0, card='CAGLAMPS')
-
-        # Ingest
-        self.meta = meta
+        self.meta['lampstat01'] = dict(ext=0, card='CAGLAMPS')
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             binspatial = headarr[0]['CCDXBIN']
             binspec = headarr[0]['CCDYBIN']
             return parse.binning2string(binspec, binspatial)
-        else:
-            msgs.error("Not ready for this compound meta")
+        msgs.error("Not ready for this compound meta")
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(WHTISISSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['slitwid']
-        return pypeit_keys
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['slitwid']
 
 
 class WHTISISBlueSpectrograph(WHTISISSpectrograph):
     """
     Child to handle WHT/ISIS blue specific code
     """
-    def __init__(self):
-        # Get it started
-        super(WHTISISBlueSpectrograph, self).__init__()
-        self.spectrograph = 'wht_isis_blue'
-        self.camera = 'ISISb'
 
+    name = 'wht_isis_blue'
+    camera = 'ISISb'
+    comment = 'Blue camera'
+    
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -136,17 +144,19 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck LRISb reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'wht_isis_blue'
+        par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
 
         # JFH Is this correct?
         # Processing steps
@@ -164,11 +174,9 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -188,36 +196,48 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R1200B':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
 
-        # Return
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
@@ -239,25 +259,24 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
     """
     Child to handle WHT/ISISr red specific code
     """
-    def __init__(self):
-        # Get it started
-        super(WHTISISRedSpectrograph, self).__init__()
-        self.spectrograph = 'wht_isis_red'
-        self.camera = 'ISISr'
+
+    name = 'wht_isis_red'
+    camera = 'ISISr'
+    comment = 'Red camera'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -282,12 +301,16 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         )
         return detector_container.DetectorContainer(**detector_dict)
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for WHT ISISr reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'wht_isis_red'
+        par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -303,11 +326,9 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 6000.0
         par['calibrations']['wavelengths']['disp'] = 0.2
@@ -325,25 +346,23 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R1200R':
@@ -355,6 +374,21 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
@@ -370,3 +404,5 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+

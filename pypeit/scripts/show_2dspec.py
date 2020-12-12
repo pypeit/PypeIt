@@ -7,7 +7,6 @@
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
-import argparse
 import os
 
 import numpy as np
@@ -18,17 +17,19 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import ginga
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit import io
 
+from pypeit.display import display
 from pypeit.core.parse import get_dnum
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe
 from pypeit import spec2dobj
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a '
                                                  'Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -47,6 +48,9 @@ def parser(options=None):
     parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
@@ -58,36 +62,32 @@ def show_trace(specobjs, det, viewer, ch):
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
-        ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
+        maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
+        if maskdef_objname is not None:
+            trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
+        else:
+            trc_name = obj_id
+        display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 
 
 def main(args):
 
     # List only?
     if args.list:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         hdu.info()
         return
 
-    # Load it up
-    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det)
+    # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
+    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
 
-    # Setup for PYPIT imports
+    # Setup for PypeIt imports
     msgs.reset(verbosity=2)
 
     # Init
     # TODO: get_dnum needs to be deprecated...
     sdet = get_dnum(args.det, prefix=False)
 
-#    if not os.path.exists(mdir):
-#        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
-#        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
-#        mdir=mdir_base
-
-    # Slits
-#    slits_key = '{0}_{1:02d}'.format(spec2DObj.head0['TRACMKEY'], args.det)
-#    slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
-#    slits = slittrace.SlitTraceSet.from_file(slit_file)
 
     # Grab the slit edges
     slits = spec2DObj.slits
@@ -99,11 +99,14 @@ def main(args):
     left = all_left[:, gpm]
     right = all_right[:, gpm]
     slid_IDs = spec2DObj.slits.slitord_id[gpm]
+    maskdef_id = spec2DObj.slits.maskdef_id[gpm] if spec2DObj.slits.maskdef_id is not None else None
 
     bitMask = ImageBitMask()
 
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
+    if args.file[-2:] == 'gz':
+        spec1d_file = spec1d_file[:-3]
     if os.path.isfile(spec1d_file):
         sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
@@ -111,14 +114,14 @@ def main(args):
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
 
     # Now show each image to a separate channel
 
     # Show the bitmask?
     mask_in = None
     if args.showmask:
-        viewer, ch = ginga.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
+        viewer, ch = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
         #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
 
     # SCIIMG
@@ -129,11 +132,11 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
 
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -150,37 +153,37 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
+    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm #(spec2DObj.bpmmask == 0)  # sky residual map
+    viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
-    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
+    viewer, ch = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH
     shell = viewer.shell()
-    out = shell.start_global_plugin('WCSMatch')
-    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
+    shell.start_global_plugin('WCSMatch')
+    shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
 
     if args.embed:
         embed()

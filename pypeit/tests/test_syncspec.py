@@ -25,6 +25,10 @@ def test_kastb():
     file1 = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits' #SPAT0176-SLIT0000-DET01
     file2 = 'spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits' #SPAT0175-SLIT0000-DET01
 
-    coadd_1dspec.coadd1d_filelist([os.path.join(dpath, file1),
-                                  os.path.join(dpath, file2)],
-                                  'tst_coadd_files', 1)
+    outfiles = coadd_1dspec.coadd1d_filelist([os.path.join(dpath, file1),
+                                             os.path.join(dpath, file2)],
+                                             'tst_coadd_files', 1)
+    
+    for ofile in outfiles:
+        os.remove(ofile)
+

@@ -2,17 +2,19 @@
 Main driver class for PypeIt run
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import time
 import os
 import numpy as np
 import copy
 from astropy.io import fits
+from astropy.table import Table
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
-from pypeit import ginga
+from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
@@ -73,17 +75,23 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
+        # Set up logging
+        self.logname = logname
+        self.verbosity = verbosity
+        self.pypeit_file = pypeit_file
+        
+        self.msgs_reset()
+        
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
-        self.pypeit_file = pypeit_file
         self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -130,7 +138,6 @@ class PypeIt(object):
         self.fitstbl.write_calib(calib_file)
 
         # Other Internals
-        self.logname = logname
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
@@ -156,28 +163,7 @@ class PypeIt(object):
         # directories?
         # An html file wrapping them all too
 
-#        # Instantiate Calibrations class
-#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-#            self.caliBrate \
-#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-#                                                     self.spectrograph, self.calibrations_path,
-#                                                     qadir=self.qa_path,
-#                                                     reuse_masters=self.reuse_masters,
-#                                                     show=self.show,
-#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-#        elif self.spectrograph.pypeline in ['IFU']:
-#            self.caliBrate \
-#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-#                                               self.spectrograph,
-#                                               self.calibrations_path,
-#                                               qadir=self.qa_path,
-#                                               reuse_masters=self.reuse_masters,
-#                                               show=self.show)
-#        else:
-#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
-
         # Init
-        self.verbosity = verbosity
         # TODO: I don't think this ever used
 
         self.det = None
@@ -424,14 +410,13 @@ class PypeIt(object):
         """
 
         # TODO:
-        # - bg_frames should be None by default
         # - change doc string to reflect that more than one frame can be
         #   provided
 
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
             # TODO: Put this in a try/except block?
-            ginga.clear_all()
+            display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
 
@@ -629,6 +614,7 @@ class PypeIt(object):
                 buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
+                dark=self.caliBrate.msdark,
                 flatimages=self.caliBrate.flatimages,
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
@@ -644,18 +630,17 @@ class PypeIt(object):
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile)
+                                                std_outfile=std_outfile,
+                                                basename=self.basename)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
-        # Prep for manual extraction (if requested)
-        manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
-
-        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.redux.run(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
-            basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+        # Do it
+        skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run(
+            std_trace=std_trace, show_peaks=self.show,
+            ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
         # TODO -- Save the slits yet again?
@@ -666,6 +651,11 @@ class PypeIt(object):
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
 
+        # Construct table of spectral flexure
+        spec_flex_table = Table()
+        spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
+        spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(det=self.det,
                                         sciimg=sciImg.image,
@@ -673,17 +663,20 @@ class PypeIt(object):
                                         skymodel=skymodel,
                                         objmodel=objmodel,
                                         ivarmodel=ivarmodel,
+                                        scaleimg=scaleImg,
                                         waveimg=waveImg,
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
+                                        sci_spec_flexure=spec_flex_table,
+                                        vel_corr=self.redux.vel_corr,
+                                        vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=copy.deepcopy(self.caliBrate.slits))
         spec2DObj.process_steps = sciImg.process_steps
 
         # Return
         return spec2DObj, sobjs
-
 
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """

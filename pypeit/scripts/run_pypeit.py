@@ -6,15 +6,35 @@
 """
 This script runs PypeIt
 """
-import argparse
 
 from pypeit import msgs
 
-import warnings
+def run_pypeit_usage():
+    """
+    Print pypeit usage description.
+    """
 
-def parser(options=None):
+    import textwrap
+    import pypeit
+    from pypeit.spectrographs import available_spectrographs
 
-    parser = argparse.ArgumentParser(description=msgs.usage('PypeIt'),
+    spclist = ', '.join(available_spectrographs)
+    spcl = textwrap.wrap(spclist, width=70)
+    descs = '##  '
+    descs += '\x1B[1;37;42m' + 'PypeIt : '
+    descs += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(pypeit.__version__) \
+              + '\x1B[' + '0m' + '\n'
+    descs += '##  '
+    descs += '\n##  Available spectrographs include:'
+    for ispcl in spcl:
+        descs += '\n##   ' + ispcl
+    return descs
+
+
+def parse_args(options=None, return_parser=False):
+    import argparse
+
+    parser = argparse.ArgumentParser(description=run_pypeit_usage(),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('pypeit_file', type=str,
                         help='PypeIt reduction file (must have .pypeit extension)')
@@ -49,11 +69,10 @@ def parser(options=None):
 #                         help='Number of CPUs for parallel processing')
 #    parser.print_help()
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    return pargs
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

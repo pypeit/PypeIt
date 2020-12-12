@@ -2,21 +2,27 @@
 
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import numpy as np
+import os
 import numba as nb
 
+
 from matplotlib import pyplot as plt
+
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
-from pypeit import msgs
-from IPython import embed
 
+from astropy.table import Table
+
+from pypeit import msgs
 from pypeit.core import arc
 
+from IPython import embed
 
 def parse_param(par, key, slit):
     # Find good lines for the tilts
@@ -77,7 +83,8 @@ def get_sampling(waves, pix_per_R=3.0):
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 
-def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
+def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,
+                        fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
     Simple wrapper to arc.detect_lines.
@@ -92,29 +99,25 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, con
         max_frac_fwhm:
         cont_samp:
         niter_cont:
-        nonlinear_counts:
+        nonlinear_counts (float, optional):
+            Counts where the arc is presumed to go non-linear
         debug:
 
     Returns:
-        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub. See arc.detect_lines
+        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub.
+        See arc.detect_lines for details
 
     """
 
     # Find peaks
-    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(spec, sigdetect = sigdetect, fwhm=fwhm,
-                                                                               fit_frac_fwhm=fit_frac_fwhm,
-                                                                               cont_frac_fwhm=cont_frac_fwhm,
-                                                                               max_frac_fwhm=max_frac_fwhm,
-                                                                               cont_samp=cont_samp,niter_cont = niter_cont,
-                                                                               nonlinear_counts = nonlinear_counts, debug=debug)
+    tampl, tampl_cont, tcent, twid, centerr, w, arc_cont_sub, nsig = arc.detect_lines(
+        spec, sigdetect = sigdetect, fwhm=fwhm, fit_frac_fwhm=fit_frac_fwhm,
+        cont_frac_fwhm=cont_frac_fwhm, max_frac_fwhm=max_frac_fwhm,
+        cont_samp=cont_samp,niter_cont = niter_cont, nonlinear_counts = nonlinear_counts,
+        debug=debug)
     all_tcent = tcent[w]
-    all_tampl = tampl[w]
     all_ecent = centerr[w]
     all_nsig = nsig[w]
-
-    # Old code cut on amplitude
-    # Cut on Amplitude
-    #cut_amp = all_tampl > min_ampl
 
     # Cut on significance
     cut_sig = all_nsig > sigdetect
@@ -560,3 +563,44 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     return wave_grid
 
+
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
+                   order=None, overwrite=True):
+    """
+    Write the template spectrum into a binary FITS table
+
+    Args:
+        nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
+        nwspec (`numpy.ndarray`_):
+            Flux of the template
+        binspec (int):
+            Binning of the template
+        outpath (str):
+        outroot (str):
+        det_cut (bool, optional):
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
+        overwrite (bool, optional):
+            If True, overwrite any existing file
+    """
+    tbl = Table()
+    tbl['wave'] = nwwv
+    tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
+    tbl.meta['BINSPEC'] = binspec
+    # Detector snippets??
+    if det_cut is not None:
+        tbl['det'] = 0
+        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
+            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
+            deti = np.sum([2**ii for ii in dets])
+            tbl['det'][gdwv] += deti
+    # Write
+    outfile = os.path.join(outpath, outroot)
+    tbl.write(outfile, overwrite=overwrite)
+    print("Wrote: {}".format(outfile))

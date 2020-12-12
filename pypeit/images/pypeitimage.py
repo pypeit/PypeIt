@@ -1,19 +1,16 @@
 """ Module for the PypeItImage include its Mask
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import numpy as np
 import os
 import inspect
 
-from astropy.io import fits
-
 from pypeit import msgs
-from pypeit import ginga
-
 from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
+from pypeit.display import display
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
@@ -53,33 +50,28 @@ class PypeItImage(datamodel.DataContainer):
             Master key, only for Master frames
 
     """
-    # Set the version of this class
-    minimum_useful_version = '1.0.0'
     version = '1.0.1'
-    #
-    datamodel_v100 = {
-        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
-        'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
-        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
-        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
-        'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
-        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
-    }
-    datamodel = datamodel_v100.copy()
+    """Datamodel version number"""
 
-    # For masking
+    datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Main data image'),
+                 'ivar': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Main data inverse variance image'),
+                 'rn2img': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Read noise squared image'),
+                 'bpm': dict(otype=np.ndarray, atype=np.integer, descr='Bad pixel mask'),
+                 'crmask': dict(otype=np.ndarray, atype=np.bool_, descr='CR mask image'),
+                 'fullmask': dict(otype=np.ndarray, atype=np.integer, descr='Full image mask'),
+                 'detector': dict(otype=detector_container.DetectorContainer,
+                                  descr='Detector DataContainer'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_flexure': dict(otype=float,
+                                      descr='Shift, in spatial pixels, between this image '
+                                            'and SlitTrace'),
+                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask')}
+    """Data model components."""
+
     bitmask = imagebitmask.ImageBitMask()
-
-    hdu_prefix = None
-    """
-    Prefix for the HDU names. Can be None. Mainly used to enable
-    output of multiple PypeItImage objects in more complex
-    DataContainers.
-    """
+    """Class mask attribute"""
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
@@ -96,7 +88,6 @@ class PypeItImage(datamodel.DataContainer):
             pypeitImage (:class:`PypeItImage`):
 
         """
-
         _d = {}
         for key in pypeitImage.datamodel.keys():
             _d[key] = pypeitImage[key]
@@ -108,18 +99,22 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
-    # This needs to contain all datamodel items
+    # This needs to contain all datamodel items.
+    # TODO: Not really. You don't have to pass everything to the
+    # super().__init__ call...
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,
                  crmask=None, fullmask=None, detector=None, spat_flexure=None,
                  PYP_SPEC=None, imgbitm=None):
 
-        # Setup the DataContainer
+        # Setup the DataContainer. Dictionary elements include
+        # everything but self in the instantiation call.
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
         # Init
         super(PypeItImage, self).__init__(d=_d)
 
     def _init_internals(self):
+        # TODO: Do we need head0 or filename?  If so, add filename here.
         self.head0 = None
         self.process_steps = None
         self.files = None
@@ -138,7 +133,6 @@ class PypeItImage(datamodel.DataContainer):
             # Validate
             if self.imgbitm != ','.join(list(self.bitmask.keys())):
                 msgs.error("Input BITMASK keys differ from current data model!")
-
 
     def _bundle(self):
         """
@@ -347,11 +341,12 @@ class PypeItImage(datamodel.DataContainer):
         new_sciImg.files = self.files + other.files
 
         #TODO: KW properly handle adding the bits
-        crmask_diff = new_sciImg.build_crmask(par)
+        #crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
-        # Note that the following uses the saturation and mincounts held in
-        # self.detector
+        # JFH changed to below because this was not respecting the desire not to mask_crs
+        new_sciImg.crmask = (new_sciImg.build_crmask(par) | np.logical_not(outmask_comb)) if par['mask_cr'] else np.logical_not(outmask_comb)
+        #new_sciImg.crmask = crmask_diff | np.logical_not(outmask_comb)
+        # Note that the following uses the saturation and mincounts held in self.detector
         new_sciImg.build_mask()
 
         return new_sciImg
@@ -364,7 +359,7 @@ class PypeItImage(datamodel.DataContainer):
             # TODO: This should fault.
             msgs.warn("No image to show!")
             return
-        ginga.show_image(self.image, chname='image')
+        display.show_image(self.image, chname='image')
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

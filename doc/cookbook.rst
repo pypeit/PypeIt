@@ -103,6 +103,10 @@ an end-to-end run from calibrations through to
 The :doc:`running` doc describes the process in a bit
 more detail.
 
+There are details below as regards calibrations and
+outputs.  See :doc:`object_finding` and :doc:`extraction`
+for tips/customizing those.
+
 4. Examine Calibrations
 =======================
 
@@ -124,8 +128,8 @@ with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
   - View the :doc:`master_bias` image (if you produced one)
-  - Check slit edges with the :doc:`master_edges` file
   - View the :doc:`master_arc` image
+  - Check slit edges with the :doc:`master_edges` file
   - View the :doc:`master_tilt` image
   - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
   - Check the 2D wavelength solution in the :doc:`master_tilts` output
@@ -153,12 +157,17 @@ related to extraction and sky subtraction for your spectra.
 PypeIt provides routines for :doc:`fluxing` your spectra.
 These are run separately from and after the main run.
 
+Note that this is a two-stage process.  One to generate
+a sensitivity function and one to apply it.
+
 7. Coadding
 ===========
 
 There are scripts for coadding both the 2D spectra
-(undocumented) and to :doc:`coadd1d`.
-These are run separately from and after the main run.
+(undocumented) and to :doc:`coadd1d`. In the case of
+IFU reductions, there are scripts to coadd the reduced
+spec2d files into combined 3D datacubes (see :doc:`coadd3d`).
+These are all run separately from and after the main run.
 
 
 

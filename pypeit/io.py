@@ -4,7 +4,8 @@
 Provides a set of I/O routines.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import sys
@@ -15,8 +16,12 @@ from packaging import version
 
 import numpy
 
+from configobj import ConfigObj
+
 from astropy.io import fits
 from astropy.table import Table
+
+from pypeit import par, msgs
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -25,7 +30,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
 
 from IPython import embed
 
@@ -330,6 +334,37 @@ def header_version_check(hdr, warning_only=True):
     return all_identical
 
 
+def dict_to_lines(d, level=0, use_repr=False):
+    """
+    Dump a dictionary to a set of string lines to be written to a
+    file.
+
+    Args:
+        d (:obj:`dict`):
+            The dictionary to convert
+        level (:obj:`int`, optional):
+            An indentation level. Each indentation level is 4 spaces.
+        use_repr (:obj:`bool`, optional):
+            Instead of using string type casting (i.e.,
+            ``str(...)``), use the objects ``__repr__`` attribute.
+
+    Returns:
+        :obj:`list`: A list of strings that represent the lines in a
+        file.
+    """
+    lines = []
+    if len(d) == 0:
+        return lines
+    w = max(len(key) for key in d.keys()) + level*4
+    for key in d.keys():
+        if isinstance(d[key], dict):
+            lines += [key.rjust(w) + ':'] + dict_to_lines(d[key], level=level+1, use_repr=use_repr)
+            continue
+        lines += [key.rjust(w) + ': ' + 
+                  (d[key].__repr__() if use_repr and hasattr(d[key], '__repr__') else str(d[key]))]
+    return lines
+
+
 def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write a dictionary to a fits HDU.
@@ -470,12 +505,64 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
+        _d = numpy.asarray(d[key])
         cols += [fits.Column(name=key,
-                             format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
-                             dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row 
-                                   else numpy.asarray(d[key]))]
+                             format=rec_to_fits_type(_d, single_row=single_row),
+                             dim=rec_to_fits_col_dim(_d, single_row=single_row),
+                             array=numpy.expand_dims(_d, 0) if single_row else _d)]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
+
+
+def read_spec2d_file(ifile, filetype='coadd2d'):
+    """
+    Read a PypeIt file of type "filetype", akin to a standard PypeIt file.
+
+    .. todo::
+
+        - Need a better description of this.  Probably for the PypeIt
+          file itself, too!
+
+    The top is a config block that sets ParSet parameters.  The
+    spectrograph is required.
+
+    Args:
+        ifile (:obj:`str`):
+          Name of the config file
+        filetype (:obj:`str`):
+          Type of config file being read (e.g. coadd2d, coadd3d).
+          This is only used for printing messages.
+
+    Returns:
+        tuple: Returns three objects: (1) The name of the spectrograph as
+        a string, (2) the list of configuration lines used to modify the
+        default :class`pypeit.par.pypeitpar.PypeItPar` parameters, and
+        (3) the list of spec2d files to combine.
+    """
+
+    # Read in the pypeit reduction file
+    msgs.info('Loading the {0:s} file'.format(filetype))
+    lines = par.util._read_pypeit_file_lines(ifile)
+    is_config = numpy.ones(len(lines), dtype=bool)
+
+    # Parse the spec2d block
+    spec2d_files = []
+    s, e = par.util._find_pypeit_block(lines, 'spec2d')
+    if s >= 0 and e < 0:
+        msgs.error("Missing 'spec2d end' in {0}".format(ifile))
+    for line in lines[s:e]:
+        prs = line.split(' ')
+        # TODO: This needs to allow for the science directory to be
+        # defined by the user.
+        #spec2d_files.append(os.path.join(os.path.basename(prs[0])))
+        spec2d_files.append(prs[0])
+    is_config[s-1:e+1] = False
+    # Construct config to get spectrograph
+    cfg_lines = list(lines[is_config])
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+
+    # Return
+    return spectrograph_name, cfg_lines, spec2d_files
 
 
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
@@ -536,13 +623,15 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     
     .. note::
 
-        Compressing the file is generally slow, but following the
-        two-step process of running
-        `astropy.io.fits.HDUList.writeto`_ and then
-        :func:`compress_file` is generally faster than having
-        `astropy.io.fits.HDUList.writeto`_ do the compression,
-        particularly for files with many extensions (or at least this
-        was true in the past).
+        - If the root directory of the output does *not* exist, this
+          method will create it.
+        - Compressing the file is generally slow, but following the
+          two-step process of running
+          `astropy.io.fits.HDUList.writeto`_ and then
+          :func:`compress_file` is generally faster than having
+          `astropy.io.fits.HDUList.writeto`_ do the compression,
+          particularly for files with many extensions (or at least
+          this was true in the past).
 
     Args:
         d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
@@ -565,6 +654,11 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     """
     if os.path.isfile(ofile) and not overwrite:
         raise FileExistsError('File already exists; to overwrite, set overwrite=True.')
+    
+    root = os.path.split(os.path.abspath(ofile))[0]
+    if not os.path.isdir(root):
+        warnings.warn('Making root directory for output file: {0}'.format(root))
+        os.makedirs(root)
 
     # Determine if the file should be compressed
     _ofile = ofile[:ofile.rfind('.')] if ofile.split('.')[-1] == 'gz' else ofile
@@ -586,3 +680,93 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     pypeit.msgs.info('File written to: {0}'.format(ofile))
 
 
+def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
+    """
+    Convert the input to lists that can be iterated through by an
+    extension index/name.
+
+    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is
+    simply returned; otherwise, the 2nd returned item is a
+    single-element :obj:`list` with the provided HDU.
+
+    If ``ext`` is None and ``hdu`` is not an
+    `astropy.io.fits.HDUList`_, the returned list just selects the
+    individual HDU provided (i.e., ``ext = [0]``). If ``ext`` is None
+    and ``hdu`` *is* an `astropy.io.fits.HDUList`_, the returned list
+    of extensions includes all extensions in the provided ``hdu``.
+
+    .. warning::
+
+        The method does not check that all input ``ext`` are valid
+        for the provided ``hdu``!
+
+    Args:
+        hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+            The HDU(s) to iterate through.
+        ext (:obj:`int`, :obj:`str`, :obj:`list`, optional):
+            One or more extensions to include in the iteration. If
+            None, the returned list will enable iteration through all
+            HDU extensions.
+        hdu_prefix (:obj:`str`, optional):
+            In addition to the restricted list of extensions
+            (``ext``), only include extensions with this prefix.
+
+    Returns:
+        :obj:`tuple`: Returns two objects: a :obj:`list` with the
+        extensions to iterate through and either a :obj:`list` or an
+        `astropy.io.fits.HDUList`_ with the list of HDUs.
+
+    Raises:
+        TypeError:
+            Raised if ``ext`` is not a string, integer, or list, if
+            any element of ``ext`` is not a string or integer, or if
+            ``hdu`` is not one of the approved types.
+    """
+    if not isinstance(hdu, (fits.HDUList, fits.ImageHDU, fits.BinTableHDU)):
+        raise TypeError('Provided hdu has incorrect type: {0}'.format(type(hdu)))
+    # Check that the input ext has valid types
+    if ext is not None:
+        if not isinstance(ext, (str, int, list)):
+            raise TypeError('Provided ext object must be a str, int, or list.')
+        if isinstance(ext, list):
+            for e in ext:
+                if not isinstance(e, (str, int)):
+                    raise TypeError('Provided ext elements  must be a str or int.')
+    if ext is None and isinstance(hdu, fits.HDUList):
+        ext = [h.name if h.name != '' else i for i,h in enumerate(hdu)]
+
+    # Further restrict ext to only include those with the designated
+    # prefix
+    if hdu_prefix is not None:
+        if isinstance(hdu, fits.HDUList):
+            ext = [e for e in ext if not isinstance(e, (int, numpy.integer))
+                                 and e.startswith(hdu_prefix)]
+
+    # Allow user to provide single HDU
+    if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
+        ext = [0]
+        _hdu = [hdu]
+        if hdu_prefix is not None:
+            if hdu_prefix not in hdu.name:
+                raise ValueError("Bad hdu_prefix for this HDU!")
+    else:
+        _hdu = hdu
+
+    return ext if isinstance(ext, list) else [ext], _hdu
+
+def fits_open(filename, **kwargs):
+    """
+    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+
+    Args:
+        filename (:obj:`str`):
+            File name for the fits file to open
+    Returns:
+        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
+        HDUs in the fits file
+    """
+    try:
+        return fits.open(filename, **kwargs)
+    except OSError as e:
+        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
+        return fits.open(filename, ignore_missing_end=True, **kwargs)

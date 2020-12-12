@@ -6,4 +6,4 @@ Show the alignments in a Ginga window
 
 from pypeit.scripts import chk_alignments
 if __name__ == '__main__':
-    chk_alignments.main(chk_alignments.parser())
+    chk_alignments.main(chk_alignments.parse_args())

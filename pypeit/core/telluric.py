@@ -1,7 +1,7 @@
 """ Module for telluric corrections.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 
 import numpy as np
@@ -12,11 +12,12 @@ import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
-from pypeit.core import coadd
+from pypeit.core import coadd, fitting
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import coadd1d
+from pypeit import io
 from astropy.io import fits
 from sklearn import mixture
 
@@ -143,7 +144,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
 
     """
 
-    hdul = fits.open(filename)
+    hdul = io.fits_open(filename)
     wave_grid_full = 10.0*hdul[1].data
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size
@@ -581,7 +582,7 @@ def general_spec_reader(specfile, ret_flam=False):
         except:
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
-        head['PYP_SPEC'] = spectrograph.spectrograph
+        head['PYP_SPEC'] = spectrograph.name
     except:
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
@@ -658,16 +659,22 @@ def init_sensfunc_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     sensguess = np.log(sensguess_arg)
     fitmask = mask & np.isfinite(sensguess) & (sensguess_arg > 0.0) & np.isfinite(flam_true_mask)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
-    mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-                                       minx=wave.min(), maxx=wave.max(), inmask=fitmask,
-                                       lower=obj_params['sigrej'], upper=obj_params['sigrej'],
-                                       use_mad=True)
-    sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
+    pypeitFit = fitting.robust_fit(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+                                   minx=wave.min(), maxx=wave.max(), in_gpm=fitmask,
+                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
+                                   use_mad=True)
+    sensfit_guess = np.exp(pypeitFit.eval(wave))
+
+    #mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+    #                                   minx=wave.min(), maxx=wave.max(), inmask=fitmask,
+    #                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
+    #                                   use_mad=True)
+    # sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
-                   for this_coeff in coeff]
+                   for this_coeff in pypeitFit.fitc]
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
                     exptime=obj_params['exptime'], flam_true=flam_true, func=obj_params['func'],
@@ -714,7 +721,8 @@ def eval_sensfunc_model(theta, obj_dict):
     func = obj_dict['func']
     exptime = obj_dict['exptime']
 
-    sensfunc = np.exp(utils.func_val(theta, wave_star, func, minx=wave_min, maxx=wave_max))
+    sensfunc = np.exp(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max))
+    # sensfunc = np.exp(utils.func_val(theta, wave_star, func, minx=wave_min, maxx=wave_max))
     counts_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
 
     return counts_model, (sensfunc > 0.0)
@@ -1254,7 +1262,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
         coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
+        out_table[iord]['SENSFUNC'][gdwave] = np.exp(fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max))
+        # out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
         out_table[iord]['SENSFUNC_GPM'][gdwave] = True
 
     #if outfile is not None:
@@ -1289,7 +1298,7 @@ def create_bal_mask(wave, bal_wv_min_max):
     for ibal in range(nbal):
         bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
 
-    return np.invert(bal_bpm)
+    return np.logical_not(bal_bpm)
 
 
 
@@ -1576,8 +1585,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot = mask
 
     if fit_wv_min_max is not None:
-        mask_region = create_bal_mask(wave, fit_wv_min_max)
-        mask_tot = mask_tot & np.invert(mask_region)
+        mask_tot &= np.logical_not(create_bal_mask(wave, fit_wv_min_max))
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
@@ -1979,7 +1987,7 @@ class Telluric(object):
         sig_now = np.sqrt(utils.inverse(self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]))
         mask_now = self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
         model_now = self.tellmodel_list[iord]*self.obj_model_list[iord]
-        rejmask = mask_now & np.invert(self.outmask_list[iord])
+        rejmask = mask_now & np.logical_not(self.outmask_list[iord])
 
         fig = plt.figure(figsize=(12, 8))
         plt.plot(wave_now, flux_now, drawstyle='steps-mid',
@@ -1988,7 +1996,7 @@ class Telluric(object):
         plt.plot(wave_now, model_now, drawstyle='steps-mid', color='red', linewidth=1.0, label='model',
                  zorder=7, alpha=0.7)
         plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
+        plt.plot(wave_now[np.logical_not(mask_now)], flux_now[np.logical_not(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
                  label='originally masked')
         plt.ylim(-0.1 * model_now[mask_now].max(), 1.3 * model_now[mask_now].max())
         plt.legend()
@@ -2130,7 +2138,7 @@ class Telluric(object):
             wave_grid_ma = np.ma.array(np.copy(self.wave_grid))
             # For the ind lower and upper, use the good wavelength mask, not the data mask. This gives
             # us the model everywhere where wavelengths are not zero
-            wave_grid_ma.mask = np.invert(self.wave_mask_arr[:, iord])
+            wave_grid_ma.mask = np.logical_not(self.wave_mask_arr[:, iord])
             #wave_grid_ma.mask = np.invert(self.mask_arr[:,iord])
             ind_lower[iord] = np.ma.argmin(wave_grid_ma)
             ind_upper[iord] = np.ma.argmax(wave_grid_ma)

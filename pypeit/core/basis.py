@@ -4,7 +4,8 @@
 """
 Module implements a set of basis functions for fitting.
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 from IPython import embed
 
@@ -88,7 +89,8 @@ def flegendre(x, m):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    `numpy.ndarray`_
+        Polynomial basis functions evaluated at ``x``.
     """
     return _build_basis(x, m, special.legendre)
 
@@ -107,7 +109,8 @@ def fchebyshev(x, m):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    `numpy.ndarray`_
+        Polynomial basis functions evaluated at ``x``.
     """
     return _build_basis(x, m, special.chebyt)
 
@@ -128,7 +131,8 @@ def fchebyshev_split(x, m):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    `numpy.ndarray`_
+        Polynomial basis functions evaluated at ``x``.
     """
     _x, basis = _init_basis(x, m)
     basis[:,0] = (_x >= 0).astype(_x.dtype)
@@ -154,7 +158,8 @@ def fpoly(x, m):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    `numpy.ndarray`_
+        Polynomial basis functions evaluated at ``x``.
     """
     _x, basis = _init_basis(x, m)
     if m >= 2:

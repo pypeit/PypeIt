@@ -13,49 +13,40 @@ in an RC Ginga window (must be previously launched)
     pypeit master branch.
 
 """
-import argparse
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
 
-    parser = argparse.ArgumentParser(description='Display MasterArc image in a previously launched RC Ginga viewer with tilts',
+    parser = argparse.ArgumentParser(description='Display MasterArc image in a previously '
+                                                 'launched RC Ginga viewer with tilts',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('option', type = str, default = None, help='Item to show [fweight, model, tilts, final_tilts]')
-    parser.add_argument('setup', type = str, default = None, help='setup  -- Run from MF folder (e.g. A_01_aa)')
+    parser.add_argument('option', type = str, default = None,
+                        help='Item to show [fweight, model, tilts, final_tilts]')
+    parser.add_argument('master_file', type = str, default = None,
+                        help='path to Master file, e.g. Masters/MasterTilts_C_1_03.fits')
     parser.add_argument('--slit', type=int, default=None, help='Slit/Order [0,1,2..]')
-    #parser.add_argument("--dumb_ids", default=False, action="store_true", help="Slit ID just by order?")
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def main(pargs):
+def main(args):
 
-    import pdb as debugger
-    import time
-
-    from pypeit import ginga
     from pypeit import wavetilts
-
-    import subprocess
+    from pypeit.display import display
 
     # Load up
-    wTilts = wavetilts.WaveTilts.from_master_files(pargs.setup)
+    wTilts = wavetilts.WaveTilts.from_file(args.master_file)
 
-    # Launch ginga if need be
-    try:
-        ginga.connect_to_ginga(raise_err=True)
-    except ValueError:
-        subprocess.Popen(['ginga', '--modules=RC'])
-        time.sleep(3)
+    # Connect to the ginga viewer
+    # TODO: I don't think raise_err needs to be specified here, but
+    # this is what's done in show_2dspec
+    display.connect_to_ginga(raise_err=True, allow_new=True)
 
     # Show
-    if pargs.slit is not None:
-        cname = 'Slit{:03d}'.format(pargs.slit)
-    else:
-        cname = None
-    wTilts.show(pargs.option, slit=pargs.slit, cname=cname)
+    cname = None if args.slit is None else 'Slit{:03d}'.format(args.slit)
+    wTilts.show(args.option, slit=args.slit, cname=cname)
 

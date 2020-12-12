@@ -1,32 +1,30 @@
-""" Module for Keck/NIRES specific codes
 """
+Module for Keck/NIRES specific methods.
+
+.. include:: ../include/links.rst
+"""
+
+from pkg_resources import resource_filename
+
 import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-from pkg_resources import resource_filename
-
-
-from pypeit import debugger
 
 class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(KeckNIRESSpectrograph, self).__init__()
-        self.spectrograph = 'keck_nires'
-        self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'NIRES'
-        self.numhead = 3
+    name = 'keck_nires'
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'NIRES'
+    pypeline = 'Echelle'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         # Detector 1
@@ -51,16 +49,17 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         detector = detector_container.DetectorContainer(**detector_dict)
         return detector
 
-    @property
-    def pypeline(self):
-        return 'Echelle'
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Shane Kast Blue reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_nires'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
@@ -93,7 +92,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
-
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
@@ -104,7 +102,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
         par['reduce']['extraction']['boxcar_radius'] = 0.75  # arcsec
-
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
@@ -122,56 +119,75 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card=None, default='default')
-        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card=None, default='default')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='ITIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ITIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='INSTR')
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card='INSTR')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
 
     def configuration_keys(self):
         """
-        Add additional keys to determine the instrument configuration
+        Return the metadata keys that define a unique instrument
+        configuration.
+
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
 
         Returns:
-            list:
-
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         return ['dispname']
 
     def pypeit_file_keys(self):
         """
-        Add additional columns to the file block of the PypeIt file
+        Define the list of keys to be output into a standard ``PypeIt`` file.
 
         Returns:
-            list:
-
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
         """
-        pypeit_keys = super(KeckNIRESSpectrograph, self).pypeit_file_keys()
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
@@ -192,30 +208,34 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels.
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
         msgs.info("Custom bad pixel mask for NIRES")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             bpm_img[:, :20] = 1.
@@ -223,55 +243,58 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
-
-
     @property
     def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
         return 5
 
     @property
     def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
         ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
                                    0.70260714, 0.86335914])
         return ord_spat_pos
 
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         return np.arange(7, 2, -1, dtype=int)
-
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         spec_max = np.asarray([np.inf]*self.norders)
         spec_min = np.asarray([1024, -np.inf, -np.inf, -np.inf, -np.inf])
         return np.vstack((spec_min, spec_max))
 
     def order_platescale(self, order_vec, binning=None):
         """
-        NIRES has no binning
+        Return the platescale for each echelle order.
+
+        Note that NIRES has no binning.
 
         Args:
-            order_vec (np.ndarray):
-            binning (optional):
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning. **This
+                is always ignored.**
 
         Returns:
-            np.ndarray:
-
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
-        norders = order_vec.size
-        return np.full(norders, 0.15)
-
-
-    @property
-    def dloglam(self):
-        # This number was determined using the resolution and sampling quoted on the NIRES website
-        R = 2700.0 * 2.7
-        dloglam = 1.0 / R / np.log(10.0)
-        return dloglam
-
-    @property
-    def loglam_minmax(self):
-        return np.log10(9400.0), np.log10(26000)
+        return np.full(order_vec.size, 0.15)
 
 
 

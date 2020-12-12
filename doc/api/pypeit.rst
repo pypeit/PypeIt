@@ -9,6 +9,7 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
+   pypeit.display
    pypeit.images
    pypeit.par
    pypeit.spectrographs
@@ -28,12 +29,9 @@ Submodules
    pypeit.coadd2d
    pypeit.compiler_version
    pypeit.datamodel
-   pypeit.debugger
-   pypeit.defs
    pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxcalibrate
-   pypeit.ginga
    pypeit.io
    pypeit.masterframe
    pypeit.metadata

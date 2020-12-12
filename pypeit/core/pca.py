@@ -2,7 +2,7 @@
 Implement principle-component-analysis tools.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 from IPython import embed
 
@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 
 from pypeit import msgs
 from pypeit import utils
-from IPython import embed
+from pypeit.core import fitting
 
 def pca_decomposition(vectors, npca=None, pca_explained_var=99.0, mean=None):
     r"""
@@ -133,12 +133,12 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
 
     The coefficients of each PCA component are fit by a low-order
     polynomial, where the abscissa is set by the `coo` argument (see
-    :func:`pypeit.utils.robust_polyfit_djs`).
+    :func:`pypeit.fitting.robust_fit`).
 
     .. note::
         This is a general function, not really specific to the PCA;
         and is really just a wrapper for
-        :func:`pypeit.utils.robust_polyfit_djs`.
+        :func:`pypeit.fitting.robust_fit`.
 
     Args:
         coeff (`numpy.ndarray`_):
@@ -157,7 +157,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         ivar (`numpy.ndarray`_, optional):
             Inverse variance in the PCA coefficients to use during
             the fit; see the `invvar` parameter of
-            :func:`pypeit.utils.robust_polyfit_djs`. If None, fit is
+            :func:`pypeit.fitting.robust_fit`. If None, fit is
             not error weighted. If a vector with shape :math:`(N_{\rm
             vec},)`, the same error will be assumed for all PCA
             components (i.e., `ivar` will be expanded to match the
@@ -166,7 +166,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         weights (`numpy.ndarray`_, optional):
             Weights to apply to the PCA coefficients during the fit;
             see the `weights` parameter of
-            :func:`pypeit.utils.robust_polyfit_djs`. If None, the
+            :func:`pypeit.fitting.robust_fit`. If None, the
             weights are uniform. If a vector with shape
             :math:`(N_{\rm vec},)`, the same weights will be assumed
             for all PCA components (i.e., `weights` will be expanded
@@ -177,14 +177,14 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         lower (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **below** the mean residual. If None, no rejection is
-            performed. See :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`fitting.robust_fit`.
         upper (:obj:`float`, optional):
             Number of standard deviations used for rejecting data
             **above** the mean residual. If None, no rejection is
-            performed. See :func:`utils.robust_polyfit_djs`.
+            performed. See :func:`fitting.robust_fit`.
         maxrej (:obj:`int`, optional):
             Maximum number of points to reject during fit iterations.
-            See :func:`utils.robust_polyfit_djs`.
+            See :func:`fitting.robust_fit`.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allows. To force
             no rejection iterations, set to 0.
@@ -197,22 +197,17 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             Minimum and maximum values used to rescale the
             independent axis data. If None, the minimum and maximum
             values of `coo` are used. See
-            :func:`utils.robust_polyfit_djs`.
+            :func:`fitting.robust_fit`.
         debug (:obj:`bool`, optional):
             Show plots useful for debugging.
 
     Returns:
-        Returns four objects:
-            - A boolean `numpy.ndarray`_ masking data (`coeff`) that
-              were rejected during the polynomial fitting. Shape is the
-              same as the input `coeff`.
-            - A `list` of `numpy.ndarray`_ objects (or a single
-              `numpy.ndarray`_), one per PCA component where the length
-              of the 1D array is the number of coefficients fit to the
-              PCA-component coefficients. The number of function
-              coefficients is typically :math:`N_{\rm coeff} = o+1`.
-            - The minimum and maximum coordinate values used to rescale
-              the abscissa during the fitting.
+        `numpy.ndarray`_: One or more
+        :class:`~pypeit.core.fitting.PypeItFit` instances, one per
+        PCA component, that models the PCA component coefficients as
+        a function of the reference coordinates. These can be used to
+        predict new vectors that follow the PCA model at a new
+        coordinate; see :func:`pca_predict`.
     """
     # Check the input
     #   - Get the shape of the input data to fit
@@ -251,39 +246,35 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         maxx = np.amax(coo)
 
     # Instantiate the output
-    coeff_used = np.ones(_coeff.shape, dtype=bool)
-    fit_coeff = [None]*npca
 
     # TODO: This fitting is fast. Maybe we should determine the best
-    # order for each PCA component, up to some maximum, by comparing
-    # reduction in chi-square vs added number of parameters?
+    #  order for each PCA component, up to some maximum, by comparing
+    #  reduction in chi-square vs added number of parameters?
 
     # Fit the coefficients of each PCA component so that they can be
     # interpolated to other coordinates.
 
     inmask = np.ones_like(coo, dtype=bool)
+    model = np.empty(npca, dtype=fitting.PypeItFit)
     for i in range(npca):
-        coeff_used[:,i], fit_coeff[i] \
-                = utils.robust_polyfit_djs(coo, _coeff[:,i], _order[i], inmask=inmask,
-                                           invvar=None if _ivar is None else _ivar[:,i],
-                                           weights=_weights[:,i], function=function,
-                                           maxiter=maxiter, lower=lower, upper=upper,
-                                           maxrej=maxrej, sticky=False, use_mad=_ivar is None,
-                                           minx=minx, maxx=maxx)
+        model[i] = fitting.robust_fit(coo, _coeff[:,i], _order[i], in_gpm=inmask,
+                                      invvar=None if _ivar is None else _ivar[:,i],
+                                      weights=_weights[:,i], function=function, maxiter=maxiter,
+                                      lower=lower, upper=upper, maxrej=maxrej, sticky=False,
+                                      use_mad=_ivar is None, minx=minx, maxx=maxx)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
-            rejected = np.invert(coeff_used[:,i]) & inmask
+            rejected = np.logical_not(model[i].gpm) & inmask
             plt.scatter(coo[inmask], _coeff[inmask,i], marker='.', color='k', s=100,
                         facecolor='none', label='pca coeff')
-            plt.scatter(coo[np.invert(inmask)], _coeff[np.invert(inmask),i], marker='.',
+            plt.scatter(coo[np.logical_not(inmask)], _coeff[np.logical_not(inmask),i], marker='.',
                         color='orange', s=100, facecolor='none',
                         label='pca coeff, masked from previous')
             if np.any(rejected):
                 plt.scatter(coo[rejected], _coeff[rejected,i], marker='x', color='C3', s=80, 
                             label='robust_polyfit_djs rejected')
-            plt.plot(xvec, utils.func_val(fit_coeff[i], xvec, function, minx=minx, maxx=maxx),
-                     linestyle='--', color='C0',
+            plt.plot(xvec, model[i].eval(xvec), linestyle='--', color='C0',
                      label='Polynomial fit of order={0}'.format(_order[i]))
             plt.xlabel('Trace Coordinate', fontsize=14)
             plt.ylabel('PCA Coefficient', fontsize=14)
@@ -291,15 +282,17 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             plt.legend()
             plt.show()
 
-        inmask=coeff_used[:,i]
-    # Return arrays that match the shape of the input data
-    if coeff.ndim == 1:
-        return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
-    return np.invert(coeff_used), fit_coeff, minx, maxx
+        # Propagate rejection of coeffs for this component to the next
+        # component.
+        # TODO: Can we put in a comment here or in the docstring
+        # explaining why we do this?
+        inmask = model[i].gpm.astype(bool)
+
+    # Return the fitted model
+    return model
 
 
-def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, maxx=None,
-                function='legendre'):
+def pca_predict(x, pca_coeffs_model, pca_components, pca_mean, mean):
     r"""
     Use a model of the PCA coefficients to predict vectors at the
     specified coordinates.
@@ -307,32 +300,30 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, ma
     Args:
         x (:obj:`float`, `numpy.ndarray`_):
             One or more trace coordinates at which to sample the PCA
-            coefficients and produce the PCA model. As used within
-            PypeIt, this is typically the spatial pixel coordinate or
-            echelle order number.
-        pca_coeff_fits (:obj:`list`, `numpy.ndarray`_): 
-            A `list` of `numpy.ndarray`_ objects (or a single
-            `numpy.ndarray`_), one per PCA component where the length
-            of the 1D array is the number of coefficients fit to the
-            PCA-component coefficients.
+            coefficients and produce the PCA-driven model. As used
+            within PypeIt, this is typically the spatial pixel
+            coordinate or echelle order number.
+        pca_coeffs_model (`numpy.ndarray`_):
+            An array of :class:`~pypeit.core.fitting.PypeItFit`
+            objects, one PCA component, used to calculate the PCA
+            coefficients at the provided position, ``x``. See
+            :func:`fit_pca_coefficients`.
+        pca_components (`numpy.ndarray`_):
+            Vectors with the PCA components.  Shape must be
+            :math:`(N_{\rm comp}, N_{\rm pix})`.
         pca_mean (`numpy.ndarray`_):
-            The mean offset of the PCA decomposotion for each pixel.
+            The mean offset of the PCA decomposition for each pixel.
             Shape is :math:`(N_{\rm pix},)`.
         mean (:obj:`float`, `numpy.ndarray`_):
             The mean offset of each trace coordinate to use for the
-            PCA prediction. This is typically identical to `x`, and
-            its shape must match `x`.
-        minx, maxx (:obj:`float`, optional):
-            Minimum and maximum values used to rescale the
-            independent axis data. See
-            :func:`utils.robust_polyfit_djs`.
-        function (:obj:`str`, optional):
-            The functional used to fit the PCA coefficients.
+            PCA prediction. This is typically identical to ``x``, and
+            its shape must match ``x``.
     
     Returns:
         `numpy.ndarray`_: PCA constructed vectors, one per position
-        `x`. Shape is either :math:`(N_{\rm pix},)` or :math:`(N_{\rm
-        x},N_{\rm pix})`, depending on the input shape/type of `x`.
+        ``x``. Shape is either :math:`(N_{\rm pix},)` or
+        :math:`(N_{\rm x},N_{\rm pix})`, depending on the input
+        shape/type of ``x``.
     """
     _x = np.atleast_1d(x)
     _mean = np.atleast_1d(mean)
@@ -344,7 +335,7 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, ma
     npca = pca_components.shape[0]
     c = np.zeros((_x.size, npca), dtype=float)
     for i in range(npca):
-        c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function, minx=minx, maxx=maxx)
+        c[:,i] = pca_coeffs_model[i].eval(_x)
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + _mean[:,None]
     return vectors if isinstance(x, np.ndarray) else vectors[0,:]

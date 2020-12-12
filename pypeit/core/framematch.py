@@ -1,5 +1,7 @@
 """
 Routines for matching frames to certain types or each other.
+
+.. include:: ../include/links.rst
 """
 import os
 import re
@@ -50,7 +52,7 @@ class FrameTypeBitMask(BitMask):
               :class:`pypeit.bitmask.BitMask`
     
         Args:
-            type_bits (int, list, numpy.ndarray):
+            type_bits (int, list, `numpy.ndarray`_):
                 The bit mask for each frame.
             bitmask (:class:`pypeit.bitmask.BitMask`, optional):
                 The bit mask used to pull out the bit names.  Uses
@@ -80,16 +82,16 @@ def check_frame_exptime(exptime, exprng):
     Check that the exposure time is within the provided range.
         
     Args:
-        exptime (numpy.ndarray):
+        exptime (`numpy.ndarray`_):
             Exposure times to check; allowed to be None.
         exprng (array-like):
             An array with the minimum and maximum exposure.  The limits
             are *exclusive* and a limit of None means there is no limit.
         
     Returns:
-        numpy.ndarray: A boolean array that is True for all times within
-        the provided range.  The value is False for any exposure time
-        that is None or outside the provided range.
+        `numpy.ndarray`_: A boolean array that is True for all times within
+        the provided range. The value is False for any exposure time that is
+        None or outside the provided range.
         
     Raises:
         ValueError:
@@ -106,7 +108,7 @@ def check_frame_exptime(exptime, exprng):
     if exprng[0] is not None:
         indx[indx] &= (exptime[indx] > exprng[0])
     if exprng[1] is not None:
-        indx[indx] &= (exptime[indx] < exprng[1])
+        indx[indx] &= (exptime[indx] <= exprng[1])
     return indx
 
 

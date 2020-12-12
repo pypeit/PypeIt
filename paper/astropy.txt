@@ -1,0 +1,28 @@
+Title: PypeIt: The Python Spectroscopic Data Reduction Pipeline
+
+Authors: J. Xavier Prochaska (1, 2), Joseph F. Hennawi (3), Kyle B. Westfall
+  (4), Ryan J. Cooke (5), Feige Wang (6), Tiffany Hsyu (1) and Emanuele Paolo
+  Farina (7) ((1) University of California, Santa Cruz, (2) Kavli Institute for
+  the Physics and Mathematics of the Universe, (3) University of California,
+  Santa Barbara, (4) University of California Observatories, (5) Durham
+  University, UK, (6) Steward Observatory, University of Arizona, (7) Max
+  Planck Institut fur Astrophysik)
+
+Abstract: PypeIt is a Python package for semi-automated reduction of astronomical,
+spectroscopic data. Its algorithms build on decades-long development of
+previous data reduction pipelines by the developers (Bernstein, Burles, &
+Prochaska, 2015; Bochanski et al., 2009). The reduction procedure - including a
+complete list of the input parameters and available functionality - is provided
+as online documentation hosted by Read the Docs, which is regularly updated.
+(https://pypeit.readthedocs.io/en/latest/)
+  Release v1.0.3 serves the following spectrographs:
+  Gemini/GNIRS, Gemini/GMOS, Gemini/FLAMINGOS 2, Lick/Kast, Magellan/MagE,
+Magellan/Fire, MDM/OSMOS, Keck/DEIMOS (600ZD, 830G, 1200G), Keck/LRIS,
+Keck/MOSFIRE (J and Y gratings tested), Keck/NIRES, Keck/NIRSPEC
+(low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS (beta), NOT/ALFOSC (grism4),
+VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V), WHT/ISIS
+
+Comments: To be submitted to JOSS (once they return to accepting submissions).
+  Find PypeIt at: https://github.com/pypeit/PypeIt
+
+DOI: 10.5281/zenodo.3743493

@@ -9,10 +9,11 @@ import time
 import numpy
 
 from pkg_resources import resource_filename
-from pypeit.par.parset import ParSet
+from pypeit.utils import to_string, string_table
 from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
 from pypeit.wavetilts import WaveTilts
+from pypeit.wavecalib import WaveCalib
 
 from IPython import embed
 
@@ -21,9 +22,9 @@ def link_string(p):
 
 #-----------------------------------------------------------------------------
 
-def build_tbl(imgtyp):
+def build_tbl(obj):
 
-    data_model = imgtyp.full_datamodel()
+    data_model = obj.full_datamodel(include_children=False)
     keys = list(data_model.keys())
     keys.sort()
 
@@ -34,10 +35,10 @@ def build_tbl(imgtyp):
         # Key
         # Rename?
         _k = k.upper()
-        if imgtyp.hdu_prefix is not None:
-            _k = imgtyp.hdu_prefix+_k
+        if obj.hdu_prefix is not None:
+            _k = obj.hdu_prefix+_k
         alternate_keys.append(_k)
-        data_table[i+1,0] = ParSet._data_string(_k, use_repr=False, verbatum=True)
+        data_table[i+1,0] = to_string(_k, use_repr=False, verbatim=True)
         # Object Type
         if isinstance(data_model[k]['otype'], (list,tuple)):
             data_table[i+1,1] = ', '.join([t.__name__ for t in data_model[k]['otype']])
@@ -49,12 +50,12 @@ def build_tbl(imgtyp):
         else:
             data_table[i+1,2] = ' '
         # Description
-        data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
+        data_table[i+1,3] = to_string(data_model[k]['descr'])
 
     # Restrict by output_to_disk?
-    if imgtyp.output_to_disk is not None:
+    if obj.output_to_disk is not None:
         keep_rows = [0]
-        for _k in imgtyp.output_to_disk:
+        for _k in obj.output_to_disk:
             keep_rows.append(alternate_keys.index(_k)+1)
     else:
         keep_rows = numpy.arange(len(data_table)).astype(int)
@@ -62,41 +63,28 @@ def build_tbl(imgtyp):
     # Parse
     data_table = data_table[numpy.asarray(keep_rows)]
 
-    tbl_lines = [ParSet._data_table_string(data_table, delimeter='rst')]
+    tbl_lines = [string_table(data_table, delimeter='rst')]
     return tbl_lines
+
 
 if __name__ == '__main__':
     t = time.perf_counter()
 
-    # Read the baseline file that is not changed and must be edited by
-    # the person building the documentation as necessary.
-    pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    output_path = os.path.join(pypeit_root, 'doc', 'include')
+    # Set the output directory
+    output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
+                               'doc', 'include')
+    for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.TiltImage, WaveCalib, WaveTilts,
+                FlatImages]:
 
-    for imgtyp,ofile in zip([buildimage.ArcImage,
-                             buildimage.BiasImage,
-                             buildimage.TiltImage,
-                             WaveTilts,
-                             FlatImages],
-                            [os.path.join(output_path, 'datamodel_arcimage.rst'),
-                             os.path.join(output_path, 'datamodel_biasimage.rst'),
-                             os.path.join(output_path, 'datamodel_tiltimage.rst'),
-                             os.path.join(output_path, 'datamodel_wavetilts.rst'),
-                             os.path.join(output_path, 'datamodel_flatimages.rst'),
-                              ]):
+        ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
+
         # Build the Table
-        tbl_lines = build_tbl(imgtyp)
-        tbl_lines = [''] + ['Version {:s}'.format(imgtyp.version)] + [''] + tbl_lines
-
-        # Insert lines
-        #pos = lines.index(insert_line)
-        #if pos < 0:
-        #    raise ValueError("Missing insert line!")
+        lines = build_tbl(obj)
+        lines = [''] + ['Version {:s}'.format(obj.version)] + [''] + lines
 
         # Finish
-        #output_rst = os.path.join(pypeit_root, 'doc', 'calib_images.rst')
         with open(ofile, 'w') as f:
-            f.write('\n'.join(tbl_lines))
+            f.write('\n'.join(lines))
 
         print('Wrote: {}'.format(ofile))
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))

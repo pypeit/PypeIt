@@ -36,12 +36,17 @@ def init_dict():
     right[:,2] = 31.
     slits = slittrace.SlitTraceSet(left, right, 'MultiSlit',
                                    nspat=1000, PYP_SPEC='dummy')
+    # Construct table of spectral flexure
+    spec_flex_table = Table()
+    spec_flex_table['spat_id'] = slits.spat_id
+    spec_flex_table['sci_spec_flexure'] = np.zeros(left.shape[1])
     #
     sdict = dict(sciimg = sciimg,
                  ivarraw = 0.1 * np.ones_like(sciimg),
                  skymodel = 0.95 * np.ones_like(sciimg),
                  objmodel = np.ones_like(sciimg),
                  ivarmodel = 0.05 * np.ones_like(sciimg),
+                 scaleimg = np.ones_like(sciimg),
                  waveimg = 1000 * np.ones_like(sciimg),
                  bpmmask=np.ones_like(sciimg).astype(int),
                  det=1,
@@ -50,6 +55,9 @@ def init_dict():
                  tilts=np.ones_like(sciimg).astype(float),
                  #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
                  sci_spat_flexure=3.5,
+                 sci_spec_flexure=spec_flex_table,
+                 vel_type='HELIOCENTRIC',
+                 vel_corr=1.0+1.0e-5
                  )
     return sdict
 
@@ -171,4 +179,3 @@ def test_all2dobj_update_image(init_dict):
     assert np.array_equal(allspec2D_2[1].sciimg, spec2DObj1.sciimg)
 
     os.remove(ofile)
-

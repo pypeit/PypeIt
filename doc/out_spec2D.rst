@@ -1,3 +1,8 @@
+
+.. include:: include/links.rst
+
+.. _spec-2d-output:
+
 =============
 Spec2D Output 
 =============
@@ -7,16 +12,14 @@ Spec2D Output
 Overview
 ========
 
-During the data reduction proceess, PypeIt creates a series
-of 2D spectral images prior to extraction of 1D spectra.
-And, of course, several of these 2D images may have greater
-value for analysis than the 1D spectra.
+During the data-reduction process, ``PypeIt`` creates a series of 2D
+spectral images prior to extraction of 1D spectra. And, of course,
+several of these 2D images may have greater value for analysis than
+the 1D spectra.
 
-For each on-source
-exposure, PypeIt outputs a series of these images in a
-single, multi-extension FITS file, separated by detector.
+For each on-source exposure, ``PypeIt`` outputs a series of these
+images in a single, multi-extension fits file, separated by detector.
 See the `Current Spec2DObj Data Model`_ for details.
-
 
 Naming
 ======
@@ -32,52 +35,34 @@ The model is::
 Inspecting
 ==========
 
-You can open this image in ds9 and play around.
-But we highly recommend using the `pypeit_show_2dspec`_ script
-which interfaces with *ginga*.
+You can open this image in ds9 and play around. But we highly
+recommend using the `pypeit_show_2dspec`_ script which interfaces
+with `ginga`_.
 
-.. _pypeit-2dspec:
+.. _pypeit_show_2dspec:
 
 pypeit_show_2dspec
 ------------------
 
 This script displays the sky-subtracted 2D image for a single
-detector in a *ginga* RC viewer.  It also overlays the slits and
-any objects extracted.  It should be called from the reduction
-directory, i.e. above the *Science/* folder where the spec2d image
-is located.
+detector in a `ginga`_ RC viewer. It also overlays the slits and any
+objects extracted. It should be called from the reduction directory,
+i.e. above the ``Science/`` folder where the spec2d image is located.
 
-Here is the usage (possibly out of date;  use *pypeit_show_2dspec -h*)::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--showmask]
-                          [--removetrace] [--embed]
-                          file
+.. include:: help/pypeit_show_2dspec.rst
 
-    Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
-    folder
+Here is a typical call:
 
-    positional arguments:
-      file           PYPIT spec2d file
-
-    optional arguments:
-      -h, --help     show this help message and exit
-      --list         List the extensions only? (default: False)
-      --det DET      Detector number (default: 1)
-      --showmask     Overplot masked pixels (default: False)
-      --removetrace  Do not overplot traces in the skysub, sky_resid and resid
-                     channels (default: False)
-      --embed        Upon completion embed in ipython shell (default: False)
-
-Before running, you need to launch a *ginga* RC viewer with::
-
-    ginga --modules=RC
-
-Here is a typical call::
+.. code-block:: console
 
     pypeit_show_2dspec Science/spec2d_c17_60L._LRISb_2017Mar20T055336.211.fits
 
 
-This opens 4 tabs for the:
+This opens 4 tabs in the `ginga`_ display, one for each of the
+following:
 
  - Procesed image (sciimg-det##)
  - Sky subtracted image (skysub-det##)
@@ -94,9 +79,12 @@ pypeit_chk_2dslits
 ------------------
 
 This script prints to the screen a short summary of the slit
-information, detector by detector.  Here is an example::
+information, detector by detector.
 
-    pypeit_chk_2dslits 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_2dslits.rst
 
 
 Identifying Slits
@@ -121,14 +109,19 @@ Current Spec2DObj Data Model
 ============================
 
 Internally, the image is held in
-:class:`pypeit.spec2dobj.AllSpec2DObj` which holds
-the full set of
-:class:`pypeit.spec2dobj.Spec2DObj` objects.
+:class:`~pypeit.spec2dobj.AllSpec2DObj`, which holds the full set of
+:class:`~pypeit.spec2dobj.Spec2DObj` objects.
+
+All wavelengths are in vacuum.
 
 The data model for the latter is:
 
 .. include:: include/datamodel_spec2dobj.rst
 
-Each array and the :class:`pypeit.images.detector_container.DetectorContainer`
-is written as a separate HDU prefixed by the detector number,
-DET01-
+Each array and the associated
+:class:`~pypeit.images.detector_container.DetectorContainer` is
+written as a separate HDU prefixed by the detector number,
+``DET01-``.
+
+For a description of how to use the bitmasks (i.e., the ``*BPMMASK``
+extensions), see our description of the :ref:`out_masks`.

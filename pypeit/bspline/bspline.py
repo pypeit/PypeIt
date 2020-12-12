@@ -5,7 +5,8 @@
 """
 Implements the bspline class
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 
 import copy
@@ -48,13 +49,13 @@ class bspline(datamodel.DataContainer):
 
     Parameters
     ----------
-    x : :class:`numpy.ndarray`
+    x : `numpy.ndarray`_
         The data.
     nord : :class:`int`, optional
         To be documented.
     npoly : :class:`int`, optional
         To be documented.
-    bkpt : :class:`numpy.ndarray`, optional
+    bkpt : `numpy.ndarray`_, optional
         To be documented.
     bkspread : :class:`float`, optional
         To be documented.
@@ -88,17 +89,17 @@ class bspline(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {
-        'breakpoints':  dict(otype=np.ndarray, atype=np.floating, desc='Breakpoint locations'),
-        'nord': dict(otype=int, desc='Order of the bspline fit'),
-        'npoly': dict(otype=int, desc='Order of the bspline polynomial'),
-        'mask': dict(otype=np.ndarray, atype=np.bool_, desc='Mask'),
-        'coeff': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
-        'icoeff': dict(otype=np.ndarray, atype=np.floating, desc='??'),
-        'xmin': dict(otype=float, desc='Normalization for input data'),
-        'xmax': dict(otype=float, desc='Normalization for input data'),
-        'funcname': dict(otype=str, desc='Function of fit'),
-    }
+    # TODO: Fix the description of icoeff
+    datamodel = {'breakpoints':  dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Breakpoint locations'),
+                 'nord': dict(otype=int, descr='Order of the bspline fit'),
+                 'npoly': dict(otype=int, descr='Order of the bspline polynomial'),
+                 'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Mask'),
+                 'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
+                 'icoeff': dict(otype=np.ndarray, atype=np.floating, descr='??'),
+                 'xmin': dict(otype=float, descr='Normalization for input data'),
+                 'xmax': dict(otype=float, descr='Normalization for input data'),
+                 'funcname': dict(otype=str, descr='Function of fit')}
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
     def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
@@ -107,8 +108,7 @@ class bspline(datamodel.DataContainer):
         structure returned by the create_bspline function.
         """
         # Setup the DataContainer with everything None
-        _d = {}
-        datamodel.DataContainer.__init__(self, d=_d)
+        datamodel.DataContainer.__init__(self)
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
@@ -238,8 +238,10 @@ class bspline(datamodel.DataContainer):
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
 
-    def _init_internals(self):
-        self.hdu_prefix = None
+    def reinit_coeff(self):
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros((self.npoly, nc), dtype=float) if self.npoly > 1 \
+                        else np.zeros(nc, dtype=float)
 
     def _bundle(self):
         """
@@ -307,18 +309,18 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        xdata : `numpy.ndarray`_
             Independent variable.
-        ydata : :class:`numpy.ndarray`
+        ydata : `numpy.ndarray`_
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
+        invvar : `numpy.ndarray`_
             Inverse variance of `ydata`.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
 
         Returns
         -------
-        :func:`tuple`
+        :obj:`tuple`
             A tuple containing an integer error code, and the evaluation of the
             b-spline at the input values.  An error code of -2 is a failure,
             -1 indicates dropped breakpoints, 0 is success, and positive
@@ -383,14 +385,14 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
 
         Returns
         -------
-        :func:`tuple`
+        :obj:`tuple`
             A tuple containing the b-spline action matrix; the 'lower' parameter,
             a list of pixel positions, each corresponding to the first
             occurence of position greater than breakpoint indx; and 'upper',
@@ -460,14 +462,14 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             To be documented.
         ileft : :class:`int`
             To be documented
 
         Returns
         -------
-        :class:`numpy.ndarray`
+        vnikx : `numpy.ndarray`_
             To be documented.
         """
         bkpt = self.breakpoints[self.mask]
@@ -499,24 +501,26 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
-        action : :class:`numpy.ndarray`, optional
+        action : `numpy.ndarray`_, optional
             Action matrix to use.  If not supplied it is calculated.
-        lower : :class:`numpy.ndarray`, optional
+        lower : `numpy.ndarray`_, optional
             If the action parameter is supplied, this parameter must also
             be supplied.
-        upper : :class:`numpy.ndarray`, optional
+        upper : `numpy.ndarray`_, optional
             If the action parameter is supplied, this parameter must also
             be supplied.
 
         Returns
         -------
-        :func:`tuple`
-            A tuple containing the results of the bspline evaluation and a
-            mask indicating where the evaluation was good.
+        yfit : `numpy.ndarray`_
+            Results of the bspline evaluation
+        mask : `numpy.ndarray`_
+            Mask indicating where the evaluation was good (i.e., True
+            is good).
         """
         # TODO: Is the sorting necessary?
         xsort = x.argsort()
@@ -550,14 +554,15 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        err : :class:`numpy.ndarray` or int
+        err : `numpy.ndarray`_, :obj:`int`
             The list of indexes returned by the cholesky routines.
-            This is indexed to the set of currently *good* breakpoints (i.e. self.mask=True)
-            And the first nord are skipped
+            This is indexed to the set of currently *good*
+            breakpoints (i.e. self.mask=True) and the first nord are
+            skipped.
 
         Returns
         -------
-        :class:`int`
+        :obj:`int`
             An integer indicating the results of the masking.  -1 indicates
             that the error points were successfully masked.  -2 indicates
             failure; the calculation should be aborted.
@@ -606,27 +611,26 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        xdata : `numpy.ndarray`_
             Independent variable.
-        ydata : :class:`numpy.ndarray`
+        ydata : `numpy.ndarray`_
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
+        invvar : `numpy.ndarray`_
             Inverse variance of `ydata`.
-        action : :class:`numpy.ndarray`
+        action : `numpy.ndarray`_
             Banded correlation matrix
-        lower  : :class:`numpy.ndarray`
+        lower  : `numpy.ndarray`_
             A list of pixel positions, each corresponding to the first occurence of position greater than breakpoint indx
-        upper  : :class:`numpy.ndarray`
+        upper  : `numpy.ndarray`_
             Same as lower, but denotes the upper pixel positions
 
         Returns
         -------
-        :func:`tuple` (success, yfit):
-            A tuple containing an boolean error code, and the evaluation
-            of the b-spline yfit at the input values.  The error codes
-            are as follows: 0 is good; -1 is dropped breakpoints, try
-            again; -2 is failure, should abort.
-
+        success : :obj:`int`
+            Method error code: 0 is good; -1 is dropped breakpoints,
+            try again; -2 is failure, should abort.
+        yfit : `numpy.ndarray`_
+            Evaluation of the b-spline yfit at the input values.
         """
         goodbk = self.mask[self.nord:]
         # KBW: Interesting: x.sum() is actually a bit faster than np.sum(x)
@@ -661,7 +665,7 @@ class bspline(datamodel.DataContainer):
 
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
-
+# TODO: I don't think we need to make this reproducible with the IDL version anymore, and can opt for speed instead.
 # TODO: Move this somewhere for more common access?
 # Faster than previous version but not as fast as if we could switch to
 # np.unique.
@@ -709,7 +713,7 @@ def uniq(x, index=None):
     Examples
     --------
     >>> import numpy as np
-    >>> from pydl import uniq
+    >>> from pypeit.core.pydl import uniq
     >>> data = np.array([ 1, 2, 3, 1, 5, 6, 1, 7, 3, 2, 5, 9, 11, 1 ])
     >>> print(uniq(np.sort(data)))
     [ 3  5  7  9 10 11 12 13]
@@ -720,4 +724,5 @@ def uniq(x, index=None):
         return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:]-1
     _x = x[index]
     return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
+
 

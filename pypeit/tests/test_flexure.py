@@ -7,15 +7,12 @@ import pytest
 
 import numpy as np
 
-from astropy.io import fits
-
 from linetools.spectra.io import readspec
 
 import pypeit
-from pypeit.core import flexure
+from pypeit.core import flexure, arc
 from pypeit import slittrace
 from pypeit import wavetilts
-
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -49,8 +46,10 @@ def test_flex_shift():
     obj_spec = readspec(data_path('obj_lrisb_600_sky.fits'))
     arx_file = pypeit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
     arx_spec = readspec(arx_file)
+    arx_lines = arc.detect_lines(arx_spec.flux.value)
+
     # Call
-    flex_dict = flexure.spec_flex_shift(obj_spec, arx_spec, mxshft=60)
+    flex_dict = flexure.spec_flex_shift(obj_spec, arx_spec, arx_lines, mxshft=60)
 
 #    # Apply
 #    from scipy import interpolate
@@ -67,4 +66,3 @@ def test_flex_shift():
 #    pyplot.plot(new_wave, obj_spec.flux)
 #    pyplot.show()
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
-

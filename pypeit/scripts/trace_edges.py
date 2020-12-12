@@ -7,12 +7,12 @@
 Trace slit edges for a set of images.
 """
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     import argparse
-    from pypeit import defs
+    from pypeit.spectrographs import available_spectrographs
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Require either a pypeit file or a fits file 
     inp = parser.add_mutually_exclusive_group(required=True)
@@ -26,10 +26,10 @@ def parser(options=None):
                         help='Only analyze the specified detector; otherwise analyze all or '
                              'detectors selected by the pypeit file, if provided.')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
-                        help='A valid spectrograph identifier, which is only used if providing'
-                             'files directly: {0}'.format(', '.join(defs.pypeit_spectrographs)))
+                        help='A valid spectrograph identifier, which is only used if providing '
+                             'files directly: {0}'.format(', '.join(available_spectrographs)))
     parser.add_argument('-b', '--binning', default=None, type=str,
-                        help='Image binning in spectral and spatial directions.  Only used if'
+                        help='Image binning in spectral and spatial directions.  Only used if '
                              'providing files directly; default is 1,1.')
     parser.add_argument('-p', '--redux_path', default=None,
                         help='Path to top-level output directory.  '
@@ -43,6 +43,9 @@ def parser(options=None):
     parser.add_argument('--debug', default=False, action='store_true', help='Run in debug mode.')
     parser.add_argument('--show', default=False, action='store_true',
                         help='Show the stages of trace refinements (only for the new code).')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -70,7 +73,7 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
 
         rdx = PypeIt(pypeit_file, redux_path=redux_path)
-        detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detectors
+        detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detector
         # Save the spectrograph
         spec = rdx.spectrograph
         # Get the calibration group to use
@@ -98,6 +101,13 @@ def main(args):
         if len(bias_files) == 0:
             bias_files = None
 
+        # Get the dark files, if requested
+        dark_rows = rdx.fitstbl.find_frames('dark', calib_ID=int(group), index=True)
+        dark_files = rdx.fitstbl.frame_paths(dark_rows)
+        dark_par = rdx.par['calibrations']['darkframe']
+        if len(dark_files) == 0:
+            dark_files = None
+
         # Set the QA path
         qa_path = rdx.qa_path
     else:
@@ -116,6 +126,9 @@ def main(args):
         bias_files = None
         bias_par = None
 
+        dark_files = None
+        dark_par = None
+
         # Set the QA path
         qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
 
@@ -133,36 +146,37 @@ def main(args):
             proc_par['process']['use_biasimage'] = False
             msbias = None
         else:
-            #biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,
-            #                                master_key=master_key, master_dir=master_dir)
-            #msbias = biasFrame.build_image()
             msbias = buildimage.buildimage_fromlist(spec, det, bias_par, bias_files)
+
+        # Get the dark frame if requested
+        if dark_files is None:
+            proc_par['process']['use_darkimage'] = False
+            msdark = None
+        else:
+            msdark = buildimage.buildimage_fromlist(spec, det, dark_par, dark_files) #, bias=msbias)
 
         msbpm = spec.bpm(files[0], det)
 
         # Build the trace image
-        #traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
-        #traceImage.build_image(bias=msbias, bpm=msbpm)
         traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, files, bias=msbias,
-                                                    bpm=msbpm)
+                                                    bpm=msbpm, dark=msdark)
 
         # Trace the slit edges
         t = time.perf_counter()
-        edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, det=det, bpm=msbpm,
-                                       auto=True, debug=args.debug, show_stages=args.show,
+        edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, bpm=msbpm, auto=True,
+                                       debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
 
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
         # Write the MasterEdges file
         edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                                master_key,
-                                                                master_dir=master_dir)
-        edges.save(edge_masterframe_name, master_dir=master_dir, master_key=master_key)
+                                                                master_key, master_dir=master_dir)
+        edges.to_master_file(edge_masterframe_name)
+
         # Write the MasterSlits file
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
                                                                 master_key, master_dir=master_dir)
-        edges.get_slits().to_master_file(slit_masterframe_name) #master_dir, master_key,  # Naming
-                              #spec.spectrograph)  # Header
+        edges.get_slits().to_master_file(slit_masterframe_name)
 
     return 0
 

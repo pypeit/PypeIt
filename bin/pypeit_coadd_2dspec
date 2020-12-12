@@ -4,8 +4,8 @@
 Perform 2d coadds of PypeIt spectra.
 """
 
-import pypeit.scripts.coadd_2dspec as coadd_2dspec
+from pypeit.scripts import coadd_2dspec
 
 if __name__ == '__main__':
-    args = coadd_2dspec.parser()
-    coadd_2dspec.main(args)
+    coadd_2dspec.main(coadd_2dspec.parse_args())
+

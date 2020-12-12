@@ -1,6 +1,9 @@
 import os
 import glob
 import shutil
+import yaml
+
+from IPython import embed
 
 import pytest
 
@@ -27,8 +30,8 @@ def test_read_combid():
 
     # Generate the pypeit file with the comb_id
     droot = data_path('b')
-    pargs = setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
-                          '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
+    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
+                             '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     setup.main(pargs)
     shutil.rmtree(setup_dir)
 
@@ -62,9 +65,9 @@ def test_lris_red_multi_400():
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
-    cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    cfgs = ps.fitstbl.unique_configurations()
+    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
     # Test
     assert np.all(ps.fitstbl['setup'] == 'A')
 
@@ -78,9 +81,33 @@ def test_lris_red_multi():
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
-    cfgs = ps.fitstbl.unique_configurations(ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_configurations(cfgs, ignore_frames=['bias', 'dark'])
-    ps.fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
+    cfgs = ps.fitstbl.unique_configurations()
+    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
+
+
+@dev_suite_required
+def test_lris_red_multi_calib():
+    file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_red',
+                          'multi_400_8500_d560', '*.fits.gz'))
+    cfg_lines = ['[rdx]',
+                 'spectrograph = keck_lris_red']
+    ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
+    ps.build_fitstbl()
+    ps.get_frame_types(flag_unknown=True)
+    cfgs = ps.fitstbl.unique_configurations()
+    ps.fitstbl.set_configurations(cfgs)
+    ps.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
+
+    cfile = data_path('test.calib') 
+    ps.fitstbl.write_calib(cfile)
+    with open(cfile, 'r') as f:
+        calib = yaml.load(f, Loader=yaml.FullLoader)
+
+    assert np.array_equal(list(calib['A'].keys()), ['--', 1]), \
+            'Calibrations dictionary read incorrectly.'
+
+    os.remove(cfile)
 
 
 @dev_suite_required

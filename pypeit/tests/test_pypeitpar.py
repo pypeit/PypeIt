@@ -53,9 +53,11 @@ def test_telluric():
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
-def test_spectrographs():
-    s = pypeitpar.ReduxPar.valid_spectrographs()
-    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
+# TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
+# a circular import.
+#def test_spectrographs():
+#    s = pypeitpar.ReduxPar.valid_spectrographs()
+#    assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
 
 def test_redux():
     pypeitpar.ReduxPar()
@@ -135,14 +137,14 @@ def test_sync():
     p = pypeitpar.PypeItPar()
     proc = pypeitpar.ProcessImagesPar()
     proc['combine'] = 'median'
-    proc['sigrej'] = 20.5
+    proc['cr_sigrej'] = 20.5
     p.sync_processing(proc)
     assert p['scienceframe']['process']['combine'] == 'median'
     assert p['calibrations']['biasframe']['process']['combine'] == 'median'
     # Sigma rejection of cosmic rays for arc frames is already turned
     # off by default
-    assert p['calibrations']['arcframe']['process']['sigrej'] < 0
-    assert p['calibrations']['traceframe']['process']['sigrej'] == 20.5
+    assert p['calibrations']['arcframe']['process']['cr_sigrej'] < 0
+    assert p['calibrations']['traceframe']['process']['cr_sigrej'] == 20.5
 
 def test_pypeit_file():
     # Read the PypeIt file
@@ -155,16 +157,16 @@ def test_pypeit_file():
     # Get the spectrograph specific configuration
     spec_cfg = spectrograph.default_pypeit_par().to_config()
     # Initialize the PypeIt parameters merge in the user config
-    p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
     # Test everything was merged correctly
     # This is a PypeItPar default that's not changed
     #assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
-    assert p['fluxcalib'] is not None
+    assert _p['fluxcalib'] is not None
     # These are user-level changes
-    assert p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
-    assert p['calibrations']['traceframe']['process']['combine'] == 'median'
-    assert p['scienceframe']['process']['n_lohi'] == [8, 8]
+    assert _p['calibrations']['traceframe']['process']['combine'] == 'median'
+    assert _p['scienceframe']['process']['n_lohi'] == [8, 8]
+    assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
 
 def test_telescope():
     pypeitpar.TelescopePar()
