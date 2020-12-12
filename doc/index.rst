@@ -35,7 +35,7 @@ PypeIt |stars| |watch|
 
 |pypi| |DOI_latest| |arxiv| |astropy|
 
-**Version**: 1.2.0
+**Version**: 1.2.1dev
 
 ``PypeIt`` is a Python package for semi-automated reduction of
 astronomical, spectroscopic data. Its algorithms build on
@@ -78,7 +78,8 @@ the publication, please include the following acknowledgement
 What this version provides
 ++++++++++++++++++++++++++
 
-* Support for 20+ :doc:`spectrographs`
+* Support for 20+ :doc:`spectrographs`; see there for the full list, including
+  those that are currently in various stages of development.
 
   * Gemini/GNIRS
   * Gemini/GMOS

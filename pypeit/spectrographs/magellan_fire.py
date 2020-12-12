@@ -1,5 +1,5 @@
 """
-Module for Magellan/FIRE specific codes
+Module for Magellan/FIRE specific methods.
 
 Important Notes:
 
@@ -7,16 +7,17 @@ Important Notes:
       in 2016), please change the ord_spat_pos array (see lines from
       ~220 to ~230)
 
+.. include:: ../include/links.rst
 """
 from pkg_resources import resource_filename
+
 import numpy as np
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-
 
 
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
@@ -32,49 +33,30 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
 
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(MagellanFIRESpectrograph, self).__init__()
-        self.spectrograph = 'magellan_fire_base'
-        self.telescope = telescopes.MagellanTelescopePar()
-
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for VLT XSHOOTER reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        return par
+    telescope = telescopes.MagellanTelescopePar()
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card=None, default='default')
-        meta['dichroic'] = dict(ext=0, card=None, default='default')
-        meta['binning'] = dict(ext=0, card=None, default='1,1')
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card=None, default='default')
+        self.meta['dichroic'] = dict(ext=0, card=None, default='default')
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
-        meta['mjd'] = dict(ext=0, card='ACQTIME')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card='ACQTIME')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='GRISM')
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
-
-        # Ingest
-        self.meta = meta
-
+        self.meta['dispname'] = dict(ext=0, card='GRISM')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
 
 
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
@@ -89,27 +71,25 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         the read noise is ~20 electron.
 
     """
-    def __init__(self):
-        # Get it started
-        super(MagellanFIREEchelleSpectrograph, self).__init__()
-        #TODO Rename this magallen_fire_echelle??
-        self.spectrograph = 'magellan_fire'
-        self.camera = 'FIRE'
-        self.numhead = 1
+    name = 'magellan_fire'
+    camera = 'FIRE'
+    pypeline = 'Echelle'
+    supported = True
+    comment = 'Magellan/FIRE in echelle mode'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -133,16 +113,16 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-    @property
-    def pypeline(self):
-        return 'Echelle'
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'magellan_fire'
+        par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution with OH lines
@@ -198,15 +178,30 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
-
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
-
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
@@ -225,10 +220,17 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     @property
     def norders(self):
+        """
+        Number of orders for this spectograph. Should only defined for
+        echelle spectrographs, and it is undefined for the base class.
+        """
         return 21
 
     @property
     def order_spat_pos(self):
+        """
+        Return the expected spatial position of each echelle order.
+        """
         # ToDo: We somehow need to automate this.
         ## For OLD data, i.e. before 2017
         #ord_spat_pos = np.array([0.06054688, 0.14160156, 0.17089844, 0.22753906, 0.27539062,
@@ -246,10 +248,17 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     @property
     def orders(self):
+        """
+        Return the order number for each echelle order.
+        """
         return np.arange(31, 10, -1, dtype=int)
 
     @property
     def spec_min_max(self):
+        """
+        Return the minimum and maximum spectral pixel expected for the
+        spectral range of each order.
+        """
         spec_max = np.asarray([2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,
                                2048,2048,2048,2048,2048])
         spec_min = np.asarray([ 500,   0,   0,   0,   0,   0,   0,    0,   0,   0,  0,   0,   0,   0,   0,   0,
@@ -258,21 +267,28 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     def order_platescale(self, order_vec, binning=None):
         """
-        FIRE has no binning
+        Return the platescale for each echelle order.
+
+        Note that FIRE has no binning.
 
         Args:
-            order_vec (np.ndarray):
-            binning (optional):
+            order_vec (`numpy.ndarray`_):
+                The vector providing the order numbers.
+            binning (:obj:`str`, optional):
+                The string defining the spectral and spatial binning. **This
+                is always ignored.**
 
         Returns:
-            np.ndarray:
-
+            `numpy.ndarray`_: An array with the platescale for each order
+            provided by ``order``.
         """
-        norders = order_vec.size
-        return np.full(norders, 0.15)
+        return np.full(order_vec.size, 0.15)
 
     @property
     def dloglam(self):
+        """
+        Return the logarithmic step in wavelength for output spectra.
+        """
         # This number was determined using the resolution and sampling quoted on the FIRE website
         R = 6000.0 * 2.7
         dloglam = 1.0 / R / np.log(10.0)
@@ -280,6 +296,10 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     @property
     def loglam_minmax(self):
+        """
+        Return the base-10 logarithm of the first and last wavelength for
+        ouput spectra.
+        """
         return np.log10(8000.0), np.log10(25700)
 
 
@@ -288,33 +308,30 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
     Child to handle Magellan/FIRE high-throughput data
 
     .. note::
-        For FIRE longslit, science data are usually taken with SUTR readout mode with ~600s exposure
-        (at least for quasar hunting people) and the readout noise is ~6 e-
+        For FIRE longslit, science data are usually taken with SUTR readout
+        mode with ~600s exposure (at least for quasar hunting people) and the
+        readout noise is ~6 e-
 
     """
-    def __init__(self):
-        # Get it started
-        super(MagellanFIRELONGSpectrograph, self).__init__()
-        self.spectrograph = 'magellan_fire_long'
-        self.camera = 'FIRE'
-        self.numhead = 1
-
+    name = 'magellan_fire_long'
+    camera = 'FIRE'
+    supported = True
+    comment = 'Magellan/FIRE in long-slit/high-throughput mode'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-
         # Detector 1
         detector_dict = dict(
             binning         = '1,1',
@@ -336,12 +353,16 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         )
         return detector_container.DetectorContainer(**detector_dict)
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'magellan_fire_long'
+        par = super().default_pypeit_par()
 
         # Wavelengths
         # 1D wavelength solution with arc lines
@@ -362,7 +383,8 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Scienceimage parameters
@@ -371,7 +393,9 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
         par['flexure']['spec_method'] = 'skip'
 
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
@@ -383,6 +407,21 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:

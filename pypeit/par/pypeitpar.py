@@ -70,7 +70,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit import defs
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -183,8 +182,9 @@ class ProcessImagesPar(ParSet):
     def __init__(self, trim=None, apply_gain=None, orient=None,
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
-                 mask_cr=None,
-                 sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 mask_cr=None, clip=None,
+                 cr_sigrej=None, n_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
@@ -276,6 +276,15 @@ class ProcessImagesPar(ParSet):
         descr['combine'] = 'Method used to combine multiple frames.  Options are: {0}'.format(
                                        ', '.join(options['combine']))
 
+        defaults['clip'] = True
+        dtypes['clip'] = bool
+        descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=weightmean'
+
+        defaults['comb_sigrej'] = None
+        dtypes['comb_sigrej'] = float
+        descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
+                           'Use None for automatic limit (recommended).  '
+
         defaults['satpix'] = 'reject'
         options['satpix'] = ProcessImagesPar.valid_saturation_handling()
         dtypes['satpix'] = str
@@ -287,19 +296,14 @@ class ProcessImagesPar(ParSet):
         dtypes['mask_cr'] = bool
         descr['mask_cr'] = 'Identify CRs and mask them'
 
-        defaults['sigrej'] = 20.0
-        dtypes['sigrej'] = [int, float]
-        descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
+        defaults['cr_sigrej'] = 20.0
+        dtypes['cr_sigrej'] = [int, float]
+        descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
         descr['n_lohi'] = 'Number of pixels to reject at the lowest and highest ends of the ' \
                           'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
-
-        defaults['sig_lohi'] = [3.0, 3.0]
-        dtypes['sig_lohi'] = list
-        descr['sig_lohi'] = 'Sigma-clipping level at the low and high ends of the distribution; ' \
-                            'i.e., sig_lohi = low, high.  Use None for no limit.'
 
         defaults['replace'] = 'maxnonsat'
         options['replace'] = ProcessImagesPar.valid_rejection_replacements()
@@ -349,8 +353,8 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
-                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
-                   'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
+                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -397,8 +401,6 @@ class ProcessImagesPar(ParSet):
 
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
-        if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
-            raise ValueError('n_lohi must be a list of two numbers.')
 
         if not self.data['use_overscan']:
             return
@@ -433,8 +435,7 @@ class ProcessImagesPar(ParSet):
                                 'Cosmic-ray sigma rejection when combining')
         hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
                                 'N low and high pixels rejected when combining')
-        hdr['COMBSLH'] = (','.join([ '{0:.1f}'.format(s) for s in self.data['sig_lohi']]),
-                                'Low and high sigma rejection when combining')
+        hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
         hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
         hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
         hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
@@ -454,10 +455,10 @@ class ProcessImagesPar(ParSet):
                    overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
                    match=eval(hdr['COMBMAT']),
                    combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   sigrej=eval(hdr['COMBSIGR']),
                    n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
+                   comb_sigrej=float(hdr['COMBSRJ']),
                    replace=hdr['COMBREPL'],
+                   cr_sigrej=eval(hdr['LASIGR']),
                    lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
                    rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
                    sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
@@ -1107,8 +1108,10 @@ class CubePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, slit_spec=None, make_cube=None, cube_spat_num=None, cube_wave_num=None,
-                 cube_wave_min=None, cube_wave_max=None):
+    def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
+                 standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
+                 ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+                 spatial_delta=None, wave_delta=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1131,32 +1134,86 @@ class CubePar(ParSet):
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
                              'If the data uses fibres for all spaxels, set this to False.'
 
-        defaults['make_cube'] = True
-        dtypes['make_cube'] = [bool]
-        descr['make_cube'] = 'Set this to False if you do not wish to generate a data cube.'
+        defaults['relative_weights'] = False
+        dtypes['relative_weights'] = [bool]
+        descr['relative_weights'] = 'If set to True, the combined frames will use a relative weighting scheme.' \
+                                    'This only works well if there is a common continuum source in the field of' \
+                                    'view of all input observations, and is generally only required if high' \
+                                    'relative precision is desired.'
 
-        defaults['cube_spat_num'] = None
-        dtypes['cube_spat_num'] = [int, float]
-        descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
-                                 'pixels in the spatial direction of the slit will be used. If you' \
-                                 'are reducing fibre IFU data, this parameter will be ignored'
+        defaults['combine'] = True
+        dtypes['combine'] = [bool]
+        descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate' \
+                           'datacube will be generated for each input spec2d file.'
 
-        defaults['cube_wave_num'] = None
-        dtypes['cube_wave_num'] = [int, float]
-        descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
-                                 'of pixels in the spectral direction on the raw science frame will' \
-                                 'be used.'
+        defaults['output_filename'] = "datacube.fits"
+        dtypes['output_filename'] = str
+        descr['output_filename'] = 'Output filename of the combined datacube.'
 
-        defaults['cube_wave_min'] = None
-        dtypes['cube_wave_min'] = float
-        descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
-                                 'based on wavelength solution of all spaxels'
+        defaults['standard_cube'] = None
+        dtypes['standard_cube'] = str
+        descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct' \
+                                 'the relative scales of the slits, and to flux calibrate the science' \
+                                 'datacube.'
 
-        defaults['cube_wave_max'] = None
-        dtypes['cube_wave_max'] = float
-        descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
-                                 'based on wavelength solution of all spaxels'
+        defaults['flux_calibrate'] = False
+        dtypes['flux_calibrate'] = bool
+        descr['flux_calibrate'] = 'Flux calibrate the data? If True, you must also provide a standard star' \
+                                  'cube using the standard_cube parameter.'
 
+        defaults['reference_image'] = None
+        dtypes['reference_image'] = str
+        descr['reference_image'] = 'White light image of a previously combined datacube. The white light' \
+                                   'image will be used as a reference when calculating the offsets of the' \
+                                   'input spec2d files.'
+
+        defaults['save_whitelight'] = False
+        dtypes['save_whitelight'] = bool
+        descr['save_whitelight'] = 'Save a white light image of the combined datacube. The output filename' \
+                                   'will be given by the "output_filename" variable with a suffix "_whitelight".' \
+                                   'Note that the white light image collapses the flux along the wavelength axis,' \
+                                   'so some spaxels in the 2D white light image may have different wavelength' \
+                                   'ranges.'
+
+        defaults['ra_min'] = None
+        dtypes['ra_min'] = float
+        descr['ra_min'] = 'Minimum RA to use when generating the WCS. If None, the default is minimum RA' \
+                          'based on the WCS of all spaxels. Units should be degrees.'
+
+        defaults['ra_max'] = None
+        dtypes['ra_max'] = float
+        descr['ra_max'] = 'Maximum RA to use when generating the WCS. If None, the default is maximum RA' \
+                          'based on the WCS of all spaxels. Units should be degrees.'
+
+        defaults['dec_min'] = None
+        dtypes['dec_min'] = float
+        descr['dec_min'] = 'Minimum DEC to use when generating the WCS. If None, the default is minimum DEC' \
+                           'based on the WCS of all spaxels. Units should be degrees.'
+
+        defaults['dec_max'] = None
+        dtypes['dec_max'] = float
+        descr['dec_max'] = 'Maximum DEC to use when generating the WCS. If None, the default is maximum DEC' \
+                           'based on the WCS of all spaxels. Units should be degrees.'
+
+        defaults['wave_min'] = None
+        dtypes['wave_min'] = float
+        descr['wave_min'] = 'Minimum wavelength to use when generating the WCS. If None, the default is' \
+                            'minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
+
+        defaults['wave_max'] = None
+        dtypes['wave_max'] = float
+        descr['wave_max'] = 'Maximum wavelength to use when generating the WCS. If None, the default is' \
+                            'maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
+
+        defaults['spatial_delta'] = None
+        dtypes['spatial_delta'] = float
+        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS (in arcsec).' \
+                                 'If None, the default is set by the spectrograph file.'
+
+        defaults['wave_delta'] = None
+        dtypes['wave_delta'] = float
+        descr['wave_delta'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
+                                'If None, the default is set by the wavelength solution.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1172,11 +1229,13 @@ class CubePar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'make_cube', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
+                   'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for CubePar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -1487,6 +1546,69 @@ class SensfuncUVISPar(ParSet):
         if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
+
+class SlitMaskPar(ParSet):
+    """
+    A parameter set holding the arguments for fussing with
+    slitmask ingestion and object assignment
+
+    A list of these objects can be included in an instance of
+    :class:`SlitMaskPar` to perform a set of user-defined
+    extractions.
+
+    Args:
+
+
+    """
+    def __init__(self, obj_toler=None, assign_obj=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['obj_toler'] = 5.
+        dtypes['obj_toler'] = float
+        descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
+
+        defaults['assign_obj'] = False
+        dtypes['assign_obj'] = bool
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
+
+        # Instantiate the parameter set
+        super(SlitMaskPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['obj_toler', 'assign_obj']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
+                                k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
 
 
 class TelluricPar(ParSet):
@@ -1968,10 +2090,15 @@ class ReduxPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        options['spectrograph'] = ReduxPar.valid_spectrographs()
+
+        # NOTE: The validity of the spectrograph is checked by
+        # load_spectrograph, so the specification of the viable options here is
+        # not really necessary.
+#        options['spectrograph'] = ReduxPar.valid_spectrographs()
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
-                                'Options are: {0}'.format(', '.join(options['spectrograph']))
+                                'See :ref:`instruments` for valid options.'
+#                                'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices.' \
@@ -2043,9 +2170,9 @@ class ReduxPar(ParSet):
         # Finish
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_spectrographs():
-        return defs.pypeit_spectrographs
+#    @staticmethod
+#    def valid_spectrographs():
+#        return available_spectrographs
 
     def validate(self):
         pass
@@ -2396,8 +2523,7 @@ class EdgeTracePar(ParSet):
                  minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
                  minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
                  use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
-                 maskdesign_sigrej=None, mask_reg_maxiter=None, mask_reg_maxsep=None,
-                 mask_reg_sigrej=None, ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 maskdesign_sigrej=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2730,36 +2856,6 @@ class EdgeTracePar(ParSet):
         descr['maskdesign_sigrej'] = 'Number of sigma for sigma-clipping rejection during slit-mask ' \
                                      'design matching.'
 
-
-
-        # TODO: [DP] I believe the following 3-4 parameters are from a previous attempt to do slit-mask
-        #  design matching, and that they could be deleted.
-        # TODO: Make these mask registration parameters a separate
-        # (nested) parameter set? Would making saving the paramters to
-        # the master file header annoying ...
-        dtypes['mask_reg_maxiter'] = int
-        descr['mask_reg_maxiter'] = 'Maximum number of fit iterations to perform for ' \
-                                    'registering slit-mask design and trace locations. If None, ' \
-                                    'rejection iterations are performed until no points are ' \
-                                    'rejected. If 1, only a single fit is performed without any ' \
-                                    'rejection.'
-
-        dtypes['mask_reg_maxsep'] = [int, float]
-        descr['mask_reg_maxsep'] = 'Maximum allowed separation between the calibrated ' \
-                                   'coordinates of the designed slit position in pixels and the ' \
-                                   'matched trace. If None, rejection is done iteratively using ' \
-                                   'sigma clipping.  See mask_reg_sigrej.'
-        
-        defaults['mask_reg_sigrej'] = 5
-        dtypes['mask_reg_sigrej'] = [int, float]
-        descr['mask_reg_sigrej'] = 'Number of sigma for sigma-clipping during rejection ' \
-                                   'iterations during the slit-mask design registration. If ' \
-                                   'None, uses default set by `astropy.stats.sigma_clipped_stats`.'
-
-        defaults['ignore_alignment'] = False
-        dtypes['ignore_alignment'] = bool
-        descr['ignore_alignment'] = 'Ignore any slit-mask designs identified as alignment slits.'
-
 #        # Force trim to be a tuple
 #        if pars['trim'] is not None and not isinstance(pars['trim'], tuple):
 #            try:
@@ -2830,7 +2926,6 @@ class EdgeTracePar(ParSet):
                    'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
                    'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
                    'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
                    'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -3071,7 +3166,8 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None, trim_edge=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None,
+                 cube=None, trim_edge=None, slitmask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3099,6 +3195,11 @@ class ReducePar(ParSet):
         dtypes['extraction'] = [ ParSet, dict ]
         descr['extraction'] = 'Parameters for extraction algorithms'
 
+        defaults['slitmask'] = SlitMaskPar()
+        dtypes['slitmask'] = [ ParSet, dict ]
+        descr['slitmask'] = 'Parameters for slitmask'
+
+
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
@@ -3120,7 +3221,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -3135,6 +3236,8 @@ class ReducePar(ParSet):
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'cube'
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'slitmask'
+        kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
@@ -3560,21 +3663,21 @@ class CalibrationsPar(ParSet):
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
-                                                                        sigrej=-1,
+                                                                        cr_sigrej=-1,
                                                                         use_pixelflat=False,
                                                                         use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
-                                             process=ProcessImagesPar(sigrej=-1,
+                                             process=ProcessImagesPar(cr_sigrej=-1,
                                                                       use_pixelflat=False,
                                                                       use_illumflat=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
-                                              process=ProcessImagesPar(sigrej=-1,
+                                              process=ProcessImagesPar(cr_sigrej=-1,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
         dtypes['tiltframe'] = [ ParSet, dict ]

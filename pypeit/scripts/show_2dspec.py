@@ -19,6 +19,7 @@ from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import slittrace
 from pypeit import specobjs
+from pypeit import io
 
 from pypeit.display import display
 from pypeit.core.parse import get_dnum
@@ -61,14 +62,19 @@ def show_trace(specobjs, det, viewer, ch):
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
-        display.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
+        maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
+        if maskdef_objname is not None:
+            trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
+        else:
+            trc_name = obj_id
+        display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 
 
 def main(args):
 
     # List only?
     if args.list:
-        hdu = fits.open(args.file)
+        hdu = io.fits_open(args.file)
         hdu.info()
         return
 
@@ -93,6 +99,7 @@ def main(args):
     left = all_left[:, gpm]
     right = all_right[:, gpm]
     slid_IDs = spec2DObj.slits.slitord_id[gpm]
+    maskdef_id = spec2DObj.slits.maskdef_id[gpm] if spec2DObj.slits.maskdef_id is not None else None
 
     bitMask = ImageBitMask()
 
@@ -129,7 +136,7 @@ def main(args):
 
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -150,7 +157,7 @@ def main(args):
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
 
     # SKRESIDS
@@ -160,7 +167,7 @@ def main(args):
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
@@ -170,7 +177,7 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

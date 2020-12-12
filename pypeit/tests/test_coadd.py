@@ -349,5 +349,5 @@ def test_coadd_datacube():
     spec2d_file1 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits')
     spec2d_file2 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits')
     files = [spec2d_file1, spec2d_file2]
-    coadd_cube(files, overwrite=True)
+    coadd_cube(files, None, overwrite=True)
     os.remove('datacube.fits')

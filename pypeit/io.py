@@ -31,7 +31,6 @@ import sklearn
 import pypeit
 import time
 
-
 from IPython import embed
 
 # TODO -- Move this module to core/
@@ -333,6 +332,37 @@ def header_version_check(hdr, warning_only=True):
                 raise ValueError(msg)
     # Return if all versions are identical
     return all_identical
+
+
+def dict_to_lines(d, level=0, use_repr=False):
+    """
+    Dump a dictionary to a set of string lines to be written to a
+    file.
+
+    Args:
+        d (:obj:`dict`):
+            The dictionary to convert
+        level (:obj:`int`, optional):
+            An indentation level. Each indentation level is 4 spaces.
+        use_repr (:obj:`bool`, optional):
+            Instead of using string type casting (i.e.,
+            ``str(...)``), use the objects ``__repr__`` attribute.
+
+    Returns:
+        :obj:`list`: A list of strings that represent the lines in a
+        file.
+    """
+    lines = []
+    if len(d) == 0:
+        return lines
+    w = max(len(key) for key in d.keys()) + level*4
+    for key in d.keys():
+        if isinstance(d[key], dict):
+            lines += [key.rjust(w) + ':'] + dict_to_lines(d[key], level=level+1, use_repr=use_repr)
+            continue
+        lines += [key.rjust(w) + ': ' + 
+                  (d[key].__repr__() if use_repr and hasattr(d[key], '__repr__') else str(d[key]))]
+    return lines
 
 
 def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
@@ -700,7 +730,7 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
             raise TypeError('Provided ext object must be a str, int, or list.')
         if isinstance(ext, list):
             for e in ext:
-                if not isinstance(ext, (str, int)):
+                if not isinstance(e, (str, int)):
                     raise TypeError('Provided ext elements  must be a str or int.')
     if ext is None and isinstance(hdu, fits.HDUList):
         ext = [h.name if h.name != '' else i for i,h in enumerate(hdu)]
@@ -724,3 +754,19 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     return ext if isinstance(ext, list) else [ext], _hdu
 
+def fits_open(filename, **kwargs):
+    """
+    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+
+    Args:
+        filename (:obj:`str`):
+            File name for the fits file to open
+    Returns:
+        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
+        HDUs in the fits file
+    """
+    try:
+        return fits.open(filename, **kwargs)
+    except OSError as e:
+        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
+        return fits.open(filename, ignore_missing_end=True, **kwargs)

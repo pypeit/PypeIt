@@ -75,13 +75,17 @@ class Reduce(object):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
-        sobjs (SpecObsj):
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
+        slitshift (`numpy.ndarray`_):
+            Global spectral flexure correction for each slit (in pixels)
+        vel_corr (float):
+            Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
     """
 
@@ -190,6 +194,7 @@ class Reduce(object):
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
+        self.vel_corr = None
 
     def initialise_slits(self, initial=False):
         """
@@ -204,7 +209,7 @@ class Reduce(object):
         self.slits = self.caliBrate.slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-                = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -383,6 +388,10 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # Assign here -- in case we make another pass to add in missing targets
+        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
+                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
@@ -799,6 +808,7 @@ class Reduce(object):
                         specobj.apply_helio(vel_corr, refframe)
 
             # Apply correction to wavelength image
+            self.vel_corr = vel_corr
             self.waveimg *= vel_corr
 
         else:
@@ -1022,6 +1032,7 @@ class MultiSlitReduce(Reduce):
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
+
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1333,9 +1344,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             self.scaleimg = np.ones_like(self.sciImg.image)
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        self.scaleimg *= scaleFact
-        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleFact, self.sciImg.fullmask,
+        self.scaleimg *= scaleImg.copy()
+        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleImg.copy(), self.sciImg.fullmask,
                                         varframe=utils.inverse(self.sciImg.ivar.copy()))
         self.sciImg.image = sciImg.copy()
         self.sciImg.ivar = utils.inverse(varImg)

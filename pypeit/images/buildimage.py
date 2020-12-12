@@ -126,7 +126,7 @@ class SkyRegions(pypeitimage.PypeItImage):
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None, dark=None,
                         flatimages=None,
-                        sigma_clip=False, sigrej=None, maxiters=5,
+                        maxiters=5,
                         ignore_saturation=True, slits=None):
     """
     Build a PypeItImage from a list of files (and instructions)
@@ -147,8 +147,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         bias (np.ndarray, optional):
             Bias image
         flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
-        sigrej (int or float, optional): Rejection threshold for sigma clipping.
-             Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):
         ignore_saturation (bool, optional):
             Should be True for calibrations and False otherwise
@@ -160,13 +158,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
         msgs.error('Provided ParSet for must be type FrameGroupPar.')
-    #process_steps = procimg.set_process_steps(bias, frame_par)
-    #
+    # Do it
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark,
                                    flatimages=flatimages,
-                                   sigma_clip=sigma_clip,
-                                   sigrej=sigrej, maxiters=maxiters,
+                                   sigma_clip=frame_par['process']['clip'],
+                                   sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
                                    ignore_saturation=ignore_saturation, slits=slits,
                                    combine_method=frame_par['process']['combine'])
     #
