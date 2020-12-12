@@ -182,8 +182,9 @@ class ProcessImagesPar(ParSet):
     def __init__(self, trim=None, apply_gain=None, orient=None,
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
-                 mask_cr=None,
-                 sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 mask_cr=None, clip=None,
+                 cr_sigrej=None, n_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
@@ -275,6 +276,15 @@ class ProcessImagesPar(ParSet):
         descr['combine'] = 'Method used to combine multiple frames.  Options are: {0}'.format(
                                        ', '.join(options['combine']))
 
+        defaults['clip'] = True
+        dtypes['clip'] = bool
+        descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=weightmean'
+
+        defaults['comb_sigrej'] = None
+        dtypes['comb_sigrej'] = float
+        descr['comb_sigrej'] = 'Sigma-clipping level for when clip=True; ' \
+                           'Use None for automatic limit (recommended).  '
+
         defaults['satpix'] = 'reject'
         options['satpix'] = ProcessImagesPar.valid_saturation_handling()
         dtypes['satpix'] = str
@@ -286,19 +296,14 @@ class ProcessImagesPar(ParSet):
         dtypes['mask_cr'] = bool
         descr['mask_cr'] = 'Identify CRs and mask them'
 
-        defaults['sigrej'] = 20.0
-        dtypes['sigrej'] = [int, float]
-        descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
+        defaults['cr_sigrej'] = 20.0
+        dtypes['cr_sigrej'] = [int, float]
+        descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
         descr['n_lohi'] = 'Number of pixels to reject at the lowest and highest ends of the ' \
                           'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
-
-        defaults['sig_lohi'] = [3.0, 3.0]
-        dtypes['sig_lohi'] = list
-        descr['sig_lohi'] = 'Sigma-clipping level at the low and high ends of the distribution; ' \
-                            'i.e., sig_lohi = low, high.  Use None for no limit.'
 
         defaults['replace'] = 'maxnonsat'
         options['replace'] = ProcessImagesPar.valid_rejection_replacements()
@@ -348,8 +353,8 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
-                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
-                   'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
+                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -396,8 +401,6 @@ class ProcessImagesPar(ParSet):
 
         if self.data['n_lohi'] is not None and len(self.data['n_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
-        if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
-            raise ValueError('n_lohi must be a list of two numbers.')
 
         if not self.data['use_overscan']:
             return
@@ -432,8 +435,7 @@ class ProcessImagesPar(ParSet):
                                 'Cosmic-ray sigma rejection when combining')
         hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
                                 'N low and high pixels rejected when combining')
-        hdr['COMBSLH'] = (','.join([ '{0:.1f}'.format(s) for s in self.data['sig_lohi']]),
-                                'Low and high sigma rejection when combining')
+        hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
         hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
         hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
         hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
@@ -453,10 +455,10 @@ class ProcessImagesPar(ParSet):
                    overscan_par=[int(p) for p in hdr['OSCANPAR'].split(',')],
                    match=eval(hdr['COMBMAT']),
                    combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
-                   sigrej=eval(hdr['COMBSIGR']),
                    n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
-                   sig_lohi=[float(p) for p in hdr['COMBSLH'].split(',')],
+                   comb_sigrej=float(hdr['COMBSRJ']),
                    replace=hdr['COMBREPL'],
+                   cr_sigrej=eval(hdr['LASIGR']),
                    lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
                    rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
                    sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
@@ -1544,6 +1546,69 @@ class SensfuncUVISPar(ParSet):
         if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
+
+class SlitMaskPar(ParSet):
+    """
+    A parameter set holding the arguments for fussing with
+    slitmask ingestion and object assignment
+
+    A list of these objects can be included in an instance of
+    :class:`SlitMaskPar` to perform a set of user-defined
+    extractions.
+
+    Args:
+
+
+    """
+    def __init__(self, obj_toler=None, assign_obj=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['obj_toler'] = 5.
+        dtypes['obj_toler'] = float
+        descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
+
+        defaults['assign_obj'] = False
+        dtypes['assign_obj'] = bool
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
+
+        # Instantiate the parameter set
+        super(SlitMaskPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['obj_toler', 'assign_obj']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
+                                k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
 
 
 class TelluricPar(ParSet):
@@ -3101,7 +3166,8 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None, trim_edge=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None,
+                 cube=None, trim_edge=None, slitmask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3129,6 +3195,11 @@ class ReducePar(ParSet):
         dtypes['extraction'] = [ ParSet, dict ]
         descr['extraction'] = 'Parameters for extraction algorithms'
 
+        defaults['slitmask'] = SlitMaskPar()
+        dtypes['slitmask'] = [ ParSet, dict ]
+        descr['slitmask'] = 'Parameters for slitmask'
+
+
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
@@ -3150,7 +3221,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -3165,6 +3236,8 @@ class ReducePar(ParSet):
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'cube'
         kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'slitmask'
+        kwargs[pk] = SlitMaskPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
@@ -3590,21 +3663,21 @@ class CalibrationsPar(ParSet):
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
-                                                                        sigrej=-1,
+                                                                        cr_sigrej=-1,
                                                                         use_pixelflat=False,
                                                                         use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
-                                             process=ProcessImagesPar(sigrej=-1,
+                                             process=ProcessImagesPar(cr_sigrej=-1,
                                                                       use_pixelflat=False,
                                                                       use_illumflat=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
-                                              process=ProcessImagesPar(sigrej=-1,
+                                              process=ProcessImagesPar(cr_sigrej=-1,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
         dtypes['tiltframe'] = [ ParSet, dict ]
