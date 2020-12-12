@@ -16,13 +16,14 @@ from astropy import units
 from astropy import constants
 from astropy import coordinates
 from astropy import table
-from astropy.io import ascii, fits
+from astropy.io import ascii
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
+from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core import pydl
 from pypeit.core import fitting
@@ -121,7 +122,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    units.erg / units.s / units.cm ** 2 / units.AA
             elif sset == 'calspec':
                 std_dict['std_source'] = sset
-                std_spec = fits.open(fil)[1].data
+                std_spec = io.fits_open(fil)[1].data
                 std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
                 std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
                                    * units.erg / units.s / units.cm ** 2 / units.AA
@@ -1061,7 +1062,7 @@ def load_filter_file(filter):
         msgs.error("PypeIt is not ready for filter = {}".format(filter))
 
     trans_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filtercurves.fits'))
-    trans = fits.open(trans_file)
+    trans = io.fits_open(trans_file)
     wave = trans[filter].data['lam']  # Angstroms
     instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
     keep = instr > 0.

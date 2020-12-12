@@ -15,8 +15,6 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from astropy.io import fits
-
 from pypeit.scripts import setup
 from pypeit.scripts import run_pypeit
 from pypeit.tests.tstutils import dev_suite_required
@@ -90,7 +88,6 @@ def test_run_pypeit_calib_only():
         # Clean-up
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
-
 
 @dev_suite_required
 def test_run_pypeit():

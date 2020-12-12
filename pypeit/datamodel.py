@@ -1328,7 +1328,7 @@ class DataContainer:
                 Passed to :func:`to_hdu`; see usage there
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
-                                     limit_hdus=limit_hdus),
+                                     limit_hdus=limit_hdus, hdr=hdr),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     # TODO: This requires that master_key be an attribute... This
@@ -1397,7 +1397,7 @@ class DataContainer:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
 
         # Do it
-        with fits.open(ifile) as hdu:
+        with io.fits_open(ifile) as hdu:
             obj = cls.from_hdu(hdu, chk_version=chk_version)
             if hasattr(obj, 'head0'):
                 obj.head0 = hdu[0].header

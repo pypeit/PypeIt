@@ -5,6 +5,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from pypeit import msgs
+from pypeit import io
 from pypeit.par.util import make_pypeit_file
 
 
@@ -65,7 +66,7 @@ def main(args):
                 msgs.info('\t {:}'.format(spec2dfiles[ii]))
 
     if len(spec1dfiles) > 0:
-        par = fits.open(os.path.join(args.sci_path, spec1dfiles[0]))
+        par = io.fits_open(os.path.join(args.sci_path, spec1dfiles[0]))
 
         ## fluxing pypeit file
         spectrograph = par[0].header['PYP_SPEC']

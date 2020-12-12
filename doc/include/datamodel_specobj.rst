@@ -1,6 +1,6 @@
 
 
-Version: 1.1.1
+Version: 1.1.2
 
 =====================  =================  ==========  ====================================================================================================================================================================================
 Obj Key                Obj Type           Array Type  Description                                                                                                                                                                         
@@ -19,7 +19,7 @@ Obj Key                Obj Type           Array Type  Description
 ``BOX_MASK``           ndarray            bool        Mask for optimally extracted flux                                                                                                                                                   
 ``BOX_NPIX``           ndarray            float       Number of pixels used for the boxcar extraction; can be fractional                                                                                                                  
 ``BOX_RADIUS``         float                          Size of boxcar radius (pixels)                                                                                                                                                      
-``BOX_WAVE``           ndarray            float       Boxcar Wavelengths (Angstroms)                                                                                                                                                      
+``BOX_WAVE``           ndarray            float       Boxcar Wavelengths in vacuum (Angstroms)                                                                                                                                            
 ``DEC``                float                          Declination (J2000) decimal degree                                                                                                                                                  
 ``DET``                int, integer                   Detector number                                                                                                                                                                     
 ``DETECTOR``           DetectorContainer              Detector DataContainer                                                                                                                                                              
@@ -33,7 +33,8 @@ Obj Key                Obj Type           Array Type  Description
 ``FLEX_SHIFT_TOTAL``   float                          Total shift of the spectrum to correct for spectralflexure (pixels). This is the sum of the global andlocal FLEX_SHIFT                                                              
 ``FWHM``               float                          Spatial FWHM of the object (pixels)                                                                                                                                                 
 ``FWHMFIT``            ndarray                        Spatial FWHM across the detector (pixels)                                                                                                                                           
-``MASK_SLITID``        int, integer                   Slitmask slit ID                                                                                                                                                                    
+``MASKDEF_ID``         int, integer                   Slitmask definition ID                                                                                                                                                              
+``MASKDEF_OBJNAME``    str                            Name of the object from the slitmask definition                                                                                                                                     
 ``NAME``               str                            Name of the object following the naming model                                                                                                                                       
 ``OBJID``              int, integer                   Object ID for multislit data. Each object is given an index for the slit it appears increasing from from left to right. These are one based.                                        
 ``OBJTYPE``            str                            PypeIt type of object (standard, science)                                                                                                                                           
@@ -49,7 +50,7 @@ Obj Key                Obj Type           Array Type  Description
 ``OPT_FLAM_SIG``       ndarray            float       Optimal flux uncertainty (erg/s/cm^2/Ang)                                                                                                                                           
 ``OPT_FRAC_USE``       ndarray            float       Fraction of pixels in the object profile subimage used for this extraction                                                                                                          
 ``OPT_MASK``           ndarray            bool        Mask for optimally extracted flux                                                                                                                                                   
-``OPT_WAVE``           ndarray            float       Optimal Wavelengths (Angstroms)                                                                                                                                                     
+``OPT_WAVE``           ndarray            float       Optimal Wavelengths in vacuum (Angstroms)                                                                                                                                           
 ``PYPELINE``           str                            Name of the PypeIt pipeline mode                                                                                                                                                    
 ``RA``                 float                          Right Ascension (J2000) decimal degree                                                                                                                                              
 ``SLITID``             int, integer                   PypeIt slit ID. Increasing from left to right on detector. Zero based.                                                                                                              

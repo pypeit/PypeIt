@@ -717,8 +717,8 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
     maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
     if 'oldset' in kwargs_bspline:
         sset = kwargs_bspline['oldset']
-        sset.mask = True
-        sset.coeff = 0
+        sset.mask[:] = True
+        sset.coeff[:] = 0.
     else:
         if not maskwork.any():
             raise ValueError('No valid data points.')
@@ -759,7 +759,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
     while (error != 0 or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff = 0
+            sset.coeff[:] = 0.
             iiter = maxiter + 1  # End iterations
         else:
             if 'requiren' in kwargs_bspline:
@@ -953,7 +953,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
-            sset.coeff = 0
+            sset.coeff[:] = 0.
             exit_status = 2  # This will end iterations
         else:
             # Do the fit. Return values from workit for error are as follows:

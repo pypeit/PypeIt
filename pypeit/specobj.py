@@ -58,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.1'
+    version = '1.1.2'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -67,7 +67,7 @@ class SpecObj(datamodel.DataContainer):
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
-                                  descr='Optimal Wavelengths (Angstroms)'),
+                                  descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal flux (erg/s/cm^2/Ang)'),
                  'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float,
@@ -99,7 +99,7 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Number of pixels used for the boxcar extraction; can be '
                                         'fractional'),
                  'BOX_WAVE': dict(otype=np.ndarray, atype=float,
-                                  descr='Boxcar Wavelengths (Angstroms)'),
+                                  descr='Boxcar Wavelengths in vacuum (Angstroms)'),
                  'BOX_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Boxcar flux (erg/s/cm^2/Ang)'),
                  'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float,
@@ -164,7 +164,8 @@ class SpecObj(datamodel.DataContainer):
                  'NAME': dict(otype=str, descr='Name of the object following the naming model'),
                  'RA': dict(otype=float, descr='Right Ascension (J2000) decimal degree'),
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
-                 'MASK_SLITID': dict(otype=(int, np.integer), descr='Slitmask slit ID'),
+                 'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
+                 'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '
@@ -368,11 +369,12 @@ class SpecObj(datamodel.DataContainer):
         Args:
             shift (float):
                 additive spectral flexure in pixels
-            sky_spec (`xspectrum1d.XSpectrum1D`_):
+            sky_spec (`linetools.spectra.xspectrum1d.XSpectrum1D`_):
                 Sky Spectrum
 
         Returns:
-            xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
+            `linetools.spectra.xspectrum1d.XSpectrum1D`_: New sky
+            spectrum (mainly for QA)
         """
         # Simple interpolation to apply
         # Apply

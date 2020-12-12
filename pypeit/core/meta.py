@@ -8,7 +8,6 @@ common metadata used for all specrographs.
 
 """
 
-from collections import OrderedDict
 import numpy as np
 
 from astropy import units, coordinates
@@ -75,8 +74,7 @@ def define_core_meta():
 
     """
     # Mainly to format output to PypeIt file
-    # TODO: dicts in python 3.7 are automatically ordered, I think ...
-    core_meta = OrderedDict()
+    core_meta = {}
 
     # Target
     core_meta['ra'] = dict(dtype=float, comment='(J2000) RA in decimal degrees')
@@ -133,7 +131,11 @@ def define_additional_meta(nlamps=20):
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'pressure': dict(dtype=float, comment='Pressure at obstime'),
                        'temperature': dict(dtype=float, comment='Temperature at obstime'),
-                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime')}
+                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
+                       'dateobs': dict(dtype=str, comment='Observation date'),
+                       'utc': dict(dtype=str, comment='UTC of observation'),
+                       'mode': dict(dtype=str, comment='Observing mode'),
+                       'amp': dict(dtype=str, comment='Amplifier used')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
@@ -158,8 +160,8 @@ def get_meta_data_model(nlamps=20):
             directly to :func:`define_additional_meta`.
 
     Returns:
-        `collections.OrderedDict`_: Dictionary with the full metadata
-        model common to all spectrographs.
+        :obj:`dict`: Dictionary with the full metadata model common to all
+        spectrographs.
 
     Raises:
         ValueError:
