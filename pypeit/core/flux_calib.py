@@ -1099,8 +1099,7 @@ def load_filter_file(filter):
     Returns:
         `numpy.ndarray`_: wavelength, instrument throughput
 
-    """
-    '''
+
     # Optical filters
     BASS_MZLS_filters = ['BASS-MZLS-{}'.format(i) for i in ['G', 'R','Z']]
     CFHT_filters = ['CFHT-{}'.format(i) for i in ['U', 'G', 'R', 'I', 'Z']]
@@ -1123,7 +1122,8 @@ def load_filter_file(filter):
     allowed_options = BASS_MZLS_filters + CFHT_filters + DECAM_filters + HSC_filters \
                       + LSST_filters + PS1_filters + SDSS_filters + UKIDSS_filters\
                       + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
-    '''
+    """
+
     filter_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filter_list.ascii'))
     tbl = table.Table.read(filter_file, format='ascii')
 
@@ -1190,6 +1190,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
     fwave, trans = load_filter_file(scale_dict['filter'])
     tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
 
+    # TODO this expression below is incorrect for irregular gridded wavelengths. FIX
     # Convolve
     allt = tfunc(wave)
     wflam = np.sum(flux*allt)/np.sum(allt)* PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.AA
@@ -1204,7 +1205,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
         AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
         # Scale factor
         Dm = AB - scale_dict['filter_mag']
-        scale = 10**(Dm/2.5)
+        scale = np.power(10.0,(Dm/2.5))
         msgs.info("Scaling spectrum by {}".format(scale))
     else:
         msgs.error("Bad magnitude type")
