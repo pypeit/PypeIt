@@ -1,5 +1,5 @@
 
-1.3.0 (12 Dec 2020)
+1.3.0 (13 Dec 2020)
 -------------------
 
 - DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
