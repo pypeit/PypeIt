@@ -60,7 +60,7 @@ Citation
 If you use ``PypeIt`` in your research, please cite the following
 publications (:ref:`bibtex` are provided below):
 
- - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__: Submitted for publication in JOSS
+ - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__: JOSS, in press
  - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__: Zenodo
 
 If there is no place to include the relevant citations in the text of
@@ -114,6 +114,7 @@ What this version provides
   * Global and local :doc:`skysub`
   * Optimal (and boxcar) :doc:`extraction`
   * :doc:`A-B_differencing`
+  * Slitmask metadata slurping including RA/DEC (Keck/DEIMOS only)
 
 * Documentation
 
@@ -140,11 +141,10 @@ What this version provides
 What this version is missing (i.e. what we are working on)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Slitmask metadata slurping (e.g. Keck/DEIMOS)
 * Full 2D coadd support
-* Keck/HIRES, Keck/ESI support
 * Additional QA outputs
 * A dashboard to monitor/control ``PypeIt``
+* Keck/HIRES, Keck/ESI support
 
 
 Users
@@ -239,6 +239,8 @@ development of ``PypeIt``.
 * Tiffany Hsyu
 * Frederick B. Davies
 * Emanuele Paolo Farina
+* Debora Pelliccia
+* James Reichwein
 
 ----
 
