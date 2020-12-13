@@ -272,9 +272,9 @@ class SpecObjs:
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
                     # Grab SNR
-                    if self.OPT_COUNTS[0] is not None:
+                    if spec[0].OPT_COUNTS is not None:
                         SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif self.BOX_COUNTS[0] is not None:
+                    elif spec[0].BOX_COUNTS is not None:
                         SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
                     else:
                         return None
@@ -528,8 +528,8 @@ class SpecObjs:
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
-            outfile (str):
             subheader (:obj:`dict`):
+            outfile (str):
             overwrite (bool, optional):
             slitspatnum (:obj:`str` or :obj:`list`, optional):
                 Restricted set of slits for reduction
@@ -643,7 +643,9 @@ class SpecObjs:
             pypeline (:obj:`str`): PypeIt pipeline mode
         """
         # TODO -- Deal with update_det
-        slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+        # Lists for a Table
+        slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
+            [], [], [], [], [], [], [], [], [], [], []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
@@ -698,6 +700,13 @@ class SpecObjs:
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            if specobj.MASKDEF_ID is not None:
+                maskdef_id.append(specobj.MASKDEF_ID)
+            if specobj.MASKDEF_OBJNAME is not None:
+                objname.append(specobj.MASKDEF_OBJNAME)
+            if specobj.RA is not None:
+                objra.append(specobj.RA)
+                objdec.append(specobj.DEC)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -712,6 +721,16 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
+            if specobj.MASKDEF_ID is not None:
+                obj_tbl['maskdef_id'] = maskdef_id
+                obj_tbl['maskdef_id'].format = 'd'
+            if specobj.MASKDEF_OBJNAME is not None:
+                obj_tbl['objname'] = objname
+            if specobj.RA is not None:
+                obj_tbl['objra'] = objra
+                obj_tbl['objra'].format = '.5f'
+                obj_tbl['objdec'] = objdec
+                obj_tbl['objdec'].format = '.5f'
             obj_tbl['spat_pixpos'] = spat_pixpos
             obj_tbl['spat_pixpos'].format = '.1f'
             obj_tbl['spat_fracpos'] = spat_fracpos

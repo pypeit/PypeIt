@@ -1,4 +1,4 @@
-
+=======
 1.2.1dev
 --------
 
@@ -45,11 +45,37 @@
   alignment boxes from slitmask design.
 - Added a table with DEIMOS slitmask design and objects info to the
   SlitTraceSet datamodel
+- Add support for MMTO Blue Channel Spectrograph
 - Add GitHub Actions CI workflow
 - Incorporates a procedure to enable GMOS Nod and Shuffle observations
 - New GMOS wavelength solutions
 - Remove Travis CI config
-- Add support for the DEIMOS 900ZD grating  
+- General housecleaning of spectrographs
+    - Documentation improvements
+    - Dynamically builds table of available spectrographs; see
+      `pypeit.spectrographs.available_spectrographs`
+    - `pypeit.defs` is now deprecated
+    - Removed usage from `pypeit.pypmsgs` and moved it to `run_pypeit.py`
+    - Many Spectrograph instance attributes are now class attributes; in
+      particular, previous instance attribute `spectrograph` is now `name`.
+    - Added class attributes that set if the spectrograph is supported and any
+      comments for the summary table.
+    - `default_pypeit_par` is now a class method, which allows the name of the
+      spectrograph to be defined in a single place
+    - Valid spectrographs are no longer checked by
+      `pypeit.par.pypeitpar.ReduxPar`.  This caused a circular import in the
+      new strucuture.  The parameter `par['rdx']['spectrograph']` is virtually
+      always checked by `load_spectrograph`, so I don't think this is a
+      problem.
+- Kastr 300 grating solutions
+- Hotfix to include the solutions!
+- Improved DEIMOS slitmask design matching
+- Assign RA/DEC to DEIMOS extractions
+- DEIMOS object RA, Dec, and name returned when running `pypeit_show_1d --list` and saved in
+  the .txt file with the list of 1d spectra.
+- DEIMOS object name and `maskdef_id` visible in ginga when running `pypeit_show_2d`
+- Fix sigma clipping bug!
+
 
 1.2.0 (15 Oct 2020)
 -------------------

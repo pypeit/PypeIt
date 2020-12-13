@@ -27,19 +27,8 @@ settings that are related to the Keck/DEIMOS spectrograph.
 Deviations
 ==========
 
-Here are the main deviations from the default settings
-for DEIMOS
-(see :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`)::
-
-
-    # Default lamps
-    par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-    # Do not require bias frames
-    turn_off = dict(use_biasimage=False)
-    par.reset_all_processimages_par(**turn_off)
-    # Spectral flexure correction
-    par['flexure']['spec_method'] = 'boxcar'
-
+The default changes to the ``PypeIt`` parameters specific to DEIMOS
+data are listed here: :ref:`instr_par`.
 
 These are tuned to the standard calibration
 set taken with DEIMOS.
@@ -51,7 +40,16 @@ Edge Tracing
 ------------
 
 It has been reported that the default `edge_thresh` of 50
-for DEIMOS is too high for some setups.
+for DEIMOS is too high for some setups.  If some of your
+'fainter' slits on the blue side of the spectrum are missing,
+try::
+
+    [calibrations]
+      [[slitedges]]
+         edge_thresh = 10
+
+It is possible, however, that our new implementation of using
+the slitmask design file has alleviated this issue.
 
 Slit-mask design matching
 -------------------------
@@ -76,3 +74,13 @@ Fluxing
 If you use the LVMslitC (common), avoid placing your standard
 star in the right-most slit as you are likely to collide with
 a bad column.
+
+Additional Reading
+==================
+
+Here are additional docs related to Keck/DEIMOS:
+
+.. toctree::
+   :maxdepth: 1
+
+   dev/deimosframes

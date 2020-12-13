@@ -67,7 +67,7 @@ class CombineImage:
             slits (:class:`pypeit.slittrace.SlitTraceSet`, optional): Slit object
             sigma_clip (bool, optional):
                 Perform sigma clipping
-            sigrej (int or float, optional): Rejection threshold for sigma clipping.
+            sigrej (tuple, optional): Rejection thresholds (lo/hi) for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
                 Number of iterations for the clipping

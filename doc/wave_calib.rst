@@ -7,6 +7,10 @@ Wavelength Calibration
 Overview
 ========
 
+Wavelength calibration is performed using arc lamp spectra
+or the night sky lines, dependent on the instrument.
+In all cases, the solution is provided in vacuum.
+
 This doc describes the wavelength calibration
 `Automated Algorithms`_
 the `By-Hand Approach`_ including the

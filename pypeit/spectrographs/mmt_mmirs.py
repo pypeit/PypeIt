@@ -1,9 +1,16 @@
 """
 Module for MMT MMIRS
+
+.. include:: ../include/links.rst
 """
 import glob
+from pkg_resources import resource_filename
+
+from IPython import embed
+
 import numpy as np
 from scipy.signal import savgol_filter
+
 from astropy.time import Time
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -13,76 +20,78 @@ from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
-from pkg_resources import resource_filename
 
 
 class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/MMIRS specific code
-
-
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(MMTMMIRSSpectrograph, self).__init__()
-        self.spectrograph = 'mmt_mmirs'
-        self.telescope = telescopes.MMTTelescopePar()
-        self.camera = 'MMIRS'
+    name = 'mmt_mmirs'
+    telescope = telescopes.MMTTelescopePar()
+    camera = 'MMIRS'
+    supported = True
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=1, card='RA')
-        meta['dec'] = dict(ext=1, card='DEC')
-        meta['target'] = dict(ext=1, card='OBJECT')
-        meta['decker'] = dict(ext=1, card='APERTURE')
-        meta['dichroic'] = dict(ext=1, card='FILTER')
-        meta['binning'] = dict(ext=1, card=None, default='1,1')
+        self.meta['ra'] = dict(ext=1, card='RA')
+        self.meta['dec'] = dict(ext=1, card='DEC')
+        self.meta['target'] = dict(ext=1, card='OBJECT')
+        self.meta['decker'] = dict(ext=1, card='APERTURE')
+        self.meta['dichroic'] = dict(ext=1, card='FILTER')
+        self.meta['binning'] = dict(ext=1, card=None, default='1,1')
 
-        meta['mjd'] = dict(ext=0, card=None, compound=True)
-        meta['exptime'] = dict(ext=1, card='EXPTIME')
-        meta['airmass'] = dict(ext=1, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=1, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=1, card='DISPERSE')
-        meta['idname'] = dict(ext=1, card='IMAGETYP')
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=1, card='DISPERSE')
+        self.meta['idname'] = dict(ext=1, card='IMAGETYP')
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
+        # TODO: This should be how we always deal with timeunit = 'isot'. Are
+        # we doing that for all the relevant spectrographs?
         if meta_key == 'mjd':
             time = headarr[1]['DATE-OBS']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        else:
-            msgs.error("Not ready for this compound meta")
+        msgs.error("Not ready for this compound meta")
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Detector 1
         detector_dict = dict(
@@ -105,17 +114,20 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-    @staticmethod
-    def default_pypeit_par():
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for the reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'mmt_mmirs'
-
+        par = super().default_pypeit_par()
 
         # Image processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
         #par['calibrations']['traceframe']['process']['use_darkimage'] = True
         #par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
@@ -168,31 +180,31 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if (self.get_meta_value(scifile, 'dispname')=='HK') and (self.get_meta_value(scifile, 'dichroic')=='zJ'):
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -209,6 +221,21 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
@@ -228,25 +255,34 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        Generate a default bad-pixel mask.
 
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         msgs.info("Using hard-coded BPM for det=1 on MMIRS")
 
@@ -263,21 +299,34 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Load up the raw image and generate a few other bits and pieces
-        that are key for image processing
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple:
-                raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
-                exptime (float)
-                rawdatasec_img (np.ndarray)
-                oscansec_img (np.ndarray)
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -321,11 +370,13 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
                np.flipud(np.flipud(oscansec_img))
 
 def mmirs_read_amp(img, namps=32):
-    '''
-    MMIRS has 32 reading out channels. Need to deal with this issue a little bit. I am not using the pypeit overscan
-    subtraction since we need to do the up-the-ramp fitting in the future.
+    """
+    MMIRS has 32 reading out channels. Need to deal with this issue a little
+    bit. I am not using the pypeit overscan subtraction since we need to do
+    the up-the-ramp fitting in the future.
+
     Imported from MMIRS IDL pipeline refpix.pro
-    '''
+    """
 
     # number of channels for reading out
     if namps is None:
@@ -353,3 +404,6 @@ def mmirs_read_amp(img, namps=32):
         img_out[:, amp * ampsize:(amp + 1) * ampsize] -= ref12
 
     return img_out
+
+
+
