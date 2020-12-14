@@ -388,6 +388,7 @@ def main(args):
         imgminsky_gpm = sens_gpm[:, np.newaxis] & pseudo_dict['inmask']
     else:
         imgminsky= pseudo_dict['imgminsky']
+        imgminsky_gpm = pseudo_dict['inmask']
 
     ##########################
     # Now display the images #
