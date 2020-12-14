@@ -14,7 +14,7 @@ matplotlib.use('agg')  # For Travis
 #warnings.simplefilter('error', FutureWarning)
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
 from pypeit.scripts import identify
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
@@ -194,6 +194,14 @@ def test_chk_flat():
     #
     pargs = chk_flats.parse_args([mstrace_root])
     chk_flats.main(pargs)
+
+@cooked_required
+def test_chk_wavecalib():
+    ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                                'MasterWaveCalib_A_1_01.fits')
+    #
+    pargs = chk_wavecalib.parse_args([ms_root])
+    chk_wavecalib.main(pargs)
 
 
 
