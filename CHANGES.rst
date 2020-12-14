@@ -1,6 +1,11 @@
-=======
-1.2.1dev
+
+1.3.1dev
 --------
+
+
+
+1.3.0 (13 Dec 2020)
+-------------------
 
 - DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
   the first three are now included in the auto-generated pypeit files.
