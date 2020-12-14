@@ -259,18 +259,18 @@ class WaveCalib(datamodel.DataContainer):
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
         # Central wave, delta wave
-        diag['minWave'] = [wvfit.wave_soln[0] for wvfit in self.wv_fits]
+        diag['minWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits]
         diag['minWave'].format = '0.1f'
-        diag['Wave_cen'] = [wvfit.cen_wave for wvfit in self.wv_fits]
+        diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
         diag['Wave_cen'].format = '0.1f'
-        diag['maxWave'] = [wvfit.wave_soln[-1] for wvfit in self.wv_fits]
+        diag['maxWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits]
         diag['maxWave'].format = '0.1f'
-        diag['dWave'] = [wvfit.cen_disp for wvfit in self.wv_fits]
+        diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
         diag['dWave'].format = '0.3f'
         # Number of good lines
-        diag['Nlin'] = [np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
+        diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
         # RMS
-        diag['RMS'] = [wvfit.rms for wvfit in self.wv_fits]
+        diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
         diag['RMS'].format = '0.3f'
         # Print it
         print(diag)
