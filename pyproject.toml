@@ -1,5 +1,9 @@
 [build-system]
-requires = ["setuptools",
-            "wheel",
-            "extension-helpers"]
 
+requires = [
+    "setuptools",
+    "wheel",
+    "extension-helpers"
+]
+
+build-backend = 'setuptools.build_meta'
