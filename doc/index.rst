@@ -6,6 +6,9 @@
 .. |DOI_latest| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3743493.svg
    :target: https://doi.org/10.5281/zenodo.3743493
 
+.. |JOSS| image:: https://joss.theoj.org/papers/10.21105/joss.02308/status.svg
+   :target: https://doi.org/10.21105/joss.02308
+
 .. |arxiv| image:: https://img.shields.io/badge/arxiv-2005.06505-black
    :target: https://arxiv.org/abs/2005.06505
 
@@ -60,8 +63,8 @@ Citation
 If you use ``PypeIt`` in your research, please cite the following
 publications (:ref:`bibtex` are provided below):
 
- - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__: JOSS, in press
- - `Prochaska et al. (2020) <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__: Zenodo
+ - Prochaska et al. (2020, JOSS): `arXiv <https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P/abstract>`__, `JOSS <https://joss.theoj.org/papers/10.21105/joss.02308>`__
+ - Prochaska et al. (2020, Zenodo): `Zenodo <https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P/abstract>`__
 
 If there is no place to include the relevant citations in the text of
 the publication, please include the following acknowledgement
@@ -71,7 +74,7 @@ the publication, please include the following acknowledgement
 
     This research made use of \ttfamily{PypeIt},\footnote{\url{https://pypeit.readthedocs.io/en/latest/}}
     a Python package for semi-automated reduction of astronomical slit-based spectroscopy
-    \citep{pypeit:joss, pypeit:zenodo}.
+    \citep{pypeit:joss_pub, pypeit:zenodo}.
 
 ----
 
@@ -251,7 +254,7 @@ PypeIt BibTeX Entries
 
 .. code-block:: latex
 
-    @ARTICLE{pypeit:joss,
+    @ARTICLE{pypeit:joss_arXiv,
            author = {{Prochaska}, J. Xavier and {Hennawi}, Joseph F. and {Westfall}, Kyle B. and
              {Cooke}, Ryan J. and {Wang}, Feige and {Hsyu}, Tiffany and
              {Davies}, Frederick B. and {Farina}, Emanuele Paolo},
@@ -267,6 +270,19 @@ PypeIt BibTeX Entries
      primaryClass = {astro-ph.IM},
            adsurl = {https://ui.adsabs.harvard.edu/abs/2020arXiv200506505P},
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+    }
+
+    @article{pypeit:joss_pub,
+        doi = {10.21105/joss.02308},
+        url = {https://doi.org/10.21105/joss.02308},
+        year = {2020},
+        publisher = {The Open Journal},
+        volume = {5},
+        number = {56},
+        pages = {2308},
+        author = {J. Xavier Prochaska and Joseph F. Hennawi and Kyle B. Westfall and Ryan J. Cooke and Feige Wang and Tiffany Hsyu and Frederick B. Davies and Emanuele Paolo Farina and Debora Pelliccia},
+        title = {PypeIt: The Python Spectroscopic Data Reduction Pipeline},
+        journal = {Journal of Open Source Software}
     }
 
     @MISC{pypeit:zenodo,
