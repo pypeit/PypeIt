@@ -1,4 +1,9 @@
 
+1.3.0 Hotfixes
+--------------
+
+- Added as-published JOSS citation.
+
 1.3.0 (13 Dec 2020)
 -------------------
 
