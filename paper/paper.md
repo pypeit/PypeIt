@@ -69,7 +69,7 @@ In what follows, we provide a brief description of the algorithms,
 but refer the interested reader to the online documentation for
 the most up-to-date information. 
 
-Release v1.2 serves the following spectrographs:
+Release v1.3 serves the following spectrographs:
 Gemini/GNIRS,
     Gemini/GMOS,
     Gemini/FLAMINGOS 2,
