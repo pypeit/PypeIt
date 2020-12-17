@@ -29,6 +29,7 @@ from pypeit.spectrographs import tng_dolores
 from pypeit.spectrographs import vlt_fors
 from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import wht_isis
+from pypeit.spectrographs import salt_rss
 
 # Build the list of names for the available spectrographs
 import numpy as np
@@ -52,4 +53,3 @@ def spectrograph_classes():
     return dict([ (c.name,c) for c in spec_c[srt]])
 
 available_spectrographs = list(spectrograph_classes().keys())
-

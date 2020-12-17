@@ -16,5 +16,10 @@ pypeit_spectrographs = ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_
                         'gemini_gmos_north_ham_ns',
                         'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'lbt_mods1r',
                         'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2',
+<<<<<<< HEAD:pypeit/deprecated/defs.py
                         'mmt_binospec', 'mmt_mmirs', 'mmt_bluechannel', 'mdm_osmos_mdm4k',
                         'not_alfosc', 'p200_dbsp_blue', 'p200_dbsp_red', 'p200_tspec']
+=======
+                        'mmt_binospec', 'mmt_mmirs', 'mdm_osmos_mdm4k', 'not_alfosc',
+                        'p200_dbsp_blue', 'p200_dbsp_red', 'p200_tspec', 'salt_rss_visible']
+>>>>>>> a34c7033a... first half-working salt rss:pypeit/defs.py

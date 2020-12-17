@@ -41,3 +41,5 @@ def load_spectrograph(spec):
     msgs.error('{0} is not a supported spectrograph.'.format(spec))
 
 
+
+    msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
