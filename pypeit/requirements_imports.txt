@@ -1,0 +1,23 @@
+# check_requirements.py looks here!
+#
+# Each line should have the form
+# package >= version[, error message]
+# If an error message is provided, it will be printed if the package is
+# missing or if the version is incorrect.
+
+packaging>=19.0
+numpy>=1.18.0
+scipy>=1.4
+matplotlib>=3.1
+astropy>=4.0
+extension_helpers>=0.1
+yaml>=5.1
+configobj>=5.0.6
+sklearn>=0.20
+IPython>=7.2.0
+ginga>=3.0
+numba>=0.39.0
+linetools==0.3.dev2147
+PySide2>=5.0
+pytest>=6.0.0,pytest is only required for running tests
+shapely>=1.7,shapely is required only for KCWI
