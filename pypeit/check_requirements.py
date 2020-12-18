@@ -2,6 +2,7 @@
 Version checking.
 """
 
+import importlib
 import pkg_resources
 from pypeit import msgs
 
@@ -12,7 +13,7 @@ for requirement in install_requires:
     pkg, version = requirement.split('>=', maxsplit=1)
     version, *not_found_msg = version.split(",", maxsplit=1)
     try:
-        pkg = __import__(pkg, globals(), locals(), [], 0)
+        pkg = importlib.import_module(pkg)
         pv = pkg.__version__
     except ModuleNotFoundError:
         if not_found_msg:
