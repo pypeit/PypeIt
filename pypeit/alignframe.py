@@ -135,7 +135,7 @@ class TraceAlignment(object):
 
         # Defaults
         self.spectrograph = spectrograph
-        self.PYP_SPEC = spectrograph.spectrograph
+        self.PYP_SPEC = spectrograph.name
         self.binning = binning
         # Alignment parameters
         self.alignpar = alignpar

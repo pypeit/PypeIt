@@ -273,7 +273,7 @@ class RawImage(object):
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
                                               bpm=bpm, detector=self.detector,
                                               spat_flexure=self.spat_flexure_shift,
-                                              PYP_SPEC=self.spectrograph.spectrograph)
+                                              PYP_SPEC=self.spectrograph.name)
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 

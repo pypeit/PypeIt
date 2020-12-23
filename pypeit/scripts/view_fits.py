@@ -9,13 +9,14 @@ This script enables the viewing of a raw FITS file
 
 def parse_args(options=None, return_parser=False):
     import argparse
-    from pypeit import defs
+    from pypeit.spectrographs import available_spectrographs
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument('spectrograph', type=str,
-                        help='A valid spectrograph identifier: {0}'.format(', '.join(defs.pypeit_spectrographs)))
+                        help='A valid spectrograph identifier: {0}'.format(
+                             ', '.join(available_spectrographs)))
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
     parser.add_argument('--det', type=int, default=1, help="Detector number (ignored for keck_lris, keck_deimos")
@@ -41,6 +42,7 @@ def main(args):
     from pypeit.spectrographs import magellan_ldss3
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
+    from pypeit.spectrographs import mmt_bluechannel
     from pypeit.spectrographs import util
     from pypeit import msgs
     from pypeit import io
@@ -82,9 +84,12 @@ def main(args):
         img = gen_bino.get_rawimage(args.file, args.det)[1]
     # RAW_MMIRS
     elif args.spectrograph == 'mmt_mmirs':
-        #
         gen_mmirs = mmt_mmirs.MMTMMIRSSpectrograph()
         img = gen_mmirs.get_rawimage(args.file, args.det)[1]
+    # RAW MMT blue channel
+    elif args.spectrograph == 'mmt_bluechannel':
+        gen_bluechan = mmt_bluechannel.MMTBlueChannelSpectrograph()
+        img = gen_bluechan.get_rawimage(args.file, args.det)[1]
     # RAW_LDSS3
     elif args.spectrograph == 'magellan_ldss3':
         #

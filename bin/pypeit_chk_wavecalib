@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+
+"""
+Print WaveCalib QA to the screen
+"""
+
+from pypeit.scripts import chk_wavecalib
+if __name__ == '__main__':
+    chk_wavecalib.main(chk_wavecalib.parse_args())

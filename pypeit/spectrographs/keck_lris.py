@@ -1,43 +1,47 @@
-""" Module for LRIS specific codes
+"""
+Module for LRIS specific methods.
+
+.. include:: ../include/links.rst
 """
 import glob
 import os
+
+from IPython import embed
+
+from pkg_resources import resource_filename
+
 import numpy as np
 
 from astropy.io import fits
 from astropy import time
-
-from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-from IPython import embed
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
     ndet = 2
+    telescope = telescopes.KeckTelescopePar()
 
-    def __init__(self):
-        # Get it started
-        super(KeckLRISSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_base'
-        self.telescope = telescopes.KeckTelescopePar()
+    @classmethod
+    def default_pypeit_par(cls):
+        """
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
+        """
+        par = super().default_pypeit_par()
 
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for Keck LRISr reductions.
-        """
-        par = pypeitpar.PypeItPar()
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['fit_order'] = 3
@@ -72,25 +76,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
@@ -100,55 +101,53 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # This might only be required for det=2, but we'll see..
-            if self.spectrograph == 'keck_lris_red':
+            # TODO: Why is this here and not in KeckLRISRSpectrograph???
+            if self.name == 'keck_lris_red':
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
-        meta['decker'] = dict(ext=0, card='SLITNAME')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='SLITNAME')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dichroic'] = dict(ext=0, card='DICHNAME')
-        meta['hatch'] = dict(ext=0, card='TRAPDOOR')
+        self.meta['dichroic'] = dict(ext=0, card='DICHNAME')
+        self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
-        meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
-            meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
-        # Ingest
-        self.meta = meta
+            self.meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
-        Methods to generate meta in a more complex manner than simply
-        reading from the header
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr (list):
-            meta_key (str):
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            meta
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
@@ -158,7 +157,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             idx = int(meta_key[-2:])
             curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
-            t_newlamp = time.Time("2010-12-03", format='isot')  # LAMPS changed in Header
+            t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
                 lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                               'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
@@ -182,23 +181,38 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from file headers and
-            used to constuct the :class:`pypeit.metadata.PypeItMetaData`
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dichroic', 'decker', 'binning']
+        return super().configuration_keys() + ['binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
@@ -224,14 +238,15 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Check the lamp status.
 
         Args:
-            fitstbl (:obj:`astropy.table.Table`):
+            fitstbl (`astropy.table.Table`_):
                 The table with the fits header meta data.
             status (:obj:`str`):
-                The status to check.  Can be `off`, `arcs`, or `dome`.
-        
+                The status to check. Can be ``'off'``, ``'arcs'``, or
+                ``'dome'``.
+
         Returns:
-            numpy.ndarray: A boolean array selecting fits files that
-            meet the selected lamp status.
+            `numpy.ndarray`_: A boolean array selecting fits files that meet
+            the selected lamp status.
 
         Raises:
             ValueError:
@@ -256,22 +271,36 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read a raw LRIS data frame (one or more detectors)
-        Packed in a multi-extension HDU
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
         Based on readmhdufits.pro
 
         Parameters
         ----------
-        raw_file : str
-          Filename
-        det (int or None):
-          Detector number;
-          If None, grab both [if both are there]
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
         Returns
         -------
-        tuple
-            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -390,52 +419,70 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return self.get_detector_par(hdu, det if det is not None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
-    def subheader_for_spec(self, row_fitstbl, raw_header):
+    def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
+                           allow_missing=False):
         """
-        See :func:`pypeit.spectrograph.spectrograph.Spectrograph.subheader_for_spec`
-        for doc string
+        Generate a dict that will be added to the Header of spectra files
+        generated by ``PypeIt`` (e.g. :class:`~pypeit.specobjs.SpecObjs`).
 
         Args:
-            row_fitstbl (:class:`astropy.table.Row` or :class:`astropy.io.fits.Header`):
-            raw_header (:class:`astropy.io.fits.Header`):
+            row_fitstbl (dict-like):
+                Typically an `astropy.table.Row`_ or
+                `astropy.io.fits.Header`_ with keys defined by
+                :func:`~pypeit.core.meta.define_core_meta`.
+            raw_header (`astropy.io.fits.Header`_):
+                Header that defines the instrument and detector, meaning that
+                the header must contain the ``INSTRUME``, ``DETECTOR``,
+                ``GRANAME``, ``GRISNAME``, and ``SLITNAME`` header cards. If
+                provided, this must also contain the header cards provided by
+                ``extra_header_cards``.
+            extra_header_cards (:obj:`list`, optional):
+                Additional header cards from ``raw_header`` to include in the
+                output dictionary. Can be an empty list or None.
+            allow_missing (:obj:`bool`, optional):
+                Ignore any keywords returned by
+                :func:`~pypeit.core.meta.define_core_meta` are not present in
+                ``row_fitstbl``. Otherwise, raise ``PypeItError``.
 
         Returns:
-            :obj:`dict`: -- Used to generate a Header or table downstream
-
+            :obj:`dict`: Dictionary with data to include an output fits
+            header file or table downstream.
         """
-        return super(KeckLRISSpectrograph, self).subheader_for_spec(
-            row_fitstbl, raw_header, extra_header_cards=['GRANAME', 'GRISNAME', 'SLITNAME'])
+        _extra_header_cards = ['GRANAME', 'GRISNAME', 'SLITNAME']
+        if extra_header_cards is not None:
+            _extra_header_cards += extra_header_cards
+        return super().subheader_for_spec(row_fitstbl, raw_header,
+                                          extra_header_cards=_extra_header_cards,
+                                          allow_missing=allow_missing)
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISb specific code
     """
-    def __init__(self):
-        # Get it started
-        super(KeckLRISBSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_blue'
-        self.camera = 'LRISb'
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        self.sky_file = 'sky_LRISb_600.fits'
 
+    name = 'keck_lris_blue'
+    camera = 'LRISb'
+    supported = True
+    comment = 'Blue camera; see :doc:`lris`'
+    
     def get_detector_par(self, hdu, det):
         """
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
-                Detector ID.  1 or 2
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent?
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -483,13 +530,16 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck LRISb reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = KeckLRISSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'keck_lris_blue'
+        par = super().default_pypeit_par()
 
         par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
@@ -508,31 +558,27 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
         par['calibrations']['traceframe']['exprng'] = [None, 300]
 
-
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super(KeckLRISBSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
@@ -567,33 +613,44 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
     def init_meta(self):
         """
-        Meta data specific to Keck LRIS red
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(KeckLRISBSpectrograph, self).init_meta()
+        super().init_meta()
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        """ Generate a BPM
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
         Args:
-            filename (str):
-            det (int):
-            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
         Returns:
-            np.ndarray:
-
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Only defined for det=1
         if det == 1:
@@ -608,34 +665,19 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     Child to handle the LRISb detector packed prior to 01 JUL 2009
     """
     ndet = 2
-
-    def __init__(self):
-        # Get it started
-        super(KeckLRISBOrigSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_blue_orig'
-        self.camera = 'LRISb'
-
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Keck LRISr reductions with the original detector
-
-        Returns:
-            :class:`pypeit.par.pypeitpar.PypeItPar`:
-
-        """
-        par = super(KeckLRISBOrigSpectrograph, self).default_pypeit_par()
-        par['rdx']['spectrograph'] = 'keck_lris_blue_orig'
-        #
-        return par
+    name = 'keck_lris_blue_orig'
+    camera = 'LRISb'
+    supported = True    # TODO: Is this true?
+    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
 
     def init_meta(self):
         """
-        Meta data specific to Keck LRIS red
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(KeckLRISBOrigSpectrograph, self).init_meta()
+        super().init_meta()
         # Remove the lamps
         keys = list(self.meta.keys())
         for key in keys:
@@ -644,17 +686,37 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
         Over-ride standard get_rawimage() for LRISb to deal
         with the original approach
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple
-                See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Image info
         image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
@@ -689,34 +751,59 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
 
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-        return bpm_img
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels. **This is
+                always ignored.**
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        return super().bpm(filename, det, shape=shape, msbias=None)
 
 
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
-    def __init__(self):
-        # Get it started
-        super(KeckLRISRSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_red'
-        self.camera = 'LRISr'
-
+    name = 'keck_lris_red'
+    camera = 'LRISr'
+    supported = True
+    comment = 'Red camera; see :doc:`lris`'
+    
     def get_detector_par(self, hdu, det):
         """
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
-                Detector ID.  1 or 2
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -793,13 +880,17 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Return
         return detector
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck LRISr reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = KeckLRISSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'keck_lris_red'
-        #
+        par = super().default_pypeit_par()
+
         par['calibrations']['slitedges']['edge_thresh'] = 20.
 
         # 1D wavelength solution
@@ -827,26 +918,23 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super(KeckLRISRSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Lacosmic CR settings
         #   Grab the defaults for LRISr
@@ -878,57 +966,66 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
 
-
         # Return
         return par
 
 
     def init_meta(self):
         """
-        Meta data specific to Keck LRIS red
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(KeckLRISRSpectrograph, self).init_meta()
+        super().init_meta()
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRANAME')
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
-        cfg_keys = super(KeckLRISRSpectrograph, self).configuration_keys()
-        # Add grating tilt
-        return cfg_keys+['dispangle']
+        return super().configuration_keys() + ['dispangle']
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        """ Generate a BPM
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
         Args:
-            filename (str):
-            det (int):
-            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels.
 
         Returns:
-            np.ndarray
-
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         # Only defined for det=2
         if det == 2:
@@ -956,24 +1053,22 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     Child to handle the original LRISr detector (pre 01 JUL 2009)
     """
     ndet = 1
+    name = 'keck_lris_red_orig'
+    camera = 'LRISr'
+    supported = True
+    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
 
-    def __init__(self):
-        # Get it started
-        super(KeckLRISROrigSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_red_orig'
-        self.camera = 'LRISr'
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck LRISr reductions with the original detector
-
+        Return the default parameters to use for this instrument.
+        
         Returns:
-            :class:`pypeit.par.pypeitpar.PypeItPar`:
-
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = super(KeckLRISROrigSpectrograph, self).default_pypeit_par()
-        par['rdx']['spectrograph'] = 'keck_lris_red_orig'
-        #
+        par = super().default_pypeit_par()
+
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'KrI', 'XeI', 'HgI']
 
@@ -981,17 +1076,17 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
     def get_detector_par(self, hdu, det):
         """
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
-                Ignored.  Must be 1
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
@@ -1025,12 +1120,12 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
     def init_meta(self):
         """
-        Meta data specific to Keck LRIS red
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        super(KeckLRISROrigSpectrograph, self).init_meta()
+        super().init_meta()
         # Remove the lamps
         keys = list(self.meta.keys())
         for key in keys:
@@ -1039,17 +1134,36 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
         Over-ride standard get_rawimage() for LRIS
 
-        Args:
-            raw_file (str):
-            det (int):
-                Effectively ignored
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
-        Returns:
-            tuple
-                See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Image info
         image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
@@ -1059,9 +1173,36 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
 
     def bpm(self, filename, det, shape=None, msbias=None):
-        # Get the empty bpm: force is always True
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-        return bpm_img
+        """
+        Generate a default bad-pixel mask.
+
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels. **This is
+                always ignored.**
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+        # Call the base-class method to generate the empty bpm
+        return super().bpm(filename, det, shape=shape, msbias=None)
+
 
 def lris_read_amp(inp, ext):
     """
@@ -1188,18 +1329,33 @@ def convert_lowredux_pixelflat(infil, outfil):
 
 def get_orig_rawimage(raw_file, debug=False):
     """
-    Read a raw, original LRIS data frame
+    Read a raw, original LRIS data frame.
 
     Ported from LOWREDUX long_oscan.pro lris_oscan()
 
-    Args:
-        raw_file : str
-          Filename
+    Parameters
+    ----------
+    raw_file : :obj:`str`
+        Filename
+    debug : :obj:`bool`, optional
+        Run in debug mode (doesn't do anything)
 
-    Returns:
-        tuple
-            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-            But note the detector info is *not* returned
+    Returns
+    -------
+    raw_img : `numpy.ndarray`_
+        Raw image for this detector.
+    hdu : `astropy.io.fits.HDUList`_
+        Opened fits file
+    exptime : :obj:`float`
+        Exposure time read from the file header
+    rawdatasec_img : `numpy.ndarray`_
+        Data (Science) section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
+    oscansec_img : `numpy.ndarray`_
+        Overscan section of the detector as provided by setting the
+        (1-indexed) number of the amplifier used to read each detector pixel.
+        Pixels unassociated with any amplifier are set to 0.
     """
     # Open
     hdul = io.fits_open(raw_file)
@@ -1232,4 +1388,5 @@ def get_orig_rawimage(raw_file, debug=False):
 
     return image, hdul, float(head0['ELAPTIME']), \
            rawdatasec_img, oscansec_img
+
 

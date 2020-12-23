@@ -16,10 +16,9 @@ import inspect
 import scipy
 import numpy
 import astropy
+import pypeit
 
-from pypeit import __version__ #, __last_updated__
 from pypeit.core.qa import close_qa
-from pypeit import defs
 
 #pypeit_logger = None
 
@@ -58,8 +57,6 @@ class Messages:
         if getpass.getuser() in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
-#        self._last_updated = __last_updated__
-        self._version = __version__
 
         # TODO: Why are these two necessary?  It would seem better to
         # provide Messages with member functions that can operate on
@@ -132,9 +129,8 @@ class Messages:
         self._log = open(log, 'w')
 
         self._log.write("------------------------------------------------------\n\n")
-#        self._log.write("PypeIt was last updated {0:s}\n".format(self._last_updated))
         self._log.write("This log was generated with version {0:s} of PypeIt\n\n".format(
-                                                                                    self._version))
+                        pypeit.__version__))
         self._log.write("You are using scipy version={:s}\n".format(scipy.__version__))
         self._log.write("You are using numpy version={:s}\n".format(numpy.__version__))
         self._log.write("You are using astropy version={:s}\n\n".format(astropy.__version__))
@@ -160,96 +156,14 @@ class Messages:
             self._log = None
         self._initialize_log_file(log=log)
 
-    # Headers and usage
-    # TODO: Move this to the ARMED class...
-    def armedheader(self, prognm):
-        """
-        Get the info header for ARMED
-        """
-        header = '##  '
-        header += self._start + self._white_GR + 'ARMED : '
-        header += 'Automated Reduction and Modelling of Echelle Data v{0:s}'.format(
-                        self._version) + self._end + '\n'
-        header += '##  '
-        header += 'Usage : '
-        header += 'python %s [options] filelist'.format(prognm)
-        return header
-
-    def pypeitheader(self, prognm):
-        """
-        Get the info header for PypeIt
-        """
-        header = '##  '
-        header += self._start + self._white_GR + 'PypeIt : '
-        header += 'The Python Spectroscopic Data Reduction Pipeline v{0:s}'.format(
-                        self._version) + self._end + '\n'
-        header += '##  '
-        return header
-
-    def usage(self, prognm):
-        """
-        Print pypeit usage data.
-        """
-        # TODO: This is outdated
-        #stgs_arm = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.arm*')
-        #stgs_all = glob.glob(os.path.dirname(__file__)+'/data/settings/settings.*')
-        #stgs_spc = list(set(stgs_arm) ^ set(stgs_all))
-        spectrographs = defs.pypeit_spectrographs
-
-        #armlist = os.path.basename(stgs_arm[0]).split('.')[-1]
-        #for i in range(1, len(stgs_arm)):
-        #    armlist += ', ' + os.path.basename(stgs_arm[i]).split('.')[-1]
-        #spclist = os.path.basename(stgs_spc[0]).split('.')[-1]
-        #for kk,istsp in enumerate(stgs_spc):
-        #    if (kk == 0) or ('base' in istsp) or ('py' in istsp.split('.')[-1]):
-        #        continue
-        #    spclist += ', ' + istsp.split('.')[-1]
-
-        spclist = ', '.join(spectrographs)
-        spcl = textwrap.wrap(spclist, width=60)
-        descs = self.pypeitheader(prognm)
-
-        #descs += '\n##  Available pipelines include (OUTDATED):'
-        #descs += '\n##   ' + armlist
-
-        descs += '\n##  Available spectrographs include:'
-        for ispcl in spcl:
-            descs += '\n##   ' + ispcl
-
-#        descs += '\n##  Last updated: {0:s}'.format(self._last_updated)
-
-        return descs
-
     def close(self):
         '''
         Close the log file before the code exits
         '''
         close_qa(self.pypeit_file)
-#        from pypeit import arqa
-#        # QA HTML
-#        if self.pypeit_file is not None:  # Likely testing
-#            try:
-#                arqa.gen_mf_html(self.pypeit_file)
-#            except:  # Likely crashed very early
-#                pass
-#            else:
-#                arqa.gen_exp_html()
         return self.reset_log_file(None)
 
-#        # Close log
-#        if self._log:
-#            self._log.close()
-
-#    def signal_handler(self, signalnum, handler):
-#        """
-#        Handle signals sent by the keyboard during code execution
-#        """
-#        if signalnum == 2:
-#            self.info('Ctrl+C was pressed. Ending processes...')
-#            self.close()
-#            sys.exit()
-
-    def error(self, msg, usage=False):
+    def error(self, msg):
         """
         Print an error message
         """
@@ -260,11 +174,10 @@ class Messages:
         # TODO: This no longer "closes" the QA plots
         self.close()
 
-        # Print command line usage
-        if usage:
-            self.usage(None)
-        #
         raise PypeItError(msg)
+
+        # TODO: Does this do anything? I didn't think anything past `raise`
+        # would be executed.
         sys.exit(1)
 
     def info(self, msg):

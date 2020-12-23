@@ -674,8 +674,7 @@ class BuildWaveTilts:
                       'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order,
                       'spat_id':self.slits.spat_id, 'bpmtilts': bpmtilts,
-                      'spat_flexure': self.spat_flexure,
-                      'PYP_SPEC': self.spectrograph.spectrograph}
+                      'spat_flexure': self.spat_flexure, 'PYP_SPEC': self.spectrograph.name}
         return WaveTilts(**tilts_dict)
 
     def _parse_param(self, par, key, slit):

@@ -91,7 +91,7 @@ class PypeIt(object):
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -162,26 +162,6 @@ class PypeIt(object):
         # Should we have separate calibration and science QA
         # directories?
         # An html file wrapping them all too
-
-#        # Instantiate Calibrations class
-#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-#            self.caliBrate \
-#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-#                                                     self.spectrograph, self.calibrations_path,
-#                                                     qadir=self.qa_path,
-#                                                     reuse_masters=self.reuse_masters,
-#                                                     show=self.show,
-#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-#        elif self.spectrograph.pypeline in ['IFU']:
-#            self.caliBrate \
-#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-#                                               self.spectrograph,
-#                                               self.calibrations_path,
-#                                               qadir=self.qa_path,
-#                                               reuse_masters=self.reuse_masters,
-#                                               show=self.show)
-#        else:
-#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
 
         # Init
         # TODO: I don't think this ever used
