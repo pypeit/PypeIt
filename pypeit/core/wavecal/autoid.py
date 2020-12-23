@@ -880,6 +880,8 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
     # Loop on slits
     wvcalib = {}
     for slit in range(nslits):
+        # Sigdetect
+        sigdetect = wvutils.parse_param(par, 'sigdetect', slit)
         # Check
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
@@ -935,15 +937,18 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             msnippet = mspec[j0:j1]
             mwvsnippet = mwv[j0:j1]
             # TODO: JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
-            # pixels, and allows the code to continue with crashing. This code is constantly causing reidentify to crash
-            # by passing in these junk snippets that are almost entirely zero-padded for large shifts. We should
-            # be checking for this intelligently rather than constantly calling reidentify with basically junk arxiv
-            # spectral snippets.
+            #  pixels, and allows the code to continue with crashing. This code is constantly causing reidentify to crash
+            #  by passing in these junk snippets that are almost entirely zero-padded for large shifts. We should
+            #  be checking for this intelligently rather than constantly calling reidentify with basically junk arxiv
+            #  spectral snippets.
             if not np.any(msnippet):
                 continue
+            # TODO -- JXP
+            #  should we use par['cc_thresh'] instead of hard-coding cc_thresh??
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
+                                                              sigdetect=sigdetect,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
@@ -1096,7 +1101,7 @@ class ArchiveReid:
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
-        self.sigdetect = self.par['sigdetect']
+        #self.sigdetect = self.par['sigdetect']  # This is not used and isn't right either
         self.fwhm = self.par['fwhm']
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']
