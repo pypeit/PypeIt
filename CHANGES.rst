@@ -3,6 +3,7 @@
 --------------
 
 - Added as-published JOSS citation.
+- sigdetect on in full_template
 
 1.3.0 (13 Dec 2020)
 -------------------
