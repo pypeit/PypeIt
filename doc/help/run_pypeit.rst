@@ -5,7 +5,7 @@
                       [-d DETECTOR] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.2.1dev[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.3.1dev[0m
     ##  
     ##  Available spectrographs include:
     ##   gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,

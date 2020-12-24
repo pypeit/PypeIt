@@ -169,6 +169,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[cube]]``: `CubePar Keywords`_
 
+        ``[[slitmask]]``: `SlitMaskPar Keywords`_
+
     ``[flexure]``: `FlexurePar Keywords`_
 
     ``[fluxcalib]``: `FluxCalibratePar Keywords`_
@@ -544,6 +546,7 @@ Key             Type                                         Options  Default   
 ``extraction``  :class:`pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                                     
 ``findobj``     :class:`pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms                    
 ``skysub``      :class:`pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms                                
+``slitmask``    :class:`pypeit.par.pypeitpar.SlitMaskPar`    ..       `SlitMaskPar Keywords`_    Parameters for slitmask                                                  
 ``trim_edge``   list                                         ..       0, 0                       Trim the slit by this number of pixels left/right when performing sky sub
 ==============  ===========================================  =======  =========================  =========================================================================
 
@@ -664,6 +667,21 @@ Key                  Type        Options  Default  Description
 
 ----
 
+SlitMaskPar Keywords
+--------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
+
+==============  =====  =======  =======  ===============================================================
+Key             Type   Options  Default  Description                                                    
+==============  =====  =======  =======  ===============================================================
+``assign_obj``  bool   ..       False    If SlitMask object was generated, assign RA,DEC,name to objects
+``obj_toler``   float  ..       5.0      Tolerance (arcsec) to match source to targeted object          
+==============  =====  =======  =======  ===============================================================
+
+
+----
+
 FrameGroupPar Keywords
 ----------------------
 
@@ -690,7 +708,10 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 Key                       Type        Options                                                                Default         Description                                                                                                                                                                                                                                
 ========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
 ``apply_gain``            bool        ..                                                                     True            Convert the ADUs to electrons using the detector gain                                                                                                                                                                                      
+``clip``                  bool        ..                                                                     True            Perform sigma clipping when combining.  Only used with combine=weightmean                                                                                                                                                                  
+``comb_sigrej``           float       ..                                                                     ..              Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                       
 ``combine``               str         ``median``, ``weightmean``                                             ``weightmean``  Method used to combine multiple frames.  Options are: median, weightmean                                                                                                                                                                   
+``cr_sigrej``             int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
 ``grow``                  int, float  ..                                                                     1.5             Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
 ``lamaxiter``             int         ..                                                                     1               Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
 ``mask_cr``               bool        ..                                                                     False           Identify CRs and mask them                                                                                                                                                                                                                 
@@ -702,10 +723,8 @@ Key                       Type        Options                                   
 ``replace``               str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``   If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
 ``rmcompact``             bool        ..                                                                     True            Remove compact detections in LA cosmics routine                                                                                                                                                                                            
 ``satpix``                str         ``reject``, ``force``, ``nothing``                                     ``reject``      Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
-``sig_lohi``              list        ..                                                                     3.0, 3.0        Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                     
 ``sigclip``               int, float  ..                                                                     4.5             Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
 ``sigfrac``               int, float  ..                                                                     0.3             Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
-``sigrej``                int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
 ``spat_flexure_correct``  bool        ..                                                                     False           Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                         
 ``trim``                  bool        ..                                                                     True            Trim the image to the detector supplied region                                                                                                                                                                                             
 ``use_biasimage``         bool        ..                                                                     True            Use a bias image.  If True, one or more must be supplied in the PypeIt file.                                                                                                                                                               
@@ -872,14 +891,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -899,7 +918,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -975,7 +994,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 50, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -983,7 +1002,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 50, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1003,7 +1022,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1083,25 +1102,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1156,25 +1174,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1229,25 +1246,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1302,25 +1318,24 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1378,14 +1393,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1406,7 +1421,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1482,13 +1497,13 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1496,7 +1511,7 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
+              comb_sigrej = 10.0
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1506,7 +1521,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1570,12 +1585,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1586,7 +1601,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1644,12 +1659,12 @@ Alterations to the default parameters are::
               use_pattern = True
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1657,7 +1672,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -1665,7 +1679,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[alignment]]
@@ -1736,12 +1750,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1755,7 +1769,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1820,12 +1834,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1839,7 +1853,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1904,12 +1918,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1923,7 +1937,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1994,12 +2008,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2013,7 +2027,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2085,14 +2099,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2111,7 +2125,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2185,7 +2199,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2193,7 +2207,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2213,7 +2227,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2301,14 +2315,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2328,7 +2342,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2404,14 +2418,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2431,7 +2445,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2500,14 +2514,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2527,7 +2541,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2600,12 +2614,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2619,7 +2633,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2680,12 +2694,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2699,7 +2713,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2762,12 +2776,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2781,7 +2795,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2842,12 +2856,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2861,7 +2875,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2925,14 +2939,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2952,7 +2966,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3042,14 +3056,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3069,7 +3083,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3147,12 +3161,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3163,7 +3177,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3230,19 +3244,18 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3250,7 +3263,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3303,13 +3316,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3325,7 +3338,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3398,13 +3411,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 10, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3421,7 +3434,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3487,7 +3500,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 60, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3495,7 +3508,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 60, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3515,7 +3528,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3600,13 +3613,13 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3614,7 +3627,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3625,7 +3637,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -3684,19 +3696,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3704,7 +3715,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3761,19 +3772,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -3781,7 +3791,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3840,7 +3850,7 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3848,7 +3858,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3868,7 +3878,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3956,12 +3966,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3975,7 +3985,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4038,12 +4048,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4057,7 +4067,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4111,12 +4121,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4130,7 +4140,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4184,12 +4194,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4202,7 +4212,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4248,13 +4258,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4270,7 +4280,7 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4330,14 +4340,14 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4358,7 +4368,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4460,13 +4470,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4478,7 +4488,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4538,14 +4548,14 @@ Alterations to the default parameters are::
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4566,7 +4576,7 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4659,13 +4669,13 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4673,7 +4683,6 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4684,7 +4693,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4747,19 +4756,18 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
-              sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
@@ -4767,7 +4775,7 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              sigrej = -1
+              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]

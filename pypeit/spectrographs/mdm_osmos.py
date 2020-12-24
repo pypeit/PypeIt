@@ -85,7 +85,6 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']

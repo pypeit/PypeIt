@@ -188,7 +188,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+        par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
         # Set the default exposure time ranges for the frame typing
 #        par['calibrations']['biasframe']['exprng'] = [None, 2]
@@ -239,6 +239,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Turn on the use of mask design
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
+            # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
             par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
@@ -246,6 +247,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['minimum_slit_length'] = 2.
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
+            par['reduce']['slitmask']['assign_obj'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -664,17 +666,26 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mapid = hdu['SlitObjMap'].data['ObjectID']
         catid = hdu['ObjectCat'].data['ObjectID']
         indx = index_of_x_eq_y(mapid, catid)
-        #   - Pull out the slit ID, object ID, and object coordinates
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
-                            catid.astype(float),
+        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
+                            catid.astype(int),
                             hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+                            hdu['ObjectCat'].data['DEC_OBJ'],
+                            objname,
+                            hdu['SlitObjMap'].data['TopDist'][indx],
+                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
         #   - Only keep the objects that are in the slit-object mapping
         objects = objects[mapid[indx] == catid]
 
         # Match the slit IDs in DesiSlits to those in BluSlits
         indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
                                strict=True)
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
+        if posx_pa < 0.:
+            posx_pa += 360.
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
@@ -693,7 +704,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                                  hdu['DesiSlits'].data['slitLen'][indx],
                                                  hdu['DesiSlits'].data['slitWid'][indx],
                                                  hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects)
+                                 objects=objects,
+                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
+                                 posx_pa=posx_pa)
         return self.slitmask
 
     # TODO: Allow this to accept the relevant row from the PypeItMetaData

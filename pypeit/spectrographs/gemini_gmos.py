@@ -143,7 +143,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Always correct for flexure
         par['flexure']['spec_method'] = 'boxcar'

@@ -142,7 +142,7 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     # -------- PASS 2: remove linear trend (i.e. adjust scale)
     # fit the offsets to `x_det` to find the scale and apply it to x_model
     dx = np.ma.compressed(x_det - x_model_new[ind])
-    pypeitFit = fitting.robust_fit(x_det, dx, 1, maxiter=100, lower=3, upper=3)
+    pypeitFit = fitting.robust_fit(x_det, dx, 1, maxiter=100, lower=2, upper=2)
     coeff = pypeitFit.fitc
     scale = 1 + coeff[1] if x_det.size > 4 else 1
     x_model_new *= scale
@@ -253,10 +253,7 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
             # The one with the smallest residuals, is then set to not bad
             dupl[w[wdif]] = False
         # Both duplicates and matches with high RMS are considered bad
-        #dupl = dupl|out
-        # [DP] I decided not flag the matches with high RMS, because those are usually the ones
-        # with the traces at the edge of the detector that have been added as part of syncing process
-        # between left and right edges. Those are not bad, but it is highly probable that they have high `res`.
+        dupl = dupl | out
         if edge is not None:
             msgs.warn('{} duplicate match(es) for {} edges'.format(dupl[dupl == 1].size, edge))
         else:
