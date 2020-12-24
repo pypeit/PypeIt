@@ -1275,11 +1275,16 @@ class FluxCalibratePar(ParSet):
                                "can be extended. If True the code will blindly extrapolate."
 
 
-        defaults['extinct_correct'] = True
+        defaults['extinct_correct'] = None
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
-                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
-                                   'sense if one is telluric correcting and this shold be set to False'
+        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UV algorithm is used ' \
+                                   '(which does not correct for telluric absorption) than an atmospheric extinction model ' \
+                                   'is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then ' \
+                                   'no extinction correction is applied since the atmosphere is modeled directly. To follow these' \
+                                   'defaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this' \
+                                   ' parameter is set, this overide this default behavior. In other words, it will force an extinction correction' \
+                                   'if extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.' \
+
 
         # Instantiate the parameter set
         super(FluxCalibratePar, self).__init__(list(pars.keys()),

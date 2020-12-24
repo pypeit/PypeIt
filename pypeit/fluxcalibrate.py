@@ -48,6 +48,7 @@ class FluxCalibrate(object):
         self.spectrograph = load_spectrograph(header['PYP_SPEC'])
         self.par = self.spectrograph.default_pypeit_par()['fluxcalib'] if par is None else par
         self.debug = debug
+        self.algorithm = None
 
         sens_last = None
         for spec1, sens, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
@@ -71,6 +72,9 @@ class FluxCalibrate(object):
 
         """
         pass
+
+    def _set_extinct_correct(self, extinct_correct, algorithm):
+        return (True if algorithm == 'UV' else False) if extinct_correct is None else extinct_correct
 
 class MultiSlitFC(FluxCalibrate):
     """
@@ -101,7 +105,8 @@ class MultiSlitFC(FluxCalibrate):
         for sci_obj in sobjs:
             sci_obj.apply_flux_calib(wave, sensfunction,
                                      sobjs.header['EXPTIME'],
-                                     extinct_correct=self.par['extinct_correct'],
+                                     extinct_correct=self._set_extinct_correct(
+                                         self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
                                      longitude=self.spectrograph.telescope['longitude'],
                                      latitude=self.spectrograph.telescope['latitude'],
                                      extrap_sens=self.par['extrap_sens'],
@@ -146,7 +151,8 @@ class EchelleFC(FluxCalibrate):
             if indx.size==1:
                 sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
                                          sobjs.header['EXPTIME'],
-                                         extinct_correct=self.par['extinct_correct'],
+                                         extinct_correct=self._set_extinct_correct(
+                                             self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
                                          extrap_sens = self.par['extrap_sens'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],
