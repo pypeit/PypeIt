@@ -973,6 +973,8 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             wvcalib[str(slit)] = None
             continue
         # Fit
+        if slit > 0:
+            embed(header='967 of autoid')
         try:
             final_fit = wv_fitting.iterative_fitting(ispec, dets, gd_det,
                                               IDs[gd_det], line_lists, bdisp,
