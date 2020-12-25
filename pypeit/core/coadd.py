@@ -639,9 +639,9 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False
        mask_old: ndarray, bool, (nspec_old),
             Old mask on the wave_old grid. True=Good
        sensfunc: bool (optional)
-            If set the quantities flux*delta_wave and the corresponding ivar/delta_wave**2 will be interpolated and
+            If set the quantities flux/delta_wave and the corresponding ivar*delta_wave**2 will be interpolated and
             returned instead of flux and ivar. This is useful for sensitivity function computation where we need
-            flux*(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
+            flux/(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
             in the presence of masked data requires special care.
     Returns:
         (1) flux_new: ndarray, (nspec_new,) -- interpolated flux; (2)
@@ -659,8 +659,8 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False
     wave_mask = wave_old > 1.0 # Deal with the zero wavelengths
     if sensfunc:
         delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_mask)
-        flux_interp = flux_old[wave_mask]*delta_wave_interp[wave_mask]
-        ivar_interp = ivar_old[wave_mask]/delta_wave_interp[wave_mask]**2
+        flux_interp = flux_old[wave_mask]/delta_wave_interp[wave_mask]
+        ivar_interp = ivar_old[wave_mask]*delta_wave_interp[wave_mask]**2
     else:
         flux_interp = flux_old[wave_mask]
         ivar_interp = ivar_old[wave_mask]
