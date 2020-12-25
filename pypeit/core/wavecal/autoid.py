@@ -74,6 +74,16 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     ysep = ymax*0.03
+
+    # Label all found lines
+    for kk, x in enumerate(waveFit.tcent):
+        ind_left = np.fmax(int(x)-2, 0)
+        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+        yline = np.max(arc_spec[ind_left:ind_righ])
+        # Tick mark
+        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
+
+    # Label the ID'd lines
     for kk, x in enumerate(waveFit.pixel_fit):
         ind_left = np.fmax(int(x)-2, 0)
         ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
@@ -85,10 +95,13 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
                                                           waveFit.wave_fit[kk]),
                      ha='center', va='bottom',size=idfont,
                      rotation=90., color='green')
+
+    # Axes
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(1.05*ymin, ymax*1.2)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
+    ax_spec.set_yscale('log')
     if title is not None:
         ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
@@ -973,8 +986,6 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             wvcalib[str(slit)] = None
             continue
         # Fit
-        if slit > 0:
-            embed(header='967 of autoid')
         try:
             final_fit = wv_fitting.iterative_fitting(ispec, dets, gd_det,
                                               IDs[gd_det], line_lists, bdisp,

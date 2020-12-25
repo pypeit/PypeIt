@@ -469,10 +469,7 @@ class BuildWaveCalib:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 #
-                #autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])],
-                #                  outfile=outfile)
                 autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
-                                  #str(self.slits.slitord_id[slit_idx]),
                                   outfile=outfile)
 
 
