@@ -825,13 +825,13 @@ class AlignPar(ParSet):
 
 class Coadd1DPar(ParSet):
     """
-    A parameter set holding the arguments for how to perform 2D coadds
+    A parameter set holding the arguments for how to perform 1D coadds
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sn_smooth_npix=None, wave_method=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None, extrap_sens=None):
@@ -894,10 +894,11 @@ class Coadd1DPar(ParSet):
                                "'linear' -- Grid is uniform in lamba." \
                                "'concatenate' -- Meld the input wavelength arrays"
 
-        defaults['samp_fact'] = 1.0
-        dtypes['samp_fact'] = float
-        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
-                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+        defaults['spec_samp_fact'] = 1.0
+        dtypes['spec_samp_fact'] = float
+        descr['spec_samp_fact'] = "Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser " \
+                                  "(spec_samp_fact > 1.0) by this sampling factor. This basically multiples the 'native' " \
+                                  "spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels."
 
         defaults['ref_percentile'] = 70.0
         dtypes['ref_percentile'] = [int, float]
@@ -1006,7 +1007,7 @@ class Coadd1DPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method',
-                   'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
+                   'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
                    'filter', 'mag_type', 'filter_mag', 'filter_mask', 'extrap_sens']
