@@ -372,7 +372,6 @@ class Reduce(object):
 
         # Global sky subtract
         self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
-
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \

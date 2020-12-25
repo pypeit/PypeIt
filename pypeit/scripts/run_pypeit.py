@@ -7,6 +7,7 @@
 This script runs PypeIt
 """
 
+import numpy as np
 from pypeit import msgs
 
 def run_pypeit_usage():
@@ -96,7 +97,7 @@ def main(args):
 
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                           reuse_masters=~args.do_not_reuse_masters,
+                           reuse_masters=np.invert(args.do_not_reuse_masters),
                            overwrite=args.overwrite,
                            redux_path=args.redux_path,
                            calib_only=args.calib_only,

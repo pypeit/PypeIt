@@ -45,6 +45,9 @@ class SpecObjs:
     """
     version = '1.0.0'
 
+    #TODO JFH This method only populates some of the underlying specobj attributes, for example RA and DEC are not
+    # getting set. We should do our best to populate everything that got written out to the file. This is part of having
+    # a rigid data model.
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
