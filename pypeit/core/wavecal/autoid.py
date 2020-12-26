@@ -77,7 +77,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     if log:
-        ymax *= 2
+        ymax *= 4
+        ymin = max(1., ymin)
     ysep = ymax*0.03
     yscl = (1.2, 1.5, 1.7)
 
@@ -116,6 +117,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     ax_spec.set_xlim(0., len(arc_spec))
     if not log:
         ax_spec.set_ylim(1.05*ymin, ymax*1.2)
+    else:
+        ax_spec.set_ylim(ymin, ymax)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
     if log:
