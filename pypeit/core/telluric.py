@@ -1135,7 +1135,11 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
-    Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum
+    Function to compute a sensitivity function by simultaneously fitting the sensfunc and a telluric model to a standard
+    star spectrum.  The sensitivity function is defined to be S_lam = F_lam/(counts/s/A) where F_lam is in units of
+    1e-17 erg/s/cm^2/A, and so the sensitivity function has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+
+    from the PypeIt spec1d file of a standard star spectrum.
 
     Parameters
     ----------
