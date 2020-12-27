@@ -3592,7 +3592,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None,
+                 illumflatframe=None, skyframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -3703,6 +3703,13 @@ class CalibrationsPar(ParSet):
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
+
+        defaults['skyframe'] = FrameGroupPar(frametype='sky',
+                                                  process=ProcessImagesPar(mask_cr=True))
+        dtypes['skyframe'] = [ ParSet, dict ]
+        descr['skyframe'] = 'The frames and combination rules for the sky background ' \
+                                 'observations'
+
         defaults['alignment'] = AlignPar()
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
@@ -3741,8 +3748,8 @@ class CalibrationsPar(ParSet):
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe',
-                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',
-                             'wavelengths', 'slitedges', 'tilts']
+                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
+                             'flatfield', 'wavelengths', 'slitedges', 'tilts']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
@@ -3774,6 +3781,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'
         kwargs[pk] = FrameGroupPar.from_dict('standard', cfg[pk]) if pk in k else None
+        pk = 'skyframe'
+        kwargs[pk] = FrameGroupPar.from_dict('sky', cfg[pk]) if pk in k else None
         pk = 'flatfield'
         kwargs[pk] = FlatFieldPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'wavelengths'

@@ -128,8 +128,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['binning'] = dict(card=None, compound=True)
-
+        self.meta['binning'] = dict(ext=0, card=None, default='1,1')
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
@@ -137,7 +136,8 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI1 NAME')
         self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS FILT1 NAME')
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRAT1 NAME')
-        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET IMGNAME')
+        # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
                                    required_ftypes=['science', 'standard'])
@@ -156,12 +156,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         Returns:
             object: Metadata value read from the header(s).
         """
-        if meta_key == 'binning':
-            binspatial = headarr[0]['HIERARCH ESO DET WIN1 BINX']
-            binspec = headarr[0]['HIERARCH ESO DET WIN1 BINY']
-            binning = parse.binning2string(binspec, binspatial)
-            return binning
-        elif meta_key == 'decker':
+        if meta_key == 'decker':
             try:  # Science
                 decker = headarr[0]['HIERARCH ESO INS SLIT NAME']
             except KeyError:  # Standard!
@@ -204,6 +199,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -224,24 +220,34 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['idname'] == 'object')
-        if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype == 'science':
+            return good_exp & ((fitstbl['idname'] == 'SINFONI_IFS_OBS')
+                                | (fitstbl['target'] == 'STD,TELLURIC')
+                                | (fitstbl['target'] == 'SKY,STD'))
+        if ftype == 'standard':
+            return good_exp & ((fitstbl['target'] == 'STD') | (fitstbl['target'] == 'SKY,STD'))
+        #if ftype == 'bias':
+        #    return good_exp & (fitstbl['target'] == 'BIAS')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['target'] == 'DARK')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')
-        if ftype == 'pinhole':
-            # Don't type pinhole frames
-            return np.zeros(len(fitstbl), dtype=bool)
+            return good_exp & (fitstbl['target'] == 'FLAT,LAMP')
+        #if ftype == 'pinhole':
+        #    # Don't type pinhole
+        #    return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            # TODO: This is a kludge.  Allow science frames to also be
-            # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'object')
-            return good_exp & (is_arc | is_obj)
+            return good_exp & ((fitstbl['target'] == 'WAVE,LAMP') | (fitstbl['idname'] == 'SINFONI_IFS_OBS') |
+                               (fitstbl['idname'] == 'SINFONI_IFS_SKY'))
+        # Putting this in now in anticipation of the sky class
+        if ftype in ['sky']:
+            return good_exp & (fitstbl['idname'] == 'SINFONI_IFS_SKY')
+
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
 
     def lamps(self, fitstbl, status):
         """

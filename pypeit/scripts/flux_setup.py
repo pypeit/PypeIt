@@ -89,7 +89,7 @@ def main(args):
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
         cfg_lines = ['[coadd1d]']
         cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name. Only required for Echelle']
         if pypeline == 'Echelle':
             cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
         else:

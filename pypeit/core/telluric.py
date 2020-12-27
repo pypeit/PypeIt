@@ -564,7 +564,7 @@ def general_spec_reader(specfile, ret_flam=False):
     try:
         # Read in the standard spec1d file produced by Pypeit
         #sobjs, head = load.load_specobjs(specfile)
-        sobjs = specobjs.SpecObjs.from_fitsfile(specfile)
+        sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
@@ -585,6 +585,8 @@ def general_spec_reader(specfile, ret_flam=False):
         spect_dict = spectrograph.parse_spec_header(head)
         head['PYP_SPEC'] = spectrograph.name
     except:
+        #TODO Make it so that we can type a file based on the DataContainer file header
+        msgs.warn('Ignore the error message above. This is a hack for now until DataContainer is tightened up')
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
         # Unpack
