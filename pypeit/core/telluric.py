@@ -27,9 +27,11 @@ from sklearn import mixture
 from IPython import embed
 from pypeit.spectrographs.util import load_spectrograph
 
+def zp_unit_const():
+    return -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
-ZP_UNIT_CONST = -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
-
+# Define this global variable to avoid constantly recomputing
+ZP_UNIT_CONST = zp_unit_const()
 
 ##############################
 #  Telluric model functions  #
@@ -650,11 +652,17 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 #  Object model functions  #
 ############################
 
-def Nlam_to_Flam(wave, zeropoint, N_lam):
-    return np.power(10.0, -0.4*(zeropoint - ZP_UNIT_CONST))*N_lam/np.square(wave)
+def Nlam_to_Flam(wave, zeropoint):
+    wave_gpm = wave > 1.0
+    factor = np.zeros_like(wave)
+    factor[wave_gpm] = np.power(10.0, -0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))/np.square(wave[wave_gpm])
+    return factor
 
-def Flam_to_Nlam(wave, zeropoint, F_lam):
-    return np.power(10.0, 0.4*(zeropoint - ZP_UNIT_CONST))*F_lam*np.square(wave)
+def Flam_to_Nlam(wave, zeropoint):
+    wave_gpm = wave > 1.0
+    factor = np.zeros_like(wave)
+    factor[wave_gpm] = np.power(10.0, 0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))*np.square(wave)
+    return factor
 
 
 ##############
@@ -754,7 +762,7 @@ def eval_sensfunc_model(theta, obj_dict):
     #ln_min_float = np.log(sys.float_info.min)
     #ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
     zeropoint = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
-    counts_per_angstrom_model = exptime*Flam_to_Nlam(wave_star, zeropoint, flam_true)
+    counts_per_angstrom_model = exptime*Flam_to_Nlam(wave_star, zeropoint)*flam_true
     # We clip the zero point to be in the range of 5.0 and 30.0
     #embed()
     gpm = np.ones_like(zeropoint,dtype=bool)
@@ -1151,7 +1159,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       ech_orders=None,
                       polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, only_orders=None, maxiter=maxiter, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
+                      sn_clip=30.0, only_orders=None, maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
     Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum

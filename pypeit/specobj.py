@@ -409,7 +409,7 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
-    def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
+    def apply_flux_calib(self, wave_zp, zeropoint, exptime, telluric=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
@@ -417,8 +417,10 @@ class SpecObj(datamodel.DataContainer):
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            sens_dict (dict):
-                Sens Function dict
+            wave_zp (float array)
+                Zeropoint wavelength array
+            zeropoint (float array):
+                zeropoint array
             exptime (float):
             telluric_correct:
             extinct_correct:
@@ -441,7 +443,7 @@ class SpecObj(datamodel.DataContainer):
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
-                wave, wave_sens, sensfunc, exptime, telluric=telluric, extinct_correct=extinct_correct,
+                wave, wave_zp, zeropoint, exptime, telluric=telluric, extinct_correct=extinct_correct,
                                 airmass=airmass, longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
 
             flam = self[attr+'_COUNTS']*sens_factor

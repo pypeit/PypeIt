@@ -218,7 +218,7 @@ class SensFunc(object):
         zeropoint_extrap = np.zeros_like(wave_extrap)
         # Evaluate extrapolated zerpoint for all orders detectors
         for iorddet in range(self.norderdet):
-            zerpoint_extrap[:, iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
+            zeropoint_extrap[:, iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
 
         self.steps.append(inspect.stack()[0][3])
         return wave_extrap, zeropoint_extrap
@@ -345,8 +345,7 @@ class IR(SensFunc):
         polyorder_vec = self.meta_table['POLYORDER_VEC'][0]
         func = self.meta_table['FUNC'][0]
         coeff = self.out_table[iorddet]['OBJ_THETA'][0:polyorder_vec[iorddet] + 2]
-        zeropint = fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max)
-        #sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
+        zeropoint = fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max)
         return zeropoint
 
 
@@ -374,8 +373,7 @@ class UVIS(SensFunc):
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                     self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
                                                     self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
-                                                    self.meta_spec['ECH_ORDERS'],
-                                                    telluric=False, polyorder=self.par['polyorder'],
+                                                    self.meta_spec['ECH_ORDERS'], polyorder=self.par['polyorder'],
                                                     balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
                                                     nresln=self.par['UVIS']['nresln'],
                                                     resolution=self.par['UVIS']['resolution'],
@@ -391,7 +389,7 @@ class UVIS(SensFunc):
         return meta_table, out_table
 
 
-    def eval_zerpoint(self, wave, iorddet):
+    def eval_zeropoint(self, wave, iorddet):
         """
 
         Parameters
