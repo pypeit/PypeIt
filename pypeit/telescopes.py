@@ -20,7 +20,9 @@ class KeckTelescopePar(TelescopePar):
                                                latitude=19.82833,
                                                elevation=4160.0,
                                                fratio=15,
-                                               diameter=10)
+                                               diameter=10,
+                                               eff_aperture=72.0)
+        # The effective aperture of Keck was provided by Greg Doppmann
 
 class MagellanTelescopePar(TelescopePar):
     def __init__(self):

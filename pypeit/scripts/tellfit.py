@@ -161,7 +161,7 @@ def main(args):
                                        bounds_norm=par['tellfit']['bounds_norm'],
                                        tell_norm_thresh=par['tellfit']['tell_norm_thresh'],
                                        only_orders=par['tellfit']['only_orders'],
-                                       bal_wv_min_max=par['tellfit']['bal_wv_min_max'],
+                                       bal_wv_min_max=par['tellfit']['bal_wv_min_max'], maxiter=par['tellfit']['maxiter'],
                                        debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='star':
         TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
@@ -175,6 +175,7 @@ def main(args):
                                          mask_abs_lines=par['tellfit']['mask_abs_lines'],
                                          delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
+                                         maxiter=par['tellfit']['maxiter'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
@@ -186,6 +187,7 @@ def main(args):
                                          delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
                                          only_orders=par['tellfit']['only_orders'],
+                                         maxiter=par['tellfit']['maxiter'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
         msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")

@@ -4464,7 +4464,7 @@ class TelescopePar(ParSet):
     :ref:`instruments`.
     """
     def __init__(self, name=None, longitude=None, latitude=None, elevation=None, fratio=None,
-                 diameter=None):
+                 diameter=None, eff_aperture=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4501,6 +4501,10 @@ class TelescopePar(ParSet):
         dtypes['diameter'] = [int, float]
         descr['diameter'] = 'Diameter of the telescope in m'
 
+        dtypes['eff_aperture'] = [int, float]
+        descr['eff_aperture'] = 'Effective aperture of the telescope in m^2'
+
+
         # Instantiate the parameter set
         super(TelescopePar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4516,7 +4520,7 @@ class TelescopePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter' ]
+        parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter', 'aperture' ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

@@ -63,10 +63,10 @@ class SensFunc(object):
         hdulist = io.fits_open(sensfile)
         header = hdulist[0].header
         wave = hdulist['WAVE'].data
-        sensfunc = hdulist['SENSFUNC'].data
+        zeropoint = hdulist['ZEROPOINT'].data
         meta_table = table.Table(hdulist['METADATA'].data)
         out_table  = table.Table(hdulist['OUT_TABLE'].data)
-        return wave, sensfunc, meta_table, out_table, header
+        return wave, zeropoint, meta_table, out_table, header
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         """
@@ -86,7 +86,7 @@ class SensFunc(object):
         self.meta_table = None
         self.out_table = None
         self.wave = None
-        self.sensfunc = None
+        self.zeropoint = None
         self.steps = []
         # Are we splicing together multiple detectors?
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
@@ -114,7 +114,7 @@ class SensFunc(object):
         return self.par['algorithm']
 
 
-    def compute_sensfunc(self):
+    def compute_zeropoint(self):
         """
         Dummy method overloaded by subclasses
 
@@ -127,23 +127,23 @@ class SensFunc(object):
 
     def run(self):
         # Compute the sensitivity function
-        self.meta_table, self.out_table = self.compute_sensfunc()
-        # Extrapolate the sensfunc based on par['extrap_blu'], par['extrap_red']
-        self.wave_sens, self.sensfunc = self.extrapolate(samp_fact = self.par['samp_fact'])
+        self.meta_table, self.out_table = self.compute_zeropoint()
+        # Extrapolate the zeropoint based on par['extrap_blu'], par['extrap_red']
+        self.wave_sens, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave_sens, self.sensfunc = self.splice(self.wave_sens)
-        # If the sensfunc has just one order, or detectors were spliced, flatten the output
+            self.wave_sens, self.zeropoint = self.splice(self.wave_sens)
+        # If the zeropoint has just one order, or detectors were spliced, flatten the output
         # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
         if self.wave_sens.ndim == 2:
             if self.wave_sens.shape[1] == 1:
                 self.wave_sens = self.wave_sens.flatten()
-                self.sensfunc = self.sensfunc.flatten()
+                self.zeropoint = self.zeropoint.flatten()
         # Show?
         if self.debug:
             self.show()
         return
 
-    def eval_sensfunc(self, wave, iorddet):
+    def eval_zeropoint(self, wave, iorddet):
         """
         Dummy method, overloaded by subclasses
 
@@ -170,8 +170,8 @@ class SensFunc(object):
         hdr['SPC1DFIL'] = self.spec1dfile
 
         # Write the fits file
-        data = [self.wave_sens, self.sensfunc]
-        extnames = ['WAVE', 'SENSFUNC']
+        data = [self.wave_sens, self.zeropoint]
+        extnames = ['WAVE', 'ZEROPOINT']
         # Write the fits file
         hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
         hdu_meta = fits.table_to_hdu(self.meta_table)
@@ -198,7 +198,7 @@ class SensFunc(object):
         -------
         wave_extrap: ndarray
             Extrapolated wavelength array
-        sensfunc_extrap: ndarray
+        zeropoint_extrap: ndarray
             Extrapolated sensfunc
 
         """
@@ -215,13 +215,13 @@ class SensFunc(object):
         # Create the wavelength grid
         wave_extrap = np.outer(np.arange(nspec_extrap), (wave_extrap_max - wave_extrap_min)/ (nspec_extrap - 1)) + \
                       np.outer(np.ones(nspec_extrap), wave_extrap_min)
-        sensfunc_extrap = np.zeros_like(wave_extrap)
-        # Evaluate extrapolated sensfunc for all orders detectors
+        zeropoint_extrap = np.zeros_like(wave_extrap)
+        # Evaluate extrapolated zerpoint for all orders detectors
         for iorddet in range(self.norderdet):
-            sensfunc_extrap[:, iorddet] = self.eval_sensfunc(wave_extrap[:,iorddet], iorddet)
+            zerpoint_extrap[:, iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
 
         self.steps.append(inspect.stack()[0][3])
-        return wave_extrap, sensfunc_extrap
+        return wave_extrap, zeropoint_extrap
 
     def splice(self, wave):
         """
@@ -235,7 +235,7 @@ class SensFunc(object):
         Returns
         -------
         wave_splice: ndarray, shape (nspec_splice,)
-        sensfunc_splice: ndarray, shape (nspec_splice,)
+        zeropoint_splice: ndarray, shape (nspec_splice,)
 
 
         """
@@ -245,7 +245,7 @@ class SensFunc(object):
         wave_splice_max = wave.max()
         wave_splice, _, _ = coadd.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
                                                 wave_grid_max=wave_splice_max, samp_fact=1.0)
-        sensfunc_splice = np.zeros_like(wave_splice)
+        zeropoint_splice = np.zeros_like(wave_splice)
         for idet in range(self.norderdet):
             wave_min = self.out_table['WAVE_MIN'][idet]
             wave_max = self.out_table['WAVE_MAX'][idet]
@@ -261,25 +261,25 @@ class SensFunc(object):
                 wave_mask_min = wave_min
                 wave_mask_max = wave_max
             splice_wave_mask = (wave_splice >= wave_mask_min) & (wave_splice <= wave_mask_max)
-            sensfunc_splice[splice_wave_mask] = self.eval_sensfunc(wave_splice[splice_wave_mask], idet)
+            zeropoint_splice[splice_wave_mask] = self.eval_zeropoint(wave_splice[splice_wave_mask], idet)
 
         # Interpolate over gaps
-        zeros = sensfunc_splice == 0.
+        zeros = zeropoint_splice == 0.
         if np.any(zeros):
             msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
             interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
-                                                 sensfunc_splice[np.invert(zeros)],
+                                                 zeropoint_splice[np.invert(zeros)],
                                                  kind='nearest', fill_value=0., bounds_error=False) #
             #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP, even on 1.4.1
             zero_values = interp_func(wave_splice[zeros])
-            sensfunc_splice[zeros] = zero_values
+            zeropoint_splice[zeros] = zero_values
 
         self.steps.append(inspect.stack()[0][3])
 
-        return wave_splice, sensfunc_splice
+        return wave_splice, zeropoint_splice
 
     def show(self):
-        plt.plot(self.wave_sens, self.sensfunc)
+        plt.plot(self.wave_sens, self.zeropoint)
         plt.show()
         plt.close()
 
@@ -294,16 +294,16 @@ class IR(SensFunc):
 
         self.TelObj = None
 
-    def compute_sensfunc(self):
+    def compute_zeropoint(self):
         """
         Calls routine to compute the sensitivity function.
 
         Returns
         -------
         meta_table: astropy table
-               Table containing sensfunc meta data
+               Table containing zeropoint meta data
         out_table: astropy table
-               Table containing sensfunc information.
+               Table containing zerpoint information.
         """
 
         meta_table, out_table = telluric.sensfunc_telluric(
@@ -323,7 +323,7 @@ class IR(SensFunc):
 
         return meta_table, out_table
 
-    def eval_sensfunc(self, wave, iorddet):
+    def eval_zerpoint(self, wave, iorddet):
         """
 
         Parameters
@@ -336,18 +336,18 @@ class IR(SensFunc):
 
         Returns
         -------
-        sensfunc: ndarray, shape (nspec,)
+        zeropoint: ndarray, shape (nspec,)
         """
 
-        # Put this stuff in a function called eval_sensfunc for each algorithm
+        # Put this stuff in a function called eval_zeropoint for each algorithm
         wave_min = self.out_table[iorddet]['WAVE_MIN']
         wave_max = self.out_table[iorddet]['WAVE_MAX']
         polyorder_vec = self.meta_table['POLYORDER_VEC'][0]
         func = self.meta_table['FUNC'][0]
         coeff = self.out_table[iorddet]['OBJ_THETA'][0:polyorder_vec[iorddet] + 2]
-        sensfunc = np.exp(fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max))
+        zeropint = fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max)
         #sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
-        return sensfunc
+        return zeropoint
 
 
 class UVIS(SensFunc):
@@ -359,16 +359,16 @@ class UVIS(SensFunc):
         self.meta_spec['LONGITUDE'] = self.spectrograph.telescope['longitude']
 
 
-    def compute_sensfunc(self):
+    def compute_zeropoint(self):
         """
         Calls routine to compute the sensitivity function.
 
         Returns
         -------
         meta_table: astropy table
-               Table containing sensfunc meta data
+               Table containing zeropoint meta data
         out_table: astropy table
-               Table containing sensfunc information.
+               Table containing zeropoint information.
         """
 
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
@@ -391,7 +391,7 @@ class UVIS(SensFunc):
         return meta_table, out_table
 
 
-    def eval_sensfunc(self, wave, iorddet):
+    def eval_zerpoint(self, wave, iorddet):
         """
 
         Parameters
@@ -404,10 +404,10 @@ class UVIS(SensFunc):
 
         Returns
         -------
-        sensfunc: ndarray, shape (nspec,)
+        zeropoint: ndarray, shape (nspec,)
 
         """
         # This routine can extrapolate
-        sensfunc = scipy.interpolate.interp1d(self.out_table['WAVE'][iorddet,:], self.out_table['SENSFUNC'][iorddet,:],
+        zeropoint = scipy.interpolate.interp1d(self.out_table['WAVE'][iorddet,:], self.out_table['ZEROPOINT'][iorddet,:],
                                               bounds_error = False, fill_value='extrapolate')(wave)
-        return sensfunc
+        return zeropoint

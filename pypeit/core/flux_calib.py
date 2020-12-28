@@ -31,8 +31,6 @@ from pypeit.core import fitting
 
 # TODO: Put these in the relevant functions
 TINY = 1e-15
-MAGFUNC_MAX = 25.0
-MAGFUNC_MIN = -25.0
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
@@ -515,13 +513,13 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     """
 
     wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
-    sensfunc = np.zeros_like(wave_arr)
+    zeropoint = np.zeros_like(wave_arr)
     mask_sens = np.ones_like(mask_arr)
     wave_min = np.zeros(norders)
     wave_max = np.zeros(norders)
 
     for iord in range(norders):
-        sensfunc[:, iord], mask_sens[:, iord] = compute_sensfunc(
+        zeropoint[:, iord], mask_sens[:, iord] = compute_zeropoint(
             wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord], mask_arr[:,iord], exptime, airmass, std_dict,
             longitude, latitude, mask_abs_lines=mask_abs_lines, telluric=telluric, polyorder=polyorder,
             balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
@@ -543,8 +541,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders
     out_table['WAVE'] = wave_arr.T
-    out_table['SENSFUNC'] = sensfunc.T
-    out_table['MASK_SENS'] = mask_sens.T
+    out_table['ZEROPOINT'] = zeropoint.T
+    out_table['ZEROPOINT_GPM'] = mask_sens.T
     out_table['WAVE_MIN'] = wave_min
     out_table['WAVE_MAX'] = wave_max
 
@@ -629,7 +627,7 @@ def get_sensfunc_factor(wave, wave_sens, sensfunc, exptime, telluric=None, extin
 
 
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
-def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
+def compute_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
                   mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
                   trans_thresh=0.9, polycorrect=True, polyfunc=False, debug=False):
 
@@ -681,7 +679,7 @@ def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, s
             equal to balm_mask_wid*resln is masked where resln is the estimate for the spectral resolution in pixels
             per resolution element.
         polycorrect: bool
-            Whether you want to interpolate the sensfunc with polynomial in the stellar absortion line regions before
+            Whether you want to interpolate the zeropoint with polynomial in the stellar absortion line regions before
             fitting with the bspline
         nresln (float):
             Parameter governing the spacing of the bspline breakpoints. default = 20.0
@@ -695,24 +693,24 @@ def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, s
     Returns:
         tuple: Returns:
 
-            - sensfunc (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
+            - zeropoint (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
             - mask_sens (bool `numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
 
     """
     # Create copy of the arrays to avoid modification and convert to
-    # electrons / s
+    # Nlam = electrons/s/Angstrom
     delta_wave = wvutils.get_delta_wave(wave, (wave > 1.0))
-    flux_star = counts/exptime/delta_wave
-    ivar_star = delta_wave**2*counts_ivar*exptime**2
+    Nlam_star = counts/exptime/delta_wave
+    Nlam_ivar_star = delta_wave**2*counts_ivar*exptime**2
 
     # Extinction correction
     msgs.info("Applying extinction correction")
     extinct = load_extinction_data(longitude,latitude)
     ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
     # Correct for extinction
-    flux_star = flux_star * ext_corr
-    ivar_star = ivar_star / ext_corr ** 2
-    mask_star = counts_mask
+    Nlam_star = Nlam_star * ext_corr
+    Nlam_ivar_star = Nlam_ivar_star / ext_corr ** 2
+    gpm_star = counts_mask
 
     # Interpolate the standard star onto the current set of observed wavelengths
     flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
@@ -735,26 +733,26 @@ def compute_sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, s
             plt.show()
 
     # Get masks from observed star spectrum. True = Good pixels
-    mask_bad, mask_balm, mask_tell = get_mask(wave, flux_star, ivar_star, mask_star, mask_abs_lines=mask_abs_lines,
+    mask_bad, mask_balm, mask_tell = get_mask(wave, Nlam_star, Nlam_ivar_star, gpm_star, mask_abs_lines=mask_abs_lines,
                                               mask_telluric=True, balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
-    # Get sensfunc
-    sensfunc, mask_sens = standard_sensfunc(
-        wave, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
+    # Get zeropoint
+    zeropoint, zerpoint_gpm = standard_zeropoint(
+        wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
         mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
-        plt.plot(wave[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r', label='Fluxed Observed Star')
+        plt.plot(wave[zeropoint_gpm], flux_true[zeropoint_gpm], color='k',lw=2, label='Reference Star')
+        plt.plot(wave[zeropoint_gpm], Nlam_star[zeropoint_gpm]*zeropoint[zeropoint_gpm], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
         plt.show()
 
 
-    return sensfunc, mask_sens
+    return zeropoint, zeropoint_gpm
 
 
 
@@ -884,9 +882,10 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
 
     return mask_bad, mask_balm, mask_tell
 
-def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask_tell=None,
-                 maxiter=35, upper=2.0, lower=2.0, polyorder=5, balm_mask_wid=50., nresln=20., telluric=True,
-                 resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
+def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
+                       maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', polyorder=5, balm_mask_wid=50.,
+                       nresln=20., telluric=True,
+                       resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -894,11 +893,11 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
     ----------
     wave : `numpy.ndarray`_
       wavelength as observed
-    flux : `numpy.ndarray`_
-      counts/s as observed
-    ivar : `numpy.ndarray`_
-      inverse variance
-    flux_std : Quantity array
+    Nlam : `numpy.ndarray`_
+      counts/s/Angstrom as observed
+    Nlam_ivar : `numpy.ndarray`_
+      inverse variance of counts/s/Angstrom
+    flam_true : Quantity array
       standard star true flux (erg/s/cm^2/A)
     msk_bad : `numpy.ndarray`_
       mask for bad pixels. True is good.
@@ -926,66 +925,91 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
 
     Returns
     -------
-    sensfunc
+    zeropoint
     """
     # Create copy of the arrays to avoid modification
-    wave_obs = wave.copy()
-    flux_obs = flux.copy()
-    ivar_obs = ivar.copy()
+    #wave_obs = wave.copy()
+    #flux_obs = flux.copy()
+    #ivar_obs = ivar.copy()
     # preparing arrays
-    if np.any(np.invert(np.isfinite(ivar_obs))):
+    if np.any(np.invert(np.isfinite(Nlam_ivar))):
         msgs.warn("NaN are present in the inverse variance")
 
     # check masks
     if mask_tell is None:
-        mask_tell = np.ones_like(wave_obs,dtype=bool)
+        mask_tell = np.ones_like(wave,dtype=bool)
     if mask_balm is None:
-        mask_balm = np.ones_like(wave_obs, dtype=bool)
+        mask_balm = np.ones_like(wave, dtype=bool)
 
     # Removing outliers
     # Calculate log of flux_obs setting a floor at TINY
-    logflux_obs = 2.5 * np.log10(np.maximum(flux_obs, TINY))
+    #logflux_obs = 2.5 * np.log10(np.maximum(flux_obs, TINY))
     # Set a fix value for the variance of logflux
-    logivar_obs = np.ones_like(logflux_obs) * (10.0 ** 2)
+    #logivar_obs = np.ones_like(logflux_obs) * (10.0 ** 2)
     # Calculate log of flux_std model setting a floor at TINY
-    logflux_std = 2.5 * np.log10(np.maximum(flux_std, TINY))
+    #logflux_std = 2.5 * np.log10(np.maximum(flux_std, TINY))
     # Calculate ratio setting a floor at MAGFUNC_MIN and a ceiling at
     # MAGFUNC_MAX
-    magfunc = logflux_std - logflux_obs
-    magfunc = np.maximum(np.minimum(magfunc, MAGFUNC_MAX), MAGFUNC_MIN)
-    msk_magfunc = (magfunc < 0.99 * MAGFUNC_MAX) & (magfunc > 0.99 * MAGFUNC_MIN)
+    #magfunc = logflux_std - logflux_obs
+    #magfunc = np.maximum(np.minimum(magfunc, MAGFUNC_MAX), MAGFUNC_MIN)
+    #msk_magfunc = (magfunc < 0.99 * MAGFUNC_MAX) & (magfunc > 0.99 * MAGFUNC_MIN)
 
     # Define two new masks, True is good and False is masked pixel
-    # mask for all bad pixels on sensfunc
-    masktot = mask_bad & msk_magfunc & np.isfinite(ivar_obs) & np.isfinite(logflux_obs) & np.isfinite(logflux_std)
-    logivar_obs[np.invert(masktot)] = 0.0
+    # mask for all bad pixels on zeropoint
+    #zeropoint_gpm = Nlam_gpm & msk_magfunc & np.isfinite(ivar_obs) & np.isfinite(logflux_obs) & np.isfinite(logflux_std)
+    #logivar_obs[np.invert(zeropoint_gpm)] = 0.0
     # mask used for polynomial fit
-    msk_fit_sens = masktot & mask_tell & mask_balm
+    #msk_fit_sens = zeropoint_gpm & mask_tell & mask_balm
 
-    # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
-    pypeitFit = fitting.robust_fit(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], polyorder,
-                                             function='polynomial', maxiter=maxiter,
-                                             lower=lower, upper=upper,
-                                             groupbadpix=False,
-                                             grow=0, sticky=True, use_mad=True)
-    magfunc_poly = pypeitFit.eval(wave_obs)
+    S_nu_dimless = np.square(wave)*flam_true*utils.inverse(Nlam)*(Nlam > 0.0)
+    zeropoint_data = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
+    # zeropoint_gpm is the pixels for which zp is not defined, zeropoint_fitmask includes additional Balmer/Telluric masking for polyfit
+    zeropoint_gpm = Nlam_gpm & np.isfinite(zeropoint_data) & (Nlam > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
+    zeropoint_fitmask = zeropint_gpm & mask_tell & mask_balm
+    wave_min = wave[wave > 1.0].min()
+    wave_max = wave[wave > 1.0].max()
+
+    pypeitFit = fitting.robust_fit(wave, zeropoint_data, polyorder, function=func,
+                                minx=wave_min, maxx=wave_max, in_gpm=zeropoint_fitmask,
+                                lower=lower, upper=upper, groupbadpix=False,
+                                grow=0, sticky=True, use_mad=True)
+
+    zerpoint_poly = pypeitFit.eval(wave)
+    # Robustly characterize the stanarad deviation for the b-spline fitting.
+    zp_dev_mean, zp_dev_median, zp_std = stats.sigma_clipped_stats(zerpoint_data - zeropoint_poly, np.invert(zerpoint_fitmask),
+                                                                   cenfunc='median', stdfunc=utils.nan_mad_std,
+                                                                   maxiters=10, sigma_lower=lower, sigma_upper=sigma_upper)
+    zeropoint_ivar = np.ones_like(zerpoint_data)/zp_std**2
+
+    # Polynomial fitting to derive a smooth zeropoint (i.e. without telluric)
+    #pypeitFit = fitting.robust_fit(wave[msk_fit_sens], magfunc[msk_fit_sens], polyorder,
+    #                                         function='polynomial', maxiter=maxiter,
+    #                                         lower=lower, upper=upper,
+    #                                         groupbadpix=False,
+    #                                         grow=0, sticky=True, use_mad=True)
+    #magfunc_poly = pypeitFit.eval(wave)
+
+    ZP_MAX = 40.0
+    ZP_MIN = 5.0
 
     # Polynomial corrections on Hydrogen Recombination lines
-    if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
+    if ((np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect):
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
-        balmer_clean = np.zeros_like(wave_obs, dtype=bool)
+        balmer_clean = np.zeros_like(wave, dtype=bool)
         # Commented out the bluest recombination lines since they are weak for spectroscopic standard stars.
         #836.4, 3969.6, 3890.1, 4102.8, 4102.8, 4341.6, 4862.7,   \
         lines_hydrogen = np.array([5407.0, 6564.6, 8224.8, 8239.2, 8203.6, 8440.3, 8469.6, 8504.8, 8547.7, 8600.8, \
                                    8667.4, 8752.9, 8865.2, 9017.4, 9229.0, 10049.4, 10938.1, 12818.1, 21655.0])
         for line_hydrogen in lines_hydrogen:
-            ihydrogen = np.abs(wave_obs - line_hydrogen) <= balm_mask_wid
+            ihydrogen = np.abs(wave - line_hydrogen) <= balm_mask_wid
             balmer_clean[ihydrogen] = True
-        msk_clean = ((balmer_clean) | (magfunc == MAGFUNC_MAX) | (magfunc == MAGFUNC_MIN)) & \
-                    (magfunc_poly > MAGFUNC_MIN) & (magfunc_poly < MAGFUNC_MAX)
-        magfunc[msk_clean] = magfunc_poly[msk_clean]
-        msk_badpix = np.isfinite(ivar_obs) & (ivar_obs > 0)
-        magfunc[np.invert(msk_badpix)] = magfunc_poly[np.invert(msk_badpix)]
+        # Clean pixels which hit Balmer lines or which have the zerpoint_data outside the min/max range
+        # AND have polynomial values inside the min/max range
+        msk_clean = ((balmer_clean) | (zeropoint_data > ZP_MAX) | (zeropoint_data < ZP_MIN)) & \
+                    (zeropoint_poly > ZP_MIN) & (zeropoint_poly < ZP_MAX)
+        zeropoint_data[msk_clean] = zeropoint_poly[msk_clean]
+        gpm = np.isfinite(Nlam_ivar) & (Nlam_ivar > 0)
+        zeropoint_data[np.invert(gpm)] = zeropoint_poly[np.invert(gpm)]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -1001,8 +1025,8 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
         msgs.work("Should pull resolution from arc line analysis")
         msgs.work("At the moment the resolution is taken as the PixelScale")
         msgs.work("This needs to be changed!")
-        std_pix = np.median(np.abs(wave_obs - np.roll(wave_obs, 1)))
-        std_res = np.median(wave_obs/resolution) # median resolution in units of Angstrom.
+        std_pix = np.median(np.abs(wave - np.roll(wave, 1)))
+        std_res = np.median(wave/resolution) # median resolution in units of Angstrom.
         #std_res = std_pix
         #resln = std_res
         if (nresln * std_res) < std_pix:
@@ -1015,79 +1039,81 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
         kwargs_reject = {'maxrej': 5}
         msgs.info("Initialize bspline for flux calibration")
 #        init_bspline = pydl.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
-        init_bspline = bspline.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+        init_bspline = bspline.bspline(wave, bkspace=kwargs_bspline['bkspace'])
         fullbkpt = init_bspline.breakpoints
 
         # TESTING turning off masking for now
         # remove masked regions from breakpoints
-        msk_obs = np.ones_like(wave_obs).astype(bool)
-        msk_obs[np.invert(masktot)] = False
-        msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest',
-                                        fill_value='extrapolate')(fullbkpt)
+        #msk_obs = np.ones_like(wave).astype(bool)
+        #msk_obs[np.invert(zeropoint_gpm)] = False
+        msk_bkpt = interpolate.interp1d(wave, zeropoint_gpm, kind='nearest', fill_value='extrapolate')(fullbkpt)
         init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
         # init_breakpoints = fullbkpt
         msgs.info("Bspline fit on magfunc. ")
-        bset1, bmask = fitting.iterfit(wave_obs, magfunc, invvar=logivar_obs, inmask=msk_fit_sens, upper=upper, lower=lower,
+        bset1, bmask = fitting.iterfit(wave, zerpoint_data, invvar=zerpoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                     fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                     kwargs_reject=kwargs_reject)
-        logfit1, _ = bset1.value(wave_obs)
-        logfit_bkpt, _ = bset1.value(init_breakpoints)
+        zerpoint_bspl, _ = bset1.value(wave)
+        zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
 
         if debug:
             # Check for calibration
             plt.figure(1)
-            plt.plot(wave_obs, magfunc, drawstyle='steps-mid', color='black', label='magfunc')
-            plt.plot(wave_obs, logfit1, color='cornflowerblue', label='logfit1')
-            plt.plot(wave_obs[np.invert(msk_fit_sens)], magfunc[np.invert(msk_fit_sens)], '+', color='red', markersize=5.0,
-                     label='masked magfunc')
-            plt.plot(wave_obs[np.invert(msk_fit_sens)], logfit1[np.invert(msk_fit_sens)], '+', color='red', markersize=5.0,
-                     label='masked logfit1')
-            plt.plot(init_breakpoints, logfit_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
-            plt.plot(init_breakpoints, np.interp(init_breakpoints, wave_obs, magfunc), '.', color='green',
+            plt.plot(wave, zeropoint_data, drawstyle='steps-mid', color='black', label='magfunc')
+            plt.plot(wave, zeropoint_bspl, color='cornflowerblue', label='logfit1')
+            plt.plot(wave[np.invert(zeropoint_fitmask)], zerpoint_data[np.invert(zeropoint_fitmask)], '+', color='red', markersize=5.0,
+                     label='masked zerpoint')
+            plt.plot(wave[np.invert(zerpoint_fitmask)], zerpoint_bspl[np.invert(zerpoint_fitmask)], '+', color='red', markersize=5.0,
+                     label='masked zerpoint_bspl_fit')
+            plt.plot(init_breakpoints, zeropoint_bspl_bkpt, '.', color='green', markersize=4.0, label='breakpoints')
+            plt.plot(init_breakpoints, np.interp(init_breakpoints, wave, zeropoint_data), '.', color='green',
                      markersize=4.0,
-                     label='breakpoints')
-            plt.plot(wave_obs, 1.0 / np.sqrt(logivar_obs), color='orange', label='sigma')
+                     label='data interpolated onto breakpoints')
+            plt.plot(wave, 1.0 / np.sqrt(zerpoint_ivar), color='orange', label='sigma used for fits')
             plt.legend()
             plt.xlabel('Wavelength [ang]')
-            plt.ylim(0.0, 1.2 * MAGFUNC_MAX)
-            plt.title('1st Bspline fit')
+            zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
+            plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+            plt.title('Bspline fit')
             plt.show()
         # Create sensitivity function
-        magfunc = np.maximum(np.minimum(logfit1, MAGFUNC_MAX), MAGFUNC_MIN)
-        if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):
-            msk_clean = ((magfunc == MAGFUNC_MAX) | (magfunc == MAGFUNC_MIN)) & \
-                        (magfunc_poly > MAGFUNC_MIN) & (magfunc_poly<MAGFUNC_MAX)
-            magfunc[msk_clean] = magfunc_poly[msk_clean]
-            msk_badpix = np.isfinite(ivar_obs) & (ivar_obs>0)
-            magfunc[np.invert(msk_badpix)] = magfunc_poly[np.invert(msk_badpix)]
+        #magfunc = np.maximum(np.minimum(logfit1, MAGFUNC_MAX), MAGFUNC_MIN)
+        if ((np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect):
+            msk_clean = ((balmer_clean) | (zeropoint_data > ZP_MAX) | (zeropoint_data < ZP_MIN)) & \
+                        (zeropoint_poly > ZP_MIN) & (zeropoint_poly < ZP_MAX)
+            zeropoint_bspl[msk_clean] = zeropoint_poly[msk_clean]
+            msk_badpix = np.isfinite(Nlam_ivar) & (ivar_obs>0)
+            zerpoint_bspl[np.invert(msk_badpix)] = zeropoint_poly[np.invert(msk_badpix)]
         else:
             ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
             msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
 
-    # Calculate sensfunc
+    # Calculate zeropoint
     if polyfunc:
-        sensfunc = 10.0 ** (0.4 * magfunc_poly)
-        magfunc = magfunc_poly
+        #zeropoint = 10.0 ** (0.4 * magfunc_poly)
+        zeropoint = zeropoint_poly
     else:
-        sensfunc = 10.0 ** (0.4 * magfunc)
+        zeropoint = zeropoint_bspl
 
     if debug:
         plt.figure()
         magfunc_raw = logflux_std - logflux_obs
-        plt.plot(wave_obs[masktot],magfunc_raw[masktot] , 'k-',lw=3,label='Raw Magfunc')
-        plt.plot(wave_obs[masktot],magfunc_poly[masktot] , 'c-',lw=3,label='Polynomial Fit')
-        plt.plot(wave_obs[np.invert(mask_tell)], magfunc_raw[np.invert(mask_tell)], 's',
+        plt.plot(zeropoint_data[zeropoint_gpm],zeropoint_data[zeropoint_gpm] , 'k-',lw=3,label='Raw Zeropoint')
+        plt.plot(wave[zeropoint_gpm],zeropoint_poly[zeropoint_gpm] , 'c-',lw=3,label='Polynomial Fit')
+        plt.plot(wave[np.invert(mask_tell)], zerpoint_data[np.invert(mask_tell)], 's',
                  color='0.7',label='Telluric Region')
-        plt.plot(wave_obs[np.invert(mask_balm)], magfunc_raw[np.invert(mask_balm)], 'r+',label='Recombination Line region')
-        plt.plot(wave_obs[masktot], magfunc[masktot],'b-',label='Final Magfunc')
+        plt.plot(wave[np.invert(mask_balm)], zeropoint_data[np.invert(mask_balm)], 'r+',label='Balmer Line region')
+        plt.plot(wave[zeropoint_gpm], zeropoint[zeropoint_gpm],'b-',label='Final Zeropoint')
         plt.legend(fancybox=True, shadow=True)
-        plt.xlim([0.995*np.min(wave_obs[masktot]),1.005*np.max(wave_obs[masktot])])
-        plt.ylim([0.,1.2*np.max(magfunc[masktot])])
+        plt.xlim([0.995*np.min(wave[zeropoint_gpm]),1.005*np.max(wave[zeropoint_gpm])])
+        zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
+        plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+        #plt.ylim([0.,1.2*np.max(magfunc[zeropoint_gpm])])
         plt.show()
         plt.close()
 
-    return sensfunc, masktot
+    return zeropoint, zeropoint_gpm
 
 def load_filter_file(filter):
     """

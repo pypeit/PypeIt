@@ -20,10 +20,15 @@ from pypeit import msgs
 from pypeit import coadd1d
 from pypeit import io
 from astropy.io import fits
+from astropy import units as u
+from astropy import constants as const
 from sklearn import mixture
 
 from IPython import embed
 from pypeit.spectrographs.util import load_spectrograph
+
+
+ZP_UNIT_CONST = -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
 
 ##############################
@@ -645,32 +650,33 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 #  Object model functions  #
 ############################
 
+def Nlam_to_Flam(wave, zeropoint, N_lam):
+    return np.power(10.0, -0.4*(zeropoint - ZP_UNIT_CONST))*N_lam/np.square(wave)
+
+def Flam_to_Nlam(wave, zeropoint, F_lam):
+    return np.power(10.0, 0.4*(zeropoint - ZP_UNIT_CONST))*F_lam*np.square(wave)
+
 
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, flux_per_s_ang, ivar, mask, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tellmodel):
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
-    flam_true_mask = np.isfinite(flam_true)
-    sensguess_arg = obj_params['exptime']*tellmodel*flam_true/(flux_per_s_ang + (flux_per_s_ang < 0.0))
-    sensguess = np.log(sensguess_arg)
-    fitmask = mask & np.isfinite(sensguess) & (sensguess_arg > 0.0) & np.isfinite(flam_true_mask)
+    counts_per_ang_per_s = counts_per_ang/obj_params['exptime']
+    S_nu_dimless = np.square(wave)*tellmodel*flam_true*utils.inverse(counts_per_ang_per_s)*(counts_per_ang_per_s > 0.0)
+    zeropoint_data = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
+    #sensguess = np.log(sensguess_arg)
+    fitmask = mask & np.isfinite(zeropoint_data) & (counts_per_ang_per_s > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
-    pypeitFit = fitting.robust_fit(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+    pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord], function=obj_params['func'],
                                    minx=wave.min(), maxx=wave.max(), in_gpm=fitmask,
                                    lower=obj_params['sigrej'], upper=obj_params['sigrej'],
                                    use_mad=True)
-    sensfit_guess = np.exp(pypeitFit.eval(wave))
-
-    #mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-    #                                   minx=wave.min(), maxx=wave.max(), inmask=fitmask,
-    #                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
-    #                                   use_mad=True)
-    # sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
+    zeropoint_fit = pypeitFit.eval(wave)
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
@@ -684,16 +690,17 @@ def init_sensfunc_model(obj_params, iord, wave, flux_per_s_ang, ivar, mask, tell
     if obj_params['debug']:
         fig = plt.figure(figsize=(12, 8))
         rejmask = mask & np.logical_not(pypeitFit.bool_gpm)
-        plt.plot(wave, sensguess_arg, label='sensfunc estimate', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-        plt.plot(wave, sensfit_guess, label='sensfunc fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-        plt.plot(wave[rejmask], sensguess_arg[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave[np.logical_not(mask)], sensguess_arg[np.logical_not(mask)], 'v', zorder=9, mfc='None', mec='orange',
+        plt.plot(wave, zeropoint_data, label='zeropoint estimate', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
+        plt.plot(wave, zeropoint_fit, label='zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
+        plt.plot(wave[rejmask], zeropoint_data[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+        plt.plot(wave[np.logical_not(mask)], zeropoint_data[np.logical_not(mask)], 'v', zorder=9, mfc='None', mec='orange',
                  label='originally masked')
-        plt.ylim(-2.0, 1.3 * utils.fast_running_median(sensguess_arg[mask], 11).max())
+        zp_med_filter = utils.fast_running_median(zeropoint_data[fitmask], 11)
+        plt.ylim(0.95*zp_med_filter.min(), 1.05*zp_med_filter.max())
         plt.legend()
         plt.xlabel('Wavelength')
-        plt.ylabel('Sensitivity Function')
-        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord))
+        plt.ylabel('Zeropoint')
+        plt.title('Zeropoint Guess for iord={:d}'.format(iord))
         plt.show()
 
     return obj_dict, bounds_obj
@@ -716,9 +723,14 @@ def eval_sensfunc_model(theta, obj_dict):
     -------
     counts_per_angstrom_model : array with same shape as obj_dict['wave_star']
        Model of the quantity being fit for the sensitivity function which is exptime*f_lam_true/sensfunc. Note
-       that this routine is used to fit the counts per angstrom.  The sensitivity function is defined
-       to be S_lam = F_lam/(counts/s/A) where F_lam is in units of 1e-17 erg/s/cm^2/A, and so the sensitivity
-       function has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+       that this routine is used to fit the counts per angstrom.  The zeropoint  is defined
+       to be zeropoint 2.5log10(S_lam) where S_lam = F_lam/(counts/s/A) where F_lam is in units of 1e-17 erg/s/cm^2/A,
+       and so S_lam has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts, and the
+       zeropoint is then the magnitude of the astronomical source that produces one count per second in a
+       one-angstrom wide filter on the detector. And zerpoint + 2.5log10(delta_lambda/1 A) is the magnitude
+       that produces one count  per spectral pixel of width delta_lambda
+
+
 
     gpm : array (bool) with same shape as obj_dict['wave_star']
        Good pixel mask indicating where the model is valid
@@ -733,14 +745,23 @@ def eval_sensfunc_model(theta, obj_dict):
     exptime = obj_dict['exptime']
 
     # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
-    ln_min_float = np.log(sys.float_info.min)
-    #ln_max_float = np.log(sys.float_info.max)
-    ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
-    sensfunc = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ln_min_float, None))
-    counts_per_angstrom_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
-    gpm = (sensfunc > 0.0) & (ln_sens > ln_min_float) & (counts_per_angstrom_model < sys.float_info.max)
+    #ln_min_float = np.log(sys.float_info.min)
+    #ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
+    #sensfunc = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ln_min_float, None))
+    #counts_per_s_angstrom_model = exptime*flam_true*utils.inverse(sensfunc)
+    #gpm = (sensfunc > 0.0) & (ln_sens > ln_min_float) & (counts_per_s_angstrom_model < sys.float_info.max)
 
-    return np.clip(counts_per_angstrom_model, None, sys.float_info.max), gpm
+    #ln_min_float = np.log(sys.float_info.min)
+    #ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
+    zeropoint = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
+    counts_per_angstrom_model = exptime*Flam_to_Nlam(wave_star, zeropoint, flam_true)
+    # We clip the zero point to be in the range of 5.0 and 30.0
+    #embed()
+    gpm = np.ones_like(zeropoint,dtype=bool)
+    #gpm = (zeropoint > 5.0) & (zeropoint < 30.0)
+    #gpm = (counts_per_angstrom_model < np.finfo(float).max) & (counts_per_angstrom_model > np.finfo(float).tiny) & \
+    #      np.isfinite(counts_per_angstrom_model)
+    return counts_per_angstrom_model, gpm
 
 ##############
 # QSO Model #
@@ -1130,7 +1151,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       ech_orders=None,
                       polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
+                      sn_clip=30.0, only_orders=None, maxiter=maxiter, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
     Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum
@@ -1262,8 +1283,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol,
-                      popsize=popsize, recombination=recombination,
+                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, maxiter=maxiter,
+                      tol=tol, popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, sensfunc=True, debug=debug)
 
     TelObj.run(only_orders=only_orders)
@@ -1277,9 +1298,9 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
         coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['SENSFUNC'][gdwave] = np.exp(fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max))
+        out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max)
         # out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
-        out_table[iord]['SENSFUNC_GPM'][gdwave] = True
+        out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
 
     #if outfile is not None:
     #    TelObj.save(outfile)
@@ -1319,7 +1340,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_max=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
-                 tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
+                 maxiter=3, tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
                  show=False):
     """
@@ -1429,7 +1450,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
-                      sn_clip=sn_clip, tol=tol, popsize=popsize, recombination=recombination,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.save(telloutfile)
@@ -1472,7 +1493,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                   func='legendre', model='exp', polyorder=5, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, recombination=0.7, polish=True,
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
+                  recombination=0.7, polish=True,
                   disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1561,7 +1583,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
                   fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
