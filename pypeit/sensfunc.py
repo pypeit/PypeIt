@@ -311,9 +311,9 @@ class IR(SensFunc):
             self.meta_spec['AIRMASS'], self.std_dict, self.par['IR']['telgridfile'], polyorder=self.par['polyorder'],
             ech_orders = self.meta_spec['ECH_ORDERS'],
             sn_clip=self.par['IR']['sn_clip'], mask_abs_lines=self.par['mask_abs_lines'],
-            # JFH Implement thease in parset?
-            #delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
-            #minmax_coeff_bounds=self.par['IR']['min_max_coeff_bounds'],
+            maxiter=self.par['IR']['maxiter'],lower=self.par['IR']['lower'],upper=self.par['IR']['upper'],
+            delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
+            minmax_coeff_bounds=self.par['IR']['minmax_coeff_bounds'],
             tol=self.par['IR']['tol'], popsize=self.par['IR']['popsize'], recombination=self.par['IR']['recombination'],
             polish=self.par['IR']['polish'],
             disp=self.par['IR']['disp'], debug=self.debug, debug_init=self.debug)

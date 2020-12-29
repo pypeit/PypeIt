@@ -18,6 +18,8 @@ from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 from astropy import stats
+from astropy import units as u
+from astropy import constants as const
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
@@ -35,6 +37,13 @@ from pypeit.core import telluric
 TINY = 1e-15
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
+
+
+def zp_unit_const():
+    return -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
+
+# Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
+ZP_UNIT_CONST = zp_unit_const()
 
 
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
@@ -608,8 +617,9 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
                        "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
                        "further and recreate your sensfunc.")
 
-    # This is the factor required to convert N_lam = counts/sec/Ang to F_lam = 1e-17 erg/s/cm^2/Ang
-    sensfunc_obs = telluric.Nlam_to_Flam(wave, zeropoint_obs)
+    # This is the S_lam factor required to convert N_lam = counts/sec/Ang to F_lam = 1e-17 erg/s/cm^2/Ang, i.e.
+    # F_lam = S_lam*N_lam
+    sensfunc_obs = Nlam_to_Flam(wave, zeropoint_obs)
 
     if extinct_correct:
         if longitude is None or latitude is None:
@@ -882,6 +892,85 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
 
     return mask_bad, mask_balm, mask_tell
 
+
+
+def Nlam_to_Flam(wave, zeropoint):
+    """
+    The factor that when multiplied into N_lam converts to F_lam, i.e. S_lam where S_lam \equiv F_lam/N_lam
+
+    Parameters
+    ----------
+    wave
+    zeropoint
+
+    Returns
+    -------
+
+    """
+    wave_gpm = wave > 1.0
+    factor = np.zeros_like(wave)
+    factor[wave_gpm] = np.power(10.0, -0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))/np.square(wave[wave_gpm])
+    return factor
+
+def Flam_to_Nlam(wave, zeropoint):
+    """
+    The factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam where S_lam \equiv F_lam/N_lam
+
+
+    Parameters
+    ----------
+    wave
+    zeropoint
+
+    Returns
+    -------
+
+    """
+    wave_gpm = wave > 1.0
+    factor = np.zeros_like(wave)
+    factor[wave_gpm] = np.power(10.0, 0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))*np.square(wave)
+    return factor
+
+
+def compute_zeropoint(wave, N_lam, N_lam_mask, flam_std_star, tellmodel=None):
+
+    tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
+    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)*(N_lam > 0.0)
+    zeropoint = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
+    zeropoint_gpm = N_lam_mask & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
+    return zeropoint, zeropoint_gpm
+
+def zeropoint_to_thru(sensfile):
+    """
+
+    Parameters
+    ----------
+    sensfile (str) sensitivity function file
+
+    Returns
+    -------
+       wave, throughput
+
+       wave (`numpy.ndarray`_):
+           wavelength vector for the throughput
+       throughput (`numpy.ndarray`_):
+           Throughput of the spectroscopic setup.
+
+    """
+
+    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+    spectrograph = util.load_spectrograph(header_sens['PYP_SPEC'])
+    sensfunc_units = 1e-17*u.erg/u.cm**2
+    throughput = np.zeros_like(zeropoint)
+    zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0)
+    inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])
+    inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
+    eff_aperture = spectrograph.telescope['eff_aperture']*u.m**2
+    thru = ((const.h*const.c)*inv_wave/eff_aperture*inv_sensfunc).decompose()
+    throughput[zeropoint_gpm] = thru
+    return wave, throughput
+
+
 def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
                        maxiter=35, upper=3.0, lower=3.0, func = 'polynomial', polyorder=5, balm_mask_wid=50.,
                        nresln=20., resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
@@ -1013,7 +1102,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     bset1, bmask = fitting.iterfit(wave, zeropoint_data, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
-    zeropoint_bspl, _ = bset1.value(wave)
+    zeropoint_bspl, zeropoint_bspl_mask = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
 
     if debug:
@@ -1067,8 +1156,10 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         plt.show()
         plt.close()
 
+
+
     # TODO Should we return the bspline fitmask here?
-    return zeropoint, zeropoint_data_gpm
+    return zeropoint, zeropoint_bspl_mask
 
 def load_filter_file(filter):
     """
@@ -1126,7 +1217,7 @@ def load_filter_file(filter):
     # Return
     return wave, instr
 
-
+# TODO Replace this stuff wth calls to the astropy speclite package.
 def scale_in_filter(wave, flux, gpm, scale_dict):
     """
     Scale spectra to input magnitude in given filter

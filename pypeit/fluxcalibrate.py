@@ -55,18 +55,18 @@ class FluxCalibrate(object):
             # Read in the data
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
             if sens != sens_last:
-                wave, sensfunction, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
-            self.flux_calib(sobjs, wave, sensfunction, meta_table)
+                wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
+            self.flux_calib(sobjs, wave, zeropoint, meta_table)
             sobjs.write_to_fits(sobjs.header, outfile, overwrite=True)
 
-    def flux_calib(self, sobjs, wave, sensfunction, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
         """
         Dummy method overloaded by subclass
 
         Args:
             sobjs:
             wave:
-            sensfunction:
+            zeropoint:
             meta_table:
 
 
@@ -85,7 +85,7 @@ class MultiSlitFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug, outfiles=outfiles)
 
 
-    def flux_calib(self, sobjs, wave, sensfunction, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
@@ -94,7 +94,7 @@ class MultiSlitFC(FluxCalibrate):
                SpecObjs object
             wave (ndarray):
                wavelength array for sensitivity function (nspec,)
-            sensfunction (ndarray):
+            zeropoint (ndarray):
                sensitivity function
             meta_table (table):
                astropy table containing meta data for sensitivity function
@@ -103,7 +103,7 @@ class MultiSlitFC(FluxCalibrate):
 
         # Run
         for sci_obj in sobjs:
-            sci_obj.apply_flux_calib(wave, sensfunction,
+            sci_obj.apply_flux_calib(wave, zeropoint,
                                      sobjs.header['EXPTIME'],
                                      extinct_correct=self._set_extinct_correct(
                                          self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
@@ -124,7 +124,7 @@ class EchelleFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
 
 
-    def flux_calib(self, sobjs, wave, sensfunction, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
@@ -133,7 +133,7 @@ class EchelleFC(FluxCalibrate):
                SpecObjs object
             wave (ndarray):
                wavelength array for sensitivity function (nspec,)
-            sensfunction (ndarray):
+            zeropoint (ndarray):
                sensitivity function
             meta_table (table):
                astropy table containing meta data for sensitivity function
@@ -149,7 +149,7 @@ class EchelleFC(FluxCalibrate):
             # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
             indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
             if indx.size==1:
-                sci_obj.apply_flux_calib(wave[:, indx[0]],sensfunction[:,indx[0]],
+                sci_obj.apply_flux_calib(wave[:, indx[0]],zeropoint[:,indx[0]],
                                          sobjs.header['EXPTIME'],
                                          extinct_correct=self._set_extinct_correct(
                                              self.par['extinct_correct'], meta_table['ALGORITHM'][0]),

@@ -420,7 +420,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
-    to :func:`robust_polyfit_djs`, but is more general in that it allows
+    to :func:`robust_fit`, but is more general in that it allows
     one to fit a more general model using the optimizer of the users
     choice. If you are fitting simple functions like Chebyshev or
     Legednre polynomials using a linear least-squares algorithm, you
@@ -537,8 +537,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     qdone = False
     thismask = np.copy(inmask)
 
+    init_from_last = None
     while (not qdone) and (iter < maxiter):
-        ret_tuple = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+        ret_tuple = fitfunc(ydata, thismask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)
         if (len(ret_tuple) == 2):
             result, ymodel = ret_tuple
             invvar_use = invvar
@@ -546,7 +547,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
             result, ymodel, invvar_use = ret_tuple
         else:
             msgs.error('Invalid return value from fitfunc')
-
+        # Update the
+        init_from_last = result
         thismask_iter = thismask.copy()
         thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar_use,
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
@@ -568,7 +570,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
 
     # Perform a final fit using the final outmask if new pixels were rejected on the last iteration
     if qdone is False:
-        ret_tuple = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
+        ret_tuple = fitfunc(ydata, outmask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)
 
     return ret_tuple + (outmask,)
 
