@@ -1626,7 +1626,8 @@ class TelluricPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
+    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None):
 
@@ -1691,6 +1692,34 @@ class TelluricPar(ParSet):
         descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
                                     'The atmosphere will be allowed to shift within this range during the fit.'
 
+        # Force delta_coeff_bounds to be a tuple
+        if pars['delta_coeff_bounds'] is not None and not isinstance(pars['delta_coeff_bounds'], tuple):
+            try:
+                pars['delta_coeff_bounds'] = tuple(pars['delta_coeff_bounds'])
+            except:
+                raise TypeError('Could not convert provided delta_coeff_bounds to a tuple.')
+
+        defaults['delta_coeff_bounds'] = (-20.0, 20.0)
+        dtypes['delta_coeff_bounds'] = tuple
+        descr['delta_coeff_bounds'] = 'Paramters setting the polynomial coefficient bounds for sensfunc optimization.'
+
+        # Force delta_coeff_bounds to be a tuple
+        if pars['minmax_coeff_bounds'] is not None and not isinstance(pars['minmax_coeff_bounds'], tuple):
+            try:
+                pars['minmax_coeff_bounds'] = tuple(pars['minmax_coeff_bounds'])
+            except:
+                raise TypeError('Could not convert provided minmax_coeff_bounds to a tuple.')
+
+        defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
+        dtypes['minmax_coeff_bounds'] = tuple
+        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for sensfunc optimization." \
+                                       "Bounds are currently determined as follows. We compute an initial fit to the " \
+                                       "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
+                                       "a set of coefficients. The bounds are then determined according to: " \
+                                       "[(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], " \
+                                       "obj_params['minmax_coeff_bounds'][0]), " \
+                                       "np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1]," \
+                                       "obj_params['minmax_coeff_bounds'][1]))]"
 
         defaults['maxiter'] = 3
         dtypes['maxiter'] = int
@@ -1778,7 +1807,8 @@ class TelluricPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
-                   'pix_shift_bounds', 'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
+                   'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
+                   'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
                    'popsize', 'recombination', 'polish', 'disp']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

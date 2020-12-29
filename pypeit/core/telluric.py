@@ -32,6 +32,9 @@ def zp_unit_const():
 
 # Define this global variable to avoid constantly recomputing
 ZP_UNIT_CONST = zp_unit_const()
+# Min and Max zeropoint values to prevent overflows
+ZP_MIN = 1.0
+ZP_MAX = 100.0
 
 ##############################
 #  Telluric model functions  #
@@ -399,16 +402,18 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     theta_tell = theta[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
-    obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
+    obj_model, model_gpm = obj_model_func(theta_obj, arg_dict['obj_dict'])
 
-    if not np.any(modelmask):
+    if not np.any(model_gpm):
         return np.inf
     else:
-        totalmask = thismask & modelmask
-        chi_vec = totalmask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
+        #totalmask = thismask & modelmask
+        chi_vec = thismask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
-        loss_function = np.sum(huber_vec * totalmask)
+        # Penalize modelmasked pixels with a large penalty
+        #huber_vec[np.logical_not(model_gpm)] = 1e20 # Large number??
+        loss_function = np.sum(huber_vec * thismask)
         return loss_function
 
 def tellfit(flux, thismask, arg_dict, **kwargs_opt):
@@ -487,8 +492,17 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     flux_ivar = arg_dict['ivar'] # Inverse variance of flux or counts
     bounds = arg_dict['bounds']  # bounds for differential evolution optimizaton
     seed = arg_dict['seed']      # Seed for differential evolution optimizaton
+    # Did the user pass an initial population guess?
+    #init = arg_dict['init_obj'] if 'init_obj' in arg_dict else 'latinhypercube'
+
+    init_obj = arg_dict['obj_dict']['init_obj']
+    nsamples = init_obj.shape[0]
+    tell_lhs = utils.lhs(7, samples=nsamples)
+    init_tell = np.array([[bounds[-idim][0] + tell_lhs[isamp, idim]*(bounds[-idim][1] - bounds[-idim][0])
+                           for idim in range(7)] for isamp in range(nsamples)])
+    init = np.hstack((init_obj, init_tell))
     result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=seed,
-                                                   **kwargs_opt)
+                                                   init = init, **kwargs_opt, updating='immediate')
 
     theta_obj  = result.x[:-7]
     theta_tell = result.x[-7:]
@@ -498,10 +512,7 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     totalmask = thismask & modelmask
     chi_vec = totalmask*(flux - tell_model*obj_model)*np.sqrt(flux_ivar)
 
-    try:
-        debug = arg_dict['debug']
-    except KeyError:
-        debug = False
+    debug = arg_dict['debug'] if 'debug' in arg_dict else False
 
     # Name of function for title in case QA requested
     obj_model_func_name = getattr(obj_model_func, '__name__', repr(obj_model_func))
@@ -665,6 +676,33 @@ def Flam_to_Nlam(wave, zeropoint):
     return factor
 
 
+def compute_zeropoint(wave, N_lam, N_lam_mask, flam_std_star, tellmodel=None):
+
+    tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
+    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)*(N_lam > 0.0)
+    zeropoint = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
+    zeropoint_gpm = N_lam_mask & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
+    return zeropoint, zeropoint_gpm
+
+def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None):
+
+    fig = plt.figure(figsize=(12, 8))
+    rejmask = zeropoint_data_gpm & np.logical_not(zeropoint_fit_gpm)
+    plt.plot(wave, zeropoint_data, label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
+    plt.plot(wave, zeropoint_fit, label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
+    plt.plot(wave[rejmask], zeropoint_data[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+    plt.plot(wave[np.logical_not(zeropoint_data_gpm)], zeropoint_data[np.logical_not(zeropoint_data_gpm)], 'v',
+             zorder=9, mfc='None', mec='orange',
+             label='originally masked')
+    zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_data_gpm], 11)
+    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+    plt.legend()
+    plt.xlabel('Wavelength')
+    plt.ylabel('Zeropoint')
+    title_str = title if order is None else title + 'order={:d}'.format(order)
+    plt.title(title_str)
+    plt.show()
+
 ##############
 # Sensfunc Model #
 ##############
@@ -674,42 +712,36 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
-    counts_per_ang_per_s = counts_per_ang/obj_params['exptime']
-    S_nu_dimless = np.square(wave)*tellmodel*flam_true*utils.inverse(counts_per_ang_per_s)*(counts_per_ang_per_s > 0.0)
-    zeropoint_data = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
-    #sensguess = np.log(sensguess_arg)
-    fitmask = mask & np.isfinite(zeropoint_data) & (counts_per_ang_per_s > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
+    N_lam = counts_per_ang/obj_params['exptime']
+    zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, N_lam, mask, flam_true, tellmodel=tellmodel)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
     pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-                                   minx=wave.min(), maxx=wave.max(), in_gpm=fitmask,
+                                   minx=wave.min(), maxx=wave.max(), in_gpm=zeropoint_data_gpm,
                                    lower=obj_params['sigrej'], upper=obj_params['sigrej'],
                                    use_mad=True)
     zeropoint_fit = pypeitFit.eval(wave)
+    zeropoint_fit_gpm = pypeitFit.bool_gpm
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
                    for this_coeff in pypeitFit.fitc]
+
+    ## TESTING
+    seed = 12599
+    rand = np.random.RandomState(seed)
+
+    nsamples = 300
+    init_obj = np.array([[np.clip(this_coeff + 0.001*(bounds_obj[i][1] - bounds_obj[i][0])*rand.randn(1)[0],bounds_obj[i][0],bounds_obj[i][1])
+                          for i, this_coeff in enumerate(pypeitFit.fitc)] for i in range(nsamples)])
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
                     exptime=obj_params['exptime'], flam_true=flam_true, func=obj_params['func'],
-                    polyorder=obj_params['polyorder_vec'][iord])
+                    polyorder=obj_params['polyorder_vec'][iord], init_obj=init_obj)
 
     if obj_params['debug']:
-        fig = plt.figure(figsize=(12, 8))
-        rejmask = mask & np.logical_not(pypeitFit.bool_gpm)
-        plt.plot(wave, zeropoint_data, label='zeropoint estimate', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-        plt.plot(wave, zeropoint_fit, label='zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-        plt.plot(wave[rejmask], zeropoint_data[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave[np.logical_not(mask)], zeropoint_data[np.logical_not(mask)], 'v', zorder=9, mfc='None', mec='orange',
-                 label='originally masked')
-        zp_med_filter = utils.fast_running_median(zeropoint_data[fitmask], 11)
-        plt.ylim(0.95*zp_med_filter.min(), 1.05*zp_med_filter.max())
-        plt.legend()
-        plt.xlabel('Wavelength')
-        plt.ylabel('Zeropoint')
-        plt.title('Zeropoint Guess for iord={:d}'.format(iord))
-        plt.show()
+        title = 'Zeropoint Initialization Guess for '
+        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, order=iord)
 
     return obj_dict, bounds_obj
 
@@ -753,23 +785,11 @@ def eval_sensfunc_model(theta, obj_dict):
     exptime = obj_dict['exptime']
 
     # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
-    #ln_min_float = np.log(sys.float_info.min)
-    #ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
-    #sensfunc = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ln_min_float, None))
-    #counts_per_s_angstrom_model = exptime*flam_true*utils.inverse(sensfunc)
-    #gpm = (sensfunc > 0.0) & (ln_sens > ln_min_float) & (counts_per_s_angstrom_model < sys.float_info.max)
-
-    #ln_min_float = np.log(sys.float_info.min)
-    #ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
+    #zeropoint = np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ZP_MIN, ZP_MAX)
     zeropoint = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
     counts_per_angstrom_model = exptime*Flam_to_Nlam(wave_star, zeropoint)*flam_true
-    # We clip the zero point to be in the range of 5.0 and 30.0
-    #embed()
-    gpm = np.ones_like(zeropoint,dtype=bool)
-    #gpm = (zeropoint > 5.0) & (zeropoint < 30.0)
-    #gpm = (counts_per_angstrom_model < np.finfo(float).max) & (counts_per_angstrom_model > np.finfo(float).tiny) & \
-    #      np.isfinite(counts_per_angstrom_model)
-    return counts_per_angstrom_model, gpm
+    return counts_per_angstrom_model,  np.ones_like(counts_per_angstrom_model,dtype=bool)
+
 
 ##############
 # QSO Model #
@@ -1298,8 +1318,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     TelObj.run(only_orders=only_orders)
     # Append the sensfunc to the output table for convenience
     meta_table, out_table = TelObj.meta_table, TelObj.out_table
-    out_table['SENSFUNC'] = np.zeros_like(TelObj.out_table['WAVE'])
-    out_table['SENSFUNC_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
+    out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
     for iord in range(norders):
         gdwave = TelObj.wave_in_arr[:, iord] > 1.0
         wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
@@ -1307,11 +1327,28 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         wave_max = out_table[iord]['WAVE_MAX']
         coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
         out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max)
-        # out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
         out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
 
-    #if outfile is not None:
-    #    TelObj.save(outfile)
+    # Plot QA
+    if debug:
+        for iord in range(norders):
+            # Unpack the data we fit from the TelObj object
+            ind_lower = TelObj.ind_lower[iord]
+            ind_upper = TelObj.ind_upper[iord]
+            wave_now = TelObj.wave_grid[ind_lower:ind_upper+1]
+            flux_now = TelObj.flux_arr[ind_lower:ind_upper+1, iord]
+            sig_now = np.sqrt(utils.inverse(TelObj.ivar_arr[ind_lower:ind_upper+1, iord]))
+            zeropoint_data_gpm = TelObj.mask_arr[ind_lower:ind_upper+1, iord]
+            # Unpack the model fits from the TelObj object
+            tellmodel_now = TelObj.tellmodel_list[iord]
+            zeropoint_fit_now = TelObj.obj_model_list[iord]
+            zeropoint_fit_gpm = TelObj.outmask_list[iord]
+            # Get the standard star spectrum and compute a zeropoint from the data
+            flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+            N_lam = flux_now/exptime
+            zeropoint_data, _ = compute_zeropoint(N_lam, mask_now, flam_std_star, tellmodel=tellmodel_now)
+            title = 'Zeropoint Fit for '
+            zeropoint_qa_plot(zeropoint_data, zeropoint_data_zpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
 
     return meta_table, out_table
 
@@ -1973,7 +2010,7 @@ class Telluric(object):
                 continue
             msgs.info('Fitting object + telluric model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
                       ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
-            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = utils.robust_optimize(
+            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = fitting.robust_optimize(
                 self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord], tellfit, self.arg_dict_list[iord],
                 inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
                 maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,

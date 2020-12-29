@@ -111,7 +111,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['polyorder'] = 11
+        par['sensfunc']['IR']['maxiter'] = 1
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
