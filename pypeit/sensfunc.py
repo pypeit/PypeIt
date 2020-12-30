@@ -139,16 +139,14 @@ class SensFunc(object):
         # If the zeropoint has just one order, or detectors were spliced, flatten the output
         # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
 
-        embed()
         # Compute the throughput
-        self.throughput = flux_calib.zeropoint_to_thru(self.wave_zp, self.zeropoint, self.spectrograph.telescope['eff_aperture'])
+        self.throughput = compute_throughput()
 
         if self.wave_zp.ndim == 2:
             if self.wave_zp.shape[1] == 1:
                 self.wave_zp = self.wave_zp.flatten()
                 self.zeropoint = self.zeropoint.flatten()
                 self.throughput = self.throughput.flatten()
-
 
         # Write out QA and throughput plots
         self.write_QA()
@@ -292,6 +290,25 @@ class SensFunc(object):
         self.steps.append(inspect.stack()[0][3])
 
         return wave_splice, zeropoint_splice
+
+    def compute_throughput(self):
+        """
+        Compute the spectroscopic throughput
+
+        Returns
+        -------
+
+        """
+
+        # Compute the throughput
+        throughput = np.zeros_like(self.zeropoint)
+        for idet in range(self.norderdet):
+            wave_gpm =  (self.wave_zp[:,idet] >= self.out_table[idet]['WAVE_MIN']) & \
+                        (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) & (self.wave_zp[:,idet] > 1.0)
+            self.throughput[:,idet][wave_gpm] = flux_calib.zeropoint_to_throughput(
+                self.wave_zp[:,idet][wave_gpm], self.zeropoint[:,idet][wave_gpm], self.spectrograph.telescope['eff_aperture'])
+
+        return throughput
 
 #    def show(self):
 #        plt.plot(self.wave_zp, self.zeropoint)

@@ -975,12 +975,12 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
     """
 
     eff_aperture_m2 = eff_aperture*u.m**2
-    sensfunc_units = 1e-17*u.erg/u.cm**2
+    S_lam_units = 1e-17*u.erg/u.cm**2
     throughput = np.zeros_like(zeropoint)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)
-    inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])
+    inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])/S_lam_units
     inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
-    thru = ((const.h*const.c)*inv_wave/eff_aperture_m2*inv_sensfunc).decompose()
+    thru = ((const.h*const.c)*inv_wave/eff_aperture_m2*inv_S_lam).decompose()
     throughput[zeropoint_gpm] = thru
     return throughput
 
