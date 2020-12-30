@@ -21,6 +21,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import io
 from pypeit.core import meta
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -80,13 +81,16 @@ class SensFunc(object):
         header = fits.getheader(self.spec1dfile)
         self.spectrograph = load_spectrograph(header['PYP_SPEC'])
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
-
+        # QA and throughtput plot filenames
+        self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
+        self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
         self.debug = debug
         # Core attributes that will be output to file
         self.meta_table = None
         self.out_table = None
         self.wave = None
         self.zeropoint = None
+        self.throughput = None
         self.steps = []
         # Are we splicing together multiple detectors?
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
@@ -129,18 +133,28 @@ class SensFunc(object):
         # Compute the sensitivity function
         self.meta_table, self.out_table = self.compute_zeropoint()
         # Extrapolate the zeropoint based on par['extrap_blu'], par['extrap_red']
-        self.wave_sens, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
+        self.wave_zp, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave_sens, self.zeropoint = self.splice(self.wave_sens)
+            self.wave_zp, self.zeropoint = self.splice(self.wave_zp)
         # If the zeropoint has just one order, or detectors were spliced, flatten the output
         # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
-        if self.wave_sens.ndim == 2:
-            if self.wave_sens.shape[1] == 1:
-                self.wave_sens = self.wave_sens.flatten()
+
+        embed()
+        # Compute the throughput
+        self.throughput = flux_calib.zeropoint_to_thru(self.wave_zp, self.zeropoint, self.spectrograph.telescope['eff_aperture'])
+
+        if self.wave_zp.ndim == 2:
+            if self.wave_zp.shape[1] == 1:
+                self.wave_zp = self.wave_zp.flatten()
                 self.zeropoint = self.zeropoint.flatten()
+                self.throughput = self.throughput.flatten()
+
+
+        # Write out QA and throughput plots
+        self.write_QA()
         # Show?
-        if self.debug:
-            self.show()
+        #if self.debug:
+        #    self.show()
         return
 
     def eval_zeropoint(self, wave, iorddet):
@@ -170,8 +184,8 @@ class SensFunc(object):
         hdr['SPC1DFIL'] = self.spec1dfile
 
         # Write the fits file
-        data = [self.wave_sens, self.zeropoint]
-        extnames = ['WAVE', 'ZEROPOINT']
+        data = [self.wave_zp, self.zeropoint, self.throughput]
+        extnames = ['WAVE', 'ZEROPOINT', 'THROUGHPUT']
         # Write the fits file
         hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
         hdu_meta = fits.table_to_hdu(self.meta_table)
@@ -181,6 +195,7 @@ class SensFunc(object):
         hdulist.append(hdu_meta)
         hdulist.append(hdu_out)
         hdulist.writeto(self.sensfile, overwrite=True, checksum=True)
+
 
 
     def extrapolate(self, samp_fact=1.5):
@@ -278,12 +293,43 @@ class SensFunc(object):
 
         return wave_splice, zeropoint_splice
 
-    def show(self):
-        plt.plot(self.wave_sens, self.zeropoint)
-        plt.show()
-        plt.close()
+#    def show(self):
+#        plt.plot(self.wave_zp, self.zeropoint)
+#        plt.show()
+#        plt.close()
 
-    def write_QA:
+
+    def write_QA(self):
+        """
+        Write out zeropoint QA files
+
+        Returns
+        -------
+
+        """
+        npages = int(np.ceil(self.norderdet/2))
+        with PdfPages(self.qafile) as pdf:
+            for ipage in range(npages):
+                figure, (ax1, ax2) = plt.subplots(2, figsize=(8.27, 11.69))
+                iord = 2*ipage
+                flux_calib.zeropoint_qa_plot(
+                    self.out_table[2*ipage]['SENS_WAVE'], self.out_table[2*ipage]['SENS_ZEROPOINT'],
+                    self.out_table[2*ipage]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage]['SENS_ZEROPOINT_FIT'],
+                    self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'], title='Zeropoint QA for order/det = ',
+                                             order=2*ipage, axis=ax1)
+                if (2*ipage + 1) < self.norderdet:
+                    flux_calib.zeropoint_qa_plot(
+                        self.out_table[2*ipage+1]['SENS_WAVE'], self.out_table[2*ipage+1]['SENS_ZEROPOINT'],
+                        self.out_table[2*ipage+1]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT'],
+                        self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT_GPM'], title='Zeropoint QA for order/det = ',
+                        order=2*ipage+1, axis=ax2)
+                else:
+                    ax2.remove()
+                pdf.savefig()
+                plt.close('all')
+
+
+        embed()
 
 
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic

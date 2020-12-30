@@ -915,7 +915,7 @@ def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
     factor = np.zeros_like(wave)
-    factor[wave_gpm] = np.power(10.0, -0.4*(zeropoint[gpm] - ZP_UNIT_CONST))/np.square(wave[gpm])
+    factor[gpm] = np.power(10.0, -0.4*(zeropoint[gpm] - ZP_UNIT_CONST))/np.square(wave[gpm])
     return factor
 
 def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
@@ -946,60 +946,89 @@ def compute_zeropoint(wave, N_lam, N_lam_mask, flam_std_star, tellmodel=None):
     zeropoint_gpm = N_lam_mask & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
     return zeropoint, zeropoint_gpm
 
-def zeropoint_to_thru(sensfile):
-    """
-
-    Parameters
-    ----------
-    sensfile (str) sensitivity function file
-
-    Returns
-    -------
-       wave, throughput
-
-       wave (`numpy.ndarray`_):
-           wavelength vector for the throughput
-       throughput (`numpy.ndarray`_):
-           Throughput of the spectroscopic setup.
-
-    """
+def throughput_from_sensfile(sensfile):
 
     wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
     spectrograph = util.load_spectrograph(header_sens['PYP_SPEC'])
-    sensfunc_units = 1e-17*u.erg/u.cm**2
-    throughput = np.zeros_like(zeropoint)
-    zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0)
-    inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])
-    inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
-    eff_aperture = spectrograph.telescope['eff_aperture']*u.m**2
-    thru = ((const.h*const.c)*inv_wave/eff_aperture*inv_sensfunc).decompose()
-    throughput[zeropoint_gpm] = thru
+    throughput = zeropoint_to_thru(wave, zeropoint, spectrograph.telescope['eff_aperture'])
     return wave, throughput
 
 
-def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None):
+def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
+    """
+    Routine to compute the spectrograph throughput from the zeropoint and effective aperture.
 
+    Parameters
+    ----------
+    wave (`numpy.ndarray`_):
+         Wavelength array shape (nspec,) or (nspec, norders)
+    zeropoint (`numpy.ndarray`_):
+         Zeropoint array shape (nspec,) or (nspec, norders)
+    eff_aperture (float):
+         Effective aperture of the telescope in m^2. See spectrograph object
+
+    Returns
+    -------
+       throughput (`numpy.ndarray`_):
+           Throughput of the spectroscopic setup. Same shape as wave and zeropoint
+
+    """
+
+    eff_aperture_m2 = eff_aperture*u.m**2
+    sensfunc_units = 1e-17*u.erg/u.cm**2
+    throughput = np.zeros_like(zeropoint)
+    zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)
+    inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])
+    inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
+    thru = ((const.h*const.c)*inv_wave/eff_aperture_m2*inv_sensfunc).decompose()
+    throughput[zeropoint_gpm] = thru
+    return throughput
+
+
+def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None, axis=None, show=False):
+    """
+    QA plot for zeropoint plotting
+
+    Parameters
+    ----------
+    wave
+    zeropoint_data
+    zeropoint_data_gpm
+    zeropoint_fit
+    zeropoint_fit_gpm
+    title
+    order
+    axis
+    show
+
+    Returns
+    -------
+
+    """
 
     wv_gpm = wave > 1.0
-    plt.close()
-    plt.figure(figsize=(12, 8))
+    if axis is None:
+        plt.close()
+        fig = plt.figure(figsize=(12,8))
+        axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+
     rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
-    plt.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-    plt.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-    plt.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-    plt.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
+    axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
+    axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
+    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+    axis.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
              zorder=9, mfc='None', mec='orange',
              label='originally masked')
     med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
     zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
-    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
-    plt.legend()
-    plt.xlabel('Wavelength')
-    plt.ylabel('Zeropoint')
-    title_str = title if order is None else title + 'order={:d}'.format(order)
-    plt.title(title_str)
-    plt.show()
-
+    axis.set_ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+    axis.legend()
+    axis.set_xlabel('Wavelength')
+    axis.set_ylabel('Zeropoint (AB mag)')
+    title_str = title if order is None else title + ' {:d}'.format(order)
+    axis.set_title(title_str)
+    if show:
+        plt.show()
 
 
 def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,

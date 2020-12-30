@@ -705,7 +705,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
 
     if obj_params['debug']:
         title = 'Zeropoint Initialization Guess for '
-        flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, order=iord)
+        flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, order=iord, show=True)
 
     return obj_dict, bounds_obj
 
@@ -741,17 +741,10 @@ def eval_sensfunc_model(theta, obj_dict):
 
     """
 
-    wave_star = obj_dict['wave']
-    wave_min = obj_dict['wave_min']
-    wave_max = obj_dict['wave_max']
-    flam_true = obj_dict['flam_true']
-    func = obj_dict['func']
-    exptime = obj_dict['exptime']
-
     # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
     #zeropoint = np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ZP_MIN, ZP_MAX)
-    zeropoint = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
-    counts_per_angstrom_model = exptime*flux_calib.Flam_to_Nlam(wave_star, zeropoint)*flam_true
+    zeropoint = fitting.evaluate_fit(theta, obj_dict['func'], obj_dict['wave'], minx=obj_dict['wave_min'], maxx=obj_dict['wave_max'])
+    counts_per_angstrom_model =  obj_dict['exptime']*flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint)*obj_dict['flam_true']
     return counts_per_angstrom_model,  np.ones_like(counts_per_angstrom_model,dtype=bool)
 
 
@@ -1292,11 +1285,13 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
     # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
     # somewhat heterogenous outputs of the two different fluxing algorithms.
-    out_table['TELL_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
-    out_table['TELL_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
-    out_table['TELL_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
-    out_table['TELL_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
-    out_table['TELL_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+    out_table['SENS_COEFF'] = out_table['OBJ_THETA']
+    out_table['SENS_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_COUNTS_PER_ANG'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+    out_table['SENS_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
     for iord in range(norders):
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
@@ -1304,20 +1299,22 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         ind_upper = out_table[iord]['IND_UPPER']
         # Compute and assign the zeropint_data from the input data and the best-fit telluric model
         wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
-        out_table[iord]['TELL_WAVE'][ind_lower:ind_upper+1] = wave_now
+        out_table[iord]['SENS_WAVE'][ind_lower:ind_upper+1] = wave_now
         zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
-        out_table[iord]['TELL_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
+        out_table[iord]['SENS_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
         tellmodel_now = TelObj.tellmodel_list[iord]
+        out_table[iord]['SENS_COUNTS_PER_ANG'][ind_lower:ind_upper + 1] = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
         flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
         flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
         N_lam = flux_now / exptime
         zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
                                                          tellmodel=tellmodel_now)
-        out_table[iord]['TELL_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
+        out_table[iord]['SENS_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
         # Compute and assign the
-        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['TELL_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
-        out_table[iord]['TELL_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
+        coeff = out_table[iord]['SENS_COEFF'][0:polyorder_vec[iord] + 2]
+        out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
+            coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
+        out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
         #flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm,
         #                             title, order=iord)
 

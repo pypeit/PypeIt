@@ -1768,7 +1768,7 @@ class TelluricPar(ParSet):
                         'the seed, and the results will not be reproducible.'
 
 
-        defaults['tol'] = 5e-3
+        defaults['tol'] = 1e-3
         dtypes['tol'] = float
         descr['tol'] = 'Relative tolerance for converage of the differential evolution optimization. See ' \
                        'scipy.optimize.differential_evolution for details.'
