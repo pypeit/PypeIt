@@ -5,11 +5,8 @@ Module for guiding 1D Wavelength Calibration
 
 """
 import os
-import copy
 import inspect
 import json
-
-from IPython import embed
 
 import numpy as np
 
@@ -17,13 +14,16 @@ from matplotlib import pyplot as plt
 
 from linetools import utils as ltu
 
+from astropy.table import Table
+
 from pypeit import msgs
 from pypeit.core import arc, qa
 from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, wv_fitting
 from pypeit.core.gui.identify import Identify
-from pypeit import utils
 from pypeit import datamodel
+
+from IPython import embed
 
 class WaveCalib(datamodel.DataContainer):
     """
@@ -249,7 +249,31 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return image
 
+    def print_diagnostics(self):
+        """
+        Print a set of diagnostics to the screen
 
+        """
+        # Generate a table
+        diag = Table()
+        # spat_id
+        diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
+        # Central wave, delta wave
+        diag['minWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[0] for wvfit in self.wv_fits]
+        diag['minWave'].format = '0.1f'
+        diag['Wave_cen'] = [0 if wvfit.cen_wave is None else wvfit.cen_wave for wvfit in self.wv_fits]
+        diag['Wave_cen'].format = '0.1f'
+        diag['maxWave'] = [0 if wvfit.wave_soln is None else wvfit.wave_soln[-1] for wvfit in self.wv_fits]
+        diag['maxWave'].format = '0.1f'
+        diag['dWave'] = [0 if wvfit.cen_disp is None else wvfit.cen_disp for wvfit in self.wv_fits]
+        diag['dWave'].format = '0.3f'
+        # Number of good lines
+        diag['Nlin'] = [0 if wvfit.pypeitfit is None else np.sum(wvfit.pypeitfit.gpm) for wvfit in self.wv_fits]
+        # RMS
+        diag['RMS'] = [0 if wvfit.rms is None else wvfit.rms for wvfit in self.wv_fits]
+        diag['RMS'].format = '0.3f'
+        # Print it
+        print(diag)
 
 
 class BuildWaveCalib:
