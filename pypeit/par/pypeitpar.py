@@ -1464,8 +1464,9 @@ class SensfuncUVISPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
 
+        # TODO these masks should be set in Angstroms not pixels!!
         # These are the UV sensfunc parameters
-        defaults['balm_mask_wid'] = 5.
+        defaults['balm_mask_wid'] = 10.0
         dtypes['balm_mask_wid'] = float
         descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
 
@@ -1767,7 +1768,7 @@ class TelluricPar(ParSet):
                         'the seed, and the results will not be reproducible.'
 
 
-        defaults['tol'] = 1e-3
+        defaults['tol'] = 5e-3
         dtypes['tol'] = float
         descr['tol'] = 'Relative tolerance for converage of the differential evolution optimization. See ' \
                        'scipy.optimize.differential_evolution for details.'

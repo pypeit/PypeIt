@@ -283,6 +283,9 @@ class SensFunc(object):
         plt.show()
         plt.close()
 
+    def write_QA:
+
+
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
 
 
@@ -323,7 +326,7 @@ class IR(SensFunc):
 
         return meta_table, out_table
 
-    def eval_zerpoint(self, wave, iorddet):
+    def eval_zeropoint(self, wave, iorddet):
         """
 
         Parameters

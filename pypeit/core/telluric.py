@@ -125,7 +125,7 @@ def pca_lnprior(theta,pca_dict):
     return gaussian_mixture_model.score_samples(A.reshape(1,-1))
 
 
-def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
+def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac = 0.10):
     """
     Reads in the telluric grid from a file, and optionally trims the grid to be in within
     wave_min and wave_max adding a padding if requested.
@@ -137,8 +137,9 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
            Minimum wavelength at which the grid is desired
         wave_max (float):
            Maximum wavelength at which the grid is desired.
-        pad:
-           Padding to be added to the grid boundaries if wave_min or wave_max are input
+        pad_frac
+           Percentage padding to be added to the grid boundaries if wave_min or wave_max are input,
+           i.e. the resulting grid wil extend from (1.0 - pad_frac)*wave_min to (1.0 + pad_frac)*wave_max
 
     Returns:
         tell_dict (dict):
@@ -151,14 +152,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size
 
-    if wave_min is not None:
-        ind_lower = np.argmin(np.abs(wave_grid_full - wave_min)) - pad
-    else:
-        ind_lower = 0
-    if wave_max is not None:
-        ind_upper = np.argmin(np.abs(wave_grid_full - wave_max)) + pad
-    else:
-        ind_upper=nspec_full
+    ind_lower = np.argmin(np.abs(wave_grid_full - (1.0 - pad_frac)*wave_min)) if wave_min is not None else 0
+    ind_upper = np.argmin(np.abs(wave_grid_full - (1.0 + pad_frac)*wave_max)) if wave_max is not None else nspec_full
     wave_grid = wave_grid_full[ind_lower:ind_upper]
     model_grid = model_grid_full[:,:,:,:, ind_lower:ind_upper]
 
@@ -678,28 +673,6 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 ############################
 
 
-def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None):
-
-    plt.close()
-    fig = plt.figure(figsize=(12, 8))
-    rejmask = zeropoint_data_gpm & np.logical_not(zeropoint_fit_gpm)
-    plt.plot(wave, zeropoint_data, label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-    plt.plot(wave, zeropoint_fit, label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-    plt.plot(wave[rejmask], zeropoint_data[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-    plt.plot(wave[np.logical_not(zeropoint_data_gpm)], zeropoint_data[np.logical_not(zeropoint_data_gpm)], 'v',
-             zorder=9, mfc='None', mec='orange',
-             label='originally masked')
-    med_filt_mask = zeropoint_data_gpm & np.isfinite(zeropoint_data)
-    zp_med_filter = utils.fast_running_median(zeropoint_data[med_filt_mask], 11)
-    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
-    plt.legend()
-    plt.xlabel('Wavelength')
-    plt.ylabel('Zeropoint')
-    title_str = title if order is None else title + 'order={:d}'.format(order)
-    plt.title(title_str)
-    plt.show()
-
-
 
 ##############
 # Sensfunc Model #
@@ -732,7 +705,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
 
     if obj_params['debug']:
         title = 'Zeropoint Initialization Guess for '
-        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, order=iord)
+        flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, order=iord)
 
     return obj_dict, bounds_obj
 
@@ -1309,43 +1282,87 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       polish=polish, disp=disp, sensfunc=True, debug=debug)
 
     TelObj.run(only_orders=only_orders)
-    # Append the sensfunc to the output table for convenience
+    # Append the zeropoint to the output table for convenience
     meta_table, out_table = TelObj.meta_table, TelObj.out_table
-    out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
-    out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+
+    # For stupid reasons related to how astropy tables will let me store this data I have to redundantly write out the
+    # wavelength grid for each order. In actuality a variable length wavelength grid is needed which is a subset of the
+    # original fixed grid, but there is no way to write this to disk. Perhaps the better solution would be a list of
+    # of astropy tables, one for each order, that would save some space, since we could then write out only the subset
+    # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
+    # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
+    # somewhat heterogenous outputs of the two different fluxing algorithms.
+    out_table['TELL_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['TELL_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['TELL_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+    out_table['TELL_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
+    out_table['TELL_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
     for iord in range(norders):
-        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
-        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
+        ind_lower = out_table[iord]['IND_LOWER']
+        ind_upper = out_table[iord]['IND_UPPER']
+        # Compute and assign the zeropint_data from the input data and the best-fit telluric model
+        wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
+        out_table[iord]['TELL_WAVE'][ind_lower:ind_upper+1] = wave_now
+        zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
+        out_table[iord]['TELL_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
+        tellmodel_now = TelObj.tellmodel_list[iord]
+        flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
+        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+        N_lam = flux_now / exptime
+        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
+                                                         tellmodel=tellmodel_now)
+        out_table[iord]['TELL_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
+        # Compute and assign the
         coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max)
-        out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
+        out_table[iord]['TELL_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
+        out_table[iord]['TELL_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
+        #flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm,
+        #                             title, order=iord)
+
+    #meta_table, out_table = TelObj.meta_table, TelObj.out_table
+    #out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
+    #out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    #
+    #    for iord in range(norders):
+    #    out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
+    #    out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    #    for iord in range(norders):
+    #        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
+    #        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
+    #        wave_min = out_table[iord]['WAVE_MIN']
+    #        wave_max = out_table[iord]['WAVE_MAX']
+    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+    #        out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min,
+    #                                                                    maxx=wave_max)
+    #       out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
+
 
     # TODO, write these out to PNG files in the pypeit QA path.
     # Plot QA for the zeropoint
-    if debug:
-        for iord in range(norders):
-            # Unpack the data we fit from the TelObj object
-            ind_lower = TelObj.ind_lower[iord]
-            ind_upper = TelObj.ind_upper[iord]
-            wave_now = TelObj.wave_grid[ind_lower:ind_upper+1]
-            flux_now = TelObj.flux_arr[ind_lower:ind_upper+1, iord]
-            sig_now = np.sqrt(utils.inverse(TelObj.ivar_arr[ind_lower:ind_upper+1, iord]))
-            zeropoint_data_gpm = TelObj.mask_arr[ind_lower:ind_upper+1, iord]
-            # Unpack the model fits from the TelObj object
-            tellmodel_now = TelObj.tellmodel_list[iord]
-            coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-            wave_min = out_table[iord]['WAVE_MIN']
-            wave_max = out_table[iord]['WAVE_MAX']
-            zeropoint_fit_now = fitting.evaluate_fit(coeff, func, wave_now, minx=wave_min, maxx=wave_max)
-            zeropoint_fit_gpm = TelObj.outmask_list[iord]
-            # Get the standard star spectrum and compute a zeropoint from the data
-            flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
-            N_lam = flux_now/exptime
-            zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star, tellmodel=tellmodel_now)
-            title = 'Zeropoint Fit for '
-            zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
+    #if debug:
+    #    for iord in range(norders):
+    #        # Unpack the data we fit from the TelObj object
+    #        ind_lower = TelObj.ind_lower[iord]
+    #        ind_upper = TelObj.ind_upper[iord]
+    #        wave_now = TelObj.wave_grid[ind_lower:ind_upper+1]
+    #        flux_now = TelObj.flux_arr[ind_lower:ind_upper+1, iord]
+    #        sig_now = np.sqrt(utils.inverse(TelObj.ivar_arr[ind_lower:ind_upper+1, iord]))
+    #        zeropoint_data_gpm = TelObj.mask_arr[ind_lower:ind_upper+1, iord]
+    #        # Unpack the model fits from the TelObj object
+    #        tellmodel_now = TelObj.tellmodel_list[iord]
+    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+    #        wave_min = out_table[iord]['WAVE_MIN']
+    #        wave_max = out_table[iord]['WAVE_MAX']
+    #        zeropoint_fit_now = fitting.evaluate_fit(coeff, func, wave_now, minx=wave_min, maxx=wave_max)
+    #        zeropoint_fit_gpm = TelObj.outmask_list[iord]
+    #        # Get the standard star spectrum and compute a zeropoint from the data
+    #        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+    #        N_lam = flux_now/exptime
+    #        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star, tellmodel=tellmodel_now)
+    #        title = 'Zeropoint Fit for '
+    #        flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
 
     return meta_table, out_table
 
@@ -1941,7 +1958,8 @@ class Telluric(object):
 
 
         # 3) Read the telluric grid and initalize associated parameters
-        self.tell_dict = self.read_telluric_grid()
+        wv_gpm = self.wave_in_arr > 1.0
+        self.tell_dict = self.read_telluric_grid(wave_min = self.wave_in_arr[wv_gpm].min(), wave_max=self.wave_in_arr[wv_gpm].max())
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] if resln_guess is None else resln_guess
@@ -2254,7 +2272,7 @@ class Telluric(object):
     ##########################
     ## telluric grid methods #
     ##########################
-    def read_telluric_grid(self, wave_min=None, wave_max=None, pad=0):
+    def read_telluric_grid(self, wave_min=None, wave_max=None, pad_frac=0.10):
         """
         Wrapper for utility function read_telluric_grid
         Args:
@@ -2266,7 +2284,7 @@ class Telluric(object):
 
         """
 
-        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad=pad)
+        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad_frac=pad_frac)
 
 
     def get_tell_guess(self):

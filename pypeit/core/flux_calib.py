@@ -38,13 +38,12 @@ TINY = 1e-15
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
-
 def zp_unit_const():
     return -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
+# It has a value of ZP_UNIT_CONST = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
-
 
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
@@ -753,7 +752,7 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
 
     if debug:
-        sensfactor = telluric.Nlam_to_Flam(wave, zeropoint)
+        sensfactor = Nlam_to_Flam(wave, zeropoint)
         plt.plot(wave[zeropoint_gpm], flux_true[zeropoint_gpm], color='k',lw=2, label='Reference Star')
         plt.plot(wave[zeropoint_gpm], Nlam_star[zeropoint_gpm]*sensfactor[zeropoint_gpm], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
@@ -893,26 +892,33 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
     return mask_bad, mask_balm, mask_tell
 
 
+# These are physical limits on the allowed values of the zeropoint in magnitudes
 
-def Nlam_to_Flam(wave, zeropoint):
+def Nlam_to_Flam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     """
     The factor that when multiplied into N_lam converts to F_lam, i.e. S_lam where S_lam \equiv F_lam/N_lam
 
     Parameters
     ----------
-    wave
-    zeropoint
+    wave (`numpy.ndarray`_):
+       Wavelength vector for zeropoint
+    zeropoint (`numpy.ndarray`_):
+       zeropoint
+    zp_min (float, optional):
+       Minimum allowed value of the ZP. For smaller values the S_lam factor is set to zero
+    zp_max (float, optional):
+       Maximum allowed value of the ZP. For larger values the S_lam factor is set to zero
 
     Returns
     -------
 
     """
-    wave_gpm = wave > 1.0
+    gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
     factor = np.zeros_like(wave)
-    factor[wave_gpm] = np.power(10.0, -0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))/np.square(wave[wave_gpm])
+    factor[wave_gpm] = np.power(10.0, -0.4*(zeropoint[gpm] - ZP_UNIT_CONST))/np.square(wave[gpm])
     return factor
 
-def Flam_to_Nlam(wave, zeropoint):
+def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     """
     The factor that when multiplied into F_lam converts to N_lam, i.e. 1/S_lam where S_lam \equiv F_lam/N_lam
 
@@ -926,9 +932,9 @@ def Flam_to_Nlam(wave, zeropoint):
     -------
 
     """
-    wave_gpm = wave > 1.0
+    gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
     factor = np.zeros_like(wave)
-    factor[wave_gpm] = np.power(10.0, 0.4*(zeropoint[wave_gpm] - ZP_UNIT_CONST))*np.square(wave)
+    factor[gpm] = np.power(10.0, 0.4*(zeropoint[gpm] - ZP_UNIT_CONST))*np.square(wave[gpm])
     return factor
 
 
@@ -969,6 +975,31 @@ def zeropoint_to_thru(sensfile):
     thru = ((const.h*const.c)*inv_wave/eff_aperture*inv_sensfunc).decompose()
     throughput[zeropoint_gpm] = thru
     return wave, throughput
+
+
+def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None):
+
+
+    wv_gpm = wave > 1.0
+    plt.close()
+    plt.figure(figsize=(12, 8))
+    rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
+    plt.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
+    plt.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
+    plt.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+    plt.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
+             zorder=9, mfc='None', mec='orange',
+             label='originally masked')
+    med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
+    zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
+    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+    plt.legend()
+    plt.xlabel('Wavelength')
+    plt.ylabel('Zeropoint')
+    title_str = title if order is None else title + 'order={:d}'.format(order)
+    plt.title(title_str)
+    plt.show()
+
 
 
 def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=None, mask_tell=None,
@@ -1028,14 +1059,14 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     #zeropoint_data = -2.5*np.log10(S_nu_dimless) + telluric.zp_unit_const()
     # zeropoint_gpm is the pixels for which zp is not defined, zeropoint_fitmask includes additional Balmer/Telluric masking for polyfit
     #zeropoint_gpm = Nlam_gpm & np.isfinite(zeropoint_data) & (Nlam > 0.0) & np.isfinite(flam_true) & (wave > 1.0)
-    zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, N_lam, Nlam_gpm, flam_true)
+    zeropoint_data, zeropoint_data_gpm = compute_zeropoint(wave, Nlam, Nlam_gpm, flam_true)
 
 
-    zeropoint_fitmask = zeropoint_gpm & mask_tell & mask_balm
+    zeropoint_fitmask = zeropoint_data_gpm & mask_tell & mask_balm
     wave_min = wave[wave > 1.0].min()
     wave_max = wave[wave > 1.0].max()
 
-    pypeitFit = fitting.robust_fit(wave, zeropoint_data_gpm, polyorder, function=func,
+    pypeitFit = fitting.robust_fit(wave, zeropoint_data, polyorder, function=func,
                                 minx=wave_min, maxx=wave_max, in_gpm=zeropoint_fitmask,
                                 lower=lower, upper=upper, groupbadpix=False,
                                 grow=0, sticky=True, use_mad=True)
@@ -1050,6 +1081,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     ZP_MAX = 40.0
     ZP_MIN = 5.0
 
+    zeropoint_clean = zeropoint_data.copy()
+    zeropoint_clean_gpm = zeropoint_data_gpm.copy()
     # Polynomial corrections on Hydrogen Recombination lines
     if ((np.sum(zeropoint_fitmask) > 0.5 * len(zeropoint_fitmask)) & polycorrect):
         ## Only correct Hydrogen Recombination lines with polyfit in the telluric free region
@@ -1063,11 +1096,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
             balmer_clean[ihydrogen] = True
         # Clean pixels which hit Balmer lines or which have the zeropoint_data outside the min/max range
         # AND have polynomial values inside the min/max range
-        msk_clean = ((balmer_clean) | (zeropoint_data > ZP_MAX) | (zeropoint_data < ZP_MIN)) & \
+        msk_clean = ((balmer_clean) | (zeropoint_clean > ZP_MAX) | (zeropoint_clean < ZP_MIN)) & \
                     (zeropoint_poly > ZP_MIN) & (zeropoint_poly < ZP_MAX)
-        zeropoint_data[msk_clean] = zeropoint_poly[msk_clean]
+        zeropoint_clean[msk_clean] = zeropoint_poly[msk_clean]
         gpm = np.isfinite(Nlam_ivar) & (Nlam_ivar > 0)
-        zeropoint_data[np.invert(gpm)] = zeropoint_poly[np.invert(gpm)]
+        zeropoint_clean[np.invert(gpm)] = zeropoint_poly[np.invert(gpm)]
     else:
         ## if half more than half of your spectrum is masked (or polycorrect=False) then do not correct it with polyfit
         msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
@@ -1086,7 +1119,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         msgs.warn("Changing input nresln to fix this")
         nresln = std_res / std_pix
 
-    # Fit magfunc with bspline
+    # Fit zeropoint with bspline
     kwargs_bspline = {'bkspace': std_res * nresln}
     kwargs_reject = {'maxrej': 5}
     msgs.info("Initialize bspline for flux calibration")
@@ -1094,15 +1127,15 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     fullbkpt = init_bspline.breakpoints
 
     # remove masked regions from breakpoints
-    msk_bkpt = interpolate.interp1d(wave, zeropoint_data_gpm, kind='nearest', fill_value='extrapolate')(fullbkpt)
+    msk_bkpt = interpolate.interp1d(wave, zeropoint_clean_gpm, kind='nearest', fill_value='extrapolate')(fullbkpt)
     init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
     # init_breakpoints = fullbkpt
-    msgs.info("Bspline fit on magfunc. ")
-    bset1, bmask = fitting.iterfit(wave, zeropoint_data, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
+    msgs.info("Bspline fit on zeropoint. ")
+    bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
-    zeropoint_bspl, zeropoint_bspl_mask = bset1.value(wave)
+    zeropoint_bspl, zeropoint_bspl_gpm = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
 
     if debug:
@@ -1121,7 +1154,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         plt.plot(wave, 1.0 / np.sqrt(zeropoint_ivar), color='orange', label='sigma used for fits')
         plt.legend()
         plt.xlabel('Wavelength [ang]')
-        zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
+        med_filt_mask = zeropoint_data_gpm & np.isfinite(zeropoint_data)
+        zp_med_filter = utils.fast_running_median(zeropoint_data[med_filt_mask], 11)
         plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
         plt.title('Bspline fit')
         plt.show()
@@ -1142,6 +1176,9 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     zeropoint = zeropoint_poly if polyfunc else zeropoint_bspl_clean
 
     if debug:
+        title='Zeropoint QA'
+        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint, zeropoint_bspl_gpm, title)
+
         plt.figure()
         plt.plot(wave[zeropoint_data_gpm],zeropoint_data[zeropoint_data_gpm] , 'k-',lw=3,label='Raw Zeropoint')
         plt.plot(wave[zeropoint_data_gpm],zeropoint_poly[zeropoint_data_gpm] , 'c-',lw=3,label='Polynomial Fit')
@@ -1159,7 +1196,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
 
     # TODO Should we return the bspline fitmask here?
-    return zeropoint, zeropoint_bspl_mask
+    return zeropoint, zeropoint_bspl_gpm
 
 def load_filter_file(filter):
     """
