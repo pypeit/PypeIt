@@ -520,13 +520,16 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     """
 
     wave_arr, counts_arr, ivar_arr, mask_arr, nspec, norders = utils.spec_atleast_2d(wave, counts, counts_ivar, counts_mask)
-    zeropoint = np.zeros_like(wave_arr)
-    mask_sens = np.ones_like(mask_arr)
+    zeropoint_data = np.zeros_like(wave_arr)
+    zeropoint_data_gpm = np.zeros_like(wave_arr, dtype=bool)
+    zeropoint_fit = np.zeros_like(wave_arr)
+    zeropoint_fit_gpm = np.zeros_like(wave_arr, dtype=bool)
+    #mask_sens = np.ones_like(mask_arr)
     wave_min = np.zeros(norders)
     wave_max = np.zeros(norders)
 
     for iord in range(norders):
-        zeropoint[:, iord], mask_sens[:, iord] = fit_zeropoint(
+        zeropoint_data[:, iord], zeropoint_data_gpm[:, iord], zeropoint_fit[:, iord], zeropoint_fit_gpm[:, iord], = fit_zeropoint(
             wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord], mask_arr[:,iord], exptime, airmass, std_dict,
             longitude, latitude, mask_abs_lines=mask_abs_lines, polyorder=polyorder,
             balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
@@ -547,9 +550,11 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     # Allocate the output table, ext=2
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders
-    out_table['WAVE'] = wave_arr.T
-    out_table['ZEROPOINT'] = zeropoint.T
-    out_table['ZEROPOINT_GPM'] = mask_sens.T
+    out_table['SENS_WAVE'] = wave_arr.T
+    out_table['SENS_ZEROPOINT'] = zeropoint_data.T
+    out_table['SENS_ZEROPOINT_GPM'] = zeropoint_data_gpm.T
+    out_table['SENS_ZEROPOINT_FIT'] = zeropoint_fit.T
+    out_table['SENS_ZEROPOINT_FIT_GPM'] = zeropoint_fit_gpm.T
     out_table['WAVE_MIN'] = wave_min
     out_table['WAVE_MAX'] = wave_max
 
@@ -745,7 +750,7 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
                                               mask_telluric=True, balm_mask_wid=balm_mask_wid, trans_thresh=trans_thresh)
 
     # Get zeropoint
-    zeropoint, zeropoint_gpm = standard_zeropoint(
+    zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm = standard_zeropoint(
         wave, Nlam_star, Nlam_ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
         mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution,
@@ -753,15 +758,15 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
 
     if debug:
         sensfactor = Nlam_to_Flam(wave, zeropoint)
-        plt.plot(wave[zeropoint_gpm], flux_true[zeropoint_gpm], color='k',lw=2, label='Reference Star')
-        plt.plot(wave[zeropoint_gpm], Nlam_star[zeropoint_gpm]*sensfactor[zeropoint_gpm], color='r', label='Fluxed Observed Star')
+        plt.plot(wave[zeropoint_fit_gpm], flux_true[zeropoint_fit_gpm], color='k',lw=2, label='Reference Star')
+        plt.plot(wave[zeropoint_fit_gpm], Nlam_star[zeropoint_fit_gpm]*sensfactor[zeropoint_fit_gpm], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
         plt.show()
 
 
-    return zeropoint, zeropoint_gpm
+    return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm
 
 
 
@@ -1164,7 +1169,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     bset1, bmask = fitting.iterfit(wave, zeropoint_clean, invvar=zeropoint_ivar, inmask=zeropoint_fitmask, upper=upper, lower=lower,
                                 fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                 kwargs_reject=kwargs_reject)
-    zeropoint_bspl, zeropoint_bspl_gpm = bset1.value(wave)
+    zeropoint_bspl, zeropoint_fit_gpm = bset1.value(wave)
     zeropoint_bspl_bkpt, _ = bset1.value(init_breakpoints)
 
     if debug:
@@ -1202,11 +1207,11 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
         msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
 
     # Calculate zeropoint
-    zeropoint = zeropoint_poly if polyfunc else zeropoint_bspl_clean
+    zeropoint_fit = zeropoint_poly if polyfunc else zeropoint_bspl_clean
 
     if debug:
         title='Zeropoint QA'
-        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint, zeropoint_bspl_gpm, title)
+        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title)
 
         plt.figure()
         plt.plot(wave[zeropoint_data_gpm],zeropoint_data[zeropoint_data_gpm] , 'k-',lw=3,label='Raw Zeropoint')
@@ -1225,7 +1230,7 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
 
     # TODO Should we return the bspline fitmask here?
-    return zeropoint, zeropoint_bspl_gpm
+    return zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm
 
 def load_filter_file(filter):
     """

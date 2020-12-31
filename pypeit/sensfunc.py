@@ -140,7 +140,10 @@ class SensFunc(object):
         # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
 
         # Compute the throughput
-        self.throughput = compute_throughput()
+        self.throughput = self.compute_throughput()
+
+        # Write out QA and throughput plots
+        self.write_QA()
 
         if self.wave_zp.ndim == 2:
             if self.wave_zp.shape[1] == 1:
@@ -148,11 +151,6 @@ class SensFunc(object):
                 self.zeropoint = self.zeropoint.flatten()
                 self.throughput = self.throughput.flatten()
 
-        # Write out QA and throughput plots
-        self.write_QA()
-        # Show?
-        #if self.debug:
-        #    self.show()
         return
 
     def eval_zeropoint(self, wave, iorddet):
@@ -222,7 +220,9 @@ class SensFunc(object):
         nspec_extrap = 0
         # Find the maximum size of the wavewlength grids, since we want everything to have the same
         for idet in range(self.norderdet):
-            dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(self.out_table['WAVE'][idet])
+            #dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(self.out_table['WAVE'][idet])
+            wave = self.wave if self.wave.ndim == 1 else self.wave[:, idet]
+            dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(wave)
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet]) / dwave_data).astype(int)
             nspec_extrap = np.max([nspec_now, nspec_extrap])
         # Create the wavelength grid
@@ -334,8 +334,9 @@ class SensFunc(object):
         else:
             order_or_det = np.arange(self.norderdet) + 1
             order_or_det_str = 'det'
-        zp_title = ['Zeropoint QA for ' + order_or_det_str +'={:d}'.format(order_or_det) for idet in range(self.norderdet)]
-        thru_title = [order_or_det_str + '='.format(order_or_det) for idet in range(self.norderdet)]
+
+        zp_title = ['Zeropoint QA for ' + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
+        thru_title = [order_or_det_str + '={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
 
         with PdfPages(self.qafile) as pdf:
             for ipage in range(npages):
@@ -361,10 +362,9 @@ class SensFunc(object):
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         for idet in range(self.norderdet):
             # define the color
-            rr = (order_or_det[idet] - np.max(order_or_det))/(np.min(order_or_det) - np.max(order_or_det))
+            rr = (order_or_det[idet] - np.max(order_or_det))/np.maximum(np.min(order_or_det) - np.max(order_or_det), 1)
             gg = 0.0
-            bb = (order_or_det[idet] - np.min(order_or_det))/(np.max(order_or_det) - np.min(order_or_det))
-
+            bb = (order_or_det[idet] - np.min(order_or_det))/np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gpm = (self.throughput[:, idet] >= 0.0)
             axis.plot(self.wave_zp[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb), linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
 
@@ -500,6 +500,6 @@ class UVIS(SensFunc):
 
         """
         # This routine can extrapolate
-        zeropoint = scipy.interpolate.interp1d(self.out_table['WAVE'][iorddet,:], self.out_table['ZEROPOINT'][iorddet,:],
+        zeropoint = scipy.interpolate.interp1d(self.out_table['SENS_WAVE'][iorddet,:], self.out_table['SENS_ZEROPOINT_FIT'][iorddet,:],
                                               bounds_error = False, fill_value='extrapolate')(wave)
         return zeropoint
