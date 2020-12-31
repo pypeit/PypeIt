@@ -339,7 +339,7 @@ class SensFunc(object):
             order_or_det_str = 'det'
 
         spec_str = ' {:s} {:s} {:s} '.format(self.spectrograph.name, self.spectrograph.pypeline, self.spectrograph.dispname)
-        zp_title = ['Zeropoint QA for' + spec_str + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
+        zp_title = ['PypeIt Zeropoint QA for' + spec_str + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
         thru_title = [order_or_det_str + '={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
 
         with PdfPages(self.qafile) as pdf:
@@ -366,7 +366,7 @@ class SensFunc(object):
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         for idet in range(self.norderdet):
             # define the color
-            rr = (order_or_det[idet] - np.max(order_or_det))/np.maximum(np.min(order_or_det) - np.max(order_or_det), 1)
+            rr = (np.max(order_or_det) - order_or_det[idet])/np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gg = 0.0
             bb = (order_or_det[idet] - np.min(order_or_det))/np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gpm = (self.throughput[:, idet] >= 0.0)
@@ -377,7 +377,7 @@ class SensFunc(object):
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
         axis.set_ylabel('Throughput')
-        axis.set_title('Throughput for' + spec_str)
+        axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
 
