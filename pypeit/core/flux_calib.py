@@ -1209,23 +1209,23 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
     # Calculate zeropoint
     zeropoint_fit = zeropoint_poly if polyfunc else zeropoint_bspl_clean
 
-    if debug:
-        title='Zeropoint QA'
-        zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title)
+    #if debug:
+    #    title='Zeropoint QA'
+    #    zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title)
 
-        plt.figure()
-        plt.plot(wave[zeropoint_data_gpm],zeropoint_data[zeropoint_data_gpm] , 'k-',lw=3,label='Raw Zeropoint')
-        plt.plot(wave[zeropoint_data_gpm],zeropoint_poly[zeropoint_data_gpm] , 'c-',lw=3,label='Polynomial Fit')
-        plt.plot(wave[np.invert(mask_tell)], zeropoint_data[np.invert(mask_tell)], 's',
-                 color='0.7',label='Telluric Region')
-        plt.plot(wave[np.invert(mask_balm)], zeropoint_data[np.invert(mask_balm)], 'r+',label='Balmer Line region')
-        plt.plot(wave[zeropoint_data_gpm], zeropoint[zeropoint_data_gpm],'b-',label='Final Zeropoint')
-        plt.legend(fancybox=True, shadow=True)
-        plt.xlim([0.995*np.min(wave[zeropoint_data_gpm]),1.005*np.max(wave[zeropoint_data_gpm])])
-        zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
-        plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
-        plt.show()
-        plt.close()
+    #    plt.figure()
+    #    plt.plot(wave[zeropoint_data_gpm],zeropoint_data[zeropoint_data_gpm] , 'k-',lw=3,label='Raw Zeropoint')
+    #    plt.plot(wave[zeropoint_data_gpm],zeropoint_poly[zeropoint_data_gpm] , 'c-',lw=3,label='Polynomial Fit')
+    #    plt.plot(wave[np.invert(mask_tell)], zeropoint_data[np.invert(mask_tell)], 's',
+    #             color='0.7',label='Telluric Region')
+    #    plt.plot(wave[np.invert(mask_balm)], zeropoint_data[np.invert(mask_balm)], 'r+',label='Balmer Line region')
+    #    plt.plot(wave[zeropoint_data_gpm], zeropoint[zeropoint_data_gpm],'b-',label='Final Zeropoint')
+    #    plt.legend(fancybox=True, shadow=True)
+    #    plt.xlim([0.995*np.min(wave[zeropoint_data_gpm]),1.005*np.max(wave[zeropoint_data_gpm])])
+    #    zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
+    #    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
+    #    plt.show()
+    #    plt.close()
 
 
 

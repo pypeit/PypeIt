@@ -80,6 +80,9 @@ class SensFunc(object):
         # Set spectrograph
         header = fits.getheader(self.spec1dfile)
         self.spectrograph = load_spectrograph(header['PYP_SPEC'])
+        # TODO This line is necessary until we figure out a way to instantiate spectrograph objects with configuration
+        # specific information from spec1d files.
+        self.spectrograph.dispname = header['DISPNAME']
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # QA and throughtput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
@@ -335,7 +338,8 @@ class SensFunc(object):
             order_or_det = np.arange(self.norderdet) + 1
             order_or_det_str = 'det'
 
-        zp_title = ['Zeropoint QA for ' + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
+        spec_str = ' {:s} {:s} {:s} '.format(self.spectrograph.name, self.spectrograph.pypeline, self.spectrograph.dispname)
+        zp_title = ['Zeropoint QA for' + spec_str + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
         thru_title = [order_or_det_str + '={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
 
         with PdfPages(self.qafile) as pdf:
@@ -373,7 +377,7 @@ class SensFunc(object):
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
         axis.set_ylabel('Throughput')
-        axis.set_title('Throughput for {:s} {:s}'.format(self.spectrograph.name, self.spectrograph.pypeline))
+        axis.set_title('Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
 
