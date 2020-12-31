@@ -1224,6 +1224,7 @@ class Spectrograph:
         txt = '<{:s}: '.format(self.__class__.__name__)
         txt += ' spectrograph={:s},'.format(self.name)
         txt += ' telescope={:s},'.format(self.telescope['name'])
+        txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
 

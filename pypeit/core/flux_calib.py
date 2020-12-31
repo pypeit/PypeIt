@@ -950,7 +950,7 @@ def throughput_from_sensfile(sensfile):
 
     wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
     spectrograph = util.load_spectrograph(header_sens['PYP_SPEC'])
-    throughput = zeropoint_to_thru(wave, zeropoint, spectrograph.telescope['eff_aperture'])
+    throughput = zeropoint_to_thru(wave, zeropoint, spectrograph.telescope.eff_aperture())
     return wave, throughput
 
 
@@ -976,7 +976,8 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
 
     eff_aperture_m2 = eff_aperture*u.m**2
     S_lam_units = 1e-17*u.erg/u.cm**2
-    throughput = np.zeros_like(zeropoint)
+    # Set the throughput to be -1 in places where it is not defined.
+    throughput = np.full_like(zeropoint, -1.0)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)
     inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])/S_lam_units
     inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
@@ -985,7 +986,7 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
     return throughput
 
 
-def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', order=None, axis=None, show=False):
+def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title='Zeropoint QA', axis=None, show=False):
     """
     QA plot for zeropoint plotting
 
@@ -1025,8 +1026,7 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
     axis.legend()
     axis.set_xlabel('Wavelength')
     axis.set_ylabel('Zeropoint (AB mag)')
-    title_str = title if order is None else title + ' {:d}'.format(order)
-    axis.set_title(title_str)
+    axis.set_title(title)
     if show:
         plt.show()
 

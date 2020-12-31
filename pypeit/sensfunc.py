@@ -300,13 +300,13 @@ class SensFunc(object):
 
         """
 
-        # Compute the throughput
-        throughput = np.zeros_like(self.zeropoint)
+        # Set the throughput to be -1 in places where it is not defined.
+        throughput = np.full_like(self.zeropoint, -1.0)
         for idet in range(self.norderdet):
             wave_gpm =  (self.wave_zp[:,idet] >= self.out_table[idet]['WAVE_MIN']) & \
                         (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) & (self.wave_zp[:,idet] > 1.0)
-            self.throughput[:,idet][wave_gpm] = flux_calib.zeropoint_to_throughput(
-                self.wave_zp[:,idet][wave_gpm], self.zeropoint[:,idet][wave_gpm], self.spectrograph.telescope['eff_aperture'])
+            throughput[:,idet][wave_gpm] = flux_calib.zeropoint_to_throughput(
+                self.wave_zp[:,idet][wave_gpm], self.zeropoint[:,idet][wave_gpm], self.spectrograph.telescope.eff_aperture())
 
         return throughput
 
@@ -324,7 +324,19 @@ class SensFunc(object):
         -------
 
         """
+        utils.pyplot_rcparams()
+
+        # Plot QA for zeropoint
         npages = int(np.ceil(self.norderdet/2))
+        if 'Echelle' in self.spectrograph.pypeline:
+            order_or_det = self.spectrograph.orders[np.arange(self.norderdet)]
+            order_or_det_str = 'order'
+        else:
+            order_or_det = np.arange(self.norderdet) + 1
+            order_or_det_str = 'det'
+        zp_title = ['Zeropoint QA for ' + order_or_det_str +'={:d}'.format(order_or_det) for idet in range(self.norderdet)]
+        thru_title = [order_or_det_str + '='.format(order_or_det) for idet in range(self.norderdet)]
+
         with PdfPages(self.qafile) as pdf:
             for ipage in range(npages):
                 figure, (ax1, ax2) = plt.subplots(2, figsize=(8.27, 11.69))
@@ -332,21 +344,37 @@ class SensFunc(object):
                 flux_calib.zeropoint_qa_plot(
                     self.out_table[2*ipage]['SENS_WAVE'], self.out_table[2*ipage]['SENS_ZEROPOINT'],
                     self.out_table[2*ipage]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage]['SENS_ZEROPOINT_FIT'],
-                    self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'], title='Zeropoint QA for order/det = ',
-                                             order=2*ipage, axis=ax1)
+                    self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'], title=zp_title[2*ipage], axis=ax1)
                 if (2*ipage + 1) < self.norderdet:
                     flux_calib.zeropoint_qa_plot(
                         self.out_table[2*ipage+1]['SENS_WAVE'], self.out_table[2*ipage+1]['SENS_ZEROPOINT'],
                         self.out_table[2*ipage+1]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT'],
-                        self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT_GPM'], title='Zeropoint QA for order/det = ',
-                        order=2*ipage+1, axis=ax2)
+                        self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT_GPM'], title=zp_title[2*ipage+1], axis=ax2)
                 else:
                     ax2.remove()
                 pdf.savefig()
                 plt.close('all')
 
 
-        embed()
+        # Plot throughput curve(s)
+        fig = plt.figure(figsize=(12,8))
+        axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        for idet in range(self.norderdet):
+            # define the color
+            rr = (order_or_det[idet] - np.max(order_or_det))/(np.min(order_or_det) - np.max(order_or_det))
+            gg = 0.0
+            bb = (order_or_det[idet] - np.min(order_or_det))/(np.max(order_or_det) - np.min(order_or_det))
+
+            gpm = (self.throughput[:, idet] >= 0.0)
+            axis.plot(self.wave_zp[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb), linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
+
+        axis.set_xlim((0.98*self.wave_zp[self.throughput >=0.0].min(),1.02*self.wave_zp[self.throughput >=0.0].max()))
+        axis.set_ylim((0.0,1.05*self.throughput[self.throughput >=0.0].max()))
+        axis.legend()
+        axis.set_xlabel('Wavelength (Angstroms)')
+        axis.set_ylabel('Throughput')
+        axis.set_title('Throughput for {:s} {:s}'.format(self.spectrograph.name, self.spectrograph.pypeline))
+        fig.savefig(self.thrufile)
 
 
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
