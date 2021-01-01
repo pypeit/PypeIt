@@ -597,13 +597,6 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
 
     """
 
-    # TODO Telluric corrections via this method are deprecated
-    # Did the user request a telluric correction?
-    if tellmodel is not None:
-        # This assumes there is a separate telluric key in this dict.
-        msgs.info('Applying telluric correction')
-        sensfunc = sensfunc * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
-
     zeropoint_obs = np.zeros_like(wave)
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
     delta_wave = wvutils.get_delta_wave(wave, wave_mask)
@@ -624,6 +617,14 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     # This is the S_lam factor required to convert N_lam = counts/sec/Ang to F_lam = 1e-17 erg/s/cm^2/Ang, i.e.
     # F_lam = S_lam*N_lam
     sensfunc_obs = Nlam_to_Flam(wave, zeropoint_obs)
+
+    # TODO Telluric corrections via this method are deprecated
+    # Did the user request a telluric correction?
+    if tellmodel is not None:
+        # This assumes there is a separate telluric key in this dict.
+        msgs.info('Applying telluric correction')
+        sensfunc_obs = sensfunc_obs * (tellmodel > 1e-10) / (tellmodel + (tellmodel < 1e-10))
+
 
     if extinct_correct:
         if longitude is None or latitude is None:
@@ -1019,19 +1020,18 @@ def zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, z
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
 
     rejmask = zeropoint_data_gpm[wv_gpm] & np.logical_not(zeropoint_fit_gpm[wv_gpm])
-    axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-    axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+    axis.plot(wave[wv_gpm], zeropoint_data[wv_gpm], label='Zeropoint estimated', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5, linewidth=1.0)
+    axis.plot(wave[wv_gpm], zeropoint_fit[wv_gpm], label='Zeropoint fit', color='red', linewidth=2.0, zorder=7, alpha=0.7)
+    axis.plot(wave[wv_gpm][rejmask], zeropoint_data[wv_gpm][rejmask], 's', zorder=10, mfc='None', mec='blue', mew=0.7, label='rejected pixels')
     axis.plot(wave[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], zeropoint_data[wv_gpm][np.logical_not(zeropoint_data_gpm[wv_gpm])], 'v',
-             zorder=9, mfc='None', mec='orange',
-             label='originally masked')
+             zorder=9, mfc='None', mec='orange', mew=0.7, label='originally masked')
     med_filt_mask = zeropoint_data_gpm[wv_gpm] & np.isfinite(zeropoint_data[wv_gpm])
     zp_med_filter = utils.fast_running_median(zeropoint_data[wv_gpm][med_filt_mask], 11)
     axis.set_ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
     axis.legend()
     axis.set_xlabel('Wavelength')
     axis.set_ylabel('Zeropoint (AB mag)')
-    axis.set_title(title)
+    axis.set_title(title, fontsize=12)
     if show:
         plt.show()
 

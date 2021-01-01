@@ -102,10 +102,12 @@ class SensFunc(object):
         sobjs_std = (specobjs.SpecObjs.from_fitsfile(self.spec1dfile)).get_std(multi_spec_det=self.par['multi_spec_det'])
         # Unpack standard
         wave, counts, counts_ivar, counts_mask, self.meta_spec, header = sobjs_std.unpack_object(ret_flam=False)
-        # Perform any instrument
-        self.wave, self.counts, self.counts_ivar, self.counts_mask = self.spectrograph.tweak_standard(
+        # Perform any instrument tweaks
+        wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk = self.spectrograph.tweak_standard(
             wave, counts, counts_ivar, counts_mask, self.meta_spec)
-        self.norderdet = 1 if self.wave.ndim == 1 else self.wave.shape[1]
+        # Reshape to 2d arrays
+        self.wave, self.counts, self.counts_ivar, self.counts_mask, nspec_in, self.norderdet = \
+            utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
 
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
@@ -138,9 +140,7 @@ class SensFunc(object):
         # Extrapolate the zeropoint based on par['extrap_blu'], par['extrap_red']
         self.wave_zp, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave_zp, self.zeropoint = self.splice(self.wave_zp)
-        # If the zeropoint has just one order, or detectors were spliced, flatten the output
-        # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
+            self.wave_zp, self.zeropoint = self.splice()
 
         # Compute the throughput
         self.throughput = self.compute_throughput()
@@ -148,6 +148,8 @@ class SensFunc(object):
         # Write out QA and throughput plots
         self.write_QA()
 
+        # If the zeropoint has just one order, or detectors were spliced, flatten the output
+        # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
         if self.wave_zp.ndim == 2:
             if self.wave_zp.shape[1] == 1:
                 self.wave_zp = self.wave_zp.flatten()
@@ -223,7 +225,6 @@ class SensFunc(object):
         nspec_extrap = 0
         # Find the maximum size of the wavewlength grids, since we want everything to have the same
         for idet in range(self.norderdet):
-            #dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(self.out_table['WAVE'][idet])
             wave = self.wave if self.wave.ndim == 1 else self.wave[:, idet]
             dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(wave)
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet]) / dwave_data).astype(int)
@@ -239,7 +240,7 @@ class SensFunc(object):
         self.steps.append(inspect.stack()[0][3])
         return wave_extrap, zeropoint_extrap
 
-    def splice(self, wave):
+    def splice(self):
         """
         Routine to splice together sensitivity functions into one global sensitivity function for spectrographs
         with multiple detectors extending across the wavelength direction.
@@ -250,18 +251,18 @@ class SensFunc(object):
 
         Returns
         -------
-        wave_splice: ndarray, shape (nspec_splice,)
-        zeropoint_splice: ndarray, shape (nspec_splice,)
+        wave_splice: ndarray, shape (nspec_splice, 1)
+        zeropoint_splice: ndarray, shape (nspec_splice, 1)
 
 
         """
 
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
-        wave_splice_min = wave.min()
-        wave_splice_max = wave.max()
-        wave_splice, _, _ = coadd.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
-                                                wave_grid_max=wave_splice_max, samp_fact=1.0)
-        zeropoint_splice = np.zeros_like(wave_splice)
+        wave_splice_min = self.wave_zp[self.wave_zp > 1.0].min()
+        wave_splice_max = self.wave_zp[self.wave_zp > 1.0].max()
+        wave_splice_1d, _, _ = coadd.get_wave_grid(self.wave_zp, wave_method='linear', wave_grid_min=wave_splice_min,
+                                                wave_grid_max=wave_splice_max, spec_samp_fact=1.0)
+        zeropoint_splice_1d = np.zeros_like(wave_splice_1d)
         for idet in range(self.norderdet):
             wave_min = self.out_table['WAVE_MIN'][idet]
             wave_max = self.out_table['WAVE_MAX'][idet]
@@ -276,23 +277,24 @@ class SensFunc(object):
             else:
                 wave_mask_min = wave_min
                 wave_mask_max = wave_max
-            splice_wave_mask = (wave_splice >= wave_mask_min) & (wave_splice <= wave_mask_max)
-            zeropoint_splice[splice_wave_mask] = self.eval_zeropoint(wave_splice[splice_wave_mask], idet)
+            splice_wave_mask = (wave_splice_1d >= wave_mask_min) & (wave_splice_1d <= wave_mask_max)
+            zeropoint_splice_1d[splice_wave_mask] = self.eval_zeropoint(wave_splice_1d[splice_wave_mask], idet)
 
         # Interpolate over gaps
-        zeros = zeropoint_splice == 0.
+        zeros = zeropoint_splice_1d == 0.
         if np.any(zeros):
             msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
-            interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
-                                                 zeropoint_splice[np.invert(zeros)],
+            interp_func = scipy.interpolate.interp1d(wave_splice_1d[np.invert(zeros)],
+                                                 zeropoint_splice_1d[np.invert(zeros)],
                                                  kind='nearest', fill_value=0., bounds_error=False) #
             #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP, even on 1.4.1
-            zero_values = interp_func(wave_splice[zeros])
-            zeropoint_splice[zeros] = zero_values
+            zero_values = interp_func(wave_splice_1d[zeros])
+            zeropoint_splice_1d[zeros] = zero_values
 
+
+        nspec_splice = wave_splice_1d.size
         self.steps.append(inspect.stack()[0][3])
-
-        return wave_splice, zeropoint_splice
+        return wave_splice_1d.reshape(nspec_splice,1), zeropoint_splice_1d.reshape(nspec_splice,1)
 
     def compute_throughput(self):
         """
@@ -305,7 +307,7 @@ class SensFunc(object):
 
         # Set the throughput to be -1 in places where it is not defined.
         throughput = np.full_like(self.zeropoint, -1.0)
-        for idet in range(self.norderdet):
+        for idet in range(self.wave_zp.shape[1]):
             wave_gpm =  (self.wave_zp[:,idet] >= self.out_table[idet]['WAVE_MIN']) & \
                         (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) & (self.wave_zp[:,idet] > 1.0)
             throughput[:,idet][wave_gpm] = flux_calib.zeropoint_to_throughput(
@@ -330,7 +332,6 @@ class SensFunc(object):
         utils.pyplot_rcparams()
 
         # Plot QA for zeropoint
-        npages = int(np.ceil(self.norderdet/2))
         if 'Echelle' in self.spectrograph.pypeline:
             order_or_det = self.spectrograph.orders[np.arange(self.norderdet)]
             order_or_det_str = 'order'
@@ -342,29 +343,77 @@ class SensFunc(object):
         zp_title = ['PypeIt Zeropoint QA for' + spec_str + order_or_det_str +'={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
         thru_title = [order_or_det_str + '={:d}'.format(order_or_det[idet]) for idet in range(self.norderdet)]
 
+        is_odd = self.norderdet % 2 != 0
+        npages = int(np.ceil(self.norderdet/2)) if is_odd else self.norderdet//2 + 1
+        # TODO PDF page logic is a bit complicated becauase we want to plot two plots per page, but the number of pages
+        #  depends on the number of order/det. Consider just dumping out a set of plots or revamp once we have a dashboard
         with PdfPages(self.qafile) as pdf:
             for ipage in range(npages):
                 figure, (ax1, ax2) = plt.subplots(2, figsize=(8.27, 11.69))
-                iord = 2*ipage
-                flux_calib.zeropoint_qa_plot(
-                    self.out_table[2*ipage]['SENS_WAVE'], self.out_table[2*ipage]['SENS_ZEROPOINT'],
-                    self.out_table[2*ipage]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage]['SENS_ZEROPOINT_FIT'],
-                    self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'], title=zp_title[2*ipage], axis=ax1)
+                if (2 * ipage) < self.norderdet:
+                    flux_calib.zeropoint_qa_plot(
+                        self.out_table[2*ipage]['SENS_WAVE'], self.out_table[2*ipage]['SENS_ZEROPOINT'],
+                        self.out_table[2*ipage]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage]['SENS_ZEROPOINT_FIT'],
+                        self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'], title=zp_title[2*ipage], axis=ax1)
                 if (2*ipage + 1) < self.norderdet:
                     flux_calib.zeropoint_qa_plot(
                         self.out_table[2*ipage+1]['SENS_WAVE'], self.out_table[2*ipage+1]['SENS_ZEROPOINT'],
                         self.out_table[2*ipage+1]['SENS_ZEROPOINT_GPM'], self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT'],
                         self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT_GPM'], title=zp_title[2*ipage+1], axis=ax2)
-                else:
+                if self.norderdet == 1:
+                    # For single order/det just finish up after the first page
                     ax2.remove()
-                pdf.savefig()
-                plt.close('all')
+                    pdf.savefig()
+                    plt.close('all')
+                elif (self.norderdet > 1) & (ipage < npages-1):
+                    # For multi order/det but not on the last page, finish up. No need to remove ax2 since there
+                    # are always 2 plots per page except on the last page
+                    pdf.savefig()
+                    plt.close('all')
+                else:
+                    # For multi order/det but on the last page, add order/det summary plot to the final page
+                    # Deal with even/odd page logic for axes
+                    if is_odd:
+                        # add order/det summary plot to axis 2 of current page
+                        axis=ax2
+                    else:
+                        axis=ax1
+                        ax2.remove()
+                    for idet in range(self.norderdet):
+                        # define the color
+                        rr = (np.max(order_or_det) - order_or_det[idet]) / np.maximum(
+                            np.max(order_or_det) - np.min(order_or_det), 1)
+                        gg = 0.0
+                        bb = (order_or_det[idet] - np.min(order_or_det)) / np.maximum(
+                            np.max(order_or_det) - np.min(order_or_det), 1)
+                        wave_gpm = self.out_table[idet]['SENS_WAVE'] > 1.0
+                        axis.plot(self.out_table[idet]['SENS_WAVE'][wave_gpm],
+                                 self.out_table[idet]['SENS_ZEROPOINT_FIT'][wave_gpm],
+                                 color=(rr, gg, bb), linestyle='-', linewidth=2.5, label=thru_title[idet],
+                                 zorder=5 * idet)
+                    wave_zp_gpm = (self.wave_zp >= self.out_table['WAVE_MIN'].min()) &  (self.wave_zp <= self.out_table['WAVE_MAX'].max())
+                    # If we are splicing, overplot the spliced zeropoint
+                    if self.splice_multi_det:
+                        axis.plot(self.wave_zp[wave_zp_gpm].flatten(), self.zeropoint[wave_zp_gpm].flatten(),
+                                 color='black', linestyle='-', linewidth=2.5, label='Spliced Zeropoint', zorder=30, alpha=0.3)
+
+                    axis.set_xlim((0.98 * self.out_table['WAVE_MIN'].min(), 1.02 * self.out_table['WAVE_MAX'].max()))
+                    axis.set_ylim((0.95*self.out_table['SENS_ZEROPOINT_FIT'][self.out_table['SENS_WAVE'] > 1.0].min(),
+                                   1.05*self.out_table['SENS_ZEROPOINT_FIT'][self.out_table['SENS_WAVE'] > 1.0].max()))
+                    axis.legend(fontsize=14)
+                    axis.set_xlabel('Wavelength (Angstroms)')
+                    axis.set_ylabel('Zeropoint (AB mag)')
+                    axis.set_title('PypeIt Zeropoints for' + spec_str, fontsize=12)
+
+                    pdf.savefig()
+                    plt.close('all')
 
 
-        # Plot throughput curve(s)
+
+        # Plot throughput curve(s) for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        for idet in range(self.norderdet):
+        for idet in range(self.wave_zp.shape[1]):
             # define the color
             rr = (np.max(order_or_det) - order_or_det[idet])/np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gg = 0.0

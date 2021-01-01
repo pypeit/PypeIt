@@ -430,6 +430,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             all of ``PypeIt`` methods.
         """
         par = super().default_pypeit_par()
+        par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] \
                 = resource_filename('pypeit',
                                     '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
