@@ -20,11 +20,12 @@ from pypeit import msgs
 from pypeit import coadd1d
 from pypeit import io
 from astropy.io import fits
+from astropy import units as u
+from astropy import constants as const
 from sklearn import mixture
 
 from IPython import embed
 from pypeit.spectrographs.util import load_spectrograph
-
 
 ##############################
 #  Telluric model functions  #
@@ -124,7 +125,7 @@ def pca_lnprior(theta,pca_dict):
     return gaussian_mixture_model.score_samples(A.reshape(1,-1))
 
 
-def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
+def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac = 0.10):
     """
     Reads in the telluric grid from a file, and optionally trims the grid to be in within
     wave_min and wave_max adding a padding if requested.
@@ -136,8 +137,9 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
            Minimum wavelength at which the grid is desired
         wave_max (float):
            Maximum wavelength at which the grid is desired.
-        pad:
-           Padding to be added to the grid boundaries if wave_min or wave_max are input
+        pad_frac
+           Percentage padding to be added to the grid boundaries if wave_min or wave_max are input,
+           i.e. the resulting grid wil extend from (1.0 - pad_frac)*wave_min to (1.0 + pad_frac)*wave_max
 
     Returns:
         tell_dict (dict):
@@ -150,14 +152,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad = 0):
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size
 
-    if wave_min is not None:
-        ind_lower = np.argmin(np.abs(wave_grid_full - wave_min)) - pad
-    else:
-        ind_lower = 0
-    if wave_max is not None:
-        ind_upper = np.argmin(np.abs(wave_grid_full - wave_max)) + pad
-    else:
-        ind_upper=nspec_full
+    ind_lower = np.argmin(np.abs(wave_grid_full - (1.0 - pad_frac)*wave_min)) if wave_min is not None else 0
+    ind_upper = np.argmin(np.abs(wave_grid_full - (1.0 + pad_frac)*wave_max)) if wave_max is not None else nspec_full
     wave_grid = wave_grid_full[ind_lower:ind_upper]
     model_grid = model_grid_full[:,:,:,:, ind_lower:ind_upper]
 
@@ -392,19 +388,21 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     theta_tell = theta[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
-    obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
+    obj_model, model_gpm = obj_model_func(theta_obj, arg_dict['obj_dict'])
 
-    if not np.any(modelmask):
+    if not np.any(model_gpm):
         return np.inf
     else:
-        totalmask = thismask & modelmask
-        chi_vec = totalmask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
+        #totalmask = thismask & modelmask
+        chi_vec = thismask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
-        loss_function = np.sum(huber_vec * totalmask)
+        # Penalize modelmasked pixels with a large penalty
+        #huber_vec[np.logical_not(model_gpm)] = 1e20 # Large number??
+        loss_function = np.sum(huber_vec * thismask)
         return loss_function
 
-def tellfit(flux, thismask, arg_dict, **kwargs_opt):
+def tellfit(flux, thismask, arg_dict, init_from_last=None):
     """
     Routine to perform the object + telluric model fitting for telluric
     corrections. This is a general abstracted routine that performs the
@@ -456,6 +454,11 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
                   object model arguments which is passed to the
                   obj_model_func
 
+        init_from_last (object):
+             Optional. Result object returned by the differential
+             evolution optimizer for the last iteration. If this is passed the code
+             will initialize from the previous best-fit for faster convergence.
+
         **kwargs_opt (dict):
             Optional arguments for the differential evolution
             optimization
@@ -478,11 +481,38 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     # Unpack arguments
     obj_model_func = arg_dict['obj_model_func'] # Evaluation function
     flux_ivar = arg_dict['ivar'] # Inverse variance of flux or counts
-    bounds = arg_dict['bounds']  # bounds for differential evolution optimizaton
-    seed = arg_dict['seed']      # Seed for differential evolution optimizaton
-    result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=seed,
-                                                   **kwargs_opt)
+    bounds = arg_dict['bounds']  # bounds for differential evolution optimization
+    rng = arg_dict['rng']      # Seed for differential evolution optimizaton
+    maxiter = arg_dict['diff_evol_maxiter'] # Maximum number of iterations
+    ballsize = arg_dict['ballsize'] # Ballsize for initialization from a previous optimum
+    nparams = len(bounds) # Number of parameters in the model
+    popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
+    nsamples = arg_dict['popsize']*nparams
+    # Decide how to initialize
+    if init_from_last is not None:
+        # Use a Gaussian ball about the optimum from a previous iteration
+        init = np.array([[np.clip(param + ballsize*(bounds[i][1] - bounds[i][0]) * rng.standard_normal(1)[0],
+                                  bounds[i][0], bounds[i][1])
+                                  for i, param in enumerate(init_from_last.x)] for jsamp in range(nsamples)])
+    elif 'init_obj_opt_theta' in arg_dict['obj_dict']:
+        # Initialize from  the object parameters. Use a Gaussian ball about the best object model, and latin hypercube
+        # for the telluric parameters
+        bounds_obj = arg_dict['obj_dict']['bounds_obj']
+        init_obj = np.array([[np.clip(param + ballsize*(bounds_obj[i][1] - bounds_obj[i][0]) * rng.standard_normal(1)[0],
+                                      bounds_obj[i][0], bounds_obj[i][1]) for i, param in enumerate(arg_dict['obj_dict']['init_obj_opt_theta'])]
+                             for jsamp in range(nsamples)])
+        tell_lhs = utils.lhs(7, samples=nsamples)
+        init_tell = np.array([[bounds[-idim][0] + tell_lhs[isamp, idim] * (bounds[-idim][1] - bounds[-idim][0])
+                               for idim in range(7)] for isamp in range(nsamples)])
+        init = np.hstack((init_obj, init_tell))
+    else:
+        # If this is the first iteration and no object model optimum is presented, use a latin hypercube which is the default
+        init = 'latinhypercube'
 
+    result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=rng,
+                                                   init = init, updating='immediate', popsize=popsize,
+                                                   recombination=arg_dict['recombination'], maxiter=arg_dict['diff_evol_maxiter'],
+                                                   polish=arg_dict['polish'], disp=arg_dict['disp'])
     theta_obj  = result.x[:-7]
     theta_tell = result.x[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
@@ -491,10 +521,7 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     totalmask = thismask & modelmask
     chi_vec = totalmask*(flux - tell_model*obj_model)*np.sqrt(flux_ivar)
 
-    try:
-        debug = arg_dict['debug']
-    except KeyError:
-        debug = False
+    debug = arg_dict['debug'] if 'debug' in arg_dict else False
 
     # Name of function for title in case QA requested
     obj_model_func_name = getattr(obj_model_func, '__name__', repr(obj_model_func))
@@ -648,55 +675,39 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 ############################
 
 
+
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, flux_per_s_ang, ivar, mask, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tellmodel):
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
                                            bounds_error=False, fill_value=np.nan)(wave)
-    flam_true_mask = np.isfinite(flam_true)
-    sensguess_arg = obj_params['exptime']*tellmodel*flam_true/(flux_per_s_ang + (flux_per_s_ang < 0.0))
-    sensguess = np.log(sensguess_arg)
-    fitmask = mask & np.isfinite(sensguess) & (sensguess_arg > 0.0) & np.isfinite(flam_true_mask)
+    N_lam = counts_per_ang/obj_params['exptime']
+    zeropoint_data, zeropoint_data_gpm = flux_calib.compute_zeropoint(wave, N_lam, mask, flam_true, tellmodel=tellmodel)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
-    pypeitFit = fitting.robust_fit(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-                                   minx=wave.min(), maxx=wave.max(), in_gpm=fitmask,
+    pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+                                   minx=wave.min(), maxx=wave.max(), in_gpm=zeropoint_data_gpm,
                                    lower=obj_params['sigrej'], upper=obj_params['sigrej'],
                                    use_mad=True)
-    sensfit_guess = np.exp(pypeitFit.eval(wave))
-
-    #mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-    #                                   minx=wave.min(), maxx=wave.max(), inmask=fitmask,
-    #                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
-    #                                   use_mad=True)
-    # sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
+    zeropoint_fit = pypeitFit.eval(wave)
+    zeropoint_fit_gpm = pypeitFit.bool_gpm
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
                    for this_coeff in pypeitFit.fitc]
+
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
                     exptime=obj_params['exptime'], flam_true=flam_true, func=obj_params['func'],
-                    polyorder=obj_params['polyorder_vec'][iord])
+                    polyorder=obj_params['polyorder_vec'][iord], bounds_obj=bounds_obj, init_obj_opt_theta = pypeitFit.fitc)
 
     if obj_params['debug']:
-        fig = plt.figure(figsize=(12, 8))
-        rejmask = mask & np.logical_not(pypeitFit.bool_gpm)
-        plt.plot(wave, sensguess_arg, label='sensfunc estimate', drawstyle='steps-mid', color='k', alpha=0.7, zorder=5)
-        plt.plot(wave, sensfit_guess, label='sensfunc fit', color='red', linewidth=1.0, zorder=7, alpha=0.7)
-        plt.plot(wave[rejmask], sensguess_arg[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave[np.logical_not(mask)], sensguess_arg[np.logical_not(mask)], 'v', zorder=9, mfc='None', mec='orange',
-                 label='originally masked')
-        plt.ylim(-2.0, 1.3 * utils.fast_running_median(sensguess_arg[mask], 11).max())
-        plt.legend()
-        plt.xlabel('Wavelength')
-        plt.ylabel('Sensitivity Function')
-        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord))
-        plt.show()
+        title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord)
+        flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title=title, show=True)
 
     return obj_dict, bounds_obj
 
@@ -718,31 +729,26 @@ def eval_sensfunc_model(theta, obj_dict):
     -------
     counts_per_angstrom_model : array with same shape as obj_dict['wave_star']
        Model of the quantity being fit for the sensitivity function which is exptime*f_lam_true/sensfunc. Note
-       that this routine is used to fit the counts per angstrom.  The sensitivity function is defined
-       to be S_lam = F_lam/(counts/s/A) where F_lam is in units of 1e-17 erg/s/cm^2/A, and so the sensitivity
-       function has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+       that this routine is used to fit the counts per angstrom.  The zeropoint  is defined
+       to be zeropoint 2.5log10(S_lam) where S_lam = F_lam/(counts/s/A) where F_lam is in units of 1e-17 erg/s/cm^2/A,
+       and so S_lam has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts, and the
+       zeropoint is then the magnitude of the astronomical source that produces one count per second in a
+       one-angstrom wide filter on the detector. And zerpoint + 2.5log10(delta_lambda/1 A) is the magnitude
+       that produces one count  per spectral pixel of width delta_lambda
+
+
 
     gpm : array (bool) with same shape as obj_dict['wave_star']
        Good pixel mask indicating where the model is valid
 
     """
 
-    wave_star = obj_dict['wave']
-    wave_min = obj_dict['wave_min']
-    wave_max = obj_dict['wave_max']
-    flam_true = obj_dict['flam_true']
-    func = obj_dict['func']
-    exptime = obj_dict['exptime']
-
     # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
-    ln_min_float = np.log(sys.float_info.min)
-    #ln_max_float = np.log(sys.float_info.max)
-    ln_sens = fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max)
-    sensfunc = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ln_min_float, None))
-    counts_per_angstrom_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
-    gpm = (sensfunc > 0.0) & (ln_sens > ln_min_float) & (counts_per_angstrom_model < sys.float_info.max)
+    #zeropoint = np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ZP_MIN, ZP_MAX)
+    zeropoint = fitting.evaluate_fit(theta, obj_dict['func'], obj_dict['wave'], minx=obj_dict['wave_min'], maxx=obj_dict['wave_max'])
+    counts_per_angstrom_model =  obj_dict['exptime']*flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint)*obj_dict['flam_true']
+    return counts_per_angstrom_model,  np.ones_like(counts_per_angstrom_model,dtype=bool)
 
-    return np.clip(counts_per_angstrom_model, None, sys.float_info.max), gpm
 
 ##############
 # QSO Model #
@@ -1132,7 +1138,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       ech_orders=None,
                       polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
+                      sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0, upper=3.0, tol=1e-3, popsize=30, recombination=0.7,
+                      polish=True, disp=False,
                       debug_init=False, debug=False):
     """
     Function to compute a sensitivity function by simultaneously fitting the sensfunc and a telluric model to a standard
@@ -1268,29 +1275,100 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol,
-                      popsize=popsize, recombination=recombination,
+                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, maxiter=maxiter,
+                      lower=lower, upper=upper,
+                      tol=tol, popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, sensfunc=True, debug=debug)
 
     TelObj.run(only_orders=only_orders)
-    # Append the sensfunc to the output table for convenience
+    # Append the zeropoint to the output table for convenience
     meta_table, out_table = TelObj.meta_table, TelObj.out_table
-    out_table['SENSFUNC'] = np.zeros_like(TelObj.out_table['WAVE'])
-    out_table['SENSFUNC_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+
+    # For stupid reasons related to how astropy tables will let me store this data I have to redundantly write out the
+    # wavelength grid for each order. In actuality a variable length wavelength grid is needed which is a subset of the
+    # original fixed grid, but there is no way to write this to disk. Perhaps the better solution would be a list of
+    # of astropy tables, one for each order, that would save some space, since we could then write out only the subset
+    # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
+    # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
+    # somewhat heterogenous outputs of the two different fluxing algorithms.
+    out_table['SENS_COEFF'] = out_table['OBJ_THETA']
+    out_table['SENS_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_COUNTS_PER_ANG'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+    out_table['SENS_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
+    out_table['SENS_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
     for iord in range(norders):
-        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
-        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
-        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['SENSFUNC'][gdwave] = np.exp(fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max))
-        # out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
-        out_table[iord]['SENSFUNC_GPM'][gdwave] = True
+        ind_lower = out_table[iord]['IND_LOWER']
+        ind_upper = out_table[iord]['IND_UPPER']
+        # Compute and assign the zeropint_data from the input data and the best-fit telluric model
+        wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
+        out_table[iord]['SENS_WAVE'][ind_lower:ind_upper+1] = wave_now
+        zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
+        out_table[iord]['SENS_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
+        tellmodel_now = TelObj.tellmodel_list[iord]
+        out_table[iord]['SENS_COUNTS_PER_ANG'][ind_lower:ind_upper + 1] = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
+        flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
+        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+        N_lam = flux_now / exptime
+        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
+                                                         tellmodel=tellmodel_now)
+        out_table[iord]['SENS_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
+        # Compute and assign the
+        coeff = out_table[iord]['SENS_COEFF'][0:polyorder_vec[iord] + 2]
+        out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
+            coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
+        out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
+        #flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm,
+        #                             title, order=iord)
 
-    #if outfile is not None:
-    #    TelObj.save(outfile)
+    #meta_table, out_table = TelObj.meta_table, TelObj.out_table
+    #out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
+    #out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    #
+    #    for iord in range(norders):
+    #    out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
+    #    out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    #    for iord in range(norders):
+    #        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
+    #        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
+    #        wave_min = out_table[iord]['WAVE_MIN']
+    #        wave_max = out_table[iord]['WAVE_MAX']
+    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+    #        out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min,
+    #                                                                    maxx=wave_max)
+    #       out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
+
+
+    # TODO, write these out to PNG files in the pypeit QA path.
+    # Plot QA for the zeropoint
+    #if debug:
+    #    for iord in range(norders):
+    #        # Unpack the data we fit from the TelObj object
+    #        ind_lower = TelObj.ind_lower[iord]
+    #        ind_upper = TelObj.ind_upper[iord]
+    #        wave_now = TelObj.wave_grid[ind_lower:ind_upper+1]
+    #        flux_now = TelObj.flux_arr[ind_lower:ind_upper+1, iord]
+    #        sig_now = np.sqrt(utils.inverse(TelObj.ivar_arr[ind_lower:ind_upper+1, iord]))
+    #        zeropoint_data_gpm = TelObj.mask_arr[ind_lower:ind_upper+1, iord]
+    #        # Unpack the model fits from the TelObj object
+    #        tellmodel_now = TelObj.tellmodel_list[iord]
+    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+    #        wave_min = out_table[iord]['WAVE_MIN']
+    #        wave_max = out_table[iord]['WAVE_MAX']
+    #        zeropoint_fit_now = fitting.evaluate_fit(coeff, func, wave_now, minx=wave_min, maxx=wave_max)
+    #        zeropoint_fit_gpm = TelObj.outmask_list[iord]
+    #        # Get the standard star spectrum and compute a zeropoint from the data
+    #        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+    #        N_lam = flux_now/exptime
+    #        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star, tellmodel=tellmodel_now)
+    #        title = 'Zeropoint Fit for '
+    #        flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
 
     return meta_table, out_table
+
 
 def create_bal_mask(wave, bal_wv_min_max):
     """
@@ -1325,7 +1403,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_max=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
-                 tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
+                 maxiter=3, tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
                  show=False):
     """
@@ -1435,7 +1513,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
-                      sn_clip=sn_clip, tol=tol, popsize=popsize, recombination=recombination,
+                      sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.save(telloutfile)
@@ -1478,7 +1556,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                   func='legendre', model='exp', polyorder=5, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, recombination=0.7, polish=True,
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
+                  recombination=0.7, polish=True,
                   disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1567,7 +1646,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
                   fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1781,9 +1860,24 @@ class Telluric(object):
             sigma_corr is an empirically determined correction to the formal error. See above for description.
         seed (int, optional): default = 777
             An initial seed for the differential evolution optimization, which is a random process. The default is
-            a seed = 777 which will be used to generate a unique seed for every order. A specific seed is used
+            a seed = 777 which will be used to seed a np.random Generator object. A specific seed is used
             because otherwise the random number generator will use the time for the seed, and the results will not
-            be reproducible.
+            be reproducible. TODO: Note that differential evolution seems to have some other source of stochasticity
+            that I have not yet figured out JFH.
+        ballsize (float, optional): default = 5e-4
+            This parameter governs how the differential evolution random population is initialized for the object
+            model and for subsequent iterations. The idea is that after the first iteration we can generate a new
+            random population in model space about the optimum from the previous iteration. This significantly speeds
+            up convergence. The new population of parameters is created by perturbing the previous optimum by
+            theta = theta_opt + ballsize*(bounds[1]-bounds[0])*standard_normal_deviate, where bounds are the bounds for
+            the optimization and standard_normal_deviate is a random draw from a unit variance Gaussian. If the ballsize
+            is too small, the optimization may get stuck in a local maximum. If it is too large it will not speed up
+            convergence. This choice is highly dependent on how the bounds are chosen using in thei init_obj_model
+            function and from the bound parameters for the atmospheric, shift, and resolution parameters.
+            If the init_obj_model functions also have a way of isolating a good guess for the object
+            model, then this can be put in the obj_dict['init_obj_opt_theta'] and the object model will similarly
+            be initialized about this optimum using the ballsize for the first iteration. See init_sensfunc_model for
+            an example.
         tol (float, optional): default = 1e-3
             Relative tolerance for converage of the differential evolution optimization. See
             scipy.optimize.differential_evolution for details.
@@ -1815,8 +1909,8 @@ class Telluric(object):
                  ech_orders=None,
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
                  resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0), pix_stretch_bounds=(0.9,1.1),
-                 maxiter=3, sticky=True, lower=3.0, upper=3.0,
-                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, sensfunc=False,
+                 maxiter=2, sticky=True, lower=3.0, upper=3.0,
+                 seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30, recombination=0.7, polish=True, disp=False, sensfunc=False,
                  debug=False):
 
         # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1846,7 +1940,12 @@ class Telluric(object):
         self.sticky = sticky
         self.lower = lower
         self.upper = upper
+        # Optimizer requires a seed. This guarantees that the fit will be deterministic and hence reproducible
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
+        self.ballsize= ballsize
         self.tol = tol
+        self.diff_evol_maxiter = diff_evol_maxiter
         self.popsize = popsize
         self.recombination = recombination
         self.polish = polish
@@ -1854,17 +1953,16 @@ class Telluric(object):
         self.sensfunc = sensfunc
         self.debug = debug
 
+
+
         # 2) Reshape all spectra to be (nspec, norders)
         self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, self.norders = \
             utils.spec_atleast_2d(wave, flux, ivar, mask)
 
-        # Optimizer requires a seed. This guarantees that the fit will be deterministic and hence reproducible
-        self.seed = seed
-        rand = np.random.RandomState(seed=self.seed)
-        seed_vec = rand.randint(2 ** 32 - 1, size=self.norders)
 
         # 3) Read the telluric grid and initalize associated parameters
-        self.tell_dict = self.read_telluric_grid()
+        wv_gpm = self.wave_in_arr > 1.0
+        self.tell_dict = self.read_telluric_grid(wave_min = self.wave_in_arr[wv_gpm].min(), wave_max=self.wave_in_arr[wv_gpm].max())
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] if resln_guess is None else resln_guess
@@ -1914,8 +2012,11 @@ class Telluric(object):
             self.bounds_list[iord] = bounds_iord
             arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
                                  tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord], ind_upper=self.ind_upper[iord],
-                                 obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
-                                 bounds=bounds_iord, seed=seed_vec[iord], debug=debug)
+                                 obj_model_func=self.eval_obj_model, obj_dict=obj_dict, ballsize=self.ballsize,
+                                 bounds=bounds_iord, rng=self.rng, diff_evol_maxiter=self.diff_evol_maxiter,
+                                 tol=self.tol, popsize=self.popsize, recombination=self.recombination,
+                                 polish=self.polish, disp=self.disp,
+                                 debug=debug)
             self.arg_dict_list[iord] = arg_dict_iord
 
         # 6) Initalize the output tables
@@ -1949,11 +2050,10 @@ class Telluric(object):
                 continue
             msgs.info('Fitting object + telluric model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
                       ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
-            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = utils.robust_optimize(
+            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = fitting.robust_optimize(
                 self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord], tellfit, self.arg_dict_list[iord],
                 inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,
-                tol=self.tol, popsize=self.popsize, recombination=self.recombination, polish=self.polish, disp=self.disp)
+                maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky)
             self.theta_obj_list[iord] = self.result_list[iord].x[:-7]
             self.theta_tell_list[iord] = self.result_list[iord].x[-7:]
             self.obj_model_list[iord], modelmask = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
@@ -2175,7 +2275,7 @@ class Telluric(object):
     ##########################
     ## telluric grid methods #
     ##########################
-    def read_telluric_grid(self, wave_min=None, wave_max=None, pad=0):
+    def read_telluric_grid(self, wave_min=None, wave_max=None, pad_frac=0.10):
         """
         Wrapper for utility function read_telluric_grid
         Args:
@@ -2187,7 +2287,7 @@ class Telluric(object):
 
         """
 
-        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad=pad)
+        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad_frac=pad_frac)
 
 
     def get_tell_guess(self):

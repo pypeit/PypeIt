@@ -382,7 +382,7 @@ def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     return loss_function
 
 # TODO: Change thismask to gpm
-def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
+def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwargs_opt):
     """
     Function to be optimized by robust_optimize for solve_poly_ratio
     polynomial rescaling of one spectrum to match a reference
@@ -423,7 +423,7 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
 
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
-    guess = arg_dict['guess']
+    guess = arg_dict['guess'] if init_from_last is None else init_from_last.x
     result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(thismask, arg_dict),  **kwargs_opt)
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
@@ -608,7 +608,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
                     wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=debug)
 
-    result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
+    result, ymodel, ivartot, outmask = fitting.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
     ymult1 = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)

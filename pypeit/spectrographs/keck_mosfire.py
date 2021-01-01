@@ -9,11 +9,14 @@ from IPython import embed
 
 import numpy as np
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
+from pypeit import utils
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from scipy import special
 
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
@@ -110,8 +113,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
         # Sensitivity function parameters
+        par['sensfunc']['extrap_blu'] = 0.0  # Y-band contaminated by higher order so don't extrap much
+        par['sensfunc']['extrap_red'] = 0.0
+        par['fluxcalib']['extrap_sens'] = True
+        par['sensfunc']['extrap_red'] = 0.0
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['polyorder'] = 13
+        par['sensfunc']['IR']['maxiter'] = 2
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
@@ -316,7 +324,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             offset_arcsec[ifile] = hdr['YOFFSET']
         return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)
 
-    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table, debug=False):
         """
 
         This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
@@ -356,11 +364,58 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #wave_out = np.copy(wave_in)
             #counts_out = np.copy(counts_in)
             #counts_ivar_out = np.copy(counts_ivar_in)
-            gpm_out = np.copy(gpm_in)
+            #gpm_out = np.copy(gpm_in)
             # The blue edge and red edge of the detector are contaiminated by higher order light. These are masked
             # by hand.
-            second_order_region= (wave_in < 9520.0) | (wave_in > 11256.0)
-            gpm_out = gpm_in & np.logical_not(second_order_region)
+            #second_order_region= (wave_in < 9520.0) | (wave_in > 11256.0)
+            #gpm_out = gpm_in & np.logical_not(second_order_region)
 
-        return wave_in, counts_in, counts_ivar_in, gpm_out
+            # Use a sigmoid function to apodize the spectrum smoothly in the regions where it is bad.
+            #dlam = 10.0 # width that determines how shaprly  apodization occurs
+            #sigmoid_blue_arg = (wave_in - wave_blue)/dlam
+            #sigmoid_red_arg = (wave_red - wave_in)/dlam
+
+            #sigmoid_apodize = special.expit(sigmoid_blue_arg) * special.expit(sigmoid_red_arg)
+            #counts = counts_in*sigmoid_apodize
+            # No we apodize only the flux. Since there are more counts in the in the unapodized spectrum, there is also
+            # more variance in the original counts_ivar_in, and so in this way the S/N ratio is naturally reduced
+            # in this region. There is not an obvious way to tweak the error vector here, and we don't to just mask
+            # since then the polynomial fits go crazy at the boundaries. This is a reasonable compromise to not mask the
+            # counts_ivar_in. The flux is bogus in the regions we are apodizing, so it does not really matter what we do,
+            # it is better than operating on the original bogus flux.
+
+            # Inflat the errors in the apodized region so that they don't inform the fits much
+            #apo_pix = (sigmoid_apodize < 0.95)
+            #mean_counts, med_counts, sigma_counts = sigma_clipped_stats(counts_in[np.logical_not(apo_pix)], sigma=3.0)
+            #sigma_apo = med_counts/20.0 # roughly S/N ratio 20 in the apodized region
+            #counts_ivar[apo_pix] = 1.0/sigma_apo**2
+            #sigma_apo = np.sqrt(np.abs(counts[apo_pix]))
+            #counts_ivar[apo_pix] = utils.inverse(sigma_apo**2)
+            #counts_ivar[apo_pix] = utils.clip_ivar(counts[apo_pix], counts_ivar_in[apo_pix], 10.0, mask=gpm_in[apo_pix])
+            wave_blue = 9520.0  # blue wavelength below which there is contamination
+            wave_red = 11256.0  # red wavelength above which the spectrum is containated
+            second_order_region= (wave_in < wave_blue) | (wave_in > wave_red)
+            wave = wave_in.copy()
+            counts = counts_in.copy()
+            gpm = gpm_in.copy()
+            counts_ivar = counts_ivar_in.copy()
+            # By setting the wavelengths to zero, we guarantee that the sensitvity function will only be computed
+            # over the valid wavelength region. While we could mask, this would still produce a wave_min and wave_max
+            # for the zeropoint that includes the bad regions, and the polynomial fits will extrapolate crazily there
+            wave[second_order_region] = 0.0
+            counts[second_order_region] = 0.0
+            counts_ivar[second_order_region] = 0.0
+            gpm[second_order_region] = False
+            #if debug:
+            #    from matplotlib import pyplot as plt
+            #    counts_sigma = np.sqrt(utils.inverse(counts_ivar_in))
+            #    plt.plot(wave_in, counts, color='red', alpha=0.7, label='apodized flux')
+            #    plt.plot(wave_in, counts_in, color='black', alpha=0.7, label='flux')
+            #    plt.plot(wave_in, counts_sigma, color='blue', alpha=0.7, label='flux')
+            #    plt.axvline(wave_blue, color='blue')
+            #    plt.axvline(wave_red, color='red')
+            #    plt.legend()
+            #    plt.show()
+
+        return wave, counts, counts_ivar, gpm
 
