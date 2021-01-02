@@ -419,15 +419,21 @@ class PypeIt(object):
             display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-
         # Is this an IR reduction?
         # TODO: Why specific to IR?
         self.ir_redux = True if has_bg else False
+        if has_bg:
+            self.ir_redux = True
+            # The default is to find_negative objects if the bg_frames are classified as "science", and do not find_negative
+            # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
+            # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
+            self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
+                if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
-
+        all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         all_specobjs = specobjs.SpecObjs()
@@ -626,6 +632,7 @@ class PypeIt(object):
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
                                                 show=self.show,

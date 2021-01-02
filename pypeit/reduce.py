@@ -94,7 +94,7 @@ class Reduce(object):
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
+                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -118,11 +118,11 @@ class Reduce(object):
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
-            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, det=det,
+            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, find_negative=find_negative, det=det,
             std_redux=std_redux, show=show,binning=binning, setup=setup, basename=basename)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
+                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -168,6 +168,8 @@ class Reduce(object):
 
         # Load up other input items
         self.ir_redux = ir_redux
+        self.find_negative = find_negative
+
         self.std_redux = std_redux
         self.det = det
         self.binning = binning
@@ -405,7 +407,7 @@ class Reduce(object):
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
-            if self.ir_redux:
+            if self.find_negative:
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
@@ -413,7 +415,7 @@ class Reduce(object):
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
                 self.spec_flexure_correct(mode='global')
             #Could have negative objects but no positive objects so purge them
-            if self.ir_redux:
+            if self.find_negative:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -457,7 +459,7 @@ class Reduce(object):
         """
         Single pass at finding objects in the input image
 
-        If self.ir_redux is True, do a search for negative objects too
+        If self.find_negative is True, do a search for negative objects too
 
         Args:
             image (np.ndarray):
@@ -486,7 +488,7 @@ class Reduce(object):
                                        manual_extract_dict=parse_manual, debug=debug)
 
         # For nobj we take only the positive objects
-        if self.ir_redux:
+        if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
             parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
@@ -614,6 +616,7 @@ class Reduce(object):
 
         return None, None, None, None, None
 
+    # TODO This method only used for IFUs, so it should be present in the IFU subclass not here.
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
@@ -1009,10 +1012,11 @@ class MultiSlitReduce(Reduce):
                     extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
-                                inmask=inmask, ir_redux=self.ir_redux,
+                                inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
                                 sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+                                cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
@@ -1217,11 +1221,12 @@ class EchelleReduce(Reduce):
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            inmask=inmask, has_negative=self.find_negative, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+            cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
             show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             cont_fit=self.par['reduce']['findobj']['find_cont_fit'],

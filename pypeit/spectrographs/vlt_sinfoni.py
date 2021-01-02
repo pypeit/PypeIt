@@ -78,27 +78,65 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
-        par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+        par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        #par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_sinfoni_K.fits'
+
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['rm_slits'] = '1:1024:983' # Remove the center slit that is not illuminated
+
+        # Tilts parameters
+        par['calibrations']['tilts']['tracethresh'] = 5.0
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['standardframe']['exprng'] = [None, 20]
+        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['scienceframe']['exprng'] = [20, None]
+
+
+        # TODO We need to implement dark subtrction for the arcframe and tiltframe. Currently the pypeit file won't let me do this.
+        par['calibrations']['arcframe']['process']['cr_sigrej'] = 20.0
+        #par['calibrations']['arcframe']['process']['combine'] = 'median'
+        par['calibrations']['arcframe']['process']['mask_cr'] = True
+
+
+        par['calibrations']['tiltframe']['process']['cr_sigrej'] = 20.0
+        #par['calibrations']['tiltframe']['process']['combine'] = 'median'
+        par['calibrations']['tiltframe']['process']['mask_cr'] = True
+
+        par['calibrations']['skyframe']['process']['cr_sigrej'] = 20.0
+        #par['calibrations']['skyframe']['process']['combine'] = 'median'
+        par['calibrations']['skyframe']['process']['mask_cr'] = True
+
 
         # Flats
-        # Do not illumination correct. We should also not be flat fielding given the bars.
-        # TODO Implement imaging flats for MOSFIRE. Do test with/without illumination flats.
-        # Turn of illumflat
         turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
-        par['reduce']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['extraction']['sn_gauss'] = 5.0
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+
+        # Object finding
+        par['reduce']['findobj']['find_cont_fit'] = True  # Attempt to fit a continuum to the trace rectified image
+        par['reduce']['findobj']['find_npoly_cont'] = 1  # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_fwhm'] = 10  # Continnum order for determining thresholds
+        par['reduce']['findobj']['cont_sig_thresh'] = 1.0
+        par['reduce']['findobj']['skip_second_find'] = True
+
+
+        # Sky subtraction
+        par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
 
         # Flexure
         par['flexure']['spec_method'] = 'skip'
+
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'

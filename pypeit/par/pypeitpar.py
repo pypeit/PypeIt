@@ -3294,7 +3294,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, find_negative=None, find_min_max=None,
+                 cont_sig_thresh=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3367,11 +3368,30 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+
+        defaults['find_negative'] = None
+        dtypes['find_negative'] = bool
+        descr['find_negative'] = 'Identify negative objects in object finding for spectra that are differenced. This is used to manually ' \
+                                 'override the default behavior in PypeIt for object finding by setting this parameter to something other than None' \
+                                 'The default behavior is that PypeIt will search for negative object traces if background frames ' \
+                                 'are present in the PypeIt file that are classified as "science" ' \
+                                 '(i.e. via pypeit_setup -b, and setting bkg_id in the PypeIt file). If background frames are present' \
+                                 'that are classified as "sky", then PypeIt will NOT search for negative object traces. If one wishes' \
+                                 'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore ' \
+                                 'them.'
+
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
         descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the'\
                                 'detector. It only used for object finding. This parameter is helpful if your object only'\
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
+
+        defaults['cont_sig_thresh'] = 2.0
+        dtypes['cont_sig_thresh'] = [int, float]
+        descr['cont_sig_thresh'] = 'Significance threshold for peak detection for determinining which pixels to use for ' \
+                                   'the iteratively fit continuum of the spectral direction smashed image. This is ' \
+                                   'passed as the sigthresh parameter to core.arc.iter_continum. For extremely narrow ' \
+                                   'slits that are almost filled by the object trace set this to a smaller number like 1.0'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3391,7 +3411,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_min_max']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_negative', 'find_min_max', 'cont_sig_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

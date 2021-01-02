@@ -121,6 +121,7 @@ def load_reid_arxiv(arxiv_file):
         wv_tbl = Table.read(calibfile)
         wv_calib_arxiv = OrderedDict()
         nrow = wv_tbl['wave'].shape[0]
+        # TODO JFH This is a hack for TESTING!!
         for irow in np.arange(nrow):
             wv_calib_arxiv[str(irow)] = {}
             wv_calib_arxiv[str(irow)]['spec'] = wv_tbl['flux'][irow,:]
