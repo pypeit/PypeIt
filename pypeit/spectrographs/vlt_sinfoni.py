@@ -119,7 +119,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['bspline_spacing'] = 0.9
         par['reduce']['extraction']['sn_gauss'] = 5.0
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 

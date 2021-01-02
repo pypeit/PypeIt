@@ -1350,15 +1350,15 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if not np.any(cont_mask):
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    mean, med, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
-    mean, med, sigma     = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
+    mean_sky, med_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
+    mean, med, sigma = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
 
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
         if np.any(good):
-            mean, med_sn2, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
+            mean_sky, med_sn2_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
             mean, med_sn2, sigma = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
             msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
@@ -1401,7 +1401,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # Possible thresholds    [significance,  fraction of brightest, absolute]
     thresh_peak = peak_thresh * ypeak.max() if len(ypeak) > 0 else 0.0
-    threshvec = np.array([sig_thresh * sigma, thresh_peak, abs_thresh])
+    threshvec = np.array([mean + sig_thresh * sigma, thresh_peak, abs_thresh])
     threshold = threshvec.max()
     #if specobj_dict['SLITID'] == 1240:
     #    embed()
