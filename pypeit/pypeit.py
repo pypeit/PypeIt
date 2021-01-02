@@ -421,7 +421,6 @@ class PypeIt(object):
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        self.ir_redux = True if has_bg else False
         if has_bg:
             self.ir_redux = True
             # The default is to find_negative objects if the bg_frames are classified as "science", and do not find_negative
@@ -429,6 +428,9 @@ class PypeIt(object):
             # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
             self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
                 if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
+        else:
+            self.ir_redux = False
+            self.find_negative= False
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
