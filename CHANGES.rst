@@ -1,4 +1,5 @@
 
+
 1.3.1dev
 --------
 
@@ -6,7 +7,21 @@
 - Option to limit channels shown for pypeit_show_2dspec
 - sigdetect on in full_template
 - Added new ArI, ArII lines
-- Improved 1Dfit QA
+- Improved Arc 1Dfit QA
+- Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
+function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
+- Added MOSFIRE QL script.
+- Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
+- Updated docs for differencing imaging sky subtraction.
+- Added "sky" frametype for difference imaging sky subtraction addressing issue # 1068
+- Improved and sped up sensitivity function telluric codes.
+- Fixed bugs in ArchiveReid automatic wavelength identification.
+- Removed numba dependency.
+- Improved pypeit_view_fits script.
+- Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
+- Added latin hypercube sampler to pypeit.utils which is required for differential evolution
+optimizations.
+
 
 
 1.3.0 (13 Dec 2020)
