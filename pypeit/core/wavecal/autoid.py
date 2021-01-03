@@ -2662,11 +2662,11 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
     """
     # Assign wavelengths to each pixel
     ncols = len(res)
-    wvdisp = np.zeros(ncols) #, dtype=nb.types.float64)
-    wvcent = np.zeros(ncols) #, dtype=nb.types.float64)
-    dind = np.zeros((ncols, nindx)) #, dtype=nb.types.uint64)
-    lind = np.zeros((ncols, nindx)) #, dtype=nb.types.uint64)
-    Xmat = np.ones((nindx, ordfit+1)) #, dtype=nb.types.float64)
+    wvdisp = np.zeros(ncols, dtype=float) #, dtype=nb.types.float64)
+    wvcent = np.zeros(ncols, dtype=float) #, dtype=nb.types.float64)
+    dind = np.zeros((ncols, nindx), dtype=np.uint64) #, dtype=nb.types.uint64)
+    lind = np.zeros((ncols, nindx), dtype=np.uint64) #, dtype=nb.types.uint64)
+    Xmat = np.ones((nindx, ordfit+1), dtype=float) #, dtype=nb.types.float64)
     for x in range(ncols):
         for ii in range(ordfit, -1, -1):
             Xmat[:, ii] = np.power(use_tcent[dindex[residx[x], :]], ordfit-ii)
