@@ -132,11 +132,14 @@ def main(args):
     # Now run the coadds
 
     skysub_mode = head2d['SKYSUB']
+    findobj_mode = head2d['FINDOBJ']
     ir_redux = True if 'DIFF' in skysub_mode else False
+    find_negative = True if 'NEG' in findobj_mode else False
 
     # Print status message
     msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
-    msgs_string += 'Performing coadd of frames reduce with {:s} imaging'.format(skysub_mode)
+    msgs_string += 'Coadding frame sky-subtraced with {:s}'.format(skysub_mode)
+    msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
     msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
     for file in spec2d_files:
         msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
@@ -157,6 +160,8 @@ def main(args):
     sci_dict['meta'] = {}
     sci_dict['meta']['vel_corr'] = 0.
     sci_dict['meta']['ir_redux'] = ir_redux
+    sci_dict['meta']['find_negative'] = find_negative
+
 
     # Find the detectors to reduce
     detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
@@ -174,7 +179,7 @@ def main(args):
                                              offsets=parset['coadd2d']['offsets'],
                                              weights=parset['coadd2d']['weights'],
                                              spec_samp_fact=args.spec_samp_fact, spat_samp_fact=args.spat_samp_fact,
-                                             ir_redux=ir_redux,
+                                             ir_redux=ir_redux, find_negative=find_negative,
                                              debug_offsets=args.debug_offsets, debug=args.debug)
 
         # TODO Add this stuff to a run method in coadd2d
