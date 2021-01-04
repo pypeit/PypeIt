@@ -224,6 +224,7 @@ def main(args):
     # TODO -- These lines should be above once reduce() passes back something sensible
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = ir_redux
+    all_spec2d['meta']['find_negative'] = find_negative
     for det in detectors:
         all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
                                               sciimg=sci_dict[det]['sciimg'],
