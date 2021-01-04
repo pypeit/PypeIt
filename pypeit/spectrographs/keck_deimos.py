@@ -176,7 +176,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 #        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+        par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI', 'CdI', 'ZnI', 'HgI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] \
         #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
