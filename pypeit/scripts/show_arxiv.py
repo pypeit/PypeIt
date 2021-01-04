@@ -5,9 +5,9 @@ Wrapper to matplotlib to show an arc spectrum
 
 def parse_args(options=None, return_parser=False):
     import argparse
-    parser = argparse.ArgumentParser(description='Show an archived arc spectrum',
+    parser = argparse.ArgumentParser(description='Show an archived arc spectrum in pypeit/data/arc_liens/reid_arxiv',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("file", type=str, help="WaveCalib JSON file")
+    parser.add_argument("file", type=str, help="Arxiv filename, e.g. gemini_gmos_r831_ham.fits")
     parser.add_argument('--det', default=1, type=int, help='Detector number')
 
     if return_parser:
@@ -19,9 +19,16 @@ def parse_args(options=None, return_parser=False):
 def main(args):
     """ Shows the spectrum
     """
+    import os
+    from pkg_resources import resource_filename
 
     from matplotlib import pyplot as plt
     from pypeit.core.wavecal import waveio
+
+    # Path
+    if os.path.basename(args.file) == args.file:
+        args.file = os.path.join(resource_filename('pypeit', 'data'),
+                                 'arc_lines', 'reid_arxiv', args.file)
 
     wave, flux, binspec = waveio.load_template(args.file, args.det)
 

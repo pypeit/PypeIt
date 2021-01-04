@@ -4,6 +4,9 @@
 
 - pypeit_chk_wavecalib script
 - Option to limit channels shown for pypeit_show_2dspec
+- sigdetect on in full_template
+- Added new ArI, ArII lines
+- Improved 1Dfit QA
 
 
 1.3.0 (13 Dec 2020)
