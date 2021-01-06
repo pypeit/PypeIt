@@ -59,6 +59,22 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
 
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
+
+
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     """
     Child to handle Magellan/FIRE Echelle data
