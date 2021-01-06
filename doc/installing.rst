@@ -24,7 +24,7 @@ The package and version requirements for ``PypeIt`` are:
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
+* `QtPy <https://pypi.org/project/qtpy>`_ version 1.9 or later
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
@@ -94,8 +94,7 @@ Some users have run into the following complications when installing the
    environmental variables to your shell rc that point to the reverted
    directory structure.
  
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
-   PySide2) because of our dependence on ``linetools``.
+ - At the moment, an implicit dependency on PySide2 remains because of our dependence on ``linetools``.
 
  - Note that ``shapely`` is listed as an optional dependency, but is only
    currently used by one method that calculates the spaxel area for KCWI
