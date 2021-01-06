@@ -50,3 +50,10 @@ def main(args):
     cname = None if args.slit is None else 'Slit{:03d}'.format(args.slit)
     wTilts.show(args.option, slit=args.slit, cname=cname)
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

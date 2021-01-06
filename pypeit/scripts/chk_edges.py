@@ -47,3 +47,11 @@ def main(pargs):
     else:
         edges.show(thin=10, in_ginga=True)
     return 0
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

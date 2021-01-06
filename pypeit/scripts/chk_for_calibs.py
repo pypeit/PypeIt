@@ -10,6 +10,7 @@ which do not have sufficient calibs
 
 from pypeit.spectrographs import available_spectrographs
 
+
 def parse_args(options=None, return_parser=False):
     import argparse
 
@@ -156,3 +157,9 @@ def main(args):
     return answers, ps
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
