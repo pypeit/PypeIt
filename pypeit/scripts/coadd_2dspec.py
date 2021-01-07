@@ -237,3 +237,9 @@ def main(args):
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

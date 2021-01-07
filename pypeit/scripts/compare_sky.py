@@ -62,3 +62,10 @@ def main(args):
                         handletextpad=0.3, fontsize='small', numpoints=1)
     plt.show()
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
