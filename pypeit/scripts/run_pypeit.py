@@ -118,6 +118,7 @@ def main(args):
     # QA HTML
     msgs.info('Generating QA HTML')
     pypeIt.build_qa()
+    msgs.close()
 
     return 0
 

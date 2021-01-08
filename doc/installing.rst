@@ -24,7 +24,8 @@ The package and version requirements for ``PypeIt`` are:
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
+* `QtPy <https://pypi.org/project/qtpy>`_ version 1.9 or later
+* `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
@@ -93,8 +94,7 @@ Some users have run into the following complications when installing the
    environmental variables to your shell rc that point to the reverted
    directory structure.
  
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
-   PySide2) because of our dependence on ``linetools``.
+ - At the moment, an implicit dependency on PySide2 remains because of our dependence on ``linetools``.
 
  - Note that ``shapely`` is listed as an optional dependency, but is only
    currently used by one method that calculates the spaxel area for KCWI
@@ -135,63 +135,13 @@ Install from the git source
 
 If ``pip`` is unsuccessful or if you are planning to use any of the
 ``PypeIt`` development branches, then you should install directly
-from GitHub. These instructions assume that you are using an anaconda python
-installation.
+from GitHub.
 
-#. Note it would be a very good idea to nuke your current anaconda installation and start
-this whole procedure with a clean slate. You could choose not to do this if you know what you are doing,
-but beware that you may encounter conflicts::
-
-
-        rm -r -f /Users/Yourpath/opt/anaconda3
-
-OR
-
-        sudo rm -r -f /Volumes/opt/anaconda3
-
-Depending on where you installed anaconda
-
-
-#. Clone the PypeIt repository::
+ #. Clone the repository::
 
         git clone https://github.com/pypeit/PypeIt.git
 
-#. This will create a ``PypeIt`` directory in your current path.
-
-#. Install the dependencies in the pypeit/requirements.txt file.
-
-#. Note there is conflict between the required pyside2 package and other anaconda packages. To fix this
-you need to run::.
-
-        conda uninstall spyder
-
-Then after that successfully runs, install pyside2::.
-
-        conda install pyside2
-
-#. The spyder uninstall might cause you to lose some familiar Anaconda python packages that you need so run
-
-        conda install scipy matplotlib scikit-learn
-
-#. Install a few other dependencies
-
-        conda install configobj
-        conda install -c conda-forge extension-helpers
-
-In the directory where you keep your python codes, clone ejeschke/ginga from https://github.com/ejeschke/ginga
-
-        git clone https://github.com/ejeschke/ginga.git
-        cd ginga
-        python setup.py install
-
-Similar for linetools, i.e. clone from https://github.com/linetools/linetools
-
-        git clone https://github.com/linetools/linetools.git
-        cd linetools
-        python setup.py install
-
-
- #. Finally to complete the PypeIt install::
+ #. This will create a ``PypeIt`` directory in your current path. To install::
 
         cd PypeIt
         python setup.py develop
@@ -199,7 +149,6 @@ Similar for linetools, i.e. clone from https://github.com/linetools/linetools
 Installing the code this way ensures that virtually all changes to files in
 the ``PypeIt`` directory take immediate effect the next time you
 import the code.
-
 
 ----
 
