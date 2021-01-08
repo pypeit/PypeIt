@@ -93,24 +93,15 @@ def keck_deimos_900ZD(overwrite=False):
     outroot = 'keck_deimos_900ZD.fits'
     # PypeIt fits
     wpath = os.path.join(templates.template_path, 'Keck_DEIMOS', '900ZD')
-    bmwv_file = 'MasterWaveCalib_A_1_03_UseS0725.fits'
-    # 4000 to 5571 S0725
-    gbmwv_file = 'MasterWaveCalib_A_1_01_UseS0922.fits'
-    # 4800 6300 S0922
-    grmwv_file = 'MasterWaveCalib_A_1_06_UseS0054.fits'
-    # 5900 7500 S0054
-    rbmwv_file = 'MasterWaveCalib_B_1_01_UseS1475.fits'
-    #  6384 - 8117
-    rrmwv_file = 'MasterWaveCalib_B_1_05_UseS0061_S1670.fits' 
-    # 7950 - 9227 S0061
-    #  8233 - 9925 S1670
 
-    basefiles = [bmwv_file, gbmwv_file, grmwv_file, rbmwv_file, rrmwv_file]
+    basefiles = ['MasterWaveCalib_A_1_01_useS1046.fits', 'MasterWaveCalib_A_1_03_useS0600.fits',
+                 'MasterWaveCalib_A_1_06_useS0054.fits', 'MasterWaveCalib_A_1_02_useS0066.fits',
+                 'MasterWaveCalib_A_1_06_useS0193.fits']
     wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
     # Snippets
-    ifiles = [0, 1, 2, 3, 4, 4]
-    slits = [725, 922, 54, 1475, 61, 1670]
-    wv_cuts = [5200., 6100., 6900., 8000., 8700.]
+    ifiles = [0, 1, 2, 3, 4, 5]
+    slits = [1046, 600, 54, 66, 193]
+    wv_cuts = [5250., 5878., 7565., 8245.]
     assert len(wv_cuts) == len(slits)-1
     # det_dict
     det_cut = None
@@ -126,6 +117,7 @@ def keck_deimos_900ZD(overwrite=False):
 if __name__ == '__main__':
     #keck_deimos_600ZD()
     #keck_deimos_830G(overwrite=False) # False for Testing; True for real
-    keck_deimos_1200G(overwrite=False)
+    #keck_deimos_1200G(overwrite=False)
     #keck_deimos_1200B()
+    keck_deimos_900ZD(overwrite=False)
     pass
