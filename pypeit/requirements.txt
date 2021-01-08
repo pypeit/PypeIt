@@ -12,7 +12,6 @@ configobj>=5.0.6
 scikit-learn>=0.20
 IPython>=7.2.0
 ginga>=3.0
-numba>=0.39.0
 linetools>=0.3.dev2231
 QtPy>=1.9
 pytest>=6.0.0
