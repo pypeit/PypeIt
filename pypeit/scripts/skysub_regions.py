@@ -8,6 +8,7 @@ This script enables the user to view a 2D FITS file
 and define the sky background regions interactively.
 Run above the Science/ folder.
 """
+import sys
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -85,3 +86,11 @@ def main(args):
 
     # Get the results
     skyreg.get_result()
+
+
+def entry_point():
+    sys.exit(main(parse_args()))
+
+
+if __name__ == '__main__':
+    entry_point()
