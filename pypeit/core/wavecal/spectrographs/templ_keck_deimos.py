@@ -101,7 +101,7 @@ def keck_deimos_900ZD(overwrite=False):
     # Snippets
     ifiles = [0, 1, 2, 3, 4, 5]
     slits = [1046, 600, 54, 66, 193]
-    wv_cuts = [5250., 5878., 7565., 8245.]
+    wv_cuts = [5250., 5878., 7100., 8245.]
     assert len(wv_cuts) == len(slits)-1
     # det_dict
     det_cut = None
