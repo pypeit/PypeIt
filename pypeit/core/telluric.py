@@ -390,16 +390,14 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, model_gpm = obj_model_func(theta_obj, arg_dict['obj_dict'])
 
-    if not np.any(model_gpm):
-        return np.inf
+    totalmask = thismask & model_gpm
+    if not np.any(totalmask):
+        return np.inf       # If everyting is masked retrun infinity
     else:
-        #totalmask = thismask & modelmask
-        chi_vec = thismask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
+        chi_vec = totalmask * (flux - tell_model*obj_model) * np.sqrt(flux_ivar)
         robust_scale = 2.0
         huber_vec = scipy.special.huber(robust_scale, chi_vec)
-        # Penalize modelmasked pixels with a large penalty
-        #huber_vec[np.logical_not(model_gpm)] = 1e20 # Large number??
-        loss_function = np.sum(huber_vec * thismask)
+        loss_function = np.sum(huber_vec * totalmask)
         return loss_function
 
 def tellfit(flux, thismask, arg_dict, init_from_last=None):
@@ -684,9 +682,13 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
                                            obj_params['std_dict']['flux'].value, kind='linear',
-                                           bounds_error=False, fill_value=np.nan)(wave)
+                                           bounds_error=False, fill_value=-1e20)(wave)
+    flam_true_gpm = (wave >= obj_params['std_dict']['wave'].value.min()) & (wave <= obj_params['std_dict']['wave'].value.max())
+    if np.any(np.logical_not(flam_true_gpm)):
+        msgs.warn('Your data extends beyond the range covered by the standard star spectrum. Proceeding by masking these regions, '
+                  'but consider using another standard star')
     N_lam = counts_per_ang/obj_params['exptime']
-    zeropoint_data, zeropoint_data_gpm = flux_calib.compute_zeropoint(wave, N_lam, mask, flam_true, tellmodel=tellmodel)
+    zeropoint_data, zeropoint_data_gpm = flux_calib.compute_zeropoint(wave, N_lam, (mask & flam_true_gpm), flam_true, tellmodel=tellmodel)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
     pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord], function=obj_params['func'],
                                    minx=wave.min(), maxx=wave.max(), in_gpm=zeropoint_data_gpm,
@@ -702,7 +704,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
 
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
-                    exptime=obj_params['exptime'], flam_true=flam_true, func=obj_params['func'],
+                    exptime=obj_params['exptime'], flam_true=flam_true, flam_true_gpm=flam_true_gpm, func=obj_params['func'],
                     polyorder=obj_params['polyorder_vec'][iord], bounds_obj=bounds_obj, init_obj_opt_theta = pypeitFit.fitc)
 
     if obj_params['debug']:
@@ -743,11 +745,9 @@ def eval_sensfunc_model(theta, obj_dict):
 
     """
 
-    # TODO JFH THis stuff here is to try to deal with infininties in higher order fits and is experimental.
-    #zeropoint = np.clip(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max), ZP_MIN, ZP_MAX)
     zeropoint = fitting.evaluate_fit(theta, obj_dict['func'], obj_dict['wave'], minx=obj_dict['wave_min'], maxx=obj_dict['wave_max'])
-    counts_per_angstrom_model =  obj_dict['exptime']*flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint)*obj_dict['flam_true']
-    return counts_per_angstrom_model,  np.ones_like(counts_per_angstrom_model,dtype=bool)
+    counts_per_angstrom_model =  obj_dict['exptime']*flux_calib.Flam_to_Nlam(obj_dict['wave'], zeropoint)*obj_dict['flam_true']*obj_dict['flam_true_gpm']
+    return counts_per_angstrom_model,  obj_dict['flam_true_gpm']
 
 
 ##############
