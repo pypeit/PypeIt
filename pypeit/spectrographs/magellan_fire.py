@@ -192,7 +192,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Sensitivity function parameters
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 5
+        par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] \
                 = resource_filename('pypeit',
