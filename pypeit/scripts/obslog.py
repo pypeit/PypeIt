@@ -97,10 +97,10 @@ def main(args):
         nk = max(12, max([len(key) for key in meta_keys]))
         nc = max(11, max([len(card) for card in meta_cards]))
         print('')
-        print('{0} {1}'.format('Metadata Key'.center(nk), 'Header Card'.center(nc)))
-        print('-'*nk + ' ' + '-'*nc)
+        print('{0}   {1}'.format('Metadata Key'.center(nk), 'Header Card'.center(nc)))
+        print('-'*nk + '   ' + '-'*nc)
         for key, card in zip(meta_keys, meta_cards):
-            print('{0} {1}'.format(key.rjust(nk), card.rjust(nc)))
+            print('{0}   {1}'.format(key.rjust(nk), card.rjust(nc)))
         print('')
         return
 
