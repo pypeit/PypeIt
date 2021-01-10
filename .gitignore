@@ -57,7 +57,7 @@ Thumbs.db
 *.swp
 pypeit/_compiler.c
 pypeit/data/telluric/*.pckl
-pypeit/data/telluric/*.fits
-pypeit/data/telluric/*.fits.gz
+#pypeit/data/telluric/*.fits
+#pypeit/data/telluric/*.fits.gz
 
 *.pckl
