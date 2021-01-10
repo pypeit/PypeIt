@@ -74,10 +74,10 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("-g", "--tell_grid", type=str, help="Telluric grid. You should download the giant grid file\n"
                         "to the pypeit/data/telluric folder. It should only be passed if you want to overwrite \n"
                         "the default tell_grid that is set via each spectrograph file")
-    parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA pickle file with full path. The default pickle file \n"
-                        "(qso_pca_1200_3100.pckl) should be stored in the pypeit/data/telluric folder. If you change the pickle \n"
+    parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA fits file with full path. The default file \n"
+                        "(qso_pca_1200_3100.fits) is stored in the pypeit/data/telluric folder. If you change the fits \n"
                         "file, make sure to set the pca_lower and pca_upper in the tell_file to specify the \n"
-                        "wavelength coverage of your model. The defaults are pca_lower=1200. and pca_upper=3100.")
+                        "wavelength coverage of your model. The defaults are pca_lower=1220. and pca_upper=3100.")
     parser.add_argument("-t", "--tell_file", type=str, help="R|Configuration file to change default telluric parameters.\n"
                         "Note that the parameters in this file will be overwritten if you set argument in your terminal. \n"
                         "The --tell_file option requires a .tell file with the following format:\n"

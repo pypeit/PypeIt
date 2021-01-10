@@ -59,8 +59,11 @@ def init_pca(filename,wave_grid,redshift, npca):
 
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
-    embed()
-    wave_pca_c, cont_all_c, pca_comp_c, coeffs_c, mean_pca, covar_pca, diff_pca, mix_fit, chi2, dof = pickle.load(open(filename,'rb'))
+    pca_table = table.Table.read(filename)
+    wave_pca_c = pca_table['WAVE_PCA'][0].flatten()
+    pca_comp_c = pca_table['PCA_COMP'][0][0,:,:]
+    coeffs_c =pca_table['PCA_COEFFS'][0][0,:,:]
+    #wave_pca_c, cont_all_c, pca_comp_c, coeffs_c, mean_pca, covar_pca, diff_pca, mix_fit, chi2, dof = pickle.load(open(filename,'rb'))
     num_comp = pca_comp_c.shape[0] # number of PCA components
     # Interpolate PCA components onto wave_grid
     pca_interp = scipy.interpolate.interp1d(wave_pca_c*(1.0 + redshift),pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)

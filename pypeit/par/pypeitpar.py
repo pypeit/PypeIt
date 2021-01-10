@@ -1813,9 +1813,9 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'), 'qso_pca_1200_3100.pckl')
+        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'), 'qso_pca_1200_3100.fits')
         dtypes['pca_file'] = str
-        descr['pca_file'] = 'Pca pickle file. Needed for objmodel=qso'
+        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
 
         defaults['npca'] = 8
         dtypes['npca'] = int
