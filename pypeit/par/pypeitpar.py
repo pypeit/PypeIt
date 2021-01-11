@@ -97,7 +97,7 @@ def tuple_force(parset, paramname):
     # Force paramname to be a tuple
     if parset[paramname] is not None and not isinstance(parset[paramname], tuple):
         try:
-            parsset[paramname] = tuple(parset[paramname])
+            parset[paramname] = tuple(parset[paramname])
         except:
             raise TypeError('Could not convert provided {:s} to a tuple.'.format(paramname))
 
