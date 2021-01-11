@@ -7,6 +7,12 @@
 - sigdetect on in full_template
 - Added new ArI, ArII lines
 - Improved 1Dfit QA
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
 
 
 1.3.0 (13 Dec 2020)

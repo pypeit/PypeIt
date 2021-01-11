@@ -1110,14 +1110,14 @@ class PypeItMetaData:
                 One or more frame types to append/overwrite.
             append (:obj:`bool`, optional):
                 Append the frame type.  If False, all existing frame
-                types are overwitten by the provided types.
+                types are overwitten by the provided type.
         """
         if not append:
             self['framebit'][indx] = 0
         self['framebit'][indx] = self.type_bitmask.turn_on(self['framebit'][indx], flag=frame_type)
         self['frametype'][indx] = self.type_bitmask.type_names(self['framebit'][indx])
 
-    def get_frame_types(self, flag_unknown=False, user=None, useIDname=False, merge=True):
+    def get_frame_types(self, flag_unknown=False, user=None, merge=True):
         """
         Generate a table of frame types from the input metadata object.
 
@@ -1136,8 +1136,6 @@ class PypeItMetaData:
                 :attr:`table`.  For frames that have multiple types, the
                 types should be provided as a string with
                 comma-separated types.
-            useIDname (:obj:`bool`, optional):
-                Use ID name in the Header to image type
             merge (:obj:`bool`, optional):
                 Merge the frame typing into the exiting table.
 
@@ -1155,9 +1153,9 @@ class PypeItMetaData:
         if 'framebit' in self.keys():
             del self.table['framebit']
 
-        # TODO: This needs to be moved into each Spectrograph
-        if useIDname and 'idname' not in self.keys():
-            raise ValueError('idname is not set in table; cannot use it for file typing.')
+#        # TODO: This needs to be moved into each Spectrograph
+#        if useIDname and 'idname' not in self.keys():
+#            raise ValueError('idname is not set in table; cannot use it for file typing.')
 
         # Start
         msgs.info("Typing files")
@@ -1176,10 +1174,10 @@ class PypeItMetaData:
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
     
-            # Initialize: Flag frames with the correct ID name or start by
-            # flagging all as true
-            indx = self['idname'] == self.spectrograph.idname(ftype) if useIDname \
-                        else np.ones(len(self), dtype=bool)
+#            # Initialize: Flag frames with the correct ID name or start by
+#            # flagging all as true
+#            indx = self['idname'] == self.spectrograph.idname(ftype) if useIDname \
+#                        else np.ones(len(self), dtype=bool)
     
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata
@@ -1187,7 +1185,8 @@ class PypeItMetaData:
                         else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
             # TODO: Use & or | ?  Using idname above gets overwritten by
             # this if the frames to meet the other checks in this call.
-            indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
+#            indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
+            indx = self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)
             # Turn on the relevant bits
             type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], flag=ftype)
     
@@ -1526,70 +1525,180 @@ class PypeItMetaData:
         # Return
         return ofiles
 
-    def write(self, ofile, columns=None, format=None, overwrite=False, sort_col=None):
-        """
-        Write the metadata for the files to reduce.
-    
-        The table is written with the filename and frametype columns
-        first.  All remaining columns, or a subset of them selected by
-        `columns`, follow these first two.
+#    def write(self, ofile, columns=None, format=None, overwrite=False, sort_col=None):
+#        """
+#        Write the metadata for the files to reduce.
+#    
+#        The table is written with the filename and frametype columns
+#        first.  All remaining columns, or a subset of them selected by
+#        `columns`, follow these first two.
+#
+#        For a pypeit file, use ``format=ascii.fixed_width`` to print
+#        the table.
+#        
+#        Args:
+#            ofile (:obj:`str`, file-like):
+#                Output file name or file stream.  Passed directly to the
+#                `astropy.table.Table.write` function.
+#            columns (:obj:`list`, optional):
+#                A list of columns to include in the output file.  If None,
+#                all columns in `fitstbl` are written.
+#            format (:obj:`str`, optional):
+#                Format for the file output.  See
+#                :func:`astropy.table.Table.write`.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file; otherwise raise an
+#                exception.
+#            sort_col (:obj:`str`, optional):
+#                Name of the column to use for sorting the output. If
+#                None, the table is not resorted.
+#
+#        Raises:
+#            ValueError:
+#                Raised if the columns to include are not unique.
+#            FileExistsError:
+#                Raised if overwrite is False and the file exists.
+#        """
+#        if os.path.isfile(ofile) and not overwrite:
+#            raise FileExistsError('File {0} already exists.'.format(ofile) 
+#                                    + '  Change file name or set overwrite=True.')
+#
+#        msgs.info('Writing fits file metadata to {0}'.format(ofile))
+#    
+#        # Set the columns to include and check that they are unique
+#        _columns = list(self.keys()) if columns is None else columns
+#        if len(np.unique(_columns)) != len(_columns):
+#            msgs.warn('Column names are not unique!')
+#
+#        # Force the filename and frametype columns to go first
+#        col_order = [ 'filename', 'frametype' ]
+#        col_order += list(set(_columns) - set(col_order))
+#
+#        # Remove any columns that don't exist
+#        popme = []
+#        for kk,c in enumerate(col_order):
+#            if c not in self.keys():
+#                msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
+#                popme.append(kk)
+#        popme.reverse()
+#        for index in popme:
+#            col_order.pop(index)
+#
+#        # Set the sorting
+#        srt = np.arange(len(self.table)) if sort_col is None else np.argsort(self.table[sort_col])
+#
+#        # Write the output
+#        self.table[col_order][srt].write(ofile, format=format, overwrite=overwrite)
 
-        For a pypeit file, use ``format=ascii.fixed_width`` to print
-        the table.
-        
+    def write(self, output=None, columns=None, sort_col=None, overwrite=False, header=None):
+        """
+        Write the metadata either to a file or to the screen.
+
+        The method allows you to set the columns to print and which column to
+        use for sorting.
+
         Args:
-            ofile (:obj:`str`, file-like):
-                Output file name or file stream.  Passed directly to the
-                `astropy.table.Table.write` function.
-            columns (:obj:`list`, optional):
-                A list of columns to include in the output file.  If None,
-                all columns in `fitstbl` are written.
-            format (:obj:`str`, optional):
-                Format for the file output.  See
-                :func:`astropy.table.Table.write`.
+            output (:obj:`str`, optional):
+                Output signature or file name. If None, the table contents
+                are printed to the screen. If ``'table'``, the table that
+                would have been printed/written to disk is returned.
+                Otherwise, the string is interpreted as the name of an ascii
+                file to which to write the table contents.
+            columns (:obj:`str`, :obj:`list`, optional):
+                A list of columns to include in the output file. Can be
+                provided as a list directly or as a comma-separated string.
+                If None or ``'all'``, all columns in are written; if
+                ``'pypeit'``, the columns are the same as those included in
+                the pypeit file. Each selected column must be a valid pypeit
+                metadata keyword, specific to :attr:`spectrograph`.
+                Additional valid keywords, depending on the processing level
+                of the metadata table, are directory, filename, frametype,
+                framebit, setup, calib, and calibbit.
+            sort_col (:obj:`str`, optional):
+                Name of the column to use for sorting the output. If
+                None, the table is printed in its current state.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file; otherwise raise an
                 exception.
-            sort_col (:obj:`str`, optional):
-                Name of the column to use for sorting the output. If
-                None, the table is not resorted.
+            header (:obj:`str`, :obj:`list`, optional):
+                One or more strings to write to the top of the file, on
+                string per file line; ``# `` is added to the beginning of
+                each string. Ignored if ``output`` does not specify an output
+                file.
+
+        Returns:
+            `astropy.table.Table`: The table object that would have been
+            written/printed if ``output == 'table'``. Otherwise, the method
+            always returns None.
 
         Raises:
             ValueError:
-                Raised if the columns to include are not unique.
+                Raised if the columns to include are not valid, or if the
+                column to use for sorting is not valid.
             FileExistsError:
                 Raised if overwrite is False and the file exists.
         """
-        if os.path.isfile(ofile) and not overwrite:
-            raise FileExistsError('File {0} already exists.'.format(ofile) 
-                                    + '  Change file name or set overwrite=True.')
+        # Check the file can be written (this is here because the spectrograph
+        # needs to be defined first)
+        ofile = None if output in [None, 'table'] else output
+        if ofile is not None and os.path.isfile(ofile) and not overwrite:
+            raise FileExistsError(f'{ofile} already exists; set flag to overwrite.')
 
-        msgs.info('Writing fits file metadata to {0}'.format(ofile))
-    
-        # Set the columns to include and check that they are unique
-        _columns = list(self.keys()) if columns is None else columns
-        if len(np.unique(_columns)) != len(_columns):
-            msgs.warn('Column names are not unique!')
+        # Get the columns to return
+        if columns in [None, 'all']:
+            tbl_cols = list(self.keys())
+        elif columns == 'pypeit':
+            tbl_cols = self.set_pypeit_cols(write_bkg_pairs=True)
+        else:
+            all_cols = list(self.keys())
+            tbl_cols = columns if isinstance(columns, list) else columns.split(',')
+            badcol = [col not in all_cols for col in tbl_cols]
+            if np.any(badcol):
+                raise ValueError('The following columns are not valid: {0}'.format(
+                                 ', '.join(tbl_cols[badcol])))
 
-        # Force the filename and frametype columns to go first
-        col_order = [ 'filename', 'frametype' ]
-        col_order += list(set(_columns) - set(col_order))
+        # Make sure the basic parameters are the first few columns; do them in
+        # reverse order so I can always insert at the beginning of the list
+        for col in ['framebit', 'frametype', 'filename', 'directory']:
+            if col not in tbl_cols:
+                continue
+            indx = np.where([t == col for t in tbl_cols])[0][0]
+            if indx != 0:
+                tbl_cols.insert(0, tbl_cols.pop(indx))
 
-        # Remove any columns that don't exist
-        popme = []
-        for kk,c in enumerate(col_order):
-            if c not in self.keys():
-                msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
-                popme.append(kk)
-        popme.reverse()
-        for index in popme:
-            col_order.pop(index)
+        # Do not alter the sorting of the internal table
+        output_tbl = self.table.copy()
+        if sort_col is not None:
+            if sort_col not in self.keys():
+                raise ValueError(f'Cannot sort by {sort_col}.  Not a valid column.')
+            output_tbl.sort(sort_col)
 
-        # Set the sorting
-        srt = np.arange(len(self.table)) if sort_col is None else np.argsort(self.table[sort_col])
+        if output == 'table':
+            return output_tbl[tbl_cols]
 
-        # Write the output
-        self.table[col_order][srt].write(ofile, format=format, overwrite=overwrite)
+        # Always write the table in ascii format
+        with io.StringIO() as ff:
+            output_tbl[tbl_cols].write(ff, format='ascii.fixed_width')
+            data_lines = ff.getvalue().split('\n')[:-1]
+
+        if ofile is None:
+            # Output file not defined so just print it
+            print('\n'.join(data_lines))
+            return None
+
+        # Write the output to an ascii file
+        with open(ofile, 'w') as f:
+            if head is not None:
+                _head = head if isinstance(head, list) else [head]
+                for h in _head:
+                    f.write(f'# {h}\n')
+            f.write('\n')
+            f.write('\n'.join(data_lines))
+            f.write('\n')
+
+        # Just to be explicit that the method returns None when writing to a
+        # file...
+        return None
 
     def find_calib_group(self, grp):
         """
