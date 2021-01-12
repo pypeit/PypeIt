@@ -105,9 +105,9 @@ class P200TelescopePar(TelescopePar):
                                                latitude=33.35631,
                                                elevation=1713.)
 
-class SALTelescopePar(TelescopePar):
+class SALTTelescopePar(TelescopePar):
     def __init__(self):
-        super(SALTelescopePar, self).__init__(name='SALT',
+        super(SALTTelescopePar, self).__init__(name='SALT',
                                               longitude=-20.810678,
                                               latitude=-32.376006,
                                               elevation=1798.)

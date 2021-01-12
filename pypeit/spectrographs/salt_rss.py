@@ -32,7 +32,7 @@ class SALTRSSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(SALTRSSpectrograph, self).__init__()
         self.spectrograph = 'salt_rss'
-        self.telescope = telescopes.SALTelescopePar()
+        self.telescope = telescopes.SALTTelescopePar()
 
     def configuration_keys(self):
         """
