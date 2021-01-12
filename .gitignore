@@ -1,6 +1,7 @@
 # Folders#
 .idea/
 .vscode/
+.tox/
 build/*
 dist/*
 doc/build_
