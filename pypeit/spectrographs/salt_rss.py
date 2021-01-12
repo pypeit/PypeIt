@@ -142,12 +142,10 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
     """
     Child to handle SALT/RSS visible beam specific code
     """
-    # TODO: LOOK UP ON RSS
-    def __init__(self):
-        # Get it started
-        super(SALTRSSVisiblepectrograph, self).__init__()
-        self.spectrograph = 'salt_rss_visible'
-        self.camera = 'RSSv'
+    name = 'salt_rss_visible'
+    camera = 'RSSv'
+    supported = True
+    comment = 'Visible camera'
 
     def get_detector_par(self, hdu: fits.HDUList, det: int):
         """
@@ -211,11 +209,11 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+        #par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI'] # check
+        par['calibrations']['wavelengths']['lamps'] = ['XeI'] # TODO: check
 
         # Do not flux calibrate
         par['fluxcalib'] = None
@@ -278,9 +276,10 @@ class SALTRSSNIRpectrograph(SALTRSSSpectrograph):
     """
     Child to handle SALT/RSS NIR beam specific code
     """
-    def __init__(self):
-        super(SALTRSSNIRpectrograph, self).__init__()
-        self.spectrograph = 'salt_rss_nir'
-        self.camera = 'RSSir'
+    name = 'salt_rss_nir'
+    camera = 'RSSir'
+    supported = False
+    comment = 'NIR camera'
 
+    def __init__(self):
         raise NotImplementedError('NIR beam not yet implemented')
