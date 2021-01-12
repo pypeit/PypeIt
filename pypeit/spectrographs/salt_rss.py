@@ -22,17 +22,12 @@ from pkg_resources import resource_filename
 def flip_fits_slice(s: str) -> str:
     return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
 
-class SALTRSSpectrograph(spectrograph.Spectrograph):
+class SALTRSSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Robert Stobie Spectrograph on SALT specific code
     """
     ndet = 6
-
-    def __init__(self):
-        # Get it started
-        super(SALTRSSpectrograph, self).__init__()
-        self.spectrograph = 'salt_rss'
-        self.telescope = telescopes.SALTTelescopePar()
+    telescope = telescopes.SALTTelescopePar()
 
     def configuration_keys(self):
         """
@@ -46,9 +41,6 @@ class SALTRSSpectrograph(spectrograph.Spectrograph):
         Returns:
             list: List of keywords of data pulled from meta
         """
-        #return ['gainset', 'readout_speed', 'decker', 'dispangle', 'dispname', 'binning', 'filter1']
-        # return ['decker', 'dispangle', 'dispname', 'binning', 'filter1']
-        #return ['decker', 'dispname', 'binning', 'filter1']
         return ['decker', 'dispname', 'binning']
 
     def init_meta(self):
@@ -120,7 +112,7 @@ class SALTRSSpectrograph(spectrograph.Spectrograph):
             return None
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(SALTRSSpectrograph, self).pypeit_file_keys()
+        pypeit_keys = super(SALTRSSSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['masktype']
         return pypeit_keys
 
@@ -146,7 +138,7 @@ class SALTRSSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
 
-class SALTRSSVisiblepectrograph(SALTRSSpectrograph):
+class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
     """
     Child to handle SALT/RSS visible beam specific code
     """
@@ -282,7 +274,7 @@ class SALTRSSVisiblepectrograph(SALTRSSpectrograph):
         return par
 
 
-class SALTRSSNIRpectrograph(SALTRSSpectrograph):
+class SALTRSSNIRpectrograph(SALTRSSSpectrograph):
     """
     Child to handle SALT/RSS NIR beam specific code
     """
