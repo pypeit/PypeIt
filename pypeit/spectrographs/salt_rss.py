@@ -228,6 +228,8 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
 
         par['sensfunc']['UVIS']['nresln'] = 5 #check
 
+        par.reset_all_processimages_par(use_biasimage=False)  #check
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
