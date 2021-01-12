@@ -1525,71 +1525,6 @@ class PypeItMetaData:
         # Return
         return ofiles
 
-#    def write(self, ofile, columns=None, format=None, overwrite=False, sort_col=None):
-#        """
-#        Write the metadata for the files to reduce.
-#    
-#        The table is written with the filename and frametype columns
-#        first.  All remaining columns, or a subset of them selected by
-#        `columns`, follow these first two.
-#
-#        For a pypeit file, use ``format=ascii.fixed_width`` to print
-#        the table.
-#        
-#        Args:
-#            ofile (:obj:`str`, file-like):
-#                Output file name or file stream.  Passed directly to the
-#                `astropy.table.Table.write` function.
-#            columns (:obj:`list`, optional):
-#                A list of columns to include in the output file.  If None,
-#                all columns in `fitstbl` are written.
-#            format (:obj:`str`, optional):
-#                Format for the file output.  See
-#                :func:`astropy.table.Table.write`.
-#            overwrite (:obj:`bool`, optional):
-#                Overwrite any existing file; otherwise raise an
-#                exception.
-#            sort_col (:obj:`str`, optional):
-#                Name of the column to use for sorting the output. If
-#                None, the table is not resorted.
-#
-#        Raises:
-#            ValueError:
-#                Raised if the columns to include are not unique.
-#            FileExistsError:
-#                Raised if overwrite is False and the file exists.
-#        """
-#        if os.path.isfile(ofile) and not overwrite:
-#            raise FileExistsError('File {0} already exists.'.format(ofile) 
-#                                    + '  Change file name or set overwrite=True.')
-#
-#        msgs.info('Writing fits file metadata to {0}'.format(ofile))
-#    
-#        # Set the columns to include and check that they are unique
-#        _columns = list(self.keys()) if columns is None else columns
-#        if len(np.unique(_columns)) != len(_columns):
-#            msgs.warn('Column names are not unique!')
-#
-#        # Force the filename and frametype columns to go first
-#        col_order = [ 'filename', 'frametype' ]
-#        col_order += list(set(_columns) - set(col_order))
-#
-#        # Remove any columns that don't exist
-#        popme = []
-#        for kk,c in enumerate(col_order):
-#            if c not in self.keys():
-#                msgs.warn('{0} is not a valid column!  Removing from output.'.format(c))
-#                popme.append(kk)
-#        popme.reverse()
-#        for index in popme:
-#            col_order.pop(index)
-#
-#        # Set the sorting
-#        srt = np.arange(len(self.table)) if sort_col is None else np.argsort(self.table[sort_col])
-#
-#        # Write the output
-#        self.table[col_order][srt].write(ofile, format=format, overwrite=overwrite)
-
     def write(self, output=None, columns=None, sort_col=None, overwrite=False, header=None):
         """
         Write the metadata either to a file or to the screen.
@@ -1688,9 +1623,9 @@ class PypeItMetaData:
 
         # Write the output to an ascii file
         with open(ofile, 'w') as f:
-            if head is not None:
-                _head = head if isinstance(head, list) else [head]
-                for h in _head:
+            if header is not None:
+                _header = header if isinstance(header, list) else [header]
+                for h in _header:
                     f.write(f'# {h}\n')
             f.write('\n')
             f.write('\n'.join(data_lines))

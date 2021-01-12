@@ -4,8 +4,6 @@ to be reduced by PypeIt.
 """
 import time
 import os
-import shutil
-import io       # NOTE: This is *not* pypeit.io
 
 from IPython import embed
 
@@ -108,8 +106,9 @@ def main(args):
         _file = f'{ps.spectrograph.name}.obslog'
     if _file is not None:
         _odir, _file = os.path.split(_file)
-        if len(_odir) == 0:
-            _file = os.path.join(args.output_path, _file)
+        _file = os.path.join(args.output_path, _file)
+        if not os.path.isdir(args.output_path):
+            os.makedirs(args.output_path)
         if not args.interact and os.path.isfile(_file) and not args.overwrite:
             raise FileExistsError(f'{_file} already exists.  Use -o to overwrite.')
 

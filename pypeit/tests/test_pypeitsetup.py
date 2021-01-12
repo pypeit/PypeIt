@@ -53,7 +53,7 @@ def test_build_fitstbl():
     assert isinstance(fitstbl, Table)
     assert setupc.nfiles == 26
 
-#    # TODO: Need to fix this
+#    # NOTE: These write_ and load_ methods have been deprecated
 #    # I/O
 #    setupc.write_metadata(ofile=data_path('fitstbl.fits'))
 #    tmp = setupc.load_metadata(data_path('fitstbl.fits'))
@@ -139,19 +139,20 @@ def test_run():
     # Cleanup
     os.remove(data_path('shane_kast_blue.calib'))
 
-#@dev_suite_required
-#def test_run_calcheck():
-#    # Check for files
-#    files = get_files()
-#    # Init
-#    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
-#    # Run
-#    par, spectrograph, fitstbl = setupc.run(calibration_check=True, sort_dir=data_path(''))
-#    # Test
-#    assert isinstance(par, pypeitpar.PypeItPar)
-#
-#    # Cleanup
-#    os.remove(data_path('shane_kast_blue.calib'))
+# TODO: I'm not sure this test is useful...
+@dev_suite_required
+def test_run_calcheck():
+    # Check for files
+    files = get_files()
+    # Init
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
+    # Run
+    par, spectrograph, fitstbl = setupc.run(calibration_check=True, sort_dir=data_path(''))
+    # Test
+    assert isinstance(par, pypeitpar.PypeItPar)
+
+    # Cleanup
+    os.remove(data_path('shane_kast_blue.calib'))
 
 @dev_suite_required
 def test_run_setup():
