@@ -14,5 +14,5 @@ IPython>=7.2.0
 ginga>=3.0
 linetools>=0.3.dev2231
 QtPy>=1.9
-pytest>=6.0.0
+#pytest>=6.0.0
 #shapely>=1.7   # Required only for KCWI
