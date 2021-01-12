@@ -1606,14 +1606,21 @@ class PypeItMetaData:
         if sort_col is not None:
             if sort_col not in self.keys():
                 raise ValueError(f'Cannot sort by {sort_col}.  Not a valid column.')
-            output_tbl.sort(sort_col)
+            # Ignore any NoneTypes
+            indx = output_tbl[sort_col] != None
+            is_None = np.logical_not(indx)
+            srt = np.argsort(output_tbl[sort_col][indx].data) + np.sum(is_None)
+            srt = np.insert(srt, np.where(is_None)[0], np.arange(np.sum(is_None)))
+            output_tbl = output_tbl[tbl_cols][srt]
+        else:
+            output_tbl = output_tbl[tbl_cols]
 
         if output == 'table':
-            return output_tbl[tbl_cols]
+            return output_tbl
 
         # Always write the table in ascii format
         with io.StringIO() as ff:
-            output_tbl[tbl_cols].write(ff, format='ascii.fixed_width')
+            output_tbl.write(ff, format='ascii.fixed_width')
             data_lines = ff.getvalue().split('\n')[:-1]
 
         if ofile is None:

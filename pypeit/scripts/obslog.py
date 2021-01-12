@@ -116,6 +116,9 @@ def main(args):
     header = ['Auto-generated PypeIt Observing Log',
               '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())),
               f'Root file string: {args.root}']
-    ps.fitstbl.write(output=_file, columns=args.columns, sort_col=args.sort,
-                     overwrite=args.overwrite, header=header)
+    fitstbl = ps.fitstbl.write(output='table' if args.interact else _file, columns=args.columns,
+                               sort_col=args.sort, overwrite=args.overwrite, header=header)
+
+    if args.interact:
+        embed()
 
