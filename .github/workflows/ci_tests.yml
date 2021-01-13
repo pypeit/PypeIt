@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.8, 3.9]
+        python: [3.8]
         toxenv: [test, test-alldeps, test-linetoolsdev, test-gingadev, test-astropydev]
     steps:
     - name: Check out repository
