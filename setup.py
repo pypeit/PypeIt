@@ -11,6 +11,33 @@ from setuptools import setup
 
 from extension_helpers import get_extensions
 
+# First provide helpful messages if contributors try and run legacy commands
+# for tests or docs.
+
+TEST_HELP = """
+Note: running tests via 'python setup.py test' is now deprecated. The recommended method
+is to run:
+
+    tox -e test-alldeps
+
+If you don't already have tox installed, you can install it by doing:
+
+    pip install tox
+
+If you want to run all or part of the test suite within an existing environment,
+you can use pytest directly:
+
+    pip install -e .[test,gui,pyside2,pyqt5]
+    pytest pypeit/tests
+
+For more information, see:
+
+  http://docs.astropy.org/en/latest/development/testguide.html#running-tests
+"""
+
+if 'test' in sys.argv:
+    print(TEST_HELP)
+    sys.exit(1)
 
 VERSION_TEMPLATE = """
 # Note that we need to fall back to the hard-coded version if either
