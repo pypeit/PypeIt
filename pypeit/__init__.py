@@ -30,8 +30,6 @@ __coverage__ = 0.55
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
 
-from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
-
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user
 from pypeit.core.qa import close_qa
