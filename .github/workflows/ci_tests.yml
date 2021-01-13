@@ -58,22 +58,26 @@ jobs:
   conda:
     name: Test under conda
     runs-on: ubuntu-latest
-    - name: Check out repository
-      uses: actions/checkout@v2
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Set up miniconda
+        uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: 3.8
           activate-environment: pypeit
           environment-file: environment.yml
-      - run: conda info
-      - run: conda list
-      - run: conda config --show
-      - run: pytest pypeit/tests
+      - name: Show conda info
+        run: conda info
+      - name: List conda packages
+        run: conda list
+      - name: Show conda config
+        run: conda config --show
+      - name: Run tests using pytest
+        run: pytest pypeit/tests
 
   codestyle:
     runs-on: ubuntu-latest
