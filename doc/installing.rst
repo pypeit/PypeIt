@@ -11,17 +11,23 @@ however no guarantees or support will be provided.
 
 Installing with ``conda`` or ``pip``
 ====================================
-The easiest way to install PypeIt is to use ``conda``. Conda is part of the `Anaconda Python Distribution`_,
-though we recommend using the Miniconda installer for faster installation and smaller downloads.
+The easiest way to install PypeIt is to use ``conda``. Conda is part of the
+`Anaconda Python Distribution <https://www.anaconda.com/products/individual>`_,
+though we recommend using the Miniconda installer for faster installation and
+smaller downloads.
 
-If you use Anaconda on your system, ``conda`` is the recommended way to install PypeIt. Otherwise, use ``pip``.
+If you use Anaconda on your system, ``conda`` is the recommended way to install
+PypeIt. Otherwise, use ``pip``.
 
 Once you've completed the installation steps, you should
 :ref:`test_installation`.
 
 Installing with ``conda``
 -------------------------
-Make sure you have either `Anaconda`_, `Miniconda`_, or `Miniforge`_ installed. Use this command to install PypeIt::
+Make sure you have either `Anaconda <https://www.anaconda.com/products/individual>`_,
+`Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, or
+`Miniforge <https://github.com/conda-forge/miniforge#download>`_ installed.
+Use this command to install PypeIt::
 
     conda install -c conda-forge pypeit
 
@@ -89,8 +95,8 @@ If you are developing, you may need the following packages for building the docu
 * sphinx-automodapi
 * sphinx_rtd_theme
 
-Installing dependencies
------------------------
+How to install dependencies
+---------------------------
 
 #. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
 
@@ -131,7 +137,8 @@ Some users have run into the following complications when installing the
 
  - For the developer-only (``Sphinx``) packages, download
    `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
-   and install with ``conda install -y -c conda-forge --file requirements_doc.txt`` or ``pip install -r requirements_doc.txt``.
+   and install with ``conda install -y -c conda-forge --file requirements_doc.txt`` or
+   ``pip install -r requirements_doc.txt``.
 
 ----
 
@@ -142,13 +149,32 @@ If ``conda`` and ``pip`` are unsuccessful, or if you are planning to use any of 
 ``PypeIt`` development branches, then you should install directly
 from GitHub.
 
- #. Clone the repository::
+ #. Clone the repository and navigate to the PypeIt directory::
 
         git clone https://github.com/pypeit/PypeIt.git
-
- #. This will create a ``PypeIt`` directory in your current path. To install::
-
         cd PypeIt
+
+ #. Install dependencies
+
+  - into your current environment with ONE of the following commands (you may need to also install
+    PySide2/PyQt5 if they are not already installed as per note above)::
+
+        pip install -r pypeit/requirements.txt
+
+        conda install -y -c conda-forge --file requirements.txt
+
+  - or into a new environment::
+
+        conda env create -f environment.yml
+        conda activate pypeit
+        # install PySide2/PyQt5 from conda/pip using using ONE of the following lines
+        conda install -c conda-forge pyside2
+        conda install pyqt
+        pip install pyside2
+        pip install pyqt5
+
+ #. Install PypeIt::
+
         pip install -e .
 
 Installing the code this way ensures that virtually all changes to files in
