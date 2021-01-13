@@ -11,6 +11,8 @@ import sys
 import signal
 import warnings
 
+from .version import version
+
 def short_warning(message, category, filename, lineno, file=None, line=None):
     """
     Return the format for a short warning message.
@@ -21,7 +23,7 @@ warnings.formatwarning = short_warning
 
 
 # Set version
-__version__ = '1.3.1dev'
+__version__ = version
 
 # Report current coverage
 __coverage__ = 0.55
