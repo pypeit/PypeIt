@@ -39,6 +39,8 @@ jobs:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # set this to false for now so windows failures don't prevent macos test from finishing
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest]
         python: [3.8]
