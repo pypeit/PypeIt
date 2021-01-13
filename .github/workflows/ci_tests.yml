@@ -78,6 +78,8 @@ jobs:
         run: conda list
       - name: Show conda config
         run: conda config --show
+      - name: Do developer install of pypeit
+        run: pip install -e .
       - name: Run tests using pytest
         run: pytest pypeit/tests
 
