@@ -1609,8 +1609,8 @@ class PypeItMetaData:
             # Ignore any NoneTypes
             indx = output_tbl[sort_col] != None
             is_None = np.logical_not(indx)
-            srt = np.argsort(output_tbl[sort_col][indx].data) + np.sum(is_None)
-            srt = np.insert(srt, np.where(is_None)[0], np.arange(np.sum(is_None)))
+            srt = np.append(np.where(is_None)[0],
+                            np.where(indx)[0][np.argsort(output_tbl[sort_col][indx].data)])
             output_tbl = output_tbl[tbl_cols][srt]
         else:
             output_tbl = output_tbl[tbl_cols]
