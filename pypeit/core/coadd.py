@@ -902,7 +902,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     return rms_sn, weights
 
 
-def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
+def sensfunc_weights_old(sensfile, waves, debug=False, extrap_sens=False):
     """
     Get the weights based on the sensfunc
 
@@ -956,6 +956,55 @@ def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
                            "further and recreate your sensfunc.  Or set par['coadd1d']['extrap_sens']=True.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
+
+    if debug:
+        weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+
+    if waves.ndim == 2:
+        weights_stack = np.reshape(weights_stack, (nspec, norder))
+
+    return weights_stack
+
+
+def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
+    """
+    Get the weights based on the sensfunc
+
+    Args:
+        sensfile (str):
+            the name of your fits format sensfile
+        waves (ndarray): (nspec, norders, nexp) or (nspec, norders)
+            wavelength grid for your output weights
+        debug (bool): default=False
+            show the weights QA
+
+    Returns:
+        ndarray: sensfunc weights evaluated on the input waves
+        wavelength grid
+    """
+
+    wave_zp, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+
+    if waves.ndim == 2:
+        nspec, norder = waves.shape
+        nexp = 1
+        waves_stack = np.reshape(waves, (nspec, norder, 1))
+    elif waves.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = waves
+    else:
+        msgs.error('Unrecognized dimensionality for waves')
+
+
+    weights_stack = np.zeros_like(waves_stack)
+
+    if norder != zeropoint.shape[1]:
+        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+    for iord in range(norder):
+        for iexp in range(nexp):
+            sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:, iord, iexp], wave_zp, zeropoint, 1.0, extrap_sens=extrap_sens)
+            weights_stack[:, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
         weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
