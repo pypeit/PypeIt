@@ -325,6 +325,6 @@ class EchelleCoAdd1D(CoAdd1D):
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
             sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug = self.debug, show = self.show, extrap_sens=self.par['extrap_sens'])
+            debug = self.debug, show = self.show)
 
         return wave_coadd, flux_coadd, ivar_coadd, mask_coadd

@@ -758,7 +758,7 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
 
     if debug:
-        sensfactor = Nlam_to_Flam(wave, zeropoint)
+        sensfactor = Nlam_to_Flam(wave, zeropoint_fit)
         plt.plot(wave[zeropoint_fit_gpm], flux_true[zeropoint_fit_gpm], color='k',lw=2, label='Reference Star')
         plt.plot(wave[zeropoint_fit_gpm], Nlam_star[zeropoint_fit_gpm]*sensfactor[zeropoint_fit_gpm], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
