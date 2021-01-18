@@ -35,6 +35,24 @@ reduce this parameter.   Add the following to the
 This will search for any source with peak flux 3-sigma above the
 estimated RMS in the smashed slit profile.
 
+No 1D Spectra Extracted
+-----------------------
+If you are missing 1D spectra, this means that PypeIt did not find any objects in the corresponding frame.  Here are some common modifications that you can make to your :ref:`pypeit_file:Parameter Block` to remedy this.  It may help to run the reduction on a few of your exposures in -s mode to make sure that your modifications are being implemented the way you intend.
+
+-Ensure that the slits are correctly identified.  See :ref:`slit_tracing` for tips on how to adjust your slit edges (for example, modifying ``edge_thresh`` or ``minimum_slit_length``) and add or remove a slit.
+-Modify the significance threshold for object finding (see above).
+-Modify the maximum number of objects that you expect to see in your frames.  The default is 10, but, for example, if your exposure only contains one object of interest, you will want to change your :ref:`pypeit_file:Parameter Block` to look like this::
+	
+	[reduce]
+      [[findobj]]
+          maxnumber = 1
+
+-Modify the FWHM of your object of interest in pixels.  The default is 10, but you may want to increase or decrease this, depending on what your images look like::
+
+	[reduce]
+      [[findobj]]
+          find\_fwhm = 8.
+
 
 Extraction
 ==========
