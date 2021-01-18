@@ -928,16 +928,16 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
 
         # Find the shift
         ncomb = temp_spec.size
+        # Remove the continuum before adding the padding to ispec
+        _, _, _, _, ispec_cont_sub = wvutils.arc_lines_from_spec(ispec)
+        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Pad
         pspec = np.zeros_like(temp_spec)
         nspec = len(ispec)
         npad = ncomb - nspec
-        pspec[npad // 2:npad // 2 + len(ispec)] = ispec
-        # Remove the continuum
-        _, _, _, _, pspec_cont_sub = wvutils.arc_lines_from_spec(pspec)
-        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
+        pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec_cont_sub, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
