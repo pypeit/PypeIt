@@ -4,10 +4,12 @@ on:
   push:
     branches:
     - master
-    - refactor_setup
+    - develop
     tags:
   pull_request:
-  workflow_dispatch:
+  schedule:
+    # run every Monday at 6am UTC
+    - cron: '0 6 * * 1'
 
 env:
   SETUP_XVFB: True  # avoid issues if something tries to open a GUI window
