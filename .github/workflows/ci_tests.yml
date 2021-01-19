@@ -83,7 +83,7 @@ jobs:
       - name: Do developer install of pypeit
         run: pip install -e .
       - name: Run tests using pytest
-        run: pytest pypeit/tests
+        run: pytest
 
   codestyle:
     runs-on: ubuntu-latest
