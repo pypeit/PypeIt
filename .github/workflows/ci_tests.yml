@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: [3.8]
-        toxenv: [test, test-alldeps, test-linetoolsdev, test-gingadev, test-astropydev]
+        toxenv: [test, test-alldeps, test-linetoolsdev, test-gingadev, test-astropydev, conda]
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
@@ -58,32 +58,6 @@ jobs:
     - name: Test with tox
       run: |
         tox -e ${{ matrix.toxenv }}
-
-  conda:
-    name: Test under conda
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-      - name: Set up miniconda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: 3.8
-          activate-environment: pypeit
-          environment-file: environment.yml
-      - name: Show conda info
-        run: conda info
-      - name: List conda packages
-        run: conda list
-      - name: Show conda config
-        run: conda config --show
-      - name: Do developer install of pypeit
-        run: pip install -e .
-      - name: Run tests using pytest
-        run: pytest
 
   codestyle:
     runs-on: ubuntu-latest
