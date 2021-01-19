@@ -302,6 +302,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['utc'] = dict(ext=0, card='UTC')
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
 
     def compound_meta(self, headarr, meta_key):
         """

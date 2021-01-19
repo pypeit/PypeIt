@@ -135,7 +135,8 @@ def define_additional_meta(nlamps=20):
                        'dateobs': dict(dtype=str, comment='Observation date'),
                        'utc': dict(dtype=str, comment='UTC of observation'),
                        'mode': dict(dtype=str, comment='Observing mode'),
-                       'amp': dict(dtype=str, comment='Amplifier used')}
+                       'amp': dict(dtype=str, comment='Amplifier used'),
+                       'object': dict(dtype=str, comment='Alternative object name (cf. target)')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
