@@ -431,7 +431,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             det=1,
             dataext         = 0,
             specaxis        = 0,
-            specflip        = False,
+            specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
             darkcurr        = 0.5,
@@ -461,10 +461,9 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-        par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -475,6 +474,35 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
+
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super(LBTMODS1BSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
+        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
 
         return par
 
@@ -720,7 +748,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             det=1,
             dataext         = 0,
             specaxis        = 0,
-            specflip        = False,
+            specflip        = True,
             spatflip        = False,
             platescale      = 0.120,
             darkcurr        = 0.5,
@@ -750,10 +778,9 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['sigdetect'] = 5.
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
-        par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['sigdetect'] = 10.
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.4
+        par['calibrations']['wavelengths']['lamps'] = ['XeI','KrI','ArI','HgI']
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -766,6 +793,36 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
         return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super(LBTMODS2BSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
+        if self.get_meta_value(scifile, 'dispname') == 'G400L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1b_blue.fits'
+
+        return par
+
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
