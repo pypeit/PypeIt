@@ -344,6 +344,8 @@ Instrument       Setup                      Name
 keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
 keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
 keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits
+keck_deimos      900ZD grating, all lamps   keck_deimos_900ZD.fits
 keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
 keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
 keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits

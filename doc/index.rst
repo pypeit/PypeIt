@@ -91,7 +91,7 @@ What this version provides
   * Magellan/MagE
   * Magellan/Fire
   * MDM/OSMOS
-  * Keck/DEIMOS (600ZD, 830G, 1200G)
+  * Keck/DEIMOS (600ZD, 830G, 1200G, 1200B, 900ZD)
   * Keck/KCWI (BM, BH2)
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
@@ -303,5 +303,3 @@ PypeIt BibTeX Entries
            adsurl = {https://ui.adsabs.harvard.edu/abs/2020zndo...3743493P},
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
-
-
