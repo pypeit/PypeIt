@@ -100,7 +100,7 @@ author = u'Prochaska, Hennawi, Cooke, and Associates'
 
 # The full version, including alpha/beta/rc tags.
 release = get_distribution(setup_cfg['name']).version
-# The short X.Y version.
+# The short X.Y.Z version.
 version = '.'.join(release.split('.')[:3])
 
 
