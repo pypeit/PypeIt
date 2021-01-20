@@ -4,7 +4,7 @@
 .tox/
 build/*
 dist/*
-doc/build_
+doc/_build/
 
 # Compiled source #
 ###################
@@ -67,3 +67,6 @@ pypeit/data/telluric/*.fits
 pypeit/data/telluric/*.fits.gz
 
 *.pckl
+
+# added by TEP
+doc/sphinx_warnings.out
