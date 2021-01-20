@@ -22,3 +22,4 @@ dependencies:
   - PySide2>=5.0
   - pytest>=3.0.7
   - pyqt>=5.0
+  - qtpy>=1.9
