@@ -1,7 +1,7 @@
 # PypeIt
 
 The Python Spectroscopic Data Reduction Pipeline.  For
-documentation visit:
+documentation visit: 
 
 http://pypeit.readthedocs.io
 
