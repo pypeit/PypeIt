@@ -20,6 +20,14 @@ is to run:
 
     tox -e test-alldeps
 
+The Python version can also be specified, e.g.:
+
+    tox -e py38-test-alldeps
+
+You can list all available environments by doing:
+
+    tox -a
+
 If you don't already have tox installed, you can install it by doing:
 
     pip install tox
@@ -27,8 +35,8 @@ If you don't already have tox installed, you can install it by doing:
 If you want to run all or part of the test suite within an existing environment,
 you can use pytest directly:
 
-    pip install -e .[test,gui,pyside2,pyqt5]
-    pytest pypeit/tests
+    pip install -e .[test,pyside2,pyqt5,shapely]
+    pytest
 
 For more information, see:
 
