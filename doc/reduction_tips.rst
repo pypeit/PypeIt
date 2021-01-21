@@ -47,7 +47,7 @@ If you are missing 1D spectra, this means that PypeIt did not find any objects i
       [[findobj]]
           maxnumber = 1
 
--Modify the FWHM of your object of interest in pixels.  The default is 10, but you may want to increase or decrease this, depending on what your images look like::
+-Modify the FWHM of your object of interest in pixels.  The default is 10, but you may want to increase or decrease this, depending on number of pixels per spatial PSF::
 
 	[reduce]
       [[findobj]]
