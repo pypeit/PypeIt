@@ -167,7 +167,7 @@ def spec_atleast_2d(wave, flux, ivar, mask):
 def nan_mad_std(data, axis=None, func=None):
     """
 
-    Wrapper for astropy.stats.mad_stad which ignores nans, so as to
+    Wrapper for astropy.stats.mad_std which ignores nans, so as to
     prevent bugs when using sigma_clipped_stats with the axis keyword
     and stdfunc=astropy.stats.mad_std
 
