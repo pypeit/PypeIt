@@ -28,7 +28,7 @@ def main(args):
     import sys
     import numpy as np
 
-    from PySide2.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
     from linetools.guis.xspecgui import XSpecGui
 

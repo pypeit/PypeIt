@@ -1,20 +1,20 @@
 # Required packages for PypeIt
 
 # Users
-packaging>=19.0
 numpy>=1.18.0
 scipy>=1.4
-matplotlib>=3.1
 astropy>=4.0
-extension-helpers>=0.1
+matplotlib>=3.1
+scikit-learn>=0.20
+numba>=0.39.0
+QtPy>=1.9
 PyYAML>=5.1
 configobj>=5.0.6
-scikit-learn>=0.20
 IPython>=7.2.0
+requests>=2.23
+packaging>=19.0
+extension-helpers>=0.1
 ginga>=3.0
-numba>=0.39.0
-linetools==0.3.dev2147
-PySide2>=5.0
+linetools>=0.3.dev2231
 pytest>=6.0.0
 #shapely>=1.7   # Required only for KCWI
-

@@ -111,6 +111,14 @@ used to setup a conda environment called ``pypeit`` that contains all of the req
 
         conda install -c conda-forge pypeit
 
+#. Install the preferred QT binding either via ``pip`` as above or via conda::
+
+        conda install -c conda-forge pyqt
+
+or
+
+        conda install -c conda-forge pyside2
+
 Developer Install via ``pip``
 -----------------------------
 

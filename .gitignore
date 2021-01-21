@@ -4,7 +4,8 @@
 .tox/
 build/*
 dist/*
-doc/_build/
+doc/_build/*
+doc/build_/*
 
 # Compiled source #
 ###################

@@ -4,12 +4,12 @@
     usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--showmask] [--removetrace] [--embed] [--ignore_extract_mask]
                               [--channels CHANNELS]
                               file
-    
+
     Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/ folder
-    
+
     positional arguments:
       file                  PYPIT spec2d file
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --list                List the extensions only? (default: False)
@@ -20,4 +20,3 @@
       --ignore_extract_mask
                             Ignore the extraction mask (default: False)
       --channels CHANNELS   Only show a subset of the channels (0-indexed), e.g. 1,3 (default: None)
-    
