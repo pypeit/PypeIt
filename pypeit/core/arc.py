@@ -916,7 +916,8 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     arc = detns - cont_now
     if input_thresh is None:
-        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask], sigma_lower=3.0, sigma_upper=3.0)
+        # Need to add condition `arc!=0` since arc spectrum is padded and the pad makes the thresh low
+        (mean, med, stddev) = stats.sigma_clipped_stats(arc[cont_mask&(arc!=0)], sigma_lower=3.0, sigma_upper=3.0)
         thresh = med + sigdetect*stddev
     else:
         med = 0.0

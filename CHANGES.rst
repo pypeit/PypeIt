@@ -1,5 +1,4 @@
 
-
 1.3.1dev
 --------
 
@@ -8,6 +7,11 @@
 - sigdetect on in full_template
 - Added new ArI, ArII lines
 - Improved Arc 1Dfit QA
+- Final wavelength template for DEIMOS 900ZD
+- Fix a bug in `pypeit/core/arc.py` and `pypeit/core/wavecal/autoid.py` due
+  to the padding to the arc frames
+- Added a new XeI line
+- Turn off sigma clipping for DEIMOS arc frames.
 - Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
 function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
 - Added MOSFIRE QL script.
