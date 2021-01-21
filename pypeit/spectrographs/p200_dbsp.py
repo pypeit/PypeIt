@@ -95,7 +95,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             return Time(headarr[0]['UTSHUT']).mjd
         elif meta_key == 'dispangle':
             try:
-                return Angle(headarr[0]['ANGLE'].replace('Deg', 'deg')).deg
+                return Angle(headarr[0]['ANGLE'].lower()).deg
             except Exception as e:
                 msgs.warn("Could not read dispangle from header:" + msgs.newline() + str(headarr[0]['ANGLE']))
                 raise e
