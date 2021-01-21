@@ -197,7 +197,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 #        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
 #        par['calibrations']['traceframe']['exprng'] = [None, 30]
 #        par['scienceframe']['exprng'] = [30, None]
-        
+
+        # Do not sigmaclip the arc frames
+        par['calibrations']['arcframe']['process']['clip'] = False
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -263,6 +266,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(headarr, 'dispname') == '900ZD':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

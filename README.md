@@ -1,7 +1,14 @@
 # PypeIt
+[![PyPI](https://img.shields.io/pypi/v/pypeit?label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/pypeit/)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/pypeit?label=conda%20version)](https://anaconda.org/conda-forge/pypeit)
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/pypeit?label=conda%20downloads)](https://anaconda.org/conda-forge/pypeit)
+
+[![CI Tests](https://github.com/pypeit/PypeIt/workflows/CI%20Tests/badge.svg)](https://github.com/pypeit/PypeIt/actions?query=workflow%3A"CI+Tests")
+[![Documentation Status](https://readthedocs.org/projects/pypeit/badge/?version=latest)](https://pypeit.readthedocs.io/en/latest/?badge=latest)
+[![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 
 The Python Spectroscopic Data Reduction Pipeline.  For
-documentation visit:
+documentation visit: 
 
 http://pypeit.readthedocs.io
 
