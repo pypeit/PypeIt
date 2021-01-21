@@ -8,7 +8,7 @@
 [![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 
 The Python Spectroscopic Data Reduction Pipeline.  For
-documentation visit:
+documentation visit: 
 
 http://pypeit.readthedocs.io
 
