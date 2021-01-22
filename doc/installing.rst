@@ -74,7 +74,7 @@ The package and version requirements for ``PypeIt`` are:
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
 * `QtPy <https://pypi.org/project/qtpy>`_ version 1.9 or later
-  * one of PySide2 or PyQt5
+  * PyQt5, if you prefer PySide2 which has more flexible licensing, that can be substituted for PyQt5
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
@@ -132,8 +132,11 @@ Some users have run into the following complications when installing the
    one of these two packages installed for any of the GUIs to work, in particular
    ``pypeit_show_2dspec`` and ``pypeit_show_1dspec``. If you have neither installed, and
    both ``pypeit_show_2dspec`` and ``pypeit_show_1dspec`` crash, then you should install
-   one of PySide2 or PyQt5 (``pip install pyside2`` or ``pip install pyqt5`` or
-   ``conda install pyside2`` or ``conda install pyqt``).
+   one of PyQt5 or PySide2 (``pip install pyside2`` or ``pip install pyqt5`` or
+   ``conda install pyside2`` or ``conda install pyqt``). DO NOT INSTALL BOTH, as these
+   two packages do not play nicely together. If you are not worried about licensing issues
+   (PySide2 is more flexible on licensing) we strongly recommend that you go with pyqt5 as PySide2
+   can occasionally cause problems with installation.
 
  - For the developer-only (``Sphinx``) packages, download
    `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
@@ -157,7 +160,7 @@ from GitHub.
  #. Install dependencies
 
   - into your current environment with ONE of the following commands (you may need to also install
-    PySide2/PyQt5 if they are not already installed as per note above)::
+   PyQt5 or PySide2 if they are not already installed as per note above)::
 
         pip install -r pypeit/requirements.txt
 
@@ -167,10 +170,7 @@ from GitHub.
 
         conda env create -f environment.yml
         conda activate pypeit
-        # install PySide2/PyQt5 from conda/pip using using ONE of the following lines
-        conda install -c conda-forge pyside2
-        conda install pyqt
-        pip install pyside2
+        # install PyQt5
         pip install pyqt5
 
  #. Install PypeIt::
@@ -180,6 +180,19 @@ from GitHub.
 Installing the code this way ensures that virtually all changes to files in
 the ``PypeIt`` directory take immediate effect the next time you
 import the code.
+
+Note that if you prefer PySide2's more flexible licensing, then don't execute
+``pip install pyqt5`` and instead substitute:
+
+        conda install -c conda-forge pyside2
+
+or using pip
+
+        pip install pyside2
+
+Note that PySide2 has been known to cause conflicts with other packages that use pyqt, so use
+this package at your own risk.
+
 
 ----
 
