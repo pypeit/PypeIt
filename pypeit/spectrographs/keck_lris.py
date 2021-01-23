@@ -977,6 +977,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['nsnippet'] = 3
+            par['calibrations']['wavelengths']['n_final'] = 5
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
