@@ -6,7 +6,7 @@
     Read in an array of spec2D files and convert them into a datacube
     
     positional arguments:
-      file             ascii file with list of spec2D files to combine
+      file             filename.coadd3d file
     
     optional arguments:
       -h, --help       show this help message and exit

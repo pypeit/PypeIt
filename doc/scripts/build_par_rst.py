@@ -16,7 +16,7 @@ from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.defs import pypeit_spectrographs
+from pypeit.spectrographs import available_spectrographs
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -71,6 +71,9 @@ if __name__ == '__main__':
     lines += p.to_rst_table()
     lines += ['']
 
+    lines += [' .. _instr_par:']
+    lines += ['']
+
     lines += ['Instrument-Specific Default Configuration']
     lines += ['+++++++++++++++++++++++++++++++++++++++++']
     lines += ['']
@@ -82,9 +85,9 @@ if __name__ == '__main__':
                            ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
     lines += ['']
 
-    for spec in pypeit_spectrographs:
+    for spec in available_spectrographs:
         s = load_spectrograph(spec)
-        lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.spectrograph)]) ]
+        lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.name)]) ]
         lines += [ '-'*len(lines[-1]) ]
         lines += [ 'Alterations to the default parameters are::' ]
         lines += ['']

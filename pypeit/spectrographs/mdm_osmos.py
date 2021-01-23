@@ -1,19 +1,20 @@
-""" Module for Shane/Kast specific codes
 """
-import numpy as np
+Module for MDM/OSMOS specific methods.
 
-from astropy.io import fits
+.. include:: ../include/links.rst
+"""
 from pkg_resources import resource_filename
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-
-from IPython import embed
 
 
 class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
@@ -21,29 +22,26 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     Child to handle MDM OSMOS MDM4K instrument+detector
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(MDMOSMOSMDM4KSpectrograph, self).__init__()
-        self.spectrograph = 'mdm_osmos_mdm4k'
-        self.telescope = telescopes.KPNOTelescopePar()
-        self.camera = 'MDM4K'
+    name = 'mdm_osmos_mdm4k'
+    telescope = telescopes.KPNOTelescopePar()
+    camera = 'MDM4K'
+    supported = True
+    comment = 'MDM OSMOS spectrometer'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-
         # Detector 1
         detector_dict = dict(
             binning         =self.get_meta_value(self.get_headarr(hdu), 'binning'),
@@ -71,19 +69,22 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         # Return
         return detector_container.DetectorContainer(**detector_dict)
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'mdm_osmos_mdm4k'
+        par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Wavelength calibration methods
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']
@@ -99,61 +100,44 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        .. todo::
-            Document the changes made!
-
-        Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        # Return
-        return par
-
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='SLITID')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='SLITID')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD')
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='SECZ')
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='SECZ')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='DISPID')
-        meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['dispname'] = dict(ext=0, card='DISPID')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
-        meta['lampstat01'] = dict(ext=0, card='LAMPS')
-
-        # Ingest
-        self.meta = meta
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             binspatial = headarr[0]['CCDXBIN']
             binspec = headarr[0]['CCDYBIN']
@@ -163,26 +147,49 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         return ['dispname', 'decker', 'binning']
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(MDMOSMOSMDM4KSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['slitwid']
-        return pypeit_keys
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['slitwid']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:

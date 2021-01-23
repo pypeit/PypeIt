@@ -82,7 +82,7 @@ def main(args):
         # TODO: This needs to define the science path
         spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
         head0 = fits.getheader(spec2d_files[0])
-        spectrograph_name = head0['SPECTROG']
+        spectrograph_name = head0['PYP_SPEC']
         spectrograph = load_spectrograph(spectrograph_name)
         parset = spectrograph.default_pypeit_par()
     else:
@@ -222,7 +222,10 @@ def main(args):
                                               slits=sci_dict[det]['slits'],
                                               waveimg=sci_dict[det]['waveimg'],
                                               tilts=sci_dict[det]['tilts'],
-                                              sci_spat_flexure=None)
+                                              sci_spat_flexure=None,
+                                              sci_spec_flexure=None,
+                                              vel_corr=None,
+                                              vel_type=None)
     # Build header
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,

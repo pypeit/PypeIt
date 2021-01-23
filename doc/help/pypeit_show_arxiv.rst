@@ -3,10 +3,10 @@
     $ pypeit_show_arxiv -h
     usage: pypeit_show_arxiv [-h] [--det DET] file
     
-    Show an archived arc spectrum
+    Show an archived arc spectrum in pypeit/data/arc_liens/reid_arxiv
     
     positional arguments:
-      file        WaveCalib JSON file
+      file        Arxiv filename, e.g. gemini_gmos_r831_ham.fits
     
     optional arguments:
       -h, --help  show this help message and exit

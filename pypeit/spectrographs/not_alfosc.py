@@ -1,5 +1,10 @@
-""" Module for NOT ALFOSC spectrograph
 """
+Module for NOT ALFOSC spectrograph
+
+.. include:: ../include/links.rst
+"""
+from IPython import embed
+
 import numpy as np
 
 from astropy.time import Time
@@ -7,12 +12,9 @@ from astropy.time import Time
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
-
-from IPython import embed
 
 
 class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
@@ -20,29 +22,29 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     Child to handle NOT ALFOSC spectrograph
     """
     ndet = 1
-
-    def __init__(self):
-        # Get it started
-        super(NOTALFOSCSpectrograph, self).__init__()
-        self.spectrograph = 'not_alfosc'
-        self.telescope = telescopes.NOTTelescopePar()
-        self.camera = 'ALFOSC'
+    name = 'not_alfosc'
+    telescope = telescopes.NOTTelescopePar()
+    camera = 'ALFOSC'
+    supported = True
+    comment = 'Grisms 4, 19'
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
+
+        Detector data from `here
+        <http://www.not.iac.es/instruments/detectors/CCD14/>`__.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
-
         # http://www.not.iac.es/instruments/detectors/CCD14/
 
         # Detector 1
@@ -74,19 +76,22 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Return
         return detector_container.DetectorContainer(**detector_dict)
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'not_alfosc'
+        par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Wavelength calibration methods
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -108,34 +113,40 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
+        Define how metadata are derived from the spectrograph files.
 
-        Returns:
-            self.meta: dict (generated in place)
-
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='OBJRA')
-        meta['dec'] = dict(ext=0, card='OBJDEC')
-        meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='ALAPRTNM')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='OBJRA')
+        self.meta['dec'] = dict(ext=0, card='OBJDEC')
+        self.meta['target'] = dict(ext=0, card='OBJECT')
+        self.meta['decker'] = dict(ext=0, card='ALAPRTNM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card=None, compound=True)
-        meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['mjd'] = dict(ext=0, card=None, compound=True)
+        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='ALGRNM')
-        meta['idname'] = dict(ext=0, card='IMAGETYP')
-        # Lamps
-        # Use Keck/LRIS approach
-
-        # Ingest
-        self.meta = meta
+        self.meta['dispname'] = dict(ext=0, card='ALGRNM')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
 
     def compound_meta(self, headarr, meta_key):
+        """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
+
+        Args:
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
+
+        Returns:
+            object: Metadata value read from the header(s).
+        """
         if meta_key == 'binning':
             # PypeIt frame
             binspatial = headarr[0]['DETXBIN']
@@ -145,32 +156,42 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-AVG']
             ttime = Time(time, format='isot')
             return ttime.mjd
-        else:
-            msgs.error("Not ready for this compound meta")
-
+        msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         return ['dispname', 'decker', 'binning']
-
-#    def pypeit_file_keys(self):
-#        pypeit_keys = super(NOTALFOSCSpectrograph, self).pypeit_file_keys()
-#        pypeit_keys += ['slitwid']
-#        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science', 'standard']:
@@ -189,26 +210,23 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super(NOTALFOSCSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':

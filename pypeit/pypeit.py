@@ -10,6 +10,7 @@ import os
 import numpy as np
 import copy
 from astropy.io import fits
+from astropy.table import Table
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -17,7 +18,6 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -75,17 +75,23 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
+        # Set up logging
+        self.logname = logname
+        self.verbosity = verbosity
+        self.pypeit_file = pypeit_file
+        
+        self.msgs_reset()
+        
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
-        self.pypeit_file = pypeit_file
         self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -132,7 +138,6 @@ class PypeIt(object):
         self.fitstbl.write_calib(calib_file)
 
         # Other Internals
-        self.logname = logname
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
@@ -158,28 +163,7 @@ class PypeIt(object):
         # directories?
         # An html file wrapping them all too
 
-#        # Instantiate Calibrations class
-#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-#            self.caliBrate \
-#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-#                                                     self.spectrograph, self.calibrations_path,
-#                                                     qadir=self.qa_path,
-#                                                     reuse_masters=self.reuse_masters,
-#                                                     show=self.show,
-#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-#        elif self.spectrograph.pypeline in ['IFU']:
-#            self.caliBrate \
-#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-#                                               self.spectrograph,
-#                                               self.calibrations_path,
-#                                               qadir=self.qa_path,
-#                                               reuse_masters=self.reuse_masters,
-#                                               show=self.show)
-#        else:
-#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
-
         # Init
-        self.verbosity = verbosity
         # TODO: I don't think this ever used
 
         self.det = None
@@ -374,10 +358,6 @@ class PypeIt(object):
                               '. Set overwrite=True to recreate and overwrite.')
 
             msgs.info('Finished calibration group {0}'.format(i))
-
-        # Check if this is an IFU reduction. If so, make a datacube
-        if self.spectrograph.pypeline == "IFU" and self.par['reduce']['cube']['make_cube']:
-            msgs.work("Generate datacube")
 
         # Finish
         self.print_end_time()
@@ -671,6 +651,11 @@ class PypeIt(object):
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
 
+        # Construct table of spectral flexure
+        spec_flex_table = Table()
+        spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
+        spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(det=self.det,
                                         sciimg=sciImg.image,
@@ -683,6 +668,9 @@ class PypeIt(object):
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
+                                        sci_spec_flexure=spec_flex_table,
+                                        vel_corr=self.redux.vel_corr,
+                                        vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=copy.deepcopy(self.caliBrate.slits))
         spec2DObj.process_steps = sciImg.process_steps

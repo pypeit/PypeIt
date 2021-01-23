@@ -1,4 +1,5 @@
 import sys
+import requests
 
 from astropy.io import fits
 from astropy.io import ascii
@@ -8,7 +9,7 @@ import numpy as np
 
 from IPython import embed
 
-import requests
+from pypeit import io
 
 def tohdu(wave,trans,extname):
     col1 = fits.Column(name='lam',format='1D',array=wave)
@@ -31,7 +32,7 @@ def orig_build():
     ## SDSS filter curves
     # Download from https://www.sdss3.org/instruments/camera.php#Filters
     # filter_curves.fits
-    par = fits.open('filter_curves_sdss.fits')
+    par = io.fits_open('filter_curves_sdss.fits')
     for i in ['SDSS-U','SDSS-G','SDSS-I','SDSS-G','SDSS-Z']:
         wave, trans = par[i[-1]].data['wavelength'], par[i[-1]].data['respt']
         hdu = tohdu(wave,trans,i)
@@ -160,7 +161,7 @@ def orig_build():
 
 def append_FORS():
     # Load
-    hdulist = fits.open('filtercurves.fits')
+    hdulist = io.fits_open('filtercurves.fits')
     curr_filters = [hdu.name for hdu in hdulist]
     #
     filters = ['BESS_B','BESS_I','BESS_R','BESS_U','BESS_V','u_HIGH','b_HIGH',
@@ -217,7 +218,7 @@ def append_FORS():
 
 def append_NIRCam():
     # Load
-    hdulist = fits.open('filtercurves.fits')
+    hdulist = io.fits_open('filtercurves.fits')
     curr_filters = [hdu.name for hdu in hdulist]
     #
     nircam = Table.read('nircam_filter/nircam_modABmean_plus_ote_filter_properties.txt',format='ascii.basic')
@@ -239,7 +240,7 @@ def append_NIRCam():
 
 def append_MIRI():
     # Load
-    hdulist = fits.open('filtercurves.fits')
+    hdulist = io.fits_open('filtercurves.fits')
     curr_filters = [hdu.name for hdu in hdulist]
     #
     miri = Table.read('miri_filter/miri_imaging.txt',format='ascii.basic')
@@ -260,7 +261,7 @@ def append_MIRI():
 
 def fix_SDSS():
 
-    par = fits.open('filter_curves_sdss.fits')
+    par = io.fits_open('filter_curves_sdss.fits')
     pri_hdu = fits.PrimaryHDU()
     hdulist = fits.HDUList(pri_hdu)
 
@@ -270,7 +271,7 @@ def fix_SDSS():
         hdulist.append(hdu)
 
     # Load
-    hdulist_orig = fits.open('filtercurves.fits')
+    hdulist_orig = io.fits_open('filtercurves.fits')
     for i in range(len(hdulist_orig[6:])):
         hdulist.append(hdulist_orig[6+i])
 
@@ -281,7 +282,7 @@ def fix_SDSS():
 
 def write_filter_list():
     # Write the filter list
-    hdulist = fits.open('filtercurves.fits')
+    hdulist = io.fits_open('filtercurves.fits')
     all_filters = [hdu.name for hdu in hdulist]
     tbl = Table()
     tbl['filter'] = all_filters

@@ -2,4 +2,5 @@
 
 Sphinx>=3.0
 sphinx-automodapi>=0.12
+sphinx_rtd_theme>=0.5
 

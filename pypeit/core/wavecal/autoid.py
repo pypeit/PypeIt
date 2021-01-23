@@ -33,7 +33,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
+def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
+               log=True):
     """
     QA for Arc spectrum
 
@@ -42,6 +43,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):
+        log (:obj:`bool`, optional):
+            If True, use log scaling for the spectrum
 
     Returns:
 
@@ -73,22 +76,55 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     ax_spec = plt.subplot(gs[:,0])
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
+    if log:
+        ymax *= 4
+        ymin = max(1., ymin)
     ysep = ymax*0.03
+    yscl = (1.2, 1.5, 1.7)
+
+    # Label all found lines
+    for kk, x in enumerate(waveFit.tcent):
+        ind_left = np.fmax(int(x)-2, 0)
+        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+        yline = np.max(arc_spec[ind_left:ind_righ])
+        # Tick mark
+        if log:
+            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], '-', color='gray')
+        else:
+            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
+
+    # Label the ID'd lines
     for kk, x in enumerate(waveFit.pixel_fit):
         ind_left = np.fmax(int(x)-2, 0)
         ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
         yline = np.max(arc_spec[ind_left:ind_righ])
         # Tick mark
-        ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
+        if log:
+            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], 'g-')
+        else:
+            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
         # label
-        ax_spec.text(x, yline+ysep*1.3,'{:s} {:g}'.format(waveFit.ions[kk],
+        if log:
+            ypos = yline*yscl[2]
+        else:
+            ypos = yline+ysep*1.3
+        ax_spec.text(x, ypos, '{:s} {:g}'.format(waveFit.ions[kk],
                                                           waveFit.wave_fit[kk]),
                      ha='center', va='bottom',size=idfont,
                      rotation=90., color='green')
+
+    # Axes
     ax_spec.set_xlim(0., len(arc_spec))
-    ax_spec.set_ylim(1.05*ymin, ymax*1.2)
+    if not log:
+        ax_spec.set_ylim(1.05*ymin, ymax*1.2)
+    else:
+        ax_spec.set_ylim(ymin, ymax)
     ax_spec.set_xlabel('Pixel')
     ax_spec.set_ylabel('Flux')
+    if log:
+        ax_spec.set_yscale('log')
+
+    # Title
     if title is not None:
         ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
                      size='x-large', ha='left')#, bbox={'facecolor':'white'})
@@ -594,7 +630,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
 
     # Determine the seed for scipy.optimize.differential_evolution optimizer. Just take the sum of all the elements
     # and round that to an integer
-
+    
     seed = np.fmin(int(np.abs(np.sum(spec[np.isfinite(spec)]))),2**32-1)
     random_state = np.random.RandomState(seed = seed)
 
@@ -880,6 +916,8 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
     # Loop on slits
     wvcalib = {}
     for slit in range(nslits):
+        # Sigdetect
+        sigdetect = wvutils.parse_param(par, 'sigdetect', slit)
         # Check
         if slit not in ok_mask:
             wvcalib[str(slit)] = None
@@ -890,16 +928,16 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
 
         # Find the shift
         ncomb = temp_spec.size
+        # Remove the continuum before adding the padding to ispec
+        _, _, _, _, ispec_cont_sub = wvutils.arc_lines_from_spec(ispec)
+        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
         # Pad
         pspec = np.zeros_like(temp_spec)
         nspec = len(ispec)
         npad = ncomb - nspec
-        pspec[npad // 2:npad // 2 + len(ispec)] = ispec
-        # Remove the continuum
-        _, _, _, _, pspec_cont_sub = wvutils.arc_lines_from_spec(pspec)
-        _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
+        pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec_cont_sub, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -935,15 +973,18 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             msnippet = mspec[j0:j1]
             mwvsnippet = mwv[j0:j1]
             # TODO: JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
-            # pixels, and allows the code to continue with crashing. This code is constantly causing reidentify to crash
-            # by passing in these junk snippets that are almost entirely zero-padded for large shifts. We should
-            # be checking for this intelligently rather than constantly calling reidentify with basically junk arxiv
-            # spectral snippets.
+            #  pixels, and allows the code to continue with crashing. This code is constantly causing reidentify to crash
+            #  by passing in these junk snippets that are almost entirely zero-padded for large shifts. We should
+            #  be checking for this intelligently rather than constantly calling reidentify with basically junk arxiv
+            #  spectral snippets.
             if not np.any(msnippet):
                 continue
+            # TODO -- JXP
+            #  should we use par['cc_thresh'] instead of hard-coding cc_thresh??
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
+                                                              sigdetect=sigdetect,
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
@@ -1096,7 +1137,7 @@ class ArchiveReid:
         # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
-        self.sigdetect = self.par['sigdetect']
+        #self.sigdetect = self.par['sigdetect']  # This is not used and isn't right either
         self.fwhm = self.par['fwhm']
         # Paramaters that govern reidentification
         self.reid_arxiv = self.par['reid_arxiv']

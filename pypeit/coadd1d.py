@@ -67,7 +67,7 @@ class OneSpec(datamodel.DataContainer):
             :class:`OneSpec`:
 
         """
-        hdul = fits.open(ifile)
+        hdul = io.fits_open(ifile)
         slf = super(OneSpec, cls).from_hdu(hdul)
 
         # Internals
@@ -91,7 +91,6 @@ class OneSpec(datamodel.DataContainer):
     def _init_internals(self):
         self.head0 = None
         self.filename = None
-        self.spec_meta = None
         self.spectrograph = None
         self.spect_meta = None
 
@@ -231,7 +230,7 @@ class CoAdd1D(object):
         # Generate the DataContainer
         onespec = OneSpec(self.wave_coadd[wave_mask],
                           self.flux_coadd[wave_mask],
-                          PYP_SPEC=self.spectrograph.spectrograph,
+                          PYP_SPEC=self.spectrograph.name,
                           ivar=self.ivar_coadd[wave_mask],
                           mask=self.mask_coadd[wave_mask].astype(int),
                           ext_mode=self.par['ex_value'],
