@@ -36,7 +36,10 @@ is used to provide an abstract interface to the two most widely used QT bindings
 * `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_ -- version 5
 * `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ -- version 5
 
-At least one of those bindings must be installed for the interative GUIs to work.
+At least one of those bindings must be installed for the interative GUIs to work. DO NOT INSTALL BOTH, as these
+two packages do not play nicely together. We strongly recommend that you go with pyqt5, unless you are attracted
+to the more flexible licensing that PySide2.  PySide2 can occasionally cause GUIs to crash because
+of conflicts with other packages in your environment that use pyqt5. 
 
 Developer-only items
 --------------------
