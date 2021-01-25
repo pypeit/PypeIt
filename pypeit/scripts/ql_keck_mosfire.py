@@ -214,22 +214,6 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
 
 def main(args):
 
-
-    # Calibration Master directory
-    if args.master_dir is None:
-        msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
-
-    # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_D_8191_01.fits.gz')
-    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_D_1_01.fits')
-    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_D_1_01.fits')
-    std_spec1d_file = os.path.join(args.master_dir, 'spec1d_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
-    sensfunc_masterframe_name = os.path.join(args.master_dir, 'sens_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
-    if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
-        not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
-        not os.path.isfile(std_spec1d_file)):
-        msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
-
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
     spectrograph_def_par = spectrograph.default_pypeit_par()
@@ -245,6 +229,25 @@ def main(args):
     for ifile, file in enumerate(files):
         mjds[ifile] = spectrograph.get_meta_value(file,'mjd', ignore_bad_header=True, no_fussing=True)
     files = files[np.argsort(mjds)]
+
+    # Calibration Master directory
+    if args.master_dir is None:
+        msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
+
+    # Define some hard wired master files here to be later parsed out of the directory
+    filter = spectrograph.get_meta_value(files[0], 'filter1')
+    slit_masterframe_name = os.path.join(args.master_dir, filter, 'MasterSlits_D_8191_01.fits.gz')
+    tilts_masterframe_name = os.path.join(args.master_dir, filter, 'MasterTilts_D_1_01.fits')
+    wvcalib_masterframe_name = os.path.join(args.master_dir, filter, 'MasterWaveCalib_D_1_01.fits')
+    std_spec1d_file = os.path.join(args.master_dir, filter, 'spec1d_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
+    sensfunc_masterframe_name = os.path.join(args.master_dir, filter, 'sens_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
+    if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
+        not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
+        not os.path.isfile(std_spec1d_file)):
+        msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
+
+
+
 
     # We need the platescale
     platescale = spectrograph.get_detector_par(None, 1)['platescale']
@@ -371,6 +374,7 @@ def main(args):
     # Create the pseudo images
     pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
 
+    # Multiply in a sensitivity function to flux the 2d image
     if args.flux:
         # Load the sensitivity function
         wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)

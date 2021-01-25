@@ -1,7 +1,5 @@
 .. include:: ../include/links.rst
 
-.. _deimos_frames_report:
-
 Flux Calibration
 =================================
 
@@ -11,108 +9,107 @@ Version History
 =========   =============   =========== ===========
 *Version*   *Author*        *Date*      ``PypeIt``
 =========   =============   =========== ===========
-1.0         Joe Hennawi     31 Dec 2021 1.1.1
+1.0         Joe Hennawi     25 Jan 2021 1.1.1
 =========   =============   =========== ===========
 
 ----
 
-Basics
-------
+Sensitivity Function Units and Definitions
+------------------------------------------
 
-Testing :math:`\omega`: 3-D true position of the transient
-The general procedure used to assign frames a given type is described
-here: :ref:`frame_types`.
+The sensitivity function in PypeIt is defined to be the function :math:`\S_\lambda` satisfying
 
-DEIMOS frame typing
--------------------
+:math:`S_\lambda  = \frac{F_\lambda}{N_\lambda}` with units of :math:`[{\rm erg/cm^2/photons}]`,
 
-The primary typing of DEIMOS frames is performed by
-:func:`pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.check_frame_type`.
-This function checks the values of various header keywords against a
-set of criteria used to classify the frame type. The headers cards
-required for the frame-typing and their associated keyword in the
-:class:`~pypeit.metadata.PypeItMetaData` object are:
+where
 
-===============     ==========
-``fitstbl`` key     Header Key
-===============     ==========
-``exptime``         ``ELAPTIME``
-``lampstat01``      ``LAMPS``
-``hatch``           ``HATCHPOS``
-``idname``          ``OBSTYPE``
-===============     ==========
+:math:`\frac{F_\lambda}` is the specific energy flux in units of :math:`[{\rm erg/s/cm^2/\AA}]`,
 
-The criteria used to select each frame type are as follows:
+:math:`\frac{N_\lambda}` is the specific photon flux with units :math:`[{\rm photons/s/\AA}]`,
 
-=============   ==========================================  =========   ============    ============
-Frame           ``OBSTYPE``                                 ``LAMPS``   ``HATCHPOS``    ``ELAPTIME``
-=============   ==========================================  =========   ============    ============
-``science``     ``'Object'``                                ``'Off'``   ``'open'``      ...
-``bias``        ``'Bias'``                                  ``'Off'``   ``'closed'``    ...
-``dark``        ``'Dark'``                                  ``'Off'``   ``'closed'``    ...
-``pixelflat``   ``'IntFlat'``                               ...         ``'closed'``    ...
-``pixelflat``   ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``trace``       ``'IntFlat'``                               ...         ``'closed'``    ...
-``trace``       ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``illumflat``   ``'IntFlat'``                               ...         ``'closed'``    ...
-``illumflat``   ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``arc``         ``'Line'``                                  ``'Off'``   ``'closed'``    ...
-``tilt``        ``'Line'``                                  ``'Off'``   ``'closed'``    ...
-=============   ==========================================  =========   ============    ============
+PypeIt spec1d files contain :math:`N_{\rm pix}` with units :math:`[{\rm photons/pixel}]`. To generate
+flux calibrated spectra  :math:`\F_\lambda`, :math:`S_\lambda` must be computed from a spectrophotometric standard
+star observations (insert hyperlink to discussion below and fluxing.rst)
 
-Importantly, note that a DEIMOS frame is never given a ``pinhole``
-type. Also note that the criteria used to select ``pixelflat``,
-``trace``, and ``illumflat`` are identical; the same is true for
-``arc`` and ``tilt`` frames. No distinction is currently made between
-``IntFlat``, ``DmFlat``, or ``SkyFlat`` and how they're used in the
-code.
+:math:`N_{\rm lambda}` must be determined from :math:`N_{\rm pix}`
 
-Also note that ``PypeIt`` will ignore frames observed under
-conditions that do not meet the restricted values set by
-:func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.valid_configuration_values`.
-This currently requires all frames to have ``MOSMODE == 'Spectral'``
-and ``AMPMODE == 'SINGLE:B'``. Frames that do not meet these criteria
-will not be included in the automatically generated
-:ref:`pypeit_file` created by :ref:`pypeit_setup`.
+via
 
-Testing
--------
+:math:`N_{\rm lambda} = \frac{N_{\rm pix}}{\frac{d\lambda}{d{\rm pix} \Delta t}`,
 
-Requirement PD-1 states: "As a user, I want the pipeline to
-automatically classify my calibrations."
+where :math:`\Delta t` is the exposure time and :math:`\frac{d\lambda}{d{\rm pix}` is the wavelength
+spacing per pixel, which is in general not a constant since PypeIt spec1d spectra (i.e. :math:`N_{\rm pix}`) are
+extracted on an irregularly spaced wavelength grid.
 
-``PypeIt`` meets this requirement as demonstrated by the test at
-``pypeit/tests/test_frametype.py``.  To run the test:
+After flux calibration, flux calibrated spectra (i.e. :math:`\frac{F_\lambda}`) are reported in the spec1d
+files as e.g. `OPT_FLAM` and `BOX_FLAM` for optimal and boxcar extractions, respectively, in units of
+:math:`[10^{-17} {\rm erg/s/cm^2/\AA}]`. See (insert hyperlink to fluxing.rst) for additional details.
 
-.. code-block:: bash
 
-    cd pypeit/tests
-    pytest test_frametype.py::test_deimos -W ignore
+Spectroscopic Zeropoints
+------------------------
+Flux calibration of PypeIt spectra is expressed via the "spectroscopic zeropoint", which, by analogy
+with the imaging zerpoint, is defined to be:
 
-The test requires that you have downloaded the ``PypeIt``
-:ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
-variable that points to the relevant directory. The algorithm of the
-test is as follows:
+:math:`{\rm Zeropoint} \equiv -2.5 \log_{10}\left[\frac{\lambda^2}{c}\frac{S_{\lambda}}{\left(3631 {\rm Jy}}{{\rm photons}\slash s \slash \AA}\right)\right]`.
 
-    1. Find all the directories in the :ref:`dev-suite` with Keck
-       DEIMOS data.
+With this definition we see that an astronomical source with a flat spectrum in frequency $\nu$, i.e. :math:`F_\nu = {\rm const}`
+and AB magnitude equal to the Zeropoint will produce :math:`N_\lambda = 1 {\rm photon/s/\AA}` on the detector, that
+is sum of the :math:`N_{\rm pix}` photons per pixel over all pixels corresponding to a :math:`\Delta \lambda = 1\AA`
+interval will be equal to unity.
 
-    2. For each directory (i.e., instrument setup):
+From the definition of the spectroscopic zeropoint above, it follows that
 
-        a. Make sure there is a "by-hand" version of the pypeit file
-           for this setup where a human (one of the pypeit
-           developers) has ensured the frame types are correct.
+:math:`\left(\frac{F_\lambda}{10^{-17} {\rm erg/s/cm^2/\AA}\right) = 10^{-0.4({\rm Zeropoint - ZP_UNIT_CONST})} \left(\frac{N_\lambda}{\rm photons/s/\AA}}\right)\left(\frac{\lambda}{\AA}\right)^2`
 
-        b. Effectively run :ref:`pypeit_setup` on each of the
-           instrument setups to construct a new pypeit file with the
-           automatically generated frame types.
-           
-        c. Read both the by-hand and automatically generated frame
-           types from these two pypeit files and check that they are
-           identical. This check is *only* performed for the
-           calibration frames, not any ``science`` or ``standard``
-           frames.
+where :math:`ZP_UNIT_CONST = 40.09` is a dimensionless number defined by
 
-Because this test is now included in the ``PypeIt``
-:ref:`unit-tests`, this frame-typing check is performed by the
-developers for every new version of the code.
+:math:`{\rm ZP_UNIT_CONST}\equiv \frac{\frac{\AA^2}{c}\times 10^{-17}{\rm erg/s/cm^2/\AA}}{3631 {\rm Jy}}.
+
+In practice PypeIt fits and stores the spectroscopic zerpoints and uses the equation above to compute
+:math:`F_\lambda` from :math:`N_\lambda` and vice-versa.
+
+The sensivity function script pypeit_sensfunc (insert hyperlink to sensfunc docs) produces a QA plot showing the
+the zeropoint fit, as shown below. For echelle observations this zeropoint QA is shown for each order.
+
+
+Spectroscopic Throughput
+------------------------
+
+The zeropoint is closely related to the spectroscopic throughput. The number of counts per pixel in a spectrum
+of an object with flux :math:`F_{\rm lambda}`
+
+
+:math:`N_{\rm pix} = A T(\lambda){\rm Atm}(\lambda)\frac{d\lambda}{d_{\rm pix}}\frac{F_\lambda}{h\nu}\Delta t`,
+
+where :math:`A` is the effective aperture of the telescope, :math:`T(\lambda)` is the spectroscopic throughput,
+:math:`{\rm Atm(\lambda)` is the attenuation caused by the Earth's atmosphere, :math:`\frac{d\lambda}{d_{\rm pix}` is
+the number of \AA per pixel defined above,  :math:`h\nu` is the photon energy, and :math:`\Delta t` is the exposure time
+
+Based on this equation and the definintions above it follows that the spectrosopic throughput can be written
+
+:math:`T(\lambda) = \frac{h\nu}{A S_\lambda}`,
+
+Note :math:`T(\lambda)` is clearly dimensionless given the units of :math:`S_\lambda`: :math:`[{\rm erg/cm^2/photons}]`. As :math:`S_\lambda`
+is specified by the zeropoint, throughpoint curves can be computed once the zeropoints given the effective aperture
+of the telescope.
+
+In addition to the zeropoint QA shown above, the sensivity function script pypeit_sensfunc also produces a QA plot showing
+througphut curve(s), computed directly from the spectroscopic zeropoints.
+
+Note that we have defined the spectroscopic throughput above to be that of the telescope + instrument system, but
+NOT include the attenuation caused by the Earth's atmosphere. Also, the zeropoints,  sensitivity functions, and PypeIt
+flux calibration algorithms in general do not attempt to remove the impact of slit losses. In the limit where your standard
+star observations and science observations have exactly the same seeing, the flux calibration will be perfect. In the more
+realistic scenario where they differ, this will manifest as a wavelength dependent systematic error in the flux calibration,
+with the direction of the error depending on the relative seeing between the standard star and science observations. In future
+versions we hope to implement a better treatment of slit losses. For the time being we recommend that users that require
+very accurate flux calibration force PypeIt flux calibrted spectra to agree with photometry. This can be done using the
+`filter` parameter option for 1D coadding (hyperlink to CoAdd1D parset), which can be set in the .coadd1d file which is used
+to guide 1D coaddition with the pypeit_coadd1d script.
+
+
+
+
+
+

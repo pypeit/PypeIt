@@ -39,7 +39,7 @@ SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
 def zp_unit_const():
-    return -2.5*np.log10(((u.angstrom**2/const.c)*(1e-17*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
+    return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
 # It has a value of ZP_UNIT_CONST = 40.092117379602044
