@@ -25,6 +25,7 @@ Obj Key                Obj Type           Array Type  Description
 ``TRACESROW``          ndarray            int         Spectral row for provided left and right edges.
 ``TRACELPIX``          ndarray            float       Spatial pixel coordinate for left edge.
 ``TRACERPIX``          ndarray            float       Spatial pixel coordinate for right edge.
+``SPAT_ID``            ndarray            int         Slit ID number from SPAT measured at half way point.
 ``SLITID``             ndarray            int         Slit ID Number (``maskdef_id``).
 ``SLITLOPT``           ndarray            float       Left edge of the slit in pixel from optical model before x-correlation.
 ``SLITROPT``           ndarray            float       Right edge of the slit in pixel from optical model before x-correlation.
@@ -37,4 +38,7 @@ Obj Key                Obj Type           Array Type  Description
 ``OBJID``              ndarray            int         Object ID Number.
 ``OBJRA``              ndarray            float       Right ascension of the object (deg).
 ``OBJDEC``             ndarray            float       Declination of the object (deg).
+``OBJNAME``            ndarray            str         Object name assigned by the observer.
+``OBJ_TOPDIST``        ndarray            float       Projected position of the object w.r.t. the top edge of the slit (arcsec).
+``OBJ_BOTDIST``        ndarray            float       Projected position of the object w.r.t. the bottom edge of the slit (arcsec).
 =====================  =================  ==========  =================================================================================
