@@ -1,11 +1,15 @@
-This directory contains HITRAN telluric model grids using a baseline
-atmospheric model for each observatory. To obtain the telluric grid
-files contact Joe Hennawi TODO: Put download information here. These
-telluric grids are large binary files and SHOULD NOT BE CHECKED IN to
-PypeIt.
+This directory is purposely empty in the GitHub repository except for
+this README file.  The atmospheric model grids used for the PypeIt
+telluric corrections are very large and SHOULD NOT BE CHECKED IN to
+PypeIt; see the .gitignore file.
 
-Contents: 
+Downloading and installation of the relevant files from a shared Google
+Drive directory is explained by the PypeIt installation documentation here:
 
-TelFit_MaunaKea_3100_26100_R20000.fits
-TelFit_Paranal_VIS_4900_11100_R25000.fits
-TelFit_Paranal_NIR_9800_25000_R25000.fits
+https://pypeit.readthedocs.io/en/latest/installing.html
+
+See also a description of the telluric correction procedure and script
+here:
+
+https://pypeit.readthedocs.io/en/latest/telluric.html
+
