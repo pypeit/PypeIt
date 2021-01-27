@@ -71,7 +71,9 @@ or via ``conda``:
         conda activate pypeit
 
 See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_ and/or `Managing Environments with Conda
-<https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_ for more details.
+<https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_ for more details. See also
+`virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ as an option for more easily managing
+``virtualenv`` virtual environments.
 
 To install the latest release of ``PypeIt`` and its required dependencies, do either:
 
