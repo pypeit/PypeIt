@@ -39,7 +39,7 @@ which relies on the existence of pre-generated detectors maps pre- and post-grat
 called `amap` and `bmap`, respectively.
 
 The function :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` assigns to each slit 
-a `maskdef_id`, which corresponds to `dSlitId` in the DEIMOS slitmask design. Moreover,
+a ``maskdef_id``, which corresponds to `dSlitId` in the DEIMOS slitmask design. Moreover,
 :func:`~pypeit.edgetrace.EdgeTraceSet.maskdesign_matching` uses the prediction from the optical
 model to add slit traces that have not been found in the image.
 
@@ -55,7 +55,7 @@ Application
 -----------
 
 To perform the slitmask ID assignment, the **use_maskdesign** flag in :ref:`pypeit_par:EdgeTracePar Keywords`
-must be *True*.  This is the default for DEIMOS, except when *LongMirr* mask is used.
+must be **True**.  This is the default for DEIMOS, except when *LongMirr* mask is used.
 
 Three other :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment;
 these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
@@ -64,15 +64,15 @@ these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.
 Access
 ------
 
-The `maskdef_id` is recorded for each slits in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel,
+The ``maskdef_id`` is recorded for each slits in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel,
 which is written to disk as a multi-extension FITS file prefixed by MasterSlits.
 In addition, for DEIMOS a second `astropy.io.fits.BinTableHDU`_ is written to disk and contains
 more DEIMOS slitmask design information. See :ref:`master_slits` for
 a description of the provided information and for a way to visualize them.
 
-Moreover, the `maskdef_id` assigned to each slit can be found, after a full reduction with ``PypeIt``
+Moreover, the ``maskdef_id`` assigned to each slit can be found, after a full reduction with ``PypeIt``
 (see :ref:`step_by_step`), by running ``pypeit_chk_2dslits Science/spec2d_XXX.fits``, which lists all
-the slits with their associated `maskdef_id`.
+the slits with their associated ``maskdef_id``.
 
 
 Testing
@@ -112,10 +112,10 @@ The algorithm of this test is as follows:
        :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
-       the slitmask ID assignment is performed, and record the `maskdef_id` associated to each slit
+       the slitmask ID assignment is performed, and record the ``maskdef_id`` associated to each slit
        in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
-    6. Read the `maskdef_id` for the first and last slits of the selected detector and check if
+    6. Read the ``maskdef_id`` for the first and last slits of the selected detector and check if
        those correspond to the expected values. The expected values are determined by previously 
        reducing the same dataset with the already existing *DEEP2 IDL-based pipeline*, which is 
        optimized to match the slits found on the DEIMOS detectors to the slitmask information.
@@ -132,7 +132,7 @@ The algorithm of this test is as follows:
 
     4. Update the DEIMOS configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **use_maskdesign** flag in
-       :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.
+       :ref:`pypeit_par:EdgeTracePar Keywords` to **True**.
 
     5. Run step-by-step (lines 72-100) the slit tracing procedure performed by :class:`~pypeit.edgetrace.EdgeTraceSet`.
        This enable to add an extra step, where we remove 4 edges (lines 112-118) that were found

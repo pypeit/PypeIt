@@ -39,16 +39,16 @@ slit center available from the slitmask design, estimates the coordinates of the
 ``PypeIt`` goes through all the slits in a selected detector and for each extracted spectrum checks if
 the measured coordinates are within a certain tolerance (see `Application`_ for details on how to control the
 value of this parameter) of the expected coordinates for the targeted object. If the answer is yes, the 1D 
-spectrum `RA`, `DEC` and `MASKDEF_OBJNAME` are updated with the coordinates and name of the
+spectrum ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` are updated with the coordinates and name of the
 targeted object. If the answer is no, the extracted spectrum is considered a serendipitous object and 
-the measured coordinates are recorded in  `RA` and `DEC` while `MASKDEF_OBJNAME` is be set to "SERENDIP".
+the measured coordinates are recorded in  ``RA`` and ``DEC`` while ``MASKDEF_OBJNAME`` is be set to "SERENDIP".
 
 
 Application
 -----------
 
 To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the **assign_obj** flag in
-:ref:`pypeit_par:SlitMaskPar Keywords` must be *True*.  This is the default for DEIMOS,
+:ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
 except when *LongMirr* mask is used. One other keyword controls this procedure and it is **obj_toler**.
 This keyword sets the tolerance in arcsec for the matching process between
 the measured coordinates of the extracted spectrum and the expected coordinates of the targeted object.
@@ -60,7 +60,7 @@ Access
 
 ``PypeIt`` users can access the DEIMOS objects information in several ways.
 
-- Ra, Dec, object name and `maskdef_id` are visible in the .txt file with a list of all extracted spectra,
+- Ra, Dec, object name and ``maskdef_id`` are visible in the .txt file with a list of all extracted spectra,
   generated at the end the ``PypeIt`` reduction.
 - Ra, Dec, object name are also visible by runing `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
 - Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
@@ -83,7 +83,7 @@ To run the test:
 The tests require that you have downloaded the ``PypeIt`` :ref:`dev-suite` (including the folder compressed in 
 "Cooked_pypeit_dev_vX.XX.X.tar.gz", where vX.XX.X indicates the version of the file) and defined
 the ``PYPEIT_DEV`` environmental variable that points to the relevant directory. These tests are
-run using only one instrument setup and only one DEIMOS detector. 
+run using only one instrument setup and only one DEIMOS detector.
 
 The algorithm of the test is as follows:
 
@@ -95,21 +95,21 @@ The algorithm of the test is as follows:
 
     4. Update the DEIMOS configuration parameters to include configurations specific for the
        used instrument setup. Among others, this step sets the **assign_obj** flag in
-       :ref:`pypeit_par:SlitMaskPar Keywords` to *True*.
+       :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
-       the slitmask ID assignment is performed (see :ref:`deimos_slitmask_ids_report`), and the `maskdef_id`
+       the slitmask ID assignment is performed (see :ref:`deimos_slitmask_ids_report`), and the ``maskdef_id``
        and object information associated to each slit are recorded in the
        :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
     6. A file containing previously extracted 1D spectra is loaded from the **Cooked** folder in the :ref:`dev-suite` 
-       and the objects information re-initialized, i.e.,  `RA`, `DEC` and `MASKDEF_OBJNAME` are set to `None` 
+       and the objects information re-initialized, i.e.,  ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` are set to ``None``
        for each spectrum.
 
     7. :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` is then run and the object RA, Dec and object
        name are assigned to each extracted spectrum.
 
-    8. Read  `RA`, `DEC` and `MASKDEF_OBJNAME` for a selected slit and check if those correspond to
+    8. Read  ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` for a selected slit and check if those correspond to
        the expected values. The expected values are taken from the :class:`~pypeit.slittrace.SlitTraceSet`
        datamodel. See :ref:`master_slits` for a description of the provided information and for a way
        to visualize them.
