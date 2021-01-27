@@ -3,6 +3,7 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 from pkg_resources import resource_filename
 
 from IPython import embed
@@ -120,8 +121,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
     def init_meta(self):

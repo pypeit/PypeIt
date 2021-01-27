@@ -1805,7 +1805,8 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'), 'qso_pca_1200_3100.fits')
+        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/models/'),
+                                            'qso_pca_1200_3100.fits')
         dtypes['pca_file'] = str
         descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
 
@@ -1920,6 +1921,12 @@ class TelluricPar(ParSet):
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 
+    @property
+    def default_root(self):
+        """
+        Return the default path to the atmospheric model grids.
+        """
+        return resource_filename('pypeit', '/data/telluric/atm_grids/')
 
 
 class ManualExtractionPar(ParSet):

@@ -141,7 +141,7 @@ def main(args):
             par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
         else:
             msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-            par['telluric']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+            par['telluric']['telgridfile'] = resource_filename('pypeit', '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))

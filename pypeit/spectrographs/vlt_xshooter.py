@@ -3,6 +3,7 @@ Module for VLT X-Shooter
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -294,8 +295,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Paranal_NIR_9800_25000_R25000.fits')
 
         return par
 
