@@ -39,7 +39,7 @@ is used to provide an abstract interface to the two most widely used QT bindings
 At least one of those bindings must be installed for the interative GUIs to work. DO NOT INSTALL BOTH, as these
 two packages do not play nicely together. We strongly recommend that you go with pyqt5, unless you are attracted
 to the more flexible licensing that PySide2.  PySide2 can occasionally cause GUIs to crash because
-of conflicts with other packages in your environment that use pyqt5. 
+of conflicts with other packages in your environment that use pyqt5.
 
 Developer-only items
 --------------------
@@ -132,11 +132,11 @@ using ``pip``. If you already have a ``pypeit`` environment setup, do:
 
 If you're installing in a clean environment, be sure to include the optional dependencies as well:
 
-        pip install --upgrade git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,pyside2,shapely]
+        pip install --upgrade git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]
 
 Those commands will install the default branch, ``master``. You can also specify the branch you wish to use:
 
-        pip install --upgrade git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,pyside2,shapely]
+        pip install --upgrade git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]
 
 Commit hashes, tag names, or git refs can also be specified. See the `VCS Support documentation
 <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details and examples.
@@ -151,7 +151,7 @@ clone the repository:
 Then perform the install, preferably in a clean environment:
 
         cd PypeIt
-        pip install -e .[pyqt5,pyside2,shapely,test,docs]
+        pip install -e .[dev]
 
 An "editable" install means that any changes you make in that code tree will become immediately available the next
 time the code is imported.
@@ -191,7 +191,7 @@ C code
 Significant speed gains in ``PypeIt`` can be enabled via compilation
 of the C code version of the b-spline fitting code. Compilation of
 the C code should happen automatically when you execute ``pip
-install`` or ``python setup.py develop``. You can check that the C
+install`` or ``pip install -e .``. You can check that the C
 code was compiled successfully by running the ``pypeit_c_enabled``
 script. What you should see is::
 
