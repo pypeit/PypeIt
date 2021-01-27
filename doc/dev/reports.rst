@@ -14,4 +14,5 @@ development of ``PypeIt``.
    deimosframes
    deimos_slitmask_ids
    deimosconfig
+   deimos_radec_object
 
