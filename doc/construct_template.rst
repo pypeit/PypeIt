@@ -1,14 +1,15 @@
+.. _construct_template:
+
 ======================================
 Constructing a New Wavelength Template
 ======================================
 
-.. index:: construct_template
 
 Overview
 ========
 
-This doc describes how to make the wavelength calibration used in
-`Automated Algorithms`_
+This doc describes how to create a wavelength template used to perform
+wavelength calibration with the :ref:`wave_calib:Automated Algorithms`.
 
 See :doc:`wave_calib` for a discussion of various algorithms and
 see :doc:`master_wvcalib` for a discussion of the
@@ -35,7 +36,9 @@ regions, with no gaps, that cover the full range in wavelength desired.
 
 In situations where the Holy Grail fails, one may resort to
 
-    pypeit_identify
+    `pypeit_identify`
+
+See :ref:`wave_calib:pypeit_identify`.
 
 Creating the Template
 =====================
@@ -46,11 +49,12 @@ wavelength ranges, and master wavecalib files into a final template.
 
 The input looks like the following:
 
-    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
-     ifiles=ifiles, det_cut=det_cut, chk=True,
-     normalize=False, lowredux=False,
-     subtract_conti=True, overwrite=overwrite,
-     shift_wave=True)
+.. code-block:: python
 
-This produces a file called 'outroot' that contains the template. It also
+    from pypeit.core.wavecal import templates
+
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot, ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=False, lowredux=False, subtract_conti=True, overwrite=overwrite, shift_wave=True)
+
+This produces a file called `outroot` that contains the template. It also
 produces a plot of the final product.
