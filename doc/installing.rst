@@ -143,6 +143,10 @@ Those commands will install the default branch, ``master``. You can also specify
 Commit hashes, tag names, or git refs can also be specified. See the `VCS Support documentation
 <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details and examples.
 
+
+Developer Install from Source
+-----------------------------
+
 Developers doing code development will likely want to set up an "editable" install that points to a locally checked out
 copy of the GitHub repository. It is highly recommened to use ``pip`` for this as well so that the dependencies can be managed.
 It is also recommended to install all optional dependencies within the environment used for ``PypeIt`` development. First,
