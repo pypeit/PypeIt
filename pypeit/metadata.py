@@ -1612,6 +1612,16 @@ class PypeItMetaData:
             if indx != 0:
                 tbl_cols.insert(0, tbl_cols.pop(indx))
 
+        # Make sure the dithers and combination and background IDs are the last
+        # few columns
+        ncol = len(tbl_cols)
+        for col in ['dithpat', 'dithpos', 'dithoff', 'calib', 'comb_id', 'bkg_id']:
+            if col not in tbl_cols:
+                continue
+            indx = np.where([t == col for t in tbl_cols])[0][0]
+            if indx != ncol-1:
+                tbl_cols.insert(ncol-1, tbl_cols.pop(indx))
+
         # Copy the internal table so that it is unaltered
         output_tbl = self.table.copy()
 
