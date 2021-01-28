@@ -476,6 +476,11 @@ from pypeit import io
 from pypeit import masterframe
 from pypeit import msgs
 
+# TODO: We need methods that:
+#   - construct an rst table that documents the datamodel.
+#   - construct an rst table that documents each Table component of the datamodel
+#     (like a nested DataContainer)
+
 class DataContainer:
     """
     Defines an abstract class for holding and manipulating data.
