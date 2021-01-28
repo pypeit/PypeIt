@@ -1,27 +1,33 @@
+"""
+Implements the objects used to construct sensitivity functions.
 
-
+.. include:: ../include/links.rst
+"""
 import os
 import inspect
+
+from IPython import embed
+
 import numpy as np
 import scipy
-from IPython import embed
-import inspect
-
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+from astropy.io import fits
+from astropy import table
 
 from pypeit import msgs
 from pypeit import specobjs
-from pypeit.core import flux_calib
-from pypeit.core import telluric, fitting
-from pypeit.spectrographs.util import load_spectrograph
-from astropy.io import fits
-from astropy import table
-from pypeit.core import coadd
-from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import io
+from pypeit import datamodel
+from pypeit.core import flux_calib
+from pypeit.core import telluric
+from pypeit.core import fitting
+from pypeit.core import coadd
+from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
-from matplotlib.backends.backend_pdf import PdfPages
+from pypeit.spectrographs.util import load_spectrograph
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -31,8 +37,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # TODO Add some QA plots, and plots to the screen if show is set.
 
+class SensFuncData(datamodel.DataContainer):
+    pass
 
-class SensFunc(object):
+
+class SensFunc:
     """
     Class to generate sensitivity function from a standard star spectrum.
 
