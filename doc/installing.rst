@@ -179,7 +179,7 @@ Some users have run into the following complications when installing the
    directory structure. ``numba`` also does not yet officially support
    Python 3.9.
 
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
+ - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
    PySide2) because of our dependence on ``linetools``.
 
  - Note that ``shapely`` is provided as an optional dependency, but is only
