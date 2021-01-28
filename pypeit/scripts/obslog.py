@@ -44,6 +44,12 @@ def parse_args(options=None, return_parser=False):
                              'included in the pypeit file.')
     parser.add_argument('-b', '--bad_frames', default=False, action='store_true',
                         help='Clean the output of bad frames that cannot be reduced by pypeit.')
+    parser.add_argument('-t', '--bad_types', default='keep', type=str,
+                        help='Dictates how frames that could not be given a valid type should be '
+                             'treated.  Options are: "keep" to include them in the output, "rm" '
+                             'to remove them from the output, "only" to only include the frames '
+                             'with unknown types in the output (i.e, the frames with determined '
+                             'types are excluded).')
     parser.add_argument('-g', '--groupings', default=True, action='store_false',
                         help='Use this option to only determine the frame type.  By default, the '
                              'script groups frames into expected configuration and calibration '
@@ -94,6 +100,9 @@ def main(args):
         load_spectrograph(args.spec).meta_key_map()
         return
 
+    if args.bad_types not in ['keep', 'rm', 'only']:
+        raise ValueError(f'{args.bad_types} is not a valid keyword for the --bad_types argument.')
+
     # Generate the metadata table
     ps = PypeItSetup.from_file_root(args.root, args.spec, extension=args.extension)
     ps.run(setup_only=True, write_files=False, groupings=args.groupings,
@@ -116,8 +125,18 @@ def main(args):
     header = ['Auto-generated PypeIt Observing Log',
               '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())),
               f'Root file string: {args.root}']
-    fitstbl = ps.fitstbl.write(output='table' if args.interact else _file, columns=args.columns,
-                               sort_col=args.sort, overwrite=args.overwrite, header=header)
+    if args.bad_types == 'keep':
+        nrows = len(ps.fitstbl)
+        indx = np.ones(nrows, dtype=bool)
+    elif args.bad_types == 'rm':
+        indx = ps.fitstbl['frametype'] != 'None'
+    elif args.bad_types == 'only':
+        indx = ps.fitstbl['frametype'] == 'None'
+    else:
+        raise ValueError('CODING ERROR: Should never get here.')
+    fitstbl = ps.fitstbl.write(output='table' if args.interact else _file, rows=indx,
+                               columns=args.columns, sort_col=args.sort, overwrite=args.overwrite,
+                               header=header)
 
     if args.interact:
         embed()

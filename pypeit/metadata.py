@@ -293,6 +293,8 @@ class PypeItMetaData:
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
+                    # TODO: This should be converted to an assert statement...
+                    raise ValueError('CODING ERROR: Found high-dimensional column.')
                     embed(header='372 of metadata')
                 elif key in meta_data_model.keys(): # Is this meta data??
                     dtype = meta_data_model[key]['dtype']
@@ -1525,7 +1527,8 @@ class PypeItMetaData:
         # Return
         return ofiles
 
-    def write(self, output=None, columns=None, sort_col=None, overwrite=False, header=None):
+    def write(self, output=None, rows=None, columns=None, sort_col=None, overwrite=False,
+              header=None):
         """
         Write the metadata either to a file or to the screen.
 
@@ -1539,6 +1542,10 @@ class PypeItMetaData:
                 would have been printed/written to disk is returned.
                 Otherwise, the string is interpreted as the name of an ascii
                 file to which to write the table contents.
+            rows (`numpy.ndarray`_, optional):
+                A boolean vector selecting the rows of the table to write. If
+                None, all rows are written. Shape must match the number of
+                the rows in the table.
             columns (:obj:`str`, :obj:`list`, optional):
                 A list of columns to include in the output file. Can be
                 provided as a list directly or as a comma-separated string.
@@ -1579,6 +1586,10 @@ class PypeItMetaData:
         if ofile is not None and os.path.isfile(ofile) and not overwrite:
             raise FileExistsError(f'{ofile} already exists; set flag to overwrite.')
 
+        # Check the rows input
+        if rows is not None and len(rows) != len(self.table):
+            raise ValueError('Boolean vector selecting output rows has incorrect length.')
+
         # Get the columns to return
         if columns in [None, 'all']:
             tbl_cols = list(self.keys())
@@ -1601,21 +1612,28 @@ class PypeItMetaData:
             if indx != 0:
                 tbl_cols.insert(0, tbl_cols.pop(indx))
 
-        # Do not alter the sorting of the internal table
+        # Copy the internal table so that it is unaltered
         output_tbl = self.table.copy()
+
+        # Select the output rows if a vector was provided
+        if rows is not None:
+            output_tbl = output_tbl[rows]
+
+        # Select and sort the data by a given column
         if sort_col is not None:
             if sort_col not in self.keys():
                 raise ValueError(f'Cannot sort by {sort_col}.  Not a valid column.')
             # Ignore any NoneTypes
             indx = output_tbl[sort_col] != None
             is_None = np.logical_not(indx)
-            srt = np.append(np.where(is_None)[0],
-                            np.where(indx)[0][np.argsort(output_tbl[sort_col][indx].data)])
+            srt = np.append(np.where(indx)[0][np.argsort(output_tbl[sort_col][indx].data)],
+                            np.where(is_None)[0])
             output_tbl = output_tbl[tbl_cols][srt]
         else:
             output_tbl = output_tbl[tbl_cols]
 
         if output == 'table':
+            # Instead of writing, just return the modified table
             return output_tbl
 
         # Always write the table in ascii format
@@ -1702,3 +1720,4 @@ def row_match_config(row, config, spectrograph):
             match.append(np.all(config[k] == row[k]))
     # Check
     return np.all(match)
+
