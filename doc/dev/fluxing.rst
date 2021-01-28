@@ -60,11 +60,11 @@ interval will be equal to unity.
 
 From the definition of the spectroscopic zeropoint above, it follows that
 
-:math:`\left(\frac{F_\lambda}{10^{-17} {\rm erg/s/cm^2/\AA}\right) = 10^{-0.4({\rm Zeropoint - ZP_UNIT_CONST})} \left(\frac{N_\lambda}{\rm photons/s/\AA}}\right)\left(\frac{\lambda}{\AA}\right)^2`
+:math:`\left(\frac{F_\lambda}{10^{-17} {\rm erg/s/cm^2/\AA}\right) = 10^{-0.4({\rm Zeropoint - ZPCONST})} \left(\frac{N_\lambda}{\rm photons/s/\AA}}\right)\left(\frac{\lambda}{\AA}\right)^2`
 
-where :math:`ZP_UNIT_CONST = 40.09` is a dimensionless number defined by
+where :math:`ZPCONST = 40.09` is a dimensionless number defined by
 
-:math:`{\rm ZP_UNIT_CONST}\equiv \frac{\frac{\AA^2}{c}\times 10^{-17}{\rm erg/s/cm^2/\AA}}{3631 {\rm Jy}}.
+:math:`{\rm ZPCONST}\equiv \frac{\frac{\AA^2}{c}\times 10^{-17}{\rm erg/s/cm^2/\AA}}{3631 {\rm Jy}}.
 
 In practice PypeIt fits and stores the spectroscopic zerpoints and uses the equation above to compute
 :math:`F_\lambda` from :math:`N_\lambda` and vice-versa.
