@@ -9,6 +9,7 @@ Important Notes:
 
 .. include:: ../include/links.rst
 """
+import os
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -196,8 +197,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
 
