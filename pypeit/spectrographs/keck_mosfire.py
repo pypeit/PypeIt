@@ -144,6 +144,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
 
+        # Dithering
+        self.meta['dithpat'] = dict(ext=0, card='PATTERN')
+        self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
+        self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
