@@ -38,7 +38,7 @@ is used to provide an abstract interface to the two most widely used QT bindings
 
 At least one of those bindings must be installed for the interative GUIs to work. DO NOT INSTALL BOTH, as these
 two packages do not play nicely together. We strongly recommend that you go with pyqt5, unless you are attracted
-to the more flexible licensing that PySide2.  PySide2 can occasionally cause GUIs to crash because
+to the more flexible licensing that PySide2 provides.  PySide2 can occasionally cause GUIs to crash because
 of conflicts with other packages in your environment that use pyqt5.
 
 Developer-only items
