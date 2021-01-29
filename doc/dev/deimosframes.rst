@@ -15,6 +15,7 @@ Version History
 1.1         Kyle Westfall   18 Sep 2020 1.1.2dev
 1.2         Kyle Westfall   28 Sep 2020 1.1.2dev
 1.3         Kyle Westfall   14 Oct 2020 1.2.1dev
+1.4         Kyle Westfall   28 Jan 2021 1.3.1dev
 =========   =============   =========== ===========
 
 ----
@@ -35,32 +36,37 @@ set of criteria used to classify the frame type. The headers cards
 required for the frame-typing and their associated keyword in the
 :class:`~pypeit.metadata.PypeItMetaData` object are:
 
-===============     ==========
+===============     ============
 ``fitstbl`` key     Header Key
-===============     ==========
+===============     ============
+``mode``            ``MOSMODE``
 ``exptime``         ``ELAPTIME``
 ``lampstat01``      ``LAMPS``
 ``hatch``           ``HATCHPOS``
 ``idname``          ``OBSTYPE``
-===============     ==========
+===============     ============
 
 The criteria used to select each frame type are as follows:
 
-=============   ==========================================  =========   ============    ============
-Frame           ``OBSTYPE``                                 ``LAMPS``   ``HATCHPOS``    ``ELAPTIME``
-=============   ==========================================  =========   ============    ============
-``science``     ``'Object'``                                ``'Off'``   ``'open'``      ...
-``bias``        ``'Bias'``                                  ``'Off'``   ``'closed'``    ...
-``dark``        ``'Dark'``                                  ``'Off'``   ``'closed'``    ...
-``pixelflat``   ``'IntFlat'``                               ...         ``'closed'``    ...
-``pixelflat``   ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``trace``       ``'IntFlat'``                               ...         ``'closed'``    ...
-``trace``       ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``illumflat``   ``'IntFlat'``                               ...         ``'closed'``    ...
-``illumflat``   ``'DmFlat'``, ``'SkyFlat'``                 ...         ``'open'``      ...
-``arc``         ``'Line'``                                  ``'Off'``   ``'closed'``    ...
-``tilt``        ``'Line'``                                  ``'Off'``   ``'closed'``    ...
-=============   ==========================================  =========   ============    ============
+=============   ==========================================  ===========   ============    ============
+Frame           ``OBSTYPE``                                 ``LAMPS``     ``HATCHPOS``    ``MOSMODE``
+=============   ==========================================  ===========   ============    ============
+``science``     ``'Object'``                                ``'Off'``     ``'open'``      ``'Spectral'``
+``bias``        ``'Bias'``                                  ``'Off'``     ``'closed'``    ``'Spectral'``
+``dark``        ``'Dark'``                                  ``'Off'``     ``'closed'``    ``'Spectral'``
+``pixelflat``   ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
+``pixelflat``   ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
+``trace``       ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
+``trace``       ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
+``illumflat``   ``'IntFlat'``                               ``!='Off'``   ``'closed'``    ``'Spectral'``
+``illumflat``   ``'DmFlat'``, ``'SkyFlat'``                 ``!='Off'``   ``'open'``      ``'Spectral'``
+``arc``         ``'Line'``                                  ``!='Off'``   ``'closed'``    ``'Spectral'``
+``tilt``        ``'Line'``                                  ``!='Off'``   ``'closed'``    ``'Spectral'``
+=============   ==========================================  ===========   ============    ============
+
+Note that, by default, the exposure time (``ELAPTIME``) is not used to
+distinguish frame types; however, this can be changed using the ``exprng``
+parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.
 
 Importantly, note that a DEIMOS frame is never given a ``pinhole``
 type. Also note that the criteria used to select ``pixelflat``,

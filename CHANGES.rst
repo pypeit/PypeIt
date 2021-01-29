@@ -12,6 +12,11 @@
   to the padding to the arc frames
 - Added a new XeI line
 - Turn off sigma clipping for DEIMOS arc frames.
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
 
 
 1.3.0 (13 Dec 2020)
