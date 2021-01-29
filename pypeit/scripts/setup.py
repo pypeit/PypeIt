@@ -17,13 +17,16 @@ def parse_args(options=None, return_parser=False):
                                                  'preparation for reduction using \'run_pypeit\'',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # TODO: Make root and spectrograph required arguments
-    parser.add_argument('-r', '--root', type=str, default=None,
-                       help='File path+root, e.g. /data/Kast/b ')
+    # TODO: Spectrograph should be a required argument
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
                                 ', '.join(available_spectrographs)))
-
+    parser.add_argument('-r', '--root', default=os.getcwd(), type=str,
+                        help='Root to search for data files.  You can provide the top-level '
+                             'directory  (e.g., /data/Kast) or the search string up through the '
+                             'wildcard (.e.g, /data/Kast/b).  Use the --extension option to set '
+                             'the types of files to search for.  Default is the current working '
+                             'directory.')
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument('-d', '--output_path', default=os.getcwd(),
@@ -50,8 +53,8 @@ def main(args):
 
     from pypeit.pypeitsetup import PypeItSetup
 
-    if args.root is None:
-        raise IOError('root is a required argument.  Use the -r, --root command-line option.')
+#    if args.root is None:
+#        raise IOError('root is a required argument.  Use the -r, --root command-line option.')
     if args.spectrograph is None:
         raise IOError('spectrograph is a required argument.  Use the -s, --spectrograph '
                       'command-line option.')
@@ -70,7 +73,7 @@ def main(args):
     ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
                                     output_path=sort_dir)
     # Run the setup
-    ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background)
+    ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background, obslog=True)
 
     # Use PypeItMetaData to write the complete PypeIt file
     # TODO: Set cfg_split to 'all' by default?

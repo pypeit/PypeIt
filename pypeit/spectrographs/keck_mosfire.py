@@ -154,6 +154,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         for kk,lamp_name in enumerate(lamp_names):
             self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
 
+        # Dithering
+        self.meta['dithpat'] = dict(ext=0, card='PATTERN')
+        self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
+        self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+
     def compound_meta(self, headarr, meta_key):
         """
         Methods to generate metadata requiring interpretation of the header
@@ -213,11 +218,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        pypeit_keys = super().pypeit_file_keys()
-        # TODO: Why are these added here? See
-        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
-        return pypeit_keys
+#        pypeit_keys = super().pypeit_file_keys()
+#        # TODO: Why are these added here? See
+#        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+#        pypeit_keys += [calib', 'comb_id', 'bkg_id']
+#        return pypeit_keys
+        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

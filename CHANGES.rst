@@ -6,12 +6,17 @@
 - Option to limit channels shown for pypeit_show_2dspec
 - sigdetect on in full_template
 - Added new ArI, ArII lines
-- Improved Arc 1Dfit QA
+- Improved 1Dfit QA
 - Final wavelength template for DEIMOS 900ZD
 - Fix a bug in `pypeit/core/arc.py` and `pypeit/core/wavecal/autoid.py` due
   to the padding to the arc frames
 - Added a new XeI line
 - Turn off sigma clipping for DEIMOS arc frames.
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
 - Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
 function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
 - Added MOSFIRE QL script.
@@ -25,7 +30,6 @@ function completely to compute zeropoints and throughput. Enhanced sensfunc.py Q
 - Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
 - Added latin hypercube sampler to pypeit.utils which is required for differential evolution
 optimizations.
-
 
 
 1.3.0 (13 Dec 2020)

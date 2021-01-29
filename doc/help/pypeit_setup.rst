@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_setup -h
-    usage: pypeit_setup [-h] [-r ROOT] [-s SPECTROGRAPH] [-e EXTENSION]
+    usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-v VERBOSITY]
     
     Parse data files to construct a pypeit file in preparation for reduction using
@@ -9,7 +9,6 @@
     
     optional arguments:
       -h, --help            show this help message and exit
-      -r ROOT, --root ROOT  File path+root, e.g. /data/Kast/b (default: None)
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: gemini_flamingos1,
                             gemini_flamingos2, gemini_gmos_north_e2v,
@@ -27,6 +26,13 @@
                             tng_dolores, vlt_fors2, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red (default: None)
+      -r ROOT, --root ROOT  Root to search for data files. You can provide the
+                            top-level directory (e.g., /data/Kast) or the search
+                            string up through the wildcard (.e.g, /data/Kast/b).
+                            Use the --extension option to set the types of files
+                            to search for. Default is the current working
+                            directory. (default:
+                            /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)

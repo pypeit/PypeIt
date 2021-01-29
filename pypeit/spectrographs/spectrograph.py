@@ -589,6 +589,28 @@ class Spectrograph:
         """
         self.meta = {}
 
+    def meta_key_map(self):
+        """
+        Print the mapping of the pypeit-specific metadata keywords to the
+        header cards used for this spectrograph.
+
+        .. note::
+            Metadata keys with header cards that are None have no simple
+            mapping between keyword and header card; their values are set by
+            some combination of header keywords as defined by
+            :func:`compound_meta` specific to each spectrograph.
+        """
+        meta_keys = list(self.meta.keys())
+        meta_cards = [str(self.meta[key]['card']) for key in meta_keys]
+        nk = max(12, max([len(key) for key in meta_keys]))
+        nc = max(11, max([len(card) for card in meta_cards]))
+        print('')
+        print('{0}   {1}'.format('Metadata Key'.center(nk), 'Header Card'.center(nc)))
+        print('-'*nk + '   ' + '-'*nc)
+        for key, card in zip(meta_keys, meta_cards):
+            print('{0}   {1}'.format(key.rjust(nk), card.rjust(nc)))
+        print('')
+
     def get_detector_par(self, hdu, det):
         """
         Read/Set the detector metadata.

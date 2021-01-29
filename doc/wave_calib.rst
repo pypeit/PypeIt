@@ -315,6 +315,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * See examples in the `templates.py` module.
+   * See :doc:`construct_template`
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -374,13 +375,12 @@ This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
 
-Additional Reading
-==================
 
 .. toctree::
-   :caption: More reading
+   :caption: Additional Reading
    :maxdepth: 1
 
    flexure
    heliocorr
    wavetilts
+   construct_template
