@@ -70,7 +70,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-
 #-----------------------------------------------------------------------------
 # Reduction ParSets
 
@@ -3829,7 +3828,8 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None,
+                 collate1d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4107,7 +4107,7 @@ class PypeItPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit', 'collate1d']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
@@ -4160,6 +4160,11 @@ class PypeItPar(ParSet):
         default = TellFitPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['tellfit'] else None
         kwargs[pk] = TellFitPar.from_dict(cfg[pk]) if pk in k else default
+
+        # collate1d
+        pk = 'collate1d'
+        default = Collate1DPar()
+        kwargs[pk] = Collate1DPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
@@ -4548,3 +4553,76 @@ class TelescopePar(ParSet):
                 else 206265/self['fratio']/self['diameter']/1e3
 
 
+class Collate1DPar(ParSet):
+    """
+    A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, threshold=None, archive_root=None, dry_run=None, slit_exclude_flags=[]):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Threshold for grouping by object
+        defaults['threshold'] = '0.0003d'
+        dtypes['threshold'] = str
+        descr['threshold'] = "The threshold used when comparing the RA/DEC of objects. If two " \
+                             "objects are within this angular distance from each other, they " \
+                             "are considered the same object. This is specified in the same way " \
+                             "as astropy.coordinates.Angle (e.g. '0.003d' or '0h1m30s')."
+
+
+        # Root directory of archive
+        defaults['dry_run'] = False
+        dtypes['dry_run'] = bool
+        descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
+                           "but will not flux, coadd or archive."
+
+        # Root directory of archive
+        defaults['archive_root'] = None
+        dtypes['archive_root'] = str
+        descr['archive_root'] = "The path where files and metadata will be archived."
+
+        # What slit flags to exclude
+        defaults['slit_exclude_flags'] = []
+        dtypes['slit_exclude_flags'] = [list, str]
+        descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
+
+        # Instantiate the parameter set
+        super(Collate1DPar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['threshold', 'dry_run', 'archive_root', 'slit_exclude_flags']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass

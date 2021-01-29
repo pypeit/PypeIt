@@ -11,6 +11,8 @@ import numpy as np
 import copy
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -21,6 +23,8 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
+from pypeit import io
+from pypeit.history import History
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -704,6 +708,8 @@ class PypeIt(object):
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
+        history = History(head2d)
+        history.append(f'PypeIt Reduce From {os.path.basename(rawfile)}')
 
         # Check for the directory
         if not os.path.isdir(self.science_path):
@@ -716,7 +722,8 @@ class PypeIt(object):
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
-                                       slitspatnum=self.par['rdx']['slitspatnum'])
+                                       slitspatnum=self.par['rdx']['slitspatnum'],
+                                       history=history)
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
@@ -728,7 +735,8 @@ class PypeIt(object):
                                                redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir,
-                                               subheader=subheader)
+                                               subheader=subheader,
+                                               history=history)
         # Write
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 

@@ -1,0 +1,5 @@
+|maskdef_objname|      ra|    dec|dispname| decker|binning|    mjd|airmass|exptime|
+|           char|  double| double|    char|   char|   char|   char|   char|   char|
+|               |        |       |        |       |       |       |       |       |
+|           null|    null|   null|    null|   null|   null|   null|   null|   null|
+         object1 201.1517 27.3246     830G Z6CL01B     1,1 58878.0     1.0  1200.0 

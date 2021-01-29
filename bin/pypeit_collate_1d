@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+"""
+Flux/Coadd multiple 1d spectra from multiple nights and archive the results.
+"""
+
+from pypeit.scripts import collate_1d
+
+if __name__ == '__main__':
+    collate_1d.main(collate_1d.parse_args())
+

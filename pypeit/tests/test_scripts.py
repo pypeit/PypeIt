@@ -15,7 +15,7 @@ matplotlib.use('agg')  # For Travis
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
-from pypeit.scripts import identify
+from pypeit.scripts import identify, collate_1d
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -24,7 +24,7 @@ from pypeit import io
 from pypeit import wavecalib
 
 from pypeit.pypeitsetup import PypeItSetup
-
+from pypeit.pypmsgs import PypeItError
 
 @dev_suite_required
 def test_quicklook():
@@ -298,6 +298,81 @@ def test_identify():
     os.remove('waveid.ascii')
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
+
+@cooked_required
+def test_collate_1d(tmp_path):
+    args = ['--dry_run', '--archive_dir', '/archive', '--exclude_slit', 'BOXSLIT']
+    spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
+    spec1d_args = ['--spec1d_files', spec1d_file]
+    thresh_args = ['--thresh', '0.03d']
+    alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
+    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
+
+    with open(config_file_full, "w") as f:
+        print("[collate1d]", file=f)
+        print("dry_run = False", file=f)
+        print("archive_root = /foo/bar", file=f)
+        print("threshold = 0.0004d", file=f)
+        print("slit_exclude_flags = BADREDUCE", file=f)
+        print('spec1d read', file=f)
+        print(alt_spec1d, file=f)
+        print('spec1d end', file=f)
+
+    config_file_spec1d = str(tmp_path / "test_collate1d_spec1d_only.collate1d")
+    with open(config_file_spec1d, "w") as f:
+        print("[collate1d]", file=f)
+        print('spec1d read', file=f)
+        print(alt_spec1d, file=f)
+        print('spec1d end', file=f)
+
+    # Args only, nospec1d files should raise an exception
+    with pytest.raises(PypeItError):
+        parsed_args = collate_1d.parse_args(args + thresh_args)
+        (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+
+    # Config file with only spec1d files. This should fail due to no threshold
+    with pytest.raises(PypeItError):
+        parsed_pargs = collate_1d.parse_args([config_file_spec1d])
+        (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+
+    # Everything passed via command line
+    parsed_args = collate_1d.parse_args(args + thresh_args + spec1d_args)
+    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    assert params['collate1d']['dry_run'] is True
+    assert params['collate1d']['archive_root'] == '/archive'
+    assert params['collate1d']['threshold'] == '0.03d'
+    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert spectrograph.name == 'shane_kast_blue'
+    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
+
+    # Full config file, should work
+    parsed_args = collate_1d.parse_args([config_file_full])
+    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    assert params['collate1d']['dry_run'] is False
+    assert params['collate1d']['archive_root'] == '/foo/bar'
+    assert params['collate1d']['threshold'] == '0.0004d'
+    assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
+    assert spectrograph.name == 'keck_deimos'
+    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
+
+    # Test that a full command line overrides a config file
+    parsed_args = collate_1d.parse_args(args + spec1d_args + thresh_args + [config_file_full])
+    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    assert params['collate1d']['dry_run'] is True
+    assert params['collate1d']['archive_root'] == '/archive'
+    assert params['collate1d']['threshold'] == '0.03d'
+    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert spectrograph.name == 'shane_kast_blue'
+    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
+
+    # Test that a config file with spec1d files. Test that default threshold is used
+    parsed_args = collate_1d.parse_args([config_file_spec1d])
+    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    assert params['collate1d']['threshold'] == '0.0003d'
+    assert spectrograph.name == 'keck_deimos'
+    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib

@@ -13,6 +13,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy.time import Time
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
@@ -20,7 +21,7 @@ from pypeit import msgs
 from pypeit.core import coadd, flux_calib
 from pypeit import datamodel
 from pypeit import io
-
+from pypeit.history import History
 
 class OneSpec(datamodel.DataContainer):
     """
@@ -93,8 +94,9 @@ class OneSpec(datamodel.DataContainer):
         self.filename = None
         self.spectrograph = None
         self.spect_meta = None
+        self.history = []
 
-    def to_file(self, ofile, primary_hdr=None, **kwargs):
+    def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
         to deal with the header
@@ -116,6 +118,11 @@ class OneSpec(datamodel.DataContainer):
         # Add em in
         for key in subheader:
             primary_hdr[key] = subheader[key]
+
+        # Add history
+        if history is not None:
+            history.write_to_header(primary_hdr)
+
         # Do it
         super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
                                      **kwargs)
@@ -237,13 +244,36 @@ class CoAdd1D(object):
                           fluxed=self.par['flux_value'])
         onespec.head0 = fits.getheader(self.spec1dfiles[0])
 
+        # Build history showing what files and objects were used for coadding.
+        # To save characters the unique files are listed first and then the
+        # objects are listed. For example:
+        # HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
+        # HISTORY File 0 spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits  
+        # HISTORY File 1 spec1d_DE.20170425.51771-dra11_DEIMOS_2017Apr25T142245.350.fits  
+        # HISTORY File 2 spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits  
+        # HISTORY Object ID SPAT0692-SLIT0704-DET08 from file 0                           
+        # HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 2                           
+        # HISTORY Object ID SPAT0691-SLIT0704-DET08 from file 2                           
+        # HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 1
+
+        history = History()
+        combined_file_obj = zip(self.spec1dfiles, self.objids)
+        unique_files = list(set(self.spec1dfiles))
+        history_list = [(unique_files.index(x), y) for x, y in combined_file_obj]
+        history.append(f'PypeIt Coadded {len(history_list)} objects from {len(unique_files)} spec1d files')
+        for i in range(len(unique_files)):
+            history.append(f'File {i} {os.path.basename(unique_files[i])}', add_date=False)
+
+        for file_index, objid in history_list:
+            history.append(f'Object ID {objid} from file {file_index}', add_date=False)
+
         # Add on others
         if telluric is not None:
             onespec.telluric  = telluric[wave_mask]
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_mask]
         # Write
-        onespec.to_file(coaddfile, overwrite=overwrite)
+        onespec.to_file(coaddfile, history = history, overwrite=overwrite)
 
     def coadd(self):
         """
