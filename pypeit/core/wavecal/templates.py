@@ -99,10 +99,10 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     """
     if outdir is None:
         outdir = outpath
-    if binning is None:
-        binning = [None]*len(in_files)
     if ifiles is None:
         ifiles = np.arange(len(in_files))
+    if binning is None:
+        binning = [None]*len(ifiles)
     # Load xidl file
     # Grab it
     # Load and splice

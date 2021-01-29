@@ -197,7 +197,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 #        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
 #        par['calibrations']['traceframe']['exprng'] = [None, 30]
 #        par['scienceframe']['exprng'] = [30, None]
-        
+
+        # Do not sigmaclip the arc frames
+        par['calibrations']['arcframe']['process']['clip'] = False
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -263,6 +266,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(headarr, 'dispname') == '900ZD':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -302,6 +310,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['utc'] = dict(ext=0, card='UTC')
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -411,7 +420,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             `numpy.ndarray`_: Boolean array with the flags selecting the
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        good_exp = (framematch.check_frame_exptime(fitstbl['exptime'], exprng)) \
+                        & (fitstbl['mode'] == 'Spectral')
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'open')
@@ -423,7 +433,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             is_flat = np.any(np.vstack([(fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
                                     for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
                                                    ['closed', 'open', 'open'])]), axis=0)
-            return good_exp & is_flat
+            return good_exp & is_flat & (fitstbl['lampstat01'] != 'Off')
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
@@ -431,7 +441,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Dark') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed') \
+                        & (fitstbl['lampstat01'] != 'Off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

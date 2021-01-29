@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+This script examines a set of files and generates output
+to help setup the .pypeit file
+"""
+
+from pypeit.scripts import obslog
+
+if __name__ == '__main__':
+    obslog.main(obslog.parse_args())
+

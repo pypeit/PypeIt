@@ -15,7 +15,7 @@ matplotlib.use('agg')  # For Travis
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
-from pypeit.scripts import identify, collate_1d
+from pypeit.scripts import identify, obslog, collate_1d
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -299,6 +299,23 @@ def test_identify():
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
 
+@dev_suite_required
+def test_obslog():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    obslogfile = 'shane_kast_blue.obslog'
+    # Remove the directory if it already exists
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+
+    # Perform the setup
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
+    obslog.main(obslog.parse_args(['shane_kast_blue', '-r', droot, '-f', obslogfile,
+                                   '-d', setupdir]))
+
+    # Clean up
+    shutil.rmtree(setupdir)
+
 @cooked_required
 def test_collate_1d(tmp_path):
     args = ['--dry_run', '--archive_dir', '/archive', '--exclude_slit', 'BOXSLIT']
@@ -374,5 +391,6 @@ def test_collate_1d(tmp_path):
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
-
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
+
+

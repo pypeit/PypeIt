@@ -4,14 +4,62 @@ Installation
 
 This document describes how to install ``PypeIt`` for both users and developers.
 
+Supported Platforms
+===================
+PypeIt is only supported for CPython versions 3.7+. PypeIt may work on other versions of Python,
+however no guarantees or support will be provided.
+
+Installing with ``conda`` or ``pip``
+====================================
+The easiest way to install PypeIt is to use ``conda``. Conda is part of the
+`Anaconda Python Distribution <https://www.anaconda.com/products/individual>`_,
+though we recommend using the Miniconda installer for faster installation and
+smaller downloads.
+
+If you use Anaconda on your system, ``conda`` is the recommended way to install
+PypeIt. Otherwise, use ``pip``.
+
+Once you've completed the installation steps, you should
+:ref:`test_installation`.
+
+Installing with ``conda``
+-------------------------
+Make sure you have either `Anaconda <https://www.anaconda.com/products/individual>`_,
+`Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, or
+`Miniforge <https://github.com/conda-forge/miniforge#download>`_ installed.
+Use this command to install PypeIt::
+
+    conda install -c conda-forge pypeit
+
 ----
+
+Installing with ``pip``
+-----------------------
+
+  #. First, you need to ensure that PypeIt's dependencies are installed. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
+
+  #. Install the dependencies with this command::
+
+        pip install -r requirements.txt
+
+  #. Then use this command to install PypeIt::
+
+        pip install pypeit
+
+This has been known to fail on some systems (and we're working to fix
+the issue). If you have problems, instead try::
+
+    pip install git+https://github.com/pypeit/PypeIt.git
+
+If that also fails, please `submit an issue
+<https://github.com/pypeit/PypeIt/issues>`__.
 
 .. _dependencies:
 
 Installing Dependencies
 =======================
 
-Installing ``PypeIt`` will not automatically ensure that all the
+Installing ``PypeIt`` (except from ``conda``) will not automatically ensure that all the
 dependencies (and their appropriate versions) are installed and
 up-to-date. Below we provide two ways of ensuring that the relevant
 dependencies are available.
@@ -20,61 +68,43 @@ The package and version requirements for ``PypeIt`` are:
 
 * `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.18.0 or later
-* `astropy <http://www.astropy.org/>`_ version 4.0 or later
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
+* `astropy <http://www.astropy.org/>`_ version 4.0 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
+* `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
+* `QtPy <https://pypi.org/project/qtpy>`_ version 1.9 or later
+  * one of PySide2 or PyQt5
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
-* `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-* `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
 * `requests <https://requests.readthedocs.io/en/master/>`_ -- version 2.23 or later
 * `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
-* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later
-* `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
+* `extension-helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
+* `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
+* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.3.dev2231 or later
+* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later
 * `shapely <https://pypi.org/project/Shapely/>`_ -- version 1.7 or later; optional, **required for KCWI only**
-* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later; optional, developers only
 
 Developer-only items
 --------------------
 
-If you are developing, you may need the following packages:
+If you are developing, you may need the following packages for building the documentation:
 
 * `sphinx <https://www.sphinx-doc.org/en/master/>`_ -- version 4.0 or later
-* sphinx_automodapi (pip install only)
-* sphinx_rtd_theme (pip install only)
+* sphinx-automodapi
+* sphinx_rtd_theme
 
-Create a conda environment (recommended)
-----------------------------------------
+How to install dependencies
+---------------------------
 
-We highly recommend using `Anaconda <https://www.anaconda.com/>`_ as
-a package and environment manager. We provide a yaml file that can be
-used to setup a conda environment called ``PypeIt``.  To use this:
+#. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
 
- #. Download `environment.yml <https://github.com/pypeit/PypeIt/blob/master/environment.yml>`__.
+#. Install the dependencies using ``conda``::
 
- #. Create the conda environment::
+        conda install -y -c conda-forge --file requirements.txt
 
-        conda env create -f environment.yml
-
- #. Activate it::
-
-        conda activate pypeit
-
- #. Verify that the new environment was installed correctly::
-
-        conda env list
-
-Install via ``pip`` 
--------------------
-
-To install the dependencies using `pip <https://pypi.org/project/pip/>`_:
-
- #. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
-
- #. Install the dependencies::
+  or ``pip``::
 
         pip install -r requirements.txt
 
@@ -93,59 +123,59 @@ Some users have run into the following complications when installing the
    llvm version 9.0.1 using `Homebrew <https://brew.sh/>`_ and then add
    environmental variables to your shell rc that point to the reverted
    directory structure.
- 
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
-   PySide2) because of our dependence on ``linetools``.
 
  - Note that ``shapely`` is listed as an optional dependency, but is only
    currently used by one method that calculates the spaxel area for KCWI
    output datacubes.
 
+ - Note that you will likely have either PyQt5 or PySide2 installed and PypeIt requires
+   one of these two packages installed for any of the GUIs to work, in particular
+   ``pypeit_show_2dspec`` and ``pypeit_show_1dspec``. If you have neither installed, and
+   both ``pypeit_show_2dspec`` and ``pypeit_show_1dspec`` crash, then you should install
+   one of PySide2 or PyQt5 (``pip install pyside2`` or ``pip install pyqt5`` or
+   ``conda install pyside2`` or ``conda install pyqt``).
+
  - For the developer-only (``Sphinx``) packages, download
    `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
-   and install with ``pip install -r requirements_doc.txt``.
+   and install with ``conda install -y -c conda-forge --file requirements_doc.txt`` or
+   ``pip install -r requirements_doc.txt``.
 
 ----
 
-Installing PypeIt
-=================
+Install from the git source (Advanced)
+======================================
 
-Please read all of the text in this sub-section before choosing which
-of the two methods described below for how you wish to install
-``PypeIt``. Once you've completed the installation steps, you should
-:ref:`test_installation`.
-
-Install using pip
------------------
-
-If you are not using code on the edge of development, then
-we recommend that you install ``PypeIt`` with ``pip``::
-
-    pip install pypeit
-
-This has been known to fail on some systems (and we're working to fix
-the issue). If you have problems, instead try::
-
-    pip install git+https://github.com/pypeit/PypeIt.git
-
-If that also fails, please `submit an issue
-<https://github.com/pypeit/PypeIt/issues>`__.
-
-Install from the git source
----------------------------
-
-If ``pip`` is unsuccessful or if you are planning to use any of the
+If ``conda`` and ``pip`` are unsuccessful, or if you are planning to use any of the
 ``PypeIt`` development branches, then you should install directly
 from GitHub.
 
- #. Clone the repository::
+ #. Clone the repository and navigate to the PypeIt directory::
 
         git clone https://github.com/pypeit/PypeIt.git
-
- #. This will create a ``PypeIt`` directory in your current path. To install::
-
         cd PypeIt
-        python setup.py develop
+
+ #. Install dependencies
+
+  - into your current environment with ONE of the following commands (you may need to also install
+    PySide2/PyQt5 if they are not already installed as per note above)::
+
+        pip install -r pypeit/requirements.txt
+
+        conda install -y -c conda-forge --file requirements.txt
+
+  - or into a new environment::
+
+        conda env create -f environment.yml
+        conda activate pypeit
+        # install PySide2/PyQt5 from conda/pip using using ONE of the following lines
+        conda install -c conda-forge pyside2
+        conda install pyqt
+        pip install pyside2
+        pip install pyqt5
+
+ #. Install PypeIt::
+
+        pip install -e .
 
 Installing the code this way ensures that virtually all changes to files in
 the ``PypeIt`` directory take immediate effect the next time you
@@ -162,7 +192,8 @@ C code
 Significant speed gains in ``PypeIt`` can be enabled via compilation
 of the C code version of the b-spline fitting code. Compilation of
 the C code should happen automatically when you execute ``pip
-install`` or ``python setup.py develop``. You can check that the C
+install`` or ``pip install -e .``. When installing from ``conda``,
+the C compilation has already been done for you. You can check that the C
 code was compiled successfully by running the ``pypeit_c_enabled``
 script. What you should see is::
 
@@ -222,7 +253,7 @@ This should fail if any of the requirements are not satisfied; see
 2. Run the ``PypeIt`` unit tests
 --------------------------------
 
-If you cloned the repo (i.e., you did *not* use `pip`) then you can
+If you cloned the repo (i.e., you did *not* use `pip` or `conda`) then you can
 run the standard tests by doing::
 
     cd PypeIt

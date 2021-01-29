@@ -315,6 +315,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * See examples in the `templates.py` module.
+   * See :doc:`construct_template`
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -344,6 +345,8 @@ Instrument       Setup                      Name
 keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
 keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
 keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits
+keck_deimos      900ZD grating, all lamps   keck_deimos_900ZD.fits
 keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
 keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
 keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
@@ -372,13 +375,12 @@ This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
 
-Additional Reading
-==================
 
 .. toctree::
-   :caption: More reading
+   :caption: Additional Reading
    :maxdepth: 1
 
    flexure
    heliocorr
    wavetilts
+   construct_template

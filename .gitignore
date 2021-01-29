@@ -3,7 +3,7 @@
 .vscode/
 build/*
 dist/*
-doc/build_
+doc/build_/*
 
 # Compiled source #
 ###################
