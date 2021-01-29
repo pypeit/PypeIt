@@ -35,7 +35,7 @@ If you don't already have tox installed, you can install it by doing:
 If you want to run all or part of the test suite within an existing environment,
 you can use pytest directly:
 
-    pip install -e .[test,pyside2,pyqt5,shapely]
+    pip install -e .[dev]
     pytest
 
 For more information, see:
