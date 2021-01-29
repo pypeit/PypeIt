@@ -98,6 +98,7 @@ class SALTRSSSpectrograph(spectrograph.Spectrograph):
         """
 
         if meta_key == 'binning':
+            return '1,1'
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
@@ -168,8 +169,8 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         # these should be the same for all detectors/not in the header
         this_detector = dict(
             binning         = self.get_meta_value(self.get_headarr(hdu), 'binning'),
-            specaxis        = 0, #check
-            specflip        = True,  #check
+            specaxis        = 1,
+            specflip        = False,
             spatflip        = False, # check
             platescale      = 0.138, # unbinned - assuming that's what's meant?
             darkcurr        = 0.5, # "less than 1" is what docs say  ¯\_(ツ)_/¯
@@ -188,6 +189,8 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         this_detector['saturation'] = detheader['SATURATE']
         this_detector['datasec'] = np.atleast_1d(flip_fits_slice(detheader['DATASEC']))
         this_detector['oscansec'] = np.atleast_1d(flip_fits_slice(detheader['BIASSEC']))
+        #this_detector['datasec'] = np.atleast_1d(detheader['DATASEC'])
+        #this_detector['oscansec'] = np.atleast_1d(detheader['BIASSEC'])
 
         return detector_container.DetectorContainer(**this_detector)
 
@@ -213,7 +216,7 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
 
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI'] # TODO: check
+        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS']
 
         # Do not flux calibrate
         par['fluxcalib'] = None
@@ -226,6 +229,8 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120] #check
         par['scienceframe']['exprng'] = [90, None] #check
 
+        par['sensfunc']['algorithm'] = 'UVIS'
+        par['sensfunc']['UVIS']['polycorrect'] = False
         par['sensfunc']['UVIS']['nresln'] = 5 #check
 
         par.reset_all_processimages_par(use_biasimage=False)  #check
@@ -251,6 +256,9 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
+        disp = self.get_meta_value(scifile, 'dispname')
+        par['calibrations']['wavelengths']['reid_arxiv'] = f'salt_rssv_{disp}.fits'
+
         # check - this is adaptred from p200, and is definitely only right for longslits...
 
         angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
@@ -270,6 +278,9 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         resolving_power = cen_wv / dlam
 
         par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
+
+        # TODO: this should depend on slit size, binning etc!
+        par['calibrations']['wavelengths']['fwhm'] = 8  
 
         return par
 
