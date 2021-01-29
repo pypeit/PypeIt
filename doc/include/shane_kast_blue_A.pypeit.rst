@@ -1,23 +1,19 @@
 .. code-block:: console
 
     # Auto-generated PypeIt file
-<<<<<<< HEAD
-    # Tue 19 Jan 2021 18:25:44
-=======
     # Mon 11 Jan 2021 16:15:57
->>>>>>> upstream/develop
-    
+
     # User-defined execution parameters
     [rdx]
     spectrograph = shane_kast_blue
-    
+
     # Setup
     setup read
         Setup A:
             dispname: 600/4310
             dichroic: d55
     setup end
-    
+
     # Read in the data
     data read
      path /home/tim/MMT/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
@@ -49,6 +45,6 @@
     | b28.fits.gz |                   science | 184.40416666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.22085034722 |            1.0 |  1200.0 |      d55 |
     | b24.fits.gz |                  standard | 189.47833333333332 |  24.99638888888889 |   Feige 66 | 600/4310 | 2.0 arcsec |     1,1 |  57162.17554351852 | 1.039999961853 |    30.0 |      d55 |
     data end
-    
+
 
 
