@@ -152,7 +152,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                     # Range
                     iend = np.argmin(np.abs(new_wave - wvmax))
                     # Interpolate
-                    f = interp1d(wv_vac, spec)
+                    f = interp1d(wv_vac, spec, fill_value='extrapolate')
                     spec = f(new_wave[ipix + 1:iend])
                     wv_vac = new_wave[ipix+1:iend]
                     # Over-write gdi
