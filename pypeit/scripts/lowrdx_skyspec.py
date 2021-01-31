@@ -33,3 +33,10 @@ def main(args):
     # Write
     xspec.write_to_fits(args.new_file)
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

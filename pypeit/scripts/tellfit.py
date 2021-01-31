@@ -190,3 +190,11 @@ def main(args):
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
         msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

@@ -141,3 +141,6 @@ def main(args):
     if args.interact:
         embed()
 
+
+if __name__ == '__main__':
+    entry_point()

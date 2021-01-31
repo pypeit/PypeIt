@@ -29,3 +29,11 @@ def main(args):
     # Do it
     waveCalib.print_diagnostics()
 
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

@@ -24,9 +24,9 @@ Submodules
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
-   pypeit.check_requirements
    pypeit.coadd1d
    pypeit.coadd2d
+   pypeit.compiler_version
    pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
@@ -49,6 +49,7 @@ Submodules
    pypeit.telescopes
    pypeit.tracepca
    pypeit.utils
+   pypeit.version
    pypeit.wavecalib
    pypeit.wavemodel
    pypeit.wavetilts

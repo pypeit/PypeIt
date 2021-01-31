@@ -22,11 +22,21 @@ Or you can clone the `repo`_ and work with it directly:
 
     git clone https://github.com/pypeit/PypeIt
     cd PypeIt
-    python3 setup.py develop
+    pip install -e .
 
-It's important that you use the ``develop`` option when you run the
-setup script so that changes made to your local installation are
-immediately available when you re-execute the code.
+It's important that you use the ``-e`` option when you run ``pip`` so that changes
+made to your local installation are immediately available when you re-execute the code.
+This will install the core dependencies, but not optional ones like PyQT, PySide2, or
+any of the dependencies required for testing or building docs. To install everything you
+might possibly need, do:
+
+.. code-block:: bash
+
+    pip install -e .[test,docs,pyside2,pyqt5,shapely]
+
+It is very highly recommended to do your development install into its own clean
+environment. See :ref:`installing` for examples of how to do this with either ``conda``
+or ``virtualenv``.
 
 This isn't required, but to simplify some of the commands below, I
 assume that you have an environmental variable that points to your
@@ -160,12 +170,12 @@ To test PypeIt using the data from the Google TeamDrive:
  * Run the test suite on the setups designated for development purposes:
 
    .. code-block:: bash
-        
+
         cd PypeIt-development-suite
         ./pypeit_test develop
 
    .. warning::
-        
+
         The current script executes 89 tests.  These tests are mostly
         reductions of example data, but they also include fluxing,
         flexure, and coadding tests.  The execution time is system
@@ -233,23 +243,52 @@ them, make sure you have `pytest`_ installed and then:
 
 .. code-block:: bash
 
-    cd $PYPEIT_DIR/pypeit/tests
-    pytest .
+    cd $PYPEIT_DIR
+    pytest
 
-If some tests fail, you can run an individual test, e.g. test_wavecalib.py with
+If some tests fail, you can run an individual test, e.g. test_wvcalib.py with
 
 .. code-block:: bash
 
-    pytest -s test_wavecalib.py
+    cd $PYPEIT_DIR
+    pytest -s pypeit/tests/test_wvcalib.py
 
 Note that the "-s" option allows to insert interactive debugging commands into the test,
-here test_wavecalib.py to help determine why the test is failing.
+here test_wvcalib.py to help determine why the test is failing.
 
 .. warning::
 
     Running these tests generates some files that should be ignored.  **Please do not
     add these test files to the repository.**  We're in the process of
     including some automatic clean-up in the testing functions.
+
+Note also that the use of `pytest`_ requires the test dependencies to be installed, e.g. via
+``pip install -e .[test]``. It is also possible, and often preferable, to run tests within their own
+isolated environments using `tox <https://tox.readthedocs.io/en/latest/>`_. This provides the capability
+to easily run tests against different versions of the various dependencies, including different versions
+python. The available ``tox`` environments are defined in ``$PYPEIT_DIR/tox.ini`` and can be listed by
+running ``tox -a``. To run tests against the default dependencies using the default python, do:
+
+.. code-block:: bash
+
+    cd $PYPEIT_DIR
+    tox -e test
+
+To specify a python version, do something like:
+
+.. code-block:: bash
+
+    cd $PYPEIT_DIR
+    tox -e py38-test
+
+To test against, for example, the ``master`` branch for ``astropy`` on GitHub, you can do:
+
+.. code-block:: bash
+
+    cd $PYPEIT_DIR
+    tox -e py38-test-astropydev
+
+Similar ``dev`` dependencies are configured for ``numpy``, ``ginga``, and ``linetools`` as well.
 
 Some of the unit tests require the `Development Suite`_ and/or a set of
 "cooked" data products with the expected result produced by testing
@@ -265,7 +304,7 @@ following line in your `.bash_profile` file in your home directory:
     .. code-block:: bash
 
         export PYPEIT_DEV=$HOME/Work/packages/PypeIt-development-suite
-        
+
 For unit tests that use the "cooked" data, PypeIt must find a directory
 called ``$PYPEIT_DEV/Cooked/``.
 
@@ -290,8 +329,15 @@ A typical PypeIt development workflow is as follows:
 
    .. code-block:: bash
 
-        cd $PYPEIT_DIR/pypeit/tests
-        pytest .
+        cd $PYPEIT_DIR
+        pytest
+
+   or preferably:
+
+   .. code-block:: bash
+
+        cd $PYPEIT_DIR
+        tox -e test
 
    The tests should be run so that they have access to the `Development
    Suite`_ (so that it can, e.g., test loading data), but this first
@@ -301,15 +347,15 @@ A typical PypeIt development workflow is as follows:
  * Run the `Development Suite`_ and fix any failures:
 
    .. code-block:: bash
-        
+
         cd $PYPEIT_DEV
         ./pypeit_test develop
 
  * Build the cooked tar file (e.g., replace x.xx.x with some unique
    version for your branch):
- 
+
    .. code-block:: bash
-        
+
         cd $PYPEIT_DEV
         ./build_cooked x.xx.x
 
@@ -319,8 +365,8 @@ A typical PypeIt development workflow is as follows:
 
    .. code-block:: bash
 
-        cd $PYPEIT_DIR/pypeit/tests
-        pytest .
+        cd $PYPEIT_DIR
+        tox -e test
 
  * Edit ``$PYPEIT_DIR/CHANGES.rst`` to reflect your key developments and
    update the API `documentation`_.
@@ -433,7 +479,7 @@ The tagging process is as follows:
         git checkout -b staged
 
  * Once the PR is accepted *but before being merged into master*, the
-   code is tagged as follows (uses `bumpversion`_):
+   code is tagged as follows:
 
     .. code-block:: bash
 
@@ -444,8 +490,11 @@ The tagging process is as follows:
         git add -u
         git commit -m 'tag CHANGES'
 
-        # Increment the version from 'dev' to a release version and tag
-        bumpversion release --verbose --tag --commit
+        # Create a tag of the form X.Y.Z (using 1.3.1 here as an example).
+        # The current autogenerated version is found in pypeit/version.py
+        # and the tag used here should be everything in front of the 'dev'
+        # string in the current version.
+        git tag 1.3.1
 
         # Push the changes and the new tag
         git push
@@ -472,7 +521,7 @@ The tagging process is as follows:
     .. code-block:: ini
 
         [distutils]
-        index-servers = 
+        index-servers =
             pypeit
             pypeit-test
 
@@ -504,13 +553,14 @@ The tagging process is as follows:
         git pull
         git checkout -b devup
 
-        # Increment the version to 'dev'
-        bumpversion patch --verbose --commit
-
         # Edit CHANGES.rst to begin the new dev section
         vi CHANGES.rst
         git add -u
         git commit -m 'CHANGES'
+
+   The addition of this new commit will cause ``setuptools_scm`` to automatically increment the version
+   based on the last tag that was pushed. This will be of the form ``{next_version}.dev{distance}+{scm letter}{revision hash}``.
+   See the `setuptools_scm documentation <https://github.com/pypa/setuptools_scm>`_ for more details.
 
  * Finally, a quick PR is issued that pulls ``devup`` into ``develop``.
    All of the `Pull Request Acceptance Requirements`_ should already be

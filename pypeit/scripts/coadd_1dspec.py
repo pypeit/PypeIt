@@ -142,7 +142,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         # Save to file
         coAdd1d.save(coaddfile)
         outfiles.append(coaddfile)
-    
+
     return outfiles
 
 
@@ -243,3 +243,10 @@ def main(args):
     coAdd1d.save(coaddfile)
     msgs.info('Coadding complete')
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

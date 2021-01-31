@@ -12,7 +12,7 @@
     positional arguments:
       full_rawpath          Full path to the raw files
       files                 list of frames i.e. img1.fits img2.fits
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --samp_fact SAMP_FACT

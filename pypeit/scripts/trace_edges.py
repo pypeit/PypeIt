@@ -6,6 +6,7 @@
 """
 Trace slit edges for a set of images.
 """
+import sys
 
 def parse_args(options=None, return_parser=False):
 
@@ -14,7 +15,7 @@ def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Require either a pypeit file or a fits file 
+    # Require either a pypeit file or a fits file
     inp = parser.add_mutually_exclusive_group(required=True)
     inp.add_argument('-f', '--pypeit_file', default=None, type=str, help='PypeIt reduction file')
     inp.add_argument('-t', '--trace_file', default=None, type=str, help='Image to trace')
@@ -132,7 +133,7 @@ def main(args):
         # Set the QA path
         qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
 
-    if detectors is None: 
+    if detectors is None:
         detectors = np.arange(spec.ndet)+1
     if isinstance(detectors, int):
         detectors = [detectors]
@@ -181,4 +182,9 @@ def main(args):
     return 0
 
 
+def entry_point():
+    sys.exit(main(parse_args()))
 
+
+if __name__ == '__main__':
+    entry_point()

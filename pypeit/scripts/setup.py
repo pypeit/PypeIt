@@ -68,7 +68,7 @@ def main(args):
 
     # Get the output directory
     sort_dir = os.path.join(args.output_path, 'setup_files')
-   
+
     # Initialize PypeItSetup based on the arguments
     ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
                                     output_path=sort_dir)
@@ -82,3 +82,10 @@ def main(args):
                                 write_bkg_pairs=args.background,
                                 configs=[item.strip() for item in args.cfg_split.split(',')])
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
