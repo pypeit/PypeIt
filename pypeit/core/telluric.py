@@ -1261,6 +1261,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     if np.size(polyorder) > 1:
         if np.size(polyorder) != norders:
             msgs.error('polyorder must have either have norder elements or be a scalar')
+        # TODO: Should this be np.asarray?
         polyorder_vec = np.array(polyorder)
     else:
         polyorder_vec = np.full(norders, polyorder)
@@ -2357,11 +2358,38 @@ class Telluric:
 
 
 class TelluricData(datamodel.DataContainer):
+    """
+    A container class for the results of the Telluric modeling.
+    """
+    version = '1.0.0'
+    """Datamodel version."""
+
+    datamodel = {'method': dict(otype=str, descr='PypeIt method used to construct the data'),
+                 'telgrid': dict(otype=str,
+                                 descr='File containing grid of HITRAN atmosphere models'),
+                 'stdsrc': dict(otype=str, descr='Name of the standard source'),
+                 'stdname': dict(otype=str, descr='Type of standard source'),
+                 'stdfile': dict(otype=str,
+                                 descr='File name (or shorthand) with the standard flux data'),
+                 'polyfunc': dict(otype=str, descr='Polynomial function used'),
+                 'pcafile': dict(otype=str, descr='Name of the QSO PCA file'),
+                 'metadata': dict(otype=table.Table, descr='Table with the fit metadata'),
+                 'model': dict(otype=table.Table, descr='Table with the best-fitting model data')}
+    """DataContainer datamodel."""
+
+    def __init__(self, norders=None, method=None):
+        datamodel.DataContainer.__init__(self)
+        if method != None:
+            self.method = method
+
+        self.metadata = self.empty_metadata(norders)
+        self.model = self.empty_model()
+
 
     @staticmethod
-    def empty_objects_table(rows=None):
+    def empty_metadata(norders, rows=1):
         """
-        Construct an empty `objects` table.
+        Construct an empty `astropy.table.Table` for the telluric metadata.
 
         Args:
             rows (:obj:`int`, optional):
@@ -2374,21 +2402,55 @@ class TelluricData(datamodel.DataContainer):
             table.
         """
         length = 0 if rows is None else rows
-        return table.Table([
-                    table.Column(name='OBJID', dtype=int, length=length,
-                                 description='Object ID Number'),
-                    table.Column(name='OBJRA', dtype=float, length=length,
-                                 description='Right ascension of the object (deg)'),
-                    table.Column(name='OBJDEC', dtype=float, length=length,
-                                 description='Declination of the object (deg)'),
-                    table.Column(name='OBJNAME', dtype='<U32', length=length,
-                                 description='Object name assigned by the observer'),
-                    table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
-                    table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
-                                 description='Projected position of the object w.r.t. the top of the slit (arcsec)'),
-                    table.Column(name='OBJ_BOTDIST', dtype=float, length=length,
-                                 description='Projected position of the object w.r.t. the bottom of the slit (arcsec)'),
-                    table.Column(name='TRACEID', dtype=int, length=length,
-                                 description='Row index that matches TRACEID in the design table')
-                           ])
+        return table.Table([table.Column(name='TOL', dtype=float, length=length,
+                                         description='Relative tolerance for converage of the '
+                                                     'differential evolution optimization.'),
+                            table.Column(name='POPSIZE', dtype=int, length=length,
+                                         description='A multiplier for setting the total '
+                                                     'population size for the differential '
+                                                     'evolution optimization.'),
+                            table.Column(name='RECOMBINATION', dtype=float, length=length,
+                                         description='The recombination constant for the '
+                                                     'differential evolution optimization.'),
+                            table.Column(name='ECH_ORDERS', dtype=int, length=length,
+                                         description='For Eschelle data, the true order numbers '
+                                                     'for each detected order.'),
+                           ]
+                        meta={'name': 'Telluric fit parameter values'},
+                           
+                           )
+
+        meta_table['TOL'] = [self.tol]
+        meta_table['POPSIZE'] = [self.popsize]
+        meta_table['RECOMBINATION'] = [self.recombination]
+        meta_table['TELGRIDFILE'] = [os.path.basename(self.telgridfile)]
+        if 'output_meta_keys' in self.obj_params:
+            for key in self.obj_params['output_meta_keys']:
+                meta_table[key.upper()] = [self.obj_params[key]]
+        if self.ech_orders is not None:
+            meta_table['ECH_ORDERS'] = [self.ech_orders]
+
+
+
+        out_table = table.Table(meta={'name': 'Object Model and Telluric Correction'})
+        out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
+        out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
+        out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
+        out_table['TELL_THETA'] = np.zeros((self.norders, 7))
+        out_table['TELL_PRESS'] = np.zeros(self.norders)
+        out_table['TELL_TEMP'] = np.zeros(self.norders)
+        out_table['TELL_H2O'] = np.zeros(self.norders)
+        out_table['TELL_AIRMASS'] = np.zeros(self.norders)
+        out_table['TELL_RESLN'] = np.zeros(self.norders)
+        out_table['TELL_SHIFT'] = np.zeros(self.norders)
+        out_table['TELL_STRETCH'] = np.zeros(self.norders)
+        out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
+        out_table['CHI2'] = np.zeros(self.norders)
+        out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
+        out_table['NITER'] = np.zeros(self.norders, dtype=int)
+        out_table['IND_LOWER'] = self.ind_lower
+        out_table['IND_UPPER'] = self.ind_upper
+        out_table['WAVE_MIN'] = self.wave_grid[self.ind_lower]
+        out_table['WAVE_MAX'] = self.wave_grid[self.ind_upper]
+
+
