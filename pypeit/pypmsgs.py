@@ -54,7 +54,14 @@ class Messages:
 
         # Initialize other variables
         self._defverb = 1
-        if getpass.getuser() in developers:
+
+        try:
+            user = getpass.getuser()
+        except ModuleNotFoundError:
+            # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
+            user = os.getlogin()
+
+        if user in developers:
             self._defverb = 2
         self._verbosity = self._defverb if verbosity is None else verbosity
 

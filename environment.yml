@@ -17,7 +17,6 @@ dependencies:
   - ipython>=7.2
   - extension-helpers>=0.1
   - ginga>=3.0
-#  - linetools>=0.3dev2231
   - qtpy>=1.9
   - pytest>=3.0.7
   - pip

@@ -1,7 +1,7 @@
 include README.md
 include LICENSE.rst
 #include CHANGES.rst
-
+include pyproject.toml
 include setup.cfg
 
 recursive-include pypeit *.pyx *.c *.pxd *.h
@@ -11,15 +11,9 @@ recursive-include licenses *
 recursive-include cextern *
 recursive-include scripts *
 
-include pypeit/requirements.txt
-
 prune build
 prune docs/_build
 prune docs/api
 prune pypeit/deprecated
-
-#recursive-include astropy_helpers *
-#exclude astropy_helpers/.git
-#exclude astropy_helpers/.gitignore
 
 global-exclude *.pyc *.o *.so *.DS_Store

@@ -8,7 +8,7 @@
 [![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 
 The Python Spectroscopic Data Reduction Pipeline.  For
-documentation visit: 
+documentation visit:
 
 http://pypeit.readthedocs.io
 
@@ -16,7 +16,7 @@ and/or see our HOWTO:
 
 https://tinyurl.com/pypeit-howto
 
-and/or join our PypeIt Users Slack 
+and/or join our PypeIt Users Slack
 (the invite is recorded in this Issue:
 https://github.com/pypeit/PypeIt/issues/676)
 
@@ -101,13 +101,14 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 # Instruments Served
 * Gemini/GNIRS
-* Gemini/GMOS 
-* Gemini/FLAMINGOS 2 
-* Lick/Kast 
+* Gemini/GMOS
+* Gemini/FLAMINGOS 2
+* Lick/Kast
 * Magellan/MagE
 * Magellan/Fire
 * MMT/BinoSpec (270 and 600 tested)
 * MMT/MMIRS (HK_zJ, J_zJ, and K_K tested)
+* MMT/Blue Channel (300 tested)
 * MDM/OSMOS
 * Keck/DEIMOS (600ZD, 830G, 1200G)
 * Keck/KCWI (BM, BH2)
@@ -127,7 +128,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 # Requirements
 
-(see `pypeit/requirements.txt`)
+(see `setup.cfg` or `environment.yml`)
 
 * python
 * numpy
