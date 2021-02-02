@@ -32,7 +32,13 @@ might possibly need, do:
 
 .. code-block:: bash
 
-    pip install -e .[test,docs,pyside2,pyqt5,shapely]
+    pip install -e ".[test,docs,pyside2,pyqt5,shapely]"
+
+There is also a short-cut for this:
+
+.. code-block:: bash
+
+    pip install -e ".[dev]"
 
 It is very highly recommended to do your development install into its own clean
 environment. See :ref:`installing` for examples of how to do this with either ``conda``

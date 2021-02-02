@@ -77,18 +77,18 @@ See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_ and/
 
 To install the latest release of ``PypeIt`` and its required dependencies, do either:
 
-        pip install pypeit[pyqt5]
+        pip install "pypeit[pyqt5]"
 
 to select the ``PyQT5`` QT bindings or:
 
-        pip install pypeit[pyside2]
+        pip install "pypeit[pyside2]"
 
 to select ``PySide2``.
 
 If you are using KWCI, you may also need the ``shapely`` package. It can be installed by
 including it in the optional dependencies, e.g.:
 
-        pip install pypeit[pyside2,shapely]
+        pip install "pypeit[pyside2,shapely]"
 
 Installing via ``conda``
 ------------------------
@@ -130,15 +130,15 @@ Developer Install via ``pip``
 It is also possible to install pre-release or development versions of ``PypeIt`` directly from `GitHub <https://github.com/pypeit/PypeIt>`_
 using ``pip``. If you already have a ``pypeit`` environment setup, do:
 
-        pip install --upgrade git+https://github.com/pypeit/PypeIt#egg=pypeit
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
 
 If you're installing in a clean environment, be sure to include the optional dependencies as well:
 
-        pip install --upgrade git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]"
 
 Those commands will install the default branch, ``master``. You can also specify the branch you wish to use:
 
-        pip install --upgrade git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]"
 
 Commit hashes, tag names, or git refs can also be specified. See the `VCS Support documentation
 <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details and examples.
@@ -157,10 +157,11 @@ clone the repository:
 Then perform the install, preferably in a clean environment:
 
         cd PypeIt
-        pip install -e .[dev]
+        pip install -e ".[dev]"
 
 An "editable" install means that any changes you make in that code tree will become immediately available the next
-time the code is imported.
+time the code is imported. Including the ``[dev]`` set of optional dependencies ensures that all of the tools you
+need to test and build ``PypeIt`` are installed.
 
 If any of this fails, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.
@@ -257,26 +258,33 @@ This should fail if any of the requirements are not satisfied; see
 2. Run the ``PypeIt`` unit tests
 --------------------------------
 
-If you cloned the repo (i.e., you did *not* use `pip`) then you can
-run the standard tests by doing::
+If you cloned the repo (i.e., you did *not* use ``pip`` or ``conda``), then you can
+run the standard tests within the environment you created for ``PypeIt`` development by doing::
 
     cd PypeIt
-    python setup.py test
+    pytest
 
-Or, alternatively::
+To test your development work within isolated environments and against different versions of
+various dependencies, it is recommended to use ``tox``::
 
-    cd PypeIt/pypeit/tests
-    python -m pytest . -W ignore
+    cd PypeIt
+    tox -e test
 
-Over 100 tests should pass, nearly 100 will be skipped (unless
-you are a developer) and none should fail.
+or, e.g.::
+
+    tox -e test-astropydev
+
+Run ``tox -a`` to see a list of available test environemts.
+
+In either case, over 100 tests should pass, nearly 100 will be skipped and none should fail. The skipped
+tests only run if the PypeIt development is installed and configured.
 
 ----
 
 Developers
 ==========
 
-For developers, see :ref:`development`.
+For developers, see :ref:`dev/development`.
 
 Also, test scripts for development purposes are available at the
 `PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
