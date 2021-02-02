@@ -199,8 +199,9 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         """
         Set default parameters for salt rss reductions.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'salt_rss_visible'
+        #par = pypeitpar.PypeItPar()
+        #par['rdx']['spectrograph'] = 'salt_rss_visible'
+        par = super().default_pypeit_par()
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
@@ -214,9 +215,18 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         #par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Change the wavelength calibration method
+        # Change the wavelength calibration parameters
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSSfaint']
+        par['calibrations']['wavelengths']['n_first'] = 1
+        par['calibrations']['wavelengths']['n_final'] = 3
+        par['calibrations']['wavelengths']['match_toler'] = 3.0
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # 6 detectors splitting is already a lot
+        par['calibrations']['wavelengths']['numsearch'] = 10
+
+        # TODO: this should depend on slit size, binning etc! - would need to move to config_specific_par for that
+        par['calibrations']['wavelengths']['fwhm'] = 8
+        par['calibrations']['wavelengths']['nlocal_cc'] = 15
 
         # Do not flux calibrate
         par['fluxcalib'] = None
@@ -232,6 +242,8 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         par['sensfunc']['algorithm'] = 'UVIS'
         par['sensfunc']['UVIS']['polycorrect'] = False
         par['sensfunc']['UVIS']['nresln'] = 5 #check
+
+        par['flexure']['spec_method'] = 'skip'
 
         par.reset_all_processimages_par(use_biasimage=False)  #check
 
@@ -278,9 +290,6 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         resolving_power = cen_wv / dlam
 
         par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
-
-        # TODO: this should depend on slit size, binning etc!
-        par['calibrations']['wavelengths']['fwhm'] = 8  
 
         return par
 
