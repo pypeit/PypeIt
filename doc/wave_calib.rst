@@ -342,7 +342,7 @@ data/arc_lines/reid_arxiv folder):
 ===============  =========================  =============================
 Instrument       Setup                      Name
 ===============  =========================  =============================
-keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
+keck_deimos      600ZD grating, all lamps   keck_deimos_600ZD.fits
 keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
 keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
 keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits

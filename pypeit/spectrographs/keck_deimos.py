@@ -255,7 +255,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
