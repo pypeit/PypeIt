@@ -16,5 +16,5 @@ packaging>=19.0
 extension-helpers>=0.1
 ginga>=3.0
 linetools>=0.3.dev2231
-pytest>=6.0.0
+#pytest>=6.0.0
 #shapely>=1.7   # Required only for KCWI

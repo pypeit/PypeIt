@@ -359,3 +359,11 @@ def main(args):
 
     # Coadd the files
     coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

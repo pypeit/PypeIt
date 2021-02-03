@@ -36,3 +36,11 @@ def main(args):
     ax = plt.gca()
     ax.plot(wave, flux)
     plt.show()
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

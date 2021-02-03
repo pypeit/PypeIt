@@ -10,6 +10,7 @@ which do not have sufficient calibs
 
 from pypeit.spectrographs import available_spectrographs
 
+
 def parse_args(options=None, return_parser=False):
     import argparse
 
@@ -68,7 +69,9 @@ def main(args):
                              + 'on how to add a new instrument.')
 
     # Initialize PypeItSetup based on the arguments
-    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
+    output_path = os.path.join(os.getcwd(), 'setup_files')
+    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
+                                    output_path=output_path)
 
     # Run the setup
     ps.run(setup_only=True)#, write_bkg_pairs=args.background)
@@ -151,8 +154,14 @@ def main(args):
     print('======================================================')
     # Remove setup_files
     if not args.save_setups:
-        shutil.rmtree('setup_files')
+        shutil.rmtree(output_path)
     # Return objects used by unit tests
     return answers, ps
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
