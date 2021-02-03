@@ -9,6 +9,7 @@ from astropy import units as u
 from astropy.time import Time
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -26,7 +27,7 @@ class SALTRSSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Robert Stobie Spectrograph on SALT specific code
     """
-    ndet = 6
+    ndet = 3
     telescope = telescopes.SALTTelescopePar()
 
     def configuration_keys(self):
@@ -139,6 +140,79 @@ class SALTRSSSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # TODO: move this to SALTRSSVisiblepectrograph if it turns out it's not
+        # generalizable to the NIR side... But I don't have test data to check
+        # that right now
+
+        # Open
+        in_file = io.fits_open(raw_file)
+        headarr = self.get_headarr(in_file)
+
+        # Grab the DetectorContainer
+        detector_par = self.get_detector_par(in_file, det)
+
+        assert detector_par['numamplifiers'] == 2, 'do not know what to do with RSS detectors that do not have 2 amps'
+        det_hdus = (in_file[det*2 - 1], in_file[det*2])
+
+        det_img = np.hstack([hdu.data for hdu in det_hdus]).astype(float)
+
+        exptime = self.get_meta_value(headarr, 'exptime')
+
+        def sec2slice_local(sec):
+            return parse.sec2slice(sec,
+                                   one_indexed=True, include_end=True, # FITS-like
+                                   require_dim=2, binning=detector_par['binning'])
+
+        # Note: this assumes that the datasec and oscansec in detector_par are
+        # in their *extension-local* pixel coordinates - basically extracted
+        # straight from the header.  Hence the need for offsets
+        ampimgs = {}
+        for nm in ['datasec', 'oscansec']:
+            ampnum_img = np.zeros(det_img.shape, dtype=int)
+            offset = 0
+            for i, dsec in enumerate(detector_par[nm]):
+                local_slice = list(sec2slice_local(dsec))
+                local_slice[1] = slice(local_slice[1].start + offset,
+                                    local_slice[1].stop + offset,
+                                    local_slice[1].step)
+                ampnum_img[tuple(local_slice)] = i + 1
+                offset += det_hdus[i].shape[1]
+            ampimgs[nm] = ampnum_img
+
+        return detector_par, det_img, in_file, exptime, ampimgs['datasec'], ampimgs['oscansec']
+
+
 class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
     """
     Child to handle SALT/RSS visible beam specific code
@@ -176,26 +250,28 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
             darkcurr        = 0.5, # "less than 1" is what docs say  ¯\_(ツ)_/¯
             nonlinear       = .96, #guess, needs verification!
             mincounts       = -1e10, #guess, needs verification!
-            numamplifiers   = 1,
+            numamplifiers   = 2,
             )
 
 
         this_detector['det'] = det
-        this_detector['dataext'] = det
+        this_detector['dataext'] = det # Not accurate! But skipped by SALTRSSSpectrograph.get_rawimage
+        dataexts = [det*2 - 1, det*2]
 
-        detheader = hdu[det].header
-        this_detector['gain'] = np.atleast_1d(detheader['GAIN'])
-        this_detector['ronoise'] = np.atleast_1d(detheader['RDNOISE'])
-        this_detector['saturation'] = detheader['SATURATE']
-        this_detector['datasec'] = np.atleast_1d(flip_fits_slice(detheader['DATASEC']))
-        this_detector['oscansec'] = np.atleast_1d(flip_fits_slice(detheader['BIASSEC']))
-        #this_detector['datasec'] = np.atleast_1d(detheader['DATASEC'])
-        #this_detector['oscansec'] = np.atleast_1d(detheader['BIASSEC'])
+        detheaders = [hdu[i].header for i in dataexts]
+
+        # see comment in get_rawimage about datasec/oscansec convention
+        this_detector['gain'] = np.atleast_1d([h['GAIN'] for h in detheaders])
+        this_detector['ronoise'] = np.atleast_1d([h['RDNOISE'] for h in detheaders])
+        this_detector['saturation'] = int(np.min([h['SATURATE'] for h in detheaders]))  # TODO: determine if this can be a per-amp variable or not
+        this_detector['datasec'] = np.atleast_1d([flip_fits_slice(h['DATASEC']) for h in detheaders])
+        this_detector['oscansec'] = np.atleast_1d([flip_fits_slice(h['BIASSEC']) for h in detheaders])
 
         return detector_container.DetectorContainer(**this_detector)
 
 
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
         Set default parameters for salt rss reductions.
         """
@@ -217,16 +293,18 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
 
         # Change the wavelength calibration parameters
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSSfaint']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS_deadzone']
         par['calibrations']['wavelengths']['n_first'] = 1
         par['calibrations']['wavelengths']['n_final'] = 3
-        par['calibrations']['wavelengths']['match_toler'] = 3.0
-        par['calibrations']['wavelengths']['nsnippet'] = 1  # 6 detectors splitting is already a lot
-        par['calibrations']['wavelengths']['numsearch'] = 10
+        par['calibrations']['wavelengths']['match_toler'] = 5.0
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already plenty especially in the dead zone
+        par['calibrations']['wavelengths']['numsearch'] = 5
 
         # TODO: this should depend on slit size, binning etc! - would need to move to config_specific_par for that
         par['calibrations']['wavelengths']['fwhm'] = 8
-        par['calibrations']['wavelengths']['nlocal_cc'] = 15
+        par['calibrations']['wavelengths']['nlocal_cc'] = 11
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.3
+        par['calibrations']['wavelengths']['sigdetect'] = 5.0
 
         # Do not flux calibrate
         par['fluxcalib'] = None
@@ -269,7 +347,7 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         disp = self.get_meta_value(scifile, 'dispname')
-        par['calibrations']['wavelengths']['reid_arxiv'] = f'salt_rssv_{disp}.fits'
+        par['calibrations']['wavelengths']['reid_arxiv'] = f'salt_rssv_{disp}_deadzone.fits'
 
         # check - this is adaptred from p200, and is definitely only right for longslits...
 
