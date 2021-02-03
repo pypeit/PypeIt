@@ -293,10 +293,10 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
 
         # Change the wavelength calibration parameters
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS_deadzone']
+        par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS']
         par['calibrations']['wavelengths']['n_first'] = 1
         par['calibrations']['wavelengths']['n_final'] = 3
-        par['calibrations']['wavelengths']['match_toler'] = 5.0
+        par['calibrations']['wavelengths']['match_toler'] = 2.0
         par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already plenty especially in the dead zone
         par['calibrations']['wavelengths']['numsearch'] = 5
 
@@ -347,7 +347,7 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         disp = self.get_meta_value(scifile, 'dispname')
-        par['calibrations']['wavelengths']['reid_arxiv'] = f'salt_rssv_{disp}_deadzone.fits'
+        par['calibrations']['wavelengths']['reid_arxiv'] = f'salt_rssv_{disp}.fits'
 
         # check - this is adaptred from p200, and is definitely only right for longslits...
 
