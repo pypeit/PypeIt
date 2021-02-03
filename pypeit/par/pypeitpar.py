@@ -4560,7 +4560,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, threshold=None, archive_root=None, dry_run=None, slit_exclude_flags=[]):
+    def __init__(self, threshold=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4576,11 +4576,12 @@ class Collate1DPar(ParSet):
 
         # Threshold for grouping by object
         defaults['threshold'] = '0.0003d'
-        dtypes['threshold'] = str
-        descr['threshold'] = "The threshold used when comparing the RA/DEC of objects. If two " \
-                             "objects are within this angular distance from each other, they " \
-                             "are considered the same object. This is specified in the same way " \
-                             "as astropy.coordinates.Angle (e.g. '0.003d' or '0h1m30s')."
+        dtypes['threshold'] = [str, float]
+        descr['threshold'] = "The threshold used when comparing the coordinates of objects. If two " \
+                             "objects are within this distance from each other, they " \
+                             "are considered the same object. If match_using is 'ra/dec' (the default) " \
+                             "this is an angular distance as passed to  astropy.coordinates.Angle " \
+                             "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is an integer."
 
 
         # Root directory of archive
@@ -4599,6 +4600,12 @@ class Collate1DPar(ParSet):
         dtypes['slit_exclude_flags'] = [list, str]
         descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
 
+        # What slit flags to exclude
+        defaults['match_using'] = 'ra/dec'
+        options['match_using'] = [ 'pixel', 'ra/dec']
+        dtypes['match_using'] = str
+        descr['match_using'] = "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
+
         # Instantiate the parameter set
         super(Collate1DPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4610,7 +4617,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['threshold', 'dry_run', 'archive_root', 'slit_exclude_flags']
+        parkeys = ['threshold', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

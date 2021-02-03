@@ -11,7 +11,7 @@ from astropy.coordinates import Angle, SkyCoord
 import numpy as np
 
 from pypeit import specobjs
-from pypeit.scripts.collate_1d import group_spectra_by_source, SourceObject, build_coadd_file_name
+from pypeit.scripts.collate_1d import group_spectra_by_source, SourceObject
 from pypeit.scripts.collate_1d import  config_key_match, ADAPArchive, find_slits_to_exclude, find_spec2d_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
@@ -27,11 +27,12 @@ def mock_get_instance():
 
 
 class MockSpecObj:
-    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, NAME, OPT_COUNTS):
+    def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, OPT_COUNTS):
         self.MASKDEF_OBJNAME = MASKDEF_OBJNAME
         self.MASKDEF_ID = MASKDEF_ID
         self.DET = DET
         self.RA = RA
+        self.SPAT_PIXPOS = SPAT_PIXPOS
         self.DEC = DEC
         self.NAME = NAME
         self.OPT_COUNTS = OPT_COUNTS
@@ -73,31 +74,31 @@ class MockSpecObjs:
         # a SERENDIP detection with a threshold of 0.0003d, but will match at 0.0004d.
 
         if file == "spec1d_file1":
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, NAME='SPAT1234_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, NAME='SPAT1334_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, NAME='SPAT5334_SLIT4934_DET02', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, NAME='SPAT3233_SLIT3235_DET03', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, NAME='SPAT3236_SLIT3245_DET05', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, NAME='SPAT1233_SLIT1235_DET07', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, NAME='SPAT1336_SLIT1235_DET07', OPT_COUNTS=np.zeros(100))]
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=1, RA=201.1522, DEC=27.3250, SPAT_PIXPOS=1334.0, NAME='SPAT1334_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object2',  MASKDEF_ID='3002', DET=2, RA=201.0051, DEC=27.2228, SPAT_PIXPOS=5334.0, NAME='SPAT5334_SLIT4934_DET02', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3233.0, NAME='SPAT3233_SLIT3235_DET03', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3236.0, NAME='SPAT3236_SLIT3245_DET05', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=7, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1233.0, NAME='SPAT1233_SLIT1235_DET07', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='1001', DET=7, RA=201.1520, DEC=27.3249, SPAT_PIXPOS=1336.0, NAME='SPAT1336_SLIT1235_DET07', OPT_COUNTS=np.zeros(100))]
         else:
-            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, NAME='SPAT3234_SLIT3236_DET03', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=201.0052, DEC=27.2418, NAME='SPAT6250_SLIT6235_DET03', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=201.0052, DEC=27.2418, NAME='SPAT6255_SLIT6245_DET05', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=201.0056, DEC=27.2419, NAME='SPAT6934_SLIT6245_DET05', OPT_COUNTS=np.zeros(100)),
-                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, NAME='SPAT3237_SLIT3246_DET05', OPT_COUNTS=np.zeros(100))]
+            self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=3, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3234.0, NAME='SPAT3234_SLIT3236_DET03', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=3, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6250.0, NAME='SPAT6250_SLIT6235_DET03', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object4',  MASKDEF_ID='4004', DET=5, RA=201.0052, DEC=27.2418, SPAT_PIXPOS=6256.0, NAME='SPAT6256_SLIT6245_DET05', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='SERENDIP', MASKDEF_ID='4004', DET=5, RA=201.0056, DEC=27.2419, SPAT_PIXPOS=6934.0, NAME='SPAT6934_SLIT6245_DET05', OPT_COUNTS=np.zeros(100)),
+                             MockSpecObj(MASKDEF_OBJNAME='object3',  MASKDEF_ID='3003', DET=5, RA=201.2517, DEC=27.3333, SPAT_PIXPOS=3237.0, NAME='SPAT3237_SLIT3246_DET05', OPT_COUNTS=np.zeros(100))]
 
 
 def mock_specobjs(file):
     return MockSpecObjs(file)
 
-def test_group_spectra_by_source(monkeypatch):
+def test_group_spectra_by_radec(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
     spectrograph = load_spectrograph('keck_deimos')
 
-    source_list = group_spectra_by_source(file_list, spectrograph, dict(), Angle('.0003d'))
+    source_list = group_spectra_by_source(file_list, spectrograph, dict(), 'ra/dec', Angle('.0003d'))
 
     assert len(source_list) == 6
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -113,13 +114,13 @@ def test_group_spectra_by_source(monkeypatch):
     assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT3233_SLIT3235_DET03','SPAT3236_SLIT3245_DET05','SPAT3234_SLIT3236_DET03','SPAT3237_SLIT3246_DET05']
 
     assert source_list[4].spec1d_file_list == ['spec1d_file2','spec1d_file2']
-    assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6255_SLIT6245_DET05']
+    assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6256_SLIT6245_DET05']
 
     assert source_list[5].spec1d_file_list == ['spec1d_file2']
     assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
     exclude_map = {'3003': 'TEST_FLAG'}
-    source_list = group_spectra_by_source(file_list, spectrograph, exclude_map, Angle('.0004d'))
+    source_list = group_spectra_by_source(file_list, spectrograph, exclude_map, 'ra/dec', Angle('.0004d'))
 
     assert len(source_list) == 4
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -132,8 +133,56 @@ def test_group_spectra_by_source(monkeypatch):
     assert [x.NAME for x in source_list[2].spec_obj_list] == ['SPAT5334_SLIT4934_DET02']
 
     assert source_list[3].spec1d_file_list == ['spec1d_file2','spec1d_file2','spec1d_file2']
-    assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6255_SLIT6245_DET05','SPAT6934_SLIT6245_DET05']
+    assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6256_SLIT6245_DET05','SPAT6934_SLIT6245_DET05']
 
+def test_group_spectra_by_pixel(monkeypatch):
+    monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
+
+    file_list = ['spec1d_file1', 'spec1d_file2']
+    spectrograph = load_spectrograph('keck_deimos')
+
+    source_list = group_spectra_by_source(file_list, spectrograph, dict(), 'pixel', 5.0)
+
+    assert len(source_list) == 7
+    assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
+    assert [x.NAME for x in source_list[0].spec_obj_list] == ['SPAT1234_SLIT1234_DET01','SPAT1233_SLIT1235_DET07']
+
+    assert source_list[1].spec1d_file_list == ['spec1d_file1','spec1d_file1']
+    assert [x.NAME for x in source_list[1].spec_obj_list] == ['SPAT1334_SLIT1234_DET01','SPAT1336_SLIT1235_DET07']
+
+    assert source_list[2].spec1d_file_list == ['spec1d_file1']
+    assert [x.NAME for x in source_list[2].spec_obj_list] == ['SPAT5334_SLIT4934_DET02']
+
+    assert source_list[3].spec1d_file_list == ['spec1d_file1','spec1d_file1','spec1d_file2','spec1d_file2']
+    assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT3233_SLIT3235_DET03','SPAT3236_SLIT3245_DET05','SPAT3234_SLIT3236_DET03','SPAT3237_SLIT3246_DET05']
+
+    assert source_list[4].spec1d_file_list == ['spec1d_file2']
+    assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6250_SLIT6235_DET03']
+    
+    assert source_list[5].spec1d_file_list == ['spec1d_file2']
+    assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6256_SLIT6245_DET05']
+
+    assert source_list[6].spec1d_file_list == ['spec1d_file2']
+    assert [x.NAME for x in source_list[6].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
+
+    exclude_map = {'3003': 'TEST_FLAG'}
+    source_list = group_spectra_by_source(file_list, spectrograph, exclude_map, 'pixel', 10.0)
+
+    assert len(source_list) == 5
+    assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
+    assert [x.NAME for x in source_list[0].spec_obj_list] == ['SPAT1234_SLIT1234_DET01','SPAT1233_SLIT1235_DET07']
+
+    assert source_list[1].spec1d_file_list == ['spec1d_file1','spec1d_file1']
+    assert [x.NAME for x in source_list[1].spec_obj_list] == ['SPAT1334_SLIT1234_DET01','SPAT1336_SLIT1235_DET07']
+
+    assert source_list[2].spec1d_file_list == ['spec1d_file1']
+    assert [x.NAME for x in source_list[2].spec_obj_list] == ['SPAT5334_SLIT4934_DET02']
+
+    assert source_list[3].spec1d_file_list == ['spec1d_file2','spec1d_file2']
+    assert [x.NAME for x in source_list[3].spec_obj_list] == ['SPAT6250_SLIT6235_DET03','SPAT6256_SLIT6245_DET05']
+    
+    assert source_list[4].spec1d_file_list == ['spec1d_file2']
+    assert [x.NAME for x in source_list[4].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
 
 def test_config_key_match():
@@ -167,11 +216,16 @@ def test_config_key_match():
 
 def test_build_coadd_file_name():
     mock_sobjs = mock_specobjs('spec1d_file1')
+    spectrograph = load_spectrograph('keck_deimos')
 
-    source = SourceObject(SkyCoord(ra=mock_sobjs.specobjs[0].RA,
-                                   dec=mock_sobjs.specobjs[0].DEC, unit='deg'),
-                          mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1')
-    assert build_coadd_file_name(source) == 'J132436.41+271928.56_DEIMOS_20200130.fits'
+    source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                          spectrograph, 'ra/dec')
+    source.build_coadd_file_name()
+    assert source.coaddfile == 'J132436.41+271928.56_DEIMOS_20200130.fits'
+
+    source2 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                           spectrograph, 'pixel')
+    assert source2.coaddfile == 'SPAT1234_DEIMOS_20200130.fits'
 
 @cooked_required
 def test_find_slits_to_exclude():
@@ -225,10 +279,10 @@ def test_adap_archive(tmp_path):
 
     # Build source for add_coadd_sources
     mock_sobjs = mock_specobjs('spec1d_file1')
+    spectrograph = load_spectrograph('keck_deimos')
+    source_list = [SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                                spectrograph,'ra/dec')]
 
-    source_list = [SourceObject(SkyCoord(ra=mock_sobjs.specobjs[0].RA,
-                                         dec=mock_sobjs.specobjs[0].DEC, unit='deg'),
-                                mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1')]
     source_list[0].coaddfile = coadd_file
     archive_dir = str(tmp_path)
     archive = ADAPArchive(archive_dir)

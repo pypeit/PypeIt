@@ -4,6 +4,7 @@ import argparse
 from glob import glob
 import os.path
 import shutil
+from functools import partial
 
 import numpy as np
 from astropy.time import Time
@@ -103,13 +104,45 @@ class ADAPArchive():
 
 
 class SourceObject:
-    def __init__(self, coord, spec1d_obj, spec1d_header, spec1d_file):
-        self.coord = coord
+    def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
         self.spec1d_file_list = [spec1d_file]
         self.spec1d_header_list = [spec1d_header]
+        self.spec_camera = spectrograph.camera
         self.spec_obj_list = [spec1d_obj]
-        self.coaddfile = build_coadd_file_name(self)
+        self.match_type = match_type
 
+        if (match_type == 'ra/dec'):
+            self.coord = SkyCoord(spec1d_obj.RA, spec1d_obj.DEC, unit='deg')
+        else:
+            self.coord = spec1d_obj['SPAT_PIXPOS']
+
+        self.coaddfile = self.build_coadd_file_name()
+
+    def build_coadd_file_name(self):
+        """Build the output file name for coadding.
+        The filename convention is J<hmsdms+dms>_DEIMOS_<YYYYMMDD>.fits.
+
+        Args:
+            source (`obj`:SourceObject): The Source object being coaadded. The firsts entry in spec1d_header_list is used
+            to build the filename.
+
+        Return: str  The name of the coadd output file.
+        """
+        time_portion = Time(self.spec1d_header_list[0]['MJD'], format="mjd").strftime('%Y%m%d')
+        if self.match_type == 'ra/dec':
+            coord_portion = 'J' + self.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
+        else:
+            coord_portion = self.spec_obj_list[0]['NAME'].split('_')[0]
+
+        return f'{coord_portion}_{self.spec_camera}_{time_portion}.fits'
+
+    def match(self, spec_obj, thresh):
+        if self.match_type == 'ra/dec':
+            coord2 = SkyCoord(ra=spec_obj.RA, dec=spec_obj.DEC, unit='deg')
+            return self.coord.separation(coord2) <= thresh
+        else:
+            coord2 =spec_obj['SPAT_PIXPOS'] 
+            return np.fabs(coord2 - self.coord) <= thresh
 
 def find_slits_to_exclude(spec2d_files, par):
     """Find slits that should be excluded according to the input parameters. The slit mask ids are returned in a map
@@ -161,7 +194,7 @@ def config_key_match(spectrograph, header1, header2):
     # No mismatches were found
     return True
 
-def group_spectra_by_source(spec1d_files, spectrograph, exclude_map, thresh):
+def group_spectra_by_source(spec1d_files, spectrograph, exclude_map, match_type, thresh):
     """Given a list of spec1d files from PypeIt, group the spectra within the files by their source object.
     The grouping is done by comparing the RA/DEC of each spectra using a given threshold.
 
@@ -189,19 +222,17 @@ def group_spectra_by_source(spec1d_files, spectrograph, exclude_map, thresh):
                 msgs.info(f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS')
                 continue
 
-            coord = SkyCoord(ra=sobj.RA, dec=sobj.DEC, unit='deg')
-
             found = False
             for source in source_list:
                 if config_key_match(spectrograph, source.spec1d_header_list[0], sobjs.header) and \
-                   coord.separation(source.coord) <= thresh:
+                    source.match(sobj, thresh):
                     source.spec_obj_list.append(sobj)
                     source.spec1d_file_list.append(spec1d_file)
                     source.spec1d_header_list.append(sobjs.header)
                     found = True
 
             if not found:
-                source_list.append(SourceObject(coord, sobj, sobjs.header, spec1d_file))
+                source_list.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
 
     return source_list
 
@@ -361,6 +392,9 @@ def build_parameters(args):
     if args.thresh is not None:
         params['collate1d']['threshold'] = args.thresh
 
+    if args.match is not None:
+        params['collate1d']['match_using'] = args.match
+
     if args.exclude_slit is not None and len(args.exclude_slit) > 0:
         params['collate1d']['slit_exclude_flags'] = args.exclude_slit
 
@@ -371,22 +405,6 @@ def build_parameters(args):
         params['collate1d']['archive_root'] = args.archive_dir
 
     return params, spectrograph, spec1d_files
-
-def build_coadd_file_name(source):
-    """Build the output file name for coadding.
-    The filename convention is J<hmsdms+dms>_DEIMOS_<YYYYMMDD>.fits.
-
-    Args:
-        source (`obj`:SourceObject): The Source object being coaadded. The firsts entry in spec1d_header_list is used
-        to build the filename.
-
-    Return: str  The name of the coadd output file.
-    """
-    time_portion = Time(source.spec1d_header_list[0]['MJD'], format="mjd").strftime('%Y%m%d')
-    coord_portion = source.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
-
-    return f'J{coord_portion}_DEIMOS_{time_portion}.fits'
-
 
 def parse_args(options=None, return_parser=False):
 
@@ -401,9 +419,10 @@ def parse_args(options=None, return_parser=False):
                         nargs='?')
     parser.add_argument('--spec1d_files', type=str, nargs='*', help='One or more spec1d files to ' \
                         'flux/coadd/archive. Can contain wildcards')
-    parser.add_argument('--par_outfile', default='collate1d.par', action='store_true',
+    parser.add_argument('--par_outfile', default='collate1d.par', type=str,
                         help='Output to save the parameters')
     parser.add_argument('--thresh', type=str, help=blank_par.descr['threshold'])
+    parser.add_argument('--match', type=str, choices=blank_par.options['match_using'], help=blank_par.descr['match_using'])
     parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
     parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
     parser.add_argument('--exclude_slit', type=str, nargs='*', help=blank_par.descr['slit_exclude_flags'])
@@ -427,12 +446,12 @@ def main(args):
 
     exclude_map = find_slits_to_exclude(spec2d_files, par)
 
-    if args.thresh is not None:
-        threshold = Angle(args.thresh)
+    if par['collate1d']['match_using'] == 'pixel':
+        threshold = np.float(par['collate1d']['threshold'])
     else:
         threshold = Angle(par['collate1d']['threshold'])
 
-    source_list = group_spectra_by_source(spec1d_files, spectrograph, exclude_map, threshold)
+    source_list = group_spectra_by_source(spec1d_files, spectrograph, exclude_map, par['collate1d']['match_using'], threshold)
 
     #sensfunc, how to identify standard file
 
@@ -464,3 +483,4 @@ def main(args):
     #                                                            4: ("tavg", 8)})
     #all_thread_func_stats.save("yappi_results.pstat", type="pstat")
     #all_thread_func_stats.save("yappi_results.callgrind", type="callgrind")
+    return 0
