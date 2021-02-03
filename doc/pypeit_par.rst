@@ -1497,6 +1497,7 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
+              clip = False
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
@@ -2651,9 +2652,9 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
       [[wavelengths]]
-          lamps = XeI, ArII, ArI, NeI, KrI
-          rms_threshold = 0.2
-          n_first = 1
+          lamps = XeI, KrI, ArI, HgI
+          sigdetect = 10.0
+          rms_threshold = 0.4
       [[slitedges]]
           edge_thresh = 100.0
           sync_predict = nearest
@@ -2813,9 +2814,9 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
       [[wavelengths]]
-          lamps = XeI, ArII, ArI, NeI, KrI
-          rms_threshold = 0.2
-          n_first = 1
+          lamps = XeI, KrI, ArI, HgI
+          sigdetect = 10.0
+          rms_threshold = 0.4
       [[slitedges]]
           edge_thresh = 100.0
           sync_predict = nearest

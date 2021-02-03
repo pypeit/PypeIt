@@ -14,8 +14,8 @@ matplotlib.use('agg')  # For Travis
 #warnings.simplefilter('error', FutureWarning)
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
-from pypeit.scripts import identify
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
+from pypeit.scripts import identify, obslog
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -195,6 +195,14 @@ def test_chk_flat():
     pargs = chk_flats.parse_args([mstrace_root])
     chk_flats.main(pargs)
 
+@cooked_required
+def test_chk_wavecalib():
+    ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                                'MasterWaveCalib_A_1_01.fits')
+    #
+    pargs = chk_wavecalib.parse_args([ms_root])
+    chk_wavecalib.main(pargs)
+
 
 
 def test_coadd1d_1():
@@ -292,4 +300,24 @@ def test_identify():
     os.remove('wvcalib.fits')
 
 
+@dev_suite_required
+def test_obslog():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    obslogfile = 'shane_kast_blue.obslog'
+    # Remove the directory if it already exists
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+
+    # Perform the setup
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
+    obslog.main(obslog.parse_args(['shane_kast_blue', '-r', droot, '-f', obslogfile,
+                                   '-d', setupdir]))
+
+    # Clean up
+    shutil.rmtree(setupdir)
+
+
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
+
+

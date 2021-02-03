@@ -24,7 +24,6 @@ Submodules
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
-   pypeit.check_requirements
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.compiler_version

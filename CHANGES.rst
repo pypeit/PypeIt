@@ -1,8 +1,31 @@
 
-1.3.0 Hotfixes
---------------
+1.3.1 (01 Feb 2021)
+-------------------
 
-- Added as-published JOSS citation.
+- pypeit_chk_wavecalib script
+- Option to limit channels shown for pypeit_show_2dspec
+- sigdetect on in full_template
+- Added new ArI, ArII lines
+- Improved 1Dfit QA
+- Final wavelength template for DEIMOS 900ZD
+- Fix a bug in `pypeit/core/arc.py` and `pypeit/core/wavecal/autoid.py` due
+  to the padding to the arc frames
+- Added a new XeI line
+- Turn off sigma clipping for DEIMOS arc frames.
+- Refactor setup.py to use setup.cfg to define package configuration
+- Refactor version handling to use setuptools_scm to grab version info from git tags
+- Add support for testing within isolated environments via tox
+- Refactor CI to use tox to run tests
+- Add cron-scheduled tests to CI
+- Add tests to CI to cover macos, windows, and conda installations
+- Refactor wrapper scripts in bin/ to be entry_points defined in setup.cfg
+- Deprecate check_requirements now that dependencies are handled by the installation
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
+
 
 1.3.0 (13 Dec 2020)
 -------------------
@@ -80,6 +103,7 @@
   the .txt file with the list of 1d spectra.
 - DEIMOS object name and `maskdef_id` visible in ginga when running `pypeit_show_2d`
 - Fix sigma clipping bug!
+
 
 1.2.0 (15 Oct 2020)
 -------------------

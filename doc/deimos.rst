@@ -84,3 +84,6 @@ Here are additional docs related to Keck/DEIMOS:
    :maxdepth: 1
 
    dev/deimosframes
+   dev/deimosconfig
+   dev/deimos_slitmask_ids
+   dev/deimos_radec_object

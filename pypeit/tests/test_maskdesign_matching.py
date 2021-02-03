@@ -133,3 +133,36 @@ def test_add_missing_slits():
     # These values are obtained by running PypeIt with the "adding missing traces" functionality.
     # These are within a few pixels (max 4 pixels) from their original values. The correctness of these values
     # was also tested by visual inspection of the EdgeTraceSet image.
+
+
+@dev_suite_required
+def test_overlapped_slits():
+    # Load flats frames that have overlapping alignment slits.
+    deimos_flats = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '1200G_alignslit', ifile)
+                    for ifile in ['DE.20110529.11732.fits', 'DE.20110529.11813.fits', 'DE.20110529.11895.fits']]
+
+    # Load instrument
+    keck_deimos = load_spectrograph('keck_deimos')
+    par = keck_deimos.default_pypeit_par()
+
+    # working only on detector 1
+    det = 2
+
+    # Built trace image
+    traceImage = buildimage.buildimage_fromlist(keck_deimos, det, par['calibrations']['traceframe'],
+                                                deimos_flats)
+    msbpm = keck_deimos.bpm(traceImage.files[0], det)
+
+    # load specific config parameters
+    par = keck_deimos.config_specific_par(traceImage.files[0])
+    trace_par = par['calibrations']['slitedges']
+
+    # Run edge trace
+    edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, debug=False,
+                         show_stages=False,qa_path=None)
+
+    slits = edges.get_slits()
+    # Check that the total number of expected slits and the number of alignment slits are correct.
+    assert len(slits.maskdef_designtab['SLITID'].data) == 22, 'wrong number of slits for this detector'
+    assert np.sum(slits.maskdef_designtab['ALIGN'].data) == 3, 'wrong number of alignment slits'
+    # These number have been verified by visual inspection.

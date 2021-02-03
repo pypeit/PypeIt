@@ -28,7 +28,7 @@ def main(args):
     import sys
     import numpy as np
 
-    from PySide2.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
     from linetools.guis.xspecgui import XSpecGui
 
@@ -76,3 +76,10 @@ def main(args):
     gui.show()
     app.exec_()
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

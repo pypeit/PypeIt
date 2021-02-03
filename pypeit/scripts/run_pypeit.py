@@ -117,6 +117,14 @@ def main(args):
     # QA HTML
     msgs.info('Generating QA HTML')
     pypeIt.build_qa()
+    msgs.close()
 
     return 0
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
