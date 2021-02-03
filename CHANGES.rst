@@ -1,6 +1,6 @@
 
-1.3.1dev
---------
+1.3.1 (01 Feb 2021)
+-------------------
 
 - pypeit_chk_wavecalib script
 - Option to limit channels shown for pypeit_show_2dspec
