@@ -74,7 +74,7 @@ def parse_args(options=None, return_parser=False):
                              "\n"
                              "The algorithm options are:\n"
                              "\n"
-                             "    UVIS = Should be used for data with lambda < 7000A.\n" 
+                             "    UVIS = Should be used for data with lambda < 7000A.\n"
                              "    No detailed model of telluric absorption but corrects for atmospheric extinction.\n"
                              "\n"
                              "    IR   = Should be used for data with lambbda > 7000A.\n"
@@ -168,3 +168,11 @@ def main(args):
     sensobj.save()
 
     #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

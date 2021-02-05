@@ -32,3 +32,11 @@ def main(pargs, unit_test=False):
     ax = plt.gca()
     ax.plot(spec)
     plt.show()
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
