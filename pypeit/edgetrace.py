@@ -813,7 +813,7 @@ class EdgeTraceSet(DataContainer):
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
 
-        elif self.par['sync_predict'] == 'pca':
+        elif not self.is_empty and self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
             # to catch this earlier on?
             msgs.error('Sync predict cannot use PCA because too few edges were found.  If you are '
@@ -840,13 +840,19 @@ class EdgeTraceSet(DataContainer):
         # Match the traces found in the image with the ones predicted by
         # the slit-mask design. If not expected traces are found in the image, they
         # will be removed. If traces are missed, they will be added.
-        if self.par['use_maskdesign']:
+        if not self.is_empty and self.par['use_maskdesign']:
             msgs.info('-' * 50)
             msgs.info('{0:^50}'.format('Matching traces to the slit-mask design'))
             msgs.info('-' * 50)
             self.maskdesign_matching(debug=debug)
 
         # Left-right synchronize the traces
+        # TODO: If the object "is_empty" at this point, sync adds two edges at
+        # the left and right edges of the detectors. This means that detectors
+        # with no slits (e.g., an underfilled mask in DEIMOS) will have be
+        # treated as long-slit observations. At best, that will lead to a lot
+        # of wasted time in the reductions; at worst, it will just cause the
+        # code to fault later on.
         self.sync()
         if show_stages:
             self.show(title='After synchronizing left-right traces into slits')
@@ -1326,7 +1332,7 @@ class EdgeTraceSet(DataContainer):
         # TODO: Currently barfs if object is empty!
 
         # Build the slit edge data to plot.
-        if slits is None:
+        if slits is None and not self.is_empty:
             # Use the internals. Any masked data is excluded; masked
             # data to be plotted are held in a separate array. This
             # means that errors and fits are currently never plotted
@@ -1359,8 +1365,7 @@ class EdgeTraceSet(DataContainer):
                 if self.maskdef_id is not None:
                     maskdef_ids = self.maskdef_id[gpm & self.is_left]
                     maskdef_ids[maskdef_ids == -99] = self.maskdef_id[gpm & self.is_right][maskdef_ids == -99]
-
-        else:
+        elif slits is not None:
             # Use the provided SlitTraceSet
             _include_error = False
             if include_error:

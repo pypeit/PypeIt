@@ -2,6 +2,10 @@
 1.3.3dev
 --------
 
+- Include a fix for when no edges are detected in `EdgeTraceSet`.  Code
+  now always treats such frames/detectors as if they're long-slit data.
+  This helps prevent tracing crashes when there are DEIMOS detectors
+  with no slits.
 
 1.3.2 (08 Feb 2021)
 -------------------

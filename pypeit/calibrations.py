@@ -30,7 +30,7 @@ from pypeit import io
 from pypeit import utils
 
 
-class Calibrations(object):
+class Calibrations:
     """
     This class is primarily designed to guide the generation of
     calibration images and objects in PypeIt.
