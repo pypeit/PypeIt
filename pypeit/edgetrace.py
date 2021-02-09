@@ -849,10 +849,10 @@ class EdgeTraceSet(DataContainer):
         # Left-right synchronize the traces
         # TODO: If the object "is_empty" at this point, sync adds two edges at
         # the left and right edges of the detectors. This means that detectors
-        # with no slits (e.g., an underfilled mask in DEIMOS) will have be
-        # treated as long-slit observations. At best, that will lead to a lot
-        # of wasted time in the reductions; at worst, it will just cause the
-        # code to fault later on.
+        # with no slits (e.g., an underfilled mask in DEIMOS) will be treated
+        # like a long-slit observations. At best, that will lead to a lot of
+        # wasted time in the reductions; at worst, it will just cause the code
+        # to fault later on.
         self.sync()
         if show_stages:
             self.show(title='After synchronizing left-right traces into slits')
