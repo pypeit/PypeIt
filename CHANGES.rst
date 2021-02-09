@@ -1,7 +1,13 @@
 
-1.3.2dev
+1.3.3dev
 --------
 
+
+1.3.2 (08 Feb 2021)
+-------------------
+
+- (Hotfix) Bug in content type of README file that prevented upload to
+  PyPI
 
 
 1.3.1 (01 Feb 2021)
