@@ -5,12 +5,13 @@ from glob import glob
 import os.path
 import shutil
 from functools import partial
+import re
 
 import numpy as np
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits, ascii
-from astropy.table import QTable
+from astropy.table import Table
 
 from pypeit import specobjs
 from pypeit.par import pypeitpar
@@ -34,65 +35,96 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 class ADAPArchive():
+
+    ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    OBJ_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    OBJ_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
+
     def __init__(self, archive_root):
         self.archive_root = archive_root
 
-    def write_metadata(self, file, metadata):
-        (root, ext) = os.path.splitext(file)
-        output_file = root + '.dat'
-        with open(output_file, "w") as f:
-            ascii.write(metadata, f, format='ipac')
+        self.by_id_file = os.path.join(archive_root, 'by_id_meta.dat')
+        if os.path.exists(self.by_id_file):
+            by_id_table = ascii.read(self.by_id_file)
+            self.by_id_metadata = [list(row) for row in by_id_table]
+        else:
+            self.by_id_metadata = []
 
-    def get_file_based_metadata(self, header):
-        metadata = ['FILENAME', 'RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-        data = [[header[x]] for x in metadata]
-        names = [x.lower() for x in metadata]
-        return QTable(data, names=names)
+        self.by_object_file = os.path.join(archive_root, 'by_object_meta.dat')
+        if os.path.exists(self.by_object_file):
+            by_object_table = ascii.read(self.by_object_file)
+            self.by_object_metadata = [list(row) for row in by_object_table]
+        else:
+            self.by_object_metadata = []
 
-    def get_source_based_metadata(self, source):
-        header_metadata = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-        spec_obj_metadata = ['MASKDEF_OBJNAME', 'RA', 'DEC']
-        header_data = [[source.spec1d_header_list[0][x]] for x in header_metadata]
-        spec_obj_data = [[source.spec_obj_list[0][x]] for x in spec_obj_metadata]
-        names = [x.lower() for x in spec_obj_metadata] + [x.lower() for x in header_metadata]
-        return QTable(spec_obj_data + header_data, names=names)
+    def save(self):
+
+        by_id_names = ['koaid', 'filename'] + [x.lower() for x in self.ID_BASED_HEADER_KEYS]
+        with open(self.by_id_file, 'w') as f:
+            ascii.write(Table(rows=self.by_id_metadata, names=by_id_names), f, format='ipac')
+
+        by_obj_names = [x.lower() for x in self.OBJ_BASED_SPEC_KEYS] + [x.lower() for x in self.OBJ_BASED_HEADER_KEYS] + ['filename', 'koaid']
+        with open(self.by_object_file, 'w') as f:
+            ascii.write(Table(rows=self.by_object_metadata, names=by_obj_names), f, format='ipac')
+
+    def extract_koaid(self, filename):
+        # Could improve this by validating the date but
+        # is that neccessary?
+        if len(filename) >= 17:
+            koaid = filename[0:17]
+            if re.match(r'..\.\d{8}\.\d{5}$', koaid) is not None:
+                return koaid
+
+        msgs.error(f'File {filename} cannot be archived because it does not begin with a KOAID')
+
+    def get_id_based_metadata(self, filename, header):
+
+        # Extract koa id from source image filename in header
+        koaid =  self.extract_koaid(header['FILENAME'])
+
+        # Build data row, which starts with koaid and filename + the metadata
+        data_row = [koaid, filename] + [header[x] for x in self.ID_BASED_HEADER_KEYS]
+
+        self.by_id_metadata.append(data_row)
+
+    def get_object_based_metadata(self, source):
+
+        header_data = [source.spec1d_header_list[0][x] for x in self.OBJ_BASED_HEADER_KEYS]
+        spec_obj_data = [source.spec_obj_list[0][x] for x in self.OBJ_BASED_SPEC_KEYS]
+        shared_data = spec_obj_data + header_data + [os.path.basename(source.coaddfile)]
+        
+        for koaid in [self.extract_koaid(h['FILENAME']) for h in source.spec1d_header_list ]:
+            self.by_object_metadata.append(shared_data + [koaid])
 
     def add_spec1d_files(self, spec1d_files):
 
-        for i in range(len(spec1d_files)):
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[i])
+        for spec1d_file in spec1d_files:
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
 
-            spec1d_file = self.archive_file(spec1d_files[i], Time(sobjs.header['MJD'], format='mjd'))
-            metadata = self.get_file_based_metadata(sobjs.header)
-            self.write_metadata(spec1d_file, metadata)
+            self.archive_file(spec1d_file)
+            self.get_id_based_metadata(os.path.basename(spec1d_file), sobjs.header)
 
     def add_spec2d_files(self, spec2d_files):
 
-        for i in range(len(spec2d_files)):
-            allspec2d = AllSpec2DObj.from_fits(spec2d_files[i])
+        for spec2d_file in spec2d_files:
+            allspec2d = AllSpec2DObj.from_fits(spec2d_file)
 
-            spec2d_file = self.archive_file(spec2d_files[i], Time(allspec2d['meta']['head0']['MJD'], format='mjd'))
-            metadata = self.get_file_based_metadata(allspec2d['meta']['head0'])
-            self.write_metadata(spec2d_file, metadata)
+            self.archive_file(spec2d_file)
+            self.get_id_based_metadata(os.path.basename(spec2d_file), allspec2d['meta']['head0'])
 
     def add_coadd_sources(self, sources):
         for source in sources:
-            coadd_file = self.archive_file(source.coaddfile, Time(source.spec1d_header_list[0]['MJD'], format='mjd'))
-            metadata = self.get_source_based_metadata(source)
-            self.write_metadata(coadd_file, metadata)
+            self.archive_file(source.coaddfile)
+            self.get_object_based_metadata(source)
+            
 
-    def get_archive_path(self, time):
-        return os.path.join(self.archive_root, time.strftime('%Y/%m/%d'))
-
-    def archive_file(self, orig_file, time):
+    def archive_file(self, orig_file):
 
         if not os.path.exists(orig_file):
             msgs.error(f'File {orig_file} does not exist')
 
-        path = self.get_archive_path(time)
-        os.makedirs(path, exist_ok=True)
-
-        dest_file = os.path.join(path, os.path.basename(orig_file))
+        os.makedirs(self.archive_root, exist_ok=True)
+        dest_file = os.path.join(self.archive_root, os.path.basename(orig_file))
 
         msgs.info(f'Copying {orig_file} to archive root {self.archive_root}')
         try:
@@ -434,6 +466,7 @@ def parse_args(options=None, return_parser=False):
 
 def main(args):
 
+    start_time = datetime.now()
     #yappi.set_clock_type("wall")
     #yappi.start(builtins=False)
     (par, spectrograph, spec1d_files) = build_parameters(args)
@@ -471,16 +504,30 @@ def main(args):
         archive.add_spec1d_files(spec1d_files)
         archive.add_spec2d_files(spec2d_files)
         archive.add_coadd_sources(source_list)
+        archive.save()
 
-    #yappi.stop()
-    #all_thread_func_stats = yappi.get_func_stats()
+    """
+    yappi.stop()
+    all_thread_func_stats = yappi.get_func_stats()
 
-    #with open("yappi_results.txt", "w") as text_file:
-    #    all_thread_func_stats.print_all(out=text_file, columns={0: ("name", 60),
-    #                                                            1: ("ncall", 15),
-    #                                                            2: ("tsub", 8),
-    #                                                            3: ("ttot", 8),
-    #                                                            4: ("tavg", 8)})
-    #all_thread_func_stats.save("yappi_results.pstat", type="pstat")
-    #all_thread_func_stats.save("yappi_results.callgrind", type="callgrind")
+    with open("yappi_results.txt", "w") as text_file:
+        all_thread_func_stats.print_all(out=text_file, columns={0: ("name", 60),
+                                                                1: ("ncall", 15),
+                                                                2: ("tsub", 8),
+                                                                3: ("ttot", 8),
+                                                                4: ("tavg", 8)})
+    all_thread_func_stats.save("yappi_results.pstat", type="pstat")
+    all_thread_func_stats.save("yappi_results.callgrind", type="callgrind")
+    """
+    total_time = datetime.now() - start_time
+
+    msgs.info(f'Total duration: {total_time}')
+
     return 0
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

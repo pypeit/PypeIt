@@ -1,5 +1,0 @@
-|   filename|               ra|              dec|    target|dispname|    decker|binning|              mjd|airmass|exptime|
-|       char|           double|           double|      char|    char|      char|   char|           double| double| double|
-|           |                 |                 |          |        |          |       |                 |       |       |
-|       null|             null|             null|      null|    null|      null|   null|             null|   null|   null|
- b27.fits.gz 184.4029166666666 39.01111111111111 J1217p3905 600/4310 2.0 arcsec     1,1 57162.20663842592     1.0  1200.0 

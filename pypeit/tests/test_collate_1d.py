@@ -51,7 +51,8 @@ def dummy_header(file):
                 'DECKER': 'Z6CL01B',
                 'BINNING': '1,1',
                 'AIRMASS': '1.0',
-                'EXPTIME': '1200.0'}
+                'EXPTIME': '1200.0',
+                'FILENAME': 'DE.20100913.22358'}
     else:
         # Return a different decker to make sure it's properly ignored
         return {'MJD': '58878.0',
@@ -59,7 +60,8 @@ def dummy_header(file):
                 'DECKER': 'foo',
                 'BINNING': '1,1',
                 'AIRMASS': '1.0',
-                'EXPTIME': '1200.0'}
+                'EXPTIME': '1200.0',
+                'FILENAME': 'DE.20100913.22358'}
 
 class MockSpecObjs:
     def __init__(self, file):
@@ -268,14 +270,14 @@ def test_find_spec2d_from_spec1d(tmp_path):
 def test_adap_archive(tmp_path):
     cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
 
-    spec1d_name = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560'
-    spec2d_name = 'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560'
-    spec1d_files = [os.path.join(cooked_sci_dir, spec1d_name + '.fits')]
-    spec2d_files = [os.path.join(cooked_sci_dir, spec2d_name + '.fits')]
+    spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
+    spec2d_name = 'spec2d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
+    spec1d_files = [os.path.join(cooked_sci_dir, spec1d_name)]
+    spec2d_files = [os.path.join(cooked_sci_dir, spec2d_name)]
 
     # Don't actually need a real coadd file, just any file to see if it gets copied to the archive directory    
-    coadd_name = 'spec1d_b24-Feige66_KASTb_2015May20T041246.960'
-    coadd_file = os.path.join(cooked_sci_dir, coadd_name + '.fits')
+    coadd_name = 'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits'
+    coadd_file = os.path.join(cooked_sci_dir, coadd_name)
 
     # Build source for add_coadd_sources
     mock_sobjs = mock_specobjs('spec1d_file1')
@@ -289,17 +291,40 @@ def test_adap_archive(tmp_path):
     archive.add_spec1d_files(spec1d_files)
     archive.add_spec2d_files(spec2d_files)
     archive.add_coadd_sources(source_list)
-    spec_archive_dir = os.path.join(archive_dir, '2015', '05', '20')
-    coadd_archive_dir = os.path.join(archive_dir, '2020', '01', '30')
-    assert(os.path.exists(os.path.join(spec_archive_dir, spec1d_name + '.fits')))
-    assert(os.path.exists(os.path.join(spec_archive_dir, spec2d_name + '.fits')))
-    assert(os.path.exists(os.path.join(coadd_archive_dir, coadd_name + '.fits')))
+    archive.save()
+    assert(os.path.exists(os.path.join(archive_dir, spec1d_name)))
+    assert(os.path.exists(os.path.join(archive_dir, spec2d_name)))
+    assert(os.path.exists(os.path.join(archive_dir, coadd_name)))
 
     # Use filecmp to compare .dat files
     good_dat_dir = data_path('adap')
-    spec1d_dat = os.path.join(good_dat_dir, spec1d_name + '.dat')
-    spec2d_dat = os.path.join(good_dat_dir, spec2d_name + '.dat')
-    coadd_dat = os.path.join(good_dat_dir, coadd_name + '.dat')
-    assert(filecmp.cmp(spec1d_dat,os.path.join(spec_archive_dir, spec1d_name + '.dat'), shallow=False))
-    assert(filecmp.cmp(spec2d_dat,os.path.join(spec_archive_dir, spec2d_name + '.dat'), shallow=False))
-    assert(filecmp.cmp(coadd_dat,os.path.join(coadd_archive_dir, coadd_name + '.dat'), shallow=False))
+    good_by_id_dat =  os.path.join(good_dat_dir, 'by_id_meta.dat')
+    good_by_obj_dat = os.path.join(good_dat_dir, 'by_object_meta.dat')
+    test_by_id_dat =  os.path.join(archive_dir, 'by_id_meta.dat')
+    test_by_obj_dat = os.path.join(archive_dir, 'by_object_meta.dat')
+    assert(filecmp.cmp(good_by_id_dat, test_by_id_dat, shallow=False))
+    assert(filecmp.cmp(good_by_obj_dat, test_by_obj_dat, shallow=False))
+ 
+    # Now test opening and adding to an existing archive
+    archive2 = ADAPArchive(archive_dir)
+    spec2d_name = 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits'
+    spec2d_list = [os.path.join(cooked_sci_dir, spec2d_name)]
+
+    coadd_name = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'
+    mock_sobjs = mock_specobjs('spec1d_file2')
+    spectrograph = load_spectrograph('keck_deimos')
+    source_list = [SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
+                                spectrograph,'ra/dec')]
+    source_list[0].coaddfile = os.path.join(cooked_sci_dir, coadd_name)
+
+    archive.add_spec2d_files(spec2d_list)
+    archive.add_coadd_sources(source_list)
+    archive.save()
+    assert(os.path.exists(os.path.join(archive_dir, spec2d_name)))
+    assert(os.path.exists(os.path.join(archive_dir, coadd_name)))
+
+    good_dat_dir = data_path('adap')
+    good_by_id_dat =  os.path.join(good_dat_dir, 'by_id_meta2.dat')
+    good_by_obj_dat = os.path.join(good_dat_dir, 'by_object_meta2.dat')
+    assert(filecmp.cmp(good_by_id_dat, test_by_id_dat, shallow=False))
+    assert(filecmp.cmp(good_by_obj_dat, test_by_obj_dat, shallow=False))
