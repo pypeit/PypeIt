@@ -10,6 +10,8 @@
     
     optional arguments:
       -h, --help   show this help message and exit
-      --type TYPE  Which flats to display. Must be one of: pixel, illum, all (default: all)
-      --try_old    Attempt to load old datamodel versions. A crash may ensue.. (default: False)
+      --type TYPE  Which flats to display. Must be one of: pixel, illum, all
+                   (default: all)
+      --try_old    Attempt to load old datamodel versions. A crash may ensue..
+                   (default: False)
     
