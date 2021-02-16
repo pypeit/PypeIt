@@ -233,6 +233,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        # When using LVM mask reduce only detectors 3,7
+        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
+            par['rdx']['detnum'] = [3,7]
+
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
         # long-slits...

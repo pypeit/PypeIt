@@ -456,6 +456,8 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
+            if self.slits.maskdef_designtab is not None:
+                msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
             final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
                                              self.binspectral,
                                              nonlinear_counts=self.nonlinear_counts,
