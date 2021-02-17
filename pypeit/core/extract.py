@@ -169,7 +169,8 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     return
 
 
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, 
+    box_radius, spec):
     """
     Perform boxcar extraction for a single SpecObj
 
