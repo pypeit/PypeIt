@@ -931,7 +931,6 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         # Remove the continuum before adding the padding to ispec
         _, _, _, _, ispec_cont_sub = wvutils.arc_lines_from_spec(ispec)
         _, _, _, _, tspec_cont_sub = wvutils.arc_lines_from_spec(temp_spec)
-
         # Pad
         pspec = np.zeros_like(temp_spec)
         nspec = len(ispec)
@@ -963,25 +962,30 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
 
-        # Determine the lines FWHM, i.e, approximate spectral resolution
-        _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
-        # 1sigma Gaussian widths of the line detections
-        wdth = wdth[best]
-        # significance of each line detected
-        nsig = nsig[best]
-        #embed()
-        # Nsigma (significance) threshold
-        nsig_thrshd = 500.
-        while nsig_thrshd > 10.:
-            if wdth[nsig > nsig_thrshd].size > 6:
-                mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
-                fwhm = np.ceil(med * 2.35482)
-                msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
-                break
-            nsig_thrshd -= 10
+        if par['fwhm_fromlines'] is False:
+            fwhm = par['fwhm']
         else:
-            fwhm = 6.
-            msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
+            # Determine the lines FWHM, i.e, approximate spectral resolution
+            _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
+            # 1sigma Gaussian widths of the line detections
+            wdth = wdth[best]
+            # significance of each line detected
+            nsig = nsig[best]
+            # Nsigma (significance) threshold. We use only lines that have the highest significance
+            # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
+            nsig_thrshd = 500.
+            while nsig_thrshd > 10.:
+                if wdth[nsig > nsig_thrshd].size > 6:
+                    # compute average `wdth`
+                    mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+                    # FWHM in pixels
+                    fwhm = np.ceil(med * 2.35482) / binspectral
+                    msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+                    break
+                nsig_thrshd -= 5
+            else:
+                fwhm = 6. / binspectral
+                msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
 
         # Loop on snippets
         nsub = ispec.size // nsnippet

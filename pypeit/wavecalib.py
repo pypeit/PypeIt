@@ -256,6 +256,9 @@ class WaveCalib(datamodel.DataContainer):
         """
         # Generate a table
         diag = Table()
+        # Slit number
+        diag['N.'] = np.arange(self.wv_fits.size)
+        diag['N.'].format = 'd'
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
         # Central wave, delta wave
