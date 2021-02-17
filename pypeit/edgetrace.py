@@ -855,7 +855,9 @@ class EdgeTraceSet(DataContainer):
         # like a long-slit observation. At best, that will lead to a lot of
         # wasted time in the reductions; at worst, it will just cause the code
         # to fault later on.
-        self.sync()
+        self.success = self.sync()
+        if not self.success:
+            return
         if show_stages:
             self.show(title='After synchronizing left-right traces into slits')
 
@@ -891,7 +893,6 @@ class EdgeTraceSet(DataContainer):
 #            self.show()
 
         # Add this to the log
-        self.success = True
         # TODO: Is this log ever used? We should probably get rid of it...
         self.log += [inspect.stack()[0][3]]
 
@@ -3730,6 +3731,10 @@ class EdgeTraceSet(DataContainer):
                 decomposition.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
+
+        Returns:
+            :obj:`bool`: Returns the status of the syncing. True means
+            success.
         """
         # Remove any fully masked traces. Keeps any inserted or
         # box-slit traces.
@@ -3738,8 +3743,7 @@ class EdgeTraceSet(DataContainer):
         # Make sure there are still traces left
         if self.is_empty:
             if not self.par['sync_bound']:
-                self.success = False
-                return
+                return False
             msgs.warn('No traces left!  Left and right edges placed at detector boundaries.')
             self.bound_detector()
 
@@ -3751,7 +3755,7 @@ class EdgeTraceSet(DataContainer):
         if self.is_synced:
             self.check_synced(rebuild_pca=rebuild_pca and self.pcatype is not None)
             self.log += [inspect.stack()[0][3]]
-            return
+            return True
 
         # Edges are currently not synced, so check the input
         if self.par['sync_predict'] not in ['pca', 'nearest']:
@@ -3765,7 +3769,7 @@ class EdgeTraceSet(DataContainer):
         side, add_edge, add_indx = self._get_insert_locations()
         if not np.any(add_edge):
             # No edges to add
-            return
+            return True
 
         # Report
         msgs.info('-'*50)
@@ -3796,7 +3800,7 @@ class EdgeTraceSet(DataContainer):
             # Construct the trace to add and insert it
             trace_add[:,0] = trace_cen[:,0] + offset
             self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
-            return
+            return True
 
         # Get the reference locations for the new edges
         trace_ref = self._get_reference_locations(trace_cen, add_edge)
@@ -3848,6 +3852,7 @@ class EdgeTraceSet(DataContainer):
         # method
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
+        return True
 
     def add_user_traces(self, user_traces):
         """
