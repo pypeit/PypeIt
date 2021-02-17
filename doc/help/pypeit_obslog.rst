@@ -1,8 +1,9 @@
 .. code-block:: console
 
     $ pypeit_obslog -h
-    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-g] [-i] [-s SORT]
-                         [-e EXTENSION] [-d OUTPUT_PATH] [-o] [-f FILE]
+    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
+                         [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
+                         [-f FILE]
                          spec
     
     Construct an observing log for a set of files from the provided spectrograph
@@ -22,7 +23,7 @@
                             mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
                             p200_dbsp_blue, p200_dbsp_red, p200_tspec,
                             shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            tng_dolores, vlt_fors2, vlt_xshooter_nir,
+                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red
     
@@ -53,6 +54,13 @@
                             file. (default: pypeit)
       -b, --bad_frames      Clean the output of bad frames that cannot be reduced
                             by pypeit. (default: False)
+      -t BAD_TYPES, --bad_types BAD_TYPES
+                            Dictates how frames that could not be given a valid
+                            type should be treated. Options are: "keep" to include
+                            them in the output, "rm" to remove them from the
+                            output, "only" to only include the frames with unknown
+                            types in the output (i.e, the frames with determined
+                            types are excluded). (default: keep)
       -g, --groupings       Use this option to only determine the frame type. By
                             default, the script groups frames into expected
                             configuration and calibration groups, and it adds the

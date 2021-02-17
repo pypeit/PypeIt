@@ -2414,11 +2414,8 @@ class TelluricData(datamodel.DataContainer):
                                                      'differential evolution optimization.'),
                             table.Column(name='ECH_ORDERS', dtype=int, length=length,
                                          description='For Eschelle data, the true order numbers '
-                                                     'for each detected order.'),
-                           ]
-                        meta={'name': 'Telluric fit parameter values'},
-                           
-                           )
+                                                     'for each detected order.')],
+                            meta={'name': 'Telluric fit parameter values'})
 
         meta_table['TOL'] = [self.tol]
         meta_table['POPSIZE'] = [self.popsize]

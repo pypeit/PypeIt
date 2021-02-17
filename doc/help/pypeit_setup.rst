@@ -3,9 +3,10 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-v VERBOSITY]
-
-    Parse data files to construct a pypeit file in preparation for reduction using 'run_pypeit'
-
+    
+    Parse data files to construct a pypeit file in preparation for reduction using
+    'run_pypeit'
+    
     optional arguments:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
@@ -22,7 +23,7 @@
                             mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
                             p200_dbsp_blue, p200_dbsp_red, p200_tspec,
                             shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            tng_dolores, vlt_fors2, vlt_xshooter_nir,
+                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red (default: None)
       -r ROOT, --root ROOT  Root to search for data files. You can provide the
@@ -33,14 +34,21 @@
                             directory. (default:
                             /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
-                            File extension; compression indicators (e.g. .gz) not required. (default: .fits)
+                            File extension; compression indicators (e.g. .gz) not
+                            required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
-                            Path to top-level output directory. (default: /home/tim/MMT/PypeIt/doc)
-      -o, --overwrite       Overwrite any existing files/directories (default: False)
+                            Path to top-level output directory. (default:
+                            /Users/westfall/Work/packages/pypeit/doc)
+      -o, --overwrite       Overwrite any existing files/directories (default:
+                            False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT
-                            Generate the PypeIt files and folders by input configuration. To write all unique
-                            configurations identifed, use 'all', otherwise provide the list of configuration letters;
-                            e.g., 'A,B' or 'B,D,E' or 'E'. (default: None)
-      -b, --background      Include the background-pair columns for the user to edit (default: False)
+                            Generate the PypeIt files and folders by input
+                            configuration. To write all unique configurations
+                            identifed, use 'all', otherwise provide the list of
+                            configuration letters; e.g., 'A,B' or 'B,D,E' or 'E'.
+                            (default: None)
+      -b, --background      Include the background-pair columns for the user to
+                            edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
                             Level of verbosity from 0 to 2. (default: 2)
+    

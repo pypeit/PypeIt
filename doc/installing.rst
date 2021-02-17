@@ -1,3 +1,6 @@
+
+.. _installing:
+
 ============
 Installation
 ============
@@ -284,7 +287,7 @@ tests only run if the PypeIt development is installed and configured.
 Developers
 ==========
 
-For developers, see :ref:`dev/development`.
+For developers, see :ref:`development`.
 
 Also, test scripts for development purposes are available at the
 `PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
