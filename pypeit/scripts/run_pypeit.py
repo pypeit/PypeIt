@@ -122,3 +122,10 @@ def main(args):
 
     return 0
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

@@ -227,3 +227,9 @@ def main(args):
         #out = shell.call_local_plugin_method(chname_resids, 'TVMask', 'load_file', [maskfile], {})
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

@@ -52,3 +52,11 @@ def main(args):
                     title=args.title)
     print("Wrote {:s}".format(args.outfile))
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
+

@@ -1,8 +1,10 @@
 # Folders#
 .idea/
 .vscode/
+.tox/
 build/*
 dist/*
+doc/_build/*
 doc/build_/*
 
 # Compiled source #
@@ -19,7 +21,7 @@ doc/build_/*
 *_rjc*
 *.nbi
 *.nbc
- 
+
 # Packages #
 ############
 # it's better to unpack these files and commit the raw source
@@ -32,13 +34,13 @@ doc/build_/*
 *.rar
 *.tar
 *.zip
- 
+
 # Logs and databases #
 ######################
 *.log
 *.sql
 *.sqlite
- 
+
 # OS generated files #
 ######################
 .DS_Store
@@ -48,6 +50,11 @@ doc/build_/*
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# setuptools generated version files #
+######################################
+*/version.py
+*/cython_version.py
 
 # ADDED by KBW
 .eggs
@@ -59,3 +66,7 @@ pypeit/_compiler.c
 pypeit/data/telluric/atm_grids/*.fits
 
 *.pckl
+
+# added by TEP
+doc/sphinx_warnings.out
+pypeit/tests/files/setup_files/*

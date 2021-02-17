@@ -89,3 +89,10 @@ def main(args):
 
     display.show_image(img,chname=args.chname)
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

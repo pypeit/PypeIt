@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
-import os,time
+import os
+import time
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
@@ -143,3 +144,9 @@ def main(args):
         msgs.info('PypeIt file written to: {0}'.format(tellfit_file))
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

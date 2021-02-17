@@ -128,13 +128,17 @@ def gen_timestamp():
       user_datetime
     """
     tstamp = datetime.datetime.today().strftime('%Y-%b-%d-T%Hh%Mm%Ss')
-    user = getpass.getuser()
+    try:
+        user = getpass.getuser()
+    except ModuleNotFoundError:
+        # there appears to be a bug in getpass in windows systems where the pwd module doesn't load
+        user = os.getlogin()
     # Return
     return '{:s}_{:s}'.format(user, tstamp)
 
 
 def html_header(title):
-    """ 
+    """
     Parameters
     ----------
     title : str, optional
@@ -282,7 +286,7 @@ def html_mf_pngs(idval):
 
 
 def html_exp_pngs(exp_name, det):
-    """ 
+    """
     Parameters
     ----------
     exp_name : str

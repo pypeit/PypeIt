@@ -43,3 +43,10 @@ def main(args, unit_test=False, path=''):
     if flg_exp:
         qa.gen_exp_html()
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()
