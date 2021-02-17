@@ -519,6 +519,7 @@ class EdgeTraceSet(DataContainer):
         self.coeff_t = None             # Coefficients of the x-correlation between LEFT edges predicted
                                         # by the optical model and traced on the image.
         self.maskfile = None            # File used to slurp in slit-mask design
+        self.success = False            # Flag that the automatic edge tracing was successful
 
     def _reinit_trace_data(self):
         """
@@ -544,6 +545,7 @@ class EdgeTraceSet(DataContainer):
         self.coeff_b = None
         self.coeff_t = None
         self.maskfile = None
+        self.success = False
 
     @property
     def ntrace(self):
@@ -889,6 +891,8 @@ class EdgeTraceSet(DataContainer):
 #            self.show()
 
         # Add this to the log
+        self.success = True
+        # TODO: Is this log ever used? We should probably get rid of it...
         self.log += [inspect.stack()[0][3]]
 
     def initial_trace(self, bpm=None):
@@ -3733,6 +3737,9 @@ class EdgeTraceSet(DataContainer):
 
         # Make sure there are still traces left
         if self.is_empty:
+            if not self.par['sync_bound']:
+                self.success = False
+                return
             msgs.warn('No traces left!  Left and right edges placed at detector boundaries.')
             self.bound_detector()
 

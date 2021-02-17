@@ -171,6 +171,8 @@ class Calibrations:
 
         # Steps
         self.steps = []
+        self.success = False
+        self.failed_step = None
 
     def _prep_calibrations(self, ctype):
         """
@@ -628,6 +630,9 @@ class Calibrations:
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
                                                     auto=True)
+                if not self.edges.success:
+                    self.success = False
+                    return None
                 self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
@@ -744,13 +749,17 @@ class Calibrations:
 
         return self.wavetilts
 
-    def run_the_steps(self):
+    def run_the_steps(self, quiet=False):
         """
         Run full the full recipe of calibration steps
 
         """
+        self.success = True
         for step in self.steps:
-            getattr(self, 'get_{:s}'.format(step))()
+            getattr(self, f'get_{step}')()
+            if not self.success:
+                self.failed_step = f'get_{step}'
+                return
         msgs.info("Calibration complete!")
         msgs.info("#######################################################################")
 
