@@ -152,7 +152,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(1.5),
             ronoise         = np.atleast_1d(3.0),
-            datasec         = np.atleast_1d('[1:1200,280:620]'),
+            datasec         = np.atleast_1d('[280:620,1:1200]'),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -228,8 +228,8 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
 
         par['reduce']['extraction']['sn_gauss'] = 4.0
         par['reduce']['findobj']['sig_thresh'] = 3.0
-        par['reduce']['skysub']['sky_sigrej'] = 5.0
-        par['reduce']['findobj']['find_trim_edge'] = [5,5]
+        par['reduce']['skysub']['sky_sigrej'] = 2.0
+        par['reduce']['findobj']['find_trim_edge'] = [3,3]
 
         # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
