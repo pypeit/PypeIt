@@ -137,7 +137,7 @@ def keck_deimos_900ZD(overwrite=False):
 
 
 if __name__ == '__main__':
-    keck_deimos_600ZD(overwrite=True)
+    #keck_deimos_600ZD(overwrite=False)
     #keck_deimos_830G(overwrite=False) # False for Testing; True for real
     #keck_deimos_1200G(overwrite=False)
     #keck_deimos_1200B()
