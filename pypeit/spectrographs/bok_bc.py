@@ -85,7 +85,8 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial = headarr[0]['CCDBIN1']
             binspec = headarr[0]['CCDBIN2']
-            return parse.binning2string(binspec, binspatial)
+            return parse.binning2string(binspatial, binspec)
+            #return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
             """
             Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
@@ -152,7 +153,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(1.5),
             ronoise         = np.atleast_1d(3.0),
-            datasec         = np.atleast_1d('[280:620,1:1200]'),
+            datasec         = np.atleast_1d('[250:650,1:1200]'),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -180,8 +181,8 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
 
         # JFH Is this correct?
         # Processing steps
-        turn_off = dict(use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
+        #turn_off = dict(use_overscan=False)
+        #par.reset_all_processimages_par(**turn_off)
 
         # Turn off the overscan
         #for ftype in par['calibrations'].keys():
@@ -223,13 +224,13 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
-        par['reduce']['skysub']['joint_fit'] = True
+        par['reduce']['skysub']['joint_fit'] = False
         par['reduce']['skysub']['global_sky_std']  = False
 
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        par['reduce']['findobj']['sig_thresh'] = 3.0
-        par['reduce']['skysub']['sky_sigrej'] = 2.0
-        par['reduce']['findobj']['find_trim_edge'] = [3,3]
+        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['skysub']['sky_sigrej'] = 5.0
+        par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
         # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
@@ -270,13 +271,14 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
+
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for  Blue Channel")
 
-            bpm_img[-1, :] = 1
+            bpm_img[:, -1] = 1
 
         else:
             msgs.error(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
@@ -330,13 +332,25 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] != 'Dome Flat')
+            science = []
+            for obj in fitstbl['idname'].tolist():
+                science.append(not (("Dome Flat" in obj) or ("STANDARD" in obj) or ("HIP05" in obj) or ("HZ" in obj) or ("G191" in obj) or ("PG0220" in obj)))
+            return good_exp & (fitstbl['lampstat01'] == 'off') & science
         if ftype in ['standard']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] != 'Dome Flat') & ("STANDARD" in fitstbl['idname'])
+            standard = []
+            for obj in fitstbl['idname'].tolist():
+                standard.append(("STANDARD" in obj) or ("HIP05" in obj) or ("HZ" in obj) or ("G191" in obj) or ("PG0220" in obj) )
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] != 'Dome Flat') & standard
         if ftype == 'bias':
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'BIAS')
+            bias = []
+            for obj in fitstbl['idname'].tolist():
+                bias.append(("BIAS" in obj) or ("Bias" in obj))
+            return good_exp & (fitstbl['lampstat01'] == 'off') & bias
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'Dome Flat')
+            flat = []
+            for obj in fitstbl['idname'].tolist():
+                flat.append(("Dome Flat" in obj))
+            return good_exp & (fitstbl['lampstat01'] == 'off') & flat
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
