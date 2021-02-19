@@ -924,7 +924,8 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
     maskwork = outmask & ingpm & (invvar > 0)
     if not maskwork.any():
-        msgs.error('No valid data points in bspline_profile!.')
+        return [], outmask, yfit, reduced_chi, 1
+        #msgs.error('No valid data points in bspline_profile!.')
 
     # Init bspline class
     sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,

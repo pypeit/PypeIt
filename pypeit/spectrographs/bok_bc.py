@@ -153,7 +153,8 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(1.5),
             ronoise         = np.atleast_1d(3.0),
-            datasec         = np.atleast_1d('[250:650,1:1200]'),
+            datasec         = np.atleast_1d('[:,1:1200]')
+            #datasec         = np.atleast_1d('[250:650,1:1200]'),
             )
         return detector_container.DetectorContainer(**detector_dict)
 
