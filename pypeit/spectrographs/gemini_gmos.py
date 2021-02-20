@@ -329,7 +329,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 and self.nod_shuffle_pix is not None:
             # TODO -- Should double check NOD&SHUFFLE was not on
             factor = 4224 / y2 #the datasec size coould either be 4224(red) or 2112(blue)
-            row1, row2 = int(1456/factor), (2812/factor) #partly generalize assuming there are only these two cases
+            row1, row2 = int(1456/factor), int(2812/factor) #partly generalize assuming there are only these two cases
             nodpix = self.nod_shuffle_pix
             nodpix = self.nod_shuffle_pix
             # Shuffle me
