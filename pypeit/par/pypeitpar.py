@@ -4616,7 +4616,7 @@ class Collate1DPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = [*cfg.keys()]
         parkeys = ['threshold', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

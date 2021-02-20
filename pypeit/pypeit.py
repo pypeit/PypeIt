@@ -305,7 +305,7 @@ class PypeIt(object):
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
-
+        self.fitstbl.write("/home/dusty/work/pypeit_metadata.txt", overwrite=True)
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
 
@@ -321,9 +321,15 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
+                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -342,6 +348,7 @@ class PypeIt(object):
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
             for j, comb_id in enumerate(u_combid):
+                #import pdb; pdb.set_trace()
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
                 bg_frames = np.where((self.fitstbl['comb_id'] == self.fitstbl['bkg_id'][frames][0]) &
@@ -351,12 +358,19 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -682,7 +696,7 @@ class PypeIt(object):
         # Return
         return spec2DObj, sobjs
 
-    def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
+    def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
         """
         Save the outputs from extraction for a given exposure
 
@@ -696,7 +710,8 @@ class PypeIt(object):
                 extraction
             basename (:obj:`str`):
                 The root name for the output file.
-
+            history (:obj:`pypeit.history.History`):
+                History entries to be added to fits header
         Returns:
             None or SpecObjs:  All of the objects saved to disk
 
@@ -708,8 +723,6 @@ class PypeIt(object):
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
-        history = History(head2d)
-        history.append(f'PypeIt Reduce From {os.path.basename(rawfile)}')
 
         # Check for the directory
         if not os.path.isdir(self.science_path):

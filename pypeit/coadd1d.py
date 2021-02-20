@@ -248,9 +248,9 @@ class CoAdd1D(object):
         # To save characters the unique files are listed first and then the
         # objects are listed. For example:
         # HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
-        # HISTORY File 0 spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits  
-        # HISTORY File 1 spec1d_DE.20170425.51771-dra11_DEIMOS_2017Apr25T142245.350.fits  
-        # HISTORY File 2 spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits  
+        # HISTORY File 0 "spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits"  
+        # HISTORY File 1 "spec1d_DE.20170425.51771-dra11_DEIMOS_2017Apr25T142245.350.fits"  
+        # HISTORY File 2 "spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits"  
         # HISTORY Object ID SPAT0692-SLIT0704-DET08 from file 0                           
         # HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 2                           
         # HISTORY Object ID SPAT0691-SLIT0704-DET08 from file 2                           
@@ -262,7 +262,7 @@ class CoAdd1D(object):
         history_list = [(unique_files.index(x), y) for x, y in combined_file_obj]
         history.append(f'PypeIt Coadded {len(history_list)} objects from {len(unique_files)} spec1d files')
         for i in range(len(unique_files)):
-            history.append(f'File {i} {os.path.basename(unique_files[i])}', add_date=False)
+            history.append(f'File {i} "{os.path.basename(unique_files[i])}"', add_date=False)
 
         for file_index, objid in history_list:
             history.append(f'Object ID {objid} from file {file_index}', add_date=False)

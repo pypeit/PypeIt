@@ -12,7 +12,7 @@ import numpy as np
 
 from pypeit import specobjs
 from pypeit.scripts.collate_1d import group_spectra_by_source, SourceObject
-from pypeit.scripts.collate_1d import  config_key_match, ADAPArchive, find_slits_to_exclude, find_spec2d_from_spec1d
+from pypeit.scripts.collate_1d import KOAArchiveDir, find_slits_to_exclude, find_spec2d_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -47,6 +47,7 @@ class MockSpecObj:
 def dummy_header(file):
     if file == 'spec1d_file1':
         return {'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
                 'DISPNAME': '830G',
                 'DECKER': 'Z6CL01B',
                 'BINNING': '1,1',
@@ -56,6 +57,7 @@ def dummy_header(file):
     else:
         # Return a different decker to make sure it's properly ignored
         return {'MJD': '58878.0',
+                'PYP_SPEC': 'keck_deimos',
                 'DISPNAME': '830G',
                 'DECKER': 'foo',
                 'BINNING': '1,1',
@@ -65,7 +67,7 @@ def dummy_header(file):
 
 class MockSpecObjs:
     def __init__(self, file):
-        self.header = dummy_header('spec1d_file1')
+        self.header = dummy_header(file)
 
         # specobjs for testing group_spectra_by_source
         # object1 entries test a match within a single file
@@ -98,9 +100,8 @@ def test_group_spectra_by_radec(monkeypatch):
     monkeypatch.setattr(specobjs.SpecObjs, "from_fitsfile", mock_specobjs)
 
     file_list = ['spec1d_file1', 'spec1d_file2']
-    spectrograph = load_spectrograph('keck_deimos')
 
-    source_list = group_spectra_by_source(file_list, spectrograph, dict(), 'ra/dec', Angle('.0003d'))
+    source_list = group_spectra_by_source(file_list, dict(), 'ra/dec', Angle('.0003d'))
 
     assert len(source_list) == 6
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -122,7 +123,7 @@ def test_group_spectra_by_radec(monkeypatch):
     assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
     exclude_map = {'3003': 'TEST_FLAG'}
-    source_list = group_spectra_by_source(file_list, spectrograph, exclude_map, 'ra/dec', Angle('.0004d'))
+    source_list = group_spectra_by_source(file_list, exclude_map, 'ra/dec', Angle('.0004d'))
 
     assert len(source_list) == 4
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -143,7 +144,7 @@ def test_group_spectra_by_pixel(monkeypatch):
     file_list = ['spec1d_file1', 'spec1d_file2']
     spectrograph = load_spectrograph('keck_deimos')
 
-    source_list = group_spectra_by_source(file_list, spectrograph, dict(), 'pixel', 5.0)
+    source_list = group_spectra_by_source(file_list, dict(), 'pixel', 5.0)
 
     assert len(source_list) == 7
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -168,7 +169,7 @@ def test_group_spectra_by_pixel(monkeypatch):
     assert [x.NAME for x in source_list[6].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
     exclude_map = {'3003': 'TEST_FLAG'}
-    source_list = group_spectra_by_source(file_list, spectrograph, exclude_map, 'pixel', 10.0)
+    source_list = group_spectra_by_source(file_list, exclude_map, 'pixel', 10.0)
 
     assert len(source_list) == 5
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -188,33 +189,66 @@ def test_group_spectra_by_pixel(monkeypatch):
 
 
 def test_config_key_match():
+
+    file_list = ['spec1d_file1', 'spec1d_file2']
+
     spectrograph = load_spectrograph('keck_deimos')
 
     header1 = {'dispname': '830G',
+               'MJD': '58878.0',
+               'PYP_SPEC': 'keck_deimos',
                'decker': 'Z6CL01B',
                'binning': '1,1'}
     header2 = {'dispname': '830G',
+               'MJD': '58878.0',
+               'PYP_SPEC': 'keck_deimos',
                'decker': 'foo',
                'binning': '1,1'}
     header3 = {'dispname': '830L',
+               'MJD': '58878.0',
+               'PYP_SPEC': 'keck_deimos',
                'decker': 'Z6CL01B',
                'binning': '1,1'}
     header4 = {'dispname': '830G',
+               'MJD': '58878.0',
+               'PYP_SPEC': 'keck_deimos',
                'decker': 'Z6CL01B',
                'binning': '1,1',
                'amp':  'foo'}
+    header5 = {'dispname': '830G',
+               'MJD': '58878.0',
+               'decker': 'foo',
+               'binning': '1,1'}
+    header6 = {'dispname': '830G',
+               'MJD': '58878.0',
+               'PYP_SPEC': 'keck_nires',
+               'decker': 'foo',
+               'binning': '1,1'}
 
-    assert config_key_match(spectrograph, header1, header2) is True
-    assert config_key_match(spectrograph, header1, header3) is False
-    assert config_key_match(spectrograph, header1, header4) is False
-    assert config_key_match(spectrograph, header4, header1) is False
+    sobjs = mock_specobjs('spec1d_file1')
+    sobj = sobjs.specobjs[0]
 
-    """
-    for source in source_list:
-        print(f'Source: {source.coord}')
-        for i in range(len(source.spec1d_file_list)):
-            print(f'    {source.spec1d_file_list[i]} {source.spec_obj_list[i].NAME} {source.spec_obj_list[i].MASKDEF_OBJNAME}')
-    """
+    so1 = SourceObject(sobj, header1, 'spec1d_file1', spectrograph, 'ra/dec')
+    so4 = SourceObject(sobj, header4, 'spec1d_file1', spectrograph, 'ra/dec')
+
+    # Test that config keys match regardless of decker and even if neither
+    # header has amp
+    assert so1._config_key_match(header2) is True
+
+    # Test that config keys don't match if dispname doesn't match
+    assert so1._config_key_match(header3) is False
+
+    # Test that config keys don't match if amp doesn't match
+    assert so1._config_key_match(header4) is False
+
+    # Test that config_key matching doesn't depend on order
+    assert so4._config_key_match(header1) is False
+
+    # Test that config keys don't match if there's no PYP_SPEC,
+    # or the wrong PY_SPEC
+    assert so1._config_key_match(header5) is False
+    assert so1._config_key_match(header6) is False
+
 
 def test_build_coadd_file_name():
     mock_sobjs = mock_specobjs('spec1d_file1')
@@ -222,7 +256,7 @@ def test_build_coadd_file_name():
 
     source = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
                           spectrograph, 'ra/dec')
-    source.build_coadd_file_name()
+
     assert source.coaddfile == 'J132436.41+271928.56_DEIMOS_20200130.fits'
 
     source2 = SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
@@ -267,7 +301,7 @@ def test_find_spec2d_from_spec1d(tmp_path):
 
 
 @cooked_required
-def test_adap_archive(tmp_path):
+def test_koa_archive(tmp_path):
     cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
 
     spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
@@ -287,9 +321,9 @@ def test_adap_archive(tmp_path):
 
     source_list[0].coaddfile = coadd_file
     archive_dir = str(tmp_path)
-    archive = ADAPArchive(archive_dir)
-    archive.add_spec1d_files(spec1d_files)
-    archive.add_spec2d_files(spec2d_files)
+    archive = KOAArchiveDir(archive_dir)
+    archive.add_files(spec1d_files)
+    archive.add_files(spec2d_files)
     archive.add_coadd_sources(source_list)
     archive.save()
     assert(os.path.exists(os.path.join(archive_dir, spec1d_name)))
@@ -297,7 +331,7 @@ def test_adap_archive(tmp_path):
     assert(os.path.exists(os.path.join(archive_dir, coadd_name)))
 
     # Use filecmp to compare .dat files
-    good_dat_dir = data_path('adap')
+    good_dat_dir = data_path('ipac')
     good_by_id_dat =  os.path.join(good_dat_dir, 'by_id_meta.dat')
     good_by_obj_dat = os.path.join(good_dat_dir, 'by_object_meta.dat')
     test_by_id_dat =  os.path.join(archive_dir, 'by_id_meta.dat')
@@ -306,7 +340,7 @@ def test_adap_archive(tmp_path):
     assert(filecmp.cmp(good_by_obj_dat, test_by_obj_dat, shallow=False))
  
     # Now test opening and adding to an existing archive
-    archive2 = ADAPArchive(archive_dir)
+    archive2 = KOAArchiveDir(archive_dir)
     spec2d_name = 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits'
     spec2d_list = [os.path.join(cooked_sci_dir, spec2d_name)]
 
@@ -317,13 +351,12 @@ def test_adap_archive(tmp_path):
                                 spectrograph,'ra/dec')]
     source_list[0].coaddfile = os.path.join(cooked_sci_dir, coadd_name)
 
-    archive.add_spec2d_files(spec2d_list)
+    archive.add_files(spec2d_list)
     archive.add_coadd_sources(source_list)
     archive.save()
     assert(os.path.exists(os.path.join(archive_dir, spec2d_name)))
     assert(os.path.exists(os.path.join(archive_dir, coadd_name)))
 
-    good_dat_dir = data_path('adap')
     good_by_id_dat =  os.path.join(good_dat_dir, 'by_id_meta2.dat')
     good_by_obj_dat = os.path.join(good_dat_dir, 'by_object_meta2.dat')
     assert(filecmp.cmp(good_by_id_dat, test_by_id_dat, shallow=False))

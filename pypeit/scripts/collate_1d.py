@@ -1,3 +1,14 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+"""
+This script collates multiple 1d spectra in multiple files by object, 
+runs flux calibration/coadding on them, and produces files suitable
+for KOA archiving.
+"""
+
 import sys
 from datetime import datetime, timezone
 import argparse
@@ -22,8 +33,6 @@ from pypeit import msgs
 from pypeit import par
 from pypeit.slittrace import SlitTraceBitMask
 
-#import yappi
-
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
 class SmartFormatter(argparse.HelpFormatter):
@@ -34,40 +43,101 @@ class SmartFormatter(argparse.HelpFormatter):
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
 
-class ADAPArchive():
+class KOAArchiveDir():
+    """
+    Copies files and metadata to an archive directory intended to be imported
+    into the Keck Observatory Archive (KOA).
 
-    ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-    OBJ_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-    OBJ_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
+    Files are all copied to the top level directory in the archive. 
+    TODO: Copy in spec1d, spec2d, coadd subdirs?
+    Files should originate from KOA and should have a KOAID in their ``FILENAME``
+    entry in their header.
+
+    A KOAID has the format: ``II.YYYYMMDD.xxxxx``
+        See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
+        for more information.
+
+    Metadata is written to two files in the 
+    `ipac <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_ format. 
+
+    ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files in
+    the archive. It is organzied byt the KOAID of the original science image.
+
+    ``by_object_meta.dat`` contains metadata for the coadded output files.
+    This may have multiple rows for each file depending on how many science
+    images were coadded. The primary key is a combined key of the source 
+    object name, filename, and koaid columns.
+
+    Args:
+        archive_root (str): Root directory where the files and metadata will be
+        placed. This will be created if needed.
+
+    Attributes:
+    by_id_metadata (:obj:`list of :obj:`list of str``): List of metadata rows
+        for the spec1d and spec2d files in the archive diredctory. This will be
+        loaded from any existing by_id_meta.dat file in the archive_root on 
+        object initialization.
+
+    by_object_metadata (:obj:`list of :obj:`list of str``): List of metadata rows
+        for the coadd output files in the archive directory. This will be
+        loaded from any existing by_id_meta.dat file in the archive_root on 
+        object initialization.
+
+    """
+
+    # Header and SpecObj keys for metadata needed for the IPAC files
+    _ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    _OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    _OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
 
     def __init__(self, archive_root):
         self.archive_root = archive_root
-
-        self.by_id_file = os.path.join(archive_root, 'by_id_meta.dat')
-        if os.path.exists(self.by_id_file):
-            by_id_table = ascii.read(self.by_id_file)
+        
+        # Load metadata from any pre-existing metadata files.
+        # Because astropy Tables are slow at adding rows, we convert 
+        # the metadata to a list of lists for performance as adding rows is
+        # the primary feature of this clasd.
+        self._by_id_file = os.path.join(archive_root, 'by_id_meta.dat')
+        if os.path.exists(self._by_id_file):
+            by_id_table = ascii.read(self._by_id_file)
             self.by_id_metadata = [list(row) for row in by_id_table]
         else:
             self.by_id_metadata = []
 
-        self.by_object_file = os.path.join(archive_root, 'by_object_meta.dat')
-        if os.path.exists(self.by_object_file):
-            by_object_table = ascii.read(self.by_object_file)
+        self._by_object_file = os.path.join(archive_root, 'by_object_meta.dat')
+        if os.path.exists(self._by_object_file):
+            by_object_table = ascii.read(self._by_object_file)
             self.by_object_metadata = [list(row) for row in by_object_table]
         else:
             self.by_object_metadata = []
 
     def save(self):
-
-        by_id_names = ['koaid', 'filename'] + [x.lower() for x in self.ID_BASED_HEADER_KEYS]
-        with open(self.by_id_file, 'w') as f:
+        """
+        Saves the metadata in this class to IPAC files in the archive directory
+        """
+        by_id_names = ['koaid', 'filename'] + [x.lower() for x in self._ID_BASED_HEADER_KEYS]
+        with open(self._by_id_file, 'w') as f:
             ascii.write(Table(rows=self.by_id_metadata, names=by_id_names), f, format='ipac')
 
-        by_obj_names = [x.lower() for x in self.OBJ_BASED_SPEC_KEYS] + [x.lower() for x in self.OBJ_BASED_HEADER_KEYS] + ['filename', 'koaid']
-        with open(self.by_object_file, 'w') as f:
-            ascii.write(Table(rows=self.by_object_metadata, names=by_obj_names), f, format='ipac')
+        by_object_names = [x.lower() for x in self._OBJECT_BASED_SPEC_KEYS] + [x.lower() for x in self._OBJECT_BASED_HEADER_KEYS] + ['filename', 'koaid']
+        with open(self._by_object_file, 'w') as f:
+            ascii.write(Table(rows=self.by_object_metadata, names=by_object_names), f, format='ipac')
 
-    def extract_koaid(self, filename):
+    def _extract_koaid(self, filename):
+        """
+        Pull a KOAID from a file name. 
+
+        This will give an error and exit if a koaid can't be found
+
+        Args:
+            filename (str): A filename from a file originating in the KOA.
+                            It should start with a KOAID of the format
+                            II.YYYYMMDD.xxxxx. See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
+                            for more information.
+
+        Returns:
+            str: The KOAID extracted from the file name.
+        """
         # Could improve this by validating the date but
         # is that neccessary?
         if len(filename) >= 17:
@@ -77,49 +147,85 @@ class ADAPArchive():
 
         msgs.error(f'File {filename} cannot be archived because it does not begin with a KOAID')
 
-    def get_id_based_metadata(self, filename, header):
+    def _get_id_based_metadata(self, filename, header):
+        """
+        Gets the metadata from a FITS header used for the by id portion
+        of the archive and appends it to by_id_metadata
 
+        Args:
+            filename (str): A filename from a file originating in the KOA.
+        
+        """
         # Extract koa id from source image filename in header
-        koaid =  self.extract_koaid(header['FILENAME'])
+        koaid =  self._extract_koaid(header['FILENAME'])
 
         # Build data row, which starts with koaid and filename + the metadata
-        data_row = [koaid, filename] + [header[x] for x in self.ID_BASED_HEADER_KEYS]
+        data_row = [koaid, filename] + [header[x] for x in self._ID_BASED_HEADER_KEYS]
 
         self.by_id_metadata.append(data_row)
 
-    def get_object_based_metadata(self, source):
+    def _get_object_based_metadata(self, source):
+        """
+        Gets the metadata from a SourceObject instance used for the by object
+        portion of the archive and appends it to by_object_metadata.
 
-        header_data = [source.spec1d_header_list[0][x] for x in self.OBJ_BASED_HEADER_KEYS]
-        spec_obj_data = [source.spec_obj_list[0][x] for x in self.OBJ_BASED_SPEC_KEYS]
+        Args:
+        source (:obj:`pypeit.scripts.collate_1d.SourceObject`)): The source object containing the
+            headers, filenames and SpecObj information for a coadd output file.
+        """
+
+        header_data = [source.spec1d_header_list[0][x] for x in self._OBJECT_BASED_HEADER_KEYS]
+        spec_obj_data = [source.spec_obj_list[0][x] for x in self._OBJECT_BASED_SPEC_KEYS]
         shared_data = spec_obj_data + header_data + [os.path.basename(source.coaddfile)]
         
-        for koaid in [self.extract_koaid(h['FILENAME']) for h in source.spec1d_header_list ]:
+        for koaid in [self._extract_koaid(h['FILENAME']) for h in source.spec1d_header_list ]:
             self.by_object_metadata.append(shared_data + [koaid])
 
-    def add_spec1d_files(self, spec1d_files):
+    def add_files(self, files):
+        """
+        Copy fits files to the archive directory and add their metadata to the
+        by_id_metadata member variable. 
 
-        for spec1d_file in spec1d_files:
-            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+        This method may exit with a fatal error if the KOAID cannot be extracted 
+        from the fits header.
 
-            self.archive_file(spec1d_file)
-            self.get_id_based_metadata(os.path.basename(spec1d_file), sobjs.header)
+        Args:
+        files (list of str): List of full pathnames for tbe fits files
+        """
 
-    def add_spec2d_files(self, spec2d_files):
+        for file in files:
+            header = fits.getheader(file)
 
-        for spec2d_file in spec2d_files:
-            allspec2d = AllSpec2DObj.from_fits(spec2d_file)
-
-            self.archive_file(spec2d_file)
-            self.get_id_based_metadata(os.path.basename(spec2d_file), allspec2d['meta']['head0'])
+            self._archive_file(file)
+            self._get_id_based_metadata(os.path.basename(file), header)
 
     def add_coadd_sources(self, sources):
+        """
+        Copy coadd output files to the archive directory and add their metadata to the
+        by_object_metadata member variable. 
+
+        This method may exit with a fatal error if the KOAIDa cannot be extracted 
+        from the header of the source spec1d files.
+
+        Args:
+        sources (list of :obj:`pypeit.scripts.collate_1d.SourceObject`): 
+            List of full pathnames for tbe spec2d files
+        """
         for source in sources:
-            self.archive_file(source.coaddfile)
-            self.get_object_based_metadata(source)
+            self._archive_file(source.coaddfile)
+            self._get_object_based_metadata(source)
             
 
-    def archive_file(self, orig_file):
+    def _archive_file(self, orig_file):
+        """
+        Copies a file to the archive directory.
 
+        Args:
+        orig_file (str): Path to the file to copy.
+
+        Returns:
+        str: The full path to the new copy in the archive.
+        """
         if not os.path.exists(orig_file):
             msgs.error(f'File {orig_file} does not exist')
 
@@ -136,11 +242,39 @@ class ADAPArchive():
 
 
 class SourceObject:
+    """ A group of reduced spectra from the same source object. This contains
+    the information needed to coadd the spectra and archive the metadata.
+
+    An instance is initiated with the first spectra of the group. Additional
+    spectra can be compared with this object to see if it matches using the
+    match method, and are added to it with if they do.
+
+    Args:
+    spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
+        The initial spectra of the group as a SpecObj.
+    spec1d_header (:obj:`astropy.io.fits.Header`): 
+        The header for the first spec1d file in the group.
+    spec1d_file (str): Filename of the first spec1d file in the group.
+    spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`): 
+        The spectrograph that was used to take the data.
+    match_type (str): How spectra should be compared. 'ra/dec' means the
+        spectra should be compared using the sky coordinates in RA and DEC.
+        'pixel' means the spectra should be compared by the spatial pixel
+        coordinates in the image.
+
+    Attributes:
+    spec_obj_list (list of :obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        The list of spectra in the group as SpecObj objects.
+    spec1d_file_list (list of str): 
+        The pathnames of the spec1d files in the group.
+    spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
+        The headers of the spec1d files in the group
+    """
     def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
+        self.spec_obj_list = [spec1d_obj]
         self.spec1d_file_list = [spec1d_file]
         self.spec1d_header_list = [spec1d_header]
-        self.spec_camera = spectrograph.camera
-        self.spec_obj_list = [spec1d_obj]
+        self._spectrograph = spectrograph
         self.match_type = match_type
 
         if (match_type == 'ra/dec'):
@@ -152,11 +286,11 @@ class SourceObject:
 
     def build_coadd_file_name(self):
         """Build the output file name for coadding.
-        The filename convention is J<hmsdms+dms>_DEIMOS_<YYYYMMDD>.fits.
+        The filename convention is J<hmsdms+dms>_<instrument name>_<YYYYMMDD>.fits
+        when matching by RA/DEC and SPAT_<spatial position>_<instrument name>_<YYYYMMDD>.fits
+        when matching by pixel position..
 
-        Args:
-            source (`obj`:SourceObject): The Source object being coaadded. The firsts entry in spec1d_header_list is used
-            to build the filename.
+        Currently instrument_name is taken from spectrograph.camera
 
         Return: str  The name of the coadd output file.
         """
@@ -165,10 +299,70 @@ class SourceObject:
             coord_portion = 'J' + self.coord.to_string('hmsdms', sep='', precision=2).replace(' ', '')
         else:
             coord_portion = self.spec_obj_list[0]['NAME'].split('_')[0]
+        instrument_name = self._spectrograph.camera
 
-        return f'{coord_portion}_{self.spec_camera}_{time_portion}.fits'
+        return f'{coord_portion}_{instrument_name}_{time_portion}.fits'
 
-    def match(self, spec_obj, thresh):
+    def _config_key_match(self, header):
+        """
+        Check to see if the configuration keys from a spec1d file match the
+        ones for this SourceObject.
+
+        Args:
+        header (:obj:`astropy.io.fits.Header`):
+            Header from a spec1d file.
+
+        Returns (bool): True if the configuration keys match, 
+            false if they do not.
+        """
+        # Make sure the spectrograph matches
+        if 'PYP_SPEC' not in header or header['PYP_SPEC'] != self._spectrograph.name:
+            return False
+
+        first_header = self.spec1d_header_list[0]
+
+        for key in self._spectrograph.configuration_keys():
+            # Ignore "decker" because it's valid to coadd spectra with different slit masks
+            if key != "decker":
+                if key not in first_header and key not in header:
+                    # Both are missing the key, this is ok
+                    continue
+                elif key not in first_header or key not in header:
+                    # One has a value and the other doesn't so they don't match
+                    return False
+
+                if first_header[key] != header[key]:
+                    return False
+
+        # No mismatches were found
+        return True
+
+    def match(self, spec_obj, spec1d_header, thresh):
+        """Determine if a SpecObj matches this group within the given threshold.
+        This will also compare the configuration keys to make sure the SpecObj
+        is compatible with the ones in this SourceObject.
+
+        Args:
+        spec_obj (:obj:`pypeit.specobj.SpecObj`): 
+            The SpecObj to compare with this SourceObject.
+
+        spec1d_header (:obj:`astropy.io.fits.Header`):
+            The header from the spec1d that dontains the SpecObj.
+            
+        thresh (float OR :obj:`astropy.coordinates.Angle`):
+            The largest distance the given spec_obj is allowed to be
+            from the group in order to be a part of it. If match_type is 
+            'pixel', this is specified as a floating point pixel distance.
+            If match_type is 'ra/dec' this is given as an angular
+            distance via an Astropy Angle.
+
+        Returns (bool): True if the SpecObj matches this group,
+            False otherwise.
+        """
+
+        if not self._config_key_match(spec1d_header):
+            return False
+
         if self.match_type == 'ra/dec':
             coord2 = SkyCoord(ra=spec_obj.RA, dec=spec_obj.DEC, unit='deg')
             return self.coord.separation(coord2) <= thresh
@@ -177,15 +371,19 @@ class SourceObject:
             return np.fabs(coord2 - self.coord) <= thresh
 
 def find_slits_to_exclude(spec2d_files, par):
-    """Find slits that should be excluded according to the input parameters. The slit mask ids are returned in a map
-    alongside the text labels for the flags that caused the slit to be excluded.
+    """Find slits that should be excluded according to the input parameters.
+    The slit mask ids are returned in a map alongside the text labels for the
+    flags that caused the slit to be excluded.
 
     Args:
-        spec2d_files (:obj:`list` of str): List of spec2d files to build the map from.
-        par (:obj:`Collate1DPar): Parameters from .collate1d file
+        spec2d_files (:obj:`list` of str): 
+            List of spec2d files to build the map from.
+        par (:obj:`Collate1DPar):
+            Parameters from .collate1d file
 
     Return:
-        :obj:`dict` Mapping of slit mask ids to the flags that caused the slit to be excluded.
+        :obj:`dict` Mapping of slit mask ids to the flags that caused the
+        slit to be excluded.
     """
 
     # Get the types of slits to exclude from our parameters
@@ -193,6 +391,8 @@ def find_slits_to_exclude(spec2d_files, par):
     if isinstance(exclude_flags, str):
         exclude_flags = [exclude_flags]
 
+    # Go through the slit_info of all spec2d files and find
+    # which slits should be excluded based on their flags
     bit_mask = SlitTraceBitMask()
     exclude_map = dict()
     for spec2d_file in spec2d_files:
@@ -209,35 +409,24 @@ def find_slits_to_exclude(spec2d_files, par):
 
     return exclude_map
 
-def config_key_match(spectrograph, header1, header2):
-    for key in spectrograph.configuration_keys():
-        # Ignore "decker" because it's valid to coadd spectra with different slit masks
-        if key != "decker":
-            if key not in header1 and key not in header2:
-                # Both are missing the key, this is ok
-                continue
-            elif key not in header1 or key not in header2:
-                # One has a value and the other doesn't so they don't match
-                return False
-
-            if header1[key] != header2[key]:
-                return False
-
-    # No mismatches were found
-    return True
-
-def group_spectra_by_source(spec1d_files, spectrograph, exclude_map, match_type, thresh):
-    """Given a list of spec1d files from PypeIt, group the spectra within the files by their source object.
-    The grouping is done by comparing the RA/DEC of each spectra using a given threshold.
+def group_spectra_by_source(spec1d_files, exclude_map, match_type, thresh):
+    """Given a list of spec1d files from PypeIt, group the spectra within the
+    files by their source object. The grouping is done by comparing the 
+    position of each spectra (using either pixel or RA/DEC) using a given threshold.
 
     Args:
-        spec1d_files (list of str): A list of spec1d files created by PypeIt
-        exclude_map: (dict): Mapping of excluded slit mask ids to the reason they were excluded.
-                                   Any spectra for these slits will be ignored.
-        thresh: (`obj`:astropy.coordinates.Angle): Maximum angular distance that two spectra can be from each other
-                                                   to be considered to be from the same source.
+        spec1d_files (list of str): A list of spec1d files created by PypeIt.
+        exclude_map (dict): Mapping of excluded slit mask ids to the reason
+            they were excluded.  Any spectra for these slits will be ignored.
+        match_type (str): How to match the positions of spectra. 'pixel' for
+            matching by spatial pixel distance or 'ra/dec' for matching by
+            angular distance.
+        thresh: (float OR `obj`:astropy.coordinates.Angle): 
+            Maximum distance that two spectra can be from each other to be 
+            considered to be from the same source. Measured in floating
+            point pixels or as an angular distance as an Astropy Angle.
 
-    Returns: list of `obj`:SourceObject The spectra and spec1d files grouped into SourceObjects
+    Returns (list of `obj`:SourceObject): The grouped spectra as SourceObjects.
 
     """
     source_list = []
@@ -254,16 +443,18 @@ def group_spectra_by_source(spec1d_files, spectrograph, exclude_map, match_type,
                 msgs.info(f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS')
                 continue
 
+            # Search for a SourceObject that matches this SpecObj.
+            # If one can't be found, trat this as a new SourceObject.
             found = False
             for source in source_list:
-                if config_key_match(spectrograph, source.spec1d_header_list[0], sobjs.header) and \
-                    source.match(sobj, thresh):
+                if  source.match(sobj, sobjs.header, thresh):
                     source.spec_obj_list.append(sobj)
                     source.spec1d_file_list.append(spec1d_file)
                     source.spec1d_header_list.append(sobjs.header)
                     found = True
 
             if not found:
+                spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
                 source_list.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
 
     return source_list
@@ -273,7 +464,8 @@ def coadd(par, source):
 
     Args:
         par (`obj`:Collate1DPar): Paramters for the coadding
-        source (`obj`:SourceObject): The SourceObject with information on which files and spectra to coadd.
+        source (`obj`:SourceObject): The SourceObject with information on
+            which files and spectra to coadd.
     """
     par['coadd1d']['coaddfile'] = source.coaddfile
     par['coadd1d']['flux_value'] = False
@@ -291,7 +483,8 @@ def coadd(par, source):
 
 def read_file_list(lines, block):
     """
-    Read a list of files from a PypeIt .collate1d file, akin to a standard PypeIt file.
+    Read a list of files from a PypeIt .collate1d file, akin to a standard
+    PypeIt file.
 
     Reads from a block of file names in a configuration file such as:
 
@@ -302,16 +495,15 @@ def read_file_list(lines, block):
 
     Args:
         lines (:obj:`numpy.ndarray`): List of lines to read.
-        block (str): Name of the block to read files from (e.g. 'spec1d', 'spec2d')
+        block (str): Name of the block to read files from (e.g. 'spec1d')
 
     Returns:
         cfg_lines (list):
-          Config lines to modify ParSet values, i.e. lines that did not contain the file list.
+          Config lines to modify ParSet values, i.e. lines that did not
+          contain the file list.
 
         files (list):
-          Contains the lsit of files read.
-
-
+          Contains the list of files read.
     """
 
     files = []
@@ -331,11 +523,12 @@ def read_file_list(lines, block):
 
 def read_collate_file(collate_file):
     """
-    Read the file lists from a PypeIt .collate1d file, akin to a standard PypeIt file.
+    Read the file lists from a PypeIt .collate1d file, akin to a standard
+    PypeIt file.
 
     The top is a config block that sets ParSet parameters
 
-    After that are the list of spec1d and spec 2d files.
+    After that are the list of spec1d files.
 
     Args:
         collate_file (str):
@@ -346,9 +539,6 @@ def read_collate_file(collate_file):
           Config lines to modify ParSet values
         spec1dfiles (list):
           Contains spec1dfiles to be coadded
-        spec2dfiles (list):
-          Contains spec2dfiles that slit metadata is pulled from
-
     """
 
     # Read in the config file
@@ -366,6 +556,14 @@ def read_collate_file(collate_file):
 def find_spec2d_from_spec1d(spec1d_files):
     """
     Find the spec2d files corresponding to the given list of spec1d files.
+    This looks for the spec2d files in  the same directory as the spec1d files.
+    It will exit with an error if a spec2d file cannot be found.
+
+    Args:
+    spec1d_files (list of str): List of spec1d files generated by PypeIt.
+
+    Returns:
+    list of str: List of the matching spec2d files.
     """
 
     spec2d_files = []
@@ -385,7 +583,21 @@ def find_spec2d_from_spec1d(spec1d_files):
 
 def build_parameters(args):
     """
-    Read the command line arguments and the input .collate1d file (if any), to build the parameters needed by collate_1d.
+    Read the command line arguments and the input .collate1d file (if any), 
+    to build the parameters needed by collate_1d.
+
+    Args:
+    args (:obj:`argparse.Namespace`): The parsed command line as returned
+        by the argparse module.
+
+    Returns:
+    :obj:`pypeit.par.pypeitpar.PypeItPar`: 
+        The parameters for collate_1d.
+
+    :obj:`pypeit.spectrographs.spectrograph.Spectrograph`:
+        The spectrograph for the given spec1d files.
+
+    list of 'str': The spec1d files read from the command line or .collate1d file.
     """
 
     # First we need to get the list of spec1d files
@@ -439,15 +651,32 @@ def build_parameters(args):
     return params, spectrograph, spec1d_files
 
 def parse_args(options=None, return_parser=False):
+    """Parse the command line arguments"""
 
     # A blank Colate1DPar to avoid duplicating the help text.
     blank_par = pypeitpar.Collate1DPar()
 
-    parser = argparse.ArgumentParser(description='Flux/Coadd multiple 1d spectra from multiple nights and archive the results.',
+    parser = argparse.ArgumentParser(description='Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for the KOA.',
                                      formatter_class=SmartFormatter)
 
     parser.add_argument('input_file', type=str,
-                        help='File with stuff and things (TODO real documentation)',
+                        help='R|(Optional) File for guiding the collate process.\n'
+                             'Parameters in this file are overidden by the command\n'
+                             'line. The file must have the following format:\n'
+                             '\n'
+                             '[collate1d]\n'
+                             '  threshold <threshold>\n'
+                             '  archive_root       <directory for archive files>\n'
+                             '  slit_exclude_flags <flags of slits to exclude>\n'
+                             '  match_using        Whether to match using "pixel" or\n'
+                             '                     "ra/dec"\n'
+                             '  dry_run            If set the matches are displayed\n'
+                             '                     without any processing\n'
+                             '\n'
+                             'spec1d read\n'
+                             '<path to spec1d files, wildcards allowed>\n'
+                             '...\n'
+                             'end\n',                        
                         nargs='?')
     parser.add_argument('--spec1d_files', type=str, nargs='*', help='One or more spec1d files to ' \
                         'flux/coadd/archive. Can contain wildcards')
@@ -467,8 +696,6 @@ def parse_args(options=None, return_parser=False):
 def main(args):
 
     start_time = datetime.now()
-    #yappi.set_clock_type("wall")
-    #yappi.start(builtins=False)
     (par, spectrograph, spec1d_files) = build_parameters(args)
 
     spec2d_files = find_spec2d_from_spec1d(spec1d_files)
@@ -484,7 +711,7 @@ def main(args):
     else:
         threshold = Angle(par['collate1d']['threshold'])
 
-    source_list = group_spectra_by_source(spec1d_files, spectrograph, exclude_map, par['collate1d']['match_using'], threshold)
+    source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], threshold)
 
     #sensfunc, how to identify standard file
 
@@ -500,25 +727,12 @@ def main(args):
             coadd(par, source)
 
     if not args.dry_run and par['collate1d']['archive_root'] is not None:
-        archive = ADAPArchive(par['collate1d']['archive_root'])
-        archive.add_spec1d_files(spec1d_files)
-        archive.add_spec2d_files(spec2d_files)
+        archive = KOAArchiveDir(par['collate1d']['archive_root'])
+        archive.add_files(spec1d_files)
+        archive.add_files(spec2d_files)
         archive.add_coadd_sources(source_list)
         archive.save()
 
-    """
-    yappi.stop()
-    all_thread_func_stats = yappi.get_func_stats()
-
-    with open("yappi_results.txt", "w") as text_file:
-        all_thread_func_stats.print_all(out=text_file, columns={0: ("name", 60),
-                                                                1: ("ncall", 15),
-                                                                2: ("tsub", 8),
-                                                                3: ("ttot", 8),
-                                                                4: ("tavg", 8)})
-    all_thread_func_stats.save("yappi_results.pstat", type="pstat")
-    all_thread_func_stats.save("yappi_results.callgrind", type="callgrind")
-    """
     total_time = datetime.now() - start_time
 
     msgs.info(f'Total duration: {total_time}')
@@ -527,7 +741,6 @@ def main(args):
 
 def entry_point():
     main(parse_args())
-
 
 if __name__ == '__main__':
     entry_point()
