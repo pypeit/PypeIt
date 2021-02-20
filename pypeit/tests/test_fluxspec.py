@@ -6,6 +6,8 @@ import os
 
 import pytest
 
+from IPython import embed
+
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.scripts import flux_calib
@@ -53,10 +55,10 @@ def test_gen_sensfunc(kast_blue_files):
     sensFunc.run()
     # Test
     assert os.path.basename(sensFunc.meta_table['CAL_FILE'][0]) == 'feige66_002.fits'
-    assert 'SENSFUNC' in sensFunc.out_table.keys()
+    # TODO: @jhennawi, please check this edit
+    assert 'SENS_ZEROPOINT' in sensFunc.out_table.keys(), 'Bad column names'
     # Write
     sensFunc.save()
-
 
 @cooked_required
 def test_from_sens_func(kast_blue_files):
@@ -76,4 +78,6 @@ def test_from_sens_func(kast_blue_files):
 
     os.remove(sens_file)
     os.remove(outfile)
+
+
 

@@ -8,15 +8,10 @@ This document describes how to install ``PypeIt`` for both users and developers.
 
 .. _dependencies:
 
-Installing Dependencies
+Package Dependencies
 =======================
 
-Installing ``PypeIt`` will not automatically ensure that all the
-dependencies (and their appropriate versions) are installed and
-up-to-date. Below we provide two ways of ensuring that the relevant
-dependencies are available.
-
-The package and version requirements for ``PypeIt`` are:
+The package and version requirements for ``PypeIt`` currently are:
 
 * `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.18.0 or later
@@ -24,7 +19,7 @@ The package and version requirements for ``PypeIt`` are:
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ version 5
+* `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
@@ -33,24 +28,74 @@ The package and version requirements for ``PypeIt`` are:
 * `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
 * `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later
 * `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
-* `shapely <https://pypi.org/project/Shapely/>`_ -- version 1.7 or later; optional, **required for KCWI only**
-* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later; optional, developers only
+* `qtpy <https://github.com/spyder-ide/qtpy>`_ -- version 1.9 or later
+
+The interactive tools in ``PypeIt`` are built using the `QT <https://www.qt.io/>`_ windowing toolkit. The ``qtpy`` package
+is used to provide an abstract interface to the two most widely used QT bindings for Python:
+
+* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_ -- version 5
+* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ -- version 5
+
+At least one of those bindings must be installed for the interative GUIs to work. DO NOT INSTALL BOTH, as these
+two packages do not play nicely together. We strongly recommend that you go with pyqt5, unless you are attracted
+to the more flexible licensing that PySide2 provides.  PySide2 can occasionally cause GUIs to crash because
+of conflicts with other packages in your environment that use pyqt5.
 
 Developer-only items
 --------------------
 
-If you are developing, you may need the following packages:
+If you are developing, you will need the following packages:
+
+* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later
+* `tox <https://tox.readthedocs.io/en/latest/>`_
+
+Building the documentation requires the following extra dependencies:
 
 * `sphinx <https://www.sphinx-doc.org/en/master/>`_ -- version 4.0 or later
 * sphinx_automodapi (pip install only)
 * sphinx_rtd_theme (pip install only)
 
-Create a conda environment (recommended)
-----------------------------------------
+Installing via ``pip`` (recommended)
+------------------------------------
 
-We highly recommend using `Anaconda <https://www.anaconda.com/>`_ as
-a package and environment manager. We provide a yaml file that can be
-used to setup a conda environment called ``PypeIt``.  To use this:
+The recommended method for installing ``PypeIt`` and its dependencies, both required and optional,
+is via `pip <https://pypi.org/project/pip/>`_. It is very highly recommended to first set up a clean environment
+in which to install ``PypeIt`` so that possible dependency conflicts can be avoided. This can be done via ``virtualenv``:
+
+        virtualenv pypeit
+        source pypeit/bin/activate
+
+or via ``conda``:
+
+        conda create -n pypeit
+        conda activate pypeit
+
+See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_ and/or `Managing Environments with Conda
+<https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_ for more details. See also
+`virtualenvwrapper <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ as an option for more easily managing
+``virtualenv`` virtual environments.
+
+To install the latest release of ``PypeIt`` and its required dependencies, do either:
+
+        pip install "pypeit[pyqt5]"
+
+to select the ``PyQT5`` QT bindings or:
+
+        pip install "pypeit[pyside2]"
+
+to select ``PySide2``.
+
+If you are using KWCI, you may also need the ``shapely`` package. It can be installed by
+including it in the optional dependencies, e.g.:
+
+        pip install "pypeit[pyside2,shapely]"
+
+Installing via ``conda``
+------------------------
+
+`Conda <https://docs.conda.io/projects/conda/en/latest/index.html>`_ is
+a popular and widely-used package and environment manager. We provide a yaml file that can be
+used to setup a conda environment called ``pypeit`` that contains all of the required dependencies.  To use this:
 
  #. Download `environment.yml <https://github.com/pypeit/PypeIt/blob/master/environment.yml>`__.
 
@@ -66,20 +111,61 @@ used to setup a conda environment called ``PypeIt``.  To use this:
 
         conda env list
 
-Install via ``pip`` 
--------------------
+ #. Install latest ``pypeit`` via ``pip`` as above or perform a developer install as below or install the latest
+ release from ``conda-forge``::
 
-To install the dependencies using `pip <https://pypi.org/project/pip/>`_:
+        conda install -c conda-forge pypeit
 
- #. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
+#. Install the preferred QT binding either via ``pip`` as above or via conda::
 
- #. Install the dependencies::
+        conda install -c conda-forge pyqt
 
-        pip install -r requirements.txt
+or
 
-Note that this is a "system-wide" installation, and will
-replace/upgrade any current versions of the packages you already have
-installed.
+        conda install -c conda-forge pyside2
+
+Developer Install via ``pip``
+-----------------------------
+
+It is also possible to install pre-release or development versions of ``PypeIt`` directly from `GitHub <https://github.com/pypeit/PypeIt>`_
+using ``pip``. If you already have a ``pypeit`` environment setup, do:
+
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit"
+
+If you're installing in a clean environment, be sure to include the optional dependencies as well:
+
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]"
+
+Those commands will install the default branch, ``master``. You can also specify the branch you wish to use:
+
+        pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]"
+
+Commit hashes, tag names, or git refs can also be specified. See the `VCS Support documentation
+<https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details and examples.
+
+
+Developer Install from Source
+-----------------------------
+
+Developers doing code development will likely want to set up an "editable" install that points to a locally checked out
+copy of the GitHub repository. It is highly recommened to use ``pip`` for this as well so that the dependencies can be managed.
+It is also recommended to install all optional dependencies within the environment used for ``PypeIt`` development. First,
+clone the repository:
+
+        git clone https://github.com/pypeit/PypeIt.git
+
+Then perform the install, preferably in a clean environment:
+
+        cd PypeIt
+        pip install -e ".[dev]"
+
+An "editable" install means that any changes you make in that code tree will become immediately available the next
+time the code is imported. Including the ``[dev]`` set of optional dependencies ensures that all of the tools you
+need to test and build ``PypeIt`` are installed.
+
+If any of this fails, please `submit an issue
+<https://github.com/pypeit/PypeIt/issues>`__.
+
 
 Dependency Caveats
 ------------------
@@ -91,115 +177,15 @@ Some users have run into the following complications when installing the
    the LLVM compiler. For one particular case, the solution was to revert to
    llvm version 9.0.1 using `Homebrew <https://brew.sh/>`_ and then add
    environmental variables to your shell rc that point to the reverted
-   directory structure.
- 
- - At the moment, an implicit dependency on PyQt5 remains (in addition to
+   directory structure. ``numba`` also does not yet officially support
+   Python 3.9.
+
+ - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
    PySide2) because of our dependence on ``linetools``.
 
- - Note that ``shapely`` is listed as an optional dependency, but is only
+ - Note that ``shapely`` is provided as an optional dependency, but is only
    currently used by one method that calculates the spaxel area for KCWI
    output datacubes.
-
- - For the developer-only (``Sphinx``) packages, download
-   `requirements_doc.txt <https://github.com/pypeit/PypeIt/blob/master/requirements_doc.txt>`_
-   and install with ``pip install -r requirements_doc.txt``.
-
-----
-
-Installing PypeIt
-=================
-
-Please read all of the text in this sub-section before choosing which
-of the two methods described below for how you wish to install
-``PypeIt``. Once you've completed the installation steps, you should
-:ref:`test_installation`.
-
-Install using pip
------------------
-
-If you are not using code on the edge of development, then
-we recommend that you install ``PypeIt`` with ``pip``::
-
-    pip install pypeit
-
-This has been known to fail on some systems (and we're working to fix
-the issue). If you have problems, instead try::
-
-    pip install git+https://github.com/pypeit/PypeIt.git
-
-If that also fails, please `submit an issue
-<https://github.com/pypeit/PypeIt/issues>`__.
-
-Install from the git source
----------------------------
-
-If ``pip`` is unsuccessful or if you are planning to use any of the
-``PypeIt`` development branches, then you should install directly
-from GitHub. These instructions assume that you are using an anaconda python
-installation.
-
-#. Note it would be a very good idea to nuke your current anaconda installation and start
-this whole procedure with a clean slate. You could choose not to do this if you know what you are doing,
-but beware that you may encounter conflicts::
-
-
-        rm -r -f /Users/Yourpath/opt/anaconda3
-
-OR
-
-        sudo rm -r -f /Volumes/opt/anaconda3
-
-Depending on where you installed anaconda
-
-
-#. Clone the PypeIt repository::
-
-        git clone https://github.com/pypeit/PypeIt.git
-
-#. This will create a ``PypeIt`` directory in your current path.
-
-#. Install the dependencies in the pypeit/requirements.txt file.
-
-#. Note there is conflict between the required pyside2 package and other anaconda packages. To fix this
-you need to run::.
-
-        conda uninstall spyder
-
-Then after that successfully runs, install pyside2::.
-
-        conda install pyside2
-
-#. The spyder uninstall might cause you to lose some familiar Anaconda python packages that you need so run
-
-        conda install scipy matplotlib scikit-learn
-
-#. Install a few other dependencies
-
-        conda install configobj
-        conda install -c conda-forge extension-helpers
-
-In the directory where you keep your python codes, clone ejeschke/ginga from https://github.com/ejeschke/ginga
-
-        git clone https://github.com/ejeschke/ginga.git
-        cd ginga
-        python setup.py install
-
-Similar for linetools, i.e. clone from https://github.com/linetools/linetools
-
-        git clone https://github.com/linetools/linetools.git
-        cd linetools
-        python setup.py install
-
-
- #. Finally to complete the PypeIt install::
-
-        cd PypeIt
-        python setup.py develop
-
-Installing the code this way ensures that virtually all changes to files in
-the ``PypeIt`` directory take immediate effect the next time you
-import the code.
-
 
 ----
 
@@ -212,7 +198,7 @@ C code
 Significant speed gains in ``PypeIt`` can be enabled via compilation
 of the C code version of the b-spline fitting code. Compilation of
 the C code should happen automatically when you execute ``pip
-install`` or ``python setup.py develop``. You can check that the C
+install`` or ``pip install -e .``. You can check that the C
 code was compiled successfully by running the ``pypeit_c_enabled``
 script. What you should see is::
 
@@ -272,26 +258,33 @@ This should fail if any of the requirements are not satisfied; see
 2. Run the ``PypeIt`` unit tests
 --------------------------------
 
-If you cloned the repo (i.e., you did *not* use `pip`) then you can
-run the standard tests by doing::
+If you cloned the repo (i.e., you did *not* use ``pip`` or ``conda``), then you can
+run the standard tests within the environment you created for ``PypeIt`` development by doing::
 
     cd PypeIt
-    python setup.py test
+    pytest
 
-Or, alternatively::
+To test your development work within isolated environments and against different versions of
+various dependencies, it is recommended to use ``tox``::
 
-    cd PypeIt/pypeit/tests
-    python -m pytest . -W ignore
+    cd PypeIt
+    tox -e test
 
-Over 100 tests should pass, nearly 100 will be skipped (unless
-you are a developer) and none should fail.
+or, e.g.::
+
+    tox -e test-astropydev
+
+Run ``tox -a`` to see a list of available test environemts.
+
+In either case, over 100 tests should pass, nearly 100 will be skipped and none should fail. The skipped
+tests only run if the PypeIt development is installed and configured.
 
 ----
 
 Developers
 ==========
 
-For developers, see :ref:`development`.
+For developers, see :ref:`dev/development`.
 
 Also, test scripts for development purposes are available at the
 `PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.

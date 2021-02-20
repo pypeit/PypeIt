@@ -61,6 +61,9 @@
 | ArI |  8523.7830 |    1 |    81 |     29544 |  lrisr_600_7500_PYPIT.json |
 | ArI |  8608.1400 |    1 |    64 |        76 |  GMOS_R400_long_3_fit.json |
 | ArI |  8670.3250 |    1 |    81 |      8086 |  lrisr_400_8500_PYPIT.json |
+| ArI |  8764.092  |    1 |    64 |      8086 |      GMOS_R830_shenli.json |
+| ArI |  8801.503  |    1 |    64 |      8086 |      GMOS_R830_shenli.json |
+| ArI |  8852.34   |    1 |    64 |      8086 |      GMOS_R830_shenli.json |
 | ArI |  9125.4710 |    1 |    80 |     35000 |   deimos_830g_r_PYPIT.json |
 | ArI |  9197.1610 |    1 |    64 |       555 |  GMOS_R400_long_3_fit.json |
 | ArI |  9227.0300 |    1 |    81 |     57170 |  lrisr_400_8500_PYPIT.json |

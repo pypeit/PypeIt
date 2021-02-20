@@ -54,8 +54,8 @@ def trigon(linelist, numsrch, maxlin):
             for x in range(l + 1, ll):
                 cnt += 1
 
-    index = np.zeros((cnt, nptn))#, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2))#, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)#, dtype=nb.types.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)#, dtype=nb.types.float64)
 
     # Generate the patterns
     cnt = 0
@@ -108,8 +108,8 @@ def tetragon(linelist, numsrch, maxlin):
                 for xx in range(x + 1, ll):
                     cnt += 1
 
-    index = np.zeros((cnt, nptn)) #, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2)) #, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64) #, dtype=nb.types.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float) #, dtype=nb.types.float64)
 
     # Generate the patterns
     cnt = 0
@@ -152,8 +152,8 @@ def pentagon(linelist, numsrch, maxlin):
                     for xxx in range(xx + 1, ll - 1):
                         cnt += 1
 
-    index = np.zeros((cnt, nptn))#, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2)) # , dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)#, dtype=nb.types.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float) # , dtype=nb.types.float64)
 
     # Generate the patterns
     cnt = 0
@@ -201,8 +201,8 @@ def hexagon(linelist, numsrch, maxlin):
                         for xxxx in range(xxx + 1, ll - 1):
                             cnt += 1
 
-    index = np.zeros((cnt, nptn)) # , dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2)) #, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn),dtype=np.uint64) # , dtype=nb.types.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float) #, dtype=nb.types.float64)
 
     # Generate the patterns
     cnt = 0

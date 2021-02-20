@@ -3,6 +3,7 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -430,9 +431,11 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             all of ``PypeIt`` methods.
         """
         par = super().default_pypeit_par()
+        par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):

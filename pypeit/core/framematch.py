@@ -41,7 +41,8 @@ class FrameTypeBitMask(BitMask):
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),
-                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution')
+                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution'),
+                         ('sky', 'On-sky observation of the sky used for background subtraction'),
                                   ])
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))

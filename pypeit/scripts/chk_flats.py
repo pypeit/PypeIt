@@ -29,3 +29,10 @@ def main(args):
     flatImages = flatfield.FlatImages.from_file(args.master_file, chk_version=(not args.try_old))
     flatImages.show(args.type)
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

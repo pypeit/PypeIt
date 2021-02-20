@@ -70,11 +70,11 @@ class SpecObj(datamodel.DataContainer):
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
-                                  descr='Optimal flux (erg/s/cm^2/Ang)'),
+                                  descr='Optimal flux (1e-17 erg/s/cm^2/Ang)'),
                  'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float,
-                                      descr='Optimal flux uncertainty (erg/s/cm^2/Ang)'),
+                                      descr='Optimal flux uncertainty (1e-17 erg/s/cm^2/Ang)'),
                  'OPT_FLAM_IVAR': dict(otype=np.ndarray, atype=float,
-                                       descr='Optimal flux inverse variance (erg/s/cm^2/Ang)^-2'),
+                                       descr='Optimal flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2'),
                  'OPT_COUNTS': dict(otype=np.ndarray, atype=float, descr='Optimal flux (counts)'),
                  'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                                          descr='Inverse variance of optimally extracted flux '
@@ -104,9 +104,9 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Boxcar flux (erg/s/cm^2/Ang)'),
                  'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float,
-                                      descr='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
+                                      descr='Boxcar flux uncertainty (1e-17 erg/s/cm^2/Ang)'),
                  'BOX_FLAM_IVAR': dict(otype=np.ndarray, atype=float,
-                                       descr='Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2'),
+                                       descr='Boxcar flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2'),
                  'BOX_COUNTS': dict(otype=np.ndarray, atype=float, descr='Boxcar flux (counts)'),
                  'BOX_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                                          descr='Inverse variance of optimally extracted flux '
@@ -409,7 +409,7 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
-    def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
+    def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
@@ -417,10 +417,13 @@ class SpecObj(datamodel.DataContainer):
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            sens_dict (dict):
-                Sens Function dict
+            wave_zp (float array)
+                Zeropoint wavelength array
+            zeropoint (float array):
+                zeropoint array
             exptime (float):
-            telluric_correct:
+            tellmodel:
+                Telluric correction
             extinct_correct:
             airmass (float, optional):
             longitude (float, optional):
@@ -441,7 +444,7 @@ class SpecObj(datamodel.DataContainer):
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
             sens_factor = flux_calib.get_sensfunc_factor(
-                wave, wave_sens, sensfunc, exptime, telluric=telluric, extinct_correct=extinct_correct,
+                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct,
                                 airmass=airmass, longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
 
             flam = self[attr+'_COUNTS']*sens_factor

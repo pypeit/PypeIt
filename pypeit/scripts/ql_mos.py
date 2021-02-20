@@ -98,7 +98,7 @@ def main(args):
     file_bits = np.zeros(3, dtype=bm.minimum_dtype())
     file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
     file_bits[1] = bm.turn_on(file_bits[1], ['pixelflat', 'trace', 'illumflat']
-                                             if args.user_pixflat is None 
+                                             if args.user_pixflat is None
                                              else ['trace', 'illumflat'])
     file_bits[2] = bm.turn_on(file_bits[2], 'science')
 
@@ -135,3 +135,10 @@ def main(args):
 
     return 0
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

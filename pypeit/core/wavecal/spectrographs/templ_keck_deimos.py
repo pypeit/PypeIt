@@ -88,9 +88,36 @@ def keck_deimos_1200B(overwrite=False):
                    ifiles=ifiles, det_cut=det_cut, chk=True, normalize=False, lowredux=False,
                    subtract_conti=True, overwrite=overwrite, shift_wave=True)
 
+def keck_deimos_900ZD(overwrite=False):
+    binspec = 1
+    outroot = 'keck_deimos_900ZD.fits'
+    # PypeIt fits
+    wpath = os.path.join(templates.template_path, 'Keck_DEIMOS', '900ZD')
+
+    basefiles = ['MasterWaveCalib_A_1_01_useS1046.fits', 'MasterWaveCalib_A_1_03_useS0600.fits',
+                 'MasterWaveCalib_A_1_06_useS0054.fits', 'MasterWaveCalib_A_1_02_useS0066.fits',
+                 'MasterWaveCalib_A_1_06_useS0193.fits']
+    wfiles = [os.path.join(wpath, basefile) for basefile in basefiles]
+    # Snippets
+    ifiles = [0, 1, 2, 3, 4, 5]
+    slits = [1046, 600, 54, 66, 193]
+    wv_cuts = [5250., 5878., 7100., 8245.]
+    assert len(wv_cuts) == len(slits)-1
+    # det_dict
+    det_cut = None
+    #
+    templates.build_template(wfiles, slits, wv_cuts, binspec, outroot,
+                             ifiles=ifiles, det_cut=det_cut, chk=True,
+                             normalize=False, lowredux=False,
+                             subtract_conti=True, overwrite=overwrite,
+                             shift_wave=True)
+
+
+
 if __name__ == '__main__':
     #keck_deimos_600ZD()
     #keck_deimos_830G(overwrite=False) # False for Testing; True for real
-    keck_deimos_1200G(overwrite=False)
+    #keck_deimos_1200G(overwrite=False)
     #keck_deimos_1200B()
+    keck_deimos_900ZD(overwrite=False)
     pass

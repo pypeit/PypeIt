@@ -177,6 +177,22 @@ scale_method         default: auto            scale the flux arrays based on the
                                               of each spectra
 ==================   =======================  ==================================================
 
+Wave Method
+-----------
+You may want to specify the method used to construct the wavelength grid for coadding your spectra.  This is done by modifying ``wave_method`` in the [coadd1d] block of your `coadd1d file`_.  The default method is ``linear``, which uses a fixed linear grid in lambda.  However, this may not be ideal depending on your instrument set-up and observations.  Here is an example of some Keck LRISb data.  After coadding the 1D spectra, you may see a noise pattern like this:
+
+.. image:: figures/noise_linear.pdf
+
+(this figure was obtained by plotting the quantity :math:`\frac{1}{\sqrt{\texttt{ivar}}}` using the ``ivar`` array in the second extension of the `coadd1d file`_), which, while still correct, may not be desirable.  This noise pattern occurs because ``pypeit_coadd_1dspec`` does not interpolate the spectra, in order to guarantee that neighbouring pixels do not have correlated noise.  However, if your wavelength grid is such that multiple values land in one re-binned pixel, this pattern will appear.
+
+To avoid this noise pattern, you can modify the value of ``wave_method``.  For example, if we use the ``iref`` option instead, the above example becomes:
+
+.. image:: figures/noise_iref.pdf
+
+The ``iref`` option uses the grid of one of the spectra that you are coadding as the wavelength grid.  The reason why this works is because, in general, the wavelength solution of a slit will be non-linear, so the pixel spacing will be different between different ``wave_method`` options.  For a linear grid, the number of exposures contributing to a given pixel in the final grid is varying because of how non-linear grids overlap with the linear grid.  By using the ``iref`` option or a linear grid with wider spacing, this effect can be reduced.  If your data contains exposures that aren't dithered, the ``iref`` option will coadd your exposures on the native wavelength grid, which will avoid the fluctuations in the noise vector. 
+
+If your data contains exposures that are dithered a lot, ``iref`` will probably give you similar noise fluctuations, so using a linear grid with wider spacing may give you a better result.  To change the spacing of the wavelength grid, you can modify ``samp_fact`` in the [coadd1d] block of your `coadd1d file`_.  The default value is 1.0.  Setting ``samp_fact`` > 1.0 over-samples (finer grid), while setting ``samp_fact`` < 1.0 under-samples (coarser grid).
+
 
 Current Coadd1D Data Model
 ==========================

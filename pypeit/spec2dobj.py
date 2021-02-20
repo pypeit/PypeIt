@@ -396,6 +396,11 @@ class AllSpec2DObj(object):
             hdr['SKYSUB'] = 'DIFF'
         else:
             hdr['SKYSUB'] = 'MODEL'
+        # obj find mode
+        if self['meta']['find_negative']:
+            hdr['FINDOBJ'] = 'POS_NEG'
+        else:
+            hdr['FINDOBJ'] = 'POS'
         #
         return hdr
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
-import os,time
+import os
+import time
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
@@ -89,7 +90,7 @@ def main(args):
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
         cfg_lines = ['[coadd1d]']
         cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name. Only required for Echelle']
         if pypeline == 'Echelle':
             cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
         else:
@@ -143,3 +144,9 @@ def main(args):
         msgs.info('PypeIt file written to: {0}'.format(tellfit_file))
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

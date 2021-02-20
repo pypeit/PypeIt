@@ -408,9 +408,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
         # algorithm is not the default.
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_Lick_3100_11100_R10000.fits')
-
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Lick_3100_11100_R10000.fits')
 
         return par
 

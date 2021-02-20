@@ -16,8 +16,10 @@ import scipy
 from scipy.optimize import curve_fit
 
 from astropy.table import Table
+from astropy import convolution
 
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core import arc
 
 from IPython import embed
@@ -35,7 +37,7 @@ def parse_param(par, key, slit):
     return param
 
 
-def get_delta_wave(wave, gpm):
+def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
     """
     Given an input wavelength vector and an input good pixel mask, this code computes the delta_wave defined
     to be wave_old[i]-wave_old[i-1]. The missing point at the end of the array is just appended to have an
@@ -46,6 +48,9 @@ def get_delta_wave(wave, gpm):
             Array of input wavelengths. Muse be a one dimensional array.
         gpm (bool `numpy.ndarray`_): shape = (nspec)
             Boolean good pixel mask defining where the wave_old are good.
+        frac_spec_med_filter (float, optional):
+            Fraction of the nspec to use to median filter the delta wave by to ensure that it is smooth. Deafult is
+            0.03. In other words, a running median filter will be applied with window equal to 0.03*nspec
 
     Returns
     -------
@@ -54,10 +59,21 @@ def get_delta_wave(wave, gpm):
 
     """
 
+    if wave.ndim > 1:
+        msgs.error('This routine can only be run on one dimensional wavelength arrays')
+    nspec = wave.size
+    # This needs to be an odd number
+    nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
     delta_wave = np.zeros_like(wave)
     wave_diff = np.diff(wave[gpm])
     wave_diff = np.append(wave_diff, wave_diff[-1])
-    delta_wave[gpm] = wave_diff
+    wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
+
+    # Smooth with a Gaussian kernel
+    sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
+    gauss_kernel = convolution.Gaussian1DKernel(sig_res)
+    wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
+    delta_wave[gpm] = wave_diff_smooth
     return delta_wave
 
 def get_sampling(waves, pix_per_R=3.0):
@@ -313,7 +329,7 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr', linewidth = 1.0)
+        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', linewidth=1.0, label = 'x-corr')
         plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
         plt.legend()
