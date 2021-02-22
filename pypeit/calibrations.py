@@ -749,10 +749,9 @@ class Calibrations:
 
         return self.wavetilts
 
-    def run_the_steps(self, quiet=False):
+    def run_the_steps(self):
         """
-        Run full the full recipe of calibration steps
-
+        Run full the full recipe of calibration steps.
         """
         self.success = True
         for step in self.steps:

@@ -2774,18 +2774,18 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
-        defaults['sync_bound'] = True
+        defaults['sync_bound'] = False
         dtypes['sync_bound'] = bool
-        descr['sync_bound'] = 'When the code is ready to sync the left/right trace edges, the ' \
-                              'traces should have been constructed, vetted, and cleaned. This ' \
-                              'can sometimes lead to *no* valid traces. This parameter dictates ' \
-                              'what to do next. If `sync_bound` is True, the code will ' \
-                              'artificially add two edges that bound the detector; if False, ' \
-                              'the code identifies the slit-edge tracing as being unsuccessful, ' \
-                              'warns the user, and ends gracefully. Note that setting ' \
-                              '`sync_bound` to True can be critical to some long-slit data ' \
-                              'where the slit edges are, in fact, beyond the edges of the ' \
-                              'detector.'
+        descr['sync_bound'] = 'When the code is ready to synchronize the left/right trace ' \
+                              'edges, the traces should have been constructed, vetted, and ' \
+                              'cleaned. This can sometimes lead to *no* valid traces. This ' \
+                              'parameter dictates what to do next. If ``sync_bound`` is True, ' \
+                              'the code will artificially add left and right edges that bound ' \
+                              'the detector; if False, the code identifies the slit-edge ' \
+                              'tracing as being unsuccessful, warns the user, and ends ' \
+                              'gracefully. Note that setting ``sync_bound`` to True can be ' \
+                              'critical to some long-slit data where the slit edges are, in ' \
+                              'fact, beyond the edges of the detector.'
         
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
