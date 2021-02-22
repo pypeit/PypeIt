@@ -1379,7 +1379,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     #        title = 'Zeropoint Fit for '
     #        flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
 
-    return meta_table, out_table
+    return meta_table, out_table, TelObj
 
 
 def create_bal_mask(wave, bal_wv_min_max):
@@ -2373,81 +2373,107 @@ class TelluricData(datamodel.DataContainer):
                                  descr='File name (or shorthand) with the standard flux data'),
                  'polyfunc': dict(otype=str, descr='Polynomial function used'),
                  'pcafile': dict(otype=str, descr='Name of the QSO PCA file'),
-                 'metadata': dict(otype=table.Table, descr='Table with the fit metadata'),
+                 'tol': dict(otype=float,
+                             descr='Relative tolerance for converage of the differential '
+                                   'evolution optimization.'),
+                 'popsize': dict(otype=int,
+                                 descr='A multiplier for setting the total population size for '
+                                       'the differential evolution optimization.'),
+                 'recombination': dict(otype=float,
+                                       descr='The recombination constant for the differential '
+                                             'evolution optimization. Should be in the range '
+                                             '[0, 1].'),
+                 'airmass': dict(otype=float, descr='Airmass of the observation'),
+                 'exptime': dict(otype=float, descr='Exposure time'),
+                 'std_ra': dict(otype=float, descr='RA of the standard source'),
+                 'std_dec': dict(otype=float, descr='DEC of the standard source'),
+                 'npca': dict(otype=int, descr='Number of PCA components'),
+                 'z_qso': dict(otype=float, descr='Redshift of the QSO'),
+                 'delta_zqso': dict(otype=float,
+                                    descr='Allowed range for the QSO redshift about z_qso'),
+                 'norm_lb': dict(otype=float, descr='Flux normalization lower bound'),
+                 'norm_ub': dict(otype=float, descr='Flux normalization upper bound'),
+                 'tell_norm_thresh': dict(otype=float, descr='??'),
                  'model': dict(otype=table.Table, descr='Table with the best-fitting model data')}
     """DataContainer datamodel."""
 
-    def __init__(self, norders=None, method=None):
+    def __init__(self, norders=None, nspec=None, n_obj_par=None, method=None):
         datamodel.DataContainer.__init__(self)
         if method != None:
             self.method = method
+        self.norders = 0 if norders is None else norders
+        self.nspec = 0 if nspec is None else nspec
+        self.n_obj_par = 0 if n_obj_par is None else n_obj_par
 
-        self.metadata = self.empty_metadata(norders)
-        self.model = self.empty_model()
+        self.model = self.empty_model_table(self.norders, self.nspec, n_obj_par=self.n_obj_par)
 
+    def _init_internals(self):
+        self.norders = None
+        self.nspec = None
+        self.n_obj_par = None
 
     @staticmethod
-    def empty_metadata(norders, rows=1):
+    def empty_model_table(norders, nspec, n_obj_par=0):
         """
-        Construct an empty `astropy.table.Table` for the telluric metadata.
+        Construct an empty `astropy.table.Table`_ for the telluric model
+        results.
 
         Args:
-            rows (:obj:`int`, optional):
-                Number of table rows for each table column, expected
-                to be the number of objects. If None, the table has
-                empty columns.
+            norders (:obj:`int`):
+                The number of slits/orders on the detector.
+            nspec (:obj:`int`):
+                The number of spectral pixels on the detector.
+            n_obj_par (:obj:`int`, optional):
+                The number of parameters used to construct the object model
+                spectrum.
 
         Returns:
-            `astropy.table.Table`_: Instance of the empty object
-            table.
+            `astropy.table.Table`_: Instance of the empty model table.
         """
-        length = 0 if rows is None else rows
-        return table.Table([table.Column(name='TOL', dtype=float, length=length,
-                                         description='Relative tolerance for converage of the '
-                                                     'differential evolution optimization.'),
-                            table.Column(name='POPSIZE', dtype=int, length=length,
-                                         description='A multiplier for setting the total '
-                                                     'population size for the differential '
-                                                     'evolution optimization.'),
-                            table.Column(name='RECOMBINATION', dtype=float, length=length,
-                                         description='The recombination constant for the '
-                                                     'differential evolution optimization.'),
-                            table.Column(name='ECH_ORDERS', dtype=int, length=length,
-                                         description='For Eschelle data, the true order numbers '
-                                                     'for each detected order.')],
-                            meta={'name': 'Telluric fit parameter values'})
+        return table.Table(data=[
+            table.Column(name='WAVE', dtype=float, length=norders, shape=(nspec,),
+                         description='Wavelength vector'),
+            table.Column(name='TELLURIC', dtype=float, length=norders, shape=(nspec,),
+                         description='Best-fitting telluric model spectrum'),
+            table.Column(name='OBJ_MODEL', dtype=float, length=norders, shape=(nspec,),
+                         description='Best-fitting object model spectrum'),
+            # TODO: Why do we need both TELL_THETA and all the individual parameters...
+            table.Column(name='TELL_THETA', dtype=float, length=norders, shape=(7,),
+                         description='Best-fitting telluric model parameters'),
+            table.Column(name='TELL_PRESS', dtype=float, length=norders,
+                         description='Best-fitting telluric model pressure'),
+            table.Column(name='TELL_TEMP', dtype=float, length=norders,
+                         description='Best-fitting telluric model temperature'),
+            table.Column(name='TELL_H20', dtype=float, length=norders,
+                         description='Best-fitting telluric model water column'),
+            table.Column(name='TELL_AIRMASS', dtype=float, length=norders,
+                         description='Best-fitting telluric model airmass'),
+            table.Column(name='TELL_RESLN', dtype=float, length=norders,
+                         description='Best-fitting telluric model spectral resolution'),
+            table.Column(name='TELL_SHIFT', dtype=float, length=norders,
+                         description='Best-fitting shift applied to the telluric model spectrum'),
+            table.Column(name='TELL_STRETCH', dtype=float, length=norders,
+                         description='Best-fitting stretch applied to the telluric model spectrum'),
+            table.Column(name='OBJ_THETA', dtype=float, length=norders, shape=(n_obj_par,),
+                         description='Best-fitting object model parameters'),
+            table.Column(name='CHI2', dtype=float, length=norders,
+                         description='Chi-square of the best-fit model'),
+            table.Column(name='SUCCESS', dtype=bool, length=norders,
+                         description='Flag that fit was successful'),
+            table.Column(name='NITER', dtype=int, length=norders,
+                         description='Number of fit iterations'),
+            table.Column(name='ECH_ORDER', dtype=int, length=norders,
+                         description='Echelle order for this specrum (echelle data only)'),
+            table.Column(name='PLY_ORDER', dtype=int, length=norders,
+                         description='Polynomial order for each slit/echelle (if applicable)'),
+            table.Column(name='IND_LOWER', dtype=int, length=norders,
+                         description='Lowest index of a spectral pixel included in the fit'),
+            table.Column(name='IND_UPPER', dtype=int, length=norders,
+                         description='Highest index of a spectral pixel included in the fit'),
+            table.Column(name='WAVE_MIN', dtype=float, length=norders,
+                         description='Minimum wavelength included in the fit'),
+            table.Column(name='WAVE_MAX', dtype=float, length=norders,
+                         description='Maximum wavelength included in the fit')])
 
-        meta_table['TOL'] = [self.tol]
-        meta_table['POPSIZE'] = [self.popsize]
-        meta_table['RECOMBINATION'] = [self.recombination]
-        meta_table['TELGRIDFILE'] = [os.path.basename(self.telgridfile)]
-        if 'output_meta_keys' in self.obj_params:
-            for key in self.obj_params['output_meta_keys']:
-                meta_table[key.upper()] = [self.obj_params[key]]
-        if self.ech_orders is not None:
-            meta_table['ECH_ORDERS'] = [self.ech_orders]
-
-
-
-        out_table = table.Table(meta={'name': 'Object Model and Telluric Correction'})
-        out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
-        out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELL_THETA'] = np.zeros((self.norders, 7))
-        out_table['TELL_PRESS'] = np.zeros(self.norders)
-        out_table['TELL_TEMP'] = np.zeros(self.norders)
-        out_table['TELL_H2O'] = np.zeros(self.norders)
-        out_table['TELL_AIRMASS'] = np.zeros(self.norders)
-        out_table['TELL_RESLN'] = np.zeros(self.norders)
-        out_table['TELL_SHIFT'] = np.zeros(self.norders)
-        out_table['TELL_STRETCH'] = np.zeros(self.norders)
-        out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
-        out_table['CHI2'] = np.zeros(self.norders)
-        out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
-        out_table['NITER'] = np.zeros(self.norders, dtype=int)
-        out_table['IND_LOWER'] = self.ind_lower
-        out_table['IND_UPPER'] = self.ind_upper
-        out_table['WAVE_MIN'] = self.wave_grid[self.ind_lower]
-        out_table['WAVE_MAX'] = self.wave_grid[self.ind_upper]
 
 

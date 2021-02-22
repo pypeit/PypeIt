@@ -166,6 +166,7 @@ def main(args):
     sensobj.run()
     # Write it out to a file
     sensobj.save()
+#    sensobj.to_file(sensobj.sensfile)
 
     #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 

@@ -18,8 +18,6 @@ from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 from astropy import stats
-from astropy import units as u
-from astropy import constants as const
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
@@ -30,7 +28,7 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
-from pypeit.core import telluric
+#from pypeit.core import telluric
 
 
 # TODO: Put these in the relevant functions
@@ -39,7 +37,9 @@ SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
 def zp_unit_const():
-    return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
+    return -2.5*np.log10(((units.angstrom**2/constants.c) * 
+                          (PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.angstrom)
+                         ).to('Jy')/(3631 * units.Jy)).value
 
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
 # It has a value of ZP_UNIT_CONST = 40.092117379602044
@@ -980,14 +980,14 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
 
     """
 
-    eff_aperture_m2 = eff_aperture*u.m**2
-    S_lam_units = 1e-17*u.erg/u.cm**2
+    eff_aperture_m2 = eff_aperture*units.m**2
+    S_lam_units = 1e-17*units.erg/units.cm**2
     # Set the throughput to be -1 in places where it is not defined.
     throughput = np.full_like(zeropoint, -1.0)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)
     inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])/S_lam_units
-    inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
-    thru = ((const.h*const.c)*inv_wave/eff_aperture_m2*inv_S_lam).decompose()
+    inv_wave = utils.inverse(wave[zeropoint_gpm])/units.angstrom
+    thru = ((constants.h*constants.c)*inv_wave/eff_aperture_m2*inv_S_lam).decompose()
     throughput[zeropoint_gpm] = thru
     return throughput
 

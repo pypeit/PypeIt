@@ -20,7 +20,6 @@ from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import io
-from pypeit import datamodel
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.core import fitting
@@ -29,17 +28,12 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
 from pypeit.spectrographs.util import load_spectrograph
 
-
 # TODO Add the data model up here as a standard thing using DataContainer.
 
-#TODO Should this be a master frame? I think not.
-#TODO Standard output location for sensfunc?
+# TODO Should this be a master frame? I think not.
+# TODO Standard output location for sensfunc?
 
 # TODO Add some QA plots, and plots to the screen if show is set.
-
-class SensFuncData(datamodel.DataContainer):
-    pass
-
 
 class SensFunc:
     """
@@ -63,8 +57,9 @@ class SensFunc:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfile, sensfile, par=None, debug=False):
-        return next(c for c in cls.__subclasses__() if c.__name__ == par['algorithm'])(
-            spec1dfile, sensfile, par=par, debug=debug)
+        return next(c for c in cls.__subclasses__()
+                    if c.__name__ == '{0}SensFunc'.format(par['algorithm']))(spec1dfile, sensfile,
+                                                                             par=par, debug=debug)
 
     @classmethod
     def load(cls, sensfile):
@@ -141,7 +136,6 @@ class SensFunc:
 
         """
         pass
-        return None, None
 
     def run(self):
         # Compute the sensitivity function
@@ -443,7 +437,7 @@ class SensFunc:
 
 
 
-class IR(SensFunc):
+class IRSensFunc(SensFunc):
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         super().__init__(spec1dfile, sensfile, par=par, debug=debug)
@@ -505,7 +499,7 @@ class IR(SensFunc):
         return zeropoint
 
 
-class UVIS(SensFunc):
+class UVISSensFunc(SensFunc):
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         super().__init__(spec1dfile, sensfile, par=par, debug=debug)
 

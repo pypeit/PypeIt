@@ -13,7 +13,7 @@ from IPython import embed
 
 
 
-class FluxCalibrate(object):
+class FluxCalibrate:
     """
     Class for flux calibrating spectra.
 

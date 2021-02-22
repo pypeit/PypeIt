@@ -1343,6 +1343,7 @@ class SensFuncPar(ParSet):
 
         # Initialize the other used specifications for this parameter set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
@@ -1377,6 +1378,7 @@ class SensFuncPar(ParSet):
 
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
+        options['algorithm'] = SensFuncPar.valid_algorithms()
         descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
                              " (1) UVIS = Should be used for data with lambda < 7000A." \
                              "No detailed model of telluric absorption but corrects for atmospheric extinction." \
@@ -1421,9 +1423,10 @@ class SensFuncPar(ParSet):
         super(SensFuncPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
                                           defaults=list(defaults.values()),
+                                          options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-        self.validate()
+#        self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
@@ -1441,13 +1444,20 @@ class SensFuncPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    def validate(self):
+    @staticmethod
+    def valid_algorithms():
         """
-        Check the parameters are valid for the provided method.
+        Return the valid sensitivity algorithms.
         """
-        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
-            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
-        # JFH add other checks?
+        return ['UVIS', 'IR']
+
+#    def validate(self):
+#        """
+#        Check the parameters are valid for the provided method.
+#        """
+#        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
+#            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
+#        # JFH add other checks?
 
 
 class SensfuncUVISPar(ParSet):
