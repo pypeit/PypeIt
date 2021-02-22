@@ -35,6 +35,11 @@ doc/build_/*
 *.tar
 *.zip
 
+# Various files #
+#################
+*.pdf
+tmp*.*
+
 # Logs and databases #
 ######################
 *.log

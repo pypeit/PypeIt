@@ -150,7 +150,7 @@ class SpecObj(datamodel.DataContainer):
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
                  'OBJTYPE': dict(otype=str, descr='PypeIt type of object (standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
-                                     descr='Spatial location of the trace on detector (pixel)'),
+                                     descr='Spatial location of the trace on detector (pixel) at half-way'),
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
                  # Slit and Object
@@ -554,3 +554,25 @@ class SpecObj(datamodel.DataContainer):
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Basics of the Data Container
+        """
+        repr = '<{:s}: '.format(self.__class__.__name__)
+        # Image
+        rdict = {}
+        for attr in self.datamodel.keys():
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                # Special ones
+                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
+                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME']:
+                    rdict[attr] = getattr(self,attr)
+                else:
+                    rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' items={}'.format(rdict)
+        repr = repr + '>'
+        return repr

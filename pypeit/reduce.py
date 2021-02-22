@@ -392,6 +392,9 @@ class Reduce(object):
         if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
             self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
                                        TOLER=self.par['reduce']['slitmask']['obj_toler'])
+            # Assign un-detected objects
+            self.slits.mask_add_missing_obj(self.sobjs_obj, self.get_platescale(None))
+        
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
