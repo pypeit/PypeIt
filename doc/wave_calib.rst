@@ -1,3 +1,5 @@
+.. _wave_calib:
+
 ======================
 Wavelength Calibration
 ======================
@@ -188,11 +190,11 @@ which will be similar to the following directory:
 
 Once your solution is in the database, you will be able to
 run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
-Make sure you add the following line to your pypeit file:
+Make sure you add the following line to your pypeit file::
 
-[calibrations]
-  [[wavelengths]]
-    reid_arxiv = name_of_your_solution.fits
+  [calibrations]
+     [[wavelengths]]
+        reid_arxiv = name_of_your_solution.fits
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)
@@ -248,6 +250,20 @@ than you may need to modify::
     [calibrations]
       [[wavelengths]]
         fwhm=X.X
+
+in your PypeIt file.
+
+There is also an option to let PypeIt compute the arc line FWHM from the arc lines
+themself (only the ones with the highest detection significance). The FWHM measure in this way
+will override the value set by `fwhm`, which will still be used as first guess and for the :doc:`wavetilts`.
+This is particularly advantageous for multi-slit observations that have slit with different slit widths,
+e.g., DEIMOS LVM slit-masks.
+The keyword that controls this option is called `fwhm_fromlines` and is set to `False` by default. To switch it
+on add::
+
+    [calibrations]
+      [[wavelengths]]
+        fwhm_fromlines = True
 
 in your PypeIt file.
 
