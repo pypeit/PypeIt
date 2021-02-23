@@ -2300,8 +2300,8 @@ class WavelengthSolutionPar(ParSet):
         defaults['fwhm_fromlines'] = False
         dtypes['fwhm_fromlines'] = bool
         descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
-                                  'If True, the estimated FWHM will override ``fwhm`` only in'\
-                                  'the determination of the wavelength solution (i.e. not in'\
+                                  'If True, the estimated FWHM will override ``fwhm`` only in '\
+                                  'the determination of the wavelength solution (i.e. not in '\
                                   'WaveTilts).'
 
         # These are the parameters used for reidentification

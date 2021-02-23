@@ -39,7 +39,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
     supported = True
-    comment = 'Supported gratings: 600ZD, 830G, 1200G; see :doc:`deimos`'
+    comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):
         super().__init__()
