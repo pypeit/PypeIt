@@ -984,7 +984,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                     break
                 nsig_thrshd -= 5
             else:
-                fwhm = 6. / binspectral
+                fwhm = par['fwhm']
                 msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
 
         # Loop on snippets
