@@ -3742,7 +3742,7 @@ class EdgeTraceSet(DataContainer):
 
         # Make sure there are still traces left
         if self.is_empty:
-            if not self.par['sync_bound']:
+            if not self.par['bound_detector']:
                 return False
             msgs.warn('No traces left!  Left and right edges placed at detector boundaries.')
             self.bound_detector()

@@ -2520,7 +2520,7 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 sync_bound=None, minimum_slit_length=None, minimum_slit_length_sci=None,
+                 bound_detector=None, minimum_slit_length=None, minimum_slit_length_sci=None,
                  length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
                  order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
                  maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
@@ -2774,18 +2774,18 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
-        defaults['sync_bound'] = False
-        dtypes['sync_bound'] = bool
-        descr['sync_bound'] = 'When the code is ready to synchronize the left/right trace ' \
-                              'edges, the traces should have been constructed, vetted, and ' \
-                              'cleaned. This can sometimes lead to *no* valid traces. This ' \
-                              'parameter dictates what to do next. If ``sync_bound`` is True, ' \
-                              'the code will artificially add left and right edges that bound ' \
-                              'the detector; if False, the code identifies the slit-edge ' \
-                              'tracing as being unsuccessful, warns the user, and ends ' \
-                              'gracefully. Note that setting ``sync_bound`` to True can be ' \
-                              'critical to some long-slit data where the slit edges are, in ' \
-                              'fact, beyond the edges of the detector.'
+        defaults['bound_detector'] = False
+        dtypes['bound_detector'] = bool
+        descr['bound_detector'] = 'When the code is ready to synchronize the left/right trace ' \
+                                  'edges, the traces should have been constructed, vetted, and ' \
+                                  'cleaned. This can sometimes lead to *no* valid traces. This ' \
+                                  'parameter dictates what to do next. If ``bound_detector`` is ' \
+                                  'True, the code will artificially add left and right edges ' \
+                                  'that bound the detector; if False, the code identifies the ' \
+                                  'slit-edge tracing as being unsuccessful, warns the user, and ' \
+                                  'ends gracefully. Note that setting ``bound_detector`` to ' \
+                                  'True is needed for some long-slit data where the slit ' \
+                                  'edges are, in fact, beyond the edges of the detector.'
         
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
@@ -2937,10 +2937,10 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'sync_bound', 'minimum_slit_length', 'minimum_slit_length_sci',
-                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'pad', 'add_slits', 'rm_slits']
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_length',
+                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
+                   'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
