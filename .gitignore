@@ -39,6 +39,9 @@ doc/build_/*
 #################
 *.pdf
 tmp*.*
+*testing.ipynb
+Untitled.ipynb
+tst*.fits
 
 # Logs and databases #
 ######################

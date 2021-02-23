@@ -1099,22 +1099,25 @@ class MultiSlitReduce(Reduce):
                 # True  = Good, False = Bad for inmask
                 ingpm = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
-                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                    self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
-                    self.global_sky, self.sciImg.rn2img,
-                    thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
-                    self.sobjs[thisobj], ingpm,
-                    spat_pix=spat_pix,
-                    model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
-                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
-                    sigrej=self.par['reduce']['skysub']['sky_sigrej'],
-                    model_noise=model_noise, std=self.std_redux,
-                    bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                    sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
-                    show_profile=show_profile,
-                    use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
-                    no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
+                try:
+                    self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
+                        self.extractmask[thismask] = skysub.local_skysub_extract(
+                        self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
+                        self.global_sky, self.sciImg.rn2img,
+                        thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
+                        self.sobjs[thisobj], ingpm,
+                        spat_pix=spat_pix,
+                        model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
+                        box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
+                        sigrej=self.par['reduce']['skysub']['sky_sigrej'],
+                        model_noise=model_noise, std=self.std_redux,
+                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                        sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
+                        show_profile=show_profile,
+                        use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
+                        no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
+                except ValueError:
+                    embed(header='1120 of reduce')
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad

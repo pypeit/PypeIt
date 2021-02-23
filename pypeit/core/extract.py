@@ -1653,6 +1653,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         # TODO -- This parameter may not be used anywhere
+        #   It is in skysub.py at line 674
         if skythresh > 0.0:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:

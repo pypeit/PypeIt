@@ -791,7 +791,8 @@ class SlitTraceSet(datamodel.DataContainer):
                             'PYPELINE': self.pypeline}
             thisobj = specobj.SpecObj(**specobj_dict)
 
-            # Use trace of nearest obj
+            # TODO - Use slit edge
+            # ##
             if len(sobjs) == 0:
                 # Use slit edge
                 embed(header='798 of slittrace')
@@ -804,8 +805,12 @@ class SlitTraceSet(datamodel.DataContainer):
                 thisobj.trace_spec = sobjs[idx_nearest].trace_spec
                 # TODO -- Do we need to add FWHM?
                 #  or  SPAT_FRACPOS?
-                #  or  OBJID?
-
+            
+            # OBJID
+            thisobj.OBJID = np.max(sobjs.OBJID) + 1
+            # FWHM 
+            thisobj.FWHM = 3.  # pixels
+            thisobj.maskwidth = 12. # matches objfind() in extract.py
             # Finishing up
             thisobj.set_name()
             # Mask info
@@ -814,8 +819,9 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
             # Add to SpecObjs
             sobjs.add_sobj(thisobj)
-
+        
         # TODO -- Do we need to re-sort? (e.g. line 1644 of extract.py)
+
         # Return
         return
 
