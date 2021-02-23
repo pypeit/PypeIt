@@ -40,7 +40,6 @@ Submodules
    pypeit.reduce
    pypeit.sampling
    pypeit.sensfunc
-   pypeit.sensfunc_new
    pypeit.setup_package
    pypeit.slittrace
    pypeit.spec2dobj
