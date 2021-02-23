@@ -1,6 +1,11 @@
 
 1.3.2dev
 --------
+- Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
+- Added new ArI, KrI, NeI, XeI arc lines.
+- PypeIt can now compute arc line FWHM from the lines themselves. This is
+  controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
+- Added a development document about the DEIMOS wavelength calibration.
 
 
 
