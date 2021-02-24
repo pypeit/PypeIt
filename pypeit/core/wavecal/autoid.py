@@ -699,7 +699,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     # Determine the central wavelength and dispersion of wavelength arxiv
     for iarxiv in range(narxiv):
         wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
-        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[:,iarxiv] - np.roll(wave_soln_arxiv[:,iarxiv], 1))
+        igood = wave_soln_arxiv[:,iarxiv] > 1.0
+        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[igood,iarxiv] - np.roll(wave_soln_arxiv[igood,iarxiv], 1))
 
     marker_tuple = ('o','v','<','>','8','s','p','P','*','X','D','d','x')
     color_tuple = ('black','green','red','cyan','magenta','blue','darkorange','yellow','dodgerblue','purple','lightgreen','cornflowerblue')

@@ -328,8 +328,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 and head0['object'] in ['GCALflat', 'CuAr', 'Bias'] \
                 and self.nod_shuffle_pix is not None:
             # TODO -- Should double check NOD&SHUFFLE was not on
-            row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
-            nodpix = self.nod_shuffle_pix
+            nodpix = int(self.nod_shuffle_pix/xbin)
+            row1, row2 = nodpix + int(48/xbin), 2*nodpix+int(48/xbin) #48 is a solid value for the unusful rows in GMOS data
             # Shuffle me
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
