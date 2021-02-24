@@ -142,5 +142,9 @@ def main(args):
         embed()
 
 
+def entry_point():
+    main(parse_args())
+
+
 if __name__ == '__main__':
     entry_point()
