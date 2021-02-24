@@ -6,6 +6,7 @@
 - PypeIt can now compute arc line FWHM from the lines themselves. This is
   controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
 - Added a development document about the DEIMOS wavelength calibration.
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
 
 
 

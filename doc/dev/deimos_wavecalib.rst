@@ -21,8 +21,8 @@ Basics
 
 The procedure used to wavelength calibrate DEIMOS spectra follows the ``PypeIt`` general
 procedure described in :ref:`wave_calib`. The user can choose among three :ref:`wave_calib:Automated Algorithms`
-to perform the wavelength calibration; however, :ref:`wave_calib:Full Template` is the preferred algorithm
-for DEIMOS and it is set as the default one.
+, or a :ref:`wave_calib:By-Hand Approach`, to perform the wavelength calibration. :ref:`wave_calib:Full Template`
+is the preferred algorithm for DEIMOS and it is set as the default one.
 
 
 Procedure
@@ -89,6 +89,10 @@ Users can access the DEIMOS wavelength calibration information in a couple of wa
 
 See :ref:`master_wvcalib` for more information.
 
+If the user prefers to manually wavelength calibrate, it can be done by running
+``pypeit_identify MasterArc_X_X_XX.fits MasterSlits_X_X_XX.fits.gz``. See :ref:`wave_calib:By-Hand Approach`
+for more details.
+
 Testing
 -------
 
@@ -133,7 +137,9 @@ Results
 Out of the **4072 slits** that have been tested, for only **37 (0.9%)** the wavelength calibration failed or
 was wrong. From a visual inspection, we found that the success of the wavelength calibration is mostly
 influenced by the quality of the arc spectra. In particular, artifacts, noisy spectra, ghosts, and strong
-emission from adjacent slits are the main responsible for failed or bad wavelength calibration.
+emission from adjacent slits are the main responsible for failed or bad wavelength calibration. For these cases,
+the only way to obtain a wavelength calibration may be to perform a wavelength calibration by hand (see
+:ref:`wave_calib:By-Hand Approach`).
 
 To further investigate the quality of the wavelength calibration, we inspected the distribution of the
 wavelength solution RMS (in pixels), reported below (left panel), and we found that the majority of the
