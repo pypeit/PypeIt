@@ -282,7 +282,6 @@ class SensFunc(datamodel.DataContainer):
         for iorddet in range(self.norders):
             zeropoint_extrap[:,iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
 
-#        self.steps.append(inspect.stack()[0][3])
         return wave_extrap, zeropoint_extrap
 
     def splice(self):
@@ -296,9 +295,10 @@ class SensFunc(datamodel.DataContainer):
         wave_splice: ndarray, shape (nspec_splice, 1)
         zeropoint_splice: ndarray, shape (nspec_splice, 1)
         """
+        if self.wave_zp is None:
+            raise ValueError('Wavelength vector not yet defined.  Run extrapolate.')
 
-        msgs.info('Merging sensfunc for {0} detectors {1}'.format(self.norders,
-                                                                  self.par['multi_spec_det']))
+        msgs.info(f'Merging sensfunc for {self.norders} detectors {self.par['multi_spec_det']}')
         wave_splice_min = self.wave_zp[self.wave_zp > 1.0].min()
         wave_splice_max = self.wave_zp[self.wave_zp > 1.0].max()
         wave_splice_1d, _, _ = coadd.get_wave_grid(self.wave_zp, wave_method='linear',
@@ -588,8 +588,6 @@ class IRSensFunc(SensFunc):
         self.sens['WAVE_MIN'] = out_table['WAVE_MIN']
         self.sens['WAVE_MAX'] = out_table['WAVE_MAX']
 
-#        self.steps.append(inspect.stack()[0][3])
-
     def eval_zeropoint(self, wave, iorddet):
         """
         Evaluate the model zero-points
@@ -627,15 +625,7 @@ class UVISSensFunc(SensFunc):
     def compute_zeropoint(self):
         """
         Calls routine to compute the sensitivity function.
-
-        Returns
-        -------
-        meta_table: astropy table
-               Table containing zeropoint meta data
-        out_table: astropy table
-               Table containing zeropoint information.
         """
-
         meta_table, out_table \
                 = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                       self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'],
@@ -669,11 +659,8 @@ class UVISSensFunc(SensFunc):
         self.sens['WAVE_MIN'] = out_table['WAVE_MIN']
         self.sens['WAVE_MAX'] = out_table['WAVE_MAX']
 
-#        self.steps.append(inspect.stack()[0][3])
-
     def eval_zeropoint(self, wave, iorddet):
         """
-
         Parameters
         ----------
         wave: ndarray shape (nspec)

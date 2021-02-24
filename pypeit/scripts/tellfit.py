@@ -98,9 +98,12 @@ def parse_args(options=None, return_parser=False):
                         "         fit_wv_min_max = 9000.,9500.\n"
                         "\n"
                         )
-    parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-    parser.add_argument("--plot", default=False, action="store_true", help="Show the telluric corrected spectrum")
-    parser.add_argument("--par_outfile", default='telluric.par', help="Name of outut file to save the parameters used by the fit")
+    parser.add_argument("--debug", default=False, action="store_true",
+                        help="show debug plots?")
+    parser.add_argument("--plot", default=False, action="store_true",
+                        help="Show the telluric corrected spectrum")
+    parser.add_argument("--par_outfile", default='telluric.par',
+                        help="Name of outut file to save the parameters used by the fit")
 
     if return_parser:
         return parser
@@ -140,46 +143,55 @@ def main(args):
         if par['sensfunc']['IR']['telgridfile'] is not None:
             par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
         else:
-            msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-            par['telluric']['telgridfile'] = resource_filename('pypeit', '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
+            root = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
+            default_grid = os.path.join(root, 'TelFit_MaunaKea_3100_26100_R20000.fits')
+            msgs.warn(f'No telluric grid file given. Using {default_grid}.')
+            par['telluric']['telgridfile'] = default_grid
 
     # Write the par to disk
-    print("Writing the parameters to {}".format(args.par_outfile))
+    print(f'Writing the parameters to {args.par_outfile}')
     par['telluric'].to_config('telluric.par', section_name='telluric', include_descr=False)
 
     # Parse the output filename
-    outfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellcorr.fits')
-    modelfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellmodel.fits')
+    outfile = os.path.basename(args.spec1dfile).replace('.fits', '_tellcorr.fits')
+    modelfile = os.path.basename(args.spec1dfile).replace('.fits', '_tellmodel.fits')
 
     # Run the telluric fitting procedure.
     if par['telluric']['objmodel']=='qso':
         # run telluric.qso_telluric to get the final results
-        TelQSO = telluric.qso_telluric(args.spec1dfile, par['telluric']['telgridfile'], par['telluric']['pca_file'],
-                                       par['telluric']['redshift'], modelfile, outfile, npca=par['telluric']['npca'],
-                                       pca_lower=par['telluric']['pca_lower'], pca_upper=par['telluric']['pca_upper'],
+        TelQSO = telluric.qso_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                       par['telluric']['pca_file'], par['telluric']['redshift'],
+                                       modelfile, outfile, npca=par['telluric']['npca'],
+                                       pca_lower=par['telluric']['pca_lower'],
+                                       pca_upper=par['telluric']['pca_upper'],
                                        bounds_norm=par['telluric']['bounds_norm'],
                                        tell_norm_thresh=par['telluric']['tell_norm_thresh'],
                                        only_orders=par['telluric']['only_orders'],
-                                       bal_wv_min_max=par['telluric']['bal_wv_min_max'], maxiter=par['telluric']['maxiter'],
-                                       debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
+                                       bal_wv_min_max=par['telluric']['bal_wv_min_max'],
+                                       maxiter=par['telluric']['maxiter'],
+                                       debug_init=args.debug, disp=args.debug, debug=args.debug,
+                                       show=args.plot)
     elif par['telluric']['objmodel']=='star':
-        TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'], modelfile, outfile,
-                                         star_type=par['telluric']['star_type'],
+        TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                         modelfile, outfile, star_type=par['telluric']['star_type'],
                                          star_mag=par['telluric']['star_mag'],
                                          star_ra=par['telluric']['star_ra'],
                                          star_dec=par['telluric']['star_dec'],
-                                         func=par['telluric']['func'], model=par['telluric']['model'],
+                                         func=par['telluric']['func'],
+                                         model=par['telluric']['model'],
                                          polyorder=par['telluric']['polyorder'],
                                          only_orders=par['telluric']['only_orders'],
                                          mask_abs_lines=par['telluric']['mask_abs_lines'],
                                          delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                          maxiter=par['telluric']['maxiter'],
-                                         debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
+                                         debug_init=args.debug, disp=args.debug, debug=args.debug,
+                                         show=args.plot)
     elif par['telluric']['objmodel']=='poly':
-        TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'], modelfile, outfile,
-                                         z_obj=par['telluric']['redshift'],
-                                         func=par['telluric']['func'], model=par['telluric']['model'],
+        TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'],
+                                         modelfile, outfile, z_obj=par['telluric']['redshift'],
+                                         func=par['telluric']['func'],
+                                         model=par['telluric']['model'],
                                          polyorder=par['telluric']['polyorder'],
                                          fit_wv_min_max=par['telluric']['fit_wv_min_max'],
                                          mask_lyman_a=par['telluric']['mask_lyman_a'],
@@ -187,9 +199,10 @@ def main(args):
                                          minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
                                          only_orders=par['telluric']['only_orders'],
                                          maxiter=par['telluric']['maxiter'],
-                                         debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
+                                         debug_init=args.debug, disp=args.debug, debug=args.debug,
+                                         show=args.plot)
     else:
-        msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
+        msgs.error("Object model is not supported yet. Choose 'qso', 'star', or 'poly'.")
 
 
 def entry_point():
