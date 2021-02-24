@@ -456,7 +456,7 @@ class IRSensFunc(SensFunc):
                Table containing zerpoint information.
         """
 
-        meta_table, out_table = telluric.sensfunc_telluric(
+        meta_table, out_table, TelObj = telluric.sensfunc_telluric(
             self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec['EXPTIME'],
             self.meta_spec['AIRMASS'], self.std_dict, self.par['IR']['telgridfile'], polyorder=self.par['polyorder'],
             ech_orders = self.meta_spec['ECH_ORDERS'],

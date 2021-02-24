@@ -103,11 +103,14 @@ class SensFunc(datamodel.DataContainer):
         self.spectrograph.dispname = header['DISPNAME']
         # Get the algorithm parameters
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
+        # TODO: Check the type of the parameter object?
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
         self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
+
         self.debug = debug
-        self.steps = []
+        # TODO: Is `steps` useful? Removing for now, but easy to bring back...
+#        self.steps = []
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
         # Read in the Standard star data
@@ -139,6 +142,9 @@ class SensFunc(datamodel.DataContainer):
                                                          ra=star_ra, dec=star_dec)
 
     def _init_internals(self):
+        """
+        Add attributes not included in the data model.
+        """
         self.norders = None
         self.nspec = None
 
@@ -148,7 +154,7 @@ class SensFunc(datamodel.DataContainer):
         self.qafile = None
         self.thrufile = None
         self.debug = None
-        self.steps = None
+#        self.steps = None
         self.splice_multi_det = None
         self.meta_spec = None
 
@@ -198,18 +204,12 @@ class SensFunc(datamodel.DataContainer):
     def compute_zeropoint(self):
         """
         Dummy method overloaded by subclasses
-
-        Returns:
-            meta_table, out_table
-
         """
         pass
 
     def eval_zeropoint(self, wave, iorddet):
         """
         Dummy method, overloaded by subclasses
-
-        Returns:
         """
         pass
 
@@ -257,27 +257,32 @@ class SensFunc(datamodel.DataContainer):
             Extrapolated sensfunc
         """
 
-        # Create a new set of oversampled and padded wavelength grids for the extrapolation
+        # Create a new set of oversampled and padded wavelength grids for the
+        # extrapolation
         wave_extrap_min = self.sens['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
         wave_extrap_max = self.sens['WAVE_MAX'].data * (1.0 + self.par['extrap_red'])
         nspec_extrap = 0
-        # Find the maximum size of the wavewlength grids, since we want everything to have the same
+
+        # Find the maximum size of the wavelength grids, since we want
+        # everything to have the same wavelength range
         for idet in range(self.norders):
             wave = self.wave if self.wave.ndim == 1 else self.wave[:,idet]
             dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(wave)
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet])
                                  / dwave_data).astype(int)
             nspec_extrap = np.max([nspec_now, nspec_extrap])
+
         # Create the wavelength grid
         wave_extrap = np.outer(np.arange(nspec_extrap),
                                (wave_extrap_max - wave_extrap_min) / (nspec_extrap - 1)) \
                         + np.outer(np.ones(nspec_extrap), wave_extrap_min)
         zeropoint_extrap = np.zeros_like(wave_extrap)
-        # Evaluate extrapolated zerpoint for all orders detectors
+
+        # Evaluate extrapolated zeropoint for all orders detectors
         for iorddet in range(self.norders):
             zeropoint_extrap[:,iorddet] = self.eval_zeropoint(wave_extrap[:,iorddet], iorddet)
 
-        self.steps.append(inspect.stack()[0][3])
+#        self.steps.append(inspect.stack()[0][3])
         return wave_extrap, zeropoint_extrap
 
     def splice(self):
@@ -285,10 +290,6 @@ class SensFunc(datamodel.DataContainer):
         Routine to splice together sensitivity functions into one global
         sensitivity function for spectrographs with multiple detectors
         extending across the wavelength direction.
-
-        Parameters
-        ----------
-        wave: ndarray, shape (nspec, norddet)
 
         Returns
         -------
@@ -306,8 +307,8 @@ class SensFunc(datamodel.DataContainer):
                                                    spec_samp_fact=1.0)
         zeropoint_splice_1d = np.zeros_like(wave_splice_1d)
         for idet in range(self.norders):
-            wave_min = self.out_table['WAVE_MIN'][idet]
-            wave_max = self.out_table['WAVE_MAX'][idet]
+            wave_min = self.sens['WAVE_MIN'][idet]
+            wave_max = self.sens['WAVE_MAX'][idet]
             if idet == 0:
                 # If this is the bluest detector, extrapolate to wave_extrap_min
                 wave_mask_min = wave_splice_min
@@ -327,18 +328,13 @@ class SensFunc(datamodel.DataContainer):
         zeros = zeropoint_splice_1d == 0.
         if np.any(zeros):
             msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
-            interp_func = scipy.interpolate.interp1d(wave_splice_1d[np.invert(zeros)],
-                                                     zeropoint_splice_1d[np.invert(zeros)],
-                                                     kind='nearest', fill_value=0.,
-                                                     bounds_error=False)
-            #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP, even on 1.4.1
-            zero_values = interp_func(wave_splice_1d[zeros])
-            zeropoint_splice_1d[zeros] = zero_values
+            indx = np.logical_not(zeros)
+            interp_func = scipy.interpolate.interp1d(wave_splice_1d[indx],
+                                                     zeropoint_splice_1d[indx], kind='nearest',
+                                                     fill_value=0., bounds_error=False)
+            zeropoint_splice_1d[zeros] = interp_func(wave_splice_1d[zeros])
 
-
-        nspec_splice = wave_splice_1d.size
-        self.steps.append(inspect.stack()[0][3])
-        return wave_splice_1d.reshape(nspec_splice,1), zeropoint_splice_1d.reshape(nspec_splice,1)
+        return wave_splice_1d.reshape(-1,1), zeropoint_splice_1d.reshape(-1,1)
 
     def compute_throughput(self):
         """
@@ -350,23 +346,17 @@ class SensFunc(datamodel.DataContainer):
             Throughput measurement for each order/slit
 
         """
-
         # Set the throughput to be -1 in places where it is not defined.
         throughput = np.full_like(self.zeropoint, -1.0)
         for idet in range(self.wave_zp.shape[1]):
-            wave_gpm = (self.wave_zp[:,idet] >= self.out_table[idet]['WAVE_MIN']) \
-                            & (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) \
+            wave_gpm = (self.wave_zp[:,idet] >= self.sens['WAVE_MIN'][idet]) \
+                            & (self.wave_zp[:,idet] <= self.sens['WAVE_MAX'][idet]) \
                             & (self.wave_zp[:,idet] > 1.0)
             throughput[wave_gpm,idet] \
                     = flux_calib.zeropoint_to_throughput(self.wave_zp[wave_gpm,idet],
                                                          self.zeropoint[wave_gpm,idet],
                                                          self.spectrograph.telescope.eff_aperture())
         return throughput
-
-#    def show(self):
-#        plt.plot(self.wave_zp, self.zeropoint)
-#        plt.show()
-#        plt.close()
 
     def write_QA(self):
         """
@@ -382,8 +372,8 @@ class SensFunc(datamodel.DataContainer):
             order_or_det = np.arange(self.norders) + 1
             order_or_det_str = 'det'
 
-        spec_str = ' {:s} {:s} {:s} '.format(self.spectrograph.name, self.spectrograph.pypeline,
-                                             self.spectrograph.dispname)
+        spec_str = f' {0} {1} {2} '.format(self.spectrograph.name, self.spectrograph.pypeline,
+                                           self.spectrograph.dispname)
         zp_title = ['PypeIt Zeropoint QA for' + spec_str + order_or_det_str
                     + '={0}'.format(order_or_det[idet]) for idet in range(self.norders)]
         thru_title = [order_or_det_str + '={0}'.format(order_or_det[idet]) 
@@ -392,7 +382,7 @@ class SensFunc(datamodel.DataContainer):
         is_odd = self.norders % 2 != 0
         npages = int(np.ceil(self.norders/2)) if is_odd else self.norders//2 + 1
 
-        # TODO: PDF page logic is a bit complicated becauase we want to plot
+        # TODO: PDF page logic is a bit complicated because we want to plot
         # two plots per page, but the number of pages depends on the number of
         # order/det. Consider just dumping out a set of plots or revamp once we
         # have a dashboard
@@ -413,13 +403,15 @@ class SensFunc(datamodel.DataContainer):
                     pdf.savefig()
                     plt.close('all')
                 elif (self.norders > 1) & (ipage < npages-1):
-                    # For multi order/det but not on the last page, finish up. No need to remove ax2 since there
-                    # are always 2 plots per page except on the last page
+                    # For multi order/det but not on the last page, finish up.
+                    # No need to remove ax2 since there are always 2 plots per
+                    # page except on the last page
                     pdf.savefig()
                     plt.close('all')
                 else:
-                    # For multi order/det but on the last page, add order/det summary plot to the final page
-                    # Deal with even/odd page logic for axes
+                    # For multi order/det but on the last page, add order/det
+                    # summary plot to the final page. Deal with even/odd page
+                    # logic for axes
                     if is_odd:
                         # add order/det summary plot to axis 2 of current page
                         axis=ax2
@@ -558,17 +550,19 @@ class IRSensFunc(SensFunc):
                 = telluric.sensfunc_telluric(
                         self.wave, self.counts, self.counts_ivar, self.counts_mask,
                         self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
-                        self.par['IR']['telgridfile'], polyorder=self.par['polyorder'],
-                        ech_orders=self.meta_spec['ECH_ORDERS'], sn_clip=self.par['IR']['sn_clip'],
-                        mask_abs_lines=self.par['mask_abs_lines'],
-                        maxiter=self.par['IR']['maxiter'], lower=self.par['IR']['lower'],
-                        upper=self.par['IR']['upper'],
+                        self.par['IR']['telgridfile'], ech_orders=self.meta_spec['ECH_ORDERS'],
+                        polyorder=self.par['polyorder'], mask_abs_lines=self.par['mask_abs_lines'],
                         delta_coeff_bounds=self.par['IR']['delta_coeff_bounds'],
                         minmax_coeff_bounds=self.par['IR']['minmax_coeff_bounds'],
+                        sn_clip=self.par['IR']['sn_clip'], maxiter=self.par['IR']['maxiter'],
+                        lower=self.par['IR']['lower'], upper=self.par['IR']['upper'], 
                         tol=self.par['IR']['tol'], popsize=self.par['IR']['popsize'],
                         recombination=self.par['IR']['recombination'],
                         polish=self.par['IR']['polish'], disp=self.par['IR']['disp'],
-                        debug=self.debug, debug_init=self.debug)
+                        debug_init=self.debug, debug=self.debug)
+
+        # TODO: This avoids messing with telluric.sensfunc_telluric much, but
+        # this parsing should be consolidate with that method...
 
         # Parse the meta_table and out_table into the data model
         self.norders, self.nspec = out_table['TELLURIC'].shape
@@ -594,7 +588,7 @@ class IRSensFunc(SensFunc):
         self.sens['WAVE_MIN'] = out_table['WAVE_MIN']
         self.sens['WAVE_MAX'] = out_table['WAVE_MAX']
 
-        self.steps.append(inspect.stack()[0][3])
+#        self.steps.append(inspect.stack()[0][3])
 
     def eval_zeropoint(self, wave, iorddet):
         """
@@ -675,7 +669,7 @@ class UVISSensFunc(SensFunc):
         self.sens['WAVE_MIN'] = out_table['WAVE_MIN']
         self.sens['WAVE_MAX'] = out_table['WAVE_MAX']
 
-        self.steps.append(inspect.stack()[0][3])
+#        self.steps.append(inspect.stack()[0][3])
 
     def eval_zeropoint(self, wave, iorddet):
         """
