@@ -11,23 +11,55 @@ from astropy.table import Table
 import numpy as np
 
 from pypeit.io import initialize_header
-from pypeit.tests.tstutils import cooked_required
 from pypeit.history import History
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.framematch import FrameTypeBitMask
 
-@cooked_required
+def verify_history(history, expected_history):
+
+    if not len(history.history) == len(expected_history):
+        return False
+
+    for i in range(len(expected_history)):
+        if expected_history[i].startswith(' '):
+            # Verify first line has the date by building a Time
+            t = Time(history.history[i][0:16], format='isot')
+            if not history.history[i][16:] == expected_history[i]:
+                return False
+        else:
+            if not history.history[i] == expected_history[i]:
+                return False
+
+        return True
+
+
 def test_history_header_access():
     """Test building a History object from a fits header"""
-    cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
-    spec1d_file = os.path.join(cooked_sci_dir, 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
 
-    header = fits.getheader(spec1d_file)
+    # Get a blank header
+    header = initialize_header(primary=True)
 
-    history = History(header)
+    history1 = History()
 
-    # TODO verify history once Cooked is generated with it
+    expected_history = ['2021-02-23T21:17 PypeIt Reducing target CFHQS1',
+                        'Combining frames:',
+                        '"DE.20100913.22358.fits.gz"',
+                        'Callibration frames:',
+                        'arc,tilt "DE.20100913.56927.fits.gz"',
+                        'pixelflat,illumflat,trace "DE.20100913.57161.fits.gz"',
+                        'pixelflat,illumflat,trace "DE.20100913.57006.fits.gz"']
+
+    # Write and then read history read from header
+    for h in expected_history:
+        history1.append(h, add_date=False)
+
+    history1.write_to_header(header)
+
+    history2 = History(header)
+
+
+    assert verify_history(history2, expected_history)
 
 def test_write_and_append_history():
     """Test appending to a History object and writing the history to a fits header"""
@@ -41,7 +73,7 @@ def test_write_and_append_history():
     history.append(test_history)
     history.append(test_history, add_date=False)
 
-    # Convert to a fits header and verify the 'HISTORY' tag
+    # Convert to a fits header and verify the 'HISTORY' keyword
     history.write_to_header(header)
 
     assert header['HISTORY'][0][17:] == test_history
@@ -56,7 +88,7 @@ def test_add_reduce():
     # Create a PypeItMetadata object to simulate
     # what would be created in PypeIt::reduce_all
     # This will contain two calibration groups, one
-    # that combines two frames d has no calibration
+    # that combines two frames and has no calibration
     # frames, and another that combines and subtracts
     # frames and has calibration frames
     spectrograph = load_spectrograph('keck_deimos')
@@ -86,10 +118,10 @@ def test_add_reduce():
     history.add_reduce(2, metadata, [2, 4], [3, 5])
 
     # Verify we get the expected entries
-    expected_history = ['PypeIt Reducing target targ1',
+    expected_history = [' PypeIt Reducing target targ1',
                         'Combining frames:', 
                         '"file1.fits"', 
-                        'PypeIt Reducing target targ3',
+                        ' PypeIt Reducing target targ3',
                         'Combining frames:', 
                         '"file3.fits"', 
                         '"file5.fits"', 
@@ -104,15 +136,83 @@ def test_add_reduce():
                         'arc "file7.fits"']
 
     
-    assert len(expected_history) == len(history.history)
-    for i in range(len(expected_history)):
-        if expected_history[i].startswith('PypeIt'):
-            # The start of a reduce entry should have a 
-            # date, construct a Time with it to
-            # verify it doesn't raise an exception
-            t = Time(history.history[i][0:16], format='isot')
-            # Comprare the rest of the string
-            assert history.history[i][16:] == ' ' + expected_history[i]
-        else:
-            assert history.history[i] == expected_history[i]
+    assert verify_history(history, expected_history)
 
+def test_add_coadd1d():
+    """Test adding coadd1d entries into history"""
+
+    # First test when the spec1d_files and objids 
+    # match length wise
+    spec1d_files = ['spec1d_file1.fits', 
+                    'spec1d_file1.fits', 
+                    'spec1d_file2.fits',
+                    'spec1d_file3.fits', 
+                    'spec1d_file3.fits', 
+                    'spec1d_file3.fits']
+
+    objids = ['SPAT001-SLIT001-DET01',
+              'SPAT101-SLIT002-DET02',
+              'SPAT002-SLIT001-DET01',
+              'SPAT003-SLIT001-DET01',
+              'SPAT103-SLIT002-DET02',
+              'SPAT113-SLIT002-DET03']
+
+    history = History()
+    history.add_coadd1d(spec1d_files, objids)
+
+    expected_history = [' PypeIt Coadded 6 objects from 3 spec1d files',
+                        'File 0 "spec1d_file3.fits"',
+                        'File 1 "spec1d_file2.fits"',
+                        'File 2 "spec1d_file1.fits"',
+                        'Object ID SPAT001-SLIT001-DET01 from file 2',
+                        'Object ID SPAT101-SLIT002-DET02 from file 2',
+                        'Object ID SPAT002-SLIT001-DET01 from file 1',
+                        'Object ID SPAT003-SLIT001-DET01 from file 0',
+                        'Object ID SPAT103-SLIT002-DET02 from file 0',
+                        'Object ID SPAT113-SLIT002-DET03 from file 0' ]
+
+    assert verify_history(history, expected_history)
+
+    # Now test when the # of object ids is shorter than the # of files
+    # (This shouldn't happen but I want to make sure History behaves in a sane manner)
+    short_objids = ['SPAT001-SLIT001-DET01',
+                    'SPAT101-SLIT002-DET02',                    'SPAT002-SLIT001-DET01',
+                    'SPAT003-SLIT001-DET01']
+
+    history = History()
+    history.add_coadd1d(spec1d_files, short_objids)
+
+    # THe expected result is for the extra files to be ignored
+    expected_history = [' PypeIt Coadded 4 objects from 3 spec1d files',
+                        'File 0 "spec1d_file3.fits"',
+                        'File 1 "spec1d_file2.fits"',
+                        'File 2 "spec1d_file1.fits"',
+                        'Object ID SPAT001-SLIT001-DET01 from file 2',
+                        'Object ID SPAT101-SLIT002-DET02 from file 2',
+                        'Object ID SPAT002-SLIT001-DET01 from file 1',
+                        'Object ID SPAT003-SLIT001-DET01 from file 0']
+
+    assert verify_history(history, expected_history)
+
+    # Now test with fewer spec1d files than objects
+    short_spec1d_files = ['spec1d_file1.fits', 
+                          'spec1d_file1.fits', 
+                          'spec1d_file2.fits',
+                          'spec1d_file3.fits', 
+                          'spec1d_file3.fits' ]
+
+    history = History()
+    history.add_coadd1d(short_spec1d_files, objids)
+
+    # The expected result is to ignore the extra object ids
+    expected_history = [' PypeIt Coadded 5 objects from 3 spec1d files',
+                        'File 0 "spec1d_file3.fits"',
+                        'File 1 "spec1d_file2.fits"',
+                        'File 2 "spec1d_file1.fits"',
+                        'Object ID SPAT001-SLIT001-DET01 from file 2',
+                        'Object ID SPAT101-SLIT002-DET02 from file 2',
+                        'Object ID SPAT002-SLIT001-DET01 from file 1',
+                        'Object ID SPAT003-SLIT001-DET01 from file 0',
+                        'Object ID SPAT103-SLIT002-DET02 from file 0' ]
+
+    assert verify_history(history, expected_history)

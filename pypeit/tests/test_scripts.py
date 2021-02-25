@@ -343,7 +343,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     with open(config_file_spec1d, "w") as f:
         print("[collate1d]", file=f)
         print('spec1d read', file=f)
-        print(alt_spec1d, file=f)
+        print(spec1d_file, file=f)
         print('spec1d end', file=f)
 
     # Args only, nospec1d files should raise an exception
@@ -389,8 +389,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['threshold'] == '0.0003d'
     assert params['collate1d']['match_using'] == 'ra/dec'
-    assert spectrograph.name == 'keck_deimos'
-    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
+    assert spectrograph.name == 'shane_kast_blue'
+    assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
     # Test main, also test that --par_outfile works
     class MockCoadd:
@@ -405,7 +405,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
         par_file = str(tmp_path / 'collate1d.par')
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, config_file_spec1d])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--thresh', '3', config_file_spec1d])
         assert collate_1d.main(parsed_args) == 0
         assert os.path.exists(par_file)
 # TODO: Include tests for coadd2d, sensfunc, flux_calib

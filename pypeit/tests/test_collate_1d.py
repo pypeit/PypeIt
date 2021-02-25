@@ -11,13 +11,14 @@ from astropy.coordinates import Angle, SkyCoord
 import numpy as np
 
 from pypeit import specobjs
+from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.scripts.collate_1d import group_spectra_by_source, SourceObject
 from pypeit.scripts.collate_1d import KOAArchiveDir, find_slits_to_exclude, find_spec2d_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
 
-from pypeit.tests.tstutils import cooked_required, data_path
+from pypeit.tests.tstutils import data_path, cooked_required
 
 class mock_coadd:
     pass
@@ -263,15 +264,51 @@ def test_build_coadd_file_name():
                            spectrograph, 'pixel')
     assert source2.coaddfile == 'SPAT1234_DEIMOS_20200130.fits'
 
-@cooked_required
-def test_find_slits_to_exclude():
-    cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
-    spec2d_file_name =  os.path.join(cooked_sci_dir, 'spec2d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+def test_find_slits_to_exclude(monkeypatch):
+
+    # Return mock data structure that contains what
+    # find_slits_to_exclude needs from a AllSpec2DObj
+    def mock_from_fits(*args, **kwargs):
+
+        class MockSpec2dObj:
+            def __init__(self, detector):
+                if detector == 1:
+                    self.slit_info = [  [    30,      0, 654112],
+                                        [   813,      2, 654144],
+                                        [   882,      0, 654125],
+                                        [   952,      2, 654145],
+                                        [  1024,      0, 654057]]
+
+                else:
+                    self.slit_info = [  [    22,      0, 654101],
+                                        [   397,      2, 654143],
+                                        [   463,      0, 654073],
+                                        [   531,      2, 654142],
+                                        [   601,      0, 654071],
+                                        [  1101,      8, 654104],
+                                        [  1840,     16, 654046],
+                                        [  1932,      0, 654128]]
+            # So that sobj2d['slits'].slit_info works
+            def __getitem__(self, key):
+                return self
+
+
+        class MockAllSpec2dObj:
+            def __init__(self):
+                self.detectors = [1, 4]
+        
+            def __getitem__(self, key):
+                return MockSpec2dObj(key)
+
+        return MockAllSpec2dObj()
 
     par = pypeitpar.PypeItPar()
     par['collate1d'] = pypeitpar.Collate1DPar()
     par['collate1d']['slit_exclude_flags'] = 'BOXSLIT'
-    exclude_map = find_slits_to_exclude([spec2d_file_name], par)
+
+    monkeypatch.setattr(AllSpec2DObj, 'from_fits', mock_from_fits)
+
+    exclude_map = find_slits_to_exclude(['spec2d_file_name'], par)
     assert len(exclude_map) == 4
     assert exclude_map[654142] == {'BOXSLIT'}
     assert exclude_map[654143] == {'BOXSLIT'}
@@ -305,7 +342,7 @@ def test_koa_archive(tmp_path):
     cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
 
     spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
-    spec2d_name = 'spec2d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
+    spec2d_name = 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits'
     spec1d_files = [os.path.join(cooked_sci_dir, spec1d_name)]
     spec2d_files = [os.path.join(cooked_sci_dir, spec2d_name)]
 
@@ -351,9 +388,9 @@ def test_koa_archive(tmp_path):
                                 spectrograph,'ra/dec')]
     source_list[0].coaddfile = os.path.join(cooked_sci_dir, coadd_name)
 
-    archive.add_files(spec2d_list)
-    archive.add_coadd_sources(source_list)
-    archive.save()
+    archive2.add_files(spec2d_list)
+    archive2.add_coadd_sources(source_list)
+    archive2.save()
     assert(os.path.exists(os.path.join(archive_dir, spec2d_name)))
     assert(os.path.exists(os.path.join(archive_dir, coadd_name)))
 

@@ -3907,6 +3907,10 @@ class PypeItPar(ParSet):
         dtypes['tellfit'] = [ParSet, dict]
         descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
 
+        # Collate 1D Fit
+        defaults['collate1d'] = Collate1DPar()
+        dtypes['collate1d'] = [ParSet, dict]
+        descr['collate1d'] = 'Par set to control collating 1d spectra.  Only used in the after-burner script.'
 
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
