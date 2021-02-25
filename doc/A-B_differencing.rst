@@ -28,14 +28,14 @@ Parameters
 The three additional columns (``calib``, ``comb_id``, and ``bkg_id``)
 have the following meanings/definitions:
 
-* ``calib`` assigns a calibration group ID to each frame. Calibraiton frames with the same calibration group number
-will be used to reduce a science frame with that calibration group number.
-* ``comb_id`` represents a combination ID assigned to each science frame. Frames with the same value of ``comb_id`` will be
-co-added together. Note that this is an unweighted co-added (and hence may not be necessarily be "optimal" in terms
-of S/N ratio).
+* ``calib`` assigns a calibration group ID to each frame. Calibration frames with the same calibration group number
+  will be used to reduce a science frame with that calibration group number.
+* ``comb_id`` represents a combination ID assigned to each science frame. Frames with the same value of ``comb_id``
+  will be co-added together. Note that this is an unweighted co-add (and hence may not be necessarily be "optimal"
+  in terms of S/N ratio).
 * ``bkg_id`` represents a background ID assigned to each frame that will be used as a background image to be subtracted
-from the combined image created by co-adding all the frames with the same ``comb_id``.  Frames with the same value of
-``bkg_id`` will be co-added together.
+  from the combined image created by co-adding all the frames with the same ``comb_id``.  Frames with the same value of
+  ``bkg_id`` will be co-added together.
 
 
 
@@ -81,7 +81,7 @@ sequence which we could represent as an ABAB dither pattern::
     | m190627_0003.fits | tilt,arc,science | ... |     2 |       3 |      4 |      # Position A
     | m190627_0004.fits | tilt,arc,science | ... |     3 |       4 |      3 |      # Position B
 
-Note that given the values, specified, PypeIt is going to compute tilts and arcs from each frame
+Note that given the values specified, PypeIt is going to compute tilts and arcs from each frame
 individually, and it will use image `m190627_0002.fits` as the background to subtract from
 image `m190627_0001.fits`, and similarly it will use `m190627_0001.fits` as the background to
 subtract from image `m190627_0002.fits`. The values of the ``calib`` ID have no relation to the values for the
@@ -101,11 +101,11 @@ modeled). Thus for the example above, PypeIt produces four 2D spectral images::
 If each frame has a unique ``comb_id`` (as in the example above) the images will *not* be combined before
 the reduction.
 
-Alternatively, frames with common values of ``comb_id`` can be coadded. In this case, a common ``bkg_id``
+Alternatively, frames with common values of ``comb_id`` can be co-added. In this case, a common ``bkg_id``
 should be used for all frames to be subtracted from frames with common ``comb_id``.
 
 Here is an example of the PypeIt file for combining frames which would represent an ABBA dither pattern where the user
-wants to coadd the science frames and the background frames at the same dither position (i.e. AA-BB, and BB-AA).
+wants to co-add the science frames and the background frames at the same dither position (i.e. AA-BB, and BB-AA)::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
     | m190627_0001.fits | tilt,arc,science | ... |     0 |      10 |     11 |       # Position A
@@ -125,7 +125,7 @@ This produces only two spec2d (and spec1d) output images::
 
 Finally, let us consider science observations at two dither positions A and B with two exposures taken at each position,
 i.e. an AABB dither pattern) but where the user wants to use an image at a third dither location C as the background
-image. But since C is purely a background image, it should not be reduced.
+image. But since C is purely a background image, it should not be reduced::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
     | m190627_0001.fits | tilt,arc,science | ... |     0 |      10 |     12 |       # Position A
@@ -154,11 +154,11 @@ Summary
 * For the ``arc``, ``tilt``, ``illumflat``, ``pixelflat``, and ``trace`` frames, the user should assign
   the same ``calib`` values of the science data that uses them (or ``all``), while ``comb_id``
   and ``bkg_id`` should be set to ``-1``.
-* A common ``comb_id`` should be used for all science frames that the user wishes to coadd before
+* A common ``comb_id`` should be used for all science frames that the user wishes to co-add before
   spectral extraction.
 * A common ``bkg_id`` should be used for all frames that the user wishes to subtract from
   the frames with a common ``comb_id``.
-* A unique ``calib`` value should be used for each set of images that the user wants to combine for measuring calibrations.
-It should be an integer <= 63.
-* The `background` frametype can be used for images which are only to be used as a background for other `science`
-frames but which should not be reduced.
+* A unique ``calib`` value should be used for each set of images that the user wants to combine for measuring
+  calibrations. It should be an integer <= 63.
+* The `background` frametype can be used for images that are only to be used as a background for other `science`
+  frames. Images with the `background` frametype will not be reduced.
