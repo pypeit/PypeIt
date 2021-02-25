@@ -289,7 +289,7 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr', linewidth = 1.0)
+        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr')
         plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
         plt.legend()

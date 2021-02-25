@@ -256,6 +256,9 @@ class WaveCalib(datamodel.DataContainer):
         """
         # Generate a table
         diag = Table()
+        # Slit number
+        diag['N.'] = np.arange(self.wv_fits.size)
+        diag['N.'].format = 'd'
         # spat_id
         diag['SpatID'] = [wvfit.spat_id for wvfit in self.wv_fits]
         # Central wave, delta wave
@@ -456,6 +459,8 @@ class BuildWaveCalib:
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
+            if self.slits.maskdef_designtab is not None:
+                msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
             final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
                                              self.binspectral,
                                              nonlinear_counts=self.nonlinear_counts,
