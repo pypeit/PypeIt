@@ -2188,7 +2188,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
@@ -2296,6 +2296,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         '*unbinned* pixels.'
+
+        defaults['fwhm_fromlines'] = False
+        dtypes['fwhm_fromlines'] = bool
+        descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
+                                  'If True, the estimated FWHM will override ``fwhm`` only in '\
+                                  'the determination of the wavelength solution (i.e. not in '\
+                                  'WaveTilts).'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv']=None
@@ -2446,7 +2453,7 @@ class WavelengthSolutionPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
-                   'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet']

@@ -3,7 +3,8 @@
     $ pypeit_find_objects -h
     usage: pypeit_find_objects [-h] [--list] [--det DET] [--old] file
     
-    Display sky subtracted, spec2d image in theinteractive object finding GUI. Run abovethe Science/ folder
+    Display sky subtracted, spec2d image in theinteractive object finding GUI. Run
+    abovethe Science/ folder
     
     positional arguments:
       file        PYPEIT spec2d file

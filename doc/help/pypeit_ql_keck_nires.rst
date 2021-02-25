@@ -13,5 +13,6 @@
     optional arguments:
       -h, --help            show this help message and exit
       -b BOX_RADIUS, --box_radius BOX_RADIUS
-                            Set the radius for the boxcar extraction (default: None)
+                            Set the radius for the boxcar extraction (default:
+                            None)
     

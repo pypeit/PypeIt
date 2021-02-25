@@ -1,14 +1,16 @@
 .. code-block:: console
 
     $ pypeit_sensfunc -h
-    usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE] [-s SENS_FILE] [--debug]
-                           [--debug_init] [--par_outfile PAR_OUTFILE]
+    usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI]
+                           [-o OUTFILE] [-s SENS_FILE] [--debug] [--debug_init]
+                           [--par_outfile PAR_OUTFILE]
                            spec1dfile
     
     Compute a sensitivity function
     
     positional arguments:
-      spec1dfile            spec1d file for the standard that will be used to compute sensitivity function
+      spec1dfile            spec1d file for the standard that will be used to
+                            compute sensitivity function
     
     optional arguments:
       -h, --help            show this help message and exit
@@ -38,14 +40,19 @@
                                           multi_spec_det = 3,7
                             
       -o OUTFILE, --outfile OUTFILE
-                            Ouput file for sensitivity function. If not specified, the sensitivity function will be
-                            written out to a standard filename in the current working directory, i.e. if the standard
-                            spec1d file is named spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will be written to
-                            sens_b24-Feige66_KASTb_foo.fits
+                            Ouput file for sensitivity function. If not specified,
+                            the sensitivity function will be written out to a
+                            standard filename in the current working directory,
+                            i.e. if the standard spec1d file is named
+                            spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will be
+                            written to sens_b24-Feige66_KASTb_foo.fits
       -s SENS_FILE, --sens_file SENS_FILE
-                            Configuration file to change default sensivity function parameters
+                            Configuration file to change default sensivity
+                            function parameters
       --debug               show debug plots?
-      --debug_init          debug the initilization of the sensfunc + telluric fit for the IR algorithm
+      --debug_init          debug the initilization of the sensfunc + telluric fit
+                            for the IR algorithm
       --par_outfile PAR_OUTFILE
-                            Name of outut file to save the parameters used by the fit
+                            Name of outut file to save the parameters used by the
+                            fit
     
