@@ -623,120 +623,159 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
-def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False):
-    '''
-    Utility routine to perform 1d linear nterpolation of spectra onto a new wavelength grid
-
-    Args:
-       wave_new: ndarray, (nspec_new)
-            New wavelengths that you want to interpolate onto.
-       wave_old: ndarray, (nspec_old)
-            Old wavelength grid
-       flux_old: ndarray, (nspec_old)
-            Old flux on the wave_old grid
-       ivar_old: ndarray, (nspec_old)
-            Old ivar on the wave_old grid
-       mask_old: ndarray, bool, (nspec_old),
-            Old mask on the wave_old grid. True=Good
-       sensfunc: bool (optional)
-            If set the quantities flux/delta_wave and the corresponding ivar*delta_wave**2 will be interpolated and
-            returned instead of flux and ivar. This is useful for sensitivity function computation where we need
-            flux/(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
-            in the presence of masked data requires special care.
-    Returns:
-        (1) flux_new: ndarray, (nspec_new,) -- interpolated flux; (2)
-        ivar_new: ndarray, (nspec_new,) -- interpolated ivar; (3)
-        mask_new: ndarray, bool, (nspec_new,) -- interpolated mask.
-        True=Good.
-    '''
-
-    # Do not interpolate if the wavelength is exactly same with wave_new
-    if np.array_equal(wave_new, wave_old):
-        return flux_old, ivar_old, mask_old
-
-    # make the mask array to be float, used for interpolation
-    masks_float = mask_old.astype(float)
-    wave_mask = wave_old > 1.0 # Deal with the zero wavelengths
-    if sensfunc:
-        delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_mask)
-        flux_interp = flux_old[wave_mask]/delta_wave_interp[wave_mask]
-        ivar_interp = ivar_old[wave_mask]*delta_wave_interp[wave_mask]**2
-    else:
-        flux_interp = flux_old[wave_mask]
-        ivar_interp = ivar_old[wave_mask]
-
-    flux_new = scipy.interpolate.interp1d(wave_old[wave_mask], flux_interp, kind='cubic',
-                                    bounds_error=False, fill_value=np.nan)(wave_new)
-    ivar_new = scipy.interpolate.interp1d(wave_old[wave_mask], ivar_interp, kind='cubic',
-                                    bounds_error=False, fill_value=np.nan)(wave_new)
-    mask_new_tmp = scipy.interpolate.interp1d(wave_old[wave_mask], masks_float[wave_mask], kind='cubic',
-                                        bounds_error=False, fill_value=np.nan)(wave_new)
-    # Don't allow the ivar to be every less than zero
-    ivar_new = (ivar_new > 0.0)*ivar_new
-    mask_new = (mask_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new) & np.isfinite(ivar_new)
-    return flux_new, ivar_new, mask_new
-
-def interp_spec(wave_new, waves, fluxes, ivars, masks, sensfunc=False):
+def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False):
     """
-    Utility routine to interpolate a set of spectra onto a new
-    wavelength grid, wave_new
+    Interpolate a 1D spectrum onto a new wavelength grid.
+
+    Interpolation is done using `scipy.interpolate.interp1d` with ``cubic``
+    interpolation. Any wavelengths in ``wave_new`` that are beyond the range
+    of ``wave_old`` are set to ``np.nan`` and masked via the output
+    good-pixel mask.
+
+    .. warning::
+
+        Any wavelength in ``wave_old`` that is less than 1 is assumed to
+        indicate that the wavelength is invalid!
 
     Args:
-        wave_new: ndarray, shape (nspec,) or (nspec, nimgs),
-             new wavelength grid
-        waves:  ndarray, shape (nspec,) or (nspec, nexp)
-             where nexp, need not equal nimgs. Old wavelength grids
-        fluxes: ndarray,
-             same shape as waves, old flux
-        ivars: ndarray,
-             same shape as waves, old ivar
-        masks: ndarray, bool,
-             same shape as waves, old mask, True=Good
-        sensfunc: bool (optional)
-             If set the quantities flux*delta_wave and the corresponding ivar/delta_wave**2 will be interpolated and
-             returned instead of flux and ivar. This is useful for sensitivity function computation where we need
-             flux*(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
+        wave_new (`numpy.ndarray`_):
+            New wavelength grid for the output spectra.
+        wave_old (`numpy.ndarray`_):
+            Old wavelength grid.
+        flux_old (`numpy.ndarray`_):
+            Old flux on the wave_old grid.
+        ivar_old (`numpy.ndarray`_):
+            Old ivar on the wave_old grid
+        gpm_old (`numpy.ndarray`_):
+            Old good-pixel mask (True=Good) on the wave_old grid.
+        sensfunc (:obj:`bool`, optional):
+            If True, the quantities ``flux*delta_wave`` and the corresponding
+             ``ivar/delta_wave**2`` will be interpolated and returned instead of
+             ``flux`` and ``ivar``. This is useful for sensitivity function
+             computation where we need flux*(wavelength bin width). Beacause
+             delta_wave is a difference of the wavelength grid, interpolating
              in the presence of masked data requires special care.
 
     Returns:
-        fluxes_inter, ivars_inter, masks_inter: Interpolated flux, ivar
-        and mask with the size and shape matching wave_new. masks_inter
-        is bool with True=Good
+        :obj:`tuple`: Returns three `numpy.ndarray`_ objects with the
+        interpolated flux, inverse variance, and good-pixel mask arrays with
+        the length matching the new wavelength grid.
     """
-    # First case: interpolate either an (nspec, nexp) array of spectra onto a single wavelength grid
-    if (wave_new.ndim == 1):
-        if fluxes.ndim == 1:
-            fluxes_inter, ivars_inter, masks_inter = interp_oned(wave_new, waves, fluxes, ivars, masks, sensfunc=sensfunc)
-        else:
-            nexp = fluxes.shape[1]
-            # Interpolate spectra to have the same wave grid with the iexp spectrum.
-            # And scale spectra to the same flux level with the iexp spectrum.
-            fluxes_inter = np.zeros((wave_new.size, nexp))
-            ivars_inter  = np.zeros((wave_new.size, nexp))
-            masks_inter  = np.zeros((wave_new.size, nexp), dtype=bool)
-            for ii in range(nexp):
-                fluxes_inter[:, ii], ivars_inter[:, ii], masks_inter[:, ii] = interp_oned(
-                    wave_new, waves[:, ii], fluxes[:, ii], ivars[:, ii], masks[:, ii], sensfunc=sensfunc)
+    # Check input
+    if wave_new.ndim != 1 or wave_old.ndim != 1:
+        msgs.error('All input vectors must be 1D.')
+    if flux_old.shape != wave_old.shape or ivar_old.shape != wave_old.shape \
+            or gpm_old.shape != wave_old.shape:
+        msgs.error('All vectors to interpolate must have the same size.')
 
-        return fluxes_inter, ivars_inter, masks_inter
+    # Do not interpolate if the wavelength is exactly same with wave_new
+    if np.array_equal(wave_new, wave_old):
+        return flux_old, ivar_old, gpm_old
 
-    # Second case: interpolate a single spectrum onto an (nspec, nexp) array of wavelengths
-    elif (wave_new.ndim == 2):
-        if fluxes.ndim != 1:
-            msgs.error('If wave_new is two dimensional, all other input arrays must be one dimensional')
-        nexp = wave_new.shape[1]
-        fluxes_inter = np.zeros_like(wave_new)
-        ivars_inter = np.zeros_like(wave_new)
-        masks_inter = np.zeros_like(wave_new, dtype=bool)
-
-        for ii in range(nexp):
-            fluxes_inter[:, ii], ivars_inter[:, ii], masks_inter[:, ii] = interp_oned(
-                wave_new[:, ii], waves, fluxes, ivars, masks, sensfunc=sensfunc)
-
-        return fluxes_inter, ivars_inter, masks_inter
-
+    wave_gpm = wave_old > 1.0 # Deal with the zero wavelengths
+    if sensfunc:
+        delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_gpm)
+        flux_interp = flux_old[wave_gpm]/delta_wave_interp[wave_gpm]
+        ivar_interp = ivar_old[wave_gpm]*delta_wave_interp[wave_gpm]**2
     else:
-        msgs.error('Invalid size for wave_new')
+        flux_interp = flux_old[wave_gpm]
+        ivar_interp = ivar_old[wave_gpm]
+
+    flux_new = scipy.interpolate.interp1d(wave_old[wave_gpm], flux_interp, kind='cubic',
+                                    bounds_error=False, fill_value=np.nan)(wave_new)
+    ivar_new = scipy.interpolate.interp1d(wave_old[wave_gpm], ivar_interp, kind='cubic',
+                                    bounds_error=False, fill_value=np.nan)(wave_new)
+    # Interpolate a floating-point version of the mask
+    gpm_new_tmp = scipy.interpolate.interp1d(wave_old[wave_gpm], gpm_old.astype(float)[wave_gpm],
+                                             kind='cubic', bounds_error=False,
+                                             fill_value=np.nan)(wave_new)
+    # Don't allow the ivar to be ever be less than zero
+    ivar_new = (ivar_new > 0.0)*ivar_new
+    gpm_new = (gpm_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new) & np.isfinite(ivar_new)
+    return flux_new, ivar_new, gpm_new
+
+
+# TODO: ``sensfunc`` should be something like "conserve_flux". It would be
+# useful to compare these resampling routines against
+# `pypeit.sampling.Resample`.
+def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
+    """
+    Interpolate a set of spectra onto a new wavelength grid.
+
+    The method can perform two types of interpolation, depending on the
+    shapes of the input arrays.
+
+        1. If the new wavelength grid (``wave_new``) is 1D, all input spectra
+           are interpolated to this new grid. The input spectra can be
+           provided as either 1D or 2D arrays.
+
+        2. If the new wavelength grid (``wave_new``) is 2D, all input spectra
+           *must* be 1D. The single spectrum is then interpolated onto each of
+           the new wavelength grids.
+
+    Args:
+        wave_new (`numpy.ndarray`_):
+            New wavelength grid for output spectra. Shape can be 1D or 2D.
+            See the method description for how this affects the code flow
+            above.
+        waves (`numpy.ndarray`_):
+            Wavelength vector for current spectra. Shape can be 1D or 2D. See
+            the method description for how this affects the code flow above.
+        fluxes (`numpy.ndarray`_):
+            Flux vectors.  Shape must match ``waves``.
+        ivars (`numpy.ndarray`_):
+            Inverse variance vectors.  Shape must match ``waves``.
+        gpms (`numpy.ndarray`_): ndarray, bool,
+            Good-pixel masks for each spectrum (True=Good). Shape must match
+            ``waves``.
+        sensfunc (:obj:`bool`, optional):
+            If True, the quantities ``flux*delta_wave`` and the corresponding
+            ``ivar/delta_wave**2`` will be interpolated and returned instead
+            of ``flux`` and ``ivar``. This is useful for sensitivity function
+            computation where we need flux*(wavelength bin width). Beacause
+            delta_wave is a difference of the wavelength grid, interpolating
+            in the presence of masked data requires special care.
+
+    Returns:
+        :obj:`tuple`: Returns three `numpy.ndarray`_ objects with the
+        interpolated flux, inverse variance, and good-pixel mask arrays with
+        the size and shape matching the new wavelength grid.
+    """
+    # Check input
+    if wave_new.ndim > 2:
+        msgs.error('Invalid shape for wave_new; must be 1D or 2D')
+    if wave_new.ndim == 2 and fluxes.ndim != 1:
+        msgs.error('If new wavelength grid is 2D, all other input arrays must be 1D.')
+    if fluxes.shape != waves.shape or ivars.shape != waves.shape or gpms.shape != waves.shape:
+        msgs.error('Input spectral arrays must all have the same shape.')
+
+    # First case: interpolate either an (nspec, nexp) array of spectra onto a
+    # single wavelength grid
+    if wave_new.ndim == 1:
+        if fluxes.ndim == 1:
+            return interp_oned(wave_new, waves, fluxes, ivars, gpms, sensfunc=sensfunc)
+
+        nexp = fluxes.shape[1]
+        # Interpolate spectra to have the same wave grid with the iexp spectrum.
+        # And scale spectra to the same flux level with the iexp spectrum.
+        fluxes_inter = np.zeros((wave_new.size, nexp), dtype=float)
+        ivars_inter = np.zeros((wave_new.size, nexp), dtype=float)
+        gpms_inter = np.zeros((wave_new.size, nexp), dtype=bool)
+        for ii in range(nexp):
+            fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
+                    = interp_oned(wave_new, waves[:,ii], fluxes[:,ii], ivars[:,ii], gpms[:,ii],
+                                  sensfunc=sensfunc)
+        return fluxes_inter, ivars_inter, gpms_inter
+
+    # Second case: interpolate a single spectrum onto an (nspec, nexp) array of
+    # wavelengths. To make it here, wave_new.ndim must be 2.
+    fluxes_inter = np.zeros_like(wave_new, dtype=float)
+    ivars_inter = np.zeros_like(wave_new, dtype=float)
+    gpms_inter = np.zeros_like(wave_new, dtype=bool)
+    for ii in range(wave_new.shape[1]):
+        fluxes_inter[:,ii], ivars_inter[:,ii], gpms_inter[:,ii] \
+                = interp_oned(wave_new[:,ii], waves, fluxes, ivars, gpms, sensfunc=sensfunc)
+    return fluxes_inter, ivars_inter, gpms_inter
 
 
 def smooth_weights(inarr, gdmsk, sn_smooth_npix):

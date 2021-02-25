@@ -121,47 +121,59 @@ def string_table(tbl, delimeter='print'):
     return '\n'.join(row_string)+'\n'
 
 
-def spec_atleast_2d(wave, flux, ivar, mask):
+def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     """
-    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+    Force spectral arrays to be 2D.
 
+    Input and output spectra are ordered along columns; i.e., the flux vector
+    for the first spectrum is in ``flux[:,0]``.
+    
     Args:
         wave (`numpy.ndarray`_):
-            Wavelength array
+            Wavelength array. Must be 1D if the other arrays are 1D. If 1D
+            and the other arrays are 2D, the wavelength vector is assumed to
+            be the same for all spectra.
         flux (`numpy.ndarray`_):
-            Flux array
+            Flux array.  Can be 1D or 2D.
         ivar (`numpy.ndarray`_):
-            Inverse variance array
-        mask (`numpy.ndarray`_, bool):
-            Good pixel mask True=Good.
+            Inverse variance array for the flux.  Shape must match ``flux``.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask (i.e., True=Good). Shape must match ``flux``.
+        copy (:obj:`bool`, optional):
+            If the flux, inverse variance, and gpm arrays are already 2D on
+            input, the function just returns the input arrays. This flag
+            forces the returned arrays to be copies instead.
 
     Returns:
-        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. The next two
+        give the length of each spectrum and the total number of spectra;
+        i.e., the last two elements are identical to the shape of the
+        returned flux array.
 
-            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
-            with nspec, and norders = total number of orders, detectors, or exposures
-
-
+    Raises:
+        PypeItError:
+            Raised if the shape of the input objects are not appropriately
+            matched.
     """
-    # Repackage the data into arrays of shape (nspec, norders)
-    if flux.ndim == 1:
-        nspec = flux.size
-        norders = 1
-        wave_arr = wave.reshape(nspec, 1)
-        flux_arr = flux.reshape(nspec, 1)
-        ivar_arr = ivar.reshape(nspec, 1)
-        mask_arr = mask.reshape(nspec, 1)
-    else:
-        nspec, norders = flux.shape
-        if wave.ndim == 1:
-            wave_arr = np.tile(wave, (norders, 1)).T
-        else:
-            wave_arr = wave
-        flux_arr = flux
-        ivar_arr = ivar
-        mask_arr = mask
+    # Check the input
+    if wave.shape[0] != flux.shape[0] or ivar.shape != flux.shape or gpm.shape != flux.shape \
+            or wave.ndim == 2 and wave.shape != flux.shape:
+        msgs.error('Input spectral arrays have mismatching shapes.')
 
-    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+    if flux.ndim == 1:
+        # Input flux is 1D
+        # NOTE: These reshape calls return copies of the arrays
+        return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
+                    gpm.reshape(-1, 1), flux.size, 1
+
+    # Input is 2D
+    nspec, norders = flux.shape
+    _wave = np.tile(wave, (norders, 1)).T if wave.ndim == 1 else (wave.copy() if copy else wave)
+    _flux = flux.copy() if copy else flux
+    _ivar = ivar.copy() if copy else ivar
+    _gpm = gpm.copy() if copy else gpm
+    return _wave, _flux, _ivar, _gpm, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):

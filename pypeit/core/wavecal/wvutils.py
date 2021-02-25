@@ -36,35 +36,55 @@ def parse_param(par, key, slit):
 
     return param
 
-
+# TODO: Should this code allow the user to skip the smoothing steps and just
+# provide the raw delta_wave vector? I would think there are cases where you
+# want the *exact* pixel width, as opposed to the smoothed version.
 def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
-    """
-    Given an input wavelength vector and an input good pixel mask, this code computes the delta_wave defined
-    to be wave_old[i]-wave_old[i-1]. The missing point at the end of the array is just appended to have an
-    equal size array.
+    r"""
+    Compute the change in wavelength per pixel.
 
-    Args:
-        wave (float `numpy.ndarray`_): shape = (nspec,)
-            Array of input wavelengths. Muse be a one dimensional array.
-        gpm (bool `numpy.ndarray`_): shape = (nspec)
-            Boolean good pixel mask defining where the wave_old are good.
-        frac_spec_med_filter (float, optional):
-            Fraction of the nspec to use to median filter the delta wave by to ensure that it is smooth. Deafult is
-            0.03. In other words, a running median filter will be applied with window equal to 0.03*nspec
+    Given an input wavelength vector and an input good pixel mask, the *raw*
+    change in wavelength is defined to be ``delta_wave[i] =
+    wave[i+1]-wave[i]``, with ``delta_wave[-1] = delta_wave[-2]`` to force
+    ``wave`` and ``delta_wave`` to have the same length.
+
+    The method imposes a smoothness on the change in wavelength by (1)
+    running a median filter over the raw values and (2) smoothing
+    ``delta_wave`` with a Gaussian kernel. The boxsize for the median filter
+    is set by ``frac_spec_med_filter``, and the :math:`\sigma` for the
+    Gaussian kernel is either a 10th of that boxsize or 3 pixels (whichever
+    is larger).
+
+    Parameters
+    ---------- 
+    wave : float `numpy.ndarray`_, shape = (nspec,)
+        Array of input wavelengths. Must be 1D.
+    gpm : bool `numpy.ndarray`_, shape = (nspec)
+        Boolean good-pixel mask defining where the ``wave_old`` values are
+        good.
+    frac_spec_med_filter : :obj:`float`, optional
+        Fraction of the length of the wavelength vector to use to median
+        filter the raw change in wavelength, used to impose a smoothness.
+        Default is 0.03, which means the boxsize for the running median
+        filter will be approximately ``0.03*nspec`` (forced to be an odd
+        number of pixels).
 
     Returns
     -------
     delta_wave (float `numpy.ndarray`_): shape = (nspec,)
-            Array of wavelength differences using np.diff, where the last pixel has been extrapolated
-
+        A smooth estimate for the change in wavelength for each pixel in the
+        input wavelength vector.
     """
+    # Check input
+    if wave.ndim != 1:
+        msgs.error('Input wavelength array must be 1D.')
 
-    if wave.ndim > 1:
-        msgs.error('This routine can only be run on one dimensional wavelength arrays')
     nspec = wave.size
     # This needs to be an odd number
     nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
     delta_wave = np.zeros_like(wave)
+    # TODO: Why is the gpm included here? The sampling of the spectrum isn't
+    # affected by whether or not the flux in a given pixel is valid, right?
     wave_diff = np.diff(wave[gpm])
     wave_diff = np.append(wave_diff, wave_diff[-1])
     wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
@@ -75,6 +95,7 @@ def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
     wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
     delta_wave[gpm] = wave_diff_smooth
     return delta_wave
+
 
 def get_sampling(waves, pix_per_R=3.0):
     """
