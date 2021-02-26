@@ -1,5 +1,5 @@
 """
-Module for WHT/ISIS specific methods.
+Module for Bok/B&C specific methods.
 
 .. include:: ../include/links.rst
 """
@@ -277,12 +277,12 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            msgs.info("Using hard-coded BPM for  Blue Channel")
+            msgs.info("Using hard-coded BPM for Bok B&C")
 
             bpm_img[:, -1] = 1
 
         else:
-            msgs.error(f"Invalid detector number, {det}, for MMT Blue Channel (only one detector).")
+            msgs.error(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
 
         return bpm_img
 
