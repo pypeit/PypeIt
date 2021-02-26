@@ -7,6 +7,7 @@
   controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
 - Added a development document about the DEIMOS wavelength calibration.
 - Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
+- Add wavelength RMS to SpecObj.  This is an update of the datamodel to 1.3.3
 
 
 
