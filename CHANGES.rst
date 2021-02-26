@@ -11,6 +11,12 @@
 
 - (Hotfix) Bug in content type of README file that prevented upload to
   PyPI
+- Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
+- Added new ArI, KrI, NeI, XeI arc lines.
+- PypeIt can now compute arc line FWHM from the lines themselves. This is
+  controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
+- Added a development document about the DEIMOS wavelength calibration.
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
 
 
 1.3.1 (01 Feb 2021)
