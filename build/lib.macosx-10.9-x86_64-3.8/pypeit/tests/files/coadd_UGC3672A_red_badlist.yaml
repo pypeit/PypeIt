@@ -1,0 +1,7 @@
+'spectrograph': 'shane_kast_red'
+'extract': 'opt'
+'flux': True
+'filenames': ['spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits', 'spec1d_J2202p1708_KASTb_2015Nov06T024436.08.fits']
+'a':
+    'object': ['O210-S1467-D02-I0012', 'O494-S5121-D01-I0043', 'blah']
+    'outfile': 'UGC3672A_r.fits'

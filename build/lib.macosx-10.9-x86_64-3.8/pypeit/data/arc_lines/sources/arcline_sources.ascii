@@ -1,0 +1,10 @@
+| File                       | Author | Date        | Instr  | Lines               | wvmin | wvmax | Format |
+| lrisr_600_7500_PYPIT.json  | JXP    | 17-Dec-2016 | LRISr  | ArI,HgI,KrI,NeI,XeI | 5700. | 8900. | PYPIT1 |
+| lrisb_600_4000_PYPIT.json  | JXP    | 17-Dec-2016 | LRISb  | CdI,HgI,ZnI         | 3100. | 5500. | PYPIT1 |
+| kastb_600_PYPIT.json       | JXP    | 17-Dec-2016 | Kastb  | CdI,HeI,HgI         | 3400. | 5500. | PYPIT1 |
+| LRISb_600_LRX.hdf5         | JXP    | 19-Dec-2016 | LRISb  | CdI,HgI,ZnI         | 3250. | 5500. | LRDX1  |
+| kastr_600_7500_PYPIT.json  | JXP    | 23-Dec-2016 | Kastr  | ArI,NeI,HgI         | 5450. | 8120. | PYPIT1 |
+| lrisr_400_8500_PYPIT.json  | JXP    | 24-Mar-2017 | LRISr  | ArI,HgI,KrI,NeI,XeI | 5450. | 10500.| PYPIT1 |
+| deimos_830G_b_PYPIT.json   | JXP    | 02-May-2018 | DEIMOS | ArI,KrI,NeI,XeI     | 6510. | 8410. | PYPIT2 |
+| deimos_830G_r_PYPIT.json   | JXP    | 03-May-2018 | DEIMOS | ArI,KrI,NeI,XeI     | 8430. | 9930. | PYPIT2 |
+#| isis_r300_d5300_PYPIT.json | JXP    | XX-XXc-20XX | ISIS   | ArI,CuI,NeI        | 3000. | 6000. | PYPIT1 |  NEED A BETTER SOLUTION

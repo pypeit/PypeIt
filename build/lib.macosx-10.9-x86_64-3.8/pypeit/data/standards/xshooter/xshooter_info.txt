@@ -1,0 +1,20 @@
+#This directory contains data files for X-shooter reference
+#spectra of six selected southern standard stars. The
+#selection of the stars, measurement of their fluxes and
+#comparison to atmospheric models is presented in Moehler
+#et al. 2014, A&A, 568, 9; see also Moehler et al., 2014,
+#The Messenger, 158, 16.
+#Model atmosphere spectra of six spectrophotometric standard stars observable from
+#the southern hemisphere were selected as reference spectra using X-shooter observations.
+#They are hot white dwarfs (WD) or subdwarfs (sdO) with independent flux information.
+#The flux distribution over the full X-shooter range 3000 – 25000A is tabulated.
+#The fluxes are sampled (at 0.1A [< 1000A] and 0.2A [>10000A]).
+#The flux tabluations are in units of (ergs cm-2 s-1 A-1).
+#http://www.eso.org/sci/observing/tools/standards/spectra/Xshooterspec.html
+  File                Name        RA_2000    DEC_2000	 V_MAG   TYPE
+fEG274.dat           EG274     16:23:33.84 -39:13:46.2	 11.03	  DA
+fFeige110.dat        Feige110  23:19:58.40 -05:09:56.2	 11.82	  DOp
+fGD71.dat            GD71      05:52:27.61 +15:53:13.8	 13.03	  DA1
+fGD153.dat           GD153     12:57:02.34 +22:01:52.7	 13.35	  DA1
+fLTT3218.dat         LTT3218   08:41:32.50 -32:56:34.0	 11.86    DA 
+fLTT7987             LTT7987   20:10:56.85 -30:13:06.6	 12.23    DA 

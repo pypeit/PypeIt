@@ -1,0 +1,219 @@
+Calspec
+
+CALSPEC contains the composite stellar spectra that are the
+fundamental flux standards for HST calibrations. All files are in
+machine independent binary FITS table format. Information about the
+pedigree of a given spectrum is in the header of the FITS table file,
+which can be read with the IRAF hedit task or by mrdfits.pro in IDL.
+
+The Table below summarizes the set of recommended standard star
+spectra. Columns 2-4 give the spectral type, V, and B magnitudes of
+the stars. More documentation on some of these stars, eg. coordinates,
+finding charts and spectral types are in Turnshek et al. (1990),
+Bohlin, Colina & Finley (1995), and Colina & Bohlin (1997). A set of
+A-stars for JWST calibration were developed by Bohlin & Cohen (2008)
+from NICMOS observations, while all 8 of these stars (HD165459 and
+1*_nic_002.fits) have Spitzer IRAC observations and coordinates
+documented in Reach et al. (2005). Column 5 is the computer compatible
+file name with the plus and minus signs converted to
+underscores. Thus, the actual CALSPEC file name is the prefix in
+column 5, plus one of the suffixes in columns 6-9, plus ".fits". For
+example, a standard that has STIS data is "bd_28d4211_stis_001.fits".
+
+High fidelity models are available for a few stars, as listed in
+column 6. Models for the three fundamental primary standards GD71,
+GD153, and G191B2B (Bohlin 2003) provide the basis for the secondary
+flux standards and are calculated with the Hubeny NLTE code for pure
+hydrogen. The observational spectra from columns 7-9 can be compared
+with the models; and in the case of G191B2B, there is ultraviolet line
+blanketing at the ~1 percent level. The model calculations extend to
+30 microns and cover the long wavelength limits of 2.7 microns for
+NICMOS, 1.1 microns for STIS and ACS, and 27 microns for JWST. Vega
+was observed by STIS (Bohlin & Gilliland 2004a) and revised by
+Bohlin(2007). The new composite flux standard alpha_lyr_stis_004.fits
+consists of IUE data from 1256-1675A, STIS CCD fluxes from 1675-5300A,
+and a specially tailored Kurucz 9400K model longward of 5300A (Kurucz
+2005). From 900-1256A, the hotter Kurucz (2003) 9550K model is more
+continuous with the IUE flux. The STIS and ACS observations of the
+SDSS standard BD+17 4708 are documented in Bohlin & Gilliland (2004b)
+and are now extended to 2.5microns with NICMOS data.
+
+Column 7 lists the CDBS suffix names for the second choice standard
+stars with STIS data from Bohlin, Dickinson, & Calzetti (2001) and
+NICMOS fluxes per Bohlin (2007). The naming convention in column 7 is
+_STIS_ for STIS only, _NIC_ for NICMOS only, and _STISNIC_ for stars
+with both types of spectrophotometry. Tabulated in column 8 are the
+next best standard star flux distributions, which are composed of FOS
+spectra in the UV and Oke spectra at the longer wavelengths. Also
+appearing in column 8 are the three solar analogs that are comprised
+of FOS observation but do not have "_FOS" in the CALSPEC file name.
+
+The names for the last set of standard stars appear in column 9 of the
+Table. The application of corrections to the original IUE and optical
+fluxes produces a consistent set of spectrophotometric standards from
+1150 to 9200A (Bohlin 1996 and references therein). This set of
+standards is composed of IUE+Oke data only.
+
+CALSPEC also contains the ultraviolet to near-infrared absolute flux
+distribution of the Sun (filename: sun_reference_stis_001.fits) to 2.7
+microns. The solar reference spectrum combines absolute flux
+measurements from space and from the ground with a model spectrum for
+the near-infrared (Colina, Bohlin, & Castelli 1996). The newer
+absolute solar flux measurements of Thuillier (2003) may be a better
+choice for a solar reference spectrum from 1990-23975A.
+
+2009 January Update
+
+The 2009 January CALSPEC delivery encompasses six new models and 22
+standard star flux distributions. The model flux distributions are for
+pure hydrogen in NLTE and are computed with the TLUSTY code, version
+203, while the previous models used the outdated version 200. The
+calculated SEDs for the three primary standards G191B2B, GD153, and
+GD71 are placed on an absolute flux scale using a synthetic
+calculation of the V magnitudes relative to Vega and provide the flux
+calibrations for both the STIS and the NICMOS spectrophotometry. The
+switch to TLUSTY203 caused a small change in the continuum fluxes with
+a 0.3% increase in the 1300A/10000A flux ratio. In a narrow region
+around 4000A between H-delta and H-epsilon, the new models are up to
+~0.9% fainter. In addition, the synthetic V magnitude calculation was
+corrected to remove an extra factor of wavelength that had been
+included explicitly but was discovered to be already included in the
+Cohen et al. (2003) V filter transmissions. The correction of this
+error made all stars fainter by a constant 0.35%, independent of
+wavelength. A new model for the historical standard HZ43 is included
+for completeness. Pure hydrogen NLTE models are provided for the first
+time for the faint stars WD1057+719 and WD1657+343; and these models
+include a small amount of interstellar reddening (Bohlin 2007).
+
+The above changes that make the three primary WD models fainter by a
+few tenths of a percent affect all 22 newly measured SEDs by the same
+amount. There is one new standard, HD209458, delivered to CALSPEC for
+the first time. The G230LB STIS spectra of G191B2B have replaced the
+FOS fluxes at 1700-3850A in g191b2b_stisnic_002. A lot of new NICMOS
+observations are included in the updates of the stisnic_001 to
+stisnic_002 measurements; and all stars in this delivery have NICMOS
+fluxes measured to 2.5 microns, except for Vega, which is too bright
+for any NICMOS mode, and except for WD1657+343, which is too faint for
+the NICMOS G206 mode that covers the 1.9-2.5 micron range. Two stars
+AKG+81 266 and GRW+70 5824 have more STIS observations included and
+now also have NICMOS spectrophotometry, which promotes these two SEDs
+into the STISNIC category. All of the NICMOS spectra have been
+reprocessed with the new CALNICA algorithm (Dahlen et al. 2008) and
+the new 2008 flat fields. A correction for the correlation of the
+NICMOS sensitivity with temperature is also applied.
+
+The order of preference for the choice of a standard flux distribution
+is from left to right in the Table, i.e. from the best in column 6 to
+the last choice with the lowest quality in column 9.
+
+CDBS Files of the Flux Standards with Columns in Order of Preference(1)
+--------------------------------------------------------------------------------
+Star name    Sp. T.    V     B-V    CDBS name	Model	   STIS        FOS+Oke  IUE+Oke
+  (1)          (2)    (3)    (4)       (5)	 (6)	    (7) 	 (8)	  (9)
+
+1732526       A4V    12.53   0.12  1732526               _NIC_002
+1740346       A6V    12.48   0.20  1740346		 _NIC_002	 
+1743045       A8III  13.52   0.28  1743045		 _NIC_002
+1802271       A2V    11.98   0.08  1802271               _NIC_002
+1805292       A4V    12.28   0.14  1805292		 _NIC_002
+1812095       A5V    11.74   0.20  1812095		 _NIC_002
+1812524       A4V    12.27   0.18  1812524		 _NIC_002
+2M0036+18     L3.5   21.34   ...   2M003618		 _STISNIC_002
+2M0559-14     T5     I=19.14	   2M055914		 _STISNIC_002
+AGK+81 266    sdO    11.94  -0.34  AGK_81D266		 _STISNIC_002		 _005
+ALPHA-LYR     A0V     0.026  0.00  ALPHA_LYR		 _STIS_004		 _004
+BD+17 4708    sdF8    9.47   0.44  BD_17D4708		 _STISNIC_002
+BD+25 4655     ?      9.69  -0.31  BD_25D4655					 _002
+BD+28 4211(2) Op     10.51  -0.34  BD_28D4211		 _STIS_001     _FOS_003  _005
+BD+33 2642    B2IV   10.83  -0.17  BD_33D2642			       _FOS_003  _004
+BD+75 325     O5p     9.55  -0.33  BD_75D325		 _STIS_001     _FOS_003  _005
+C26202        G      16.64   ...   C26202		 _STISNIC_002
+FEIGE110      D0p    11.83  -0.30  FEIGE110		 _STISNIC_002		 _005
+FEIGE34       DO     11.18  -0.34  FEIGE34		 _STIS_001		 _005
+FEIGE66       sdO    10.51  -0.29  FEIGE66					 _002
+FEIGE67       sdO    11.82  -0.34  FEIGE67					 _002
+G191B2B       DA0    11.781 -0.33  G191B2B     _MOD_005  _STISNIC_002  _FOS_003  _005
+G93-48        DA3    12.74  -0.01  G93_48					 _004
+GD108         sdB?   13.56  -0.22  GD108					 _005
+GD153         DA1    13.346 -0.29  GD153       _MOD_005  _STISNIC_002  _FOS_003
+GD50          DA2    14.06  -0.28  GD50 					 _004
+GD71          DA1    13.032 -0.25  GD71        _MOD_006  _STISNIC_002  _FOS_003
+GRW+70 5824   DA3    12.77  -0.09  GRW_70D5824  	 _STISNIC_002		 _005
+HD165459      A4V     6.86   0.13  HD165459              _NIC_002
+HD209458      G0V     7.65   0.59  HD209458              _STISNIC_002
+HD93521       O9Vp    6.99  -0.27  HD93521		 _STIS_001		 _005
+HZ2           DA3    13.88  -0.09  HZ2  					 _005
+HZ21          DO2    14.69  -0.33  HZ21 		 _STIS_001		 _005
+HZ4           DA4    14.51  +0.09  HZ4  		 _STIS_002		 _004
+HZ43 (3)      DA     12.91  -0.31  HZ43        _MOD_005  _STIS_001     _FOS_003
+HZ43B (3)     M      14.30   ...   HZ43B		 _STIS_001
+HZ44          sdO    11.67  -0.29  HZ44 		 _STIS_001     _FOS_003  _005
+KF01T5        K1III  13.56   ...   KF01T5		 _NIC_001
+KF06T1       K1.5III 13.52   ...   KF06T1		 _NIC_001
+KF06T2       K1.5III 13.8    ...   KF06T2		 _NIC_001
+KF08T3       K0.5III 13.5    ...   KF08T3		 _NIC_001
+LB227         DA4    15.32  +0.06  LB227					 _004
+LDS749B       DBQ4   14.674 -0.04  LDS749B     _MOD_001	 _STISNIC_002		 _005
+LTT9491       DC     14.10  +0.03  LTT9491					 _002
+NGC7293       ...    13.53  -0.37  NGC7293					 _005
+P041C         GOV    12.00   0.62  P041C		 _STISNIC_002  _001
+P177D         G0V    13.47   0.66  P177D		 _STISNIC_002  _001
+P330E         G0V    13.00   0.64  P330E		 _STISNIC_002  _001
+SF1615+001A   G      16.753 +0.66  SF1615001A		 _STISNIC_002
+SNAP-1        WD     15.6    ...   SNAP1		 _STISNIC_002
+SNAP-2        G      16.2    ...   SNAP2		 _STISNIC_002
+VB8           M7     16.81   ...   VB8  		 _STISNIC_002
+WD1057+719    DA1.2  14.8    ...   WD1057_719  _MOD_001  _STISNIC_002
+WD1657+343    DA1    16.1    ...   WD1657_343  _MOD_001  _STISNIC_002
+SUN           G2V   -26.75   0.63  SUN_REFERENCE	 _STIS_001
+(1) The unit of flux in all files is erg s-1 cm-2 A-1.
+
+(2) BD+28 4211 has a companion at 2.8arcsec (Landolt & Uomoto (2007).
+
+(3) HZ43 and HZ3B are separated by ~3arcsec (Bohlin, Dickinson, &
+Calzetti 2001).
+
+SUPPLEMENTAL CALSPEC contains previous CALSPEC versions and
+spectrophotometry that may be useful for special purposes.
+
+UPDATES: 96Feb22, 99Jul19, 01Jun5, 04Feb27, 06Sep1, 07Oct-LDS749B
+(Bohlin & Koester 2008), 08Jul-Bohlin & Cohen (2008), 09Jan
+
+REFERENCES
+
+Bohlin, R.C. 1996, AJ, 111, 1743
+Bohlin, R.C. 2000, AJ, 120, 437
+Bohlin, R. 2003, 2002 HST Calibration Workshop, ed. S. Arribas, A. Koekemoer,
+   & B. Whitmore, (Baltimore:STScI), p. 115
+Bohlin, R. C. 2007, in The Future of Photometric, Spectrophotometric, and
+   Polarimetric Standardization, ASP Conf. Series, Vol. 364, p. 315 ed. C. Sterken;
+   also Astro-Ph 0608715
+Bohlin. R. C., & Cohen, M. 2008, AJ, 136, 1171
+Bohlin, R.C., Colina, L., & Finley, D.S. 1995, AJ, 110, 1316
+Bohlin, R. C., Dickinson, M. E., & Calzetti, D. 2001, AJ, 122, 2118
+Bohlin, R. C., & Gilliland, R. L. 2004a, AJ, 127, 3508
+Bohlin, R. C., & Gilliland, R. L. 2004b, AJ, 128, 3053
+Bohlin, R. C., & Koester, D. 2008, AJ, 135, 1092
+Cohen, M., Megeath, S.~T., Hammersley, P.~L., Martin-Luis, F., & Stauffer, J.
+	2003, AJ, 125, 2645
+Colina, L., & Bohlin, R. 1994, AJ, 108, 1931
+Colina, L., & Bohlin, R. 1997, AJ, 113, 1138
+Colina, L., Bohlin, R.C., & Castelli, F. 1996, AJ, 112, 307
+Dahlen, T.,McLaughlin, H., V. Laidler, M. Regan, E. Bergeron, R. Jedrzejewski,
+	R. Bohlin, R. de Jong, & A. Viana 2008, Instrument Science Report,
+	NICMOS 2008-02, (Baltimore:STScI)
+Kurucz, R. 2003, http://kurucz.harvard.edu/
+Kurucz, R. 2005, Vega spectrum at T=9400K, log g=3.90, [M/H]=-0.5,
+   and zero microturbulent velocity, personal communication
+Landolt, A., & Uomoto, A. 2007, AJ, 133, 768
+Oke, J.B. 1990, AJ, 99, 1621
+Reach, W. T., et al. 2005, PASP, 117, 978
+Thuillier, G., Herse, M., Labs, D., Foujols, T., Peetermans, W., Gillotay, D.,
+   Simon, P., & Mandel, H. 2003, Sol. Phys., 214, 1
+Turnshek, D.A., Bohlin, R.C., Williamson, R., Lupie, O., Koornneef, J., &
+   Morgan D. 1990, AJ, 99, 1243
+
+NOTE: There is a known bug with trying to access files via ftp server
+with the Safari browser. The recommended browser for retrieving the
+files is Firefox.
+

@@ -1,0 +1,226 @@
+	     THE 1993 KURUCZ STELLAR ATMOSPHERES ATLAS
+
+The atlas contains about 7600 stellar atmosphere models for a wide
+range of metallicities, effective temperatures and gravities. These new
+LTE models have improved opacities and are computed with a finer
+wavelength and temperature resolution than the previous Buser-Kurucz
+atlas installed in the CDBS (crgridbk). The microturbulent velocity is
+2 km s^{-1}.
+
+The new atlas installed in the CDBS is from the Kurucz database at
+Goddard Space Flight Center. The original atlas (CD-ROM  No. 13) was
+created on August 22, 1993 and can be obtained from Dr. R. Kurucz.
+
+The atlas includes models of abundances (log_Z) relative to solar of
++1.0, +0.5, +0.3, +0.2, +0.1, +0.0, -0.1, -0.2, -0.3, -0.5, -1.0, -1.5,
+-2.0, -2.5,-3.0, -3.5, -4.0, -4.5, and -5.0. The grid of models cover
+the gravity range from log_g= 0.0 to +5.0 in steps of +0.5. The range
+in effective temperature from 3500 K to 50000 K is covered with an
+uneven grid (see Table 1a).  The model spectra cover the ultraviolet
+(1000A) to infrared (10 microns) spectral range with non-uniform
+wavelength spacing (see Table 1b).
+
+
+	  TABLE 1a: Grid of temperatures for the models
+
+		Temperature Range      Grid Step
+		       K                   K
+
+		  3000 - 10000            250 
+                 10000 - 13000            500
+                 13000 - 35000           1000
+                 35000 - 50000           2500
+
+
+	  TABLE 1b: Wavelength coverage for the models
+
+		Wavelength Range       Grid Step
+		    microns                A
+
+		  0.10 - 0.29             10 
+                  0.29 - 1.00             20 
+                  1.00 - 1.60             50 
+                  1.60 - 3.20            100
+                  3.20 - 8.35            200
+                  8.35 - 10.0            400
+
+
+
+
+	     THE HST/CDBS VERSION OF THE 1993 KURUCZ ATLAS
+
+The atlas is divided in 19 independent subdirectories, according to
+metallicity.  Within each subdirectory the stellar atmosphere models
+are given in STDAS multicolumn table format. Each table consist of 12
+different columns, the first one containing  the wavelength grid and
+each of the rest containing the spectrum of a star with the same
+effective temperature but different gravity, ranging from log_g= 0.0 to
++5.0. Columns filled with zeros indicate that the model spectrum for
+that particular metallicity, effective temperature and gravity
+combination is not covered by the atlas.
+
+The names of the table files are given as kszz_ttttt.tab where "k", for
+Kurucz, is the first letter of the atlas; "szz" is the metallicity of
+the model (zz)  with its sign (s); and "ttttt" is the model's effective
+temperature, using four or five digits depending on the value. For
+instance, models for an effective temperature of 5000 K with log_Z=
+-0.5 and log_Z= +3.5 are indicated by ttttt= 5000, s= m, zz= 05 and
+ttttt= 5000, s= p, zz= 35, i.e. km05_5000.tab and kp35_5000.tab.
+
+Within each individual table file, each column is named "gyy" where
+"yy" corresponds to 10*log_g. For example, log_g= +0.5 and log_g= +4.0
+models are located in columns named g05 and g40, respectively. See the
+appendix for an example of a standard header of a table file.
+
+Physical fluxes of the spectra are given in FLAM surface flux units,
+i.e. ergs cm^{-2} s^{-1} A^{-1}. These flux units differ from those in
+the Kurucz CD-ROM by a factor of 3.336 x 10^{-19} x lambda^{2} x
+(4pi)^{-1}, i.e. are converted from ergs cm^{-2} s^{-1} Hz^{-1}
+steradian^{-1} to ergs cm^{-2} s^{-1} A^{-1}.  To convert to observed
+flux at Earth, multiply by a factor of (R/D)^2 where R is the stellar
+radius, and D is the distance to Earth.
+
+The names of the files located in each metallicity subdirectory are
+listed in the README file located in each subdirectory. The range in
+gravity covered by the models for the different temperatures is also
+indicated.
+
+
+		USE OF KURUCZ ATLAS WITH SYNPHOT
+
+Synphot tasks permit the use of spectra selected from one of many
+columns in a single STSDAS table file.  One does this by specifying as
+the "spectrum" parameter the name of the disk file (as before), and
+appending the name of the column containing the flux in brackets. Thus,
+to select any model spectrum characterized by a given metallicity,
+effective temperature, and gravity, specify a "spectrum" of the form:
+crgridk93$m_directory/kszz_ttttt.tab[gyy], where m_directory is the
+name of the subdirectory for a given metallicity. For example, to
+select the spectrum of a star with a metallicity of +0.1, a temperature
+of 10,000 K, and log gravity of 3.0, the specification would be:
+crgridk93$kp01/kp01_10000.tab[g30].
+
+Please note that the model spectra in the atlas are in surface flux
+units.  Thus, if the number of counts or the calculated absolute flux
+is needed, the model spectrum must be renormalized appropriately.  One
+can do this in synphot with the "rn" function.
+
+Synphot also allows the use of the cat() and icat() functions to
+select Kurucz spectra. The syntax is "cat(k93models,t,m,g) where "t"
+is the effective temperature, "m" is the log metallicity in solar
+units, and "g" is the log gravity.  The idea is that, instead of
+having to remember a directory/file naming syntax, a synphot user
+could specify a spectrum from a specified catalog (the Kurucz atlas,
+in this case) which most closely matches the specified attributes (in
+this case, T_{eff}, log_Z, and log_g) using an expression. The
+difference between the cat() and icat() functions is that cat()
+selects the nearest spectrum to the specified parameters and icat()
+interpolates between the spectra that bracket the specified
+parameters.
+
+Since the entire atlas occupies close to 70MB of disk space, many
+applications could be satisfied by a copy of the solar metallicity
+spectra, only.
+
+A list of solar metallicity stars of different spectral types and
+luminosity classes together with their closest Kurucz model spectrum is
+presented in Table 2. The physical parameters, T_{eff} and log_g,
+characterizing each star are taken from Schmidt-Kaler's compilation of
+physical parameters of stars (Schmidt-Kaler 1982, Landolt-Bornstein
+VI/2b). The U-B and B-V colors of the closest model agree with the
+characteristic color of each star (see Schmidt-Kaler 1982) to better
+than 0.06 magnitude.
+
+
+
+	 TABLE 2: Suggested models for specific stellar types
+
+	     Type    T_{eff}    log_g       Kurucz model
+
+	     O3V      52500     +4.14      kp00_50000[g50]
+             O5V      44500     +4.04      kp00_45000[g50] 
+             O6V      41000     +3.99      kp00_40000[g45] 
+             O8V      35800     +3.94      kp00_35000[g40] 
+             B0V      30000     +3.9       kp00_30000[g40] 
+             B3V      18700     +3.94      kp00_19000[g40] 
+             B5V      15400     +4.04      kp00_15000[g40] 
+             B8V      11900     +4.04      kp00_12000[g40] 
+             A0V       9520     +4.14       kp00_9500[g40] 
+             A5V       8200     +4.29       kp00_8250[g45] 
+             F0V       7200     +4.34       kp00_7250[g45] 
+             F5V       6440     +4.34       kp00_6500[g45] 
+             G0V       6030     +4.39       kp00_6000[g45] 
+             G5V       5770     +4.49       kp00_5750[g45] 
+             K0V       5250     +4.49       kp00_5250[g45] 
+             K5V       4350     +4.54       kp00_4250[g45] 
+             M0V       3850     +4.59       kp00_3750[g45]   
+             M2V       3580     +4.64       kp00_3500[g45]   
+             M5V       3240     +4.94       kp00_3500[g50]   
+             B0III    29000     +3.34      kp00_29000[g35]   
+             B5III    15000     +3.49      kp00_15000[g35]   
+             G0III     5850     +2.94       kp00_5750[g30]   
+             G5III     5150     +2.54       kp00_5250[g25]   
+             K0III     4750     +2.14       kp00_4750[g20]   
+             K5III     3950     +1.74       kp00_4000[g15]   
+             M0III     3800     +1.34       kp00_3750[g15]   
+             O5I      40300     +3.34      kp00_40000[g45]   
+             O6I      39000     +3.24      kp00_40000[g45]   
+             O8I      34200     +3.24      kp00_34000[g40]   
+             BOI      26000     +2.84      kp00_26000[g30]   
+             B5I      13600     +2.44      kp00_14000[g25]   
+             AOI       9730     +2.14       kp00_9750[g20]   
+             A5I       8510     +2.04       kp00_8500[g20]   
+             F0I       7700     +1.74       kp00_7750[g20]   
+             F5I       6900     +1.44       kp00_7000[g15]   
+             G0I       5550     +1.34       kp00_5500[g15]   
+             G5I       4850     +1.14       kp00_4750[g10]   
+             K0I       4420     +0.94       kp00_4500[g10]   
+             K5I       3850     +0.34       kp00_3750[g05]   
+             M0I       3650     +0.14       kp00_3750[g00]   
+             M2I       3450     -0.06       kp00_3500[g00]   
+
+
+
+
+APPENDIX
+
+Below is an example of a standard header for the table files in the
+CDBS version of Kurucz atlas. In this example the name of the file is
+kp00_8000.tab and contains all the models for a star of metallicity
+log_Z= 0.0 and effective temperature T_{eff}= 8000 K. Models cover a
+range of gravities from log_g= +1.0 (g10 in the header) to log_g= +5.0
+(g50 in the header). Models for gravities log_g= +0.0 and +0.5 are not
+available for this particualr metallicity and effective temperature
+combination, and therefore do not appear listed in the header. Their
+corresponding columns (g00 and g05) are filled with zeros.  The models
+are in FLAM surface flux units, i.e. ergs cm^{-2} s^{-1} A^{-1}.
+
+	  Header for table file kp00_8000.tab
+
+
+
+ 1 TEFF     i 8000
+ 2 LOG_Z    d 0.0000000000000000
+ 3 HISTORY  t g10
+ 4 HISTORY  t g15
+ 5 HISTORY  t g20
+ 6 HISTORY  t g25
+ 7 HISTORY  t g30
+ 8 HISTORY  t g35
+ 9 HISTORY  t g40
+10 HISTORY  t g45
+11 HISTORY  t g50
+12 HISTORY  t   
+13 HISTORY  t Kurucz model atmospheres (1993)
+14 HISTORY  t   
+15 HISTORY  t Fluxes tabulated in units of erg s^{-1} cm^{-2} A^{-1}
+16 HISTORY  t are surface fluxes. To transform to observed
+17 HISTORY  t fluxes multiply by (R/D)^{2} where R is the
+18 HISTORY  t radius of the star and D the distance.
+19 HISTORY  t Each column in the table represents the
+20 HISTORY  t spectrum of a star for the same metallicity
+21 HISTORY  t and effective temperature but different gravity.
+
+
+
+

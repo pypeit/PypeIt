@@ -1,0 +1,24 @@
+# Creation Date: 2018-May-03
+# Creation Date: 2018-May-03
+# Creation Date: 2017-Mar-26
+# Creation Date: 2016-Dec-21
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| KrI |  4275.1722 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4320.7943 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4377.3512 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4455.1677 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4464.9427 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  4503.6172 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| KrI |  5571.8362 |    1 |    16 |      2000 |           deimos_600      |
+| KrI |  5872.5432 |    1 |     1 |       741 | lrisr_600_7500_PYPIT.json |
+| KrI |  7589.5025 |    1 |    17 |     23900 | lrisr_600_7500_PYPIT.json |
+| KrI |  7603.6384 |    1 |    17 |     64387 | lrisr_600_7500_PYPIT.json |
+| KrI |  7696.6579 |    1 |    17 |     11908 | lrisr_600_7500_PYPIT.json |
+| KrI |  7856.9844 |    1 |    17 |     14382 | lrisr_600_7500_PYPIT.json |
+| KrI |  8061.7211 |    1 |    17 |     15327 | lrisr_400_8500_PYPIT.json |
+| KrI |  8192.3082 |    1 |    17 |     39171 | lrisr_600_7500_PYPIT.json |
+| KrI |  8300.3907 |    1 |    17 |     64396 | lrisr_600_7500_PYPIT.json |
+| KrI |  8511.2106 |    1 |    17 |     11634 | lrisr_600_7500_PYPIT.json |
+| KrI |  8779.1607 |    1 |    17 |     64346 | lrisr_600_7500_PYPIT.json |
+| KrI |  8931.1447 |    1 |    16 |     30000 |  deimos_830g_r_PYPIT.json |
+| KrI |  9754.4352 |    1 |    16 |      2000 |  deimos_830g_r_PYPIT.json |

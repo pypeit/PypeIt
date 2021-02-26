@@ -1,0 +1,13 @@
+# Creation Date: 2018-Oct-04
+# Creation Date: 2018-Oct-04
+# Creation Date: 2018-Oct-04
+| ion |       wave | NIST | Instr | amplitude |                     Source |
+| CuI |  4260.6000 |    1 |    64 |        92 |  GMOS_R400_blue_1_fit.json |
+| CuI |  4652.4260 |    1 |    -1 |        -1 |  WHT ISIS                  |
+| CuI |  4481.6070 |    1 |    64 |        65 |  GMOS_R400_blue_1_fit.json |
+| CuI |  5018.0100 |    1 |    64 |        66 |  GMOS_R400_blue_1_fit.json |
+| CuI |  5106.9640 |    1 |    -1 |        -1 |  WHT ISIS                  |
+| CuI |  5144.1000 |    1 |    64 |        36 | GMOS_R400_blue_15_fit.json |
+| CuI |  5154.6710 |    1 |    -1 |        -1 |  WHT ISIS                  |
+| CuI |  5221.5230 |    1 |    64 |        31 | GMOS_R400_blue_15_fit.json |
+| CuI |  6034.0000 |    1 |    64 |       167 | GMOS_R400_blue_38_fit.json |

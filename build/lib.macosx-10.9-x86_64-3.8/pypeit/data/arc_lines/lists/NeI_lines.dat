@@ -1,0 +1,43 @@
+# Creation Date: 2018-May-03
+# Creation Date: 2018-May-03
+# Creation Date: 2017-Mar-26
+# Creation Date: 2016-Dec-23
+# Creation Date: 2016-Dec-21
+| ion |       wave | NIST | Instr | amplitude |                    Source |
+| NeI |  5332.2603 |    1 |    16 |      6000 |           deimos_600.json |
+| NeI |  5402.0631 |    1 |    16 |      6000 |           deimos_600.json |
+| NeI |  5854.1101 |    1 |     9 |      7489 | lrisr_600_7500_PYPIT.json |
+| NeI |  5883.5252 |    1 |     1 |      5962 | lrisr_600_7500_PYPIT.json |
+| NeI |  5946.4810 |    1 |     9 |     10105 | lrisr_600_7500_PYPIT.json |
+| NeI |  5977.1895 |    1 |     9 |      2204 | lrisr_600_7500_PYPIT.json |
+| NeI |  6031.6666 |    1 |     9 |      3292 | lrisr_600_7500_PYPIT.json |
+| NeI |  6076.0193 |    1 |     9 |      9122 | lrisr_600_7500_PYPIT.json |
+| NeI |  6097.8506 |    1 |     9 |     14599 | lrisr_600_7500_PYPIT.json |
+| NeI |  6130.1460 |    1 |     8 |       319 | kastr_600_7500_PYPIT.json |
+| NeI |  6144.7629 |    1 |     9 |     27178 | lrisr_600_7500_PYPIT.json |
+| NeI |  6165.2994 |    1 |     9 |      8360 | lrisr_600_7500_PYPIT.json |
+| NeI |  6219.0013 |    1 |     9 |      8536 | lrisr_600_7500_PYPIT.json |
+| NeI |  6268.2285 |    1 |     9 |     17196 | lrisr_600_7500_PYPIT.json |
+| NeI |  6306.5329 |    1 |     9 |      6651 | lrisr_600_7500_PYPIT.json |
+| NeI |  6336.1791 |    1 |     9 |     22717 | lrisr_600_7500_PYPIT.json |
+| NeI |  6384.7560 |    1 |     9 |     37581 | lrisr_600_7500_PYPIT.json |
+| NeI |  6404.0180 |    1 |     9 |     64450 | lrisr_600_7500_PYPIT.json |
+| NeI |  6508.3255 |    1 |    25 |     35663 | lrisr_600_7500_PYPIT.json |
+| NeI |  6534.6872 |    1 |    25 |     17243 | lrisr_600_7500_PYPIT.json |
+| NeI |  6600.7754 |    1 |    25 |     17780 | lrisr_600_7500_PYPIT.json |
+| NeI |  6680.1205 |    1 |    25 |     30950 | lrisr_600_7500_PYPIT.json |
+| NeI |  6718.8974 |    1 |    25 |     21322 | lrisr_600_7500_PYPIT.json |
+| NeI |  6931.3787 |    1 |    25 |     37678 | lrisr_600_7500_PYPIT.json |
+| NeI |  7034.3520 |    1 |    17 |     64420 | lrisr_600_7500_PYPIT.json |
+| NeI |  7175.9154 |    1 |    25 |      8445 | lrisr_600_7500_PYPIT.json |
+| NeI |  7247.1631 |    1 |    25 |     64406 | lrisr_600_7500_PYPIT.json |
+| NeI |  7440.9469 |    1 |    25 |     37896 | lrisr_600_7500_PYPIT.json |
+| NeI |  7490.9335 |    1 |    25 |      5760 | lrisr_600_7500_PYPIT.json |
+| NeI |  7537.8488 |    1 |    25 |      5565 | lrisr_600_7500_PYPIT.json |
+| NeI |  8084.6801 |    1 |    25 |       485 | kastr_600_7500_PYPIT.json |
+| NeI |  8379.9093 |    1 |     1 |     23176 | lrisr_600_7500_PYPIT.json |
+| NeI |  8497.6932 |    1 |    17 |     21494 | lrisr_400_8500_PYPIT.json |
+| NeI |  8649.4164 |    1 |     1 |       383 | lrisr_600_7500_PYPIT.json |
+| NeI |  8656.7599 |    1 |    17 |     10656 | lrisr_400_8500_PYPIT.json |
+| NeI |  9204.2841 |    1 |     1 |      2334 | lrisr_400_8500_PYPIT.json |
+| NeI |  9536.7793 |    1 |    16 |      2334 |  deimos_830g_r_PYPIT.json |

@@ -1,0 +1,8 @@
+# Creation Date: 2016-Dec-21
+| ion |       wave | NIST | Instr | amplitude |               Source |
+| HeI |  3889.7500 |    1 |     4 |      2565 | kastb_600_PYPIT.json |
+| HeI |  4027.3292 |    1 |     4 |       153 | kastb_600_PYPIT.json |
+| HeI |  4714.4644 |    1 |     4 |       275 | kastb_600_PYPIT.json |
+| HeI |  4923.3053 |    1 |     4 |       656 | kastb_600_PYPIT.json |
+| HeI |  5017.0772 |    1 |     4 |      2341 | kastb_600_PYPIT.json |
+| HeI |  5877.2490 |    1 |     0 |      1000 | FORS2                |

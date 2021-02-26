@@ -1,0 +1,10 @@
+paranal_sky.fits
+  -- Generated from SDSS code and then ingested in XSpectrum1D format
+
+sky_LRISb_600.fits  
+  -- Taken from LowRedux (lris_sky_blue_600.sav)
+  -- JXP on 16 May 2016
+
+sky_LRISb_400.fits  
+  -- Taken from LowRedux (lris_sky_blue_400.sav)
+  -- JXP on 16 May 2016

@@ -1,0 +1,21 @@
+
+This directory contains data files for all the spectrophotometric standard 
+stars presented in the two papers by Hamuy et al. The first paper is devoted 
+to wavelengths from 3300 to 7550A (Hamuy et al., PASP, 104, 533, 1992); 
+the second to wavelengths from 6000 to 10500A (Hamuy et al., PASP, 
+106, 566, 1994). The second paper consolidates both sets of observations 
+and presents AB magnitudes for the 10 secondary standards at 16A intervals 
+from 3300 to about 10400A and for the 19 tertiary standards at 50A intervals 
+from 3300 to about 10300A.
+
+The 'f' files list wavelength ( A ), flux ( ergs/cm/cm/s/A * 10**16 )
+and flux ( milli-Jy ) and bin (A). The file name consists of a prefix
+'f' and the star name. 
+
+The 'm' files list wavelength ( A ), AB magnitude and bin (A). The file 
+name consists of a prefix 'm' and the star name. 
+
+For more details see:
+http://www.eso.org/sci/observing/tools/standards/spectra/hamuystandards.html
+
+Last update 10 August 2007 by jwalsh at eso.org

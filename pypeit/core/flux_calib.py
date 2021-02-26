@@ -45,6 +45,11 @@ def zp_unit_const():
 # It has a value of ZP_UNIT_CONST = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
 
+# This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
+def mAB_to_cgs(mAB,wvl):
+    return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
+
+
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
     Find a match for the input file to one of the archived
@@ -76,7 +81,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['xshooter', 'calspec', 'esofil']
+    std_sets = ['xshooter', 'calspec', 'esofil', 'noao']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -146,6 +151,15 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
                 std_dict['wave'] = std_dict['wave'][np.invert(mask)]
                 std_dict['flux'] = std_dict['flux'][np.invert(mask)]
+                
+            elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = table.Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
+                
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
             msgs.info("Fluxes are flambda, normalized to 1e-17")

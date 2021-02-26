@@ -1,0 +1,62 @@
+
+
+                THE SPECTRUM OF THE SUN AND VEGA
+
+
+Vega and the Sun are the primary basic standards for absolute 
+spectrophotometric calibrations at optical and infrared wavelengths,
+respectively. As part of Kurucz'93 atlas, the model spectra for Vega and
+the Sun are also provided. The physical parameters used by Kurucz in the modeling of the Sun and Vega can be found in the Table. A second model 
+spectrum using the ATLAS12 code with the same parameters has recently been computed by Castelli & Kurucz (1994, AA 281, 817). 
+
+
+            PARAMETERS OF KURUCZ MODELS FOR THE SUN AND VEGA
+
+
+ STAR    FILENAME      log_Z         T_eff        log_g           V_{Johnson}
+   
+ SUN       sun         +0.0           5777        +4.44              -26.75 
+ VEGA    vega_k93      -0.5           9550        +3.95              +0.035 
+ VEGA    vega_c95      -0.5           9550        +3.95              +0.035 
+
+
+
+VEGA_K93.tab and VEGA_C95.tab:
+
+Kurucz (1993, CD-ROM 13) model spectrum (vega_k93.tab) covers the full ultraviolet to infrared range from 0.05 to 10 microns with a non-uniform wavelength spacing ranging from 1 nm in the ultraviolet to 10-20 nm in the near-infrared, and 40 nm in the infrared (beyond ~ 3 microns). On the other hand, the present version of the ATLAS12 based model spectrum (vega_c95.tab; Castelli's spectrum hereafter) covers the 0.09 to 2.6 microns range with a uniform resolution of 0.1 nm. 
+ 
+The ATLAS9 and ATLAS12 based model spectra are converted to absolute flux 
+units by normalizing to the average flux of the Hayes (1985, IAU Symp. 111) spectrum in the Johnson V filter as represented by Buser & Kurucz (1978, AA
+70, 555) bandpass, i.e. to 3.55E-9 erg s**{-1} cm**{-2} Å**{-1}. Vega has a visual magnitude V_{Johnson}= +0.035, in the Johnson system (see Colina & 
+Bohlin 1994, AJ 108, 1931 for details).
+
+
+VEGA_REFERENCE.tab:  
+
+An additional absolutely calibrated spectrum of Vega covering the wavelength range of interest to HST instruments, including STIS and NICMOS, is constructed by combining the empirical data with the model spectrum (vega_reference.tab). The ultraviolet, optical and near-infrared interval from 0.115 to 1.05 microns is covered by the IUE plus Hayes (1985) spectra on the white dwarf scale as explained in Bohlin (1996, AJ in press, also STScI preprint 1008). In the near-infrared, from 1.05 to 2.6 microns, the ATLAS12 model spectrum is used. 
+The resolution of the spectrum is 0.1 nm for the range covered by the IUE short wavelength camera (SWP, 115 to 200 nm), 0.2 nm for the range covered by the IUE long wavelength camera (LWP, 200 nm to 330 nm), and 2.5 nm longward of 330 nm.
+
+The uncertainty in the absolute flux of the spectrum is a function of wavelength. While from 0.33 to 1.05 microns, the uncertainty is 1.5%, this increases to 5% - 6% in the near-infrared at wavelengths longward of 1.05 microns, and to ~5% in the ultraviolet at wavelengths shortward of 0.33 microns.
+
+Additional information on the spectra of Vega can be found in the Instrument Science Report CAL/SCS-008 ("Absolute Flux Calibrated Spectrum of Vega").
+       
+
+SUN:
+
+Model spectra of the Sun normalized to Johnson V filter average flux are also
+located in this directory. R. Kurucz (sun_kurucz93) and F. Castelli (sun_castelli) solar models are computed for the physical parameters listed
+above and differ in the spectral resolution. While Kurucz model covers the
+ultraviolet to mid-infrared range with low resolution, Castelli's model covers
+the ultraviolet to near-infrared with a one angstrom resolution.
+
+Lastly, sun_reference contains the 0.12 to 2.5 micron absolute flux
+distribution of the sun for comparison with solar analogs. This spectrum 
+combines absolute flux measurements from satellites and from the ground, and
+Castelli's model spectrum for the near-infrared.
+
+For details about these solar spectra see Colina, Bohlin & Castelli 1996,
+AJ, July issue.
+
+
+
+ 

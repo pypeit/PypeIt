@@ -1,0 +1,35 @@
+# Describes PYPIT outputs
+# 1st level is the Output Type
+# 2nd level is the product
+#   Name: Variable type(s), Modes where generated, Description
+spec1D:  # All possible entries in the spec1D binary FITS table
+    # Meta
+    DET_ID: ['int', ['all'], 'Detector ID']
+    SLIT_ID: ['int', ['all'], 'Slit ID; center of slit at ny/2 in detector fraction*1000']
+    OBJ_ID: ['int', ['all'], 'Object ID; center of obj in slit; fraction*1000']
+    # Extraction parameters
+    BOXCAR_APER: [['float','float'], ['quick','full'], 'Boxcar aperture; -pix, +pix']
+    # Extraction arrays
+    BOXCAR: ['ndarray', ['quick','full'], 'Boxcar extraction products, e.g. BOXCAR_WAVE']
+    OPTIMAL: ['ndarray', ['standard','full'], 'Optimal extraction products, e.g. OPTIMAL_WAVE']
+spec2D:  # 2D spectral data products
+    IVAR:      ['ndarray', ['standard','full'],  'Inverse variance']
+    MASK:      ['ndarray', ['full'],  'Mask image']
+    OBJMODEL:  ['ndarray', ['full'],  'Model of the object(s) emission']
+    PROCESSED: ['ndarray', ['full'],  'Bias-subtracted, flat-fielded image']
+    RESIDUAL:  ['ndarray', ['full'],  'Residual image; data-model']
+    SENSITIVITY: ['ndarray', ['full'],  'Sensitivity image for fluxing (surface brightness)']
+    SKYSUB:    ['ndarray', ['standard','full'],  'Sky-subtracted, processed image']
+    SKYMODEL:  ['ndarray', ['full'],  'Model of sky emission on detector']
+    WAVEIMG:   ['ndarray', ['standard','full'],  'Wavelength image.  Vacuum, flexure, and helio-centric corrected']
+QA:  # Quality Assurance Products
+    source:
+        S2N: [['all'],'S/N figure from 1D extraction']
+        OBJ_TRACE: [['full'],'Object trace']
+        OBJ_PROFILE: [['full'],'Object spatial profile']
+    calib:
+        FLEXURE: [['standard','full'],'Flexure estimate from sky lines']
+        ARC_TILTS: [['standard','full'],'Arc line tilt QA']
+        SLITDEF: [['standard','full'],'Slit definitions and comparison to mask design']
+        WAVELENGTH: [['all'],'Wavelength solution']
+

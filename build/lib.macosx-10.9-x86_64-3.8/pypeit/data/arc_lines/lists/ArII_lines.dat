@@ -1,0 +1,35 @@
+# Creation Date: 2018-Oct-05
+# Creation Date: 2018-Oct-04
+# Creation Date: 2018-Oct-04
+# Creation Date: 2018-Oct-04
+|  ion |       wave | NIST | Instr | amplitude |                     Source |
+| ArII |  3767.18827|    1 |    64 |        44 |  GMOS_B600 |
+| ArII |  4054.06540|    1 |    64 |        44 |  GMOS_B600 |
+| ArII |  4073.15410|    1 |    64 |        44 |  GMOS_B600 |
+| ArII |  4132.8886 |    1 |    64 |        44 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4201.0720 |    1 |    64 |       142 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4278.7316 |    1 |    64 |       135 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4301.8591 |    1 |    64 |        52 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4349.2858 |    1 |    64 |       104 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4401.33237|    1 |    64 |        48 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4402.2222 |    1 |    64 |        48 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4546.3258 |    1 |    64 |       196 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4591.1837 |    1 |    64 |       128 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4610.8582 |    1 |    64 |       203 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4659.2050 |    1 |    64 |       153 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4728.1904 |    1 |    64 |       141 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4766.1968 |    1 |    64 |       308 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4807.3635 |    1 |    64 |       120 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4849.1639 |    1 |    64 |        66 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4881.2263 |    1 |    64 |       233 |  GMOS_R400_blue_1_fit.json |
+| ArII |  4966.4649 |    1 |    64 |       107 |  GMOS_R400_blue_1_fit.json |
+| ArII |  5063.4483 |    1 |    64 |        47 |  GMOS_R400_blue_1_fit.json |
+| ArII |  5455.1500 |    1 |    64 |        27 | GMOS_R400_blue_15_fit.json |
+| ArII |  6105.2293 |    1 |    64 |        33 | GMOS_R400_blue_38_fit.json |
+| ArII |  6116.6158 |    1 |    64 |        62 | GMOS_R400_blue_38_fit.json |
+| ArII |  6173.9855 |    1 |    64 |        99 | GMOS_R400_blue_38_fit.json |
+| ArII |  6484.87395|    1 |    64 |        44 |  GMOS_B600 |
+| ArII |  8330.1960 |    1 |    64 |       319 | GMOS_R400_chip2_8_fit.json |
+| ArII |  8365.3720 |    1 |    64 |       391 | GMOS_R400_chip2_8_fit.json |
+| ArII |  8774.2691 |    1 |    64 |      8086 |      GMOS_R830_shenli.json |
+| ArII |  9438.819  |    1 |    64 |      8086 |      GMOS_R830_shenli.json |
