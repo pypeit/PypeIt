@@ -1,6 +1,20 @@
 
-1.3.1dev
---------
+1.3.3 (24 Feb 2021)
+-------------------
+
+- (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
+- (Hotfix) Bug fix in `pypeit_obslog` script.
+
+
+1.3.2 (08 Feb 2021)
+-------------------
+
+- (Hotfix) Bug in content type of README file that prevented upload to
+  PyPI
+
+
+1.3.1 (01 Feb 2021)
+-------------------
 
 - pypeit_chk_wavecalib script
 - Option to limit channels shown for pypeit_show_2dspec
