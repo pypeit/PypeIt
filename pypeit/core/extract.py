@@ -1928,7 +1928,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thisslit_gpm = slitmask == gdslit_spat[iord]
         inmask_iord = inmask & thisslit_gpm
-        specobj_dict['SLITID'] = iord
+        specobj_dict['SLITID'] = gdslit_spat[iord]
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = order_vec[iord]
         try:
@@ -2114,6 +2114,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
                 thisobj.OBJID = uni_obj_id[iobj]
+                thisobj.SLITID = gdslit_spat[iord]
                 thisobj.ech_frac_was_fit = True
                 thisobj.set_name()
                 sobjs_align.add_sobj(thisobj)
