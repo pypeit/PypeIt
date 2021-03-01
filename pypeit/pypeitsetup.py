@@ -316,55 +316,6 @@ class PypeItSetup:
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
-    # TODO -- Remove this code if not used
-    def load_metadata(self, fits_file):
-        """
-        Load the fitstbl from disk (a binary FITS table)
-
-        Args:
-            fits_file (str):  Name of PypeItMetaData file
-
-        Returns:
-            obj:`PypeItMetaData`: The so-called fitstbl
-
-        """
-        self.fitstbl = PypeItMetaData(self.spectrograph, self.par, data=Table.read(fits_file))
-        msgs.info("Loaded fitstbl from {:s}".format(fits_file))
-        return self.fitstbl.table
-
-    # TODO -- Remove this code if not used
-    def write_metadata(self, sort_dir=None, ofile=None):
-        """
-        Write the `astropy.table.Table`_ object in :attr:`fitstbl`
-        to a file.
-
-        If an output file is provided, the file is used.  If that file
-        name inclues '.fits', the output will be a fits file; otherwise
-        the format is ascii.fixed_width.
-
-        If no output file, the default is an ascii table with an '.lst'
-        extension.  The root name of the file is either the spectrograph
-        name or the root name of the pypeit file, if the latter exists.
-
-        If a `sort_dir` is provided, the directory of the nominal output
-        file is changed to this directory.
-
-        Args:
-            sort_dir (:obj:`str`, optional):
-                The full root of the name for the metadata table
-                ('.lst') file.
-            ofile (:obj:`str`, optional):
-                The name of the file to write.  See description above.
-        """
-        if ofile is None:
-            ofile = self.spectrograph.spectrograph + '.lst' if self.pypeit_file is None \
-                        else self.pypeit_file.replace('.pypeit', '.lst')
-            if sort_dir is not None:
-                ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
-
-        format = None if '.fits' in ofile else 'ascii.fixed_width'
-        self.fitstbl.write(ofile, overwrite=True)
-
     def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
             clean_config=True, groupings=True, obslog=False, write_files=True):
         """

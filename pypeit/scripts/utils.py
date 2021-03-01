@@ -143,6 +143,7 @@ class Utilities:
 
     def run_setup(self, root, extension=None, **kwargs):
         """
+        Generate a PypeItSetup instance and run it
 
         Args:
             root (str):
@@ -151,7 +152,7 @@ class Utilities:
                 Passed to ps.run()
 
         Returns:
-            tuple: setups, indx
+            tuple: PypeItSetup, setups, indx
 
         """
         # Initialize PypeItSetup based on the arguments
