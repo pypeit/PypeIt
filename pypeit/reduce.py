@@ -389,7 +389,7 @@ class Reduce(object):
             msgs.info("Skipping 2nd run of finding objects")
 
         # Assign here -- in case we make another pass to add in missing targets
-        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.spectrograph.slitmask is not None:
+        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
             self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
                                        TOLER=self.par['reduce']['slitmask']['obj_toler'])
 

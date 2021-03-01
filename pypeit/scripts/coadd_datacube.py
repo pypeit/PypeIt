@@ -59,7 +59,7 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Load the spectrograph
     spec2DObj = spec2dobj.Spec2DObj.from_file(files[0], det)
-    specname = spec2DObj.head0['SPECTROG']
+    specname = spec2DObj.head0['PYP_SPEC']
     spec = load_spectrograph(specname)
 
     # Grab the parset, if not provided
@@ -359,3 +359,11 @@ def main(args):
 
     # Coadd the files
     coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

@@ -48,7 +48,7 @@ affiliations:
    index: 6
  - name: Lawrence Berkeley National Laboratory
    index: 7
- - name: Max Planck Institut f\"ur Astrophysik
+ - name: Max Planck Institut f\"{u}r Astrophysik
    index: 8
 date: 12 August 2020
 bibliography: paper.bib
@@ -69,21 +69,40 @@ In what follows, we provide a brief description of the algorithms,
 but refer the interested reader to the online documentation for
 the most up-to-date information. 
 
-Release v1.1 serves the following spectrographs:
-Gemini/GNIRS, Gemini/GMOS, Gemini/FLAMINGOS 2, Lick/Kast, Magellan/MagE,
-Magellan/Fire, MDM/OSMOS, Keck/DEIMOS (600ZD, 830G, 1200G), Keck/LRIS,
-Keck/MOSFIRE (Y, J, K gratings tested), Keck/NIRES, Keck/NIRSPEC
-(low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS, MDM/OSMOS,
-MMT/MMIRS, MMT/binospec, NOT/ALFOSC, P200/DBSP,
-VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V). 
+Release v1.3 serves the following spectrographs:
+Gemini/GNIRS,
+    Gemini/GMOS,
+    Gemini/FLAMINGOS 2,
+    Lick/Kast,
+    Magellan/MagE,
+    Magellan/Fire,
+    MDM/OSMOS,
+    Keck/DEIMOS (600ZD, 830G, 1200G),
+    Keck/KCWI (BM, BH2),
+    Keck/LRIS,
+    Keck/MOSFIRE (Y, J, K gratings tested),
+    Keck/NIRES,
+    Keck/NIRSPEC (low-dispersion; old detector),
+    LBT/Luci-I,
+    LBT/Luci-II,
+    LBT/MODS,
+    MDM/OSMOS,
+    MMT/MMIRS,
+    MMT/binospec,
+    NOT/ALFOSC,
+    P200/DBSP,
+    P200/TripleSpec,
+    VLT/X-Shooter (VIS, NIR),
+    VLT/FORS2 (300I, 300V)
 
-This v1.1 release of ``PypeIt`` is designed to be used by both advanced
+
+This v1.3 release of ``PypeIt`` is designed to be used by both advanced
 spectroscopists with prior data reduction expertise and astronomers with
 no prior experience of data reduction. It is highly configurable and
 designed to be applied to any standard slit-imaging spectrograph, and
 can accomodate longslit, multislit, as well as cross-dispersed echelle
 spectra. It has already enabled several scientific publications
-[@hsyu2018; @eilers2018; @eilers2020; @wang2020; @yang2020a; @yang2020b].
+[@hsyu2018; @eilers2018; @eilers2020; @wang2020; @yang2020a; @yang2020b; @pelliccia2020].
 
 In order to successfully reduce your data with ``PypeIt``, we recommend that
 you obtain the following calibration frames as a minimum, using these
@@ -98,7 +117,7 @@ For the near-IR PypeIt uses sky lines for wavelength calibration so arcs are not
 Depending on your science goal, and the instrument being used, you may
 also require the following optional frames:
 
-(iii) Bias or Dark frames (ideally 10 frames) should be acquired with a 0 second exposure
+(iii) Bias or dark frames (ideally 10 frames) should be acquired with a 0 second exposure
 with the shutter closed, while dark frames (ideally 3 frames) should be acquired
 with the shutter closed, ideally with an exposure time of equal
 duration to your science frames.
@@ -120,8 +139,8 @@ of the data reduction procedure:
 (1) The pipeline automatically characterises the raw input frames
 based on header information. We have also developed a SPectral Image
 Typing (SPIT) tool [@spit] to classify images based on the pixel data.
-The output of this classification procedure, is an input ``PypeIt`` file
-that allows the user to specify the parameters of their reduction, and
+The output of this classification procedure is an input ``PypeIt`` file
+that allows the user to specify the parameters of their reduction and
 manually update the classification of the input raw images.
 
 (2) The reduction procedure consists of a script that automatically
@@ -154,13 +173,13 @@ trace image is also used to calculate the spatial flexure of
 each frame relative to the master flat frame.
 
 (6) The above calibrations are applied to every science and standard star frame.
-``PypeIt`` jointly performs the object extraction and b-spline `@kelson2003` sky
+``PypeIt`` jointly performs the object extraction and b-spline [@kelson2003] sky
 subtraction.  A two-dimensional model of the sky is first constructed using the spectral
 tilt map, including a robust fit to separate the signal of the
 science target from the sky background emission. This sky
 model is locally refined around the science target during
 spectrum extraction. The algorithm we have developed for ``PypeIt``
-achieves Poisson limited sky-subtraction (see Figure \autoref{fig:skysub}).
+achieves Poisson limited sky-subtraction (see \autoref{fig:skysub}).
 ``PypeIt`` then performs a boxcar and an
 optimal extraction to generate 1D science spectra. The final
 output of this procedure is a series of fully reduced one- and
@@ -170,7 +189,7 @@ two-dimensional spectra.
 Keck/DEIMOS spectra (1200G grating). From left to right:
 (1) Raw science frame,
 (2) Processed science frame after a model of the sky emission has been removed,
-(3) Same as previous, but relative to the noise to highlight object spectrum and sky residuals
+(3) Same as previous, but relative to the noise to highlight object spectrum and sky residuals,
 (4) Same as previous, but a model of the object is also removed. This produces a final processed 2D frame at the Poisson limit.
 \label{fig:skysub}](skysub.png)
 

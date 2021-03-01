@@ -29,7 +29,7 @@ def test_initialization():
     par, spectrograph, fitstbl = setup.run(sort_dir=data_path(''))
 
     # Test
-    assert spectrograph.spectrograph == 'shane_kast_blue'
+    assert spectrograph.name == 'shane_kast_blue'
     assert len(fitstbl) == 2
 
     # Clean-up

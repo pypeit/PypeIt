@@ -128,11 +128,11 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
-        posx_pa (:ob:`float`):
+        posx_pa (:obj:`float`):
             Sky PA that points to positive x (spatial) on the detector
-        negx_pa (:ob:`float`):
+        negx_pa (:obj:`float`):
             Sky PA that points to negative x (spatial) on the detector
-        object_names (`numpy.ndarray`_): str
+        object_names (`numpy.ndarray`_):
             Object names
 
     Raises:
@@ -206,8 +206,9 @@ class SlitMask:
         self.slitindx = None
         if objects is not None:
             self.objects = numpy.atleast_2d(objects)
-            if self.objects.shape[1] != 4:
-                raise ValueError('Must provide the slit ID and sky coordinates for each object.')
+            if self.objects.shape[1] != 7:
+                raise ValueError('Must provide the slit ID, sky coordinates, object name, top '
+                                 'and bottom distance for each object.')
             try:
                 self.slitindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
                                                 strict=True)

@@ -14,9 +14,11 @@ matplotlib.use('agg')  # For Travis
 #warnings.simplefilter('error', FutureWarning)
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
+
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup, chk_wavecalib
 from pypeit.scripts import identify
 from pypeit.scripts import parse_slits
+
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -196,6 +198,14 @@ def test_chk_flat():
     pargs = chk_flats.parse_args([mstrace_root])
     chk_flats.main(pargs)
 
+@cooked_required
+def test_chk_wavecalib():
+    ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                                'MasterWaveCalib_A_1_01.fits')
+    #
+    pargs = chk_wavecalib.parse_args([ms_root])
+    chk_wavecalib.main(pargs)
+
 
 
 def test_coadd1d_1():
@@ -259,7 +269,7 @@ def test_identify():
     arcfitter = identify.main(pargs)
 
     # Load line list
-    arcfitter.load_IDs(fname=data_path('waveid.ascii'))
+    arcfitter.load_IDs(fname=data_path('waveid_tests.ascii'))
     assert arcfitter._detns.size == 31, 'Bad load'
 
     # Fit
@@ -281,6 +291,7 @@ def test_identify():
                               PYP_SPEC='shane_kast_blue',
                               )
 
+    # If you touch the following line, you probably need to update the call in scripts/identify.py
     arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
@@ -306,4 +317,24 @@ def test_parse_slits():
     pargs = parse_slits.parse_args([spec2d_file])
     parse_slits.main(pargs)
 
+@dev_suite_required
+def test_obslog():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    obslogfile = 'shane_kast_blue.obslog'
+    # Remove the directory if it already exists
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+
+    # Perform the setup
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
+    obslog.main(obslog.parse_args(['shane_kast_blue', '-r', droot, '-f', obslogfile,
+                                   '-d', setupdir]))
+
+    # Clean up
+    shutil.rmtree(setupdir)
+
+
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
+
+

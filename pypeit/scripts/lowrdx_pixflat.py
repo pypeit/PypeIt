@@ -32,3 +32,10 @@ def main(args):
     # Assume LRIS for now
     arlris.convert_lowredux_pixflat(args.lowrdx_file, args.new_file)
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

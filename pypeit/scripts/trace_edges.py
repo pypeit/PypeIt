@@ -6,15 +6,16 @@
 """
 Trace slit edges for a set of images.
 """
+import sys
 
 def parse_args(options=None, return_parser=False):
 
     import argparse
-    from pypeit import defs
+    from pypeit.spectrographs import available_spectrographs
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Require either a pypeit file or a fits file 
+    # Require either a pypeit file or a fits file
     inp = parser.add_mutually_exclusive_group(required=True)
     inp.add_argument('-f', '--pypeit_file', default=None, type=str, help='PypeIt reduction file')
     inp.add_argument('-t', '--trace_file', default=None, type=str, help='Image to trace')
@@ -26,10 +27,10 @@ def parse_args(options=None, return_parser=False):
                         help='Only analyze the specified detector; otherwise analyze all or '
                              'detectors selected by the pypeit file, if provided.')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
-                        help='A valid spectrograph identifier, which is only used if providing'
-                             'files directly: {0}'.format(', '.join(defs.pypeit_spectrographs)))
+                        help='A valid spectrograph identifier, which is only used if providing '
+                             'files directly: {0}'.format(', '.join(available_spectrographs)))
     parser.add_argument('-b', '--binning', default=None, type=str,
-                        help='Image binning in spectral and spatial directions.  Only used if'
+                        help='Image binning in spectral and spatial directions.  Only used if '
                              'providing files directly; default is 1,1.')
     parser.add_argument('-p', '--redux_path', default=None,
                         help='Path to top-level output directory.  '
@@ -132,7 +133,7 @@ def main(args):
         # Set the QA path
         qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
 
-    if detectors is None: 
+    if detectors is None:
         detectors = np.arange(spec.ndet)+1
     if isinstance(detectors, int):
         detectors = [detectors]
@@ -181,4 +182,9 @@ def main(args):
     return 0
 
 
+def entry_point():
+    sys.exit(main(parse_args()))
 
+
+if __name__ == '__main__':
+    entry_point()

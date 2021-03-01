@@ -10,7 +10,7 @@ Overview
 
 A primary data product for PypeIt are 1D, calibrated spectra
 for extracted sources.  The most fundamental spectrum may be
-described by two arrays: flux, wavelength.  These together
+described by two arrays: flux, wavelength (in vacuum).  These together
 with an error array are the minimal output for even the 
 Quick reduction mode.  There are, however, several methods
 of extraction, calibration, etc. which yield various data
@@ -145,6 +145,8 @@ file with this `Naming`_. In addition, one
 :class:`~pypeit.images.detector_container.DetectorContainer` is
 written to a fits extension --- named, e.g., ``DET01-DETECTOR`` ---
 for each detector with at least one spectrum extracted.
+
+All wavelengths are in vacuum.
 
 Multiple :class:`~pypeit.specobj.SpecObj` objects are held interally
 by a :class:`~pypeit.specobjs.SpecObjs` object.

@@ -946,7 +946,7 @@ class DataContainer:
                     dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
                     # Grab it
                     _d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
-                        else Table.read(hdu[hduindx])
+                        else Table.read(hdu[hduindx]).copy()
 
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \

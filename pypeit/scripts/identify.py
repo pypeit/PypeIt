@@ -124,4 +124,12 @@ def main(args):
     arcfitter.store_solution(final_fit, mdir, slits.binspec,
                              wvcalib=waveCalib,
                              rmstol=args.rmstol,
-                             specname=specname, force_save=args.force_save)
+                             force_save=args.force_save)
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

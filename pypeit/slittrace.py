@@ -12,7 +12,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.table import Table
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
 
@@ -120,7 +120,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                     descr='Slit ID number slitmask'),
                  'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
-                 'maskdef_file': dict(otype=str, descr='Data file that yielded the slitmask info'),
+                 'maskfile': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'maskdef_posx_pa': dict(otype=float, descr='PA that aligns with spatial dimension of the detector'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
@@ -164,7 +164,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskdef_file=None,
+                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
                  maskdef_posx_pa=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
@@ -283,7 +283,12 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
+        try:
+            return super(SlitTraceSet, cls)._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
+                                                   transpose_table_arrays=True)
+        except KeyError:
+            return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS',
+                                                   transpose_table_arrays=True)
 
     def init_tweaked(self):
         """
@@ -716,7 +721,6 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-
     def assign_maskinfo(self, sobjs, plate_scale, TOLER=1.):
         """
         Assign RA, DEC, Name to objects
@@ -732,37 +736,34 @@ class SlitTraceSet(datamodel.DataContainer):
         # Restrict to objects on this detector
         on_det = sobjs.DET == self.det
         cut_sobjs = sobjs[on_det]
-        posx_pa, negx_pa = slitmask.fuss_with_maskpa(self.maskdef_posx_pa)
+        # posx_pa, negx_pa = slitmask.fuss_with_maskpa(self.maskdef_posx_pa)
 
         # Unpack -- Remove this once we have a DataModel
-        #obj_maskdef_id = self.objects[:, 0].astype(int)
         obj_maskdef_id = self.maskdef_designtab['SLITID'].data
         obj_coords = SkyCoord(ra=self.maskdef_designtab['OBJRA'],
-                              dec=self.maskdef_designtab['OBJDEC'], unit='deg')
-        #obj_coords = SkyCoord(ra=self.objects[:, 2], dec=self.objects[:, 3], unit='deg')
+                              dec=self.maskdef_designtab['OBJDEC'], frame='fk5', unit='deg')
         obj_slit_coords = SkyCoord(ra=self.maskdef_designtab['SLITRA'],
-                              dec=self.maskdef_designtab['SLITDEC'], unit='deg')
-        #slit_coords = SkyCoord(ra=self.onsky[:, 0], dec=self.onsky[:, 1], unit='deg')
+                                   dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
+        obj_slit_pa = self.maskdef_designtab['SLITPA']
+        obj_topdist = self.maskdef_designtab['OBJ_TOPDIST'].data
 
-        '''
-        # Slit coordinates for each object
-        obj_slit_coords = []
-        for obj_mid in obj_maskdef_id:
-            # Get the slit index
-            idx = np.where(self.slitid == obj_mid)[0]
-            if len(idx) != 1:
-                import pdb;
-                pdb.set_trace()
-            idx = idx[0]
-            # Fill
-            obj_slit_coords.append(slit_coords[idx])
-        #
-        obj_slit_coords = SkyCoord(obj_slit_coords)
-        '''
-
-        # Offsets, PA:  Slit to object
-        slit_to_obj_sep = obj_slit_coords.separation(obj_coords)
-        slit_to_obj_pa = obj_slit_coords.position_angle(obj_coords)
+        # Exact pixel positions of the slit center (instead of using sobj.SLITID)
+        censpat = (self.maskdef_designtab['TRACELPIX'].data + self.maskdef_designtab['TRACERPIX'].data)/2.
+        # Measure distance of center from left and right edges
+        fromleft_censpat = censpat - self.maskdef_designtab['TRACELPIX'].data
+        fromright_censpat = censpat - self.maskdef_designtab['TRACERPIX'].data
+        # Pixel position of the slit center predicted from the slitmask info
+        maskdef_censpat = (self.maskdef_designtab['SLITLOPT'].data + self.maskdef_designtab['SLITROPT'].data)/2.
+        # Measure distance of center from left and right edges
+        fromleft_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITLOPT'].data
+        fromright_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITROPT'].data
+        # Find the differences. This allows to take into account the slits that are smaller than what
+        # should be because they are cut by the detector edges
+        diff_dist = fromleft_maskdef_censpat - fromleft_censpat
+        # For the leftmost slit we use the distance from right
+        diff_dist[0] = fromright_maskdef_censpat[0] - fromright_censpat[0]
+        # we define the new slit center which is consistent with the one from slitmask
+        new_censpat = censpat + diff_dist
 
         # First pass
         measured, expected = [], []
@@ -771,38 +772,54 @@ class SlitTraceSet(datamodel.DataContainer):
             sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
             # object ID
             # TODO -- Add to SpecObj DataModel?
-            # Expected offset (arcsec)
-            oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0][0]
-            expected_offset = slit_to_obj_sep[oidx].to('arcsec').value
-            # Actual offset (arcsec)
-            dpix = sobj.SPAT_PIXPOS - sobj.SLITID
-            darcsec = dpix * plate_scale
-            # Direction -- Allows for 180deg rotation
-            true_pa = slit_to_obj_pa[oidx].to('deg').value
-            imin = np.argmin(np.abs(true_pa - np.array([posx_pa, negx_pa])))
-            sign = -1 if imin == 1 else 1
-            expected_offset *= sign
-            # Finish
-            measured.append(darcsec)
-            expected.append(expected_offset)
+            # There is small chance that self.maskdef_id=-99. This would definitely happen if the user
+            # add a custom slit. If maskdef_id=-99 for a certain object, we cannot assign OBJECT, RA, DEC
+            oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0]
+            if oidx.size == 0:
+                # In this case I have to give a fake value for index reasons later in the code.
+                measured.append(-9999.9)
+                expected.append(9999.9)
+            else:
+                # Expected offset (arcsec)
+                oidx = oidx[0]
+                expected_offset = obj_topdist[oidx] - \
+                                  ((maskdef_censpat[oidx] - self.maskdef_designtab['SLITLOPT'].data[oidx])*plate_scale)
+                # Measured offset (arcsec)
+                dpix = sobj.SPAT_PIXPOS - new_censpat[self.maskdef_designtab['SPAT_ID'].data == sobj.SLITID][0]
+                darcsec = dpix * plate_scale
+                # Finish
+                measured.append(darcsec)
+                expected.append(expected_offset)
         measured = np.array(measured)
         expected = np.array(expected)
 
         # Stats
         if len(expected) > 3:
-            mean, median_off, std = sigma_clipped_stats(expected - measured, sigma=2.)
+            mean, median_off, std = sigma_clipped_stats(expected[expected!=9999.9] - measured[measured!=-9999.9],
+                                                        sigma=2.)
         else:
             median_off = 0.
 
         # Assign
         # Loop on slits to deal with multiple sources within TOLER
-        uni_maskid = np.unique(cut_sobjs.MASKDEF_ID)
+        # Exclude the objects that have maskdef_id=-99
+        uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
         for maskid in uni_maskid:
-            # SpecObjs on this slit
+            # Index for SpecObjs on this slit
             idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+            # Index for slitmask
+            sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
+            # measured coordinates
+            measured_coord = obj_slit_coords[sidx].directional_offset_by(
+                np.radians(obj_slit_pa[sidx]), (measured[idx] + median_off) * units.arcsec)
+            # separation from the expected coordinates
+            separ = obj_coords[sidx].separation(measured_coord)
             # Within TOLER?
-            in_toler = np.abs(expected[idx]-measured[idx] - median_off) < TOLER
-            if np.any(in_toler):
+            # in_toler = np.abs(expected[idx]-measured[idx] - median_off) < TOLER
+            # I used separ rather than the diff between `expected` and `measured` distance from the slit center,
+            # because sometimes it does not work.
+            in_toler = np.where(separ.to('arcsec').value < TOLER)[0]
+            if in_toler.size > 0:
                 # Parse the peak fluxes
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
                 imx_peak = np.argmax(peak_flux)
@@ -821,19 +838,21 @@ class SlitTraceSet(datamodel.DataContainer):
             # Fill in the rest
             for ss in idx:
                 sobj = cut_sobjs[ss]
-                # Slit PA
-                sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
-                slit_pa = self.maskdef_designtab['SLITPA'][sidx]
-                pos_pa, neg_pa = slitmask.fuss_with_maskpa(slit_pa)
-                # Do it
-                obj_pa = pos_pa if measured[ss] > 0 else neg_pa
+                # Measured coordinates
                 new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                    obj_pa, (measured[ss]+median_off)*units.arcsec)
+                    np.radians(obj_slit_pa[sidx]), (measured[ss]+median_off)*units.arcsec)
                 # Assign
                 sobj.RA = new_obj_coord.ra.value
                 sobj.DEC = new_obj_coord.dec.value
                 sobj.MASKDEF_OBJNAME = 'SERENDIP'
-
+        # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
+        noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
+        if noidx.size > 0:
+            for sobj in cut_sobjs[noidx]:
+                # Assign
+                sobj.RA = 0.0
+                sobj.DEC = 0.0
+                sobj.MASKDEF_OBJNAME = 'NONE'
         # Return
         return
 

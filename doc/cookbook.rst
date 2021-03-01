@@ -148,6 +148,8 @@ and science frame, located in the *Science/* folder.
   - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra :doc:`out_spec1D`
 
+If you are missing 1D spectra, this means that PypeIt did not find any objects in the corresponding frame.  You may need to modify some of the parameters in your :doc:`pypeit_file`.
+
 Here are some :doc:`reduction_tips` for tuning parameters
 related to extraction and sky subtraction for your spectra.
 

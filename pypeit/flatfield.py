@@ -467,8 +467,7 @@ class FlatField(object):
             # Illumination correction only
             return FlatImages(illumflat_raw=self.rawflatimg.image,
                               illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                              illumflat_bpm=bpmflats,
-                              PYP_SPEC=self.spectrograph.spectrograph,
+                              illumflat_bpm=bpmflats, PYP_SPEC=self.spectrograph.name,
                               spat_id=self.slits.spat_id)
         else:
             # Pixel and illumination correction only
@@ -476,10 +475,8 @@ class FlatField(object):
                               pixelflat_norm=self.mspixelflat,
                               pixelflat_model=self.flat_model,
                               pixelflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                              pixelflat_bpm=bpmflats,
-                              pixelflat_spec_illum=self.spec_illum,
-                              PYP_SPEC=self.spectrograph.spectrograph,
-                              spat_id=self.slits.spat_id)
+                              pixelflat_bpm=bpmflats, pixelflat_spec_illum=self.spec_illum,
+                              PYP_SPEC=self.spectrograph.name, spat_id=self.slits.spat_id)
 
     def build_mask(self):
         """

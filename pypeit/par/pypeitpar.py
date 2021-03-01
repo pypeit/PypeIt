@@ -70,7 +70,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit import defs
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -2092,10 +2091,15 @@ class ReduxPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        options['spectrograph'] = ReduxPar.valid_spectrographs()
+
+        # NOTE: The validity of the spectrograph is checked by
+        # load_spectrograph, so the specification of the viable options here is
+        # not really necessary.
+#        options['spectrograph'] = ReduxPar.valid_spectrographs()
         dtypes['spectrograph'] = str
         descr['spectrograph'] = 'Spectrograph that provided the data to be reduced.  ' \
-                                'Options are: {0}'.format(', '.join(options['spectrograph']))
+                                'See :ref:`instruments` for valid options.'
+#                                'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices.' \
@@ -2172,9 +2176,9 @@ class ReduxPar(ParSet):
         # Finish
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_spectrographs():
-        return defs.pypeit_spectrographs
+#    @staticmethod
+#    def valid_spectrographs():
+#        return available_spectrographs
 
     def validate(self):
         if self.data['slitspatnum'] is not None:
@@ -2201,11 +2205,11 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
-                 nfitpix=None, IDpixels=None, IDwaves=None, medium=None, refframe=None,
+                 nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
                  nsnippet=None):
 
         # Grab the parameter names and values from the function
@@ -2309,6 +2313,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         '*unbinned* pixels.'
+
+        defaults['fwhm_fromlines'] = False
+        dtypes['fwhm_fromlines'] = bool
+        descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
+                                  'If True, the estimated FWHM will override ``fwhm`` only in '\
+                                  'the determination of the wavelength solution (i.e. not in '\
+                                  'WaveTilts).'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv']=None
@@ -2438,13 +2449,6 @@ class WavelengthSolutionPar(ParSet):
         dtypes['IDwaves'] = [int, float, list]
         descr['IDwaves'] = 'Wavelengths of the manually identified lines'
 
-        # TODO: Not used
-        defaults['medium'] = 'vacuum'
-        options['medium'] = WavelengthSolutionPar.valid_media()
-        dtypes['medium'] = str
-        descr['medium'] = 'Medium used when wavelength calibrating the data.  ' \
-                          'Options are: {0}'.format(', '.join(options['medium']))
-
         # TODO: What should the default be?  None or 'heliocentric'?
         defaults['refframe'] = 'heliocentric'
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
@@ -2466,10 +2470,10 @@ class WavelengthSolutionPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
-                   'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'medium', 'refframe', 'nsnippet']
+                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

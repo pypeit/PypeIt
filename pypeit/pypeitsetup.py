@@ -5,7 +5,9 @@ Class for organizing PypeIt setup
 .. include:: ../include/links.rst
 
 """
+import time
 import os
+import glob
 import inspect
 import datetime
 
@@ -119,6 +121,7 @@ class PypeItSetup:
 
         # Save input
         self.file_list = file_list
+        # TODO: It seems like path is never used...
         self.path = os.getcwd() if path is None else path
         self.frametype = frametype
         self.usrdata = usrdata
@@ -174,10 +177,6 @@ class PypeItSetup:
         Instantiate the :class:`PypeItSetup` object by providing a file
         root.
         
-        This is based on first writing a vanilla PypeIt file for the
-        provided spectrograph and extension to a file in the provided
-        path.
-
         Args:
             root (:obj:`str`):
                 The root path to all the files for PypeIt to reduce.
@@ -189,26 +188,34 @@ class PypeItSetup:
                 The PypeIt name of the spectrograph used to take the
                 observations.  This should be one of the available
                 options in
-                :func:`pypeit.spectrographs.valid_spectrographs`.
+                :func:`pypeit.spectrographs.available_spectrographs`.
             extension (:obj:`str`, optional):
                 The extension common to all the fits files to reduce.
                 Default is '.fits', meaning anything with `root*.fits*`
                 will be be included.
             output_path (:obj:`str`, optional):
-                Path to use for the output.  If None, the default is
-                './setup_files'.  If the path doesn't yet exist, it is
-                created.
+                Path to use for the output. If None, no output is written.
+                Otherwise, the method first writes a vanilla ``PypeIt`` file
+                and then uses :func:`from_pypeit_file` to instantiate the
+                object. If the path doesn't yet exist, it is created.
         
         Returns:
             :class:`PypitSetup`: The instance of the class.
         """
+        if output_path is None:
+            # Find all the files
+            dfname = os.path.join(root, '*{0}*'.format(extension)) \
+                        if os.path.isdir(root) else '{0}*{1}*'.format(root, extension)
+            # No pypeit file is written and we just construct the setup object
+            # directly
+            return cls(glob.glob(dfname), spectrograph_name=spectrograph)
+
         # Set the output directory
-        outdir = os.path.join(os.getcwd(), 'setup_files') if output_path is None else output_path
-        if not os.path.isdir(outdir):
-            os.makedirs(outdir)
+        if not os.path.isdir(output_path):
+            os.makedirs(output_path)
         # Set the output file name
         date = str(datetime.date.today().strftime('%Y-%b-%d'))
-        pypeit_file = os.path.join(outdir, '{0}_{1}.pypeit'.format(spectrograph, date))
+        pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
         msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
         # Generate the pypeit file
@@ -284,7 +291,7 @@ class PypeItSetup:
         # Return the table
         return self.fitstbl.table
 
-    def get_frame_types(self, flag_unknown=False, use_header_id=False):
+    def get_frame_types(self, flag_unknown=False):
         """
         Include the frame types in the metadata table.
 
@@ -301,16 +308,14 @@ class PypeItSetup:
                 Allow for frames to have unknown types instead of
                 crashing.  This should be True for initial setup and
                 False otherwise.  Passed to get_frame_types()
-            use_header_id (bool, optional):
-                Passed to get_frame_types()
 
         """
         # Use PypeItMetaData methods to get the frame types
-        _ = self.fitstbl.get_frame_types(flag_unknown=flag_unknown, user=self.frametype,
-                                         useIDname=use_header_id)
+        self.fitstbl.get_frame_types(flag_unknown=flag_unknown, user=self.frametype)
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
+    # TODO -- Remove this code if not used
     def load_metadata(self, fits_file):
         """
         Load the fitstbl from disk (a binary FITS table)
@@ -326,6 +331,7 @@ class PypeItSetup:
         msgs.info("Loaded fitstbl from {:s}".format(fits_file))
         return self.fitstbl.table
 
+    # TODO -- Remove this code if not used
     def write_metadata(self, sort_dir=None, ofile=None):
         """
         Write the `astropy.table.Table`_ object in :attr:`fitstbl`
@@ -356,14 +362,10 @@ class PypeItSetup:
                 ofile = os.path.join(sort_dir, os.path.split(ofile)[1])
 
         format = None if '.fits' in ofile else 'ascii.fixed_width'
-        self.fitstbl.write(ofile,
-                           #columns=None if format is None else self.spectrograph.pypeit_file_keys(),
-                           format=format, overwrite=True)
+        self.fitstbl.write(ofile, overwrite=True)
 
-    # TODO: Check if user_header_id is ever actually used.
-    def run(self, setup_only=False, calibration_check=False, use_header_id=False, sort_dir=None,
-            write_bkg_pairs=False, clean_config=True,
-            no_write_sorted=False):
+    def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
+            clean_config=True, groupings=True, obslog=False, write_files=True):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -399,10 +401,6 @@ class PypeItSetup:
                 expected to execute in a way that ends after this
                 class is fully instantiated such that the user can
                 inspect the results before proceeding.
-            use_header_id (:obj:`bool`, optional):
-                Allow setup to use the frame types drawn from single,
-                instrument-specific header keywords set to ``idname``
-                in the metadata table (:attr:`fitstbl`).
             sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
             write_bkg_pairs (:obj:`bool`, optional):
@@ -414,8 +412,9 @@ class PypeItSetup:
                 instrument configuration that ``PypeIt`` cannot
                 reduce. See
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
-            no_write_sorted (:obj:`bool`, optional):
-                If True, suppress writing the .sorted file to disk
+            groupings (:obj:`bool`, optional):
+                Group frames into instrument configurations and calibration
+                sets, and add the default combination-group columns.
 
         Returns:
             :obj:`tuple`: Returns, respectively, the
@@ -427,77 +426,123 @@ class PypeItSetup:
             ``setup_only`` is True, these are all returned as None
             values.
         """
-        # Kludge
-        pypeit_file = '' if self.pypeit_file is None else self.pypeit_file
-
-        # Build fitstbl
+        # Build the minimal metadata table if it doesn't exist already
         if self.fitstbl is None:
-            self.build_fitstbl(strict=not setup_only)#, bkg_pairs=bkg_pairs)
+            self.build_fitstbl(strict=not setup_only)
 
         # Remove frames that have invalid values for
         # configuration-defining metadata
         if clean_config:
             self.fitstbl.clean_configurations()
 
-        # File typing
-        self.get_frame_types(flag_unknown=setup_only or calibration_check,
-                             use_header_id=use_header_id)
+        # Determine the type of each frame.
+        self.get_frame_types(flag_unknown=setup_only or calibration_check)
 
-        # Determine the configurations and assign each frame to the
-        # specified configuration
-        cfgs = self.fitstbl.unique_configurations()
-        self.fitstbl.set_configurations(cfgs)
+        if groupings:
+            # Determine the configurations and assign each frame to the
+            # specified configuration
+            self.fitstbl.set_configurations(self.fitstbl.unique_configurations())
 
-        # Assign frames to calibration groups
-        self.fitstbl.set_calibration_groups() #global_frames=['bias', 'dark'])
+            # Assign frames to calibration groups
+            self.fitstbl.set_calibration_groups()
 
-        # Set default comb_id
-        self.fitstbl.set_combination_groups()
+            # Set default comb_id
+            self.fitstbl.set_combination_groups()
 
-        # TODO: Are we planning to do this?
-        # Assign science IDs based on the calibrations groups (to be
-        # deprecated)
-        self.fitstbl['failures'] = False                    # TODO: placeholder
+#        # TODO: Are we planning to do this?
+#        # Assign science IDs based on the calibrations groups (to be
+#        # deprecated)
+#        self.fitstbl['failures'] = False                    # TODO: placeholder
+
+        # Write the output files
+        if write_files:
+            self.write(output_path=sort_dir, setup_only=setup_only,
+                       calibration_check=calibration_check, write_bkg_pairs=write_bkg_pairs,
+                       obslog=obslog)
+
+        return (None, None, None) if setup_only else (self.par, self.spectrograph, self.fitstbl)
+
+    def write(self, output_path=None, setup_only=False, calibration_check=False, 
+              write_bkg_pairs=False, obslog=False):
+        """
+        Write the set of pypeit setup files.
+
+        Args:
+            output_path (:obj:`str`, optional):
+                Directory for the output files.
+            setup_only (:obj:`bool`, optional):
+                Only this setup will be performed. ``PypeIt`` is
+                expected to execute in a way that ends after this
+                class is fully instantiated such that the user can
+                inspect the results before proceeding. This has the
+                effect of providing more output describing the
+                success of the setup and how to proceed, and provides
+                warnings (instead of errors) for issues that may
+                cause the reduction itself to fail.
+            calibration_check (obj:`bool`, optional):
+                Only check that the calibration frames are
+                appropriately setup and exist on disk. ``PypeIt`` is
+                expected to execute in a way that ends after this
+                class is fully instantiated such that the user can
+                inspect the results before proceeding.
+            write_bkg_pairs (:obj:`bool`, optional):
+                Include columns with the (unassigned) background
+                image pairs. This is a convenience so that users can
+                more easily add/edit the background pair ID numbers.
+            clean_config (:obj:`bool`, optional):
+                Remove files with metadata that indicate an
+                instrument configuration that ``PypeIt`` cannot
+                reduce. See
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.valid_configuration_values`.
+            groupings (:obj:`bool`, optional):
+                Group frames into instrument configurations and calibration
+                sets, and add the default combination-group columns.
+        """
+        pypeit_file = self.spectrograph.name + '.pypeit' \
+                            if self.pypeit_file is None or len(self.pypeit_file) == 0 \
+                            else self.pypeit_file
+        _output_path = os.path.split(os.path.abspath(pypeit_file))[0] if output_path is None \
+                            else os.path.abspath(output_path)
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
-            sorted_file = self.spectrograph.spectrograph + '.sorted' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.sorted')
-            if sort_dir is not None:
-                sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
-            if not no_write_sorted:
-                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+            #sorted_file = self.spectrograph.spectrograph + '.sorted' \
+            #                    if pypeit_file is None or len(pypeit_file) == 0 \
+            #                    else pypeit_file.replace('.pypeit', '.sorted')
+            #if sort_dir is not None:
+            #    sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
+            #if not no_write_sorted:
+            #    self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+            sorted_file = pypeit_file.replace('.pypeit', '.sorted')
+            sorted_file = os.path.join(_output_path, os.path.split(sorted_file)[1])
+            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
-
         else:
             # Write the calib file
             # This is currently needed for QA
-            calib_file = self.spectrograph.spectrograph + '.calib' \
-                                if pypeit_file is None or len(pypeit_file) == 0 \
-                                else pypeit_file.replace('.pypeit', '.calib')
-            if sort_dir is not None:
-                calib_file = os.path.join(sort_dir, os.path.split(calib_file)[1])
-            self.fitstbl.write_calib(calib_file)
+            calib_file = pypeit_file.replace('.pypeit', '.calib')
+            self.fitstbl.write_calib(os.path.join(_output_path, os.path.split(calib_file)[1]))
+
+        if obslog:
+            log_file = pypeit_file.replace('.pypeit', '.obslog')
+            header = ['Auto-generated PypeIt Observing Log',
+                      '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime()))]
+            self.fitstbl.write(output=log_file, columns='pypeit', sort_col='mjd',
+                               overwrite=True, header=header)
 
         # Finish (depends on PypeIt run mode)
-        # TODO: Do we need this functionality?
+        # TODO: Do we need this?
         if calibration_check:
             msgs.info("Inspect the .calib file: {:s}".format(calib_file))
             msgs.info("*********************************************************")
             msgs.info("Calibration check complete and successful!")
-#            msgs.info("Set 'run calcheck False' to continue with data reduction")
             msgs.info("*********************************************************")
-            #TODO: Why should this not return the same as when setup_only is True
 
         if setup_only:
-            for idx in np.where(self.fitstbl['failures'])[0]:
-                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
+#            for idx in np.where(self.fitstbl['failures'])[0]:
+#                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
+#                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .sorted file")
-            return None, None, None
-
-        return self.par, self.spectrograph, self.fitstbl
 
 

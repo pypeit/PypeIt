@@ -1,3 +1,5 @@
+.. _extraction:
+
 ==========
 Extraction
 ==========

@@ -28,7 +28,7 @@ def main(args):
     import sys
     import numpy as np
 
-    from PySide2.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
     from linetools.guis.xspecgui import XSpecGui
 
@@ -41,10 +41,9 @@ def main(args):
     if args.list:
         print("Showing object names for input file...")
         for ii in range(len(sobjs)):
-            line = ''
-            line += "EXT{:07d} = {}".format(ii+1, sobjs[ii].NAME)
+            line = "EXT{:07d} = {}".format(ii + 1, sobjs[ii].NAME)
             if sobjs[ii].RA is not None:
-                line += " {:0.4f} {:0.4f} {:s}".format(
+                line += " {:0.5f} {:0.5f} {:s}".format(
                     sobjs[ii].RA,
                     sobjs[ii].DEC,
                     sobjs[ii].MASKDEF_OBJNAME)
@@ -77,3 +76,10 @@ def main(args):
     gui.show()
     app.exec_()
 
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

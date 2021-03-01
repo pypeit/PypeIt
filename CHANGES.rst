@@ -1,6 +1,45 @@
 
-1.2.1dev
+1.3.2dev
 --------
+- Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
+- Added new ArI, KrI, NeI, XeI arc lines.
+- PypeIt can now compute arc line FWHM from the lines themselves. This is
+  controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
+- Added a development document about the DEIMOS wavelength calibration.
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
+
+
+
+1.3.1 (01 Feb 2021)
+-------------------
+
+- pypeit_chk_wavecalib script
+- Option to limit channels shown for pypeit_show_2dspec
+- sigdetect on in full_template
+- Added new ArI, ArII lines
+- Improved 1Dfit QA
+- Final wavelength template for DEIMOS 900ZD
+- Fix a bug in `pypeit/core/arc.py` and `pypeit/core/wavecal/autoid.py` due
+  to the padding to the arc frames
+- Added a new XeI line
+- Turn off sigma clipping for DEIMOS arc frames.
+- Refactor setup.py to use setup.cfg to define package configuration
+- Refactor version handling to use setuptools_scm to grab version info from git tags
+- Add support for testing within isolated environments via tox
+- Refactor CI to use tox to run tests
+- Add cron-scheduled tests to CI
+- Add tests to CI to cover macos, windows, and conda installations
+- Refactor wrapper scripts in bin/ to be entry_points defined in setup.cfg
+- Deprecate check_requirements now that dependencies are handled by the installation
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
+
+
+1.3.0 (13 Dec 2020)
+-------------------
 
 - DATE-OBS, UTC, AMPMODE, and MOSMODE added to metadata for DEIMOS, and
   the first three are now included in the auto-generated pypeit files.
@@ -44,8 +83,38 @@
 - PypeIt now flags as “BOXSLT” DEIMOS slits that are expected to be
   alignment boxes from slitmask design.
 - Added a table with DEIMOS slitmask design and objects info to the
+  SlitTraceSet datamodel
+- Add support for MMTO Blue Channel Spectrograph
+- Add GitHub Actions CI workflow
+- Incorporates a procedure to enable GMOS Nod and Shuffle observations
+- New GMOS wavelength solutions
+- Remove Travis CI config
+- General housecleaning of spectrographs
+    - Documentation improvements
+    - Dynamically builds table of available spectrographs; see
+      `pypeit.spectrographs.available_spectrographs`
+    - `pypeit.defs` is now deprecated
+    - Removed usage from `pypeit.pypmsgs` and moved it to `run_pypeit.py`
+    - Many Spectrograph instance attributes are now class attributes; in
+      particular, previous instance attribute `spectrograph` is now `name`.
+    - Added class attributes that set if the spectrograph is supported and any
+      comments for the summary table.
+    - `default_pypeit_par` is now a class method, which allows the name of the
+      spectrograph to be defined in a single place
+    - Valid spectrographs are no longer checked by
+      `pypeit.par.pypeitpar.ReduxPar`.  This caused a circular import in the
+      new strucuture.  The parameter `par['rdx']['spectrograph']` is virtually
+      always checked by `load_spectrograph`, so I don't think this is a
+      problem.
+- Kastr 300 grating solutions
+- Hotfix to include the solutions!
+- Improved DEIMOS slitmask design matching
 - Assign RA/DEC to DEIMOS extractions
+- DEIMOS object RA, Dec, and name returned when running `pypeit_show_1d --list` and saved in
+  the .txt file with the list of 1d spectra.
+- DEIMOS object name and `maskdef_id` visible in ginga when running `pypeit_show_2d`
 - Fix sigma clipping bug!
+
 
 1.2.0 (15 Oct 2020)
 -------------------
@@ -183,7 +252,7 @@
 - Clean up flat, bias handling
 - Make re-use masters the default mode of run_pypeit
 - Require Python 3.7
-- Fixed a bug in NIRES order finding. 
+- Fixed a bug in NIRES order finding.
 - Add NOT/ALFOSC
 - Fluxing docs
 - Fix flexure and heliocentric bugs
@@ -686,7 +755,7 @@
   trace_fweight. Large outlying pixels were breaking object tracing.
 - Added thresholding in pypeit.core.tracewave to ensure that tilts are
   never crazy values due to extrapolation of fits which can break sky
-  subtraction. 
+  subtraction.
 - Turn off 2.7 Travis testing
 - Integrated arclines into PypeIt
 - Added KDTree algorithm to the wavelength calibration routines
@@ -695,13 +764,13 @@
 - Completely revamped object finding, global sky subtraction and local
   sky subtraction with new algorithms.
 - Added -s option to run_pypeit for interactive outputs.
-- Improved pypeit_show_spec2d script. 
+- Improved pypeit_show_spec2d script.
 - Fixed bug whereby -m --use_master was not being used by run_pypeit
   script.
 - Overhaul of general algorithm for wavelength calibration
 - Hot fix for bspline + requirements update
-- Fixed issue with biases being written to disk as untrimmed. 
-- Completely reworked flat fielding algorithm. 
+- Fixed issue with biases being written to disk as untrimmed.
+- Completely reworked flat fielding algorithm.
 - Fixed some parsing issues with the .pypeit file for cases where there
   is a whitepsace in the path.
 - Implemented interactive plots with the -s option which allow the
@@ -713,7 +782,7 @@
 - Implemeneted a new peak finding algorithm for arc lines which
   significantly improved wavelength fits.
 - Added filtering of saturated arc lines which fixed issues with
-  wavelength fits. 
+  wavelength fits.
 - Added algorithms and data files for telluric correction of near-IR
   spectra.
 - Revamped flat field roiutine to tweak slit boundaries based on slit
@@ -738,9 +807,9 @@
 - Filled in fits table reading data for GNIRS
 - Demand frametype column in fits table is U8 format
 - Further improvements to detect_lines arcline detection algorithm.
-- Got rid of arcparam and added info and docs to wavelengths parset. 
-- Improved and commented autoid.py arclines code. 
-- Added utilities to wavecalib to compute shift,stretch of two spectra. 
+- Got rid of arcparam and added info and docs to wavelengths parset.
+- Improved and commented autoid.py arclines code.
+- Added utilities to wavecalib to compute shift,stretch of two spectra.
 - Completely revamped cross-correlation algorithm in wavecalib to give
   roburt results.
 

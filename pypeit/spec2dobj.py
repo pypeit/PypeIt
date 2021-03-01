@@ -66,7 +66,7 @@ class Spec2DObj(datamodel.DataContainer):
                                   descr='2D multiplicative scale image that has been applied to '
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
-                                 descr='2D wavelength image (float64)'),
+                                 descr='2D wavelength image in vacuum (float64)'),
                  'bpmmask': dict(otype=np.ndarray, atype=np.integer,
                                  descr='2D bad-pixel mask for the image'),
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
@@ -364,7 +364,7 @@ class AllSpec2DObj(object):
         # TODO Should the spectrograph be written to the header?
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
-        hdr['SPECTROG'] = spectrograph.spectrograph
+        hdr['PYP_SPEC'] = spectrograph.name
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
 
         # MasterFrame info
