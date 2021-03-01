@@ -643,13 +643,12 @@ class PypeIt(object):
             ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # TODO -- Save the slits yet again?
-
-
         # TODO -- Do this upstream
-        # Tack on detector
+        # Tack on detector and wavelength RMS
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
+            iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+            sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
         # Construct table of spectral flexure
         spec_flex_table = Table()
