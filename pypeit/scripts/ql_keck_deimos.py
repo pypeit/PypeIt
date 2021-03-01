@@ -42,6 +42,7 @@ def process_calibs(pargs, script_Utils):
     ps, setups, indx = script_Utils.run_setup(os.path.join(pargs.full_rawpath, pargs.root),
                                               extension='.fits')
     # Restrict on detector -- May remove this
+    ps.user_cfg = ['[rdx]', 'spectrograph = {}'.format(ps.spectrograph.name)]
     ps.user_cfg += ['detnum = {}'.format(pargs.det)]
     # Avoid crash in flat fielding from saturated slits
     ps.user_cfg += ['[calibrations]', '[[flatfield]]', 'saturated_slits = mask']

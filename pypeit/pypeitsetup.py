@@ -112,8 +112,9 @@ class PypeItSetup:
         steps (list):
             The steps run to provide the pypeit setup.
     """
-    def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
-                 cfg_lines=None, spectrograph_name=None, pypeit_file=None, setup_dict=None):
+    def __init__(self, file_list, path=None, frametype=None, usrdata=None, 
+                 setups=None, cfg_lines=None, spectrograph_name=None, 
+                 pypeit_file=None, setup_dict=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:

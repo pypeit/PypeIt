@@ -155,7 +155,7 @@ class Utilities:
 
         """
         # Initialize PypeItSetup based on the arguments
-        ps = PypeItSetup.from_file_root(root, self.spectrograph.spectrograph,
+        ps = PypeItSetup.from_file_root(root, self.spectrograph.name,
                                         extension=extension)
 
         # Run the setup
