@@ -642,7 +642,6 @@ class Calibrations(object):
 
         # User mask?
         if self.user_slits is not None:
-            embed(header='645 of calibs')
             self.slits.user_mask(self.det, self.user_slits)
 
         return self.slits

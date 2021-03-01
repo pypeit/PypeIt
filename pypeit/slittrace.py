@@ -865,6 +865,7 @@ class SlitTraceSet(datamodel.DataContainer):
             det (:obj:`int`): Detector number
             user_slits (:obj:`dict`):
         """
+        embed(header='868 of slittrace')
         if user_slits['method'] == 'slitspat':
             # Parse
             dets, spat_ids = parse_slitspatnum(user_slits['slit_info'])

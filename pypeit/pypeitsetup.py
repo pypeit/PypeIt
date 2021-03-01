@@ -317,7 +317,8 @@ class PypeItSetup:
         self.steps.append(inspect.stack()[0][3])
 
     def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
-            clean_config=True, groupings=True, obslog=False, write_files=True):
+            clean_config=True, groupings=True, obslog=False, write_files=True,
+            no_write_sorted=False):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -367,6 +368,10 @@ class PypeItSetup:
             groupings (:obj:`bool`, optional):
                 Group frames into instrument configurations and calibration
                 sets, and add the default combination-group columns.
+            write_files (:obj:`bool`, optional):
+                Write the standard files
+            no_write_sorted (:obj:`bool`, optional):
+                Do not write the .sorted file
 
         Returns:
             :obj:`tuple`: Returns, respectively, the
@@ -410,12 +415,12 @@ class PypeItSetup:
         if write_files:
             self.write(output_path=sort_dir, setup_only=setup_only,
                        calibration_check=calibration_check, write_bkg_pairs=write_bkg_pairs,
-                       obslog=obslog)
+                       obslog=obslog, no_write_sorted=no_write_sorted)
 
         return (None, None, None) if setup_only else (self.par, self.spectrograph, self.fitstbl)
 
     def write(self, output_path=None, setup_only=False, calibration_check=False, 
-              write_bkg_pairs=False, obslog=False):
+              write_bkg_pairs=False, obslog=False, no_write_sorted=False):
         """
         Write the set of pypeit setup files.
 
@@ -449,6 +454,8 @@ class PypeItSetup:
             groupings (:obj:`bool`, optional):
                 Group frames into instrument configurations and calibration
                 sets, and add the default combination-group columns.
+            no_write_sorted (:obj:`bool`, optional):
+                Do not write the .sorted file
         """
         pypeit_file = self.spectrograph.name + '.pypeit' \
                             if self.pypeit_file is None or len(self.pypeit_file) == 0 \
@@ -458,16 +465,12 @@ class PypeItSetup:
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
-            #sorted_file = self.spectrograph.spectrograph + '.sorted' \
-            #                    if pypeit_file is None or len(pypeit_file) == 0 \
-            #                    else pypeit_file.replace('.pypeit', '.sorted')
             #if sort_dir is not None:
             #    sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
-            #if not no_write_sorted:
-            #    self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             sorted_file = pypeit_file.replace('.pypeit', '.sorted')
             sorted_file = os.path.join(_output_path, os.path.split(sorted_file)[1])
-            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+            if not no_write_sorted:
+                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
         else:
             # Write the calib file
@@ -491,9 +494,6 @@ class PypeItSetup:
             msgs.info("*********************************************************")
 
         if setup_only:
-#            for idx in np.where(self.fitstbl['failures'])[0]:
-#                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-#                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .sorted file")
 

@@ -90,7 +90,8 @@ def get_science_setup(pargs, script_Utils):
         msgs.error("Your science filename {} does not exist. Check your path".format(science_file))
     # Run setup
     ps_sci, _, indx = script_Utils.run_setup(science_file,
-                                              extension='', no_write_sorted=True)
+                                              extension='', 
+                                              no_write_sorted=True)
     # Check against existing PypeIt files
     pypeit_files = glob.glob(os.path.join(pargs.redux_path, 'keck_deimos_*', 'keck_deimos_calib_*.pypeit'))
     mtch = []
@@ -125,13 +126,14 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
     # Parse science file info
     science_file = os.path.join(pargs.full_rawpath, pargs.science)
     science_pypeit = calib_pypeit_file.replace('calib', 'science')
-    # Add to file list
-    ps.file_list += [science_file]
-    # Add to usrdata
-    new_row = {}
-    for key in ps.usrdata.keys():
-        new_row[key] = ps_sci.fitstbl[key][0]
-    ps.usrdata.add_row(new_row)
+    # Add to file list, it not present
+    if science_file not in ps.file_list:
+        ps.file_list += [science_file]
+        # Add to usrdata 
+        new_row = {}
+        for key in ps.usrdata.keys():
+            new_row[key] = ps_sci.fitstbl[key][0]
+        ps.usrdata.add_row(new_row)
     # Build
     _ = ps.build_fitstbl()
     # Generate PypeIt file
@@ -155,13 +157,11 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
     else:
         embed(header='NOT READY:  118 of ql_deimos')
     # Do it
-    '''
     make_pypeit_file(science_pypeit,
-                     script_Utils.spectrograph.spectrograph, [],
+                     script_Utils.spectrograph.name, [],
                      cfg_lines=ps.user_cfg,
                      setup_lines=setup_lines,
                      sorted_files=data_lines, paths=paths)
-    '''
 
     # Run me!
     redux_path = os.path.dirname(science_pypeit)  # Path to PypeIt file
