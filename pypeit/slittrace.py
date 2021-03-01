@@ -865,7 +865,6 @@ class SlitTraceSet(datamodel.DataContainer):
             det (:obj:`int`): Detector number
             user_slits (:obj:`dict`):
         """
-        embed(header='868 of slittrace')
         if user_slits['method'] == 'slitspat':
             # Parse
             dets, spat_ids = parse_slitspatnum(user_slits['slit_info'])
@@ -961,6 +960,6 @@ def merge_user_slit(slitspatnum, maskIDs):
         user_slit_dict['slit_info'] = maskIDs
     else:
         user_slit_dict['method'] = 'slitspat'
-        user_slit_dict['slit_info'] = parse_slitspatnum(slitspatnum)[1]
+        user_slit_dict['slit_info'] = slitspatnum
     # Return
     return user_slit_dict
