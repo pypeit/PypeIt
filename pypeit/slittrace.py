@@ -723,7 +723,7 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-    def mask_add_missing_obj(self, sobjs, plate_scale):
+    def mask_add_missing_obj(self, sobjs, plate_scale, slits_left, slits_right):
         """ Generate new SpecObj and add them into the 
         SpecObjs object for any slits missing the targeted source.
 
@@ -765,13 +765,18 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Loop on all the good slits
         gd_slit = self.mask == 0
+        specmid = slits_left[:,0].size//2
+        slit_cen = (slits_left + slits_right) / 2.
         for islit in np.where(gd_slit)[0]:
             # Check for assigned obj
-            target_obj_in_slit = (sobjs.MASKDEF_ID == 
+            if len(sobjs) > 0:
+                target_obj_in_slit = (sobjs.MASKDEF_ID == 
                                   self.maskdef_id[islit]) & (
                                       sobjs.MASKDEF_OBJNAME != 'SERENDIP')
-            if np.any(target_obj_in_slit):
-                continue
+                if np.any(target_obj_in_slit):
+                    continue
+
+            # Object index
             oidx = np.where(obj_maskdef_id == self.maskdef_id[islit])[0][0]
             # 
             # Expected offset in arcsec??  DP - Please Confirm
@@ -784,6 +789,13 @@ class SlitTraceSet(datamodel.DataContainer):
                 new_censpat[self.maskdef_designtab['SPAT_ID'].data == 
                             self.spat_id[islit]])
 
+            # TODO -- DO THIS RIGHT FOR SLITS (LIKELY) OFF THE DETECTOR/SLIT
+            #  If we keep what follows, probably should add some tolerance to be off the edge
+            #  Otherwise things break in skysub
+            if (SPAT_PIXPOS > slits_right[specmid, islit]) or (SPAT_PIXPOS < slits_left[specmid,islit]):
+                msgs.warn("Targeted object is off the detector")
+                continue
+
             # Generate a new specobj
             specobj_dict = {'SLITID': self.spat_id[islit], # Confirm this
                             'DET': self.det, 
@@ -791,12 +803,15 @@ class SlitTraceSet(datamodel.DataContainer):
                             'PYPELINE': self.pypeline}
             thisobj = specobj.SpecObj(**specobj_dict)
 
-            # TODO - Use slit edge
-            # ##
-            if len(sobjs) == 0:
-                # Use slit edge
-                embed(header='798 of slittrace')
-            else:
+            # Fill me up
+            xoff = SPAT_PIXPOS - slit_cen[specmid, islit]
+            thisobj.TRACE_SPAT = slit_cen[:, islit] + xoff
+            thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+            thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - slits_left[specmid, islit]) / (
+                slits_right[specmid, islit]-slits_left[specmid, islit])
+            thisobj.trace_spec = np.arange(slits_left.shape[0])
+
+            '''  This uses an object
                 idx_nearest = np.argmin(np.abs(sobjs.SPAT_PIXPOS-SPAT_PIXPOS))
                 specmid = sobjs[idx_nearest].TRACE_SPAT.size//2
                 xoff = SPAT_PIXPOS - sobjs[idx_nearest].TRACE_SPAT[specmid] 
@@ -805,9 +820,13 @@ class SlitTraceSet(datamodel.DataContainer):
                 thisobj.trace_spec = sobjs[idx_nearest].trace_spec
                 # TODO -- Do we need to add FWHM?
                 #  or  SPAT_FRACPOS?
+            '''
             
             # OBJID
-            thisobj.OBJID = np.max(sobjs.OBJID) + 1
+            if len(sobjs) > 0:
+                thisobj.OBJID = np.max(sobjs.OBJID) + 1
+            else:
+                thisobj.OBJID = 1
             # FWHM 
             thisobj.FWHM = 3.  # pixels
             thisobj.maskwidth = 12. # matches objfind() in extract.py

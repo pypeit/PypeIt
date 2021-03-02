@@ -640,7 +640,7 @@ class EdgeTraceSet(DataContainer):
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
-                                 description='Projected position of the object w.r.t. the top of the slit (arcsec)'),
+                                 description='Projected position of the object w.r.t. the top of the slit (arcsec).  Left edge in PypeIt orientation'),  # CONFIRM THE LEFT!
                     table.Column(name='OBJ_BOTDIST', dtype=float, length=length,
                                  description='Projected position of the object w.r.t. the bottom of the slit (arcsec)'),
                     table.Column(name='TRACEID', dtype=int, length=length,

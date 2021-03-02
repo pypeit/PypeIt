@@ -393,7 +393,8 @@ class Reduce(object):
             self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
                                        TOLER=self.par['reduce']['slitmask']['obj_toler'])
             # Assign un-detected objects
-            self.slits.mask_add_missing_obj(self.sobjs_obj, self.get_platescale(None))
+            self.slits.mask_add_missing_obj(self.sobjs_obj, self.get_platescale(None),
+                                            self.slits_left, self.slits_right) # Deal with flexure
         
 
         # Do we have any positive objects to proceed with?
@@ -1090,7 +1091,7 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
         # Loop on slits
-        for slit_idx in gdslits:
+        for slit_idx in gdslits:  
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
             thisobj = self.sobjs.SLITID == slit_spat    # indices of objects for this slit
@@ -1117,6 +1118,8 @@ class MultiSlitReduce(Reduce):
                         use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
                         no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
                 except ValueError:
+                    # slit_idx = 23 is failing
+                    #   I bet it is off the edge of the detector
                     embed(header='1120 of reduce')
 
         # Set the bit for pixels which were masked by the extraction.
