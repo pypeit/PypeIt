@@ -718,7 +718,8 @@ class PypeIt(object):
                                        slitspatnum=self.par['rdx']['slitspatnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
-            all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+            all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline, sobjs=sobjs)
 
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))

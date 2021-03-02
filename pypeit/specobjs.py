@@ -634,13 +634,15 @@ class SpecObjs:
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
-    def write_info(self, outfile, pypeline):
+    def write_info(self, outfile, pypeline, sobjs=None):
         """
         Write a summary of items to an ASCII file
 
         Args:
             outfile (:obj:`str`):  Output filename
             pypeline (:obj:`str`): PypeIt pipeline mode
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): SpecObjs with all the 1d spectra that need to be
+                                          written in the file.
         """
         # TODO -- Deal with update_det
         # Lists for a Table
@@ -648,7 +650,11 @@ class SpecObjs:
             [], [], [], [], [], [], [], [], [], [], []
         wave_rms = []
         # binspectral, binspatial = parse.parse_binning(binning)
-        for specobj in self.specobjs:
+
+        if sobjs is None:
+            sobjs = self.specobjs
+
+        for specobj in sobjs:
             det = specobj.DET
             if specobj is None:
                 continue
