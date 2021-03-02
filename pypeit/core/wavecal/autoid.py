@@ -5,7 +5,7 @@ from scipy.spatial import cKDTree
 import itertools
 import scipy
 from linetools import utils as ltu
-from astropy import table
+from astropy import table, stats
 import copy
 import numba as nb
 import numpy as np
@@ -937,7 +937,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         npad = ncomb - nspec
         pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, fwhm=par['fwhm'], percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -961,6 +961,31 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         else: # Don't pad
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
+
+        if par['fwhm_fromlines'] is False:
+            fwhm = par['fwhm']
+        else:
+            # Determine the lines FWHM, i.e, approximate spectral resolution
+            _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
+            # 1sigma Gaussian widths of the line detections
+            wdth = wdth[best]
+            # significance of each line detected
+            nsig = nsig[best]
+            # Nsigma (significance) threshold. We use only lines that have the highest significance
+            # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
+            nsig_thrshd = 500.
+            while nsig_thrshd > 10.:
+                if wdth[nsig > nsig_thrshd].size > 6:
+                    # compute average `wdth`
+                    mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+                    # FWHM in pixels
+                    fwhm = np.ceil(med * 2.35482) / binspectral
+                    msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+                    break
+                nsig_thrshd -= 5
+            else:
+                fwhm = par['fwhm']
+                msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
 
         # Loop on snippets
         nsub = ispec.size // nsnippet
@@ -988,7 +1013,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              cc_thresh=0.1, fwhm=par['fwhm'])
+                                                              cc_thresh=0.1, fwhm=fwhm)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
