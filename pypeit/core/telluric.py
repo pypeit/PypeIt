@@ -355,6 +355,12 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     else:
         ind_upper_final = ind_upper - ind_upper_pad
     tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
+
+    embed()
+    exit()
+
+
+
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
     if ntheta == 7:
@@ -1992,7 +1998,7 @@ class Telluric:
             self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),
             (self.wave_in_arr > 1.0).astype(float))
         # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
-        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, self.sn_clip, mask=self.mask_arr)
+        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, self.sn_clip, gpm=self.mask_arr)
 
         # 5) Loop over orders to initialize object models, and determine index range of fits
         # sort the orders by the strength of their telluric absorption

@@ -637,45 +637,50 @@ def cross_correlate(x, y, maxlag):
     return lags, T.dot(px)
 
 
-
-def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
+def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
     """
+    Add an error floor the the inverse variance array.
 
-    This adds an error floor to the ivar, preventing too much rejection
-    at high-S/N (i.e. standard stars, bright objects)
+    This is primarily to prevent too much rejection at high-S/N (i.e.
+    standard stars, bright objects).
 
     Args:
-        flux (ndarray):
-            flux array
-        ivar (ndarray):
-            ivar array
-        sn_clip (float):
-            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
-            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
-            level greater than the formal S/N due to systematics.
-
-        mask (ndarray, bool): mask array, True=good
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        sn_clip (:obj:`float`):
+            This sets the small erorr that is added to the input ``ivar``
+            such that the output inverse variance will never give S/N greater
+            than ``sn_clip``. This prevents overly aggressive rejection in
+            high S/N spectra, which nevertheless differ at a level greater
+            than the formal S/N due to systematics. If None, the input
+            inverse variance array is simply returned.
+        gpm (`numpy.ndarray`_, optional):
+            Good-pixel mask for the input fluxes.
+        verbose (:obj:`bool`, optional):
+            Write status messages to the terminal.
 
     Returns:
-         ndarray: new ivar array
+         `numpy.ndarray`_: The new inverse variance matrix that yields a S/N
+         upper limit.
     """
     if sn_clip is None:
         return ivar
-    else:
-        if mask is None:
-            mask = (ivar > 0.0)
-        adderr = 1.0/sn_clip
-        gmask = (ivar > 0) & mask
-        ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
-        ivar_out = np.minimum(ivar, ivar_cap)
-        if verbose:
-            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
-        return ivar_out
+
+    if verbose:
+        msgs.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+
+    _gpm = ivar > 0.
+    if gpm is not None:
+        _gpm &= gpm
+    adderr = 1.0/sn_clip
+    ivar_cap = _gpm/(1.0/(ivar + np.logical_not(_gpm)) + adderr**2*(np.abs(flux))**2)
+    return np.minimum(ivar, ivar_cap)
 
 
 def inverse(array):
     """
-
     Calculate and return the inverse of the input array, enforcing
     positivity and setting values <= 0 to zero.  The input array should
     be a quantity expected to always be positive, like a variance or an
@@ -686,11 +691,11 @@ def inverse(array):
     is returned.
 
     Args:
-        a (np.ndarray):
+        array (`numpy.ndarray`_):
+            Array to invert
 
     Returns:
-        np.ndarray:
-
+        `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0)/(np.abs(array) + (array == 0.0))
 

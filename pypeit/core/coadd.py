@@ -1872,7 +1872,7 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
         ivar_tot = utils.inverse(var_tot)
 
         # Impose the S/N clipping threshold before computing chi and renormalizing the errors
-        ivar_clip = mask_tot*utils.clip_ivar(thisflux_stack, ivar_tot, sn_clip, mask=mask_tot)
+        ivar_clip = mask_tot*utils.clip_ivar(thisflux_stack, ivar_tot, sn_clip, gpm=mask_tot)
         # TODO Do we need the offset code to re-center the chi? If so add it right here into the chi
         chi = np.sqrt(ivar_clip)*(thisflux - thisflux_stack)
         # Adjust errors to reflect the statistics of the distribution of errors. This fixes cases where the
