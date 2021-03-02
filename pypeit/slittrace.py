@@ -167,7 +167,7 @@ class SlitTraceSet(datamodel.DataContainer):
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
-                 maskdef_posx_pa=None,
+                 maskdef_posx_pa=None, mask_median_off=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
@@ -909,7 +909,8 @@ class SlitTraceSet(datamodel.DataContainer):
                 expected_offset = obj_topdist[oidx] - \
                                   ((maskdef_censpat[oidx] - self.maskdef_designtab['SLITLOPT'].data[oidx])*plate_scale)
                 # Measured offset (arcsec)
-                dpix = sobj.SPAT_PIXPOS - new_censpat[self.maskdef_designtab['SPAT_ID'].data == sobj.SLITID][0]
+                dpix = sobj.SPAT_PIXPOS - new_censpat[self.maskdef_designtab['SPAT_ID'].data 
+                                                      == sobj.SLITID][0]
                 darcsec = dpix * plate_scale
                 # Finish
                 measured.append(darcsec)
@@ -924,7 +925,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 sigma=2.)
         else:
             median_off = 0.
-        # Save
+        # Save (in arcsec)
         self.mask_median_off = median_off
 
         # Assign
