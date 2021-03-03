@@ -41,8 +41,6 @@ Submodules
    pypeit.core.skysub
    pypeit.core.slitdesign_matching
    pypeit.core.telluric
-   pypeit.core.telluric
-   pypeit.core.telluric_new
    pypeit.core.trace
    pypeit.core.tracewave
    pypeit.core.wave
