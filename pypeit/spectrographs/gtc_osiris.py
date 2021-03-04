@@ -28,7 +28,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
     supported = False
-#    comment = 'Grisms R2500V, R2500R'
 
     def get_detector_par(self, hdu, det):
         """
@@ -141,18 +140,17 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_overscan'] = False
 
        # Extraction
-        # par['reduce']['skysub']['bspline_spacing'] = 0.8
         # par['reduce']['skysub']['no_poly'] = True
         # par['reduce']['skysub']['bspline_spacing'] = 0.6
         # par['reduce']['skysub']['joint_fit'] = True
-        # par['reduce']['skysub']['global_sky_std']  = False
         #
         # par['reduce']['extraction']['sn_gauss'] = 4.0
-        # par['reduce']['findobj']['sig_thresh'] = 3.0
+        # par['reduce']['findobj']['sig_thresh'] = 15.0
         # par['reduce']['skysub']['sky_sigrej'] = 5.0
-        # par['reduce']['findobj']['find_trim_edge'] = [5,5]
-
-        # cosmic ray rejection parameters for science frames
+        par['reduce']['findobj']['find_trim_edge'] = [20,95]
+        # par['reduce']['findobj']['find_npoly_cont'] = 3
+        #
+# cosmic ray rejection parameters for science frames
         # par['scienceframe']['process']['sigclip'] = 3.0
         # par['scienceframe']['process']['objlim'] = 2.0
 
