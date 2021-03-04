@@ -147,7 +147,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # par['reduce']['extraction']['sn_gauss'] = 4.0
         # par['reduce']['findobj']['sig_thresh'] = 15.0
         # par['reduce']['skysub']['sky_sigrej'] = 5.0
-        par['reduce']['findobj']['find_trim_edge'] = [20,95]
+        par['reduce']['findobj']['find_trim_edge'] = [20,20]
         # par['reduce']['findobj']['find_npoly_cont'] = 3
         #
 # cosmic ray rejection parameters for science frames
