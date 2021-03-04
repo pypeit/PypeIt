@@ -3,6 +3,7 @@ from pypeit.spectrographs import spectrograph
 
 # The import of all the spectrograph modules here is what enables the dynamic
 # compiling of all the available spectrographs below
+from pypeit.spectrographs import gtc_osiris
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs
@@ -52,4 +53,3 @@ def spectrograph_classes():
     return dict([ (c.name,c) for c in spec_c[srt]])
 
 available_spectrographs = list(spectrograph_classes().keys())
-
