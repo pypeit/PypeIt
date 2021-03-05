@@ -183,7 +183,7 @@ def parse_args(options=None, return_parser=False):
                              "\n")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
-    parser.add_argument("--par_outfile", default='coadd1d.par', action="store_true", help="Output to save the parameters")
+    parser.add_argument("--par_outfile", default='coadd1d.par', help="Output to save the parameters")
     parser.add_argument("--test_spec_path", type=str, help="Path for testing")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
