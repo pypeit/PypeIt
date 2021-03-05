@@ -77,22 +77,26 @@ slit edges, there are two ways it can proceed:
         [rdx]
             detnum = 2,3,4
 
- 2. Particularly in the case where the edges fall off the detector, you can
-    force ``PypeIt`` to add left and right edges that bound the spatial
-    extent of the detector; see the ``bound_detector`` parameter in
-    :ref:`pypeit_par:EdgeTracePar Keywords`. This enables the code to
-    continue to the subsequent analysis steps; however, this comes with a
-    significant warning:
+ 2. You can force ``PypeIt`` to add left and right edges that bound the
+    spatial extent of the detector using the ``bound_detector`` parameter in
+    :ref:`pypeit_par:EdgeTracePar Keywords`. This is required for instruments
+    where the entire detector is illuminated so that the slit edges are
+    projected off the detector, or for situations where the detector is
+    windowed (Shane Kast) in such a way that the slit edges are not covered
+    by the windowed detector. Although bounding the detector in this way
+    allows the code to continue to subsequent analysis steps, using this
+    approach comes with a significant warning:
 
     .. warning::
 
         When bounding the spatial extent of the detector by straight slit
         edges, the spectral curvature is not properly traced. This can lead
         to errors in the subsequent processing steps and/or highly
-        sub-optimal extraction of any object spectra. The data reduction is
-        improved if a standard star or bright object has been observed that
-        can be used to define the spatial trace for all objects.
-
+        sub-optimal extraction of any object spectra. If available, users
+        should be sure to add a standard-star observation to the ``PypeIt``
+        file (ensuring that is classified as a ``standard`` frame), so that
+        ``PypeIt`` will use the standard star trace as a crutch for object
+        tracing in the ``science`` frames.
 
 Slit PCA fails
 --------------
