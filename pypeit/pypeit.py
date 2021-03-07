@@ -475,6 +475,11 @@ class PypeIt(object):
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            if not self.caliBrate.success:
+                msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                          f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                          f'skipping this detector.')
+                continue
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -651,13 +656,12 @@ class PypeIt(object):
             ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # TODO -- Save the slits yet again?
-
-
         # TODO -- Do this upstream
-        # Tack on detector
+        # Tack on detector and wavelength RMS
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
+            iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+            sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
         # Construct table of spectral flexure
         spec_flex_table = Table()

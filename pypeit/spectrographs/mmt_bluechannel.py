@@ -194,6 +194,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Need to specify this for long-slit data
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
