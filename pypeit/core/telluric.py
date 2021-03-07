@@ -141,7 +141,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac = 0.10):
            Minimum wavelength at which the grid is desired
         wave_max (float):
            Maximum wavelength at which the grid is desired.
-        pad_frac
+        pad_frac (float):
            Percentage padding to be added to the grid boundaries if wave_min or wave_max are input,
            i.e. the resulting grid wil extend from (1.0 - pad_frac)*wave_min to (1.0 + pad_frac)*wave_max
 
