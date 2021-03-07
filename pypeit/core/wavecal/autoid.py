@@ -2689,7 +2689,7 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
     wvcent = np.zeros(ncols, dtype=float)
     dind = np.zeros((ncols, nindx), dtype=np.uint64)
     lind = np.zeros((ncols, nindx), dtype=np.uint64)
-    Xmat = np.ones((nindx, ordfit+1), dtype=float) 
+    Xmat = np.ones((nindx, ordfit+1), dtype=float)
     for x in range(ncols):
         for ii in range(ordfit, -1, -1):
             Xmat[:, ii] = np.power(use_tcent[dindex[residx[x], :]], ordfit-ii)
