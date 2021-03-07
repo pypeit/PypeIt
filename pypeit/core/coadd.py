@@ -34,23 +34,6 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from pypeit.core import flux_calib
 
-# TODO: These shouldn't be here. They should be changed on a
-# plot-by-plot basis, and each plot should end with a recall of
-# rcdefaults.
-
-## Plotting parameters
-#plt.rcdefaults()
-#plt.rcParams['font.family'] = 'times new roman'
-#plt.rcParams["xtick.top"] = True
-#plt.rcParams["ytick.right"] = True
-#plt.rcParams["xtick.minor.visible"] = True
-#plt.rcParams["ytick.minor.visible"] = True
-#plt.rcParams["ytick.direction"] = 'in'
-#plt.rcParams["xtick.direction"] = 'in'
-#plt.rcParams["xtick.labelsize"] = 15
-#plt.rcParams["ytick.labelsize"] = 15
-#plt.rcParams["axes.labelsize"] = 17
-
 # TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
                   dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0):
@@ -328,7 +311,6 @@ def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
 
     Args:
         theta (ndarray): parameter vector for the polymomial fit
-        flux_ref (ndarray): reference flux that data will be rescaled to match
         thismask (ndarray, bool): mask for the current iteration of the optimization, True=good
         arg_dict (dict): dictionary containing arguments
 
