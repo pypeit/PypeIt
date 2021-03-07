@@ -39,6 +39,12 @@ SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
 def zp_unit_const():
+    """
+    This constant defines the units for the spectroscopic zeropoint. See the doc/dev/fluxing.rst doc for more information.
+    Returns
+    -------
+
+    """
     return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
