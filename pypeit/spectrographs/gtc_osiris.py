@@ -124,13 +124,13 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures on this telescope
-        par['calibrations']['arcframe']['process']['sigclip']=2.
-        par['calibrations']['arcframe']['process']['objlim']=2.
-        par['calibrations']['arcframe']['process']['cr_sigrej']=10.
-        par['calibrations']['arcframe']['process']['replace']='mean'
+        par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
+        # par['calibrations']['arcframe']['process']['sigclip']=2.
+        # par['calibrations']['arcframe']['process']['objlim']=2.
+        # par['calibrations']['arcframe']['process']['cr_sigrej']=10.
+        # par['calibrations']['arcframe']['process']['replace']='mean'
         par['calibrations']['arcframe']['process']['clip']=False
-        par['calibrations']['arcframe']['process']['combine']='weightmean'
+        par['calibrations']['arcframe']['process']['combine']='weightmean' #Multiple arcs with different lamps, so can't median combine
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
@@ -139,20 +139,9 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par.reset_all_processimages_par(**turn_off)
         par['scienceframe']['process']['use_overscan'] = False
 
-       # Extraction
-        # par['reduce']['skysub']['no_poly'] = True
-        # par['reduce']['skysub']['bspline_spacing'] = 0.6
-        # par['reduce']['skysub']['joint_fit'] = True
-        #
-        # par['reduce']['extraction']['sn_gauss'] = 4.0
-        # par['reduce']['findobj']['sig_thresh'] = 15.0
-        # par['reduce']['skysub']['sky_sigrej'] = 5.0
-        par['reduce']['findobj']['find_trim_edge'] = [20,20]
-        # par['reduce']['findobj']['find_npoly_cont'] = 3
-        #
-# cosmic ray rejection parameters for science frames
-        # par['scienceframe']['process']['sigclip'] = 3.0
-        # par['scienceframe']['process']['objlim'] = 2.0
+        par['reduce']['findobj']['find_trim_edge'] = [20,100]
+        par['reduce']['trim_edge'] = [20,100]
+
 
 
 
