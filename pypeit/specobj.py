@@ -423,10 +423,13 @@ class SpecObj(datamodel.DataContainer):
             zeropoint (float array):
                 zeropoint array
             exptime (float):
+                Exposure time
             tellmodel:
                 Telluric correction
             extinct_correct:
+                If True, extinction correct
             airmass (float, optional):
+                Airmass
             longitude (float, optional):
                 longitude in degree for observatory
             latitude:

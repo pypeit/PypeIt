@@ -421,9 +421,11 @@ class PypeIt(object):
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
         # Is this an IR reduction?
         # TODO: Why specific to IR?
+        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.ir_redux. Perhaps
+        # we should rename this to bg_redux or something like that, since it need not be IR.
         if has_bg:
             self.ir_redux = True
-            # The default is to find_negative objects if the bg_frames are classified as "science", and do not find_negative
+            # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
             # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
             # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
             self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \

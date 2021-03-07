@@ -1698,12 +1698,12 @@ class TelluricPar(ParSet):
         tuple_force(pars,'delta_coeff_bounds')
         defaults['delta_coeff_bounds'] = (-20.0, 20.0)
         dtypes['delta_coeff_bounds'] = tuple
-        descr['delta_coeff_bounds'] = 'Paramters setting the polynomial coefficient bounds for sensfunc optimization.'
+        descr['delta_coeff_bounds'] = 'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
 
         tuple_force(pars,'minmax_coeff_bounds')
         defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
         dtypes['minmax_coeff_bounds'] = tuple
-        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for sensfunc optimization." \
+        descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization." \
                                        "Bounds are currently determined as follows. We compute an initial fit to the " \
                                        "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
                                        "a set of coefficients. The bounds are then determined according to: " \
