@@ -1436,6 +1436,13 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     bounds_norm : tuple
 
+    maxiter (int, optional): default = 3
+        Maximum number of iterations for the telluric + object model fitting. The code performs multiple
+        iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
+        For this reason if you run with the disp=True option, you will see that the f(x) loss function gets
+        progressively better during the iterations.
+
+
     tell_norm_thresh :float
 
     sn_clip : float, optional, default=30.0,
@@ -2266,10 +2273,14 @@ class Telluric(object):
     def read_telluric_grid(self, wave_min=None, wave_max=None, pad_frac=0.10):
         """
         Wrapper for utility function read_telluric_grid
+
         Args:
-            wave_min:
-            wave_max:
-            pad:
+            wave_min (float):
+               Minimum wavelength
+            wave_max (float):
+               Maximum wavelength
+            pad_frac (float):
+               Padding fraction, optional, default = 0.10
 
         Returns:
 
