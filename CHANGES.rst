@@ -1,13 +1,28 @@
 
 1.3.4dev
 --------
+
+- Include a fix for when no edges are detected in `EdgeTraceSet` by
+  adding the `bound_detector` parameter.  Most instruments have a
+  default of `bound_detector = False` meaning that the code will skip
+  processing any detector where no slit edges are found.  Some
+  instuments set the default to be `bound_detector = True` because the
+  slit edges always or often fall off the edge of the detector (i.e.,
+  the detector is fully illuminated).  These instruments are currently
+  `mmt_mmirs`, `mmt_bluechannel`, `not_alfosc`, and `shane_kast`; note
+  that some `gemini_gmos` data in the DevSuite require
+  `bound_detector=True`, as well.
 - Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
 - Added new ArI, KrI, NeI, XeI arc lines.
-- PypeIt can now compute arc line FWHM from the lines themselves. This is
-  controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
+- PypeIt can now compute arc line FWHM from the lines themselves. This
+  is controlled by a new parset, ``fwhm_fromlines``, which is set to
+  False by default, except for DEIMOS.
 - Added a development document about the DEIMOS wavelength calibration.
-- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
-- Add wavelength RMS to SpecObj.  This is an update of the datamodel to 1.3.3
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used
+  (other detectors are empty)
+- Add wavelength RMS to SpecObj.  This is an update of the datamodel to
+  1.3.3
+
 
 1.3.3 (24 Feb 2021)
 -------------------

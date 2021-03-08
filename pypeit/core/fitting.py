@@ -537,6 +537,9 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     qdone = False
     thismask = np.copy(inmask)
 
+    # If init_from_last is not None, the fitfunc will initialize from the previous iteration's fit, which
+    # results in signficant speedup for e.g. differential_evolution optimization. Thus
+    # init_from_last is None on the first iteration and then is updated in the iteration loop.
     init_from_last = None
     while (not qdone) and (iter < maxiter):
         ret_tuple = fitfunc(ydata, thismask, arg_dict, init_from_last=init_from_last, **kwargs_optimizer)

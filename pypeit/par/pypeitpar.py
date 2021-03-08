@@ -1708,12 +1708,12 @@ class TelluricPar(ParSet):
         tuple_force(pars,'delta_coeff_bounds')
         defaults['delta_coeff_bounds'] = (-20.0, 20.0)
         dtypes['delta_coeff_bounds'] = tuple
-        descr['delta_coeff_bounds'] = 'Paramters setting the polynomial coefficient bounds for sensfunc optimization.'
+        descr['delta_coeff_bounds'] = 'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
 
         tuple_force(pars,'minmax_coeff_bounds')
         defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
         dtypes['minmax_coeff_bounds'] = tuple
-        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for sensfunc optimization." \
+        descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization." \
                                        "Bounds are currently determined as follows. We compute an initial fit to the " \
                                        "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
                                        "a set of coefficients. The bounds are then determined according to: " \
@@ -2514,10 +2514,11 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
-                 minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
-                 use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
-                 maskdesign_sigrej=None, pad=None, add_slits=None, rm_slits=None):
+                 bound_detector=None, minimum_slit_length=None, minimum_slit_length_sci=None,
+                 length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
+                 order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
+                 rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2767,6 +2768,19 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
+        defaults['bound_detector'] = False
+        dtypes['bound_detector'] = bool
+        descr['bound_detector'] = 'When the code is ready to synchronize the left/right trace ' \
+                                  'edges, the traces should have been constructed, vetted, and ' \
+                                  'cleaned. This can sometimes lead to *no* valid traces. This ' \
+                                  'parameter dictates what to do next. If ``bound_detector`` is ' \
+                                  'True, the code will artificially add left and right edges ' \
+                                  'that bound the detector; if False, the code identifies the ' \
+                                  'slit-edge tracing as being unsuccessful, warns the user, and ' \
+                                  'ends gracefully. Note that setting ``bound_detector`` to ' \
+                                  'True is needed for some long-slit data where the slit ' \
+                                  'edges are, in fact, beyond the edges of the detector.'
+        
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
         descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Slit lengths are ' \
@@ -2917,10 +2931,10 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
-                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'pad', 'add_slits', 'rm_slits']
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_length',
+                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
+                   'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

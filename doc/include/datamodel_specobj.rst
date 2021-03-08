@@ -1,6 +1,6 @@
 
 
-Version: 1.1.2
+Version: 1.1.3
 
 =====================  =================  ==========  ====================================================================================================================================================================================
 Obj Key                Obj Type           Array Type  Description                                                                                                                                                                         
@@ -53,10 +53,11 @@ Obj Key                Obj Type           Array Type  Description
 ``OPT_WAVE``           ndarray            float       Optimal Wavelengths in vacuum (Angstroms)                                                                                                                                           
 ``PYPELINE``           str                            Name of the PypeIt pipeline mode                                                                                                                                                    
 ``RA``                 float                          Right Ascension (J2000) decimal degree                                                                                                                                              
-``SLITID``             int, integer                   PypeIt slit ID. Increasing from left to right on detector. Zero based.                                                                                                              
+``SLITID``             int, integer                   PypeIt slit ID (aka SPAT_ID).                                                                                                                                                       
 ``SPAT_FRACPOS``       float, floating                Fractional location of the object on the slit                                                                                                                                       
 ``SPAT_PIXPOS``        float, floating                Spatial location of the trace on detector (pixel)                                                                                                                                   
 ``TRACE_SPAT``         ndarray            float       Object trace along the spec (spatial pixel)                                                                                                                                         
 ``VEL_CORR``           float                          Relativistic velocity correction for wavelengths                                                                                                                                    
 ``VEL_TYPE``           str                            Type of heliocentric correction (if any)                                                                                                                                            
+``WAVE_RMS``           float, floating                RMS (pix) for the wavelength solution for this slit.                                                                                                                                
 =====================  =================  ==========  ====================================================================================================================================================================================
