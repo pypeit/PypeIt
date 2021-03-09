@@ -41,6 +41,8 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        # Bound the detector with slit edges if no edges are found
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Always correct for flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'

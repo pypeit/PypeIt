@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_coadd_1dspec -h
-    usage: pypeit_coadd_1dspec [-h] [--debug] [--show] [--par_outfile]
+    usage: pypeit_coadd_1dspec [-h] [--debug] [--show] [--par_outfile PAR_OUTFILE]
                                [--test_spec_path TEST_SPEC_PATH]
                                coadd1d_file
     
@@ -44,7 +44,8 @@
       -h, --help            show this help message and exit
       --debug               show debug plots?
       --show                show QA during coadding process
-      --par_outfile         Output to save the parameters
+      --par_outfile PAR_OUTFILE
+                            Output to save the parameters
       --test_spec_path TEST_SPEC_PATH
                             Path for testing
     
