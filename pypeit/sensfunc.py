@@ -302,6 +302,8 @@ class SensFunc(object):
 
         Returns
         -------
+        throughput (`np.ndarray`):
+           Througphput, float shape (nspec, norders)
 
         """
 
@@ -314,11 +316,6 @@ class SensFunc(object):
                 self.wave_zp[:,idet][wave_gpm], self.zeropoint[:,idet][wave_gpm], self.spectrograph.telescope.eff_aperture())
 
         return throughput
-
-#    def show(self):
-#        plt.plot(self.wave_zp, self.zeropoint)
-#        plt.show()
-#        plt.close()
 
 
     def write_QA(self):

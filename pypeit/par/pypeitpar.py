@@ -1698,12 +1698,12 @@ class TelluricPar(ParSet):
         tuple_force(pars,'delta_coeff_bounds')
         defaults['delta_coeff_bounds'] = (-20.0, 20.0)
         dtypes['delta_coeff_bounds'] = tuple
-        descr['delta_coeff_bounds'] = 'Paramters setting the polynomial coefficient bounds for sensfunc optimization.'
+        descr['delta_coeff_bounds'] = 'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
 
         tuple_force(pars,'minmax_coeff_bounds')
         defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
         dtypes['minmax_coeff_bounds'] = tuple
-        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for sensfunc optimization." \
+        descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization." \
                                        "Bounds are currently determined as follows. We compute an initial fit to the " \
                                        "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
                                        "a set of coefficients. The bounds are then determined according to: " \
@@ -2165,7 +2165,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 sigdetect=None, fwhm=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
@@ -2273,6 +2273,13 @@ class WavelengthSolutionPar(ParSet):
         dtypes['fwhm'] = [int, float]
         descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
                         '*unbinned* pixels.'
+
+        defaults['fwhm_fromlines'] = False
+        dtypes['fwhm_fromlines'] = bool
+        descr['fwhm_fromlines'] = 'Estimate spectral resolution in each slit using the arc lines. '\
+                                  'If True, the estimated FWHM will override ``fwhm`` only in '\
+                                  'the determination of the wavelength solution (i.e. not in '\
+                                  'WaveTilts).'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv']=None
@@ -2423,7 +2430,7 @@ class WavelengthSolutionPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
-                   'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
+                   'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet']
@@ -2497,10 +2504,11 @@ class EdgeTracePar(ParSet):
                  trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
                  fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
                  sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
-                 minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
-                 minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
-                 use_maskdesign=None, maskdesign_maxsep=None, maskdesign_step=None,
-                 maskdesign_sigrej=None, pad=None, add_slits=None, rm_slits=None):
+                 bound_detector=None, minimum_slit_length=None, minimum_slit_length_sci=None,
+                 length_range=None, minimum_slit_gap=None, clip=None, order_match=None,
+                 order_offset=None, use_maskdesign=None, maskdesign_maxsep=None,
+                 maskdesign_step=None, maskdesign_sigrej=None, pad=None, add_slits=None,
+                 rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2750,6 +2758,19 @@ class EdgeTracePar(ParSet):
                                 '`center_mode` for these edges and place them at the edge of ' \
                                 'the detector (with the relevant shape).'
 
+        defaults['bound_detector'] = False
+        dtypes['bound_detector'] = bool
+        descr['bound_detector'] = 'When the code is ready to synchronize the left/right trace ' \
+                                  'edges, the traces should have been constructed, vetted, and ' \
+                                  'cleaned. This can sometimes lead to *no* valid traces. This ' \
+                                  'parameter dictates what to do next. If ``bound_detector`` is ' \
+                                  'True, the code will artificially add left and right edges ' \
+                                  'that bound the detector; if False, the code identifies the ' \
+                                  'slit-edge tracing as being unsuccessful, warns the user, and ' \
+                                  'ends gracefully. Note that setting ``bound_detector`` to ' \
+                                  'True is needed for some long-slit data where the slit ' \
+                                  'edges are, in fact, beyond the edges of the detector.'
+        
 #        defaults['minimum_slit_length'] = 6.
         dtypes['minimum_slit_length'] = [int, float]
         descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Slit lengths are ' \
@@ -2900,10 +2921,10 @@ class EdgeTracePar(ParSet):
                    'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
                    'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
                    'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
-                   'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
-                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
-                   'use_maskdesign', 'maskdesign_maxsep', 'maskdesign_step', 'maskdesign_sigrej',
-                   'pad', 'add_slits', 'rm_slits']
+                   'sync_to_edge', 'bound_detector', 'minimum_slit_length',
+                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
+                   'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
+                   'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

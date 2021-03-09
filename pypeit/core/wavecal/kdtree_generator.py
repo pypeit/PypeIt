@@ -22,7 +22,6 @@ import numpy as np
 import pickle
 
 
-#@nb.jit(nopython=True, cache=True)
 def trigon(linelist, numsrch, maxlin):
     """ Generate a series of trigon patterns, given an input list of detections or lines from a linelist
 
@@ -54,8 +53,8 @@ def trigon(linelist, numsrch, maxlin):
             for x in range(l + 1, ll):
                 cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=np.uint64)#, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2),dtype=float)#, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -74,7 +73,7 @@ def trigon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-#@nb.jit(nopython=True, cache=True)
+
 def tetragon(linelist, numsrch, maxlin):
     """ Generate a series of tetragon patterns, given an input list of detections or lines from a linelist
 
@@ -108,8 +107,8 @@ def tetragon(linelist, numsrch, maxlin):
                 for xx in range(x + 1, ll):
                     cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=np.uint64) #, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2),dtype=float) #, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -131,7 +130,6 @@ def tetragon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-#@nb.jit(nopython=True, cache=True)
 def pentagon(linelist, numsrch, maxlin):
     """
     see trigon and tetragon for an example docstring
@@ -152,8 +150,8 @@ def pentagon(linelist, numsrch, maxlin):
                     for xxx in range(xx + 1, ll - 1):
                         cnt += 1
 
-    index = np.zeros((cnt, nptn), dtype=np.uint64)#, dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2),dtype=float) # , dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn), dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0
@@ -178,7 +176,6 @@ def pentagon(linelist, numsrch, maxlin):
     return pattern, index
 
 
-#@nb.jit(nopython=True, cache=True)
 def hexagon(linelist, numsrch, maxlin):
     """
     see trigon and tetragon for an example docstring
@@ -201,8 +198,8 @@ def hexagon(linelist, numsrch, maxlin):
                         for xxxx in range(xxx + 1, ll - 1):
                             cnt += 1
 
-    index = np.zeros((cnt, nptn),dtype=np.uint64) # , dtype=nb.types.uint64)
-    pattern = np.zeros((cnt, nptn - 2),dtype=float) #, dtype=nb.types.float64)
+    index = np.zeros((cnt, nptn),dtype=np.uint64)
+    pattern = np.zeros((cnt, nptn - 2),dtype=float)
 
     # Generate the patterns
     cnt = 0

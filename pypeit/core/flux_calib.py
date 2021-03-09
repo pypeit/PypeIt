@@ -39,6 +39,12 @@ SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
 def zp_unit_const():
+    """
+    This constant defines the units for the spectroscopic zeropoint. See the doc/dev/fluxing.rst doc for more information.
+    Returns
+    -------
+
+    """
     return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
 # This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
@@ -948,11 +954,15 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
 
     Parameters
     ----------
-    wave
-    zeropoint
+    wave (`numpy.ndarray`_):
+       Wavelength array, float, shape (nspec,)
+    zeropoint (`numpy.ndarray`_):
+       zeropoint array, float, shape (nspec,)
 
     Returns
     -------
+    factor (`numpy.ndarray`_):
+        Factor that when multiplied into F_lam converts to N_lam
 
     """
     gpm = (wave > 1.0) & (zeropoint > zp_min) & (zeropoint < zp_max)
@@ -961,20 +971,44 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     return factor
 
 
-def compute_zeropoint(wave, N_lam, N_lam_mask, flam_std_star, tellmodel=None):
+def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
+    """
+    Routine to compute the zeropoint and zeropoint_gpm from the N_lam (counts/s/A) of a standard star
+
+
+    Parameters
+    ----------
+    wave (`numpy.ndarray`_):
+        Wavelength array, float, shape (nspec,)
+    N_lam (`numpy.ndarray`_):
+        N_lam spectrum of standard star, float, shape (nspec,)
+    N_lam_gpm (`numpy.ndarray`_):
+        N_lam mask, good pixel mask, boolean, shape (nspec,)
+    flam_std_star (`numpy.ndarray`_):
+        True standard star spectrum units set of PYPEIT_FLUX_SCALE erg/s/cm^2/sm/Angstrom
+    tellmodel (`numpy.ndarray`_):
+        Telluric absorption model, optional, shape (nspec,)
+
+    Returns
+    -------
+    zeropoint (`numpy.ndarray`_):
+        Spectroscopic zeropoint, float, shape (nspec,)
+    zeropoint_gpm (`numpy.ndarray`_):
+        Zeropoint good pixel mask, bool, shape  (nspec,)
+    """
 
     tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
     S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)*(N_lam > 0.0)
     zeropoint = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
-    zeropoint_gpm = N_lam_mask & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
+    zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
     return zeropoint, zeropoint_gpm
 
-def throughput_from_sensfile(sensfile):
-
-    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
-    spectrograph = util.load_spectrograph(header_sens['PYP_SPEC'])
-    throughput = zeropoint_to_thru(wave, zeropoint, spectrograph.telescope.eff_aperture())
-    return wave, throughput
+#def throughput_from_sensfile(sensfile):
+#
+#    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+#    spectrograph = util.load_spectrograph(header_sens['PYP_SPEC'])
+#    throughput = zeropoint_to_thru(wave, zeropoint, spectrograph.telescope.eff_aperture())
+#    return wave, throughput
 
 
 def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
@@ -1095,7 +1129,8 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     Returns
     -------
-    zeropoint
+    zeropoint ( `numpy.ndarray`_):
+      Spectroscopic zeropoint.
     """
     if np.any(np.invert(np.isfinite(Nlam_ivar))):
         msgs.warn("NaN are present in the inverse variance")
@@ -1225,25 +1260,6 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_balm=Non
 
     # Calculate zeropoint
     zeropoint_fit = zeropoint_poly if polyfunc else zeropoint_bspl_clean
-
-    #if debug:
-    #    title='Zeropoint QA'
-    #    zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm, title)
-
-    #    plt.figure()
-    #    plt.plot(wave[zeropoint_data_gpm],zeropoint_data[zeropoint_data_gpm] , 'k-',lw=3,label='Raw Zeropoint')
-    #    plt.plot(wave[zeropoint_data_gpm],zeropoint_poly[zeropoint_data_gpm] , 'c-',lw=3,label='Polynomial Fit')
-    #    plt.plot(wave[np.invert(mask_tell)], zeropoint_data[np.invert(mask_tell)], 's',
-    #             color='0.7',label='Telluric Region')
-    #    plt.plot(wave[np.invert(mask_balm)], zeropoint_data[np.invert(mask_balm)], 'r+',label='Balmer Line region')
-    #    plt.plot(wave[zeropoint_data_gpm], zeropoint[zeropoint_data_gpm],'b-',label='Final Zeropoint')
-    #    plt.legend(fancybox=True, shadow=True)
-    #    plt.xlim([0.995*np.min(wave[zeropoint_data_gpm]),1.005*np.max(wave[zeropoint_data_gpm])])
-    #    zp_med_filter = utils.fast_running_median(zeropoint_data[zeropoint_fitmask], 11)
-    #    plt.ylim(0.95 * zp_med_filter.min(), 1.05 * zp_med_filter.max())
-    #    plt.show()
-    #    plt.close()
-
 
 
     # TODO Should we return the bspline fitmask here?

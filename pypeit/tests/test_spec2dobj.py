@@ -119,6 +119,7 @@ def test_all2dobj_hdr(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     allspec2D = spec2dobj.AllSpec2DObj()
     allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['find_negative'] = False
     allspec2D[1] = spec2DObj
     #
     kast_file = data_path('b1.fits.gz')
@@ -135,6 +136,7 @@ def test_all2dobj_write(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     allspec2D = spec2dobj.AllSpec2DObj()
     allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['find_negative'] = False
     allspec2D[1] = spec2DObj
     allspec2D[1].detector = tstutils.get_kastb_detector()
     # Write
@@ -158,6 +160,7 @@ def test_all2dobj_update_image(init_dict):
     #
     allspec2D = spec2dobj.AllSpec2DObj()
     allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['find_negative'] = False
     allspec2D[1] = spec2DObj1
     allspec2D[2] = spec2DObj2
 
@@ -171,6 +174,7 @@ def test_all2dobj_update_image(init_dict):
     _allspec2D = spec2dobj.AllSpec2DObj()
     spec2DObj1.sciimg = spec2DObj1.sciimg.copy()*2.
     _allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['find_negative'] = False
     _allspec2D[1] = spec2DObj1
     _allspec2D.write_to_fits(ofile, update_det=1, overwrite=True)
 

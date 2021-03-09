@@ -141,7 +141,7 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac = 0.10):
            Minimum wavelength at which the grid is desired
         wave_max (float):
            Maximum wavelength at which the grid is desired.
-        pad_frac
+        pad_frac (float):
            Percentage padding to be added to the grid boundaries if wave_min or wave_max are input,
            i.e. the resulting grid wil extend from (1.0 - pad_frac)*wave_min to (1.0 + pad_frac)*wave_max
 
@@ -681,7 +681,36 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellmodel):
+    """
+    Initializes a sensitivity function model fit for joint sensitivity function and telluric fitting
+    by setting up the obj_dict and bounds.
+
+    Parameters
+    ----------
+    obj_params (dict):
+       Dictionary of object parameters
+    iord (int):
+       The slit/order in question
+    wave (`numpy.ndarray`_):
+       Wavelength array for the standard star, float shape (nspec,)
+    counts_per_ang (`numpy.ndarray`_):
+       Counts per Angstrom array for the standard star, float shape (nspec,)
+    ivar (`numpy.ndarray`_):
+       Invese variance of the counts per Angstrom array for the standard star, float shape (nspec,)
+    gpm  (`numpy.ndarray`_):
+       Good pixel mask for the counts per Angstrom array for the standard star, bool shape (nspec,)
+    tellmodel (`numpy.ndarray`_):
+       Telluric absorption model guess, loat shape (nspec,)
+
+    Returns
+    -------
+    obj_dict (dict):
+       Dictionary of object paramaters for joint sensitivity function telluric model fitting
+    bounds_obj (list):
+       List of bounds for each parameter in the joint sensitivity function and telluric model fit.
+
+    """
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
@@ -692,7 +721,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
         msgs.warn('Your data extends beyond the range covered by the standard star spectrum. Proceeding by masking these regions, '
                   'but consider using another standard star')
     N_lam = counts_per_ang/obj_params['exptime']
-    zeropoint_data, zeropoint_data_gpm = flux_calib.compute_zeropoint(wave, N_lam, (mask & flam_true_gpm), flam_true, tellmodel=tellmodel)
+    zeropoint_data, zeropoint_data_gpm = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true, tellmodel=tellmodel)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
     pypeitFit = fitting.robust_fit(wave, zeropoint_data, obj_params['polyorder_vec'][iord], function=obj_params['func'],
                                    minx=wave.min(), maxx=wave.max(), in_gpm=zeropoint_data_gpm,
@@ -1325,51 +1354,6 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
             coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
         out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
-        #flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm,
-        #                             title, order=iord)
-
-    #meta_table, out_table = TelObj.meta_table, TelObj.out_table
-    #out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
-    #out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
-    #
-    #    for iord in range(norders):
-    #    out_table['ZEROPOINT'] = np.zeros_like(TelObj.out_table['WAVE'])
-    #    out_table['ZEROPOINT_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
-    #    for iord in range(norders):
-    #        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
-    #        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
-    #        wave_min = out_table[iord]['WAVE_MIN']
-    #        wave_max = out_table[iord]['WAVE_MAX']
-    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-    #        out_table[iord]['ZEROPOINT'][gdwave] = fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min,
-    #                                                                    maxx=wave_max)
-    #       out_table[iord]['ZEROPOINT_GPM'][gdwave] = True
-
-
-    # TODO, write these out to PNG files in the pypeit QA path.
-    # Plot QA for the zeropoint
-    #if debug:
-    #    for iord in range(norders):
-    #        # Unpack the data we fit from the TelObj object
-    #        ind_lower = TelObj.ind_lower[iord]
-    #        ind_upper = TelObj.ind_upper[iord]
-    #        wave_now = TelObj.wave_grid[ind_lower:ind_upper+1]
-    #        flux_now = TelObj.flux_arr[ind_lower:ind_upper+1, iord]
-    #        sig_now = np.sqrt(utils.inverse(TelObj.ivar_arr[ind_lower:ind_upper+1, iord]))
-    #        zeropoint_data_gpm = TelObj.mask_arr[ind_lower:ind_upper+1, iord]
-    #        # Unpack the model fits from the TelObj object
-    #        tellmodel_now = TelObj.tellmodel_list[iord]
-    #        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-    #        wave_min = out_table[iord]['WAVE_MIN']
-    #        wave_max = out_table[iord]['WAVE_MAX']
-    #        zeropoint_fit_now = fitting.evaluate_fit(coeff, func, wave_now, minx=wave_min, maxx=wave_max)
-    #        zeropoint_fit_gpm = TelObj.outmask_list[iord]
-    #        # Get the standard star spectrum and compute a zeropoint from the data
-    #        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
-    #        N_lam = flux_now/exptime
-    #        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star, tellmodel=tellmodel_now)
-    #        title = 'Zeropoint Fit for '
-    #        flux_calib.zeropoint_qa_plot(wave_now, zeropoint_data, zeropoint_data_gpm, zeropoint_fit_now, zeropoint_fit_gpm, title, order=iord)
 
     return meta_table, out_table
 
@@ -1451,6 +1435,13 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         The QSO redshift can vary within delta_zqso
 
     bounds_norm : tuple
+
+    maxiter (int, optional): default = 3
+        Maximum number of iterations for the telluric + object model fitting. The code performs multiple
+        iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
+        For this reason if you run with the disp=True option, you will see that the f(x) loss function gets
+        progressively better during the iterations.
+
 
     tell_norm_thresh :float
 
@@ -2282,10 +2273,14 @@ class Telluric(object):
     def read_telluric_grid(self, wave_min=None, wave_max=None, pad_frac=0.10):
         """
         Wrapper for utility function read_telluric_grid
+
         Args:
-            wave_min:
-            wave_max:
-            pad:
+            wave_min (float):
+               Minimum wavelength
+            wave_max (float):
+               Maximum wavelength
+            pad_frac (float):
+               Padding fraction, optional, default = 0.10
 
         Returns:
 
