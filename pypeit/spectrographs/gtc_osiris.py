@@ -300,8 +300,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
         elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
             par['calibrations']['wavelengths']['wv_cen'] = 5185.
-            par['calibrations']['wavelengths']['disp'] = 0.8
-            par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
+            par['calibrations']['wavelengths']['disp'] = 0.85
+            par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
         elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
             par['calibrations']['wavelengths']['wv_cen'] = 6560.
             par['calibrations']['wavelengths']['disp'] = 1.04
