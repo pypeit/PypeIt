@@ -424,6 +424,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #    plt.axvline(wave_red, color='red')
             #    plt.legend()
             #    plt.show()
-
-        return wave, counts, counts_ivar, gpm
+            return wave, counts, counts_ivar, gpm
+        else:
+            return wave_in, counts_in, counts_ivar_in, gpm_in
 
