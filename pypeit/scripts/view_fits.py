@@ -40,6 +40,7 @@ def main(args):
     from pypeit.spectrographs import gemini_gmos
     from pypeit.display import display
     from pypeit.spectrographs import magellan_ldss3
+    from pypeit.spectrographs import magellan_imacs
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
     from pypeit.spectrographs import mmt_bluechannel
@@ -94,6 +95,10 @@ def main(args):
     elif args.spectrograph == 'magellan_ldss3':
         #
         gen_ldss3 = magellan_ldss3.MagellanLDSS3Spectrograph()
+        img = gen_ldss3.get_rawimage(args.file, args.det)[1]
+    elif (args.spectrograph == 'magellan_imacsf2'):
+        #
+        gen_ldss3 = magellan_imacs.MagellanIMACSF2Spectrograph()
         img = gen_ldss3.get_rawimage(args.file, args.det)[1]
     else:
         hdu = io.fits_open(args.file)

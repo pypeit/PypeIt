@@ -18,6 +18,7 @@ from pypeit.spectrographs import lbt_mods
 from pypeit.spectrographs import magellan_fire
 from pypeit.spectrographs import magellan_ldss3
 from pypeit.spectrographs import magellan_mage
+from pypeit.spectrographs import magellan_imacs
 from pypeit.spectrographs import mdm_osmos
 from pypeit.spectrographs import mmt_binospec
 from pypeit.spectrographs import mmt_bluechannel
