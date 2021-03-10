@@ -118,7 +118,7 @@ def main(args):
 
         ## tellfit pypeit file
         tellfit_file = '{:}.tell'.format(spectrograph)
-        cfg_lines = ['[tellfit]']
+        cfg_lines = ['[telluric]']
         if args.objmodel == 'qso':
             cfg_lines += ['  objmodel = qso']
             cfg_lines += ['  redshift = 0.0']

@@ -664,8 +664,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 11
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Paranal_VIS_4900_11100_R25000.fits')
         return par
 
     def init_meta(self):

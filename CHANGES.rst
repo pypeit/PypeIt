@@ -22,6 +22,7 @@
   (other detectors are empty)
 - Add wavelength RMS to SpecObj.  This is an update of the datamodel to
   1.3.3
+- Add Bok B&C spectrograph
 
 
 1.3.3 (24 Feb 2021)
@@ -36,7 +37,6 @@
 
 - (Hotfix) Bug in content type of README file that prevented upload to
   PyPI
-
 
 1.3.1 (01 Feb 2021)
 -------------------
