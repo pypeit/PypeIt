@@ -1365,9 +1365,6 @@ class SensFuncPar(ParSet):
         dtypes['samp_fact'] = float
         descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
                              'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
-        defaults['polyorder'] = 5
-        dtypes['polyorder'] = int
-        descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
 
         defaults['multi_spec_det'] = None
         dtypes['multi_spec_det'] = list
@@ -1394,7 +1391,7 @@ class SensFuncPar(ParSet):
 
         # JFH SHould the default by higher like 8?
         defaults['polyorder'] = 5
-        dtypes['polyorder'] = int
+        dtypes['polyorder'] = [int, list]
         descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
 
         defaults['star_type'] = None
