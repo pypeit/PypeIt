@@ -662,7 +662,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 11
+        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] \
                 = os.path.join(par['sensfunc']['IR'].default_root,
                                'TelFit_Paranal_VIS_4900_11100_R25000.fits')
@@ -809,6 +809,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
+            bpm_img[3548//binspectral_bpm:,1249//binspatial_bpm:1252//binspatial_bpm] = 1.
         return bpm_img
 
 
