@@ -2207,7 +2207,7 @@ class Telluric(object):
         self.out_table['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
         self.out_table['TELL_STRETCH'][iord] = self.theta_tell_list[iord][6]
         ntheta_iord = len(self.theta_obj_list[iord])
-        self.out_table['OBJ_THETA'][iord][0:ntheta_iord+1] = self.theta_obj_list[iord]
+        self.out_table['OBJ_THETA'][iord][0:ntheta_iord] = self.theta_obj_list[iord]
         self.out_table['CHI2'][iord] = self.result_list[iord].fun
         self.out_table['SUCCESS'][iord] = self.result_list[iord].success
         self.out_table['NITER'][iord] = self.result_list[iord].nit
