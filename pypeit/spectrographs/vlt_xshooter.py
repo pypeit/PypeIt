@@ -55,8 +55,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Dithering
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
                                    required_ftypes=['science', 'standard'])
-        # Dark-flat identification via exposure number
-        self.meta['lampstat01'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -333,6 +331,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
+    
+        # Dark-flat identification via exposure number
+        self.meta['lampstat01'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
 
     def pypeit_file_keys(self):
         """
