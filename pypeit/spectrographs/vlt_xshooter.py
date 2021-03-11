@@ -55,6 +55,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         # Dithering
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
                                    required_ftypes=['science', 'standard'])
+        # Dark-flat identification via exposure number
+        self.meta['lampstat01'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -141,7 +143,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'DARK')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['illumflat', 'pixelflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
@@ -377,13 +379,24 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             return good_exp & (fitstbl['target'] == 'STD,FLUX')
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'BIAS')
-        if ftype == 'dark':
+        if ftype == 'sky':
             return good_exp & (fitstbl['target'] == 'DARK')
+        
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
+            # Lamp on flats are taken first (odd exposure number)
+            return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
+                               & (fitstbl['lampstat01'].astype(int) % 2 == 1))
+        
+        if ftype in ['dark']:
+            # Lamp off flats are taken second (even exposure number)
+            return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
+                                | (fitstbl['target'] == 'LAMP,QFLAT')
+                                | (fitstbl['target'] == 'LAMP,FLAT'))
+                               & (fitstbl['lampstat01'].astype(int) % 2 == 0))
+        
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
@@ -681,6 +694,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
+    
 
     @property
     def norders(self):
