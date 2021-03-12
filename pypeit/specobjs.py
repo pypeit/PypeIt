@@ -634,7 +634,7 @@ class SpecObjs:
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
-    def write_info(self, outfile, pypeline, sobjs=None):
+    def write_info(self, outfile, pypeline):
         """
         Write a summary of items to an ASCII file
 
@@ -651,10 +651,8 @@ class SpecObjs:
         wave_rms = []
         # binspectral, binspatial = parse.parse_binning(binning)
 
-        if sobjs is None:
-            sobjs = self.specobjs
 
-        for specobj in sobjs:
+        for specobj in self.specobjs:
             det = specobj.DET
             if specobj is None:
                 continue
