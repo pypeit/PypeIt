@@ -240,7 +240,7 @@ def main(args):
     tilts_masterframe_name = os.path.join(args.master_dir, filter, 'MasterTilts_A_16_01.fits')
     wvcalib_masterframe_name = os.path.join(args.master_dir, filter, 'MasterWaveCalib_A_16_01.fits')
     std_spec1d_file = os.path.join(args.master_dir, filter, 'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
-    sensfunc_masterframe_name = os.path.join(args.master_dir, filter, 'sens_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')'
+    sensfunc_masterframe_name = os.path.join(args.master_dir, filter, 'sens_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
     if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
         not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
         not os.path.isfile(std_spec1d_file)):
