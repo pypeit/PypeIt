@@ -661,12 +661,7 @@ class SpecObjs:
             if specobj is None:
                 continue
             # Detector items
-            #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
-            try:
-                binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
-            except:
-                embed()
-            #platescale = sci_dict[det]['detector'].platescale
+            binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
             platescale = specobj.DETECTOR.platescale
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
