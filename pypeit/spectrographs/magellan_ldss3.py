@@ -191,6 +191,7 @@ class MagellanLDSS3Spectrograph(spectrograph.Spectrograph):
 
         # Turn PCA off for long slits
         if ('center' in self.get_meta_value(headarr, 'decker')) or \
+                ('red' in self.get_meta_value(headarr, 'decker')) or \
                 ('Red' in self.get_meta_value(headarr, 'decker')) or \
                 ('Blue' in self.get_meta_value(headarr, 'decker')) :
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
