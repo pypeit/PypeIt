@@ -662,7 +662,10 @@ class SpecObjs:
                 continue
             # Detector items
             #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
-            binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
+            try:
+                binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
+            except:
+                embed()
             #platescale = sci_dict[det]['detector'].platescale
             platescale = specobj.DETECTOR.platescale
             # Append
