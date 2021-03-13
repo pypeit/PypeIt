@@ -367,6 +367,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
+
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if 'Y-spectroscopy' in meta_table['DISPNAME']:
             #wave_out = np.copy(wave_in)
