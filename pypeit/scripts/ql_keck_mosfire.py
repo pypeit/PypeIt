@@ -236,11 +236,11 @@ def main(args):
 
     # Define some hard wired master files here to be later parsed out of the directory
     filter = spectrograph.get_meta_value(files[0], 'filter1')
-    slit_masterframe_name = os.path.join(args.master_dir, filter, 'MasterSlits_D_8191_01.fits.gz')
-    tilts_masterframe_name = os.path.join(args.master_dir, filter, 'MasterTilts_D_1_01.fits')
-    wvcalib_masterframe_name = os.path.join(args.master_dir, filter, 'MasterWaveCalib_D_1_01.fits')
-    std_spec1d_file = os.path.join(args.master_dir, filter, 'spec1d_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
-    sensfunc_masterframe_name = os.path.join(args.master_dir, filter, 'sens_m201024_0232-gd71_MOSFIRE_2020Oct24T153823.555.fits')
+    slit_masterframe_name = os.path.join(args.master_dir, filter, 'MasterSlits_A_63_01.fits.gz')
+    tilts_masterframe_name = os.path.join(args.master_dir, filter, 'MasterTilts_A_16_01.fits')
+    wvcalib_masterframe_name = os.path.join(args.master_dir, filter, 'MasterWaveCalib_A_16_01.fits')
+    std_spec1d_file = os.path.join(args.master_dir, filter, 'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
+    sensfunc_masterframe_name = os.path.join(args.master_dir, filter, 'sens_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')'
     if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
         not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
         not os.path.isfile(std_spec1d_file)):
