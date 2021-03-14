@@ -104,3 +104,11 @@ class P200TelescopePar(TelescopePar):
                                                longitude=116.86489,
                                                latitude=33.35631,
                                                elevation=1713.)
+
+class BokTelescopePar(TelescopePar):
+    def __init__(self):
+        super(BokTelescopePar, self).__init__(name='BOK',
+                                              longitude=111.6004,
+                                              latitude=31.9629,
+                                              elevation=2071.1)
+

@@ -75,17 +75,23 @@ class PypeIt(object):
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
+        # Set up logging
+        self.logname = logname
+        self.verbosity = verbosity
+        self.pypeit_file = pypeit_file
+        
+        self.msgs_reset()
+        
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
-        self.pypeit_file = pypeit_file
         self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
         self.spectrograph = load_spectrograph(spectrograph_name)
-        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
+        msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.name))
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
@@ -132,7 +138,6 @@ class PypeIt(object):
         self.fitstbl.write_calib(calib_file)
 
         # Other Internals
-        self.logname = logname
         self.overwrite = overwrite
 
         # Currently the runtime argument determines the behavior for
@@ -158,28 +163,7 @@ class PypeIt(object):
         # directories?
         # An html file wrapping them all too
 
-#        # Instantiate Calibrations class
-#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-#            self.caliBrate \
-#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-#                                                     self.spectrograph, self.calibrations_path,
-#                                                     qadir=self.qa_path,
-#                                                     reuse_masters=self.reuse_masters,
-#                                                     show=self.show,
-#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-#        elif self.spectrograph.pypeline in ['IFU']:
-#            self.caliBrate \
-#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-#                                               self.spectrograph,
-#                                               self.calibrations_path,
-#                                               qadir=self.qa_path,
-#                                               reuse_masters=self.reuse_masters,
-#                                               show=self.show)
-#        else:
-#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
-
         # Init
-        self.verbosity = verbosity
         # TODO: I don't think this ever used
 
         self.det = None
@@ -483,6 +467,11 @@ class PypeIt(object):
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            if not self.caliBrate.success:
+                msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                          f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                          f'skipping this detector.')
+                continue
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -659,13 +648,12 @@ class PypeIt(object):
             ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # TODO -- Save the slits yet again?
-
-
         # TODO -- Do this upstream
-        # Tack on detector
+        # Tack on detector and wavelength RMS
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
+            iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+            sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
         # Construct table of spectral flexure
         spec_flex_table = Table()

@@ -53,13 +53,14 @@ def test_build_fitstbl():
     assert isinstance(fitstbl, Table)
     assert setupc.nfiles == 26
 
-    # I/O
-    setupc.write_metadata(ofile=data_path('fitstbl.fits'))
-    tmp = setupc.load_metadata(data_path('fitstbl.fits'))
-    assert len(tmp) == 26
-
-    # Cleanup
-    os.remove(data_path('fitstbl.fits'))
+#    # NOTE: These write_ and load_ methods have been deprecated
+#    # I/O
+#    setupc.write_metadata(ofile=data_path('fitstbl.fits'))
+#    tmp = setupc.load_metadata(data_path('fitstbl.fits'))
+#    assert len(tmp) == 26
+#
+#    # Cleanup
+#    os.remove(data_path('fitstbl.fits'))
 
 
 @dev_suite_required
@@ -138,6 +139,7 @@ def test_run():
     # Cleanup
     os.remove(data_path('shane_kast_blue.calib'))
 
+# TODO: I'm not sure this test is useful...
 @dev_suite_required
 def test_run_calcheck():
     # Check for files
@@ -164,3 +166,5 @@ def test_run_setup():
 
     # Cleanup
     os.remove(data_path('shane_kast_blue.sorted'))
+
+

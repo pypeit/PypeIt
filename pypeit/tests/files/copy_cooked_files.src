@@ -1,0 +1,7 @@
+# Kast-b
+cp -rp $PYPEIT_DEV/Cooked/Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits spec1d_b27.fits
+cp -rp $PYPEIT_DEV/Cooked/Science/spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits spec1d_b28.fits
+# Kast-r
+cp -rp $PYPEIT_DEV/REDUX_OUT/shane_kast_red/600_7500_d55_ret/Science/spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits .
+# Pisco
+cp -rp $PYPEIT_DEV/REDUX_OUT/gemini_gnirs/32_SB_SXD/Science/spec1d_*-pisco_GNIRS*.fits .

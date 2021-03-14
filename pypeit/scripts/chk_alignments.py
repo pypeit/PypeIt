@@ -30,3 +30,11 @@ def main(pargs):
     # Load
     alignments = alignframe.Alignments.from_file(pargs.master_file)
     alignments.show()
+
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

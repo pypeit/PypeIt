@@ -1,25 +1,27 @@
-""" Implements DEIMOS-specific functions, including reading in slitmask design files.
+"""
+Implements DEIMOS-specific functions, including reading in slitmask design
+files.
+
+.. include:: ../include/links.rst
 """
 
 import glob
 import re
-import os
-import numpy as np
 import warnings
-
 from pkg_resources import resource_filename
+
+from IPython import embed
+
+import numpy as np
 
 from scipy import interpolate
 from astropy.io import fits
-
-from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
-from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -27,22 +29,23 @@ from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
-from IPython import embed
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
     ndet = 8
+    name = 'keck_deimos'
+    telescope = telescopes.KeckTelescopePar()
+    camera = 'DEIMOS'
+    supported = True
+    comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):
-        # Get it started
-        super(KeckDEIMOSSpectrograph, self).__init__()
-        self.spectrograph = 'keck_deimos'
-        self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'DEIMOS'
+        super().__init__()
 
-        # Don't instantiate these until they're needed
+        # These are specific to DEIMOS and are *not* defined by the base class.
+        # Don't instantiate these until they're needed.
         self.grating = None
         self.optical_model = None
         self.detector_map = None
@@ -51,20 +54,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_detector_par(self, hdu, det):
         """
-        Return a DectectorContainer for the current image
+        Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`):
-                HDUList of the image of interest.
-                Ought to be the raw file, or else..
-            det (int):
+            hdu (`astropy.io.fits.HDUList`_):
+                The open fits file with the raw image of interest.
+            det (:obj:`int`):
+                1-indexed detector number.
 
         Returns:
-            :class:`pypeit.images.detector_container.DetectorContainer`:
-
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent?
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -151,13 +155,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-
-    def default_pypeit_par(self):
+    @classmethod
+    def default_pypeit_par(cls):
         """
-        Set default parameters for Keck DEIMOS reductions.
+        Return the default parameters to use for this instrument.
+        
+        Returns:
+            :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
+            all of ``PypeIt`` methods.
         """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_deimos'
+        par = super().default_pypeit_par()
 
         # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
@@ -181,7 +188,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
+        par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
         # Set the default exposure time ranges for the frame typing
 #        par['calibrations']['biasframe']['exprng'] = [None, 2]
@@ -190,39 +197,45 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 #        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
 #        par['calibrations']['traceframe']['exprng'] = [None, 30]
 #        par['scienceframe']['exprng'] = [30, None]
-        
+
+        # Do not sigmaclip the arc frames
+        par['calibrations']['arcframe']['process']['clip'] = False
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] \
+                = resource_filename('pypeit',
+                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
         """
-        Modify the PypeIt parameters to hard-wired values used for
+        Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
 
-        .. todo::
-            Document the changes made!
-        
         Args:
-            scifile (str):
+            scifile (:obj:`str`):
                 File to use when determining the configuration and how
                 to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
+
+        # When using LVM mask reduce only detectors 3,7
+        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
+            par['rdx']['detnum'] = [3,7]
 
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
@@ -233,12 +246,20 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Turn on the use of mask design
         if 'Long' not in self.get_meta_value(headarr, 'decker'):
+            # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
+            # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
+            par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
+            # Sometime the added missing slits at the edge of the detector are to small to be useful.
+            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
+            par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
+            par['reduce']['slitmask']['assign_obj'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -249,18 +270,26 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        elif self.get_meta_value(headarr, 'dispname') == '900ZD':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
+            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Return
         return par
 
     def init_meta(self):
         """
-        Builds :attr:`meta`, providing the connection to DEIMOS
-        header keywords.
+        Define how metadata are derived from the spectrograph files.
+
+        That is, this associates the ``PypeIt``-specific metadata keywords
+        with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
         # Required (core)
@@ -286,17 +315,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['utc'] = dict(ext=0, card='UTC')
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
 
     def compound_meta(self, headarr, meta_key):
         """
+        Methods to generate metadata requiring interpretation of the header
+        data, instead of simply reading the value of a header card.
 
         Args:
-            headarr: list
-            meta_key: str
+            headarr (:obj:`list`):
+                List of `astropy.io.fits.Header`_ objects.
+            meta_key (:obj:`str`):
+                Metadata keyword to construct.
 
         Returns:
-            value
-
+            object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
@@ -314,15 +347,17 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def configuration_keys(self):
         """
-        Return the metadata keys that defines a unique instrument
+        Return the metadata keys that define a unique instrument
         configuration.
 
-        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        This list is used by :class:`~pypeit.metadata.PypeItMetaData` to
         identify the unique configurations among the list of frames read
         for a given reduction.
 
         Returns:
-            list: List of keywords of data pulled from meta
+            :obj:`list`: List of keywords of data pulled from file headers
+            and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
+            object.
         """
         # TODO: Based on a conversation with Carlos, we might want to
         # include dateobs with this. For now, amp is effectively
@@ -332,12 +367,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def valid_configuration_values(self):
         """
-        Restricts the valid DEIMOS configurations for use in
-        ``PypeIt``.
+        Return a fixed set of valid values for any/all of the configuration
+        keys.
 
         Returns:
-            :obj:`dict`: A dictionary with the configuration keys
-            that have a discrete set of valid values.
+            :obj:`dict`: A dictionary with any/all of the configuration keys
+            and their associated discrete set of valid values. If there are
+            no restrictions on configuration values, None is returned.
         """
         return {'amp': ['SINGLE:B'], 'mode':['Spectral']}
 
@@ -346,34 +382,51 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Define frame types that are independent of the fully defined
         instrument configuration.
 
-        Bias and dark frames are considered independent of a
-        configuration, but the DATE-OBS keyword is used to assign
-        each to the most-relevant configuration frame group. See
+        Bias and dark frames are considered independent of a configuration,
+        but the DATE-OBS keyword is used to assign each to the most-relevant
+        configuration frame group. See
         :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
 
         Returns:
-            :obj:`dict`: Dictionary where the keys are the frame
-            types that are configuration independent and the values
-            are the metadata keywords that can be used to assign the
-            frames to a configuration group.
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
         """
         return {'bias': 'dateobs', 'dark': 'dateobs'}
 
     def pypeit_file_keys(self):
         """
-        Define the list of keys to be output into a standard PypeIt file
+        Define the list of keys to be output into a standard ``PypeIt`` file.
 
         Returns:
-            pypeit_keys: list
-
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['dateobs', 'utc']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
+
+        Args:
+            ftype (:obj:`str`):
+                Type of frame to check. Must be a valid frame type; see
+                frame-type :ref:`frame_type_defs`.
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames to check.
+            exprng (:obj:`list`, optional):
+                Range in the allowed exposure time for a frame of type
+                ``ftype``. See
+                :func:`pypeit.core.framematch.check_frame_exptime`.
+
+        Returns:
+            `numpy.ndarray`_: Boolean array with the flags selecting the
+            exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        good_exp = (framematch.check_frame_exptime(fitstbl['exptime'], exprng)) \
+                        & (fitstbl['mode'] == 'Spectral')
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'Object') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'open')
@@ -385,7 +438,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             is_flat = np.any(np.vstack([(fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
                                     for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
                                                    ['closed', 'open', 'open'])]), axis=0)
-            return good_exp & is_flat
+            return good_exp & is_flat & (fitstbl['lampstat01'] != 'Off')
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
@@ -393,25 +446,27 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'Dark') & (fitstbl['lampstat01'] == 'Off') \
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed') \
+                        & (fitstbl['lampstat01'] != 'Off')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    # TODO: We should aim to get rid of this...
+    # TODO: We should aim to get rid of this... I'm not sure it's ever used...
     def idname(self, ftype):
         """
-        Return the `idname` for the selected frame type for this instrument.
+        Return the ``idname`` for the selected frame type for this
+        instrument.
 
         Args:
-            ftype (str):
-                File type, which should be one of the keys in
-                :class:`pypeit.core.framematch.FrameTypeBitMask`.
+            ftype (:obj:`str`):
+                Frame type, which should be one of the keys in
+                :class:`~pypeit.core.framematch.FrameTypeBitMask`.
 
         Returns:
-            str: The value of `idname` that should be available in the
-            `PypeItMetaData` instance that identifies frames of this
-            type.
+            :obj:`str`: The value of ``idname`` that should be available in
+            the :class:`~pypeit.metadata.PypeItMetaData` instance that
+            identifies frames of this type.
         """
         # TODO: Fill in the rest of these.
         name = { 'arc': 'Line',
@@ -427,7 +482,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_rawimage(self, raw_file, det):
         """
-        Read a raw DEIMOS data frame (one or more detectors).
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
 
         Data are unpacked from the multi-extension HDU.  Function is
         based on :func:`pypeit.spectrographs.keck_lris.read_lris`, which
@@ -445,16 +501,29 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         Parameters
         ----------
-        raw_file : str
-            Filename
-        det : int or None
-            if None, return all 8 detectors!
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
 
         Returns
         -------
-        tuple
-            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
         """
         # Check for file; allow for extra .gz, etc. suffix
         # TODO: Why not use os.path.isfile?
@@ -517,104 +586,35 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return self.get_detector_par(hdu, det if det is not None else 1), \
                image, hdu, exptime, rawdatasec_img, oscansec_img
 
-#    def load_raw_frame(self, raw_file, det=None):
-#        """
-#        Wrapper to the raw image reader for DEIMOS
-#
-#        Args:
-#            raw_file:  str, filename
-#            det: int, REQUIRED
-#              Desired detector
-#            **null_kwargs:
-#              Captured and never used
-#
-#        Returns:
-#            raw_img: ndarray
-#              Raw image;  likely unsigned int
-#            head0: Header
-#        """
-#        raw_img, hdu, _ = read_deimos(raw_file, det=det)
-#
-#        return raw_img, hdu
-
-#    def get_image_section(self, inp=None, det=1, section='datasec'):
-#        """
-#        Return a string representation of a slice defining a section of
-#        the detector image.
-#
-#        Overwrites base class function
-#
-#        Args:
-#            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-#                String providing the file name to read, or the relevant
-#                header object.  Default is None, meaning that the
-#                detector attribute must provide the image section
-#                itself, not the header keyword.
-#            det (:obj:`int`, optional):
-#                1-indexed detector number.
-#            section (:obj:`str`, optional):
-#                The section to return.  Should be either 'datasec' or
-#                'oscansec', according to the
-#                :class:`pypeitpar.DetectorPar` keywords.
-#
-#        Returns:
-#            tuple: Returns three objects: (1) A list of string
-#            representations for the image sections, one string per
-#            amplifier.  The sections are *always* returned in PypeIt
-#            order: spectral then spatial.  (2) Boolean indicating if the
-#            slices are one indexed.  (3) Boolean indicating if the
-#            slices should include the last pixel.  The latter two are
-#            always returned as True following the FITS convention.
-#        """
-#        # Read the file
-#        if inp is None:
-#            msgs.error('Must provide Keck DEIMOS file or hdulist to get image section.')
-#        # Read em
-#        shape, datasec, oscansec, _ = deimos_image_sections(inp, det)
-#        if section == 'datasec':
-#            return datasec, False, False
-#        elif section == 'oscansec':
-#            return oscansec, False, False
-#        else:
-#            raise ValueError('Unrecognized keyword: {0}'.format(section))
-#
-#    def get_raw_image_shape(self, hdulist, det=None, **null_kwargs):
-#        """
-#        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
-#
-#        Must always provide a file.
-#        """
-#        # Do it
-#        self._check_detector()
-#        shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
-#        self.naxis = shape
-#        return self.naxis
-
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to DEIMOS.
+        Generate a default bad-pixel mask.
 
-        .. todo::
-            Allow for binning changes.
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
 
-        Parameters
-        ----------
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-            Captured and never used
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
 
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
         """
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
             bpm_img[:,1052:1054] = 1
@@ -661,12 +661,17 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_slitmask(self, filename):
         """
-        Parse the slitmask data from a DEIMOS file into a
-        :class:`pypeit.spectrographs.slitmask.SlitMask` object.
+        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
         Args:
             filename (:obj:`str`):
                 Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
         """
         # Open the file
         hdu = io.fits_open(filename)
@@ -677,17 +682,26 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mapid = hdu['SlitObjMap'].data['ObjectID']
         catid = hdu['ObjectCat'].data['ObjectID']
         indx = index_of_x_eq_y(mapid, catid)
-        #   - Pull out the slit ID, object ID, and object coordinates
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
-                            catid.astype(float),
+        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
+                            catid.astype(int),
                             hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+                            hdu['ObjectCat'].data['DEC_OBJ'],
+                            objname,
+                            hdu['SlitObjMap'].data['TopDist'][indx],
+                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
         #   - Only keep the objects that are in the slit-object mapping
         objects = objects[mapid[indx] == catid]
 
         # Match the slit IDs in DesiSlits to those in BluSlits
         indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
                                strict=True)
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
+        if posx_pa < 0.:
+            posx_pa += 360.
 
         # Instantiate the slit mask object and return it
         self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
@@ -706,13 +720,31 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                                  hdu['DesiSlits'].data['slitLen'][indx],
                                                  hdu['DesiSlits'].data['slitWid'][indx],
                                                  hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects)
+                                 objects=objects,
+                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
+                                 posx_pa=posx_pa)
         return self.slitmask
 
+    # TODO: Allow this to accept the relevant row from the PypeItMetaData
+    # object instead?
     def get_grating(self, filename):
         """
+        Instantiate :attr:`grating` (a
+        :class:`~pypeit.spectrographs.opticalmodel.ReflectionGrating`
+        instance) based on the grating using to collect the data provided by
+        the filename.
+
         Taken from xidl/DEEP2/spec2d/pro/deimos_omodel.pro and
         xidl/DEEP2/spec2d/pro/deimos_grating.pro
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file with the grating metadata.
+
+        Returns:
+            :class:`~pypeit.spectrographs.opticalmodel.ReflectionGrating`:
+            The grating instance relevant to the data in ``filename``. The
+            returned object is the same as :attr:`grating`.
         """
         hdu = io.fits_open(filename)
 
@@ -757,6 +789,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return self.grating
 
     def get_detector_map(self):
+        """
+        Return the DEIMOS detector map.
+
+        Returns:
+            :class:`DEIMOSDetectorMap`: The instance describing the detector
+            layout for DEIMOS. The object returned is the same as
+            :attr:`detector_map`. If :attr:`detector_map` is None when the
+            method is called, this method also instantiates it.
+        """
         if self.detector_map is None:
             self.detector_map = DEIMOSDetectorMap()
         return self.detector_map
@@ -764,11 +805,25 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def _grating_orientation(slider, ruling, tilt):
         """
-        Return the roll, yaw, and tilt of the grating.
+        Return the roll, yaw, and tilt of the provided grating.
 
         Numbers are hardwired.
 
         From xidl/DEEP2/spec2d/pro/omodel_params.pro
+
+        Args:
+            slider (:obj:`int`):
+                The slider position. Should be 2, 3, or 4. If the slider is
+                0, the ruling *must* be 0.
+            ruling (:obj:`str`, :obj:`int`):
+                The grating ruling number. Should be 600, 831, 900, 1200, or
+                ``'other'``.
+            tilt (:obj:`float`):
+                The input grating tilt.
+
+        Returns:
+            :obj:`tuple`: The roll, yaw, and tilt of the grating used by the
+            optical model.
         """
         if slider == 2 and int(ruling) == 0:
             # Mirror in place of the grating
@@ -812,19 +867,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 tilt*(1-orientation_coeffs[slider][_ruling][2]) \
                     + orientation_coeffs[slider][_ruling][3]
 
-
-
     def get_amapbmap(self, filename):
         """
-            Select the pre-grating (amap) and post-grating (bmap) maps according to the slider.
+        Select the pre-grating (amap) and post-grating (bmap) maps according
+        to the slider.
 
         Args:
-            filename (:obj:`str`, optional):
+            filename (:obj:`str`):
                 The filename to read the slider information from the header.
 
         Returns:
-            Two attributes :attr:`amap` and :attr:`bmap`.
-
+            :obj:`tuple`: The two attributes :attr:`amap` and :attr:`bmap`,
+            used by the DEIMOS optical model.
         """
         hdu = io.fits_open(filename)
 
@@ -841,8 +895,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         #TODO: Figure out which amap and bmap to use for slider 2
 
         return self.amap, self.bmap
-
-
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
@@ -968,6 +1020,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
 
 class DEIMOSOpticalModel(OpticalModel):
+    """
+    Derived class for the DEIMOS optical model.
+    """
     # TODO: Are focal_r_surface (!R_IMSURF) and focal_r_curvature
     # (!R_CURV) supposed to be the same?  If so, consolodate these into
     # a single number.
@@ -1002,6 +1057,9 @@ class DEIMOSOpticalModel(OpticalModel):
                 = OpticalModel.get_reflection_transform(self.tent_theta, self.tent_phi)
 
     def reset_grating(self, grating):
+        """
+        Reset the grating to the provided input instance.
+        """
         self.grating = grating
 
     def mask_coo_to_grating_input_vectors(self, x, y):

@@ -8,7 +8,8 @@ This script examines a set of files and indicates which do and
 which do not have sufficient calibs
 """
 
-from pypeit import defs
+from pypeit.spectrographs import available_spectrographs
+
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -18,7 +19,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument('root', type=str, default=None, help='File path+root, e.g. /data/Kast/b ')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
-                                ', '.join(defs.pypeit_spectrographs)))
+                                ', '.join(available_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument('--save_setups', default=False, action='store_true',
@@ -61,21 +62,22 @@ def main(args):
         if args.spectrograph is None:
             raise ValueError('Must provide spectrograph identifier with file root.')
         # Check that input spectrograph is supported
-        instruments_served = defs.pypeit_spectrographs
-        if args.spectrograph not in instruments_served:
+        if args.spectrograph not in available_spectrographs:
             raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
-                             + '\tOptions are: {0}\n'.format(', '.join(instruments_served))
+                             + '\tOptions are: {0}\n'.format(', '.join(available_spectrographs))
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
 
     # Initialize PypeItSetup based on the arguments
-    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
+    output_path = os.path.join(os.getcwd(), 'setup_files')
+    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
+                                    output_path=output_path)
 
     # Run the setup
     ps.run(setup_only=True)#, write_bkg_pairs=args.background)
     is_science = ps.fitstbl.find_frames('science')
 
-    msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.spectrograph))
+    msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.name))
 
     # Unique configurations
     uniq_cfg = ps.fitstbl.unique_configurations(copy=True)
@@ -152,8 +154,14 @@ def main(args):
     print('======================================================')
     # Remove setup_files
     if not args.save_setups:
-        shutil.rmtree('setup_files')
+        shutil.rmtree(output_path)
     # Return objects used by unit tests
     return answers, ps
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

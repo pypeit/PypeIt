@@ -1,5 +1,12 @@
 [build-system]
-requires = ["setuptools",
-            "wheel",
-            "extension-helpers"]
 
+requires = [
+    "setuptools",
+    "setuptools_scm",
+    "wheel",
+    "extension-helpers",
+    "oldest-supported-numpy",
+    "cython>=0.29.14"
+]
+
+build-backend = 'setuptools.build_meta'

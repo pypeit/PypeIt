@@ -75,7 +75,7 @@ class Reduce(object):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
-        sobjs (SpecObjs):
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
@@ -209,7 +209,7 @@ class Reduce(object):
         self.slits = self.caliBrate.slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-                = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+            = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
@@ -388,6 +388,10 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # Assign here -- in case we make another pass to add in missing targets
+        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
+                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
@@ -1028,6 +1032,7 @@ class MultiSlitReduce(Reduce):
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
+
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

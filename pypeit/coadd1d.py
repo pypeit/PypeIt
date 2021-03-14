@@ -230,7 +230,7 @@ class CoAdd1D(object):
         # Generate the DataContainer
         onespec = OneSpec(self.wave_coadd[wave_mask],
                           self.flux_coadd[wave_mask],
-                          PYP_SPEC=self.spectrograph.spectrograph,
+                          PYP_SPEC=self.spectrograph.name,
                           ivar=self.ivar_coadd[wave_mask],
                           mask=self.mask_coadd[wave_mask].astype(int),
                           ext_mode=self.par['ex_value'],

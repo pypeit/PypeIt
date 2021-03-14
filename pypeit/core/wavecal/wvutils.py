@@ -6,18 +6,23 @@
 
 """
 import numpy as np
+import os
 import numba as nb
 
+
 from matplotlib import pyplot as plt
+
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
-from pypeit import msgs
-from IPython import embed
 
+from astropy.table import Table
+
+from pypeit import msgs
 from pypeit.core import arc
 
+from IPython import embed
 
 def parse_param(par, key, slit):
     # Find good lines for the tilts
@@ -284,7 +289,7 @@ def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=Fals
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
-        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr', linewidth = 1.0)
+        plt.plot(lags, corr_norm, color='black', drawstyle = 'steps-mid', lw=3, label = 'x-corr')
         plt.plot(lag_max[0], corr_max[0],'g+', markersize =6.0, label = 'peak')
         plt.title('Best shift = {:5.3f}'.format(lag_max[0]) + ',  corr_max = {:5.3f}'.format(corr_max[0]))
         plt.legend()
@@ -558,3 +563,44 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     return wave_grid
 
+
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None,
+                   order=None, overwrite=True):
+    """
+    Write the template spectrum into a binary FITS table
+
+    Args:
+        nwwv (`numpy.ndarray`_):
+            Wavelengths for the template
+        nwspec (`numpy.ndarray`_):
+            Flux of the template
+        binspec (int):
+            Binning of the template
+        outpath (str):
+        outroot (str):
+        det_cut (bool, optional):
+            Cuts in wavelength for detector snippets
+            Used primarily for DEIMOS
+        order (`numpy.ndarray`_, optional):
+            Echelle order numbers
+        overwrite (bool, optional):
+            If True, overwrite any existing file
+    """
+    tbl = Table()
+    tbl['wave'] = nwwv
+    tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
+    tbl.meta['BINSPEC'] = binspec
+    # Detector snippets??
+    if det_cut is not None:
+        tbl['det'] = 0
+        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
+            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
+            deti = np.sum([2**ii for ii in dets])
+            tbl['det'][gdwv] += deti
+    # Write
+    outfile = os.path.join(outpath, outroot)
+    tbl.write(outfile, overwrite=overwrite)
+    print("Wrote: {}".format(outfile))

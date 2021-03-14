@@ -82,7 +82,7 @@ def main(args):
         # TODO: This needs to define the science path
         spec2d_files = glob.glob('./Science/spec2d_*' + args.obj + '*')
         head0 = fits.getheader(spec2d_files[0])
-        spectrograph_name = head0['SPECTROG']
+        spectrograph_name = head0['PYP_SPEC']
         spectrograph = load_spectrograph(spectrograph_name)
         parset = spectrograph.default_pypeit_par()
     else:
@@ -237,3 +237,9 @@ def main(args):
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
 
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

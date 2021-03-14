@@ -1,3 +1,5 @@
+.. _wave_calib:
+
 ======================
 Wavelength Calibration
 ======================
@@ -6,6 +8,10 @@ Wavelength Calibration
 
 Overview
 ========
+
+Wavelength calibration is performed using arc lamp spectra
+or the night sky lines, dependent on the instrument.
+In all cases, the solution is provided in vacuum.
 
 This doc describes the wavelength calibration
 `Automated Algorithms`_
@@ -184,11 +190,11 @@ which will be similar to the following directory:
 
 Once your solution is in the database, you will be able to
 run PypeIt in the standard :ref:`wvcalib-fulltemplate` mode.
-Make sure you add the following line to your pypeit file:
+Make sure you add the following line to your pypeit file::
 
-[calibrations]
-  [[wavelengths]]
-    reid_arxiv = name_of_your_solution.fits
+  [calibrations]
+     [[wavelengths]]
+        reid_arxiv = name_of_your_solution.fits
 
 We also recommend that you send your solution to the
 PypeIt development (e.g. post it on GitHub or the Users Slack)
@@ -244,6 +250,21 @@ than you may need to modify::
     [calibrations]
       [[wavelengths]]
         fwhm=X.X
+
+in your PypeIt file.
+
+
+Alternatively, PypeIt can compute the arc line FWHM from the arc lines themselves (only the ones with the
+highest detection significance). The FWHM measured in this way will override the value set by `fwhm`, which
+will still be used as first guess and for the :doc:`wavetilts`.
+This is particularly advantageous for multi-slit observations that have slit with different slit widths,
+e.g., DEIMOS LVM slit-masks.
+The keyword that controls this option is called `fwhm_fromlines` and is set to `False` by default. To switch it
+on add::
+
+    [calibrations]
+      [[wavelengths]]
+        fwhm_fromlines = True
 
 in your PypeIt file.
 
@@ -311,6 +332,7 @@ procedure, when possible:
    * For gratings that tilt, one may need to splice together a series
      of arc spectra to cover the full spectral range.
    * See examples in the `templates.py` module.
+   * See :doc:`construct_template`
 
 - Augment the line list
    * We are very conservative about adding new lines to the existing line lists.
@@ -337,9 +359,11 @@ data/arc_lines/reid_arxiv folder):
 ===============  =========================  =============================
 Instrument       Setup                      Name
 ===============  =========================  =============================
-keck_deimos      600ZD grating, all lamps   keck_deimos_600.fits
+keck_deimos      600ZD grating, all lamps   keck_deimos_600ZD.fits
 keck_deimos      830G grating, all lamps    keck_deimos_830G.fits
 keck_deimos      1200G grating, all lamps   keck_deimos_1200G.fits
+keck_deimos      1200B grating, all lamps   keck_deimos_1200B.fits
+keck_deimos      900ZD grating, all lamps   keck_deimos_900ZD.fits
 keck_lris_blue   B300 grism, all lamps      keck_lris_blue_300_d680.fits
 keck_lris_blue   B400 grism, all lamps?     keck_lris_blue_400_d560.fits
 keck_lris_blue   B600 grism, all lamps      keck_lris_blue_600_d560.fits
@@ -368,13 +392,12 @@ This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
 
-Additional Reading
-==================
 
 .. toctree::
-   :caption: More reading
+   :caption: Additional Reading
    :maxdepth: 1
 
    flexure
    heliocorr
    wavetilts
+   construct_template

@@ -11,6 +11,8 @@ import sys
 import signal
 import warnings
 
+from .version import version
+
 def short_warning(message, category, filename, lineno, file=None, line=None):
     """
     Return the format for a short warning message.
@@ -21,7 +23,7 @@ warnings.formatwarning = short_warning
 
 
 # Set version
-__version__ = '1.2.1dev'
+__version__ = version
 
 # Report current coverage
 __coverage__ = 0.55
@@ -29,8 +31,6 @@ __coverage__ = 0.55
 # Import and instantiate the logger
 from pypeit import pypmsgs
 msgs = pypmsgs.Messages()
-
-from pypeit import check_requirements  # THIS IMPORT DOES THE CHECKING.  KEEP IT
 
 # Import the close_qa method so that it can be called when a hard stop
 # is requested by the user

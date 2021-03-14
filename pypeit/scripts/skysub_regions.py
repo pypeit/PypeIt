@@ -8,6 +8,7 @@ This script enables the user to view a 2D FITS file
 and define the sky background regions interactively.
 Run above the Science/ folder.
 """
+import sys
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -78,9 +79,18 @@ def main(args):
     #outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
 
     # Finally, initialise the GUI
-    skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline, info.spectrograph.spectrograph,
-                                  outname=regfile, overwrite=args.overwrite,
-                                  runtime=False, printout=True, initial=args.initial, flexure=spat_flexure)
+    skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline,
+                                  info.spectrograph.name, outname=regfile, overwrite=args.overwrite,
+                                  runtime=False, printout=True, initial=args.initial,
+                                  flexure=spat_flexure)
 
     # Get the results
     skyreg.get_result()
+
+
+def entry_point():
+    sys.exit(main(parse_args()))
+
+
+if __name__ == '__main__':
+    entry_point()

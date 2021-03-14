@@ -8,7 +8,6 @@ common metadata used for all specrographs.
 
 """
 
-from collections import OrderedDict
 import numpy as np
 
 from astropy import units, coordinates
@@ -75,8 +74,7 @@ def define_core_meta():
 
     """
     # Mainly to format output to PypeIt file
-    # TODO: dicts in python 3.7 are automatically ordered, I think ...
-    core_meta = OrderedDict()
+    core_meta = {}
 
     # Target
     core_meta['ra'] = dict(dtype=float, comment='(J2000) RA in decimal degrees')
@@ -120,24 +118,30 @@ def define_additional_meta(nlamps=20):
         :obj:`dict`: Describes the additional meta data used in
         pypeit.
     """
-    additional_meta = {'dichroic': dict(dtype=str, comment='Beam splitter'),
-                       'filter1': dict(dtype=str, comment='First filter in optical path'),
-                       'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
-                       'hatch': dict(dtype=str, comment='Position of instrument hatch'),
-                       'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
-                       'detector': dict(dtype=str, comment='Name of detector'),
+    # TODO: Can we consolidate dither (only read by vlt_xshooter, and never
+    # used in the code) with the MOSFIRE dith* keywords?
+    additional_meta = {'amp': dict(dtype=str, comment='Amplifier used'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
+                       'dateobs': dict(dtype=str, comment='Observation date'),
+                       'detector': dict(dtype=str, comment='Name of detector'),
+                       'dichroic': dict(dtype=str, comment='Beam splitter'),
+                       'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
+                       'dithpat': dict(dtype=str, comment='Dither pattern'),
+                       'dithpos': dict(dtype=str, comment='Dither position'),
+                       'dithoff': dict(dtype=float, comment='Dither offset'),
+                       'filter1': dict(dtype=str, comment='First filter in optical path'),
+                       'hatch': dict(dtype=str, comment='Position of instrument hatch'),
+                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
+                       'mode': dict(dtype=str, comment='Observing mode'),
+                       'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'pressure': dict(dtype=float, comment='Pressure at obstime'),
+                       'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'temperature': dict(dtype=float, comment='Temperature at obstime'),
-                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
-                       'dateobs': dict(dtype=str, comment='Observation date'),
-                       'utc': dict(dtype=str, comment='UTC of observation'),
-                       'mode': dict(dtype=str, comment='Observing mode'),
-                       'amp': dict(dtype=str, comment='Amplifier used')}
+                       'utc': dict(dtype=str, comment='UTC of observation')}
 
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
@@ -162,8 +166,8 @@ def get_meta_data_model(nlamps=20):
             directly to :func:`define_additional_meta`.
 
     Returns:
-        `collections.OrderedDict`_: Dictionary with the full metadata
-        model common to all spectrographs.
+        :obj:`dict`: Dictionary with the full metadata model common to all
+        spectrographs.
 
     Raises:
         ValueError:

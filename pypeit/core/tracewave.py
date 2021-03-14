@@ -589,7 +589,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
               doqa=True, master_key='test', slitord_id=0, show_QA=False, out_dir=None,
-              minmax_extrap=(150.,1000.), debug=False):
+              minmax_extrap=(150.,1000.)):
     """
 
     Parameters

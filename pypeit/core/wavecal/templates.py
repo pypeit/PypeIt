@@ -1,4 +1,7 @@
-""" Module to generate templates for the PypeIt full_template wavelength calibration routine"""
+""" Module to generate templates for the PypeIt full_template wavelength calibration routine
+
+.. include:: ../include/links.rst
+"""
 
 import os
 import numpy as np
@@ -7,6 +10,7 @@ from IPython import embed
 from matplotlib import pyplot as plt
 
 from pkg_resources import resource_filename
+
 from scipy.io import readsav
 from scipy.interpolate import interp1d
 
@@ -48,7 +52,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False):
+                   shift_wave=False, binning=None):
     """
     Generate a full_template for a given instrument
 
@@ -90,12 +94,15 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         shift_wave (bool, optional):
             Shift wavelengths when splicing to sync up precisely (Recommended)
             Requires PypeIt file (old JSON works for now)
+        binning (list, optional):
+            Allows for multiple binnings for input files
     """
     if outdir is None:
         outdir = outpath
-
     if ifiles is None:
         ifiles = np.arange(len(in_files))
+    if binning is None:
+        binning = [None]*len(ifiles)
     # Load xidl file
     # Grab it
     # Load and splice
@@ -112,7 +119,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             elif ascii_tbl:
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
-                wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit)
+                wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
@@ -132,7 +139,15 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                     # Delta pix -- approximate but should be pretty good
                     dpix = dwv_specs / dwv_snipp[ipix]
                     # Calculate new wavelengths
-                    npix = spec.size
+                    npix = wv_vac.size
+                    # Rebin spec?
+                    if binning is not None and binning[kk] != binspec:
+                        npix_orig = spec.size
+                        x_orig = np.arange(npix_orig) / float(npix_orig - 1)
+                        x = np.arange(npix) / float(npix - 1)
+                        spec = (interp1d(x_orig, spec, axis=0,
+                                         bounds_error=False, fill_value='extrapolate'))(x)
+                    # Evaluate
                     new_wave = pypeitFit.eval((-dpix + np.arange(npix)) / (npix - 1))
                     # Range
                     iend = np.argmin(np.abs(new_wave - wvmax))
@@ -177,7 +192,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         #ax.plot(wave, flux)
         plt.show()
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
+    wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
 def grab_wvlim(kk, wv_cuts, nslits):
     """
@@ -205,7 +220,7 @@ def grab_wvlim(kk, wv_cuts, nslits):
     return llow, lhi
 
 
-def pypeit_arcspec(in_file, slit):
+def pypeit_arcspec(in_file, slit, binspec, binning=None):
     """
     Load up the arc spectrum from an input JSON file
 
@@ -222,10 +237,15 @@ def pypeit_arcspec(in_file, slit):
     if 'json' in in_file:
         wv_dict = ltu.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
-        x = np.arange(len(iwv_calib['spec']))
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
                                           func=iwv_calib['function'],
                                           minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+
+        if binning is not None and binning != binspec:
+            embed(header='Not ready for this yet!')
+        else:
+            x = np.arange(len(iwv_calib['spec']))
+
         wv_vac = pypeitFitting.eval(x / iwv_calib['xnorm'])
         #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
@@ -236,7 +256,13 @@ def pypeit_arcspec(in_file, slit):
         flux = wvcalib.arc_spectra[:,idx]
         #
         npix = flux.size
-        wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(np.arange(npix) / (npix - 1))
+        if binning is not None and binning != binspec:
+            npix = int(npix * binning / binspec)
+            x = np.arange(npix) / (npix - 1)
+        else:
+            x = np.arange(npix) / (npix - 1)
+        # Evaluate
+        wv_vac = wvcalib.wv_fits[idx].pypeitfit.eval(x)
         pypeitFitting = wvcalib.wv_fits[idx].pypeitfit
     else:
         raise IOError("Bad in_file {}".format(in_file))
@@ -284,48 +310,6 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
     return outroot
-
-
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
-    """
-    Write the template spectrum into a binary FITS table
-
-    Args:
-        nwwv (`numpy.ndarray`_):
-            Wavelengths for the template
-        nwspec (`numpy.ndarray`_):
-            Flux of the template
-        binspec (int):
-            Binning of the template
-        outpath (str):
-        outroot (str):
-        det_cut (bool, optional):
-            Cuts in wavelength for detector snippets
-            Used primarily for DEIMOS
-        order (`numpy.ndarray`_, optional):
-            Echelle order numbers
-        overwrite (bool, optional):
-            If True, overwrite any existing file
-    """
-    tbl = Table()
-    tbl['wave'] = nwwv
-    tbl['flux'] = nwspec
-    if order is not None:
-        tbl['order'] = order
-
-    tbl.meta['BINSPEC'] = binspec
-    # Detector snippets??
-    if det_cut is not None:
-        tbl['det'] = 0
-        for dets, wcuts in zip(det_cut['dets'], det_cut['wcuts']):
-            gdwv = (tbl['wave'] > wcuts[0]) & (tbl['wave'] < wcuts[1])
-            deti = np.sum([2**ii for ii in dets])
-            tbl['det'][gdwv] += deti
-    # Write
-    outfile = os.path.join(outpath, outroot)
-    tbl.write(outfile, overwrite=overwrite)
-    print("Wrote: {}".format(outfile))
-
 
 #####################################################################################################
 #####################################################################################################
@@ -475,30 +459,6 @@ def main(flg):
         lcut = [3700.]
         xidl_file = os.path.join(template_path, 'Keck_LRIS', 'B1200', 'lris_blue_1200.sav')
         build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
-
-    # Shane Kastb
-    if flg & (2**4):  # 452/3306
-        binspec = 1
-        slits = [0]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '452_3306', 'kast_452_3306.sav')
-        outroot = 'shane_kast_blue_452.fits'
-        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
-
-    if flg & (2**5):  # 600/4310
-        binspec = 1
-        slits = [0,3]
-        lcut = [4550.]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '600_4310', 'kast_600_4310.sav')
-        outroot = 'shane_kast_blue_600.fits'
-        build_template(xidl_file, slits, lcut, binspec, outroot, lowredux=True)
-
-    if flg & (2**6):  # 830/3460
-        binspec = 1
-        slits = [0]
-        xidl_file = os.path.join(template_path, 'Shane_Kast', '830_3460', 'kast_830_3460.sav')
-        outroot = 'shane_kast_blue_830.fits'
-        build_template(xidl_file, slits, None, binspec, outroot, lowredux=True)
-
 
     # ###############################################3
     # Keck/LRISr
@@ -698,59 +658,6 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
-    # ##############################
-    if flg & (2**20):  # GMOS R400 Hamamatsu
-        binspec = 2
-        outroot='gemini_gmos_r400_ham.fits'
-        #
-        ifiles = [0, 1, 2, 3, 4]
-        slits = [0, 2, 3, 0, 0]  # Be careful with the order..
-        lcut = [5400., 6620., 8100., 9000.]
-        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
-        wfile5 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_05_aa.json') # 5190 -- 6679
-        #wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
-        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_04_aa.json')
-        wfile4 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
-        wfile6 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_06_aa.json')
-        #
-        build_template([wfile1,wfile5,wfile3,wfile4, wfile6], slits, lcut, binspec,
-                       outroot, lowredux=False, ifiles=ifiles, chk=True,
-                       normalize=True, subtract_conti=True)
-
-
-    # ##############################
-    if flg & (2**21):  # GMOS R400 E2V
-        binspec = 2
-        outroot='gemini_gmos_r400_e2v.fits'
-        #
-        ifiles = [0, 1, 2]
-        slits = [0, 0, 0]
-        lcut = [6000., 7450]
-        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_01.json')
-        wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_02.json')
-        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_03.json')
-        #
-        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
-                       outroot, lowredux=False, ifiles=ifiles, chk=True,
-                       normalize=True)
-
-    # ##############################
-    if flg & (2**22):  # GMOS R400 Hamamatsu
-        binspec = 2
-        outroot='gemini_gmos_b600_ham.fits'
-        #
-        ifiles = [0, 1, 2, 3, 4]
-        slits = [0, 0, 0, 0, 0]
-        lcut = [4250., 4547., 5250., 5615.]
-        wfile1 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_01.json')
-        wfile5 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_01.json') # - 4547
-        wfile2 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_02.json')
-        wfile4 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_02.json') # 4610-5608
-        wfile3 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json')
-        #
-        build_template([wfile1,wfile5,wfile2,wfile4,wfile3], slits, lcut, binspec,
-                       outroot, lowredux=False, ifiles=ifiles, chk=True,
-                       normalize=True, subtract_conti=True, miny=-100.)
 
     if flg & (2**23):  # WHT/ISIS
         iroot = 'wht_isis_blue_1200_4800.json'
@@ -802,7 +709,7 @@ def main(flg):
         wv_vac = airtovac(wave * units.AA)
         xidl_dict = readsav(spec_file)
         flux = xidl_dict['arc1d']
-        write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+        wvutils.write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
 
     # Gemini/Flamingos2
     if flg & (2**26):
@@ -929,17 +836,9 @@ if __name__ == '__main__':
     #flg += 2**2  # LRISb 600, all lamps
     #flg += 2**3  # LRISb 1200, all lamps?
 
-    # Shane/Kastb
-    #flg += 2**4  # Kastb 452/3306 -- Not yet tested
-    #flg += 2**5  # Kastb 600/4310
-    #flg += 2**6  # Kastb 830/3460 -- Not yet tested
-
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
-
-    # Shane/Kastr
-    #  Need several arcs to proceed this way
 
     # MagE
     #flg += 2**13
