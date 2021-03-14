@@ -86,6 +86,7 @@ def main(args):
             det = None if args.det == 'mosaic' else int(args.det)
             img = spectrograph.get_rawimage(args.file, det)[1]
 
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     display.show_image(img,chname=args.chname)
 
 

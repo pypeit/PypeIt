@@ -435,7 +435,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         par['sensfunc']['IR']['telgridfile'] \
                 = os.path.join(par['sensfunc']['IR'].default_root,
                                'TelFit_LasCampanas_3100_26100_R20000.fits')
-
+        # Bound the detector with slit edges if no edges are found. These data are often trimmed
+        # so we implement this here as the default.
+        par['calibrations']['slitedges']['bound_detector'] = True
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):
