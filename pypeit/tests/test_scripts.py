@@ -404,10 +404,20 @@ def test_collate_1d(tmp_path, monkeypatch):
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
+
+        os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
         parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--thresh', '3', config_file_spec1d])
         assert collate_1d.main(parsed_args) == 0
         assert os.path.exists(par_file)
+        # Remove par_file to avoid a warning
+        os.unlink(par_file)
+        
+        # Test default units of arcsec for threshold, and that a spec2d file isn't needed
+        # if exclude_slit_flags is empty
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--thresh', '3', '--spec1d_files', alt_spec1d])
+        assert collate_1d.main(parsed_args) == 0
+
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
 

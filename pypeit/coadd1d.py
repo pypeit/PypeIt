@@ -112,7 +112,8 @@ class OneSpec(datamodel.DataContainer):
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
-            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
+            subheader = spectrograph.subheader_for_spec(self.head0, self.head0,
+                                                        extra_header_cards = ['RA_OBJ', 'DEC_OBJ'])
         else:
             subheader = {}
         # Add em in
@@ -215,6 +216,9 @@ class CoAdd1D(object):
                 ivars = np.zeros_like(waves)
                 masks = np.zeros_like(waves, dtype=bool)
                 header_out = header
+                if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
+                    header_out['RA_OBJ']  = sobjs[indx][0]['RA']
+                    header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], masks[...,iexp] = wave_iexp, flux_iexp, ivar_iexp, mask_iexp
 
@@ -242,7 +246,7 @@ class CoAdd1D(object):
                           mask=self.mask_coadd[wave_mask].astype(int),
                           ext_mode=self.par['ex_value'],
                           fluxed=self.par['flux_value'])
-        onespec.head0 = fits.getheader(self.spec1dfiles[0])
+        onespec.head0 = self.header
 
         # Add history entries for coadding.
         history = History()

@@ -20,6 +20,7 @@ import re
 
 import numpy as np
 from astropy.time import Time
+import astropy.units as u
 from astropy.coordinates import SkyCoord, Angle
 from astropy.io import fits, ascii
 from astropy.table import Table
@@ -89,8 +90,8 @@ class KOAArchiveDir():
     _ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
     _OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
     _OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
-
-    def __init__(self, archive_root):
+    _OBJECT_BASED_SOURCE_KEYS = ['GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
+    def __init__(self, archive_root, copy=True):
         self.archive_root = archive_root
         
         # Load metadata from any pre-existing metadata files.
@@ -111,41 +112,55 @@ class KOAArchiveDir():
         else:
             self.by_object_metadata = []
 
+        self._copy_files = copy
+
     def save(self):
         """
         Saves the metadata in this class to IPAC files in the archive directory
         """
-        by_id_names = ['koaid', 'filename'] + [x.lower() for x in self._ID_BASED_HEADER_KEYS]
+        by_id_names = ['id', 'filename'] + [x.lower() for x in self._ID_BASED_HEADER_KEYS]
         with open(self._by_id_file, 'w') as f:
             ascii.write(Table(rows=self.by_id_metadata, names=by_id_names), f, format='ipac')
 
-        by_object_names = [x.lower() for x in self._OBJECT_BASED_SPEC_KEYS] + [x.lower() for x in self._OBJECT_BASED_HEADER_KEYS] + ['filename', 'koaid']
+        by_object_names = ['filename'] + \
+                          [x.lower() for x in self._OBJECT_BASED_SPEC_KEYS] + \
+                          [x.lower() for x in self._OBJECT_BASED_HEADER_KEYS] + \
+                          ['source_id'] + \
+                          [x.lower() for x in self._OBJECT_BASED_SOURCE_KEYS]
+
         with open(self._by_object_file, 'w') as f:
             ascii.write(Table(rows=self.by_object_metadata, names=by_object_names), f, format='ipac')
 
-    def _extract_koaid(self, filename):
+    def _extract_id(self, header):
         """
-        Pull a KOAID from a file name. 
+        Pull an id from a file's header.
 
-        This will give an error and exit if a koaid can't be found
+        This will give preference to a KOAID, but will return an id based on the file name if a KOAID can't be found.
+        A KOAID is of the format II.YYYYMMDD.xxxxx.fits See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
+        for more information.
 
         Args:
-            filename (str): A filename from a file originating in the KOA.
-                            It should start with a KOAID of the format
-                            II.YYYYMMDD.xxxxx. See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
-                            for more information.
+            header (str):   A fits file header.
 
         Returns:
-            str: The KOAID extracted from the file name.
+            str: The an id extracted from the header.
         """
-        # Could improve this by validating the date but
-        # is that neccessary?
-        if len(filename) >= 17:
-            koaid = filename[0:17]
-            if re.match(r'..\.\d{8}\.\d{5}$', koaid) is not None:
-                return koaid
 
-        msgs.error(f'File {filename} cannot be archived because it does not begin with a KOAID')
+        # First check for the KOAID keyword
+
+        if 'KOAID' in header:
+            return header['KOAID']
+        else:
+            # Attempt to pull KOAID from file name
+            filename = header['FILENAME']
+            if len(filename) >= 17:
+                koaid = filename[0:17]
+                if re.match(r'..\.\d{8}\.\d{5}$', koaid) is not None:
+                    # KOA seems to append .fits to the ID
+                    return koaid + ".fits"
+
+            # For non KOA products, we use the filename
+            return filename
 
     def _get_id_based_metadata(self, filename, header):
         """
@@ -157,10 +172,10 @@ class KOAArchiveDir():
         
         """
         # Extract koa id from source image filename in header
-        koaid =  self._extract_koaid(header['FILENAME'])
+        id =  self._extract_id(header)
 
         # Build data row, which starts with koaid and filename + the metadata
-        data_row = [koaid, filename] + [header[x] for x in self._ID_BASED_HEADER_KEYS]
+        data_row = [id, filename] + [header[x] for x in self._ID_BASED_HEADER_KEYS]
 
         self.by_id_metadata.append(data_row)
 
@@ -176,10 +191,12 @@ class KOAArchiveDir():
 
         header_data = [source.spec1d_header_list[0][x] for x in self._OBJECT_BASED_HEADER_KEYS]
         spec_obj_data = [source.spec_obj_list[0][x] for x in self._OBJECT_BASED_SPEC_KEYS]
-        shared_data = spec_obj_data + header_data + [os.path.basename(source.coaddfile)]
+        shared_data = [os.path.basename(source.coaddfile)] + spec_obj_data + header_data
         
-        for koaid in [self._extract_koaid(h['FILENAME']) for h in source.spec1d_header_list ]:
-            self.by_object_metadata.append(shared_data + [koaid])
+        for header in source.spec1d_header_list:
+            id = self._extract_id(header)
+            unique_data = [header[x] if x in header else None for x in self._OBJECT_BASED_SOURCE_KEYS]
+            self.by_object_metadata.append(shared_data + [id] + unique_data)
 
     def add_files(self, files):
         """
@@ -218,7 +235,8 @@ class KOAArchiveDir():
 
     def _archive_file(self, orig_file):
         """
-        Copies a file to the archive directory.
+        Copies a file to the archive directory, if copying
+        is enable.
 
         Args:
         orig_file (str): Path to the file to copy.
@@ -226,6 +244,10 @@ class KOAArchiveDir():
         Returns:
         str: The full path to the new copy in the archive.
         """
+
+        if self._copy_files is False:
+            return orig_file
+
         if not os.path.exists(orig_file):
             msgs.error(f'File {orig_file} does not exist')
 
@@ -483,8 +505,7 @@ def coadd(par, source):
 
 def read_file_list(lines, block):
     """
-    Read a list of files from a PypeIt .collate1d file, akin to a standard
-    PypeIt file.
+    Read a list of lines from the "read" portion of a PypeIt config file.
 
     Reads from a block of file names in a configuration file such as:
 
@@ -495,15 +516,15 @@ def read_file_list(lines, block):
 
     Args:
         lines (:obj:`numpy.ndarray`): List of lines to read.
-        block (str): Name of the block to read files from (e.g. 'spec1d')
+        block (str): Name of the block to read from (e.g. 'spec1d')
 
     Returns:
         cfg_lines (list):
           Config lines to modify ParSet values, i.e. lines that did not
-          contain the file list.
+          contain the "read" list.
 
         files (list):
-          Contains the list of files read.
+          Contains the list of lines read.
     """
 
     files = []
@@ -553,6 +574,34 @@ def read_collate_file(collate_file):
 
     return  cfg_lines, spec1d_files
 
+def read_coadd1d_config(coadd1d_file):
+    """Read coadd1d configuration from a file.
+
+    This will read any configuration keys, but skip the
+    coadd1d section that contains files and objects to coadd.
+    That information is generated by group_spectra_by_source
+    instead.
+
+    Args:
+        coadd1d_file (str): 
+            Path name of coadd1d file to read
+
+    Return:
+        cfg_lines (list): 
+            Config lines to modify ParSet values
+
+    """
+
+    lines = par.util._read_pypeit_file_lines(coadd1d_file)
+
+    # Strip out the coadd list
+    is_config, coadd_lines = read_file_list(lines, 'coadd1d')
+
+    cfg_lines = list(lines[is_config])
+
+    return cfg_lines
+
+
 def find_spec2d_from_spec1d(spec1d_files):
     """
     Find the spec2d files corresponding to the given list of spec1d files.
@@ -579,7 +628,16 @@ def find_spec2d_from_spec1d(spec1d_files):
 
     return spec2d_files
 
+def is_float(s):
+    """
+    Detertmine if a string can be converted to a floating point number.
+    """
+    try:
+        float(s)
+    except:
+        return False
 
+    return True
 
 def build_parameters(args):
     """
@@ -603,6 +661,13 @@ def build_parameters(args):
     # First we need to get the list of spec1d files
     if args.input_file is not None:
         (cfg_lines, spec1d_patterns) = read_collate_file(args.input_file)
+
+        # Look for a coadd1d file
+        (input_file_root, input_file_ext) = os.path.splitext(args.input_file)
+        coadd1d_config_name = input_file_root + ".coadd1d"
+        if os.path.exists(coadd1d_config_name):
+            cfg_lines += read_coadd1d_config(coadd1d_config_name)
+
     else:
         cfg_lines = None
         spec1d_patterns = []
@@ -667,7 +732,7 @@ def parse_args(options=None, return_parser=False):
                              '[collate1d]\n'
                              '  threshold <threshold>\n'
                              '  archive_root       <directory for archive files>\n'
-                             '  slit_exclude_flags <flags of slits to exclude>\n'
+                             '  slit_exclude_flags <slit types to exclude>\n'
                              '  match_using        Whether to match using "pixel" or\n'
                              '                     "ra/dec"\n'
                              '  dry_run            If set the matches are displayed\n'
@@ -698,18 +763,30 @@ def main(args):
     start_time = datetime.now()
     (par, spectrograph, spec1d_files) = build_parameters(args)
 
-    spec2d_files = find_spec2d_from_spec1d(spec1d_files)
-
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
     par.to_config(args.par_outfile)
 
-    exclude_map = find_slits_to_exclude(spec2d_files, par)
+    # Make sure archive dir, if specified, exists
+    if par['collate1d']['archive_root'] is not None:
+        os.makedirs(par['collate1d']['archive_root'], exist_ok=True)
+
+    if len(par['collate1d']['slit_exclude_flags']) > 0:
+        spec2d_files = find_spec2d_from_spec1d(spec1d_files)
+        exclude_map = find_slits_to_exclude(spec2d_files, par)
+    else:
+        spec2d_files = []
+        exclude_map = dict()
 
     if par['collate1d']['match_using'] == 'pixel':
         threshold = np.float(par['collate1d']['threshold'])
     else:
-        threshold = Angle(par['collate1d']['threshold'])
+        # For ra/dec matching, the default unit is arcseconds. We check for
+        # this case by seeing if the passed in threshold is a floating point number
+        if is_float(par['collate1d']['threshold']):
+            threshold =  Angle(par['collate1d']['threshold'], unit=u.arcsec)
+        else:
+            threshold = Angle(par['collate1d']['threshold'])
 
     source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], threshold)
 
@@ -726,8 +803,12 @@ def main(args):
         if not args.dry_run:
             coadd(par, source)
 
-    if not args.dry_run and par['collate1d']['archive_root'] is not None:
-        archive = KOAArchiveDir(par['collate1d']['archive_root'])
+    if not args.dry_run:
+        if par['collate1d']['archive_root'] is not None:
+            archive = KOAArchiveDir(par['collate1d']['archive_root'])
+        else:
+            archive = KOAArchiveDir(os.getcwd(), copy=False)
+
         archive.add_files(spec1d_files)
         archive.add_files(spec2d_files)
         archive.add_coadd_sources(source_list)

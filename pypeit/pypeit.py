@@ -305,7 +305,7 @@ class PypeIt(object):
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
-        self.fitstbl.write("/home/dusty/work/pypeit_metadata.txt", overwrite=True)
+
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
 
