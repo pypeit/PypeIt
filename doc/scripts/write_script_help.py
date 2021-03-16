@@ -44,7 +44,7 @@ if __name__ == '__main__':
                                 'lowrdx_skyspec', 'qa_html', 'ql_keck_mosfire', 'ql_keck_nires',
                                 'ql_mos', 'sensfunc', 'setup', 'show_1dspec', 'show_2dspec',
                                 'show_arxiv', 'show_wvcalib', 'skysub_regions', 'tellfit',
-                                'trace_edges', 'view_fits', 'run_pypeit', 'obslog']}
+                                'trace_edges', 'view_fits', 'run_pypeit', 'obslog', 'collate_1d']}
     scr_mod['run_pypeit'] = False
 
     for mod,prepend in scr_mod.items():
