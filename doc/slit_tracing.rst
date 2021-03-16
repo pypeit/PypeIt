@@ -8,21 +8,20 @@ Slit Tracing
 Overview
 ========
 
-One of the first and most crucial steps of the pipeline
-is to auto-magically identify the slits (or orders)
-on a given detector.  This is a challenging task owing
-to the wide variety in:
+One of the first and most crucial steps of the pipeline is to auto-magically
+identify the slits (or orders) on a given detector. This is a challenging
+task owing to the wide variety in:
 
   - the number of slits/orders,
   - the separation between slits/orders (if any)
   - the varying brightness of flats across the detector
 
-Developing a single algorithm to handle all of these
-edge cases (pun intended) is challenging if not impossible.
-Therefore, there are a number of user-input parameters
-that one may need to consider when running PypeIt (see below).
+Developing a single algorithm to handle all of these edge cases (pun
+intended) is challenging if not impossible. Therefore, there are a number of
+user-input parameters that one may need to consider when running PypeIt (see
+below).
 
-Underlying the effort is the :class:`pypeit.edgetrace.EdgeTraceSet` class.
+Underlying the effort is the :class:`~pypeit.edgetrace.EdgeTraceSet` class.
 
 Viewing
 =======
@@ -33,12 +32,13 @@ outputs related to `Slit Tracing`_.
 Script
 ======
 
-Slit tracing is one of the steps in ``PypeIt`` that can be run
-independently of the full reduction, using the ``pypeit_trace_edges``
-script. This can nominally be run just by providing a trace image
-(but this is had limited testing), but it's recommended that you
-first construct the :ref:`pypeit_file` you would use to fully reduce
-the data and supply that as the argument to ``pypeit_trace_edges``.
+Slit tracing is one of the steps in ``PypeIt`` that can be run independently
+of the full reduction, using the ``pypeit_trace_edges`` script. This can
+nominally be run just by providing a trace image (but this has had limited
+testing), but it's recommended that you first construct the
+:ref:`pypeit_file` you would use to fully reduce the data (see
+:ref:`pypeit_setup`) and supply that as the argument to
+``pypeit_trace_edges``.
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
@@ -52,17 +52,51 @@ Known Slit Tracing Issues
 No Slits
 --------
 
-For multi-detector instruments (e.g. :doc:`lris`),  one or more
-of your detectors may not have any data on it.  This is most
-common for long-slit observations, but occurs occasionally
-for multi-slit.
+It is possible that the edge-tracing algorithm will not find *any* slit
+edges. This may be because the edges fall off the detector, that there truly
+is no data in a given detector of a multi-detector instrument (e.g.,
+:doc:`lris`), or the threshold for edge detection has been set too high. An
+inability to find slit edges can be common for long-slit observations, but
+occurs occasionally for multi-slit. If you know that a given detector should
+have well-defined slit edges, try adjusting the ``edge_thresh`` parameter
+(see :ref:`trace-edge-thresh`). Regardless, if ``PypeIt`` does not find any
+slit edges, there are two ways it can proceed:
 
-This is best mitigated by not reducing that detector at all,
-i.e. set the `detnum` key in :ref:`pypeit_par:ReduxPar Keywords`,
-e.g. to skip the first detector in a 4 detector spectrograph::
+ 1. The default behavior for *most* (but not all) instruments is to simply
+    skip any detectors where the edge-tracing algorithm does not find any
+    edges. If this is the case, ``run_pypeit`` will issue a warning that the
+    calibrations for a given detector have failed (in ``get_slits``). For
+    single-detector instruments, this means that ``PypeIt`` might exit
+    gracefully without actually producing much output. For multi-detector
+    instruments (e.g., DEIMOS), this means that ``PypeIt`` will skip any
+    further processing of the detector and move on to the next one. If you
+    already know the detectors that should be skipped, you can use the pypeit
+    file to *select* the detectors that should be processed (see the
+    ``detnum`` parameter in :ref:`pypeit_par:ReduxPar Keywords`)::
 
-    [rdx]
-      detnum = 2,3,4
+        [rdx]
+            detnum = 2,3,4
+
+ 2. You can force ``PypeIt`` to add left and right edges that bound the
+    spatial extent of the detector using the ``bound_detector`` parameter in
+    :ref:`pypeit_par:EdgeTracePar Keywords`. This is required for instruments
+    where the entire detector is illuminated so that the slit edges are
+    projected off the detector, or for situations where the detector is
+    windowed (Shane Kast) in such a way that the slit edges are not covered
+    by the windowed detector. Although bounding the detector in this way
+    allows the code to continue to subsequent analysis steps, using this
+    approach comes with a significant warning:
+
+    .. warning::
+
+        When bounding the spatial extent of the detector by straight slit
+        edges, the spectral curvature is not properly traced. This can lead
+        to errors in the subsequent processing steps and/or highly
+        sub-optimal extraction of any object spectra. If available, users
+        should be sure to add a standard-star observation to the ``PypeIt``
+        file (ensuring that is classified as a ``standard`` frame), so that
+        ``PypeIt`` will use the standard star trace as a crutch for object
+        tracing in the ``science`` frames.
 
 Slit PCA fails
 --------------
@@ -127,6 +161,7 @@ Slit Tracing Customizing
 The following are settings that the user may consider
 varying to improve the slit tracing.
 
+.. _trace-edge-thresh:
 
 Detection Threshold
 -------------------
