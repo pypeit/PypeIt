@@ -333,7 +333,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
     
         # Dark-flat identification via exposure number
-        self.meta['lampstat01'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
+        self.meta['seq_expno'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
 
     def pypeit_file_keys(self):
         """
@@ -389,14 +389,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & (fitstbl['lampstat01'].astype(int) % 2 == 1))
+                               & (fitstbl['seq_expno'].astype(int) % 2 == 1))
         
         if ftype in ['dark']:
             # Lamp off flats are taken second (even exposure number)
             return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                 | (fitstbl['target'] == 'LAMP,QFLAT')
                                 | (fitstbl['target'] == 'LAMP,FLAT'))
-                               & (fitstbl['lampstat01'].astype(int) % 2 == 0))
+                               & (fitstbl['seq_expno'].astype(int) % 2 == 0))
         
         if ftype == 'pinhole':
             # Don't type pinhole
