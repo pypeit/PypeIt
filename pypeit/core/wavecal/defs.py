@@ -25,6 +25,7 @@ def instruments():
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
+    instr_dict['OSIRIS'] = 2**7
     #
     return instr_dict
 
