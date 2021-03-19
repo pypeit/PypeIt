@@ -1560,7 +1560,8 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None):
+    def __init__(self, obj_toler=None, assign_obj=None, force_extract=None,
+                 mask_median_off=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1584,6 +1585,18 @@ class SlitMaskPar(ParSet):
         dtypes['assign_obj'] = bool
         descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
 
+        defaults['force_extract'] = False
+        dtypes['force_extract'] = bool
+        descr['force_extract'] = 'Force extraction of undetected objects at the location expected ' \
+                                 'from the slitmask design.'
+
+        defaults['mask_median_off'] = None
+        dtypes['mask_median_off'] = float
+        descr['mask_median_off'] = 'Median offset in pixels of slitmask from expected position.' \
+                                   'This parameter is only used during the forced extraction of ' \
+                                   'undetected objects. If not set, PypeIt will compute the median offset' \
+                                   'using the detected objects.'
+
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
@@ -1595,7 +1608,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj']
+        parkeys = ['obj_toler', 'assign_obj', 'force_extract', 'mask_median_off']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3484,7 +3497,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, manual=None, skip_optimal=None,
-                 use_2dmodel_mask=None):
+                 use_2dmodel_mask=None, force_fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3531,6 +3544,11 @@ class ExtractionPar(ParSet):
         descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
+        defaults['force_fwhm'] = None
+        dtypes['force_fwhm'] = [int, float]
+        descr['force_fwhm'] = 'User provided fwhm in pixels used for optimal extraction. If this parameter is set,' \
+                              'it will override the fwhm estimated during object finding. This parameter is' \
+                              'also used for ``force_extract==True``'
 
         defaults['manual'] = ManualExtractionPar()
         dtypes['manual'] = [ ParSet, dict ]
@@ -3552,7 +3570,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_2dmodel_mask']
+                   'skip_optimal', 'use_2dmodel_mask', 'force_fwhm']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

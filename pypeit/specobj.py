@@ -58,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.2'
+    version = '1.1.3'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -166,6 +166,8 @@ class SpecObj(datamodel.DataContainer):
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
                  'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
                  'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
+                 'FORCE_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
+                                                         'at the expected location from slitmask design '),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '
@@ -567,7 +569,7 @@ class SpecObj(datamodel.DataContainer):
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 # Special ones
                 if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
-                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME']:
+                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'FORCE_EXTRACT']:
                     rdict[attr] = getattr(self,attr)
                 else:
                     rdict[attr] = True

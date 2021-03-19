@@ -390,12 +390,19 @@ class Reduce(object):
 
         # Assign here -- in case we make another pass to add in missing targets
         if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
-                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
-            # Assign un-detected objects
-            self.slits.mask_add_missing_obj(self.sobjs_obj, self.get_platescale(None),
-                                            self.slits_left, self.slits_right) # Deal with flexure
-        
+            msgs.info('Assign slitmask design info to detected objects')
+            all_expected_objpos = self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
+                                                             self.slits_left, self.slits_right,
+                                                             self.par['calibrations']['slitedges']['det_buffer'],
+                                                             TOLER=self.par['reduce']['slitmask']['obj_toler'])
+
+            if self.par['reduce']['slitmask']['force_extract'] is True:
+                msgs.info('Add undetected objects at the expected location from slitmask design.')
+                # Assign un-detected objects
+                self.sobjs_obj = self.slits.mask_add_missing_obj(self.sobjs_obj, all_expected_objpos,
+                                                                 self.par['reduce']['extraction']['force_fwhm'],
+                                                                 self.par['reduce']['slitmask']['mask_median_off'],
+                                                                 self.slits_left, self.slits_right) # Deal with flexure
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
