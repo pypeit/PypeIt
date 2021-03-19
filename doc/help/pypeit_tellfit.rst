@@ -1,8 +1,9 @@
 .. code-block:: console
 
     $ pypeit_tellfit -h
-    usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-g TELL_GRID] [-p PCA_FILE] [-t TELL_FILE] [-r REDSHIFT]
-                          [--debug] [--plot] [--par_outfile PAR_OUTFILE]
+    usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-g TELL_GRID]
+                          [-p PCA_FILE] [-t TELL_FILE] [-r REDSHIFT] [--debug]
+                          [--plot] [--par_outfile PAR_OUTFILE]
                           spec1dfile
     
     Telluric correct a spectrum
@@ -23,14 +24,18 @@
                                 poly = For other type object, You might need to set fit_wv_min_max, 
                                        and norder in the tell_file.
       -g TELL_GRID, --tell_grid TELL_GRID
-                            Telluric grid. You should download the giant grid file to the pypeit/data/telluric folder. It
-                            should only be passed if you want to overwrite the default tell_grid that is set via each
-                            spectrograph file
+                            Telluric grid. You should download the giant grid file
+                            to the pypeit/data/telluric folder. It should only be
+                            passed if you want to overwrite the default tell_grid
+                            that is set via each spectrograph file
       -p PCA_FILE, --pca_file PCA_FILE
-                            Quasar PCA pickle file with full path. The default pickle file (qso_pca_1200_3100.pckl) should
-                            be stored in the pypeit/data/telluric folder. If you change the pickle file, make sure to set
-                            the pca_lower and pca_upper in the tell_file to specify the wavelength coverage of your model.
-                            The defaults are pca_lower=1200. and pca_upper=3100.
+                            Quasar PCA pickle file with full path. The default
+                            pickle file (qso_pca_1200_3100.pckl) should be stored
+                            in the pypeit/data/telluric folder. If you change the
+                            pickle file, make sure to set the pca_lower and
+                            pca_upper in the tell_file to specify the wavelength
+                            coverage of your model. The defaults are
+                            pca_lower=1200. and pca_upper=3100.
       -t TELL_FILE, --tell_file TELL_FILE
                             Configuration file to change default telluric parameters.
                             Note that the parameters in this file will be overwritten if you set argument in your terminal. 
@@ -56,5 +61,6 @@
       --debug               show debug plots?
       --plot                Show the telluric corrected spectrum
       --par_outfile PAR_OUTFILE
-                            Name of outut file to save the parameters used by the fit
+                            Name of outut file to save the parameters used by the
+                            fit
     

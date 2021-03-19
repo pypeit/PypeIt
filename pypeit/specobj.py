@@ -154,9 +154,10 @@ class SpecObj(datamodel.DataContainer):
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
                  # Slit and Object
+                 'WAVE_RMS': dict(otype=(float, np.floating),
+                                     descr='RMS (pix) for the wavelength solution for this slit.'),
                  'SLITID': dict(otype=(int, np.integer),
-                                descr='PypeIt slit ID. Increasing from left to right on '
-                                      'detector. Zero based.'),
+                                descr='PypeIt slit ID (aka SPAT_ID).'),
                  'OBJID': dict(otype=(int, np.integer),
                                descr='Object ID for multislit data. Each object is given an index '
                                      'for the slit it appears increasing from from left to right. '

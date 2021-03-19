@@ -519,6 +519,7 @@ class EdgeTraceSet(DataContainer):
         self.coeff_t = None             # Coefficients of the x-correlation between LEFT edges predicted
                                         # by the optical model and traced on the image.
         self.maskfile = None            # File used to slurp in slit-mask design
+        self.success = False            # Flag that the automatic edge tracing was successful
 
     def _reinit_trace_data(self):
         """
@@ -544,6 +545,7 @@ class EdgeTraceSet(DataContainer):
         self.coeff_b = None
         self.coeff_t = None
         self.maskfile = None
+        self.success = False
 
     @property
     def ntrace(self):
@@ -813,7 +815,7 @@ class EdgeTraceSet(DataContainer):
                 self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
 
-        elif self.par['sync_predict'] == 'pca':
+        elif not self.is_empty and self.par['sync_predict'] == 'pca':
             # TODO: This causes the code to fault. Maybe there's a way
             # to catch this earlier on?
             msgs.error('Sync predict cannot use PCA because too few edges were found.  If you are '
@@ -840,14 +842,22 @@ class EdgeTraceSet(DataContainer):
         # Match the traces found in the image with the ones predicted by
         # the slit-mask design. If not expected traces are found in the image, they
         # will be removed. If traces are missed, they will be added.
-        if self.par['use_maskdesign']:
+        if not self.is_empty and self.par['use_maskdesign']:
             msgs.info('-' * 50)
             msgs.info('{0:^50}'.format('Matching traces to the slit-mask design'))
             msgs.info('-' * 50)
             self.maskdesign_matching(debug=debug)
 
         # Left-right synchronize the traces
-        self.sync()
+        # TODO: If the object "is_empty" at this point, sync adds two edges at
+        # the left and right edges of the detectors. This means that detectors
+        # with no slits (e.g., an underfilled mask in DEIMOS) will be treated
+        # like a long-slit observation. At best, that will lead to a lot of
+        # wasted time in the reductions; at worst, it will just cause the code
+        # to fault later on.
+        self.success = self.sync()
+        if not self.success:
+            return
         if show_stages:
             self.show(title='After synchronizing left-right traces into slits')
 
@@ -883,6 +893,7 @@ class EdgeTraceSet(DataContainer):
 #            self.show()
 
         # Add this to the log
+        # TODO: Is this log ever used? We should probably get rid of it...
         self.log += [inspect.stack()[0][3]]
 
     def initial_trace(self, bpm=None):
@@ -1326,7 +1337,7 @@ class EdgeTraceSet(DataContainer):
         # TODO: Currently barfs if object is empty!
 
         # Build the slit edge data to plot.
-        if slits is None:
+        if slits is None and not self.is_empty:
             # Use the internals. Any masked data is excluded; masked
             # data to be plotted are held in a separate array. This
             # means that errors and fits are currently never plotted
@@ -1359,8 +1370,7 @@ class EdgeTraceSet(DataContainer):
                 if self.maskdef_id is not None:
                     maskdef_ids = self.maskdef_id[gpm & self.is_left]
                     maskdef_ids[maskdef_ids == -99] = self.maskdef_id[gpm & self.is_right][maskdef_ids == -99]
-
-        else:
+        elif slits is not None:
             # Use the provided SlitTraceSet
             _include_error = False
             if include_error:
@@ -3721,6 +3731,10 @@ class EdgeTraceSet(DataContainer):
                 decomposition.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
+
+        Returns:
+            :obj:`bool`: Returns the status of the syncing. True means
+            success.
         """
         # Remove any fully masked traces. Keeps any inserted or
         # box-slit traces.
@@ -3728,6 +3742,8 @@ class EdgeTraceSet(DataContainer):
 
         # Make sure there are still traces left
         if self.is_empty:
+            if not self.par['bound_detector']:
+                return False
             msgs.warn('No traces left!  Left and right edges placed at detector boundaries.')
             self.bound_detector()
 
@@ -3739,7 +3755,7 @@ class EdgeTraceSet(DataContainer):
         if self.is_synced:
             self.check_synced(rebuild_pca=rebuild_pca and self.pcatype is not None)
             self.log += [inspect.stack()[0][3]]
-            return
+            return True
 
         # Edges are currently not synced, so check the input
         if self.par['sync_predict'] not in ['pca', 'nearest']:
@@ -3753,7 +3769,7 @@ class EdgeTraceSet(DataContainer):
         side, add_edge, add_indx = self._get_insert_locations()
         if not np.any(add_edge):
             # No edges to add
-            return
+            return True
 
         # Report
         msgs.info('-'*50)
@@ -3784,7 +3800,7 @@ class EdgeTraceSet(DataContainer):
             # Construct the trace to add and insert it
             trace_add[:,0] = trace_cen[:,0] + offset
             self.insert_traces(side[add_edge], trace_add, loc=add_indx[add_edge], mode='sync')
-            return
+            return True
 
         # Get the reference locations for the new edges
         trace_ref = self._get_reference_locations(trace_cen, add_edge)
@@ -3836,6 +3852,7 @@ class EdgeTraceSet(DataContainer):
         # method
         self.check_synced(rebuild_pca=rebuild_pca)
         self.log += [inspect.stack()[0][3]]
+        return True
 
     def add_user_traces(self, user_traces):
         """

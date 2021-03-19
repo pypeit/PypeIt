@@ -134,6 +134,9 @@ def test_run_pypeit():
     spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+    
+    # Check RMS
+    assert specObjs[0].WAVE_RMS < 0.02  # difference must be less than 0.02 pixels
 
     # Flexure
     assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels

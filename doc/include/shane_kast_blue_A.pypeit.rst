@@ -1,22 +1,22 @@
 .. code-block:: console
 
     # Auto-generated PypeIt file
-    # Mon 11 Jan 2021 16:15:57
-
+    # Fri 05 Mar 2021 11:31:56
+    
     # User-defined execution parameters
     [rdx]
     spectrograph = shane_kast_blue
-
+    
     # Setup
     setup read
         Setup A:
             dispname: 600/4310
             dichroic: d55
     setup end
-
+    
     # Read in the data
     data read
-     path /home/tim/MMT/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
     |    filename |                 frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic |
     |  b1.fits.gz |                  arc,tilt | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55 |
     | b14.fits.gz |                      bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55 |
@@ -45,6 +45,6 @@
     | b28.fits.gz |                   science | 184.40416666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.22085034722 |            1.0 |  1200.0 |      d55 |
     | b24.fits.gz |                  standard | 189.47833333333332 |  24.99638888888889 |   Feige 66 | 600/4310 | 2.0 arcsec |     1,1 |  57162.17554351852 | 1.039999961853 |    30.0 |      d55 |
     data end
-
+    
 
 

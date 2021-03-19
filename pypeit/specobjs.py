@@ -646,6 +646,7 @@ class SpecObjs:
         # Lists for a Table
         slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
             [], [], [], [], [], [], [], [], [], [], []
+        wave_rms = []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
@@ -662,14 +663,17 @@ class SpecObjs:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'IFU':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
             if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
@@ -743,6 +747,9 @@ class SpecObjs:
             obj_tbl['opt_fwhm'].unit = units.arcsec
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
+            # Wavelengths
+            obj_tbl['wv_rms'] = wave_rms
+            obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
