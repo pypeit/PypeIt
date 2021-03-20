@@ -47,6 +47,8 @@ def main(args):
                     sobjs[ii].RA,
                     sobjs[ii].DEC,
                     sobjs[ii].MASKDEF_OBJNAME)
+            if sobjs[ii].FORCE_EXTRACT is not None and sobjs[ii].FORCE_EXTRACT is True:
+                line += " forced_extraction"
             #
             print(line)
         return

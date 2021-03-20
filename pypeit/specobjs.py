@@ -647,6 +647,7 @@ class SpecObjs:
         slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
             [], [], [], [], [], [], [], [], [], [], []
         wave_rms = []
+        force_extract = []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
@@ -711,6 +712,8 @@ class SpecObjs:
             if specobj.RA is not None:
                 objra.append(specobj.RA)
                 objdec.append(specobj.DEC)
+            if specobj.FORCE_EXTRACT is not None:
+                force_extract.append(specobj.FORCE_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -747,6 +750,9 @@ class SpecObjs:
             obj_tbl['opt_fwhm'].unit = units.arcsec
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
+            # is this a forced extraction at the expected position from slitmask design?
+            if specobj.FORCE_EXTRACT is not None:
+                obj_tbl['force_extract'] = force_extract
             # Wavelengths
             obj_tbl['wv_rms'] = wave_rms
             obj_tbl['wv_rms'].format = '.3f'
