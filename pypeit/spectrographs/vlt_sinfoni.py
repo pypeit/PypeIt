@@ -1,5 +1,5 @@
 """
-Module for Keck/MOSFIRE specific methods.
+Module for VLT/SINFONI specific methods.
 
 .. include:: ../include/links.rst
 """
