@@ -56,7 +56,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             mincounts       = -1e10,
             gain            = np.atleast_1d(2.42),
-            ronoise         = np.atleast_1d(7.0), 
+            ronoise         = np.atleast_1d(7.0),
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = np.atleast_1d('[:,:]')
         )
