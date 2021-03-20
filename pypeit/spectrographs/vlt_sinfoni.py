@@ -18,7 +18,7 @@ from pypeit.images import detector_container
 
 class VLTSINFONISpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/MOSFIRE specific code
+    Child to handle VLT/SINFONI specific code
     """
     ndet = 1
     name = 'vlt_sinfoni'
@@ -55,8 +55,8 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
             numamplifiers   = 1,
             mincounts       = -1e10,
-            gain            = np.atleast_1d(2.42),  # Taken from MOSFIRE detector webpage
-            ronoise         = np.atleast_1d(7.0), # This is for 16 non-destructuve reads, the default readout mode
+            gain            = np.atleast_1d(2.42),
+            ronoise         = np.atleast_1d(7.0), 
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = np.atleast_1d('[:,:]')
         )
