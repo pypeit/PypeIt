@@ -748,16 +748,15 @@ class SlitTraceSet(datamodel.DataContainer):
         """
 
         if fwhm is None:
-            msgs.error('A FWHM for the optimal extraction must be provided. The user can do that'
-                       'by setting the parameter `force_fwhm` in `ExtractionPar`.')
-
+            msgs.error('A FWHM for the optimal extraction must be provided. See `force_fwhm` in `ExtractionPar`.')
+        median_off = 0.
         if median_off is not None:
             self.mask_median_off = median_off
 
         if self.mask_median_off is None:
-            msgs.warn('Not enough detected objects to determine the slitmask median offset. The user can provide'
-                      'a median offset by setting the parameter `mask_median_off` in `SlitMaskPar`.'
-                      'Undetected objects will NOT be added this time.')
+            msgs.warn('Not enough detected objects to determine the slitmask median offset. '
+                      'To provide a value see `mask_median_off` in `SlitMaskPar`.')
+            msgs.warn('Undetected objects will NOT be added this time.')
             return sobjs
         else:
             msgs.info('Slitmask median offset: {} pixels'.format(round(self.mask_median_off, 2)))
@@ -798,23 +797,23 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj = specobj.SpecObj(**specobj_dict)
 
             # Fill me up
-            xoff = SPAT_PIXPOS - slit_cen[specmid, islit]
-            thisobj.TRACE_SPAT = slit_cen[:, islit] + xoff
+            # xoff = SPAT_PIXPOS - slit_cen[specmid, islit]
+            # thisobj.TRACE_SPAT = slit_cen[:, islit] + xoff
+            # thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+            # thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - slits_left[specmid, islit]) / (
+            #     slits_right[specmid, islit]-slits_left[specmid, islit])
+            # thisobj.trace_spec = np.arange(slits_left.shape[0])
+
+            # This uses an object
+            idx_nearest = np.argmin(np.abs(sobjs.SPAT_PIXPOS-SPAT_PIXPOS))
+            specmid = sobjs[idx_nearest].TRACE_SPAT.size//2
+            xoff = SPAT_PIXPOS - sobjs[idx_nearest].TRACE_SPAT[specmid]
+            thisobj.TRACE_SPAT = sobjs[idx_nearest].TRACE_SPAT + xoff
             thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+            thisobj.trace_spec = sobjs[idx_nearest].trace_spec
             thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - slits_left[specmid, islit]) / (
                 slits_right[specmid, islit]-slits_left[specmid, islit])
-            thisobj.trace_spec = np.arange(slits_left.shape[0])
 
-            '''  This uses an object
-                idx_nearest = np.argmin(np.abs(sobjs.SPAT_PIXPOS-SPAT_PIXPOS))
-                specmid = sobjs[idx_nearest].TRACE_SPAT.size//2
-                xoff = SPAT_PIXPOS - sobjs[idx_nearest].TRACE_SPAT[specmid] 
-                thisobj.TRACE_SPAT = sobjs[idx_nearest].TRACE_SPAT + xoff
-                thisobj.SPAT_PIXPOS = SPAT_PIXPOS
-                thisobj.trace_spec = sobjs[idx_nearest].trace_spec
-                # TODO -- Do we need to add FWHM?
-                #  or  SPAT_FRACPOS?
-            '''
 
             # OBJID
             any_obj_in_slit = sobjs.MASKDEF_ID == self.maskdef_id[islit]
@@ -837,12 +836,8 @@ class SlitTraceSet(datamodel.DataContainer):
             sobjs.add_sobj(thisobj)
 
         # Sort objects according to their spatial location
-        #spat_pixpos = sobjs.SPAT_PIXPOS
-        #sobjs = sobjs[spat_pixpos.argsort()]
-
-        #embed()
-
-        # TODO -- Do we need to re-sort? (e.g. line 1644 of extract.py)
+        spat_pixpos = sobjs.SPAT_PIXPOS
+        sobjs = sobjs[spat_pixpos.argsort()]
 
         # Return
         return sobjs
