@@ -112,7 +112,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
+    # Loop on the files
     for kk, slit in enumerate(slits):
+        # Load up
         if wvspec is None:
             in_file = in_files[ifiles[kk]]
             if lowredux:

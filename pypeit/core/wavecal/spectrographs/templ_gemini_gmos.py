@@ -13,11 +13,13 @@ def gemini_gmos_r400_hama(overwrite=False):  # GMOS R400 Hamamatsu
     #
     ifiles = [0, 1, 2, 3, 4, 5, 6]
     slits = [1, 0, 2, 0, 3, 0, 0]  # Be careful with the order..
-    lcut = [5270., 6000., 6635., 7580., 8170., 9000.]
+    lcut = [5270., 5990., 6635., 7580., 8170., 9000.]
     wfile0 = os.path.join(templates.template_path, 'GMOS', 
-                          'R400', 'wvcalib_r400_630.fits')
+                          'R400', 'wvcalib_r400_470.fits')
     wfile1 = os.path.join(templates.template_path, 'GMOS', 'R400', 
-                          'MasterWaveCalib_A_01_aa.json')
+                          'wvcalib_r400_520.fits')
+    #wfile1b = os.path.join(templates.template_path, 'GMOS', 'R400', 
+    #                      'MasterWaveCalib_A_01_aa.json')
     wfile5 = os.path.join(templates.template_path, 'GMOS', 
                           'R400', 'MasterWaveCalib_A_05_aa.json')  # 5190 -- 6679
     wfile2 = os.path.join(templates.template_path, 'GMOS', 'R400', 
@@ -29,7 +31,9 @@ def gemini_gmos_r400_hama(overwrite=False):  # GMOS R400 Hamamatsu
     wfile6 = os.path.join(templates.template_path, 'GMOS', 
                           'R400', 'MasterWaveCalib_A_06_aa.json')
     #
-    templates.build_template([wfile0, wfile1, wfile5, wfile2, wfile3, wfile4, wfile6], slits, lcut, binspec,
+    templates.build_template([wfile0, wfile1, 
+                              wfile5, wfile2, wfile3, wfile4, wfile6], 
+                             slits, lcut, binspec,
                    outroot, lowredux=False, ifiles=ifiles, chk=True,
                    normalize=True, subtract_conti=True, overwrite=overwrite,
                              shift_wave=True)
@@ -109,7 +113,7 @@ def gemini_gmos_r831_ham(overwrite=False):
 
 
 if __name__ == '__main__':
-    gemini_gmos_r400_hama()#overwrite=True)
+    gemini_gmos_r400_hama(overwrite=True)
     #gemini_gmos_r400_e2v(overwrite=True)
     #gemini_gmos_b600_ham(overwrite=True)
     #gemini_gmos_r831_ham(overwrite=False)
