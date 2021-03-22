@@ -23,6 +23,8 @@
 - Add wavelength RMS to SpecObj.  This is an update of the datamodel to
   1.3.3
 - Add Bok B&C spectrograph
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
 
 
 1.3.3 (24 Feb 2021)
