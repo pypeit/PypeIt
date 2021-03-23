@@ -1081,14 +1081,11 @@ class Identify(object):
         Args:
             message (str): Message to be displayed
         """
-        try:
-            self.axes['info'].clear()
-            if default:
-                self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes,
-                              horizontalalignment='center', verticalalignment='center')
-                self.canvas.draw()
-        except:
-            print("Screen was killed")
+
+        self.axes['info'].clear()
+        if default:
+            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes, horizontalalignment='center', verticalalignment='center')
+            self.canvas.draw()
             return
         # Display the message
         self.axes['info'].text(0.5, 0.5, message, transform=self.axes['info'].transAxes,
