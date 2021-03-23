@@ -69,7 +69,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
             datasec         = np.atleast_1d('[1:4102,52:1880]')
-#            datasec         = np.atleast_1d(flip_fits_slice(datasec1)),
             )
         # Detector 2
         detector_dict2 = dict(
@@ -88,7 +87,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
             datasec         = np.atleast_1d('[1:4102,52:1880]')
-#            datasec         = np.atleast_1d(flip_fits_slice(datasec2)),
             )
 
         detectors = [detector_dict1, detector_dict2]
@@ -115,26 +113,19 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Wavelength calibration methods
 #        par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        # par['calibrations']['wavelengths']['method'] = 'identify'
         par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI,ArI']
-        # par['calibrations']['wavelengths']['rms_threshold'] = 0.5
-        # par['calibrations']['wavelengths']['sigdetect'] = 5.
-        # par['calibrations']['wavelengths']['fwhm']= 5.0
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
-        # par['calibrations']['arcframe']['process']['sigclip']=2.
-        # par['calibrations']['arcframe']['process']['objlim']=2.
-        # par['calibrations']['arcframe']['process']['cr_sigrej']=10.
-        # par['calibrations']['arcframe']['process']['replace']='mean'
         par['calibrations']['arcframe']['process']['clip']=False
         par['calibrations']['arcframe']['process']['combine']='weightmean' #Multiple arcs with different lamps, so can't median combine
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
-        # No ovescan region!
+        # No ovescan region
         turn_off = dict(use_overscan=False)
         par.reset_all_processimages_par(**turn_off)
         par['scienceframe']['process']['use_overscan'] = False
@@ -168,7 +159,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
-#        self.meta['dichroic'] = dict(ext=0, card='FILTER1')
+        self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
     def compound_meta(self, headarr, meta_key):
         """
