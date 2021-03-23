@@ -243,6 +243,24 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
+    def config_independent_frames(self):
+        """
+        Define frame types that are independent of the fully defined
+        instrument configuration.
+
+        Bias and dark frames are considered independent of a configuration.
+        Standards are assigned to the correct configuration frame group by
+        grism (i.e. ignoring that they are taken with a wider slit).
+        See :func:`~pypeit.metadata.PypeItMetaData.set_configurations`.
+
+        Returns:
+            :obj:`dict`: Dictionary where the keys are the frame types that
+            are configuration independent and the values are the metadata
+            keywords that can be used to assign the frames to a configuration
+            group.
+        """
+        return {'standard': 'dispname','bias': None, 'dark': None}
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
