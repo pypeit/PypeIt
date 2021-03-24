@@ -111,7 +111,6 @@ We request that the following docs be updated to advertise the new
 spectrograph:
 
 - The top-level ``README`` file
-- The list of spectrographs in ``doc/include/spectrographs_table.rst``
 - The ``index.rst`` file in ``doc/``
 - Also update the ``CHANGES.rst``
 
