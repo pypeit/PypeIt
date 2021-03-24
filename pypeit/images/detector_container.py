@@ -1,4 +1,8 @@
 """ Simple object to hold + process a single image.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
 """
 import numpy as np
 import inspect

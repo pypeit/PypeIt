@@ -50,9 +50,9 @@ class KOAArchiveDir():
     into the Keck Observatory Archive (KOA).
 
     Files are all copied to the top level directory in the archive. 
-    TODO: Copy in spec1d, spec2d, coadd subdirs?
-    Files should originate from KOA and should have a KOAID in their ``FILENAME``
-    entry in their header.
+
+    If a file originates from KOA the KOAID will be extracted either from the
+    ``KOAID`` header keyword or from the ``FILENAME`` header keyword.
 
     A KOAID has the format: ``II.YYYYMMDD.xxxxx``
         See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
@@ -62,7 +62,8 @@ class KOAArchiveDir():
     `ipac <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_ format. 
 
     ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files in
-    the archive. It is organzied byt the KOAID of the original science image.
+    the archive. It is organzied by the id (either KOAID, or file name) of the 
+    original science image.
 
     ``by_object_meta.dat`` contains metadata for the coadded output files.
     This may have multiple rows for each file depending on how many science
@@ -87,17 +88,18 @@ class KOAArchiveDir():
     """
 
     # Header and SpecObj keys for metadata needed for the IPAC files
-    _ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    _ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
     _OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
     _OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
     _OBJECT_BASED_SOURCE_KEYS = ['GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
+
     def __init__(self, archive_root, copy=True):
         self.archive_root = archive_root
         
         # Load metadata from any pre-existing metadata files.
         # Because astropy Tables are slow at adding rows, we convert 
         # the metadata to a list of lists for performance as adding rows is
-        # the primary feature of this clasd.
+        # the primary feature of this class.
         self._by_id_file = os.path.join(archive_root, 'by_id_meta.dat')
         if os.path.exists(self._by_id_file):
             by_id_table = ascii.read(self._by_id_file)
@@ -175,7 +177,7 @@ class KOAArchiveDir():
         id =  self._extract_id(header)
 
         # Build data row, which starts with koaid and filename + the metadata
-        data_row = [id, filename] + [header[x] for x in self._ID_BASED_HEADER_KEYS]
+        data_row = [id, filename] + [None if x not in header else header[x] for x in self._ID_BASED_HEADER_KEYS]
 
         self.by_id_metadata.append(data_row)
 
@@ -203,9 +205,6 @@ class KOAArchiveDir():
         Copy fits files to the archive directory and add their metadata to the
         by_id_metadata member variable. 
 
-        This method may exit with a fatal error if the KOAID cannot be extracted 
-        from the fits header.
-
         Args:
         files (list of str): List of full pathnames for tbe fits files
         """
@@ -220,9 +219,6 @@ class KOAArchiveDir():
         """
         Copy coadd output files to the archive directory and add their metadata to the
         by_object_metadata member variable. 
-
-        This method may exit with a fatal error if the KOAIDa cannot be extracted 
-        from the header of the source spec1d files.
 
         Args:
         sources (list of :obj:`pypeit.scripts.collate_1d.SourceObject`): 
@@ -269,7 +265,7 @@ class SourceObject:
 
     An instance is initiated with the first spectra of the group. Additional
     spectra can be compared with this object to see if it matches using the
-    match method, and are added to it with if they do.
+    match method, and are added to it if they do.
 
     Args:
     spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
@@ -779,7 +775,7 @@ def main(args):
         exclude_map = dict()
 
     if par['collate1d']['match_using'] == 'pixel':
-        threshold = np.float(par['collate1d']['threshold'])
+        threshold = float(par['collate1d']['threshold'])
     else:
         # For ra/dec matching, the default unit is arcseconds. We check for
         # this case by seeing if the passed in threshold is a floating point number
