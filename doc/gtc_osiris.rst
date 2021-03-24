@@ -1,6 +1,6 @@
-=========
+==========
 GTC OSIRIS
-=========
+==========
 
 
 Overview
@@ -13,14 +13,14 @@ Common Items
 ============
 
 Targets centred on chip 2
-+++++++
++++++++++++++++++++++++++
 
 GTC/OSIRIS has two detectors with the object of interest always centred on
 chip 2.  For many users this might meaning running run_pypeit with the
 "--det 2" switch.
 
 Standards taken with wide-slit
-+++++++
+++++++++++++++++++++++++++++++
 
 GTC/OSIRIS standards are not taken with the same setup as the science.
 The standards are taken with a 2.5" wide slit, so standards are exempted

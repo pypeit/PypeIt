@@ -48,8 +48,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         """
 
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-        datasec1 = hdu[1].header['datasec']
-        datasec2 = hdu[2].header['datasec']
 
 
         # Detector 1
