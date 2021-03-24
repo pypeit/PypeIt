@@ -39,7 +39,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
     supported = True
-    comment = 'Supported gratings: 600ZD, 830G, 1200G; see :doc:`deimos`'
+    comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):
         super().__init__()
@@ -233,6 +233,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        # When using LVM mask reduce only detectors 3,7
+        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
+            par['rdx']['detnum'] = [3,7]
+
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
         # long-slits...
@@ -255,7 +259,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -275,6 +279,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Return
         return par

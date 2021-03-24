@@ -3,9 +3,10 @@
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-v VERBOSITY]
-
-    Parse data files to construct a pypeit file in preparation for reduction using 'run_pypeit'
-
+    
+    Parse data files to construct a pypeit file in preparation for reduction using
+    'run_pypeit'
+    
     optional arguments:
       -h, --help            show this help message and exit
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
@@ -33,14 +34,21 @@
                             directory. (default:
                             /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
-                            File extension; compression indicators (e.g. .gz) not required. (default: .fits)
+                            File extension; compression indicators (e.g. .gz) not
+                            required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
-                            Path to top-level output directory. (default: /home/tim/MMT/PypeIt/doc)
-      -o, --overwrite       Overwrite any existing files/directories (default: False)
+                            Path to top-level output directory. (default:
+                            /Users/westfall/Work/packages/pypeit/doc)
+      -o, --overwrite       Overwrite any existing files/directories (default:
+                            False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT
-                            Generate the PypeIt files and folders by input configuration. To write all unique
-                            configurations identifed, use 'all', otherwise provide the list of configuration letters;
-                            e.g., 'A,B' or 'B,D,E' or 'E'. (default: None)
-      -b, --background      Include the background-pair columns for the user to edit (default: False)
+                            Generate the PypeIt files and folders by input
+                            configuration. To write all unique configurations
+                            identifed, use 'all', otherwise provide the list of
+                            configuration letters; e.g., 'A,B' or 'B,D,E' or 'E'.
+                            (default: None)
+      -b, --background      Include the background-pair columns for the user to
+                            edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
                             Level of verbosity from 0 to 2. (default: 2)
+    
