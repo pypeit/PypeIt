@@ -83,7 +83,8 @@ What this version provides
 
 * Support for 20+ :doc:`spectrographs`; see there for the full list, including
   those that are currently in various stages of development.
-
+ 
+  * Bok/B&C
   * Gemini/GNIRS
   * Gemini/GMOS
   * Gemini/FLAMINGOS 2

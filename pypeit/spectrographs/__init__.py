@@ -4,6 +4,7 @@ from pypeit.spectrographs import spectrograph
 # The import of all the spectrograph modules here is what enables the dynamic
 # compiling of all the available spectrographs below
 from pypeit.spectrographs import gtc_osiris
+from pypeit.spectrographs import bok_bc
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_gnirs

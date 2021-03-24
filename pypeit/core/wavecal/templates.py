@@ -59,6 +59,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     Args:
         in_files (list or str):
             Wavelength solution files, XIDL or PypeIt
+            If PypeIt, they can be a mix of MasterWaveCalib JSON and FITS files
         slits (list):
             Slits in the archive files to use
         wv_cuts (list):
@@ -111,7 +112,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
+    # Loop on the files
     for kk, slit in enumerate(slits):
+        # Load up
         if wvspec is None:
             in_file = in_files[ifiles[kk]]
             if lowredux:
@@ -122,6 +125,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                 wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
+        # Diagnostics
+        msgs.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
         # Cut
         if len(slits) > 1:
             wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))

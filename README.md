@@ -100,6 +100,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 
 # Instruments Served
+* Bok/B&C
 * Gemini/GNIRS
 * Gemini/GMOS
 * Gemini/FLAMINGOS 2

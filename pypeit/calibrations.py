@@ -30,7 +30,7 @@ from pypeit import io
 from pypeit import utils
 
 
-class Calibrations(object):
+class Calibrations:
     """
     This class is primarily designed to guide the generation of
     calibration images and objects in PypeIt.
@@ -171,6 +171,8 @@ class Calibrations(object):
 
         # Steps
         self.steps = []
+        self.success = False
+        self.failed_step = None
 
     def _prep_calibrations(self, ctype):
         """
@@ -628,6 +630,9 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
                                                     auto=True)
+                if not self.edges.success:
+                    self.success = False
+                    return None
                 self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
@@ -746,11 +751,14 @@ class Calibrations(object):
 
     def run_the_steps(self):
         """
-        Run full the full recipe of calibration steps
-
+        Run full the full recipe of calibration steps.
         """
+        self.success = True
         for step in self.steps:
-            getattr(self, 'get_{:s}'.format(step))()
+            getattr(self, f'get_{step}')()
+            if not self.success:
+                self.failed_step = f'get_{step}'
+                return
         msgs.info("Calibration complete!")
         msgs.info("#######################################################################")
 

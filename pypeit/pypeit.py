@@ -467,6 +467,11 @@ class PypeIt(object):
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            if not self.caliBrate.success:
+                msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                          f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                          f'skipping this detector.')
+                continue
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
