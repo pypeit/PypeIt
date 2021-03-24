@@ -15,9 +15,6 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-def flip_fits_slice(s: str) -> str:
-    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
-
 
 class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     """
@@ -27,7 +24,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     name = 'gtc_osiris'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
-    supported = False
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -62,7 +59,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             darkcurr        = 0.0,
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
-            mincounts       = -1e10,
+            mincounts       = 0,
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
@@ -80,7 +77,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             darkcurr        = 0.0,
             saturation      = 65535., # ADU
             nonlinear       = 0.95,
-            mincounts       = -1e10,
+            mincounts       = 0,
             numamplifiers   = 1,
             gain            = np.atleast_1d([0.95]),
             ronoise         = np.atleast_1d([4.5]),
@@ -105,6 +102,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
