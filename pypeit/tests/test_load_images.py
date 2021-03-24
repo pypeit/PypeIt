@@ -147,6 +147,15 @@ def test_load_gmos():
     except:
         pytest.fail('Gemini GMOS test data section failed: {0}'.format(ifile))
 
+@dev_suite_required
+def test_load_bok():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/bok_bc/600',
+                         'g0005.fits')
+    try:
+        data_img = grab_img('bok_bc', ifile)
+    except:
+        pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
+
 '''
 @dev_suite_required
 def test_load_fire():
