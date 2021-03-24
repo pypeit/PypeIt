@@ -72,4 +72,3 @@ pypeit/data/telluric/*.fits.gz
 # added by TEP
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
-*.ipynb

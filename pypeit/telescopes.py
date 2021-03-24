@@ -12,6 +12,7 @@ class GTCTelescopePar(TelescopePar):
                                                longitude=17.877,
                                                latitude=28.762,
                                                elevation=2348.0)
+                                               #eff_aperture=73.0)
 
 class GeminiNTelescopePar(TelescopePar):
     def __init__(self):
