@@ -1,4 +1,8 @@
 """ Module for fluxing routines
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
 """
 import os
 import glob
@@ -387,7 +391,7 @@ def extinction_correction(wave, airmass, extinct):
 
     Parameters
     ----------
-    wave : `numpy.ndarray`_
+    wave (`numpy.ndarray`_):
         Wavelengths for interpolation. Should be sorted Assumes
         Angstroms
     airmass : float
@@ -395,9 +399,9 @@ def extinction_correction(wave, airmass, extinct):
     extinct : Table
         Table of extinction values
 
-    Returns
+    Returns:
     -------
-    flux_corr : `numpy.ndarray`_
+    `numpy.ndarray`_:
         Flux corrections at the input wavelengths
     """
     # Checks
@@ -615,7 +619,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
             Extrapolate the sensitivity function (instead of crashing out)
 
     Returns:
-    sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
+        sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
             This quantity is defined to be sensfunc_interp/exptime/delta_wave
 
     """
@@ -728,10 +732,8 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
     Returns:
-        tuple: Returns:
-
-            - zeropoint (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
-            - mask_sens (bool `numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
+            zeropoint (`numpy.ndarray`_): Sensitivity function with same shape as wave (nspec,)
+            mask_sens (`numpy.ndarray`_): Good pixel mask for sensitivity function with same shape as wave (nspec,)
 
     """
     # Create copy of the arrays to avoid modification and convert to
@@ -959,9 +961,9 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     zeropoint (`numpy.ndarray`_):
        zeropoint array, float, shape (nspec,)
 
-    Returns
-    -------
-    factor (`numpy.ndarray`_):
+    Returns:
+    --------
+    `numpy.ndarray`_:
         Factor that when multiplied into F_lam converts to N_lam
 
     """
@@ -989,8 +991,8 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     tellmodel (`numpy.ndarray`_):
         Telluric absorption model, optional, shape (nspec,)
 
-    Returns
-    -------
+    Returns:
+    --------
     zeropoint (`numpy.ndarray`_):
         Spectroscopic zeropoint, float, shape (nspec,)
     zeropoint_gpm (`numpy.ndarray`_):

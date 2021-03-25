@@ -607,3 +607,4 @@ Here are some developer-specific docs:
    ../metadata
    reports
    conda_forge
+   fluxing

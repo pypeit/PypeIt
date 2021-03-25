@@ -53,7 +53,7 @@ Spectroscopic Zeropoints
 Flux calibration of PypeIt spectra is expressed via the "spectroscopic zeropoint", which, by analogy
 with the imaging zeropoint, is defined to be:
 
-:math:`{\rm Zeropoint} \equiv -2.5 \log_{10}{\left[\frac{\frac{\lambda^2}{c}S_\lambda}{\left(\frac{3631 {\rm Jy}}{{\rm photons}\slash {\rm s} \slash \mathrm{\mathring{A}}}\right)\right]}`.
+:math:`{\rm Zeropoint} \equiv -2.5 \log_{10}{\left[\frac{\frac{\lambda^2}{c}S_\lambda}{\left(\frac{3631 {\rm Jy}}{{\rm photons}/ {\rm s} / \mathrm{\mathring{A}}}\right)}\right]}`
 
 With this definition we see that an astronomical source with a flat spectrum in frequency :math:`\nu`,
 i.e. :math:`F_\nu = {\rm const}` and AB magnitude equal to the Zeropoint will produce

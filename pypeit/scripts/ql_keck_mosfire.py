@@ -232,7 +232,7 @@ def main(args):
 
     # Calibration Master directory
     if args.master_dir is None:
-        msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
+        msgs.error('You need to set an environment variable QL_MASTERS that points at the Master Calibs')
 
     # Define some hard wired master files here to be later parsed out of the directory
     filter = spectrograph.get_meta_value(files[0], 'filter1')
@@ -244,7 +244,7 @@ def main(args):
     if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
         not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
         not os.path.isfile(std_spec1d_file)):
-        msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
+        msgs.error('Master frames not found. Check that environment variable QL_MASTERS  points at the Master Calibs')
 
 
 
