@@ -149,7 +149,7 @@ def test_load_gmos():
 
 @dev_suite_required
 def test_load_osiris():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gtc_osiris/R300B',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gtc_osiris/R2500R',
                          '0002851159-20210217-OSIRIS-OsirisBias.fits')
     try:
         data_img = grab_img('gtc_osiris', ifile)
