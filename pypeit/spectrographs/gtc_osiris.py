@@ -126,8 +126,6 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par.reset_all_processimages_par(**turn_off)
         par['scienceframe']['process']['use_overscan'] = False
 
-        par['reduce']['findobj']['find_trim_edge'] = [20,100]
-        par['reduce']['trim_edge'] = [20,100]
 
 
 
@@ -270,8 +268,8 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+            par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
-#            par['calibrations']['slitedges']['bound_detector'] = False
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
