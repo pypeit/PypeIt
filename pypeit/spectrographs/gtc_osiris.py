@@ -269,6 +269,10 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
+        if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
+            par['calibrations']['slitedges']['sync_predict'] = 'pca'
+#            par['calibrations']['slitedges']['bound_detector'] = False
+
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
             par['calibrations']['wavelengths']['wv_cen'] = 4405.
