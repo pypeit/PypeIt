@@ -95,4 +95,22 @@ If this is a near-IR instrument, you may wish to turn off calibration steps.
 See :class:`~pypeit.spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph` for
 an example.
 
+Tests
++++++
+
+For a spectrograph to be supported going forth, we require a mininum set
+of tests.  These are:
+
+- A full run of the pipeline for each grating/mode of the spectrograph in the PypeIt Development Suite.
+- A unit test in ``test_load_images.py`` to tickle the I/O.
+
+Docs
+++++
+
+We request that the following docs be updated to advertise the new
+spectrograph:
+
+- The top-level ``README`` file
+- The ``index.rst`` file in ``doc/``
+- Also update the ``CHANGES.rst``
 
