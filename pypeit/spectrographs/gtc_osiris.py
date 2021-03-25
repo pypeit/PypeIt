@@ -147,7 +147,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='object')
         self.meta['idname'] = dict(ext=0, card='obsmode')
-        self.meta['decker'] = dict(ext=0, card='SLITW')
+        self.meta['decker'] = dict(ext=0, card='MASKNAME')
         self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
         self.meta['detector']=dict(ext=0,card='detector')
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
