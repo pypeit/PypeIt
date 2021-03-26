@@ -223,6 +223,7 @@ or have a feature request, please `submit an issue
 
    dev/development
    PypeIt API <api/modules>
+   new_spectrograph
 
 Contributors
 ============
