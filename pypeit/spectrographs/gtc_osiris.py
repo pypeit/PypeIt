@@ -270,6 +270,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]
             par['calibrations']['slitedges']['sync_predict'] = 'pca'
+            par['calibrations']['slitedges']['det_buffer'] = 1
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
