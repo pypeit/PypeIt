@@ -16,14 +16,14 @@ class History:
 
     Args:
 
-    header (:obj:`astropy.io.fits.Header`, optional):
-        Header from a fits file. The
-        history keyword entries in this header will be used to populate this 
-        History object. Defaults to None.
+        header (`astropy.io.fits.Header`_, optional):
+            Header from a fits file. The
+            history keyword entries in this header will be used to populate this 
+            History object. Defaults to None.
 
     Attributes:
     
-    history (obj::`list` of `str`): List of history entries.
+        history (:obj:`list` of `str`): List of history entries.
     """
 
     def __init__(self, header=None):
@@ -37,19 +37,33 @@ class History:
 
     def add_reduce(self, calib_id, metadata, frames, bg_frames):
         """
-        Add history entries for reducing a frame.
+        Add history entries for reducing a frame. For example::
+
+            HISTORY 2021-03-05T23:56 PypeIt Reducing target HIP15339                        
+            HISTORY Combining frames:                                                       
+            HISTORY "S20161108S0087.fits.gz"                                                
+            HISTORY "S20161108S0090.fits.gz"                                                
+            HISTORY Subtracted background from frames:                                      
+            HISTORY "S20161108S0088.fits.gz"                                                
+            HISTORY "S20161108S0089.fits.gz"                                                
+            HISTORY Callibration frames:                                                    
+            HISTORY arc,science,tilt "S20161108S0069.fits.gz"                               
+            HISTORY arc,science,tilt "S20161108S0070.fits.gz"                               
+            HISTORY arc,science,tilt "S20161108S0071.fits.gz"                               
+            HISTORY arc,science,tilt "S20161108S0072.fits.gz"                               
+            HISTORY pixelflat,trace "S20161108S0078.fits.gz"                                
 
         Args:
-        calib_id (int): The calibration id being reduced.
+            calib_id (int): The calibration id being reduced.
 
-        metadata (:obj:`pypeit.metadata.PypeItMetadata`): The metadata for all
-            the fits files PypeIt knows of.
+            metadata (:class:`pypeit.metadata.PypeItMetaData`): The metadata for all
+                the fits files PypeIt knows of.
 
-        frames (:obj:`numpy.ndarray`): Array of indexes into metadata of the 
-            frames being combined in the reduction.
+            frames (`numpy.ndarray`_): Array of indexes into metadata of the 
+                frames being combined in the reduction.
 
-        bg_frames (:obj:`numpy.ndarray`): Array of indexes into metadata of the 
-            frames being subtracted in the reduction.
+            bg_frames (`numpy.ndarray`_): Array of indexes into metadata of the 
+                frames being subtracted in the reduction.
         """
         self.append(f'PypeIt Reducing target {metadata["target"][frames[0]]}')
         self.append('Combining frames:', add_date=False)
@@ -76,19 +90,20 @@ class History:
         
         The history shows what files and objects were used for coadding.
         To save characters the unique files are listed first and then the
-        objects are listed. For example:
-        HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
-        HISTORY File 0 "spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits"  
-        HISTORY File 1 "spec1d_DE.20170425.51771-dra11_DEIMOS_2017Apr25T142245.350.fits"  
-        HISTORY File 2 "spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits"  
-        HISTORY Object ID SPAT0692-SLIT0704-DET08 from file 0                           
-        HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 2                           
-        HISTORY Object ID SPAT0691-SLIT0704-DET08 from file 2                           
-        HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 1
+        objects are listed. For example::
+            
+            HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
+            HISTORY File 0 "spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits"  
+            HISTORY File 1 "spec1d_DE.20170425.51771-dra11_DEIMOS_2017Apr25T142245.350.fits"  
+            HISTORY File 2 "spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits"  
+            HISTORY Object ID SPAT0692-SLIT0704-DET08 from file 0                           
+            HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 2                           
+            HISTORY Object ID SPAT0691-SLIT0704-DET08 from file 2                           
+            HISTORY Object ID SPAT0695-SLIT0706-DET04 from file 1
 
         Args:
-        spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
-        objids (:obj:`list`): List of the PypeIt object ids used in coadding.
+            spec1d_files (:obj:`list`): List of the spec1d files used for coadding.
+            objids (:obj:`list`): List of the PypeIt object ids used in coadding.
         """
 
         combined_file_obj = zip(spec1d_files, objids)
@@ -106,10 +121,10 @@ class History:
         """Append a new history entry.
 
         Args: 
-        history (str): The history text to add.
+            history (str): The history text to add.
 
-        add_date (bool): If true a isot formatted date willbe prepended
-            to the history entry. Defaults to True.
+            add_date (bool): If true a isot formatted date willbe prepended
+                to the history entry. Defaults to True.
         """
 
         if add_date:
@@ -118,9 +133,10 @@ class History:
             self.history.append(history)
         
     def write_to_header(self, header):
-        """Write history entries to a FITS header
+        """Write history entries to a FITS header.
+
         Args:
-        header (`astropy.io.fits.Header`): The header to write to.
+            header (`astropy.io.fits.Header`_): The header to write to.
         """
         
         for line in self.history:
