@@ -74,9 +74,9 @@ class MockSpecObjs:
         # object1 entries test a match within a single file
         # object2 entry tests a spectra that doesn't match anything
         # object3 entries test a source that matches four spectra across two files
-        # The SERENDIP in file1 tests two serendipitous detections that match within a .0003d threshold
+        # The SERENDIP in file1 tests two serendipitous detections that match within a .0003d tolerance
         # object4 in file 2 along with the SERENDIP test an object that matches two spectra but narrowly misses
-        # a SERENDIP detection with a threshold of 0.0003d, but will match at 0.0004d.
+        # a SERENDIP detection with a tollerance of 0.0003d, but will match at 0.0004d.
 
         if file == "spec1d_file1":
             self.specobjs = [MockSpecObj(MASKDEF_OBJNAME='object1',  MASKDEF_ID='1001', DET=1, RA=201.1517, DEC=27.3246, SPAT_PIXPOS=1234.0, NAME='SPAT1234_SLIT1234_DET01', OPT_COUNTS=np.zeros(100)),

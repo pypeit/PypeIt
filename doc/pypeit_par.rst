@@ -491,15 +491,15 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.Collate1DPar`
 
-======================  ==========  =======  ===========  ====================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options  Default      Description                                                                                                                                                                                                                                                                                                                                         
-======================  ==========  =======  ===========  ====================================================================================================================================================================================================================================================================================================================================================
-``archive_root``        str         ..       ..           The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                 
-``dry_run``             bool        ..       False        If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                               
-``match_using``         str         ..       ``ra/dec``   Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                 
-``slit_exclude_flags``  list, str   ..       []           A list of slit flags that should be excluded.                                                                                                                                                                                                                                                                                                       
-``threshold``           str, float  ..       ``0.0003d``  The threshold used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance as passed to  astropy.coordinates.Angle (e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is an integer.
-======================  ==========  =======  ===========  ====================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                   
+======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+``archive_root``        str         ..       ..          The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                                                                           
+``dry_run``             bool        ..       False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                         
+``match_using``         str         ..       ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                           
+``slit_exclude_flags``  list, str   ..       []          A list of slit flags that should be excluded.                                                                                                                                                                                                                                                                                                                                                                 
+``tolerance``           str, float  ..       ``3.0``     The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -887,6 +887,112 @@ provided above for each instrument.  That is, if one were to include
 these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
 :class:`pypeit.spectrographs.spectrograph.Spectrograph` class.
+
+BOK BC (``bok_bc``)
+-------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = bok_bc
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 120
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, HeI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
+          use_biasimage = False
+          use_overscan = False
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          sig_thresh = 5.0
+      [[skysub]]
+          sky_sigrej = 5.0
+          global_sky_std = False
+          no_poly = True
+  [sensfunc]
+      polyorder = 7
 
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------

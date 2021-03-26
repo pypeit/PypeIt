@@ -355,8 +355,8 @@ class SourceObject:
         # No mismatches were found
         return True
 
-    def match(self, spec_obj, spec1d_header, thresh):
-        """Determine if a SpecObj matches this group within the given threshold.
+    def match(self, spec_obj, spec1d_header, tolerance):
+        """Determine if a SpecObj matches this group within the given tolerance.
         This will also compare the configuration keys to make sure the SpecObj
         is compatible with the ones in this SourceObject.
 
@@ -367,7 +367,7 @@ class SourceObject:
         spec1d_header (:obj:`astropy.io.fits.Header`):
             The header from the spec1d that dontains the SpecObj.
             
-        thresh (float OR :obj:`astropy.coordinates.Angle`):
+        tolerance (float OR :obj:`astropy.coordinates.Angle`):
             The largest distance the given spec_obj is allowed to be
             from the group in order to be a part of it. If match_type is 
             'pixel', this is specified as a floating point pixel distance.
@@ -383,10 +383,10 @@ class SourceObject:
 
         if self.match_type == 'ra/dec':
             coord2 = SkyCoord(ra=spec_obj.RA, dec=spec_obj.DEC, unit='deg')
-            return self.coord.separation(coord2) <= thresh
+            return self.coord.separation(coord2) <= tolerance
         else:
             coord2 =spec_obj['SPAT_PIXPOS'] 
-            return np.fabs(coord2 - self.coord) <= thresh
+            return np.fabs(coord2 - self.coord) <= tolerance
 
 def find_slits_to_exclude(spec2d_files, par):
     """Find slits that should be excluded according to the input parameters.
@@ -427,10 +427,10 @@ def find_slits_to_exclude(spec2d_files, par):
 
     return exclude_map
 
-def group_spectra_by_source(spec1d_files, exclude_map, match_type, thresh):
+def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance):
     """Given a list of spec1d files from PypeIt, group the spectra within the
     files by their source object. The grouping is done by comparing the 
-    position of each spectra (using either pixel or RA/DEC) using a given threshold.
+    position of each spectra (using either pixel or RA/DEC) using a given tolerance.
 
     Args:
         spec1d_files (list of str): A list of spec1d files created by PypeIt.
@@ -439,7 +439,7 @@ def group_spectra_by_source(spec1d_files, exclude_map, match_type, thresh):
         match_type (str): How to match the positions of spectra. 'pixel' for
             matching by spatial pixel distance or 'ra/dec' for matching by
             angular distance.
-        thresh: (float OR `obj`:astropy.coordinates.Angle): 
+        tolerance: (float OR `obj`:astropy.coordinates.Angle): 
             Maximum distance that two spectra can be from each other to be 
             considered to be from the same source. Measured in floating
             point pixels or as an angular distance as an Astropy Angle.
@@ -465,7 +465,7 @@ def group_spectra_by_source(spec1d_files, exclude_map, match_type, thresh):
             # If one can't be found, trat this as a new SourceObject.
             found = False
             for source in source_list:
-                if  source.match(sobj, sobjs.header, thresh):
+                if  source.match(sobj, sobjs.header, tolerance):
                     source.spec_obj_list.append(sobj)
                     source.spec1d_file_list.append(spec1d_file)
                     source.spec1d_header_list.append(sobjs.header)
@@ -694,8 +694,8 @@ def build_parameters(args):
         params['collate1d'] = pypeitpar.Collate1DPar()
 
     # command line arguments take precedence over config file parameters
-    if args.thresh is not None:
-        params['collate1d']['threshold'] = args.thresh
+    if args.tolerance is not None:
+        params['collate1d']['tolerance'] = args.tolerance
 
     if args.match is not None:
         params['collate1d']['match_using'] = args.match
@@ -726,7 +726,7 @@ def parse_args(options=None, return_parser=False):
                              'line. The file must have the following format:\n'
                              '\n'
                              '[collate1d]\n'
-                             '  threshold <threshold>\n'
+                             '  tolerance          <tolerance>\n'
                              '  archive_root       <directory for archive files>\n'
                              '  slit_exclude_flags <slit types to exclude>\n'
                              '  match_using        Whether to match using "pixel" or\n'
@@ -743,7 +743,7 @@ def parse_args(options=None, return_parser=False):
                         'flux/coadd/archive. Can contain wildcards')
     parser.add_argument('--par_outfile', default='collate1d.par', type=str,
                         help='Output to save the parameters')
-    parser.add_argument('--thresh', type=str, help=blank_par.descr['threshold'])
+    parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
     parser.add_argument('--match', type=str, choices=blank_par.options['match_using'], help=blank_par.descr['match_using'])
     parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
     parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
@@ -775,16 +775,16 @@ def main(args):
         exclude_map = dict()
 
     if par['collate1d']['match_using'] == 'pixel':
-        threshold = float(par['collate1d']['threshold'])
+        tolerance = float(par['collate1d']['tolerance'])
     else:
         # For ra/dec matching, the default unit is arcseconds. We check for
-        # this case by seeing if the passed in threshold is a floating point number
-        if is_float(par['collate1d']['threshold']):
-            threshold =  Angle(par['collate1d']['threshold'], unit=u.arcsec)
+        # this case by seeing if the passed in tolerance is a floating point number
+        if is_float(par['collate1d']['tolerance']):
+            tolerance =  Angle(par['collate1d']['tolerance'], unit=u.arcsec)
         else:
-            threshold = Angle(par['collate1d']['threshold'])
+            tolerance = Angle(par['collate1d']['tolerance'])
 
-    source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], threshold)
+    source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], tolerance)
 
     #sensfunc, how to identify standard file
 

@@ -17,17 +17,16 @@ Usage
 All collate options are accessible via either the command line or a .collate1d file.
 Additional coadd 1D configuration can also be passed in via configuration files.
 
-An example run of ``pypeit_collate_1d`` requires a threshold and a list
+An example run of ``pypeit_collate_1d`` requires a tolerance and a list
 of spec1d files::
 
-   pypeit_collate_1d --thresh 3 --spec1d_files Science/spec1d*.fits
+   pypeit_collate_1d --tolerance 3 --spec1d_files Science/spec1d*.fits
 
 ``pypeit_collate_1d`` can also be run in dry run mode to try out different 
 threshold values without doing any processing on the input::
 
-      $ pypeit_collate_1d --thresh 3 --spec1d_files Science/spec1d*
+      $ pypeit_collate_1d --tolerance 3 --spec1d_files Science/spec1d*
 
-      (pypeit) dusty@Pike:/media/stuff/work/rundir3$ pypeit_collate_1d --thresh 3 --spec1d_files Science/spec1d*.fits --dry_run
       Writing the parameters to collate1d.par
       UserWarning: Selected configuration file already exists and will be overwritten! (parset.py:649)
       [INFO]    :: Creating J132402.48+271212.38_DEIMOS_20130409.fits from the following sources:
@@ -98,7 +97,7 @@ followed by a list of spec1d files. An example configuration file is shown below
     #     1h2m3s   Hours, minutes, seconds
     #     300      Pixel distance
     #     
-    threshold = 3.5
+    tolerance = 3.5
 
     # What slit bitmask flags to exclude from the matching.
     # If this list is not empty, each spec1d file to be coadded 
@@ -132,7 +131,7 @@ To decide if two spectra match ``pypeit_collate_1d`` performs the following chec
    the same configuration.
 
 3. The position of the two spectra are compared to see that they are within a given
-   threshold of each other.
+   tolerance of each other.
 
 If a spectrum does not match any others, it is still output using the :ref:`coadd1d:Current Coadd1D Data Model`.
 
@@ -175,7 +174,7 @@ Step 3: Match by Position
 
 RA/DEC
 ++++++
-If RA/DEC matching is being used, the threshold is specified as an angular distance.
+If RA/DEC matching is being used, the tolerance is specified as an angular distance.
 By default, it is treated as arcseconds, but any format supported by astropy `Angles <https://docs.astropy.org/en/stable/coordinates/angles.html>`_ 
 can be used. The matching is done the _astropy.coordinates.SkyCoord ``separation`` method.
 
@@ -183,7 +182,7 @@ Currently only the ``DEIMOS`` instrument supports RA/DEC matching.
 
 Pixel
 +++++
-If pixel matching is being used, the threshold can be specified as an integer 
+If pixel matching is being used, the tolerance can be specified as an integer 
 or floating point number.  The matching is done as the distance along the 
 spatial axis of the exposure.
 

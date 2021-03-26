@@ -4589,7 +4589,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, threshold=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4604,13 +4604,14 @@ class Collate1DPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Threshold for grouping by object
-        defaults['threshold'] = '0.0003d'
-        dtypes['threshold'] = [str, float]
-        descr['threshold'] = "The threshold used when comparing the coordinates of objects. If two " \
+        defaults['tolerance'] = '3.0'
+        dtypes['tolerance'] = [str, float]
+        descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
                              "objects are within this distance from each other, they " \
                              "are considered the same object. If match_using is 'ra/dec' (the default) " \
-                             "this is an angular distance as passed to  astropy.coordinates.Angle " \
-                             "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is an integer."
+                             "this is an angular distance. The defaults units are arcseconds but " \
+                             "other units supported by astropy.coordinates.Angle can be used" \
+                             "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
 
 
         # Root directory of archive
@@ -4646,7 +4647,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['threshold', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

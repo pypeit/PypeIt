@@ -322,7 +322,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit', 'BOXSLIT']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
-    thresh_args = ['--thresh', '0.03d']
+    tol_args = ['--tolerance', '0.03d']
     alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
     expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
@@ -332,7 +332,7 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
         print("archive_root = /foo/bar", file=f)
-        print("threshold = 4.0", file=f)
+        print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
         print("slit_exclude_flags = BADREDUCE", file=f)
         print('spec1d read', file=f)
@@ -348,16 +348,16 @@ def test_collate_1d(tmp_path, monkeypatch):
 
     # Args only, nospec1d files should raise an exception
     with pytest.raises(PypeItError):
-        parsed_args = collate_1d.parse_args(args + thresh_args)
+        parsed_args = collate_1d.parse_args(args + tol_args)
         (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
 
     # Everything passed via command line
-    parsed_args = collate_1d.parse_args(args + thresh_args + spec1d_args)
+    parsed_args = collate_1d.parse_args(args + tol_args + spec1d_args)
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is True
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['match_using'] == 'ra/dec'
-    assert params['collate1d']['threshold'] == '0.03d'
+    assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
@@ -367,27 +367,27 @@ def test_collate_1d(tmp_path, monkeypatch):
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is False
     assert params['collate1d']['archive_root'] == '/foo/bar'
-    assert params['collate1d']['threshold'] == 4.0
+    assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
     # Test that a full command line overrides a config file
-    parsed_args = collate_1d.parse_args(args + spec1d_args + thresh_args + [config_file_full])
+    parsed_args = collate_1d.parse_args(args + spec1d_args + tol_args + [config_file_full])
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is True
     assert params['collate1d']['archive_root'] == '/archive'
-    assert params['collate1d']['threshold'] == '0.03d'
+    assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
-    # Test that a config file with spec1d files. Test that default threshold and match_using is used
+    # Test that a config file with spec1d files. Test that default tolerance and match_using is used
     parsed_args = collate_1d.parse_args([config_file_spec1d])
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
-    assert params['collate1d']['threshold'] == '0.0003d'
+    assert params['collate1d']['tolerance'] == 3.0
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
@@ -407,15 +407,15 @@ def test_collate_1d(tmp_path, monkeypatch):
 
         os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--thresh', '3', config_file_spec1d])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--tolerance', '3', config_file_spec1d])
         assert collate_1d.main(parsed_args) == 0
         assert os.path.exists(par_file)
         # Remove par_file to avoid a warning
         os.unlink(par_file)
         
-        # Test default units of arcsec for threshold, and that a spec2d file isn't needed
+        # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
         # if exclude_slit_flags is empty
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--thresh', '3', '--spec1d_files', alt_spec1d])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', alt_spec1d])
         assert collate_1d.main(parsed_args) == 0
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
