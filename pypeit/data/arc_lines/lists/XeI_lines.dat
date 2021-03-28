@@ -4,8 +4,12 @@
 # Creation Date: 2016-Dec-21
 | ion |       wave | NIST | Instr | amplitude |                    Source |
 | XeI |  4079.9718 |    1 |    16 |     10000 |deimos_900ZD_pypeit_manual |
+| XeI |  4502.2410 |    1 |    19 |      1000 |         gtc_osiris_manual |
+| XeI |  4525.9493 |    1 |    19 |      1000 |         gtc_osiris_manual |
+| XeI |  4584.0314 |    1 |    16 |      1000 |         gtc_osiris_manual |
 | XeI |  4625.5712 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
 | XeI |  4672.5337 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
+| XeI |  4698.3352 |    1 |    16 |       500 |         gtc_osiris_manual |
 | XeI |  4735.4753 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
 | XeI |  4808.3596 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |
 | XeI |  4831.0597 |    1 |    16 |     10000 |  deimos_1200B_iraf_manual |

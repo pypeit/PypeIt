@@ -88,6 +88,7 @@ What this version provides
   * Gemini/GNIRS
   * Gemini/GMOS
   * Gemini/FLAMINGOS 2
+  * GTC/OSIRIS
   * Lick/Kast
   * Magellan/MagE
   * Magellan/Fire

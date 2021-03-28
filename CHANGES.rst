@@ -25,6 +25,7 @@
 - Add Bok B&C spectrograph
 - Improved GMOS R400 wavelength solution
 - Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
 - Updates for docs on adding new spectrographs.  And a bok test
 
 
