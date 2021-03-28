@@ -6,6 +6,14 @@ from pypeit.par.pypeitpar import TelescopePar
 
 #TODO: Remove 'Par' from class name?
 
+class GTCTelescopePar(TelescopePar):
+    def __init__(self):
+        super(GTCTelescopePar, self).__init__(name='GTC',
+                                               longitude=17.877,
+                                               latitude=28.762,
+                                               elevation=2348.0,
+                                               eff_aperture=73.0)
+
 
 # eff_aperture of Keck, Shane from xidl
 class KeckTelescopePar(TelescopePar):
@@ -135,4 +143,3 @@ class BokTelescopePar(TelescopePar):
                                               longitude=111.6004,
                                               latitude=31.9629,
                                               elevation=2071.1)
-

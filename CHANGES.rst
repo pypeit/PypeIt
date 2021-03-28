@@ -1,5 +1,4 @@
 
-
 1.3.4dev
 --------
 
@@ -42,7 +41,10 @@ function completely to compute zeropoints and throughput. Enhanced sensfunc.py Q
 - Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
 - Added latin hypercube sampler to pypeit.utils which is required for differential evolution
 optimizations.
-
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
+- Updates for docs on adding new spectrographs.  And a bok test
 
 
 1.3.3 (24 Feb 2021)

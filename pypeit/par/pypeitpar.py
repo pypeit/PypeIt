@@ -16,7 +16,7 @@ parameter sets:
 
     - Add ``foo=None`` to the ``__init__`` method of the relevant
       parameter set.  E.g.::
-        
+
         def __init__(self, existing_par=None, foo=None):
 
     - Add any default value (the default value is ``None`` unless you set
@@ -30,7 +30,7 @@ parameter sets:
                        'Options are: {0}'.format(', '.join(options['foo']))
 
     - Add the parameter to the ``from_dict`` method:
-    
+
         - If the parameter is something that does not require
           instantiation, add the keyword to the ``parkeys`` list in the
           ``from_dict`` method.  E.g.::
@@ -250,7 +250,7 @@ class ProcessImagesPar(ParSet):
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
                             'Options are: {0}'.format(', '.join(options['overscan_method']))
-        
+
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
@@ -428,14 +428,14 @@ class ProcessImagesPar(ParSet):
         # Convert param to list
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
-        
+
         if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
             raise ValueError('For polynomial overscan method, set overscan_par = order, '
                              'number of pixels, number of repeats')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
-            
+
         if self.data['overscan_method'] == 'median' and self.data['overscan_par'] is not None:
             warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
 
@@ -660,7 +660,7 @@ class FlatFieldPar(ParSet):
         # Convert param to list
         #if isinstance(self.data['params'], int):
         #    self.data['params'] = [self.data['params']]
-        
+
         # Check that there are the correct number of parameters
         #if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
         #    raise ValueError('For PolyScan method, set params = order, number of '
@@ -2039,11 +2039,11 @@ class ReduxPar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
     to the overal reduction of the the data.
-    
+
     Critically, this parameter set defines the spectrograph that was
     used to collect the data and the overall pipeline used in the
     reductions.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2151,12 +2151,12 @@ class ReduxPar(ParSet):
     def validate(self):
         pass
 
-    
+
 class WavelengthSolutionPar(ParSet):
     """
     The parameter set used to hold arguments for the determination of
     wavelength solution.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2486,7 +2486,7 @@ class WavelengthSolutionPar(ParSet):
 class EdgeTracePar(ParSet):
     """
     Parameters used for slit edge tracing.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2631,25 +2631,25 @@ class EdgeTracePar(ParSet):
                          'number of detected traces.  If not provided, determined by ' \
                          'calculating the minimum number of components required to explain a ' \
                          'given percentage of variance in the edge data; see `pca_var_percent`.'
-            
+
         defaults['pca_var_percent'] = 99.8
         dtypes['pca_var_percent'] = [int, float]
         descr['pca_var_percent'] = 'The percentage (i.e., not the fraction) of the variance in ' \
                                    'the edge data accounted for by the PCA used to truncate ' \
                                    'the number of PCA coefficients to keep (see `pca_n`).  ' \
                                    'Ignored if `pca_n` is provided directly.'
-        
+
         defaults['pca_function'] = 'polynomial'
         dtypes['pca_function'] = str
         options['pca_function'] = EdgeTracePar.valid_functions()
         descr['pca_function'] = 'Type of function fit to the PCA coefficients for each ' \
                                 'component.  Options are: {0}'.format(
                                     ', '.join(options['pca_function']))
-        
+
         defaults['pca_order'] = 2
         dtypes['pca_order'] = int
         descr['pca_order'] = 'Order of the function fit to the PCA coefficients.'
-        
+
         defaults['pca_sigrej'] = [2., 2.]
         dtypes['pca_sigrej'] = [int, float, list]
         descr['pca_sigrej'] = 'Sigma rejection threshold for fitting PCA components. Individual ' \
@@ -2682,7 +2682,7 @@ class EdgeTracePar(ParSet):
                                      'image and before refitting the edge traces, the rectified ' \
                                      'image is median filtered with a kernel width of ' \
                                      '`trace_median_frac*nspec` along the spectral dimension.'
-        
+
         dtypes['trace_thresh'] = [int, float]
         descr['trace_thresh'] = 'After rectification and median filtering of the Sobel-filtered ' \
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
@@ -2733,7 +2733,7 @@ class EdgeTracePar(ParSet):
         descr['sync_predict'] = 'Mode to use when predicting the form of the trace to insert.  ' \
                                 'Use `pca` to use the PCA decomposition or `nearest` to ' \
                                 'reproduce the shape of the nearest trace.'
-                      
+
         defaults['sync_center'] = 'median'
         options['sync_center'] = EdgeTracePar.valid_center_modes()
         dtypes['sync_center'] = str
@@ -2748,7 +2748,7 @@ class EdgeTracePar(ParSet):
                               'slit edges (see `sync_center`) or when nudging predicted slit ' \
                               'edges to avoid slit overlaps.  This should be larger than ' \
                               '`minimum_slit_gap` when converted to arcseconds.'
-        
+
         defaults['sync_to_edge'] = True
         dtypes['sync_to_edge'] = bool
         descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
@@ -2965,7 +2965,7 @@ class WaveTiltsPar(ParSet):
     """
     The parameter set used to hold arguments for tracing the
     monochromatic tilt along the slit.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
 
@@ -3590,7 +3590,7 @@ class ExtractionPar(ParSet):
 class CalibrationsPar(ParSet):
     """
     The superset of parameters used to calibrate the science data.
-    
+
     Note that there are specific defaults for each frame group that are
     different from the defaults of the abstracted :class:`FrameGroupPar`
     class.
@@ -3820,10 +3820,10 @@ class CalibrationsPar(ParSet):
 class PypeItPar(ParSet):
     """
     The superset of parameters used by PypeIt.
-    
+
     This is a single object used as a container for all the
     user-specified arguments used by PypeIt.
-    
+
     To get the default parameters for a given spectrograph, e.g.::
 
         from pypeit.spectrographs.util import load_spectrograph
@@ -3846,7 +3846,7 @@ class PypeItPar(ParSet):
 
     To write the configuration of a given instance of :class:`PypeItPar`,
     use the :func:`to_config` function::
-        
+
         par.to_config('mypypeitpar.cfg')
 
     For a table with the current keywords, defaults, and descriptions,
@@ -3973,7 +3973,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4011,7 +4011,7 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
-        
+
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
@@ -4049,7 +4049,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4089,7 +4089,7 @@ class PypeItPar(ParSet):
     def from_pypeit_file(cls, ifile, evaluate=True):
         """
         Construct the parameter set using a pypeit file.
-        
+
         Args:
             ifile (str):
                 Name of the pypeit file to read.  Expects to find setup
@@ -4100,7 +4100,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4244,7 +4244,7 @@ class PypeItPar(ParSet):
         # Checks
         if not isinstance(proc_par, ProcessImagesPar):
             raise TypeError('Must provide an instance of ProcessImagesPar')
-        
+
         # All the relevant ParSets are already ProcessImagesPar objects,
         # so we can work directly with the internal dictionaries.
 
@@ -4256,14 +4256,14 @@ class PypeItPar(ParSet):
         frames = [ f for f in self['calibrations'].keys() if 'frame' in f ]
         for f in frames:
             # Find the keys in self that are the same as the default
-            frame_same = [ k for k in proc_par.keys() 
+            frame_same = [ k for k in proc_par.keys()
                             if self['calibrations'][f]['process'].data[k] == default[k] ]
             to_change = list(set(base_diff) & set(frame_same))
             for k in to_change:
                 self['calibrations'][f]['process'].data[k] = proc_par[k]
-            
+
         # Science frames
-        frame_same = [ k for k in proc_par.keys() 
+        frame_same = [ k for k in proc_par.keys()
                             if self['scienceframe']['process'].data[k] == default[k] ]
         to_change = list(set(base_diff) & set(frame_same))
         for k in to_change:
@@ -4502,7 +4502,7 @@ class TelescopePar(ParSet):
         dtypes['name'] = str
         descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
                         'Options are: {0}'.format(', '.join(options['name']))
-        
+
         dtypes['longitude'] = [int, float]
         descr['longitude'] = 'Longitude of the telescope on Earth in degrees.'
 
@@ -4553,7 +4553,8 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK']
+
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC']
 
     def validate(self):
         pass
