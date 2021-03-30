@@ -33,6 +33,7 @@ from pypeit.spec2dobj import AllSpec2DObj, Spec2DObj
 from pypeit import msgs
 from pypeit import par
 from pypeit.slittrace import SlitTraceBitMask
+from pypeit.utils import is_float
 
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
@@ -44,10 +45,9 @@ class SmartFormatter(argparse.HelpFormatter):
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
 
-class KOAArchiveDir():
+class ArchiveDir():
     """
-    Copies files and metadata to an archive directory intended to be imported
-    into the Keck Observatory Archive (KOA).
+    Copies files and metadata to a directory for archival purposes.
 
     Files are all copied to the top level directory in the archive. 
 
@@ -355,7 +355,7 @@ class SourceObject:
         # No mismatches were found
         return True
 
-    def match(self, spec_obj, spec1d_header, tolerance):
+    def match(self, spec_obj, spec1d_header, tolerance, unit = u.arcsec):
         """Determine if a SpecObj matches this group within the given tolerance.
         This will also compare the configuration keys to make sure the SpecObj
         is compatible with the ones in this SourceObject.
@@ -367,12 +367,14 @@ class SourceObject:
         spec1d_header (:obj:`astropy.io.fits.Header`):
             The header from the spec1d that dontains the SpecObj.
             
-        tolerance (float OR :obj:`astropy.coordinates.Angle`):
-            The largest distance the given spec_obj is allowed to be
-            from the group in order to be a part of it. If match_type is 
-            'pixel', this is specified as a floating point pixel distance.
-            If match_type is 'ra/dec' this is given as an angular
-            distance via an Astropy Angle.
+        tolerance (float): 
+            Maximum distance that two spectra can be from each other to be 
+            considered to be from the same source. Measured in floating
+            point pixels or as an angular distance (see ``unit1`` argument).
+
+        unit (:obj:`astropy.units.Unit`):
+            Units of ``tolerance`` argument if match_type is 'ra/dec'. 
+            Defaults to arcseconds. Igored if match_type is 'pixel'.
 
         Returns (bool): True if the SpecObj matches this group,
             False otherwise.
@@ -383,7 +385,7 @@ class SourceObject:
 
         if self.match_type == 'ra/dec':
             coord2 = SkyCoord(ra=spec_obj.RA, dec=spec_obj.DEC, unit='deg')
-            return self.coord.separation(coord2) <= tolerance
+            return self.coord.separation(coord2) <= Angle(tolerance, unit=unit)
         else:
             coord2 =spec_obj['SPAT_PIXPOS'] 
             return np.fabs(coord2 - self.coord) <= tolerance
@@ -427,7 +429,7 @@ def find_slits_to_exclude(spec2d_files, par):
 
     return exclude_map
 
-def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance):
+def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance, unit=u.arcsec):
     """Given a list of spec1d files from PypeIt, group the spectra within the
     files by their source object. The grouping is done by comparing the 
     position of each spectra (using either pixel or RA/DEC) using a given tolerance.
@@ -439,10 +441,13 @@ def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance):
         match_type (str): How to match the positions of spectra. 'pixel' for
             matching by spatial pixel distance or 'ra/dec' for matching by
             angular distance.
-        tolerance: (float OR `obj`:astropy.coordinates.Angle): 
+        tolerance (float): 
             Maximum distance that two spectra can be from each other to be 
             considered to be from the same source. Measured in floating
-            point pixels or as an angular distance as an Astropy Angle.
+            point pixels or as an angular distance (see ``unit1`` argument).
+        unit (:obj:`astropy.units.Unit`):
+            Units of ``tolerance`` argument if match_type is 'ra/dec'. 
+            Defaults to arcseconds. Igored if match_type is 'pixel'.
 
     Returns (list of `obj`:SourceObject): The grouped spectra as SourceObjects.
 
@@ -465,7 +470,7 @@ def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance):
             # If one can't be found, trat this as a new SourceObject.
             found = False
             for source in source_list:
-                if  source.match(sobj, sobjs.header, tolerance):
+                if  source.match(sobj, sobjs.header, tolerance, unit):
                     source.spec_obj_list.append(sobj)
                     source.spec1d_file_list.append(spec1d_file)
                     source.spec1d_header_list.append(sobjs.header)
@@ -624,17 +629,6 @@ def find_spec2d_from_spec1d(spec1d_files):
 
     return spec2d_files
 
-def is_float(s):
-    """
-    Detertmine if a string can be converted to a floating point number.
-    """
-    try:
-        float(s)
-    except:
-        return False
-
-    return True
-
 def build_parameters(args):
     """
     Read the command line arguments and the input .collate1d file (if any), 
@@ -780,9 +774,9 @@ def main(args):
         # For ra/dec matching, the default unit is arcseconds. We check for
         # this case by seeing if the passed in tolerance is a floating point number
         if is_float(par['collate1d']['tolerance']):
-            tolerance =  Angle(par['collate1d']['tolerance'], unit=u.arcsec)
+            tolerance =  float(par['collate1d']['tolerance'])
         else:
-            tolerance = Angle(par['collate1d']['tolerance'])
+            tolerance = Angle(par['collate1d']['tolerance']).arcsec
 
     source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], tolerance)
 
@@ -801,9 +795,9 @@ def main(args):
 
     if not args.dry_run:
         if par['collate1d']['archive_root'] is not None:
-            archive = KOAArchiveDir(par['collate1d']['archive_root'])
+            archive = ArchiveDir(par['collate1d']['archive_root'])
         else:
-            archive = KOAArchiveDir(os.getcwd(), copy=False)
+            archive = ArchiveDir(os.getcwd(), copy=False)
 
         archive.add_files(spec1d_files)
         archive.add_files(spec2d_files)

@@ -9,11 +9,12 @@ import filecmp
 
 from astropy.coordinates import Angle, SkyCoord
 import numpy as np
+import astropy.units as u
 
 from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.scripts.collate_1d import group_spectra_by_source, SourceObject
-from pypeit.scripts.collate_1d import KOAArchiveDir, find_slits_to_exclude, find_spec2d_from_spec1d
+from pypeit.scripts.collate_1d import ArchiveDir, find_slits_to_exclude, find_spec2d_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -102,7 +103,7 @@ def test_group_spectra_by_radec(monkeypatch):
 
     file_list = ['spec1d_file1', 'spec1d_file2']
 
-    source_list = group_spectra_by_source(file_list, dict(), 'ra/dec', Angle('.0003d'))
+    source_list = group_spectra_by_source(file_list, dict(), 'ra/dec', 0.0003, u.deg)
 
     assert len(source_list) == 6
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -124,7 +125,7 @@ def test_group_spectra_by_radec(monkeypatch):
     assert [x.NAME for x in source_list[5].spec_obj_list] == ['SPAT6934_SLIT6245_DET05']
 
     exclude_map = {'3003': 'TEST_FLAG'}
-    source_list = group_spectra_by_source(file_list, exclude_map, 'ra/dec', Angle('.0004d'))
+    source_list = group_spectra_by_source(file_list, exclude_map, 'ra/dec', 1.44)
 
     assert len(source_list) == 4
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -144,8 +145,8 @@ def test_group_spectra_by_pixel(monkeypatch):
 
     file_list = ['spec1d_file1', 'spec1d_file2']
     spectrograph = load_spectrograph('keck_deimos')
-
-    source_list = group_spectra_by_source(file_list, dict(), 'pixel', 5.0)
+    # Test matching by pixel and that unit argument is ignored
+    source_list = group_spectra_by_source(file_list, dict(), 'pixel', 5.0, u.deg)
 
     assert len(source_list) == 7
     assert source_list[0].spec1d_file_list == ['spec1d_file1','spec1d_file1']
@@ -338,7 +339,7 @@ def test_find_spec2d_from_spec1d(tmp_path):
 
 
 @cooked_required
-def test_koa_archive(tmp_path):
+def test_archive(tmp_path):
     cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
 
     spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
@@ -358,7 +359,7 @@ def test_koa_archive(tmp_path):
 
     source_list[0].coaddfile = coadd_file
     archive_dir = str(tmp_path)
-    archive = KOAArchiveDir(archive_dir)
+    archive = ArchiveDir(archive_dir)
     archive.add_files(spec1d_files)
     archive.add_files(spec2d_files)
     archive.add_coadd_sources(source_list)
@@ -377,7 +378,7 @@ def test_koa_archive(tmp_path):
     assert(filecmp.cmp(good_by_obj_dat, test_by_obj_dat, shallow=False))
  
     # Now test opening and adding to an existing archive
-    archive2 = KOAArchiveDir(archive_dir)
+    archive2 = ArchiveDir(archive_dir)
     spec2d_name = 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits'
     spec2d_list = [os.path.join(cooked_sci_dir, spec2d_name)]
 

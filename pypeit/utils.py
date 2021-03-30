@@ -1198,3 +1198,14 @@ def load_pickle(fname):
     msgs.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
+
+def is_float(s):
+    """
+    Detertmine if a string can be converted to a floating point number.
+    """
+    try:
+        float(s)
+    except:
+        return False
+
+    return True
