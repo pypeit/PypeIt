@@ -17,6 +17,7 @@ from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
+import bottleneck as bn
 
 from scipy import interpolate, ndimage
 
@@ -553,21 +554,7 @@ def fast_running_median(seq, window_size):
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    seq_pad = iter(seq_pad)
-    d = deque()
-    s = []
-    result = []
-    for item in itertools.islice(seq_pad, window_size):
-        d.append(item)
-        insort(s, item)
-        result.append(s[len(d)//2])
-    m = window_size // 2
-    for item in seq_pad:
-        old = d.popleft()
-        d.append(item)
-        del s[bisect_left(s, old)]
-        insort(s, item)
-        result.append(s[m])
+    result = bn.move_median(seq_pad, window=window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.filters.medfilt
