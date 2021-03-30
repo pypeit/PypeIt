@@ -534,11 +534,10 @@ def fast_running_median(seq, window_size):
     Returns:
         ndarray: median filtered values
 
-    Code contributed by Peter Otten, made to be consistent with
+    Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.filters.median_filter by Joe Hennawi.
 
-    See discussion at:
-    http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
+    Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
     """
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
