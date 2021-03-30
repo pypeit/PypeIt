@@ -10,8 +10,6 @@ import inspect
 import pickle
 import warnings
 import itertools
-from collections import deque
-from bisect import insort, bisect_left
 
 from IPython import embed
 
