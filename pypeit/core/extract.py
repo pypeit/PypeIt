@@ -1448,6 +1448,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
         plt.show()
         viewer, ch = display.show_image(image*(thismask*inmask))
+    if debug_all:
+        embed(header='1452 of extract')
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
