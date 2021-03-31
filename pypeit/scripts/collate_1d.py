@@ -462,8 +462,8 @@ def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance, un
             if sobj.MASKDEF_ID in exclude_map:
                 msgs.info(f'Excluding {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}')
                 continue
-            if sobj.OPT_COUNTS is None:
-                msgs.info(f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS')
+            if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
+                msgs.info(f'Excluding {sobj.NAME} in {spec1d_file} because of missing both OPT_COUNTS and BOX_COUNTS')
                 continue
 
             # Search for a SourceObject that matches this SpecObj.
