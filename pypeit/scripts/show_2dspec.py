@@ -64,11 +64,15 @@ def show_trace(specobjs, det, viewer, ch):
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
         maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
+        force_extr_flag = specobjs[kk].FORCE_EXTRACT
         if maskdef_objname is not None:
             trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
         else:
             trc_name = obj_id
-        display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
+        if force_extr_flag is not None and force_extr_flag is True:
+            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+        else:
+            display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 
 
 def main(args):
@@ -157,7 +161,7 @@ def main(args):
         viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                       bitmask=bitMask, mask=mask_in)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
+            show_trace(sobjs, args.det, viewer, ch)
         display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_skysub)
 
@@ -165,12 +169,18 @@ def main(args):
 
     # SKRESIDS
     if 2 in show_channels:
+        # the block below is repeated because if showing this channel but not channel 1 it will crash
+        if args.ignore_extract_mask:
+            # TODO -- Is there a cleaner way to do this?
+            gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
+        else:
+            gpm = spec2DObj.bpmmask == 0
         chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
         image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
         viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                       cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
+            show_trace(sobjs, args.det, viewer, ch)
         display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_skyresids)
 
@@ -182,7 +192,7 @@ def main(args):
         viewer, ch = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                       cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
+            show_trace(sobjs, args.det, viewer, ch)
         display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_resids)
 
