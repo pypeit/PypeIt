@@ -368,7 +368,6 @@ class Reduce(object):
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
-                              debug=True,
                               show=self.reduce_show & (not self.std_redux),
                               manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
@@ -376,7 +375,6 @@ class Reduce(object):
         skymask_init, usersky = self.load_skyregions(skymask_init)
 
         # Global sky subtract
-        embed(header='378 of reduce')
         self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
 
         # Second pass object finding on sky-subtracted image
@@ -578,18 +576,16 @@ class Reduce(object):
                 continue
 
             # Find sky
-            try:
-                self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
+            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                                              thismask, self.slits_left[:,slit_idx],
                                                              self.slits_right[:,slit_idx],
                                                              inmask=inmask, sigrej=sigrej,
                                                              bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                              no_poly=self.par['reduce']['skysub']['no_poly'],
                                                              pos_mask=(not self.ir_redux), show_fit=show_fit)
-            except:
-                embed(header='588 of reduce')
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
+                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
@@ -1001,8 +997,6 @@ class MultiSlitReduce(Reduce):
 
         # Loop on slits
         for slit_idx in gdslits:
-            if slit_idx != 17:
-                continue
             slit_spat = self.slits.spat_id[slit_idx]
             qa_title ="Finding objects on slit # {:d}".format(slit_spat)
             msgs.info(qa_title)

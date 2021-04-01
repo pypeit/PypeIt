@@ -119,6 +119,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Sky pixels for fitting
     inmask_in = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
+    if not np.any(inmask_in):
+        msgs.warn("No pixels for fitting sky.  Could be bad object finding...")
+        return np.zeros(np.sum(thismask))
+
+    # Sub arrays
     isrt = np.argsort(piximg[thismask])
     pix = piximg[thismask][isrt]
     sky = image[thismask][isrt]
