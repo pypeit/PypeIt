@@ -58,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.3'
+    version = '1.1.4'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
