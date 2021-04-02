@@ -150,10 +150,12 @@ MOSFIRE QL Setup
 
 Before running this script, you will need to
 
-- Download the folder of `MOSFIRE Master calibration frames TODO need a mosfire link <https://drive.google.com/open?id=1_m3Y9xz2jEiTsWjVqej6UgARyTlApLGy>`_.
+- Download the folder of `MOSFIRE Master calibration frames <https://drive.google.com/file/d/12LqPEqldTM5Gz_gGvUVYReFBAbikuVXI/view?usp=sharing>`_
+
 - You may place this folder anywhere, but it is recommended to place the folder in to a 
   folder named "QL_MASTERS" so that Master calibration frames from other instruments can
   be placed beside it.
+
 - Point the Environmental variable *QL_MASTERS* at the parent of the MOSFIRE_MASTERS folder. 
   For example::
 
