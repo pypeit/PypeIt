@@ -1082,7 +1082,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             return skymask
 
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optimal_fwhm=None, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             boxcar_rad_skymask=None,
@@ -1128,6 +1128,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                       and the trace only shows in part of the detector.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
+        optimal_fwhm: float, default = None
+            User provided fwhm of the objects in pixels to be used in optimal extraction
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1468,55 +1470,58 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_name()
 
-        # Determine the fwhm max
-        yhalf = 0.5*sobjs[iobj].smash_peakflux
-        xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
-        x0 = int(np.rint(xpk))
-        # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
-        # Find right location where smash profile croses yhalf
-        if x0 < (int(nsamp)-1):
-            ind_righ, = np.where(fluxconv_cont[x0:] < yhalf)
-            if len(ind_righ) > 0:
-                i2 = ind_righ[0]
-                if i2 == 0:
-                    xrigh = None
+        if optimal_fwhm is not None:
+            sobjs[iobj].FWHM = optimal_fwhm
+
+        else:
+            # Determine the fwhm max
+            yhalf = 0.5*sobjs[iobj].smash_peakflux
+            xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
+            x0 = int(np.rint(xpk))
+            # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
+            # Find right location where smash profile croses yhalf
+            if x0 < (int(nsamp)-1):
+                ind_righ, = np.where(fluxconv_cont[x0:] < yhalf)
+                if len(ind_righ) > 0:
+                    i2 = ind_righ[0]
+                    if i2 == 0:
+                        xrigh = None
+                    else:
+                        xrigh_int = scipy.interpolate.interp1d(fluxconv_cont[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
+                        xrigh = xrigh_int([yhalf])[0]
                 else:
-                    xrigh_int = scipy.interpolate.interp1d(fluxconv_cont[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
-                    xrigh = xrigh_int([yhalf])[0]
+                    xrigh = None
             else:
                 xrigh = None
-        else:
-            xrigh = None
-        # Find left location where smash profile crosses yhalf
-        if x0 > 0:
-            ind_left, = np.where(fluxconv_cont[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
-            if len(ind_left) > 0:
-                i1 = (ind_left[::-1])[0]
-                if i1 == (int(nsamp)-1):
-                    xleft = None
+            # Find left location where smash profile crosses yhalf
+            if x0 > 0:
+                ind_left, = np.where(fluxconv_cont[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
+                if len(ind_left) > 0:
+                    i1 = (ind_left[::-1])[0]
+                    if i1 == (int(nsamp)-1):
+                        xleft = None
+                    else:
+                        xleft_int = scipy.interpolate.interp1d(fluxconv_cont[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
+                        xleft = xleft_int([yhalf])[0]
                 else:
-                    xleft_int = scipy.interpolate.interp1d(fluxconv_cont[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
-                    xleft = xleft_int([yhalf])[0]
+                    xleft = None
             else:
                 xleft = None
-        else:
-            xleft = None
 
-        # Set FWHM for the object
-        if (xleft is None) & (xrigh is None):
-            fwhm_measure = None
-        elif xrigh is None:
-            fwhm_measure = 2.0*(xpk- xleft)
-        elif xleft is None:
-            fwhm_measure = 2.0*(xrigh - xpk)
-        else:
-            fwhm_measure = (xrigh - xleft)
+            # Set FWHM for the object
+            if (xleft is None) & (xrigh is None):
+                fwhm_measure = None
+            elif xrigh is None:
+                fwhm_measure = 2.0*(xpk- xleft)
+            elif xleft is None:
+                fwhm_measure = 2.0*(xrigh - xpk)
+            else:
+                fwhm_measure = (xrigh - xleft)
 
-        if fwhm_measure is not None:
-            sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
-        else:
-            sobjs[iobj].FWHM = fwhm
-
+            if fwhm_measure is not None:
+                sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
+            else:
+                sobjs[iobj].FWHM = fwhm
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')

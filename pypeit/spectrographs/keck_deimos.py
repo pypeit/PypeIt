@@ -245,7 +245,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn on the use of mask design
-        if ('Long' not in self.get_meta_value(headarr, 'decker')) or (
+        if ('Long' not in self.get_meta_value(headarr, 'decker')) and (
                 'LVMslit' not in self.get_meta_value(headarr, 'decker')):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True

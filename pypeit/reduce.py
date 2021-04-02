@@ -389,20 +389,20 @@ class Reduce(object):
             msgs.info("Skipping 2nd run of finding objects")
 
         # Assign here -- in case we make another pass to add in missing targets
-        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+        if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
             msgs.info('Assign slitmask design info to detected objects')
             all_expected_objpos = self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
                                                              self.slits_left, self.slits_right,
                                                              self.par['calibrations']['slitedges']['det_buffer'],
                                                              TOLER=self.par['reduce']['slitmask']['obj_toler'])
-
-            if self.par['reduce']['slitmask']['force_extract'] is True:
+            # force extraction of non detected objects
+            if self.par['reduce']['slitmask']['force_extract']:
                 msgs.info('Add undetected objects at the expected location from slitmask design.')
                 # Assign un-detected objects
-                self.sobjs_obj = self.slits.mask_add_missing_obj(self.sobjs_obj, all_expected_objpos,
-                                                                 self.par['reduce']['extraction']['force_fwhm'],
-                                                                 self.par['reduce']['slitmask']['mask_median_off'],
-                                                                 self.slits_left, self.slits_right) # Deal with flexure
+                self.sobjs_obj, self.nobj = self.slits.mask_add_missing_obj(self.sobjs_obj, all_expected_objpos,
+                                            self.par['reduce']['slitmask']['force_fwhm'] / self.get_platescale(None),
+                                            self.par['reduce']['slitmask']['mask_median_off'],
+                                            self.slits_left, self.slits_right) # Deal with flexure
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
@@ -1004,6 +1004,9 @@ class MultiSlitReduce(Reduce):
             boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
         else:
             boxcar_rad_skymask = None
+        # user provided optimal fwhm in pixels
+        optimal_fwhm = None if self.par['reduce']['extraction']['optimal_fwhm'] is None else \
+            self.par['reduce']['extraction']['optimal_fwhm'] / self.get_platescale(None)
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -1036,6 +1039,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                optimal_fwhm = optimal_fwhm,
                                 boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
@@ -1097,6 +1101,10 @@ class MultiSlitReduce(Reduce):
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
+
+        # Do we use the fwhm provided by user for optimal extraction:
+        user_fwhm = True if self.par['reduce']['extraction']['optimal_fwhm'] is not None else False
+
         # Loop on slits
         for slit_idx in gdslits:  
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1120,6 +1128,7 @@ class MultiSlitReduce(Reduce):
                         sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                         model_noise=model_noise, std=self.std_redux,
                         bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                        user_fwhm = user_fwhm,
                         sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                         show_profile=show_profile,
                         use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],

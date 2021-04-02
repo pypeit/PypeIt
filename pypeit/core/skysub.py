@@ -467,7 +467,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          thismask, slit_left, slit_righ, sobjs, ingpm=None,
-                         spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
+                         spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, user_fwhm = False, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
@@ -517,6 +517,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             that will be used for local sky subtraction. This maskwidth
             is defined in the obfjind code, but is then updated here as
             the profile fitting improves the fwhm estimates
+        user_fwhm: bool, default = False
+            Boolean indicating if the user provided fwhm should be used for optical
+            extraction.
         trim_edg: tuple of ints of floats, default = (3,3)
             Number of pixels to be ignored on the (left,right) edges of
             the slit in object/sky model fits.
@@ -745,12 +748,20 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 if wave.any():
                     sign = sobjs[iobj].sign
                     # TODO This is "sticky" masking. Do we want it to be?
-                    profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
-                        sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
-                        wave, sign*flux, fluxivar, inmask = outmask[ipix],
-                        thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
-                        show_profile=show_profile)
+                    if user_fwhm is False:
+                        profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
+                            sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
+                            wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                            thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
+                            prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
+                            show_profile=show_profile)
+                    else:
+                        profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
+                            sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
+                            wave, sign*flux, fluxivar, inmask = outmask[ipix],
+                            thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
+                            prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=True, obj_string=obj_string,
+                            show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
