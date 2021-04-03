@@ -887,7 +887,7 @@ class SlitTraceSet(datamodel.DataContainer):
                     # because edge loss happens equally in both sides, we assume no shift in slit center
 
         # Stats (typical edge loss across the detector)
-        if left_edgeloss[left_edgeloss != 0].size > 3:
+        if left_edgeloss[(left_edgeloss != 0)&(left_edgeloss != -9999.9)].size > 3:
             _, median_edgeloss, _ = sigma_clipped_stats(left_edgeloss[(left_edgeloss != 0)&(left_edgeloss != -9999.9)],
                                                         sigma=2.)
         else:

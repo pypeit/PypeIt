@@ -2,7 +2,7 @@
 
 .. _deimos_add_missing_obj_report:
 
-DEIMOS object position in the slit from slitmask design
+DEIMOS object position on the slit from slitmask design
 =======================================================
 
 Version History
