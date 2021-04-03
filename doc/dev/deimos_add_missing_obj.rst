@@ -22,7 +22,7 @@ Basics
 The procedure to determine the location on the slit of DEIMOS undetected objects
 using the slitmask design information is performed right after the object finding
 (see :ref:`object_finding`) and the RA, Dec and object name assignment procedures
-(see :ref:`deimos_radec_object`) have been completed.
+(see :ref:`deimos_radec_object_report`) have been completed.
 
 
 Procedure
@@ -32,33 +32,35 @@ The determination of the position on the slit of DEIMOS non detected objects is 
 :func:`pypeit.slittrace.SlitTraceSet.mask_add_missing_obj`. This function relies on the output
 from :func:`pypeit.slittrace.SlitTraceSet.assign_maskinfo` which assign RA, Dec and object name
 to the detected objects and provides an array of all the expected position corrected for the differences
-between the expected and measured slit length (see :ref:`deimos_radec_object`).
+between the expected and measured slit length (see :ref:`deimos_radec_object_report`).
 
 ``PypeIt`` goes through all the slits in the selected detector and for each slit checks if the
 target object was detected (this is done by checking if ``MASKDEF_OBJNAME`` corresponds to the object name
 of the target). If the answer is yes, it goes to the next slit. If the answer is no, a new
 :class:`pypeit.specobj.SpecObj` is added to the :class:`pypeit.specobjs.SpecObjs` class. The expected
 position is provided as an output of :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` and is recorded
-in the ``SPAT_PIXPOS`` attribute. The user can provide an additional offset between expected and measured
-position if needed (see `Application`_ for details on how to control the value of this parameter).
-Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_PIXPOS``, ``SPAT_FRACPOS``,
-       ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see
-:ref:`out_spec1D:Current Data Model` for a description of these parameters). The ``FORCE_EXTRACT``
-is also set to **True** to flag the spectra that have been extracted from undetected objects.
+in the :class:`~pypeit.specobjs.SpecObjs`'s attribute ``SPAT_PIXPOS``. The user can provide an additional
+offset between expected and measured position if needed (see `Application`_ for details on how to control
+the value of this parameter). Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
+``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see spec1D
+:ref:`out_spec1D:Current Data Model` for a description of these parameters). The attribute ``FORCE_EXTRACT``
+is set to **True** to flag the spectra that have been extracted from undetected objects.
 
 
 Application
 -----------
 
 To perform the determination of the location on the slit of undetected objects, the parameters described in
-:ref:`deimos_slitmask_ids:Application` and :ref:`deimos_radec_object:Application` must be set. Moreover,
-**force_extract** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
-except when *LongMirr* and *LVM* mask is used. Two other keywords control this procedure. They are:
+the *Application* section of :ref:`deimos_slitmask_ids_report` and :ref:`deimos_radec_object_report` must be set.
+Moreover, **force_extract** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
+default for DEIMOS, except when *LongMirr* and *LVM* mask is used. Two other keywords control this procedure.
+They are:
 
-- **force_fwhm**, which sets the initial FWHM in arcsec used for the optimal extraction of the spectra;
+- **force_fwhm**, which sets the initial FWHM in arcsec used for the optimal extraction of the spectra. The
+  default is 0.5 arcsec;
 
 - **mask_median_off**, which set a user provided offset in pixels between the measured and expected
-  position of the slitmask.
+  position of the slitmask. The default is zero.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
@@ -102,7 +104,7 @@ The algorithm of the test is as follows:
     3. Build a trace image using three flat-field images from a specific DEIMOS dataset in the :ref:`dev-suite`.
 
     4. Update the DEIMOS configuration parameters to include configurations specific for the
-       used instrument setup. Among others, this step sets the **assign_obj** flag in
+       used instrument setup. Among others, this step sets the **force_extract** flag in
        :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which
@@ -118,11 +120,10 @@ The algorithm of the test is as follows:
        name are assigned to each detected objects.
 
     8. :func:`~pypeit.slittrace.SlitTraceSet.mask_add_missing_obj` is also run and adds a new
-       :class:`pypeit.specobj.SpecObj` to the :class:`pypeit.specobjs.SpecObjs` class for each undetected
-       undetected object, updating all the relevant attributes, i.e., ``TRACE_SPAT``, ``SPAT_PIXPOS``, ``SPAT_FRACPOS``,
-       ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` and ``FORCE_EXTRACT``.
+       :class:`~pypeit.specobj.SpecObj` to the :class:`~pypeit.specobjs.SpecObjs` class for each undetected
+       undetected object, updating all the relevant attributes (see `Procedure`_).
 
-    8. Read ``SPAT_PIXPOS`` for two undetected objects and check if those correspond to
+    9. Read ``SPAT_PIXPOS`` for two undetected objects and check if those correspond to
        the expected position of the object on the slit. The expected positions are verified by visual inspection
        of the 2D spectrum.
 

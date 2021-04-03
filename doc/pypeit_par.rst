@@ -488,13 +488,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-Key                Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-``spec_maxshift``  int, float  ..                                 20                                                                              Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
-``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
-``spectrum``       str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
-=================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
+Key                Type        Options                            Default                                                                    Description                                                                                                                                                                                                           
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
+``spec_maxshift``  int, float  ..                                 20                                                                         Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
+``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                   Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
+``spectrum``       str         ..                                 ``/Users/dpelliccia/PypeIt/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
+=================  ==========  =================================  =========================================================================  ======================================================================================================================================================================================================================
 
 
 ----
@@ -519,19 +519,19 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
-Key                     Type        Options  Default                                       Description                                                                                                                                                                                                                                                                   
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
-``calwin``              int, float  ..       0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                              
-``detnum``              int, list   ..       ..                                            Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                       
-``ignore_bad_headers``  bool        ..       False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                              
-``qadir``               str         ..       ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                    
-``redux_path``          str         ..       ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                          
-``scidir``              str         ..       ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                               
-``slitspatnum``         str, list   ..       ..                                            Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum
-``sortroot``            str         ..       ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                        
-``spectrograph``        str         ..       ..                                            Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                 
-======================  ==========  =======  ============================================  ==============================================================================================================================================================================================================================================================================
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
+Key                     Type        Options  Default                                  Description                                                                                                                                                                                                                                                                   
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
+``calwin``              int, float  ..       0                                        The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                              
+``detnum``              int, list   ..       ..                                       Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                       
+``ignore_bad_headers``  bool        ..       False                                    Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                              
+``qadir``               str         ..       ``QA``                                   Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                    
+``redux_path``          str         ..       ``/Users/dpelliccia/PypeIt/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                          
+``scidir``              str         ..       ``Science``                              Directory relative to calling directory to write science files.                                                                                                                                                                                                               
+``slitspatnum``         str, list   ..       ..                                       Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum
+``sortroot``            str         ..       ..                                       A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                        
+``spectrograph``        str         ..       ..                                       Spectrograph that provided the data to be reduced.  See :ref:`instruments` for valid options.                                                                                                                                                                                 
+======================  ==========  =======  =======================================  ==============================================================================================================================================================================================================================================================================
 
 
 ----
@@ -595,6 +595,7 @@ Key                   Type                                               Options
 ``boxcar_radius``     int, float                                         ..       1.5                              Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                       
 ``manual``            :class:`pypeit.par.pypeitpar.ManualExtractionPar`  ..       `ManualExtractionPar Keywords`_  Parameters for manual extraction                                                                                                                                                                                                                                                             
 ``model_full_slit``   bool                                               ..       False                            If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits
+``optimal_fwhm``      int, float                                         ..       ..                               FWHM in arcseconds used for optimal extraction (not implemented for echelle). If this parameter is ``None`` (default), `FindObj` estimates the FWHM for each detected object (see FindObjPar).                                                                                               
 ``skip_optimal``      bool                                               ..       False                            Perform boxcar extraction only (i.e. skip Optimal and local skysub)                                                                                                                                                                                                                          
 ``sn_gauss``          int, float                                         ..       4.0                              S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                             
 ``std_prof_nsigma``   float                                              ..       30.0                             prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                           
@@ -613,7 +614,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ManualExtractionPar`
 Key            Type         Options  Default  Description                                                                                                                           
 =============  ===========  =======  =======  ======================================================================================================================================
 ``det``        list, int    ..       ..       List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.
-``fwhm``       list, float  ..       ..       List of FWHM for hand extraction. This must be a list aligned with spec_spat                                                          
+``fwhm``       list, float  ..       ..       List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat                                              
 ``spat_spec``  list, str    ..       ..       List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200                                     
 =============  ===========  =======  =======  ======================================================================================================================================
 
@@ -674,12 +675,15 @@ SlitMaskPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
 
-==============  =====  =======  =======  ===============================================================
-Key             Type   Options  Default  Description                                                    
-==============  =====  =======  =======  ===============================================================
-``assign_obj``  bool   ..       False    If SlitMask object was generated, assign RA,DEC,name to objects
-``obj_toler``   float  ..       5.0      Tolerance (arcsec) to match source to targeted object          
-==============  =====  =======  =======  ===============================================================
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================
+Key                  Type        Options  Default  Description                                                                                                                                                                                                                   
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================
+``assign_obj``       bool        ..       False    If SlitMask object was generated, assign RA,DEC,name to objects                                                                                                                                                               
+``force_extract``    bool        ..       False    Force extraction of undetected objects at the location expected from the slitmask design.                                                                                                                                     
+``force_fwhm``       int, float  ..       ..       Initial FWHM in arcsec used for the extraction of undetected objects.During extraction, PypeIt will still try to fit a profile to improve this value. To keep this value, instead, set also ``optimal_fwhm`` in ExtractionPar.
+``mask_median_off``  int, float  ..       0.0      Median offset in pixels of slitmask from expected position.This parameter is only used during the forced extraction of undetected objects.                                                                                    
+``obj_toler``        float       ..       5.0      Tolerance (arcsec) to match source to targeted object                                                                                                                                                                         
+===================  ==========  =======  =======  ==============================================================================================================================================================================================================================
 
 
 ----
@@ -825,34 +829,34 @@ TellFitPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.TellFitPar`
 
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
-Key                      Type           Options  Default                                                                               Description                                                                                                                                                                                                                             
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
-``bal_wv_min_max``       list, ndarray  ..       ..                                                                                    Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
-``bounds_norm``          list           ..       0.1, 3.0                                                                              Normalization bounds for scaling the initial object model                                                                                                                                                                               
-``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                           Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
-``delta_redshift``       int, float     ..       0.1                                                                                   variable redshift range during the fit                                                                                                                                                                                                  
-``fit_wv_min_max``       list           ..       ..                                                                                    Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
-``func``                 str            ..       ``legendre``                                                                          object polynomial model function                                                                                                                                                                                                        
-``mask_abs_lines``       bool           ..       True                                                                                  Mask stellar absorption line?                                                                                                                                                                                                           
-``mask_lyman_a``         bool           ..       True                                                                                  Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
-``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                             Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
-``model``                str            ..       ``exp``                                                                               different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
-``npca``                 int            ..       8                                                                                     Number of pca                                                                                                                                                                                                                           
-``objmodel``             str            ..       ..                                                                                    which object model you want to use for telluric fit                                                                                                                                                                                     
-``only_orders``          int            ..       ..                                                                                    order number if you only want to fit a single order                                                                                                                                                                                     
-``pca_file``             str            ..       ``/Users/westfall/Work/packages/pypeit/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
-``pca_lower``            int, float     ..       1220.0                                                                                minimum wavelength for the pca model                                                                                                                                                                                                    
-``pca_upper``            int, float     ..       3100.0                                                                                maximum wavelength for the pca model                                                                                                                                                                                                    
-``polyorder``            int            ..       3                                                                                     polynomial order for the object model                                                                                                                                                                                                   
-``redshift``             int, float     ..       0.0                                                                                   redshift for your object model                                                                                                                                                                                                          
-``star_dec``             float          ..       ..                                                                                    Object declination in decimal deg                                                                                                                                                                                                       
-``star_mag``             float, int     ..       ..                                                                                    AB magnitude in V band                                                                                                                                                                                                                  
-``star_ra``              float          ..       ..                                                                                    Object right-ascension in decimal deg                                                                                                                                                                                                   
-``star_type``            str            ..       ..                                                                                    stellar type                                                                                                                                                                                                                            
-``tell_grid``            str            ..       ..                                                                                    telluric grid file. needed when you use qso_telluric                                                                                                                                                                                    
-``tell_norm_thresh``     int, float     ..       0.9                                                                                   Threshold of telluric absorption region                                                                                                                                                                                                 
-=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
+Key                      Type           Options  Default                                                                          Description                                                                                                                                                                                                                             
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
+``bal_wv_min_max``       list, ndarray  ..       ..                                                                               Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
+``bounds_norm``          list           ..       0.1, 3.0                                                                         Normalization bounds for scaling the initial object model                                                                                                                                                                               
+``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                      Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``delta_redshift``       int, float     ..       0.1                                                                              variable redshift range during the fit                                                                                                                                                                                                  
+``fit_wv_min_max``       list           ..       ..                                                                               Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
+``func``                 str            ..       ``legendre``                                                                     object polynomial model function                                                                                                                                                                                                        
+``mask_abs_lines``       bool           ..       True                                                                             Mask stellar absorption line?                                                                                                                                                                                                           
+``mask_lyman_a``         bool           ..       True                                                                             Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
+``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                        Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``model``                str            ..       ``exp``                                                                          different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
+``npca``                 int            ..       8                                                                                Number of pca                                                                                                                                                                                                                           
+``objmodel``             str            ..       ..                                                                               which object model you want to use for telluric fit                                                                                                                                                                                     
+``only_orders``          int            ..       ..                                                                               order number if you only want to fit a single order                                                                                                                                                                                     
+``pca_file``             str            ..       ``/Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``pca_lower``            int, float     ..       1220.0                                                                           minimum wavelength for the pca model                                                                                                                                                                                                    
+``pca_upper``            int, float     ..       3100.0                                                                           maximum wavelength for the pca model                                                                                                                                                                                                    
+``polyorder``            int            ..       3                                                                                polynomial order for the object model                                                                                                                                                                                                   
+``redshift``             int, float     ..       0.0                                                                              redshift for your object model                                                                                                                                                                                                          
+``star_dec``             float          ..       ..                                                                               Object declination in decimal deg                                                                                                                                                                                                       
+``star_mag``             float, int     ..       ..                                                                               AB magnitude in V band                                                                                                                                                                                                                  
+``star_ra``              float          ..       ..                                                                               Object right-ascension in decimal deg                                                                                                                                                                                                   
+``star_type``            str            ..       ..                                                                               stellar type                                                                                                                                                                                                                            
+``tell_grid``            str            ..       ..                                                                               telluric grid file. needed when you use qso_telluric                                                                                                                                                                                    
+``tell_norm_thresh``     int, float     ..       0.9                                                                              Threshold of telluric absorption region                                                                                                                                                                                                 
+=======================  =============  =======  ===============================================================================  ========================================================================================================================================================================================================================================
 
 
 
@@ -866,6 +870,112 @@ provided above for each instrument.  That is, if one were to include
 these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
 :class:`pypeit.spectrographs.spectrograph.Spectrograph` class.
+
+BOK BC (``bok_bc``)
+-------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = bok_bc
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 120
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+              use_overscan = False
+              use_illumflat = False
+      [[wavelengths]]
+          lamps = NeI, ArI, ArII, HeI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
+          use_biasimage = False
+          use_overscan = False
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          sig_thresh = 5.0
+      [[skysub]]
+          sky_sigrej = 5.0
+          global_sky_std = False
+          no_poly = True
+  [sensfunc]
+      polyorder = 7
 
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------
@@ -1079,7 +1189,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
@@ -1369,7 +1479,7 @@ Alterations to the default parameters are::
   [sensfunc]
       multi_spec_det = 1, 2, 3
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
@@ -1474,7 +1584,90 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 6
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+
+GTC OSIRIS (``gtc_osiris``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = gtc_osiris
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              clip = False
+              cr_sigrej = -1
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+          [[[process]]]
+              use_overscan = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_overscan = False
+      [[wavelengths]]
+          method = full_template
+          lamps = XeI,HgI,NeI,ArI
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          use_overscan = False
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
@@ -1562,7 +1755,7 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
@@ -2174,7 +2367,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRES (``keck_nires``)
 ---------------------------
@@ -2290,7 +2483,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
@@ -2395,7 +2588,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
@@ -3031,7 +3224,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
@@ -3137,7 +3330,7 @@ Alterations to the default parameters are::
           find_trim_edge = 50, 50
   [sensfunc]
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN MagE (``magellan_mage``)
 ---------------------------------
@@ -3387,7 +3580,7 @@ Alterations to the default parameters are::
   [sensfunc]
       polyorder = 7
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 MMT Blue_Channel (``mmt_bluechannel``)
 --------------------------------------
@@ -3590,7 +3783,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 NOT ALFOSC (``not_alfosc``)
 ---------------------------
@@ -3828,7 +4021,7 @@ Alterations to the default parameters are::
       [[UVIS]]
           polycorrect = False
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Lick_3100_11100_R10000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Lick_3100_11100_R10000.fits
 
 P200 TSPEC (``p200_tspec``)
 ---------------------------
@@ -3944,7 +4137,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -4027,7 +4220,7 @@ Alterations to the default parameters are::
           mask_cr = True
   [flexure]
       spec_method = boxcar
-      spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
+      spectrum = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
 
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
@@ -4453,7 +4646,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
@@ -4648,7 +4841,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 11
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = /Users/dpelliccia/PypeIt/PypeIt/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 WHT ISISb (``wht_isis_blue``)
 -----------------------------

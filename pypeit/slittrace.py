@@ -724,31 +724,22 @@ class SlitTraceSet(datamodel.DataContainer):
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
     def mask_add_missing_obj(self, sobjs, expected_objpos, fwhm, median_off, slits_left, slits_right):
-        """ Generate new SpecObj and add them into the 
-        SpecObjs object for any slits missing the targeted source.
+        """
+        Generate new SpecObj and add them into the SpecObjs object for any slits missing the targeted source.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-                List of SpecObj that have been found and traced
-            expected_objpos (`numpy.ndarray`_):
-                Array with expected positions of all objects from
-                slitmask design info.
-            fwhm (:obj:`float`):
-                FWHM in pixels to be used in the optimal extraction
-            median_off (:obj:`float`):
-                User provided median offset in pixels of the slitmask
-            slits_left (`numpy.ndarray`_):
-                Array with left slit edges. Shape is :math:`(N_{\rm
-                spec},N_{\rm slits})`.
-            slits_right (`numpy.ndarray`_):
-                Array with right slit edges. Shape is :math:`(N_{\rm
-                spec},N_{\rm slits})`
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+            expected_objpos (`numpy.ndarray`_): Array with expected positions of all objects from slitmask design info.
+            fwhm (:obj:`float`): FWHM in pixels to be used in the optimal extraction
+            median_off (:obj:`float`): User provided median offset in pixels of the slitmask
+            slits_left (`numpy.ndarray`_): Array with left slit edges.
+            slits_right (`numpy.ndarray`_): Array with right slit edges.
+
         Returns:
             tuple:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-                Updated list of SpecObj that have been found and traced
-                nobj (int):
-                    Number of objects identified
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
+            nobj (:obj:`int`): Number of objects identified
+
         """
 
         if fwhm is None:
@@ -852,23 +843,15 @@ class SlitTraceSet(datamodel.DataContainer):
         Modified in place
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-                List of SpecObj that have been found and traced
-            plate_scale (:obj:`float`):
-                platescale for the current detector
-            slits_left (`numpy.ndarray`_):
-                Array with left slit edges. Shape is :math:`(N_{\rm
-                spec},N_{\rm slits})`.
-            slits_right (`numpy.ndarray`_):
-                Array with right slit edges. Shape is :math:`(N_{\rm
-                spec},N_{\rm slits})`
-            det_buffer (:obj:`int`):
-                Minimum separation between detector edges and a slit edge
-            TOLER (:obj:`float`, optional):
-                Matching tolerance in arcsec
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+            plate_scale (:obj:`float`): platescale for the current detector
+            slits_left (`numpy.ndarray`_): Array with left slit edges.
+            slits_right (`numpy.ndarray`_): Array with right slit edges.
+            det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
+            TOLER (:obj:`float`, optional): Matching tolerance in arcsec
+
         Returns:
-            Array with expected positions of all objects from
-                slitmask design info.
+            Array with expected positions of all objects from slitmask design info.
         """
 
         # midpoint in the spectral direction

@@ -46,14 +46,14 @@ considered a serendipitous object. Using the coordinates of the slit center avai
 design and the distance in pixels (converted then in arcsec) between the traced object and the center
 of the slit, the coordinates of the serendipitous object are estimates and recorded in  ``RA``
 and ``DEC`` while ``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``FORCE_EXTRACT`` attribute
-is set to **False** (see :ref:`deimos_add_missing_obj`).
+is set to **False** (see :ref:`deimos_add_missing_obj_report`).
 
 
 Application
 -----------
 
 To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the parameters described in
-:ref:`deimos_slitmask_ids:Application` must be set. Moreover, the **assign_obj** flag in
+the *Application* section of :ref:`deimos_slitmask_ids_report` must be set. Moreover, the **assign_obj** flag in
 :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
 except when *LongMirr* and *LVM* mask is used. One other keyword controls this procedure and it is **obj_toler**.
 This keyword sets the tolerance in arcsec for the matching process between
