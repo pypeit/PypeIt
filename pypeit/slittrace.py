@@ -752,7 +752,7 @@ class SlitTraceSet(datamodel.DataContainer):
         """
 
         if fwhm is None:
-            msgs.error('A FWHM for the optimal extraction must be provided. See `force_fwhm` in `ExtractionPar`.')
+            msgs.error('A FWHM for the optimal extraction must be provided. See `force_fwhm` in `SlitMaskPar`.')
 
         if median_off is not None:
             self.mask_median_off = median_off
