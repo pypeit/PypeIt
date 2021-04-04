@@ -60,8 +60,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             gain            = np.atleast_1d(2.15),  # Taken from MOSFIRE detector webpage
             ronoise         = np.atleast_1d(5.8), # This is for 16 non-destructuve reads, the default readout mode
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            datasec         = np.atleast_1d('[5:2044,5:2044]'),
+            #oscansec        = np.atleast_1d('[:,:]')
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -296,6 +296,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat01'] == '1'
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
 
 
     def parse_dither_pattern(self, file_list, ext=None):
