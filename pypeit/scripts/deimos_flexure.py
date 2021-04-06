@@ -7,11 +7,13 @@
 This script enables the viewing of a raw FITS file
 """
 import numpy as np
+import os
 
 from pypeit import par, msgs
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.par import pypeitpar
+from pypeit.core import flexure
 
-# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them? Make this
-# a standard method in parse or io.
 def read_flexfile(ifile):
     """
     Read a PypeIt .flex file, akin to a standard PypeIt file
@@ -69,14 +71,20 @@ def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default = None, help = 'FITS file')
-    parser.add_argument('spectrograph', type=str,
-                        help='A valid spectrograph identifier: {0}'.format(
-                             ', '.join(available_spectrographs)))
-    parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
-    parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
-    parser.add_argument('--det', type=int, default=1, help="Detector number (ignored for keck_lris, keck_deimos")
-    parser.add_argument('--chname', type=str, default='Image', help="Name of Ginga tab")
+    parser.add_argument("flex_file", type=str,
+                        help="R|File to guide fluxing process.\n"
+                             "This file must have the following format: \n"
+                             "\n"
+                             "flexure read\n"
+                             "  spec1dfile1\n"
+                             "  spec1dfile2\n"
+                             "     ...    \n"
+                             "     ...    \n"
+                             "flexure end\n"
+                             "\n"
+                             "\n")
+    parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
+    parser.add_argument("--par_outfile", default='flexure.par', action="store_true", help="Output to save the parameters")
 
     if return_parser:
         return parser
@@ -88,19 +96,36 @@ def main(pargs):
 
     from astropy.io import fits
 
+    # Load the file
+    config_lines, spec1dfiles = read_flexfile(pargs.flex_file)
 
-    filename = hdu.filename()
-    tmp = filename.split('spec1d')
-    
-    txt = filename.replace('.fits','.txt')
-    
-    out_dir = os.path.join(data_dir,'dmost')
-    if not os.path.isdir(out_dir):
-        os.mkdir(out_dir)
-    slit_table_file = os.path.join(out_dir, 'dmost'+tmp[1])
+    # Read in spectrograph from spec1dfile header
+    header = fits.getheader(spec1dfiles[0])
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
 
-    # IF FILE DOESN"T EXIST GENERATE
-    if (not os.path.isfile(slit_table_file)) | (clobber == 1):
+    # Parameters
+    spectrograph_def_par = spectrograph.default_pypeit_par()
+    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
+    # Write the par to disk
+    print("Writing the parameters to {}".format(pargs.par_outfile))
+    par.to_config(pargs.par_outfile)
+
+    # Loop to my loop
+    for filename in spec1dfiles:
+        mdFlex = flexure.MultiDetFlexure(spec1dfile=filename, 
+                                         PYP_SPEC=spectrograph.name)
+
+        mdFlex.init_slits()
+
+
+    #filename = hdu.filename()
+    #tmp = filename.split('spec1d')
+    #txt = filename.replace('.fits','.txt')
+    #out_dir = os.path.join(data_dir,'dmost')
+    #if not os.path.isdir(out_dir):
+    #    os.mkdir(out_dir)
+    #slit_table_file = os.path.join(out_dir, 'dmost'+tmp[1])
+
 
         # CREATE SLIT TABLE
         msgs.info("Generating slit table")
@@ -135,4 +160,8 @@ def main(pargs):
 
     return fslits
 
+def entry_point():
+    main(parse_args())
 
+if __name__ == '__main__':
+    entry_point()

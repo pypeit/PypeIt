@@ -1258,6 +1258,7 @@ def indexing(itt, postpix, det=None):
     # Return
     return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
 
+
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
 
@@ -1304,3 +1305,90 @@ def deimos_read_1chip(hdu,chipno):
     return data, oscan
 
 
+
+#######################################################
+# MATCH SLITS BASED ON RA
+#######################################################
+def spec1d_match_red_blue(sobjs):
+
+    '''
+    # ADD DETECTOR NAME
+    det = []
+    for obj in aslits:
+        tmp =   obj['name'].split('DET')
+        tdet = int(tmp[1])
+        det.append(tdet)
+    aslits['det'] = det
+    '''
+
+    # ***FOR THE MOMENT, REMOVE SERENDIPS
+    good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
+    
+    # MATCH RED TO BLUE VIA RA/DEC
+    mb = sobjs['DET'] <=4
+    mr = sobjs['DET'] >4
+
+    ridx = np.where(mr & good_obj)[0]
+    robjs = sobjs[ridx]
+
+    #rslits = slits[mr]
+    #bslits = slits[mb]
+
+    n=0
+
+    # SEARCH ON BLUE FIRST
+    bmt = []
+    rmt = []
+    for ibobj in np.where(mb & good_obj)[0]:
+
+        sobj = sobjs[ibobj]
+        mtc = sobj.RA == robjs.RA
+        if np.sum(mtc) == 1:
+            irobj = int(ridx[mtc])
+            if not np.isclose(sobj.DEC, sobjs[irobj].DEC):
+                msgs.error('DEC does not match RA!')
+            bmt.append(ibobj)
+            rmt.append(irobj)
+            # START ARRAY
+            #if (n==0):
+            #    matches = Table([[obj['name']],[robj['name']],[obj['det']],[robj['det']],\
+            #                [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+            #                names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+            #if (n > 0):
+            #    matches.add_row((obj['name'],robj['name'],obj['det'],robj['det'],\
+            #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+            #n=n+1
+        elif np.sum(mtc)>1:
+            msgs.error("Multiple RA matches?!  No good..")
+
+        # TODO - confirm with Marla this block is NG
+        '''
+        # NO RED MATCH
+        if (np.sum(mtc)==-11): 
+        #if (np.sum(mtc)==0):        
+
+            if (n==0):
+                matches = Table([[obj['name']],['-1'],[obj['det']],[-1],\
+                             [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+                             names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+            if (n > 0):
+                matches.add_row((obj['name'],'-1',obj['det'],-1,\
+                                 obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+            n=n+1
+        '''
+
+
+    # TODO -- Confirm with Marla that this is not used
+    '''
+    # SEARCH RED OBJECTS FOR NON-MATCHES IN BLUE
+    for obj in rslits:
+
+        mtc = (obj['objra'] == bslits['objra'])
+        #if (np.sum(mtc)==0):
+
+         #   matches.add_row(('-1',obj['name'],-1,obj['det'],\
+         #                        obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+         #   n=n+1
+    '''
+
+    return np.array(bmt), np.array(rmt)

@@ -13,6 +13,7 @@ from matplotlib import gridspec
 
 from astropy import stats
 from astropy import units
+from astropy.io import fits
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -21,10 +22,15 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import datamodel
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
+from pypeit.datamodel import DataContainer
+from pypeit import specobjs
+
+from pypeit.spectrographs import keck_deimos
 
 from IPython import embed
 
@@ -697,3 +703,95 @@ def calculate_image_offset(image, im_ref, nfit=3):
     # Return the RA and DEC shift, in pixels
     return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 
+
+
+class MultiDetFlexure(DataContainer):
+    # Set the version of this class
+    version = '1.0.0'
+
+    datamodel = {'spec1dfile': dict(otype=str, descr='spec1d filename'), 
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
+                 'nslits': dict(otype=int, descr='Number of slits'),
+                 'spat': dict(otype=np.ndarray, atype=np.floating, descr='?? (ndet, nslits)'),
+                 'det': dict(otype=np.ndarray, atype=np.integer, descr='Detector number (ndet, nslits)'),
+                 'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
+                 'xpos': dict(otype=np.ndarray, atype=np.floating, descr='Slit x position [pixels] (nslits)'),
+                 'ypos': dict(otype=np.ndarray, atype=np.floating, descr='Mininum wavelength of the slit [Ang] (nslits)'),
+                 'fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'fit_b': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'fit_los': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'objra': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'objdec': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'slittyp': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
+                 'slitname': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
+                 'objname': dict(otype=np.ndarray, atype=np.str, descr='Object names (ndet, nslits)'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
+                 'dslitid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
+                 'desid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
+                 'slitx1': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'slity1': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'rms_arc': dict(otype=np.ndarray, atype=np.floating, descr='y pos (ndet, nslits)'),
+                 'rms_sky': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 }
+
+    def __init__(self, spec1dfile=None, PYP_SPEC=None, nslits=None, spat=None, det=None, 
+                 SN=None, xpos=None, ypos=None, fit_slope=None, fit_b=None,
+                 fit_los=None, objra=None, objdec=None, slittyp=None,
+                 slitname=None, objname=None, maskdef_id=None, dslitid=None, desid=None,
+                 slitx1=None, slity1=None, rms_arc=None, rms_sky=None):
+
+        # Setup the DataContainer
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = {k: values[k] for k in args[1:]}
+        # Init
+        super(MultiDetFlexure, self).__init__(d=_d)
+
+        # Load up specobjs
+        self.specobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfile,
+                                                        chk_version=False) # Turn this off?
+
+    def _init_internals(self):
+        # Object finding
+        self.specobjs = None
+    
+    def init_slits(self):
+        if self.PYP_SPEC == 'keck_deimos':
+            det_mt = keck_deimos.spec1d_match_red_blue(self.specobjs)
+        else:
+            msgs.error("Not ready for this spectrograph")
+        #
+        self.nslits = len(det_mt[0])
+        self.ndet = len(det_mt)
+        
+        # Fill in 1D
+        self['xpos'] = self.specobjs[det_mt[0]]['SLITID'].astype(float)
+        self['objra'] = self.specobjs[det_mt[0]]['RA']
+        self['objdec'] = self.specobjs[det_mt[0]]['DEC']
+        self['slitname'] = self.specobjs[det_mt[0]]['MASKDEF_OBJNAME']
+        self['maskdef_id'] = self.specobjs[det_mt[0]]['MASKDEF_ID']
+
+        # Fill in 2D
+        for new_key, key, dtype in zip(['objname', 'det'],
+                                ['NAME', 'DET'],
+                                [str, int]): 
+            # Init
+            if self.datamodel[new_key]['atype'] == np.str:
+                slist = []
+                for det in range(self.ndet):
+                    slist.append(self.specobjs[det_mt[det]][key])
+                self[new_key] = np.array(slist)
+            else:
+                self[new_key] = np.zeros((self.ndet, self.nslits), dtype=dtype)
+                for det in range(self.ndet):
+                    self[new_key][det] = self.specobjs[det_mt[det]][key]
+
+        # S/N
+        self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
+        self['ypos'] = np.zeros((self.ndet, self.nslits), dtype=float)
+        for det in range(self.ndet):
+            self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[det_mt[det]]]
+            self['ypos'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[det_mt[det]]]
+
+        # Return
+        return
