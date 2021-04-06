@@ -333,7 +333,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
         # Return, transposing array back to orient the overscan properly
-        return self.get_detector_par(hdu, det if det is None else 1), \
+        return self.get_detector_par(hdu, det if det is not None else 1), \
                 array, hdu, exptime, rawdatasec_img, oscansec_img
 
 
