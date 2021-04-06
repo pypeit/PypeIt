@@ -5,15 +5,16 @@
 
 """
 import inspect
+from pkg_resources import resource_filename
 
 import numpy as np
-import copy
+import copy, os
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 
 from astropy import stats
 from astropy import units
-from astropy.io import fits
+from astropy.io import ascii
 import scipy.signal
 import scipy.optimize as opt
 from scipy import interpolate
@@ -22,7 +23,6 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import datamodel
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
@@ -705,6 +705,57 @@ def calculate_image_offset(image, im_ref, nfit=3):
 
 
 
+def sky_em_residuals(wave,flux,ivar, sky_waves,
+                     plot=0, noff=5., nfit_min=20):
+
+
+    dwave = []
+    diff = []
+    diff_err  = []
+    los = []
+    los_err= []
+    for line in sky_waves: 
+        wline = [line-noff,line+noff] 
+        mw    = (wave > wline[0]) & (wave < wline[1])
+        
+        p=[0,0,0,0]
+        if np.sum(mw) <= nfit_min:
+            continue
+        p0 = list(fitting.guess_gauss(wave[mw],flux[mw]))
+        try:
+            p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
+                                w_out = 1./np.sqrt(ivar[mw]), 
+                                guesses=p0, nparam=4)
+            perr = np.sqrt(np.diag(pcov))
+        except:
+            p=p0
+            p[2] = -99
+            perr=p0
+        # Continue
+        d = p[2] - line
+
+        # For debugging
+        if (plot==1):
+            gfit = fitting.gauss_4deg(wave[mw],*p)
+            plt.figure(figsize=(8,3)) 
+            plt.plot(wave[mw],gfit,'g')
+            plt.plot(wave[mw],flux[mw])
+            plt.title('{} {:0.2f} diff= {:0.3f}'.format(line,p[3],d))
+            plt.show()
+
+        # Check
+        if not np.isfinite(perr[2]):
+            perr[2] = 1000.
+        dwave = np.append(dwave,line)
+        diff = np.append(diff,d)
+        diff_err = np.append(diff_err,perr[2])
+        los = np.append(los,p[3])
+        los_err = np.append(los_err,perr[3])
+
+    # Finish
+    m=(diff_err < 0.1) & (diff_err > 0.0)
+    return dwave[m],diff[m],diff_err[m],los[m],los_err[m]
+
 class MultiDetFlexure(DataContainer):
     # Set the version of this class
     version = '1.0.0'
@@ -750,26 +801,38 @@ class MultiDetFlexure(DataContainer):
         # Load up specobjs
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfile,
                                                         chk_version=False) # Turn this off?
+        #  Sky lines
+        sky_file = os.path.join(resource_filename('pypeit', 'data'), 
+                                'sky_spec', 'sky_single_mg.dat')
+        self.sky_table = ascii.read(sky_file)
 
     def _init_internals(self):
-        # Object finding
+        # Specobjs object
         self.specobjs = None
+        # Index to specobjs (tuple of arrays)
+        self.sobj_idx = None  # (ndet, nslits)
+        # Sky line table
+        self.sky_table = None
+        # 2D models
+        self.pmodel_m = None
+        self.pmodel_b = None
+        self.pmodel_l = None
     
     def init_slits(self):
         if self.PYP_SPEC == 'keck_deimos':
-            det_mt = keck_deimos.spec1d_match_red_blue(self.specobjs)
+            self.sobj_idx = keck_deimos.spec1d_match_red_blue(self.specobjs)
         else:
             msgs.error("Not ready for this spectrograph")
         #
-        self.nslits = len(det_mt[0])
-        self.ndet = len(det_mt)
+        self.nslits = len(self.sobj_idx[0])
+        self.ndet = len(self.sobj_idx)
         
         # Fill in 1D
-        self['xpos'] = self.specobjs[det_mt[0]]['SLITID'].astype(float)
-        self['objra'] = self.specobjs[det_mt[0]]['RA']
-        self['objdec'] = self.specobjs[det_mt[0]]['DEC']
-        self['slitname'] = self.specobjs[det_mt[0]]['MASKDEF_OBJNAME']
-        self['maskdef_id'] = self.specobjs[det_mt[0]]['MASKDEF_ID']
+        self['xpos'] = self.specobjs[self.sobj_idx[0]]['SLITID'].astype(float)
+        self['objra'] = self.specobjs[self.sobj_idx[0]]['RA']
+        self['objdec'] = self.specobjs[self.sobj_idx[0]]['DEC']
+        self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
+        self['maskdef_id'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_ID']
 
         # Fill in 2D
         for new_key, key, dtype in zip(['objname', 'det'],
@@ -779,19 +842,126 @@ class MultiDetFlexure(DataContainer):
             if self.datamodel[new_key]['atype'] == np.str:
                 slist = []
                 for det in range(self.ndet):
-                    slist.append(self.specobjs[det_mt[det]][key])
+                    slist.append(self.specobjs[self.sobj_idx[det]][key])
                 self[new_key] = np.array(slist)
             else:
                 self[new_key] = np.zeros((self.ndet, self.nslits), dtype=dtype)
                 for det in range(self.ndet):
-                    self[new_key][det] = self.specobjs[det_mt[det]][key]
+                    self[new_key][det] = self.specobjs[self.sobj_idx[det]][key]
 
-        # S/N
+        # S/N and ypos from the spectra
         self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
         self['ypos'] = np.zeros((self.ndet, self.nslits), dtype=float)
         for det in range(self.ndet):
-            self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[det_mt[det]]]
-            self['ypos'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[det_mt[det]]]
+            self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[self.sobj_idx[det]]]
+            self['ypos'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[self.sobj_idx[det]]]
+
+        # Return
+        return
+
+    def fit_mask_surfaces(self):
+
+        good_SN = self['SN'] > 1.
+        good_slit = np.sum(good_SN, axis=0) == self.ndet
+
+        mu =  np.median(self['fit_slope'][good_slit])
+        sd =  np.std(self['fit_slope'][good_slit])
+        mu2 =  np.median(self['fit_b'][good_slit])
+        sd2 =  np.std(self['fit_b'][good_slit])
+
+
+        # Cut down
+        mgood=(np.abs(self['fit_slope']-mu) < 2.*sd)  & (
+            np.abs(self['fit_b']-mu2) < 2.*sd2) & good_slit
+
+
+        embed(header='874 of flexure')
+
+        self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
+                                       self['fit_slope'][mgood], (2,2),
+                                       function='polynomial2d',
+                                       x2=self['objdec'][mgood])
+        self.pmodel_b = fitting.robust_fit(self['objra'][mgood],
+                                       self['fit_b'][mgood], (2,2),
+                                       function='polynomial2d',
+                                       x2=self['objdec'][mgood])
+        self.pmodel_l = fitting.robust_fit(self['objra'][mgood],
+                                       self['fit_los'][mgood], (2,2),
+                                       function='polynomial2d',
+                                       x2=self['objdec'][mgood])
+        
+        '''
+        # FIT ALL SURFACES WITH 3D POLYNOMIAL
+        p_init = models.Polynomial2D(degree=3)
+        fit_p = fitting.LevMarLSQFitter()
+
+        # FIT FOR SLOPES, INTERCEPTS, LOS
+        
+        pmodel_m = fit_p(p_init, slits['objra'][mgood], 
+                        slits['objdec'][mgood], slits['fit_slope'][mgood])
+        pmodel_b = fit_p(p_init, slits['objra'][mgood], 
+                        slits['objdec'][mgood], slits['fit_b'][mgood])
+        pmodel_l = fit_p(p_init, slits['objra'][mgood], 
+                        slits['objdec'][mgood], slits['fit_los'][mgood])
+        '''
+
+
+    def measure_sky_lines(self):
+
+        # Init
+        for key in ['fit_slope', 'fit_b', 'fit_los']:
+            self[key] = np.zeros(self.nslits)
+
+        for i in np.arange(0,self.nslits,1):
+            if (i % 10) == 0:
+                print("Working on slit {} of {}".format(i, self.nslits))
+
+            if not np.all(self['SN'][:,i] > 1.):
+                continue
+            # 
+
+            # Loop on detectors
+            sky_lines, sky_diffs, sky_ediffs, sky_loss = [], [], [], []
+            for det in range(self.ndet):
+                sobj = self.specobjs[self.sobj_idx[det][i]]
+
+                # Measure em
+                # The following will break if only boxcar...
+                sky_line, sky_diff, sky_ediff, los, _ = sky_em_residuals(
+                    sobj['OPT_WAVE'], 
+                    sobj['OPT_COUNTS_SKY'], 
+                    sobj['OPT_COUNTS_IVAR'],
+                    self.sky_table['Wave'])
+
+                # Hold em
+                sky_lines.append(sky_line)
+                sky_diffs.append(sky_diff)
+                sky_ediffs.append(sky_ediff)
+                sky_loss.append(los)
+
+            # Concatenate
+            sky_lines = np.concatenate(sky_lines)
+            sky_diffs = np.concatenate(sky_diffs)
+            sky_ediffs = np.concatenate(sky_ediffs)
+            sky_loss = np.concatenate(sky_loss)
+            
+
+            #sky_los   = np.concatenate((r_los,b_los),axis=None)
+
+            # FIT SINGLE SLIT SKY LINES WITH A LINE           
+            linear_fit = fitting.robust_fit(sky_lines,
+                                            sky_diffs,
+                                            weights=1./sky_ediffs**2,  
+                                            function='polynomial', 
+                                            order=1,
+                                            maxrej=1,  # Might increase
+                                            lower=3., upper=3.)
+                # Save in tuple (flipped)
+            fitted_line = linear_fit.fitc
+            
+            self['fit_b'][i]     = linear_fit.fitc[0]
+            self['fit_slope'][i] = linear_fit.fitc[1]
+            self['fit_los'][i]   = np.median(sky_loss)
 
         # Return
         return

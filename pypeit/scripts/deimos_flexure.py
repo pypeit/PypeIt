@@ -115,8 +115,17 @@ def main(pargs):
         mdFlex = flexure.MultiDetFlexure(spec1dfile=filename, 
                                          PYP_SPEC=spectrograph.name)
 
+        # Initalize slits
+        msgs.info("Setup")
         mdFlex.init_slits()
 
+        # INITIAL SKY LINE STUFF
+        msgs.info("Measuring sky lines")
+        slits = mdFlex.measure_sky_lines()
+
+        # FIT SURFACES
+        msgs.info("Fitting the surface")
+        pmodel_m, pmodel_b,pmodel_los = mdFlex.fit_mask_surfaces()
 
     #filename = hdu.filename()
     #tmp = filename.split('spec1d')
@@ -128,8 +137,8 @@ def main(pargs):
 
 
         # CREATE SLIT TABLE
-        msgs.info("Generating slit table")
-        slits, nslits = dmost_slit_matching.create_slit_table(hdu,data_dir,txt)
+        #msgs.info("Generating slit table")
+        #slits, nslits = dmost_slit_matching.create_slit_table(hdu,data_dir,txt)
 
         # INITIAL SKY LINE STUFF
         msgs.info("Measuring sky lines")
