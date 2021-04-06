@@ -121,11 +121,11 @@ def main(pargs):
 
         # INITIAL SKY LINE STUFF
         msgs.info("Measuring sky lines")
-        slits = mdFlex.measure_sky_lines()
+        mdFlex.measure_sky_lines()
 
         # FIT SURFACES
         msgs.info("Fitting the surface")
-        pmodel_m, pmodel_b,pmodel_los = mdFlex.fit_mask_surfaces()
+        mdFlex.fit_mask_surfaces()
 
         # Apply?
         msgs.info("Apply me")
