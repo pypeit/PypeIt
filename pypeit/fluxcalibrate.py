@@ -8,6 +8,7 @@ from pypeit import msgs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import sensfunc
 from pypeit import specobjs
+from pypeit.history import History
 from astropy import table
 from IPython import embed
 
@@ -49,10 +50,12 @@ class FluxCalibrate(object):
         for spec1, sens, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
             # Read in the data
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
+            history = History(sobjs.header)
             if sens != sens_last:
                 wave, sensfunction, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
             self.flux_calib(sobjs, wave, sensfunction, meta_table)
-            sobjs.write_to_fits(sobjs.header, outfile, overwrite=True)
+            history.append(f'PypeIt Flux calibration "{sens}"')
+            sobjs.write_to_fits(sobjs.header, outfile, history=history,overwrite=True)
 
     def flux_calib(self, sobjs, wave, sensfunction, meta_table):
         """

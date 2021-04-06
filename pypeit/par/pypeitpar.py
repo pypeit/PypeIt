@@ -55,6 +55,10 @@ sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
 ----
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
 """
 import os
 import warnings
@@ -70,7 +74,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-
 #-----------------------------------------------------------------------------
 # Reduction ParSets
 
@@ -3850,7 +3853,8 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None,
+                 collate1d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3928,6 +3932,10 @@ class PypeItPar(ParSet):
         dtypes['tellfit'] = [ParSet, dict]
         descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
 
+        # Collate 1D Fit
+        defaults['collate1d'] = Collate1DPar()
+        dtypes['collate1d'] = [ParSet, dict]
+        descr['collate1d'] = 'Par set to control collating 1d spectra.  Only used in the after-burner script.'
 
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
@@ -4128,7 +4136,7 @@ class PypeItPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit', 'collate1d']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
@@ -4181,6 +4189,11 @@ class PypeItPar(ParSet):
         default = TellFitPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['tellfit'] else None
         kwargs[pk] = TellFitPar.from_dict(cfg[pk]) if pk in k else default
+
+        # collate1d
+        pk = 'collate1d'
+        default = Collate1DPar()
+        kwargs[pk] = Collate1DPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
@@ -4568,3 +4581,86 @@ class TelescopePar(ParSet):
         """
         return None if self['fratio'] is None or self['diameter'] is None \
                 else 206265/self['fratio']/self['diameter']/1e3
+
+
+class Collate1DPar(ParSet):
+    """
+    A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Threshold for grouping by object
+        defaults['tolerance'] = '3.0'
+        dtypes['tolerance'] = [str, float]
+        descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
+                             "objects are within this distance from each other, they " \
+                             "are considered the same object. If match_using is 'ra/dec' (the default) " \
+                             "this is an angular distance. The defaults units are arcseconds but " \
+                             "other units supported by astropy.coordinates.Angle can be used" \
+                             "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
+
+
+        # Root directory of archive
+        defaults['dry_run'] = False
+        dtypes['dry_run'] = bool
+        descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
+                           "but will not flux, coadd or archive."
+
+        # Root directory of archive
+        defaults['archive_root'] = None
+        dtypes['archive_root'] = str
+        descr['archive_root'] = "The path where files and metadata will be archived."
+
+        # What slit flags to exclude
+        defaults['slit_exclude_flags'] = []
+        dtypes['slit_exclude_flags'] = [list, str]
+        descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
+
+        # What slit flags to exclude
+        defaults['match_using'] = 'ra/dec'
+        options['match_using'] = [ 'pixel', 'ra/dec']
+        dtypes['match_using'] = str
+        descr['match_using'] = "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
+
+        # Instantiate the parameter set
+        super(Collate1DPar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = [*cfg.keys()]
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass

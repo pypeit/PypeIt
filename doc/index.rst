@@ -214,6 +214,7 @@ or have a feature request, please `submit an issue
    coadd1d
    coadd2d
    coadd3d
+   collate1d
 
 ----
 
