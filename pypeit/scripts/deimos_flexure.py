@@ -127,6 +127,11 @@ def main(pargs):
         msgs.info("Fitting the surface")
         pmodel_m, pmodel_b,pmodel_los = mdFlex.fit_mask_surfaces()
 
+        # Apply?
+        msgs.info("Apply me")
+        fslits = update_flexure_fit(slits,nslits, hdu, pmodel_m, pmodel_b,pmodel_los,
+                                    orig=orig)
+
     #filename = hdu.filename()
     #tmp = filename.split('spec1d')
     #txt = filename.replace('.fits','.txt')

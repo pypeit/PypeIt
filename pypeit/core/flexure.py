@@ -875,8 +875,7 @@ class MultiDetFlexure(DataContainer):
             np.abs(self['fit_b']-mu2) < 2.*sd2) & good_slit
 
 
-        embed(header='874 of flexure')
-
+        # Fit me
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
                                        self['fit_slope'][mgood], (2,2),
                                        function='polynomial2d',
