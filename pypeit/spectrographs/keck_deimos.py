@@ -244,7 +244,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn on the use of mask design
-        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+        if ('Long' not in self.get_meta_value(headarr, 'decker')) and (
+                'LVMslit' not in self.get_meta_value(headarr, 'decker')):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
