@@ -1000,9 +1000,10 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     """
 
     tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
-    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)*(N_lam > 0.0)
-    zeropoint = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
-    zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
+    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)
+    zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
+    zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & (S_nu_dimless > 0.0) & \
+                    np.isfinite(flam_std_star) & (wave > 1.0)
     return zeropoint, zeropoint_gpm
 
 #def throughput_from_sensfile(sensfile):
