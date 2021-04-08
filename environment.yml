@@ -19,6 +19,6 @@ dependencies:
   - ginga>=3.0
   - qtpy>=1.9
   - pytest>=3.0.7
+  - bottleneck>=1.3
   - pip
-  - pip:
-    - linetools>=0.3dev2231
+  - linetools>=0.3dev2231

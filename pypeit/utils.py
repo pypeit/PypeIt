@@ -10,13 +10,12 @@ import inspect
 import pickle
 import warnings
 import itertools
-from collections import deque
-from bisect import insort, bisect_left
 
 from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
+import bottleneck
 
 from scipy import interpolate, ndimage
 
@@ -535,11 +534,10 @@ def fast_running_median(seq, window_size):
     Returns:
         ndarray: median filtered values
 
-    Code contributed by Peter Otten, made to be consistent with
+    Code originally contributed by Peter Otten, made to be consistent with
     scipy.ndimage.filters.median_filter by Joe Hennawi.
 
-    See discussion at:
-    http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
+    Now makes use of the Bottleneck library https://pypi.org/project/Bottleneck/.
     """
     # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
     # upon return (very bad). Added by JFH. Should we print out an error here?
@@ -553,21 +551,7 @@ def fast_running_median(seq, window_size):
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    seq_pad = iter(seq_pad)
-    d = deque()
-    s = []
-    result = []
-    for item in itertools.islice(seq_pad, window_size):
-        d.append(item)
-        insort(s, item)
-        result.append(s[len(d)//2])
-    m = window_size // 2
-    for item in seq_pad:
-        old = d.popleft()
-        d.append(item)
-        del s[bisect_left(s, old)]
-        insort(s, item)
-        result.append(s[m])
+    result = bottleneck.move_median(seq_pad, window=window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.filters.medfilt
