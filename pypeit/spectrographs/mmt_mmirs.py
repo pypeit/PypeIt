@@ -339,7 +339,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         hdu = io.fits_open(fil[0])
         head1 = fits.getheader(fil[0],1)
 
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']
