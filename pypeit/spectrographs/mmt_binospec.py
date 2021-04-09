@@ -77,7 +77,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        return detector_container.DetectorContainer(**detector_dicts[det])
+        return detector_container.DetectorContainer(**detector_dicts[det-1])
 
     def init_meta(self):
         """
@@ -341,7 +341,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # TOdO Store these parameters in the DetectorPar.
         # Number of amplifiers
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
         numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
