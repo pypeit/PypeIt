@@ -585,6 +585,7 @@ class Reduce(object):
                                                              pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
+                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
