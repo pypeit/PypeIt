@@ -77,7 +77,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        return detector_container.DetectorContainer(**detector_dicts[det])
+        return detector_container.DetectorContainer(**detector_dicts[det-1])
 
     def init_meta(self):
         """
