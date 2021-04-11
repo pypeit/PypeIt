@@ -755,13 +755,14 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
     flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
                                      fill_value='extrapolate')(wave)
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
+    ## TODO This is an ugly hack. Why are we only triggering this if the extrapolated star is negative. 
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         mask_model = flux_true <= 0
         pypeitFit = fitting.robust_fit(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     maxiter=50, lower=3.0, upper=3.0, maxrej=3,
                                                     grow=0, sticky=True, use_mad=True)
-        star_poly = pypeitFit.eval(wave.value)
+        star_poly = pypeitFit.eval(wave)
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
         if debug:
