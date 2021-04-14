@@ -743,7 +743,7 @@ class SlitTraceSet(datamodel.DataContainer):
         """
 
         if fwhm is None:
-            msgs.error('A FWHM for the optimal extraction must be provided. See `force_fwhm` in `SlitMaskPar`.')
+            msgs.error('A FWHM for the optimal extraction must be provided. See `find_fwhm` in `FindObjPar`.')
 
         if median_off is not None:
             self.mask_median_off = median_off
@@ -751,7 +751,7 @@ class SlitTraceSet(datamodel.DataContainer):
         else:
             self.mask_median_off = 0.
             msgs.info('Slitmask median offset is assumed to be zero. '
-                      'To change this see `mask_median_off` in `SlitMaskPar`.')
+                      'To change this see `slitmask_offset` in `SlitMaskPar`.')
 
         # midpoint in the spectral direction
         specmid = slits_left[:,0].size//2

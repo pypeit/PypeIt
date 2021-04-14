@@ -137,7 +137,7 @@ def test_add_missing_obj():
 
     # Run add missing objects
     median_off = 0.
-    fwhm = par['reduce']['slitmask']['force_fwhm']/det_par['platescale']
+    fwhm = par['reduce']['findobj']['find_fwhm']
     cut_sobj, nobj = slits.mask_add_missing_obj(cut_sobjs, expected_objpos, fwhm, median_off, slits_left, slits_right)
 
     # Test that undetected object are found at the correct location (the correct location is

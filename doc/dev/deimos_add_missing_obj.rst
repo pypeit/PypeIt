@@ -52,14 +52,9 @@ Application
 
 To perform the determination of the location on the slit of undetected objects, the parameters described in
 the *Application* section of :ref:`deimos_slitmask_ids_report` and :ref:`deimos_radec_object_report` must be set.
-Moreover, **force_extract** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
-default for DEIMOS, except when *LongMirr* and *LVM* mask is used. Two other keywords control this procedure.
-They are:
-
-- **force_fwhm**, which sets the initial FWHM in arcsec used for the optimal extraction of the spectra. The
-  default is 0.5 arcsec;
-
-- **mask_median_off**, which set a user provided offset in pixels between the measured and expected
+Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
+default for DEIMOS, except when *LongMirr* and *LVM* mask is used. One other keyword control this procedure.
+It is **slitmask_offset**, which set a user provided offset in pixels between the measured and expected
   position of the slitmask. The default is zero.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
@@ -74,7 +69,7 @@ Access
 - The same flag is also visible when running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
 - The forced extraction are shown in a different color than the detected objects (yellow vs. orange)
   in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
-- the **mask_median_off** value is reported when running ``pypeit_chk_2dslits Science/spec2d_XXX.fits``.
+- the **slitmask_offset** value is reported when running ``pypeit_chk_2dslits Science/spec2d_XXX.fits``.
 
 
 Testing
@@ -104,7 +99,7 @@ The algorithm of the test is as follows:
     3. Build a trace image using three flat-field images from a specific DEIMOS dataset in the :ref:`dev-suite`.
 
     4. Update the DEIMOS configuration parameters to include configurations specific for the
-       used instrument setup. Among others, this step sets the **force_extract** flag in
+       used instrument setup. Among others, this step sets the **extract_missing_objs** flag in
        :ref:`pypeit_par:SlitMaskPar Keywords` to **True**.
 
     5. Run the slit tracing procedure using :class:`~pypeit.edgetrace.EdgeTraceSet`, during which

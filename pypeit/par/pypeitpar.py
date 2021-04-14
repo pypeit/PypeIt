@@ -1561,7 +1561,7 @@ class SlitMaskPar(ParSet):
 
     """
     def __init__(self, obj_toler=None, assign_obj=None,
-                 mask_median_off=None, force_extract=None, force_fwhm=None):
+                 slitmask_offset=None, extract_missing_objs=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1583,24 +1583,20 @@ class SlitMaskPar(ParSet):
 
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool
-        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
 
-        defaults['mask_median_off'] = 0.
-        dtypes['mask_median_off'] = [int, float]
-        descr['mask_median_off'] = 'Median offset in pixels of slitmask from expected position.' \
+        defaults['slitmask_offset'] = 0.
+        dtypes['slitmask_offset'] = [int, float]
+        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position.' \
                                    'This parameter is only used during the forced extraction of ' \
                                    'undetected objects.'
 
-        defaults['force_extract'] = False
-        dtypes['force_extract'] = bool
-        descr['force_extract'] = 'Force extraction of undetected objects at the location expected ' \
-                                 'from the slitmask design.'
-
-        defaults['force_fwhm'] = None
-        dtypes['force_fwhm'] = [int, float]
-        descr['force_fwhm'] = 'Initial FWHM in arcsec used for the extraction of undetected objects.' \
-                              'During extraction, PypeIt will still try to fit a profile to improve this value. ' \
-                              'To keep this value, instead, set also ``optimal_fwhm`` in ExtractionPar.'
+        defaults['extract_missing_objs'] = False
+        dtypes['extract_missing_objs'] = bool
+        descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
+                                        'from the slitmask design. PypeIt will try to determine the FWHM from' \
+                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess).' \
+                                        'If the FWHM cannot be determined, ``find_fwhm`` will be assumed.'
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1613,7 +1609,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'mask_median_off', 'force_extract', 'force_fwhm']
+        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'extract_missing_objs']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3523,7 +3519,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, manual=None, skip_optimal=None,
-                 use_2dmodel_mask=None, optimal_fwhm=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3570,11 +3566,12 @@ class ExtractionPar(ParSet):
         descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
-        defaults['optimal_fwhm'] = None
-        dtypes['optimal_fwhm'] = [int, float]
-        descr['optimal_fwhm'] = 'FWHM in arcseconds used for optimal extraction (not implemented for echelle). ' \
-                                'If this parameter is ``None`` (default), `FindObj` estimates the FWHM for ' \
-                                'each detected object (see FindObjPar).'
+        defaults['use_user_fwhm'] = False
+        dtypes['use_user_fwhm'] = bool
+        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user' \
+                                 '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
+                                 'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
+                                 'detected object, by using ``find_fwhm`` as initial guess.'
 
         defaults['manual'] = ManualExtractionPar()
         dtypes['manual'] = [ ParSet, dict ]
@@ -3596,7 +3593,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_2dmodel_mask', 'optimal_fwhm']
+                   'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

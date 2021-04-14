@@ -257,8 +257,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
-            par['reduce']['slitmask']['force_extract'] = True
-            par['reduce']['slitmask']['force_fwhm'] = 0.5  # arcsec
+            par['reduce']['slitmask']['extract_missing_objs'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':

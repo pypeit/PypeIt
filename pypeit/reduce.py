@@ -396,12 +396,12 @@ class Reduce(object):
                                                              self.par['calibrations']['slitedges']['det_buffer'],
                                                              TOLER=self.par['reduce']['slitmask']['obj_toler'])
             # force extraction of non detected objects
-            if self.par['reduce']['slitmask']['force_extract']:
+            if self.par['reduce']['slitmask']['extract_missing_objs']:
                 msgs.info('Add undetected objects at the expected location from slitmask design.')
                 # Assign un-detected objects
                 self.sobjs_obj, self.nobj = self.slits.mask_add_missing_obj(self.sobjs_obj, all_expected_objpos,
-                                            self.par['reduce']['slitmask']['force_fwhm'] / self.get_platescale(None),
-                                            self.par['reduce']['slitmask']['mask_median_off'],
+                                            self.par['reduce']['findobj']['find_fwhm'],
+                                            self.par['reduce']['slitmask']['slitmask_offset'],
                                             self.slits_left, self.slits_right) # Deal with flexure
 
         # Do we have any positive objects to proceed with?
@@ -1005,9 +1005,6 @@ class MultiSlitReduce(Reduce):
             boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
         else:
             boxcar_rad_skymask = None
-        # user provided optimal fwhm in pixels
-        optimal_fwhm = None if self.par['reduce']['extraction']['optimal_fwhm'] is None else \
-            self.par['reduce']['extraction']['optimal_fwhm'] / self.get_platescale(None)
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -1040,7 +1037,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                optimal_fwhm = optimal_fwhm,
+                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
@@ -1103,9 +1100,6 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
 
-        # Do we use the fwhm provided by user for optimal extraction:
-        user_fwhm = True if self.par['reduce']['extraction']['optimal_fwhm'] is not None else False
-
         # Loop on slits
         for slit_idx in gdslits:  
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1116,28 +1110,23 @@ class MultiSlitReduce(Reduce):
                 # True  = Good, False = Bad for inmask
                 ingpm = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
-                try:
-                    self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
-                        self.extractmask[thismask] = skysub.local_skysub_extract(
-                        self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
-                        self.global_sky, self.sciImg.rn2img,
-                        thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
-                        self.sobjs[thisobj], ingpm,
-                        spat_pix=spat_pix,
-                        model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
-                        box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
-                        sigrej=self.par['reduce']['skysub']['sky_sigrej'],
-                        model_noise=model_noise, std=self.std_redux,
-                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                        user_fwhm = user_fwhm,
-                        sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
-                        show_profile=show_profile,
-                        use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
-                        no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
-                except ValueError:
-                    # slit_idx = 23 is failing
-                    #   I bet it is off the edge of the detector
-                    embed(header='1120 of reduce')
+                self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
+                    self.extractmask[thismask] = skysub.local_skysub_extract(
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
+                    self.global_sky, self.sciImg.rn2img,
+                    thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
+                    self.sobjs[thisobj], ingpm,
+                    spat_pix=spat_pix,
+                    model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
+                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
+                    sigrej=self.par['reduce']['skysub']['sky_sigrej'],
+                    model_noise=model_noise, std=self.std_redux,
+                    bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                    force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
+                    sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
+                    show_profile=show_profile,
+                    use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
+                    no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -1258,6 +1247,7 @@ class EchelleReduce(Reduce):
             cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
             npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
+            use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
@@ -1307,6 +1297,7 @@ class EchelleReduce(Reduce):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
 
+
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -1317,6 +1308,7 @@ class EchelleReduce(Reduce):
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
                                                   box_rad_order=box_rad_order, sigrej=sigrej,
+                                                  force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
                                                   sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,

@@ -1082,7 +1082,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             return skymask
 
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optimal_fwhm=None, maxdev=2.0, ir_redux=False, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             boxcar_rad_skymask=None,
@@ -1128,8 +1128,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optima
                       and the trace only shows in part of the detector.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
-        optimal_fwhm: float, default = None
-            User provided fwhm of the objects in pixels to be used in optimal extraction
+        use_user_fwhm: bool, default = False
+            Boolean indicating if PypeIt should use the fwm provided by the user
+            not (i.e., determine the fwhm form the flux profile)
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1229,7 +1230,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optima
     if specobj_dict is None:
         specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
 
-    # Check tpeak_thresh values make sense
+    # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
         msgs.error('Invalid value of peak_thresh. It must be between 0.0 and 1.0')
 
@@ -1470,8 +1471,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optima
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_name()
 
-        if optimal_fwhm is not None:
-            sobjs[iobj].FWHM = optimal_fwhm
+        if use_user_fwhm:
+            sobjs[iobj].FWHM = fwhm
 
         else:
             # Determine the fwhm max
@@ -1657,8 +1658,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, optima
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
-        # TODO -- This parameter may not be used anywhere
-        #   It is in skysub.py at line 674
         if skythresh > 0.0:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
@@ -1735,7 +1734,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 inmask=None, spec_min_max=None,
                 fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
@@ -1782,6 +1781,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             Input mask for the input image.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
+        use_user_fwhm: bool, default = False
+            Boolean indicating if PypeIt should use the fwm provided by the user
+            not (i.e., determine the fwhm form the flux profile)
         hand_extract_dict (dict, optional):
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
@@ -1962,7 +1964,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
+                    inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm,
+                    use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
