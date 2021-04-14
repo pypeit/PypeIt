@@ -53,8 +53,8 @@ Application
 To perform the determination of the location on the slit of undetected objects, the parameters described in
 the *Application* section of :ref:`deimos_slitmask_ids_report` and :ref:`deimos_radec_object_report` must be set.
 Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
-default for DEIMOS, except when *LongMirr* and *LVM* mask is used. One other keyword control this procedure.
-It is **slitmask_offset**, which set a user provided offset in pixels between the measured and expected
+default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used. One other keyword control this procedure.
+It is **slitmask_offset**, which sets a user provided offset in pixels between the measured and expected
   position of the slitmask. The default is zero.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
@@ -77,7 +77,11 @@ Testing
 
 Requirement PD-11 states: "Use slitmask information to determine object position in the slit."
 
-``PypeIt`` meets this requirement as demonstrated by the test at ``pypeit/tests/test_slitmask.py``.
+Requirement PD-12 states: "As a user, I expect the pipeline to extract 1d spectra using standard extraction
+method such as optimal extraction, even for sources that don’t have continuum using information contained
+in the mask definition"
+
+``PypeIt`` meets these requirements as demonstrated by the test at ``pypeit/tests/test_slitmask.py``.
 To run the test:
 
 .. code-block:: bash

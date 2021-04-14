@@ -33,13 +33,11 @@ design information stored in the :class:`~pypeit.slittrace.SlitTraceSet` datamod
 :ref:`deimos_slitmask_ids_report` for a description on how the slitmask design matching is performed,
 and :ref:`master_slits` for a description of the provided information and for a way to visualize them).
 
-The slitmask design provides information on the distance of each targeted object from the slits edges,
-allowing to compares this expected distance to the one measured from the image. Differences between
-the expected and the measure slit length are also taken into account.
-
-Therefore, ``PypeIt`` goes through all the slits in a selected detector and for each detected object checks if
-the measured distance from the left edge is within a certain tolerance (see `Application`_ for details
-on how to control the value of this parameter) of the distance expected from the slitmask design.
+Then, :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` goes through all the slits in a
+selected detector and for each detected object checks if the measured distance of the object from the
+left edge of the slit is within a certain tolerance (see `Application`_ for details on how to control the value of
+this parameter) of the distance expected from the slitmask design (differences between the expected and
+the measured slit length are taken into account).
 If the answer is yes, the ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` of the detected object are updated
 with the coordinates and name of the targeted object. If the answer is no, the detected object is
 considered a serendipitous object. Using the coordinates of the slit center available from the slitmask
@@ -55,7 +53,7 @@ Application
 To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the parameters described in
 the *Application* section of :ref:`deimos_slitmask_ids_report` must be set. Moreover, the **assign_obj** flag in
 :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
-except when *LongMirr* and *LVM* mask is used. One other keyword controls this procedure and it is **obj_toler**.
+except when the *LongMirr* or the *LVM* mask is used. One other keyword controls this procedure and it is **obj_toler**.
 This keyword sets the tolerance in arcsec for the matching process between
 the measured coordinates of the extracted spectrum and the expected coordinates of the targeted object.
 The default value is **obj_toler = 5**.

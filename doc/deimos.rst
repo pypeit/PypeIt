@@ -57,7 +57,7 @@ Slit-mask design matching
 contained as meta data in the DEIMOS observations. This functionality at the moment is
 implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
 :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
-except when *LongMirr* and *LVM* mask is used.
+except when the *LongMirr* or the *LVM* mask is used.
 
 ``PypeIt`` also assigns to each extracted 1D spectrum the corresponding RA, Dec and object name
 information from the slitmask design, and forces the extraction of undetected object at the location
