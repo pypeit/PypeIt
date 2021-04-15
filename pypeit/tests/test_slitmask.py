@@ -82,6 +82,7 @@ def test_assign_maskinfo():
     os.remove(data_path('tst_sobjs.fits'))
 
 
+@cooked_required
 def test_add_missing_obj():
 
     # Spectrograph
