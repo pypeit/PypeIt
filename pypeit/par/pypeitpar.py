@@ -1587,15 +1587,15 @@ class SlitMaskPar(ParSet):
 
         defaults['slitmask_offset'] = 0.
         dtypes['slitmask_offset'] = [int, float]
-        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position.' \
+        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position. ' \
                                    'This parameter is only used during the forced extraction of ' \
                                    'undetected objects.'
 
         defaults['extract_missing_objs'] = False
         dtypes['extract_missing_objs'] = bool
         descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
-                                        'from the slitmask design. PypeIt will try to determine the FWHM from' \
-                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess).' \
+                                        'from the slitmask design. PypeIt will try to determine the FWHM from ' \
+                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). ' \
                                         'If the FWHM cannot be determined, ``find_fwhm`` will be assumed.'
 
         # Instantiate the parameter set
@@ -3568,10 +3568,10 @@ class ExtractionPar(ParSet):
 
         defaults['use_user_fwhm'] = False
         dtypes['use_user_fwhm'] = bool
-        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user' \
+        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
                                  '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
                                  'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
-                                 'detected object, by using ``find_fwhm`` as initial guess.'
+                                 'detected object, and uses ``find_fwhm`` as initial guess.'
 
         defaults['manual'] = ManualExtractionPar()
         dtypes['manual'] = [ ParSet, dict ]

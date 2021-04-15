@@ -55,7 +55,7 @@ the *Application* section of :ref:`deimos_slitmask_ids_report` and :ref:`deimos_
 Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
 default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used. One other keyword control this procedure.
 It is **slitmask_offset**, which sets a user provided offset in pixels between the measured and expected
-  position of the slitmask. The default is zero.
+position of the slitmask. The default is zero.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
