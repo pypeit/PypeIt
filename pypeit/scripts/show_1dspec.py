@@ -49,6 +49,8 @@ def main(args):
                     sobjs[ii].MASKDEF_OBJNAME)
             if sobjs[ii].MASKDEF_EXTRACT is not None and sobjs[ii].MASKDEF_EXTRACT is True:
                 line += " maskdef_extract"
+            if sobjs[ii].MANUAL_EXTRACT is True:
+                line += " manual_extract"
             #
             print(line)
         return

@@ -64,13 +64,16 @@ def show_trace(specobjs, det, viewer, ch):
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
         maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
-        force_extr_flag = specobjs[kk].MASKDEF_EXTRACT
+        maskdef_extr_flag = specobjs[kk].MASKDEF_EXTRACT
+        manual_extr_flag = specobjs[kk].MANUAL_EXTRACT
         if maskdef_objname is not None:
             trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
         else:
             trc_name = obj_id
-        if force_extr_flag is not None and force_extr_flag is True:
+        if maskdef_extr_flag is not None and maskdef_extr_flag is True:
             display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+        elif manual_extr_flag is True:
+            display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
         else:
             display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 

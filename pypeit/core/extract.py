@@ -1641,6 +1641,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
 
         sobjs = sobjs[keep]
 
+    # Assign the MANUAL_EXTRACT attribute to SpecObj
+    for sobj in sobjs:
+        sobj.MANUAL_EXTRACT = sobj.hand_extract_flag
+
     #
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')
