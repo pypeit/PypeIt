@@ -43,7 +43,7 @@ with the coordinates and name of the targeted object. If the answer is no, the d
 considered a serendipitous object. Using the coordinates of the slit center available from the slitmask
 design and the distance in pixels (converted then in arcsec) between the traced object and the center
 of the slit, the coordinates of the serendipitous object are estimates and recorded in  ``RA``
-and ``DEC`` while ``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``FORCE_EXTRACT`` attribute
+and ``DEC`` while ``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``MASKDEF_EXTRACT`` attribute
 is set to **False** (see :ref:`deimos_add_missing_obj_report`).
 
 

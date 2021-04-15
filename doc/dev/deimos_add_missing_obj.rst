@@ -43,7 +43,7 @@ in the :class:`~pypeit.specobjs.SpecObjs`'s attribute ``SPAT_PIXPOS``. The user 
 offset between expected and measured position if needed (see `Application`_ for details on how to control
 the value of this parameter). Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
 ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see spec1D
-:ref:`out_spec1D:Current Data Model` for a description of these parameters). The attribute ``FORCE_EXTRACT``
+:ref:`out_spec1D:Current Data Model` for a description of these parameters). The attribute ``MASKDEF_EXTRACT``
 is set to **True** to flag the spectra that have been extracted from undetected objects.
 
 
@@ -112,7 +112,7 @@ The algorithm of the test is as follows:
        datamodel.
 
     6. A file containing previously extracted 1D spectra is loaded from the **Cooked** folder in the :ref:`dev-suite` 
-       and the objects information re-initialized, i.e.,  ``RA``, ``DEC``, ``MASKDEF_OBJNAME`` and ``FORCE_EXTRACT``
+       and the objects information re-initialized, i.e.,  ``RA``, ``DEC``, ``MASKDEF_OBJNAME`` and ``MASKDEF_EXTRACT``
        are set to ``None`` for the detected objects, while the spectra of undetected object are removed.
 
     7. :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` is then run and the object RA, Dec and object

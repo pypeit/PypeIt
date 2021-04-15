@@ -64,7 +64,7 @@ def show_trace(specobjs, det, viewer, ch):
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
         maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
-        force_extr_flag = specobjs[kk].FORCE_EXTRACT
+        force_extr_flag = specobjs[kk].MASKDEF_EXTRACT
         if maskdef_objname is not None:
             trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
         else:

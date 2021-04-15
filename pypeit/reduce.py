@@ -1101,7 +1101,7 @@ class MultiSlitReduce(Reduce):
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
 
         # Loop on slits
-        for slit_idx in gdslits:  
+        for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
             thisobj = self.sobjs.SLITID == slit_spat    # indices of objects for this slit

@@ -67,7 +67,7 @@ def test_assign_maskinfo():
         sobj.MASKDEF_OBJNAME = None
         sobj.RA = None
         sobj.DEC = None
-        sobj.FORCE_EXTRACT = None
+        sobj.MASKDEF_EXTRACT = None
 
     # Run me
     slits.assign_maskinfo(sobjs, det_par['platescale'], slits_left, slits_right, det_buffer)
@@ -122,14 +122,14 @@ def test_add_missing_obj():
     # Init at null
     idx_remove = []
     for i, sobj in enumerate(cut_sobjs):
-        if sobj.FORCE_EXTRACT:
+        if sobj.MASKDEF_EXTRACT:
             idx_remove.append(i)
         else:
             sobj.MASKDEF_ID = None
             sobj.MASKDEF_OBJNAME = None
             sobj.RA = None
             sobj.DEC = None
-            sobj.FORCE_EXTRACT = None
+            sobj.MASKDEF_EXTRACT = None
     cut_sobjs.remove_sobj(idx_remove)
 
     # Run assign mask info
