@@ -121,7 +121,7 @@ def main(args):
     if args.file[-2:] == 'gz':
         spec1d_file = spec1d_file[:-3]
     if os.path.isfile(spec1d_file):
-        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
     else:
         sobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
