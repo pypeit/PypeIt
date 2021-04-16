@@ -559,6 +559,28 @@ class SpecObj(datamodel.DataContainer):
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
+    def vette_for_extraction(self):
+        """ Simple method to check all the items are filled
+        for skysub and extraction.
+
+        Returns:
+            bool: True if all checks have passed
+        """
+        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
+            'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+        if 'Echelle' in self.PYPELINE:
+            required += ['ECH_NAME']
+
+        passed = True
+        for key in required:
+            if self[key] is None:
+                msgs.warn("Item {} is missing from SpecObj. Failing vette".format(key))
+                passed = False
+        #
+        return passed
+                
+
     def __repr__(self):
         """ Over-ride print representation
 
