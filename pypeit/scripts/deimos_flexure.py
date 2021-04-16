@@ -120,8 +120,10 @@ def main(pargs):
 
     # Loop to my loop
     for filename in spec1dfiles:
+        # Instantiate
         mdFlex = flexure.MultiDetFlexure(s1dfile=filename,
                                          PYP_SPEC=spectrograph.name)
+        mdFlex.flex_par = par['flexure']                                        
 
         # Initalize slits
         msgs.info("Setup")

@@ -816,8 +816,8 @@ class MultiDetFlexure(DataContainer):
         self.sky_table = ascii.read(sky_file)
 
     def _init_internals(self):
-        # Parameters
-        self.par = None
+        # Parameters (FlexurePar)
+        self.flex_par = None 
         # Specobjs object
         self.specobjs = None
         # Index to specobjs (tuple of arrays)
@@ -875,7 +875,7 @@ class MultiDetFlexure(DataContainer):
 
     def fit_mask_surfaces(self):
 
-        good_SN = self['SN'] > 1.
+        good_SN = self['SN'] > self.flex_par['multi_min_SN']
         good_slit = np.sum(good_SN, axis=0) == self.ndet
 
         mu =  np.median(self['indiv_fit_slope'][good_slit])

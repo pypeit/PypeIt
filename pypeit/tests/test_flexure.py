@@ -14,6 +14,8 @@ from pypeit.core import flexure, arc
 from pypeit import slittrace
 from pypeit import wavetilts
 
+from pypeit.tests.tstutils import cooked_required
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
@@ -66,3 +68,39 @@ def test_flex_shift():
 #    pyplot.plot(new_wave, obj_spec.flux)
 #    pyplot.show()
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
+
+@cooked_required
+def test_flex_multi():
+   
+    spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    mdFlex = flexure.MultiDetFlexure(s1dfile=spec1d_file, 
+                     PYP_SPEC='keck_deimos')
+    # Init                    
+    mdFlex.init_slits()
+    outfile = data_path('tst_multi_flex.fits')
+    # INITIAL SKY LINE STUFF
+    mdFlex.measure_sky_lines()
+    # FIT SURFACES
+    mdFlex.fit_mask_surfaces()
+    # Apply
+    mdFlex.update_fit()
+    # QA
+    #mask = header['TARGET'].strip()
+    #fnames = header['FILENAME'].split('.')
+    #root = mask+'_'+fnames[2]
+    #mdFlex.qa_plots('./', root)
+
+    # Write
+    mdFlex.to_file(outfile, overwrite=True)
+
+    # Read
+    mdFlex2 = flexure.MultiDetFlexure.from_file(outfile)
+    mdFlex2.to_file(outfile, overwrite=True)
+
+    # Check
+    assert np.all(np.isclose(mdFlex2.fit_b, mdFlex.fit_b))
+
+    # Clean up
+    if os.path.isfile(outfile):
+        os.remove(outfile)
