@@ -285,6 +285,12 @@ class SpecObj(datamodel.DataContainer):
 
     @property
     def mnx_wave(self):
+        """Return min, max wavelength of the spectrum
+        Uses OPT_WAVE if present and then BOX_WAVE
+
+        Returns:
+            tuple: min, max (float)
+        """
         mnx = (0., 0.)
         for pref in ['OPT', 'BOX']:
             if self[pref+'_WAVE'] is not None:
@@ -295,6 +301,12 @@ class SpecObj(datamodel.DataContainer):
 
     @property
     def med_s2n(self):
+        """Return median S/N of the spectrum
+        Uses OPT_COUNTS if present and then BOX_COUNTS
+
+        Returns:
+            float
+        """
         SN = 0.
         for pref in ['OPT', 'BOX']:
             if self[pref+'_COUNTS'] is not None:

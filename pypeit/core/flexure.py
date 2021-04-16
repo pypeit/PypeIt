@@ -706,8 +706,26 @@ def calculate_image_offset(image, im_ref, nfit=3):
 
 
 
-def sky_em_residuals(wave,flux,ivar, sky_waves,
-                     plot=0, noff=5., nfit_min=20):
+def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
+                     ivar:np.ndarray, sky_waves:np.ndarray,
+                     plot=False, noff=5., nfit_min=20):
+    """Calculate residuals and other metrics for a set of
+    auto-magically identified sky emission lines
+
+    Args:
+        wave (np.ndarray): Wavelengths (in air!)
+        flux (np.ndarray): 
+        ivar (np.ndarray): 
+        sky_waves (np.ndarray): Skyline wavelengths (in air!)
+        plot (bool, optional): Defaults to False.
+        noff (int, optional): Range in Ang to analyze labout emission line. Defaults to 5.
+        nfit_min (int, optional): Minimum number of pixels required to do a fit. Defaults to 20.
+
+    Returns:
+        tuple: np.ndarray's -- sky line wavelength, wavelength offset, 
+            error in wavelength offset, sky line width,
+            error in sky line width
+    """
 
 
     dwave = []
@@ -715,14 +733,19 @@ def sky_em_residuals(wave,flux,ivar, sky_waves,
     diff_err  = []
     los = []
     los_err= []
+    # Loop on known sky lines
     for line in sky_waves: 
         wline = [line-noff,line+noff] 
         mw    = (wave > wline[0]) & (wave < wline[1])
         
-        p=[0,0,0,0]
+        # Reuire minimum number
         if np.sum(mw) <= nfit_min:
             continue
+
+        p=[0,0,0,0]
+        # Guess
         p0 = list(fitting.guess_gauss(wave[mw],flux[mw]))
+        # Fit
         try:
             p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
                                 w_out = 1./np.sqrt(ivar[mw]), 
@@ -736,7 +759,7 @@ def sky_em_residuals(wave,flux,ivar, sky_waves,
         d = p[2] - line
 
         # For debugging
-        if (plot==1):
+        if plot:
             gfit = fitting.gauss_4deg(wave[mw],*p)
             plt.figure(figsize=(8,3)) 
             plt.plot(wave[mw],gfit,'g')
@@ -747,17 +770,22 @@ def sky_em_residuals(wave,flux,ivar, sky_waves,
         # Check
         if not np.isfinite(perr[2]):
             perr[2] = 1000.
+        # Save
         dwave = np.append(dwave,line)
         diff = np.append(diff,d)
         diff_err = np.append(diff_err,perr[2])
         los = np.append(los,p[3])
         los_err = np.append(los_err,perr[3])
 
-    # Finish
+    # Cut on quality
     m=(diff_err < 0.1) & (diff_err > 0.0)
+    # Return
     return dwave[m],diff[m],diff_err[m],los[m],los_err[m]
 
 class MultiDetFlexure(DataContainer):
+    # Class to perform Multi-Detector flexure analysis
+    # Based on codes written by Marla Geha for DEIMOS
+
     # Set the version of this class
     version = '1.0.0'
 
@@ -830,6 +858,9 @@ class MultiDetFlexure(DataContainer):
         self.pmodel_l = None
     
     def init_slits(self):
+        """ Initialize this and that about the slits 
+        e.g. RA, DEC, S/N
+        """
         if self.PYP_SPEC == 'keck_deimos':
             self.sobj_idx = keck_deimos.spec1d_match_red_blue(self.specobjs)
         else:
@@ -874,22 +905,26 @@ class MultiDetFlexure(DataContainer):
         return
 
     def fit_mask_surfaces(self):
-
+        """Fit 2D model to linear flexure models
+        from each slit as a function of RA, DEC
+        """
+        # Cut on S/N
         good_SN = self['SN'] > self.flex_par['multi_min_SN']
         good_slit = np.sum(good_SN, axis=0) == self.ndet
 
+        # Basic stats
         mu =  np.median(self['indiv_fit_slope'][good_slit])
         sd =  np.std(self['indiv_fit_slope'][good_slit])
         mu2 =  np.median(self['indiv_fit_b'][good_slit])
         sd2 =  np.std(self['indiv_fit_b'][good_slit])
 
 
-        # Cut down
+        # Cut down to +/- 2sigma
         mgood=(np.abs(self['indiv_fit_slope']-mu) < 2.*sd)  & (
             np.abs(self['indiv_fit_b']-mu2) < 2.*sd2) & good_slit
 
 
-        # Fit me
+        # Fit me (without additional rejection)
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
                                        self['indiv_fit_slope'][mgood], (2,2),
                                        function='polynomial2d',
@@ -905,14 +940,17 @@ class MultiDetFlexure(DataContainer):
         
 
     def measure_sky_lines(self):
+        """Main method to analyze the sky lines for all the slits
+        """
 
         # Init
         for key in ['indiv_fit_slope', 'indiv_fit_b', 'indiv_fit_los']:
             self[key] = np.zeros(self.nslits)
 
+        # Loop on slits
         for i in np.arange(0,self.nslits,1):
             if (i % 10) == 0:
-                print("Working on slit {} of {}".format(i, self.nslits))
+                msgs.info("Working on slit {} of {}".format(i, self.nslits))
 
             if not np.all(self['SN'][:,i] > 1.):
                 continue
@@ -944,8 +982,6 @@ class MultiDetFlexure(DataContainer):
             sky_loss = np.concatenate(sky_loss)
             
 
-            #sky_los   = np.concatenate((r_los,b_los),axis=None)
-
             # FIT SINGLE SLIT SKY LINES WITH A LINE           
             linear_fit = fitting.robust_fit(sky_lines,
                                             sky_diffs,
@@ -954,9 +990,7 @@ class MultiDetFlexure(DataContainer):
                                             order=1,
                                             maxrej=1,  # Might increase
                                             lower=3., upper=3.)
-                # Save in tuple (flipped)
-            fitted_line = linear_fit.fitc
-            
+            # Save 
             self['indiv_fit_b'][i]     = linear_fit.fitc[0]
             self['indiv_fit_slope'][i] = linear_fit.fitc[1]
             self['indiv_fit_los'][i]   = np.median(sky_loss)
@@ -965,17 +999,15 @@ class MultiDetFlexure(DataContainer):
         return
 
     def update_fit(self):
-
-        # UPDATE FITS
-    #    fslits['fit_slope'] = pmodel_m(slits['xpos'],slits['ypos'])
-    #    fslits['fit_b']     = pmodel_b(slits['xpos'],slits['ypos'])
-    #    fslits['fit_los']   = pmodel_los(slits['xpos'],slits['ypos'])
-
+        """Update fits for each slit based on 2D model
+        """
+        # Do it
         self['fit_slope'] = self.pmodel_m.eval(self['objra'],x2=self['objdec'])
         self['fit_b']     = self.pmodel_b.eval(self['objra'],x2=self['objdec'])
         self['fit_los']   = self.pmodel_l.eval(self['objra'],x2=self['objdec'])
 
         # CALCULATE RESIDUALS FROM FIT
+        #   Only for QA (I think)
         resid_sky = []
         for i in np.arange(0,self.nslits,1):
 
@@ -1027,6 +1059,13 @@ class MultiDetFlexure(DataContainer):
         self['resid_sky'] = resid_sky
 
     def qa_plots(self, plot_dir:str, root:str):
+        """Generate QA plots
+
+        Args:
+            plot_dir (str): Top-lvel folder for QA
+                QA/ is generated beneath this, as needed
+            root (str): Root for output files
+        """
 
         # Generate QA folder as need be
         qa_dir = os.path.join(plot_dir, 'QA')

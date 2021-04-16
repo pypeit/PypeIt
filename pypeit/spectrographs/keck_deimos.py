@@ -1306,20 +1306,17 @@ def deimos_read_1chip(hdu,chipno):
 
 
 
-#######################################################
-# MATCH SLITS BASED ON RA
-#######################################################
 def spec1d_match_red_blue(sobjs):
+    """Match up slits in a SpecObjs file
+    based on coords
 
-    '''
-    # ADD DETECTOR NAME
-    det = []
-    for obj in aslits:
-        tmp =   obj['name'].split('DET')
-        tdet = int(tmp[1])
-        det.append(tdet)
-    aslits['det'] = det
-    '''
+    Args:
+        sobjs (pypeit.specobjs.SpecObjs): 
+
+    Returns:
+        tuple: array of indices for the blue detector, 
+            array of indices for the red (matched to the blue)
+    """
 
     # ***FOR THE MOMENT, REMOVE SERENDIPS
     good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
