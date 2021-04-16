@@ -6,6 +6,12 @@ build/*
 dist/*
 doc/_build/*
 doc/build_/*
+bin/bin/*
+# Test folders that crop up
+keck_lris_blue_A/
+Masters/
+Science/
+QA/
 
 # Compiled source #
 ###################

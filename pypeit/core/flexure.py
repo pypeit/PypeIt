@@ -761,7 +761,7 @@ class MultiDetFlexure(DataContainer):
     # Set the version of this class
     version = '1.0.0'
 
-    datamodel = {'spec1dfile': dict(otype=str, descr='spec1d filename'), 
+    datamodel = {'s1dfile': dict(otype=str, descr='spec1d filename'), 
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
                  'nslits': dict(otype=int, descr='Number of slits'),
@@ -779,9 +779,10 @@ class MultiDetFlexure(DataContainer):
                  'resid_sky': dict(otype=np.ndarray, atype=np.floating, descr='Residuals of flexure model on sky lines (nslits)'),
                  'objra': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  'objdec': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'slittyp': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
-                 'slitname': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
-                 'objname': dict(otype=np.ndarray, atype=np.str, descr='Object names (ndet, nslits)'),
+                 # String arrays are no bueno with DataContainer
+                 #'slittyp': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
+                 #'slitname': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
+                 #'objname': dict(otype=np.ndarray, atype=np.str, descr='Object names (ndet, nslits)'),
                  'maskdef_id': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
                  'dslitid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
                  'desid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
@@ -791,10 +792,11 @@ class MultiDetFlexure(DataContainer):
                  'rms_sky': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  }
 
-    def __init__(self, spec1dfile=None, PYP_SPEC=None, nslits=None, spat=None, det=None, 
+    def __init__(self, s1dfile=None, PYP_SPEC=None, nslits=None, spat=None, det=None, 
                  SN=None, xpos=None, ypos=None, fit_slope=None, fit_b=None,
-                 fit_los=None, objra=None, objdec=None, slittyp=None,
-                 slitname=None, objname=None, maskdef_id=None, dslitid=None, desid=None,
+                 fit_los=None, objra=None, objdec=None, 
+                 #slittyp=None, slitname=None, objname=None, 
+                 maskdef_id=None, dslitid=None, desid=None,
                  slitx1=None, slity1=None, rms_arc=None, rms_sky=None,
                  resid_sky=None, indiv_fit_slope=None, indiv_fit_b=None,
                  indiv_fit_los=None):
@@ -806,14 +808,16 @@ class MultiDetFlexure(DataContainer):
         super(MultiDetFlexure, self).__init__(d=_d)
 
         # Load up specobjs
-        self.specobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfile,
-                                                        chk_version=False) # Turn this off?
+        self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile,
+                                                        chk_version=False) 
         #  Sky lines
         sky_file = os.path.join(resource_filename('pypeit', 'data'), 
                                 'sky_spec', 'sky_single_mg.dat')
         self.sky_table = ascii.read(sky_file)
 
     def _init_internals(self):
+        # Parameters
+        self.par = None
         # Specobjs object
         self.specobjs = None
         # Index to specobjs (tuple of arrays)
@@ -838,13 +842,16 @@ class MultiDetFlexure(DataContainer):
         self['xpos'] = self.specobjs[self.sobj_idx[0]]['SLITID'].astype(float)
         self['objra'] = self.specobjs[self.sobj_idx[0]]['RA']
         self['objdec'] = self.specobjs[self.sobj_idx[0]]['DEC']
-        self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
+        #self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
         self['maskdef_id'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_ID']
 
         # Fill in 2D
-        for new_key, key, dtype in zip(['objname', 'det'],
-                                ['NAME', 'DET'],
-                                [str, int]): 
+        #for new_key, key, dtype in zip(['objname', 'det'],
+        #                        ['NAME', 'DET'],
+        #                        [str, int]): 
+        for new_key, key, dtype in zip(['det'],
+                                ['DET'],
+                                [int]): 
             # Init
             if self.datamodel[new_key]['atype'] == np.str:
                 slist = []
@@ -896,21 +903,6 @@ class MultiDetFlexure(DataContainer):
                                        function='polynomial2d',
                                        x2=self['objdec'][mgood])
         
-        '''
-        # FIT ALL SURFACES WITH 3D POLYNOMIAL
-        p_init = models.Polynomial2D(degree=3)
-        fit_p = fitting.LevMarLSQFitter()
-
-        # FIT FOR SLOPES, INTERCEPTS, LOS
-        
-        pmodel_m = fit_p(p_init, slits['objra'][mgood], 
-                        slits['objdec'][mgood], slits['fit_slope'][mgood])
-        pmodel_b = fit_p(p_init, slits['objra'][mgood], 
-                        slits['objdec'][mgood], slits['fit_b'][mgood])
-        pmodel_l = fit_p(p_init, slits['objra'][mgood], 
-                        slits['objdec'][mgood], slits['fit_los'][mgood])
-        '''
-
 
     def measure_sky_lines(self):
 
@@ -982,7 +974,6 @@ class MultiDetFlexure(DataContainer):
         self['fit_slope'] = self.pmodel_m.eval(self['objra'],x2=self['objdec'])
         self['fit_b']     = self.pmodel_b.eval(self['objra'],x2=self['objdec'])
         self['fit_los']   = self.pmodel_l.eval(self['objra'],x2=self['objdec'])
-        embed(header='980 flexure: Check the shape here!')
 
         # CALCULATE RESIDUALS FROM FIT
         resid_sky = []
@@ -1024,7 +1015,8 @@ class MultiDetFlexure(DataContainer):
                 
 
                 _,diff,diff_err,_,_ = sky_em_residuals(
-                    all_wave,all_sky,all_ivar, plot=0)
+                    all_wave,all_sky,all_ivar,
+                    self.sky_table['Wave'])
                 m=np.isfinite(diff)
                 sky_mean = np.average(np.abs(diff[m]), 
                                       weights = 1./diff_err[m]**2)
@@ -1040,6 +1032,9 @@ class MultiDetFlexure(DataContainer):
         qa_dir = os.path.join(plot_dir, 'QA')
         if not os.path.isdir(qa_dir):
             os.mkdir(qa_dir)
+        
+        '''
+        # Slopes
         pdf2 = matplotlib.backends.backend_pdf.PdfPages(os.path.join(qa_dir, 'flex_slits_'+root+'.pdf'))
         plt.rcParams.update({'figure.max_open_warning': 0})
         for i in np.arange(0,self.nslits,1):
@@ -1098,6 +1093,7 @@ class MultiDetFlexure(DataContainer):
             pdf2.savefig()
         pdf2.close()
         plt.close('all')
+        '''
 
         #########################################################################
         # CREATE FULL MASK FITS
