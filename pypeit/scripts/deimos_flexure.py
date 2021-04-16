@@ -129,8 +129,14 @@ def main(pargs):
 
         # Apply?
         msgs.info("Apply me")
-        fslits = update_flexure_fit(slits,nslits, hdu, pmodel_m, pmodel_b,pmodel_los,
-                                    orig=orig)
+        mdFlex.update_fit()
+
+        # REFIT FOR QA PLOTS
+        msgs.info("Generate QA")
+        mask = header['TARGET'].strip()
+        fnames = header['FILENAME'].split('.')
+        root = mask+'_'+fnames[2]
+        mdFlex.qa_flexure_plots('./', root)
 
     #filename = hdu.filename()
     #tmp = filename.split('spec1d')
@@ -166,13 +172,9 @@ def main(pargs):
         msgs.info("Write to table")
         fslits.write(slit_table_file,overwrite=True)
 
-    # ELSE READ IT IN
-    if os.path.isfile(slit_table_file):
-        fslits = Table.read(slit_table_file)
-    
-    print("All done!!")
+        # Apply??
 
-    return fslits
+    print("All done!!")
 
 def entry_point():
     main(parse_args())

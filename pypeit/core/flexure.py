@@ -11,6 +11,7 @@ import numpy as np
 import copy, os
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
+import matplotlib
 
 from astropy import stats
 from astropy import units
@@ -769,9 +770,13 @@ class MultiDetFlexure(DataContainer):
                  'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
                  'xpos': dict(otype=np.ndarray, atype=np.floating, descr='Slit x position [pixels] (nslits)'),
                  'ypos': dict(otype=np.ndarray, atype=np.floating, descr='Mininum wavelength of the slit [Ang] (nslits)'),
+                 'indiv_fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='Fits to each slit individually (nslits)'),
+                 'indiv_fit_b': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for b (nslits)'),
+                 'indiv_fit_los': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for line width (nslits)'),
                  'fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  'fit_b': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  'fit_los': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'resid_sky': dict(otype=np.ndarray, atype=np.floating, descr='Residuals of flexure model on sky lines (nslits)'),
                  'objra': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  'objdec': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
                  'slittyp': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
@@ -790,7 +795,9 @@ class MultiDetFlexure(DataContainer):
                  SN=None, xpos=None, ypos=None, fit_slope=None, fit_b=None,
                  fit_los=None, objra=None, objdec=None, slittyp=None,
                  slitname=None, objname=None, maskdef_id=None, dslitid=None, desid=None,
-                 slitx1=None, slity1=None, rms_arc=None, rms_sky=None):
+                 slitx1=None, slity1=None, rms_arc=None, rms_sky=None,
+                 resid_sky=None, indiv_fit_slope=None, indiv_fit_b=None,
+                 indiv_fit_los=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -864,28 +871,28 @@ class MultiDetFlexure(DataContainer):
         good_SN = self['SN'] > 1.
         good_slit = np.sum(good_SN, axis=0) == self.ndet
 
-        mu =  np.median(self['fit_slope'][good_slit])
-        sd =  np.std(self['fit_slope'][good_slit])
-        mu2 =  np.median(self['fit_b'][good_slit])
-        sd2 =  np.std(self['fit_b'][good_slit])
+        mu =  np.median(self['indiv_fit_slope'][good_slit])
+        sd =  np.std(self['indiv_fit_slope'][good_slit])
+        mu2 =  np.median(self['indiv_fit_b'][good_slit])
+        sd2 =  np.std(self['indiv_fit_b'][good_slit])
 
 
         # Cut down
-        mgood=(np.abs(self['fit_slope']-mu) < 2.*sd)  & (
-            np.abs(self['fit_b']-mu2) < 2.*sd2) & good_slit
+        mgood=(np.abs(self['indiv_fit_slope']-mu) < 2.*sd)  & (
+            np.abs(self['indiv_fit_b']-mu2) < 2.*sd2) & good_slit
 
 
         # Fit me
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
-                                       self['fit_slope'][mgood], (2,2),
+                                       self['indiv_fit_slope'][mgood], (2,2),
                                        function='polynomial2d',
                                        x2=self['objdec'][mgood])
         self.pmodel_b = fitting.robust_fit(self['objra'][mgood],
-                                       self['fit_b'][mgood], (2,2),
+                                       self['indiv_fit_b'][mgood], (2,2),
                                        function='polynomial2d',
                                        x2=self['objdec'][mgood])
         self.pmodel_l = fitting.robust_fit(self['objra'][mgood],
-                                       self['fit_los'][mgood], (2,2),
+                                       self['indiv_fit_los'][mgood], (2,2),
                                        function='polynomial2d',
                                        x2=self['objdec'][mgood])
         
@@ -908,7 +915,7 @@ class MultiDetFlexure(DataContainer):
     def measure_sky_lines(self):
 
         # Init
-        for key in ['fit_slope', 'fit_b', 'fit_los']:
+        for key in ['indiv_fit_slope', 'indiv_fit_b', 'indiv_fit_los']:
             self[key] = np.zeros(self.nslits)
 
         for i in np.arange(0,self.nslits,1):
@@ -958,9 +965,224 @@ class MultiDetFlexure(DataContainer):
                 # Save in tuple (flipped)
             fitted_line = linear_fit.fitc
             
-            self['fit_b'][i]     = linear_fit.fitc[0]
-            self['fit_slope'][i] = linear_fit.fitc[1]
-            self['fit_los'][i]   = np.median(sky_loss)
+            self['indiv_fit_b'][i]     = linear_fit.fitc[0]
+            self['indiv_fit_slope'][i] = linear_fit.fitc[1]
+            self['indiv_fit_los'][i]   = np.median(sky_loss)
 
         # Return
         return
+
+    def update_fit(self):
+
+        # UPDATE FITS
+    #    fslits['fit_slope'] = pmodel_m(slits['xpos'],slits['ypos'])
+    #    fslits['fit_b']     = pmodel_b(slits['xpos'],slits['ypos'])
+    #    fslits['fit_los']   = pmodel_los(slits['xpos'],slits['ypos'])
+
+        self['fit_slope'] = self.pmodel_m.eval(self['objra'],x2=self['objdec'])
+        self['fit_b']     = self.pmodel_b.eval(self['objra'],x2=self['objdec'])
+        self['fit_los']   = self.pmodel_l.eval(self['objra'],x2=self['objdec'])
+        embed(header='980 flexure: Check the shape here!')
+
+        # CALCULATE RESIDUALS FROM FIT
+        resid_sky = []
+        for i in np.arange(0,self.nslits,1):
+
+            # Require sufficient S/N in reddest detector
+            if self['SN'][-1,i] > 0:
+                # Load up the full spectrum
+                #all_wave,all_flux,all_ivar,all_sky = dmost_utils.load_spectrum(f,hdu,vacuum = 1)
+                tmp_wave, all_flux, all_sky, all_ivar = np.ndarray(0), \
+                    np.ndarray(0), np.ndarray(0), np.ndarray(0)
+                for det in range(self.ndet):
+                    sobj = self.specobjs[self.sobj_idx[det][i]]
+                    tmp_wave = np.concatenate((tmp_wave, sobj.OPT_WAVE))
+                    all_flux = np.concatenate((all_flux, sobj.OPT_COUNTS))
+                    all_sky = np.concatenate((all_sky, sobj.OPT_COUNTS_SKY))
+                    all_ivar = np.concatenate((all_ivar, sobj.OPT_COUNTS_IVAR))
+                
+                # Massage
+                fitwave  = self['fit_slope'][i]*tmp_wave + self['fit_b'][i]
+                all_wave = tmp_wave - fitwave
+
+                # TRIM ENDS
+                all_wave=all_wave[5:-15]
+                all_flux=all_flux[5:-15]
+                all_ivar=all_ivar[5:-15]
+                all_sky=all_sky[5:-15]
+
+                # REMOVE CRAZY 500-SIGMA VALUES
+                cmask = (all_flux > np.percentile(all_flux,0.1)) & (all_flux < np.percentile(all_flux,99.9))
+
+                m=np.median(all_flux[cmask])
+                s=np.std(all_flux[cmask])
+                mm = (all_flux > 500.*s + m) | (all_flux < m-50.*s)
+                all_flux[mm] = m
+                all_ivar[mm] = 1e6
+                if (np.sum(mm) > 10):
+                    msgs.warn('Removing more than 10 pixels of data')
+                
+
+                _,diff,diff_err,_,_ = sky_em_residuals(
+                    all_wave,all_sky,all_ivar, plot=0)
+                m=np.isfinite(diff)
+                sky_mean = np.average(np.abs(diff[m]), 
+                                      weights = 1./diff_err[m]**2)
+                resid_sky = np.append(resid_sky,sky_mean)
+            else:
+                resid_sky = np.append(resid_sky,-1)
+
+        self['resid_sky'] = resid_sky
+
+    def qa_plots(self, plot_dir:str, root:str):
+
+        # Generate QA folder as need be
+        qa_dir = os.path.join(plot_dir, 'QA')
+        if not os.path.isdir(qa_dir):
+            os.mkdir(qa_dir)
+        pdf2 = matplotlib.backends.backend_pdf.PdfPages(os.path.join(qa_dir, 'flex_slits_'+root+'.pdf'))
+        plt.rcParams.update({'figure.max_open_warning': 0})
+        for i in np.arange(0,self.nslits,1):
+
+            if not np.all(self['SN'][:,i] > 0.):
+                continue
+
+
+            # SKY LINES FIRST
+            r_sky_line, r_sky_diff,r_sky_ediff,r_los,r_elos = sky_em_residuals(hdu[r].data['OPT_WAVE'], \
+                                                    hdu[r].data['OPT_COUNTS_SKY'],\
+                                                    hdu[r].data['OPT_COUNTS_IVAR'])
+
+            b_sky_line, b_sky_diff,b_sky_ediff,b_los,b_elos = sky_em_residuals(hdu[b].data['OPT_WAVE'], \
+                                                    hdu[b].data['OPT_COUNTS_SKY'],\
+                                                    hdu[b].data['OPT_COUNTS_IVAR'])
+
+            fig, (ax1,ax2) = plt.subplots(1, 2,figsize=(20,4))
+            ax1.plot(r_sky_line,r_sky_diff,'ro',alpha=0.8,label='Red chip: Sky Emission')
+            ax1.plot(b_sky_line,b_sky_diff,'bo',alpha=0.8,label='Blue chip: Sky Emission')
+            ax1.errorbar(b_sky_line,b_sky_diff,yerr=b_sky_ediff,fmt='none',ecolor='b',alpha=0.5)
+            ax1.errorbar(r_sky_line,r_sky_diff,yerr=r_sky_ediff,fmt='none',ecolor='r',alpha=0.5)
+            ax1.text(6320,0,'{}'.format(b),fontsize=11)
+            ax1.text(8500,0,'{}'.format(r),fontsize=11)
+            ax1.set_ylim(-0.45,0.45)
+
+            x=np.arange(6000,9000,1)
+            l1 = slits['fit_slope'][i]*x + slits['fit_b'][i]
+            l2 = fslits['fit_slope'][i]*x + fslits['fit_b'][i]
+            ax1.plot(x,l1,'-')
+            ax1.plot(x,l2,'--')
+            ax1.axhline(linewidth=1, color='grey',alpha=0.5)
+            ax1.set_ylabel('Wavelength offset (AA)')
+            ax1.set_xlabel('Wavelength (AA)')
+            ax1.set_xlim(6300,9100)
+            t = 'Sky Line Fits , resid = {:0.4f} AA, arc = {:0.2f}'.format(slits['resid_sky'][i],0.32*slits['rms_arc_r'][i])
+            ax1.set_title(t)
+
+            sky_diff  = np.concatenate((r_sky_diff,b_sky_diff),axis=None)
+            sky_lines = np.concatenate((r_sky_line,b_sky_line),axis=None)
+            sky_ediff = np.concatenate((r_sky_ediff,b_sky_ediff),axis=None)
+            sky_los   = np.concatenate((r_los,b_los),axis=None)
+
+
+            ax2.plot(r_sky_line,r_los,'ro',alpha=0.8,label='Red chip: Sky Emission')
+            ax2.plot(b_sky_line,b_los,'bo',alpha=0.8,label='Blue chip: Sky Emission')
+            ax2.errorbar(r_sky_line,r_los,yerr=r_elos,fmt='none',ecolor='r',alpha=0.5)
+            ax2.errorbar(b_sky_line,b_los,yerr=b_elos,fmt='none',ecolor='b',alpha=0.5)
+            ax2.axhline(fslits['fit_los'][i],linewidth=1, color='grey',alpha=0.5)
+
+            ax2.set_title('Line widths')
+            ax2.set_xlabel('Wavelength (AA)')
+            ax2.set_ylim(0.3,0.8)
+            ax2.set_xlim(6300,9100)
+
+            pdf2.savefig()
+        pdf2.close()
+        plt.close('all')
+
+        #########################################################################
+        # CREATE FULL MASK FITS
+        pdf = matplotlib.backends.backend_pdf.PdfPages(
+            plot_dir+'QA/flex_mask_'+root+'.pdf')
+        xslit = self['objra']
+        yslit = self['objdec']
+        t=2.
+
+        mu =  np.median(self['indiv_fit_slope'])
+        sd =  np.std(self['indiv_fit_slope'])
+        mu2 =  np.median(self['indiv_fit_b'])
+        sd2 =  np.std(self['indiv_fit_b'])
+        mu3 =  np.median(self['indiv_fit_los'])
+        sd3 =  np.std(self['indiv_fit_los'])
+
+        # PLOT FITTED VALUES
+        fig, (ax1,ax2,ax3) = plt.subplots(1, 3,figsize=(22,5))
+    
+        mm1=-0.00005
+        mm2=0.00005
+        print(mu-t*sd,mu+t*sd)
+        ax1.scatter(xslit,yslit,c=self['indiv_fit_slope'],
+                    cmap="cool",vmin = mm1,vmax=mm2 )# mu-t*sd,vmax=mu+t*sd)
+        ax1.set_ylabel('Dec [deg]')
+        ax1.set_xlabel('RA [deg]')
+        ax1.set_title('Wave MEASURE: line slope')
+        #cax, _ = matplotlib.colorbar.make_axes(ax1)
+        #normalize = matplotlib.colors.Normalize(vmin = mu-t*sd,vmax=mu+t*sd)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='cool',norm=normalize)
+
+
+        ax2.scatter(xslit,yslit,c=self['indiv_fit_b'],cmap="summer",
+                    vmin = mu2-t*sd2,vmax=mu2+t*sd2)
+        ax2.set_ylabel('Dec [deg]')
+        ax2.set_xlabel('RA [deg]')
+        ax2.set_title('Wave MEASURE: line intercept')
+        cax, _ = matplotlib.colorbar.make_axes(ax2)
+        normalize = matplotlib.colors.Normalize(vmin = mu2-t*sd2,vmax=mu2+t*sd2)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='summer',norm=normalize)
+
+
+        ax3.scatter(xslit,yslit,c=self['indiv_fit_los'],cmap="cool",vmin = mu3-t*sd3,vmax=mu3+t*sd3)
+        ax3.set_ylabel('Dec [deg]')
+        ax3.set_xlabel('RA [deg]')
+        ax3.set_title('Wave MEASURE: line width')
+        cax, _ = matplotlib.colorbar.make_axes(ax3)
+        normalize = matplotlib.colors.Normalize(vmin = mu3-t*sd3,vmax=mu3+t*sd3)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='cool',norm=normalize)
+
+        pdf.savefig()
+        
+        #######################
+        # PLOT MEASURED VALUES
+        fig, (ax1,ax2,ax3) = plt.subplots(1, 3,figsize=(22,5))
+    
+        ax1.scatter(xslit,yslit,c=self['fit_slope'],
+                    cmap="cool",vmin = mu-t*sd,vmax=mu+t*sd)
+
+        ax1.set_ylabel('Dec [deg]')
+        ax1.set_xlabel('RA [deg]')
+        ax1.set_title('Wave fit: line slope')
+        cax, _ = matplotlib.colorbar.make_axes(ax1)
+        normalize = matplotlib.colors.Normalize(vmin = mu-t*sd,vmax=mu+t*sd)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='cool',norm=normalize)
+
+
+        ax2.scatter(xslit,yslit,c=self['fit_b'],
+                    cmap="summer",vmin = mu2-t*sd2,vmax=mu2+t*sd2)
+        ax2.set_ylabel('Dec [deg]')
+        ax2.set_xlabel('RA [deg]')
+        ax2.set_title('Wave fit: line intercept')
+        cax, _ = matplotlib.colorbar.make_axes(ax2)
+        normalize = matplotlib.colors.Normalize(vmin = mu2-t*sd2,vmax=mu2+t*sd2)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='summer',norm=normalize)
+
+
+        ax3.scatter(xslit,yslit,c=self['fit_los'],
+                    cmap="cool",vmin = mu3-t*sd3,vmax=mu3+t*sd3)
+        ax3.set_ylabel('Dec [deg]')
+        ax3.set_xlabel('RA [deg]')
+        ax3.set_title('Wave fit: line width')
+        cax, _ = matplotlib.colorbar.make_axes(ax3)
+        normalize = matplotlib.colors.Normalize(vmin = mu3-t*sd3,vmax=mu3+t*sd3)
+        #cbar = matplotlib.colorbar.ColorbarBase(cax, cmap='cool',norm=normalize)
+
+        
+        pdf.close()
