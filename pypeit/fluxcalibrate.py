@@ -103,7 +103,7 @@ class MultiSlitFC(FluxCalibrate):
 
         # Run
         for sci_obj in sobjs:
-            sci_obj.apply_flux_calib(wave, zeropoint,
+            sci_obj.apply_flux_calib(wave[:, 0], zeropoint[:, 0],
                                      sobjs.header['EXPTIME'],
                                      extinct_correct=self._set_extinct_correct(
                                          self.par['extinct_correct'], meta_table['ALGORITHM'][0]),

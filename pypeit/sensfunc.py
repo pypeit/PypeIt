@@ -157,13 +157,20 @@ class SensFunc(object):
         # Write out QA and throughput plots
         self.write_QA()
 
+        # TODO This is ugly code. Maybe it should go in save. Maybe we should just output all the zeropoint arrays
+        # as 2d arrays rather than flattening them.
         # If the zeropoint has just one order, or detectors were spliced, flatten the output
-        # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
-        if self.wave_zp.ndim == 2:
-            if self.wave_zp.shape[1] == 1:
-                self.wave_zp = self.wave_zp.flatten()
-                self.zeropoint = self.zeropoint.flatten()
-                self.throughput = self.throughput.flatten()
+        #if self.wave_zp.ndim == 2:
+        #    # Always flatten for multi_spec_det
+        #    if self.splice_multi_det:
+        #        self.wave_zp_splice = self.wave_zp_splice.flatten()
+        #        self.zeropoint_splice = self.zeropoint_splice.flatten()
+        #        self.throughput_splice = self.throughput_splice.flatten()
+        #    # Otherwise, flatten only if the number of det/orders = 1
+        #    elif self.wave_zp.shape[1] == 1:
+        #        self.wave_zp = self.wave_zp.flatten()
+        #        self.zeropoint = self.zeropoint.flatten()
+        #        self.throughput = self.throughput.flatten()
 
         return
 
