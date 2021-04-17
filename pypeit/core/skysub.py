@@ -564,8 +564,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             Make an interactive plot to the screen to indicate how the
             breakpoints are being chosen.
         force_gauss: bool, default = False
-            Boolean indicating if a Gaussian profile should be assumed for the
-            optical extraction.
+            If True, a Gaussian profile will always be assumed for the
+            optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
+            profile. 
         sn_gauss: int or float, default = 4.0
             The signal to noise threshold above which optimal extraction
             with non-parametric b-spline fits to the objects spatial
