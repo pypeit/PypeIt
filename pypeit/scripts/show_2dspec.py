@@ -135,7 +135,6 @@ def main(args):
     # SCIIMG
     if 0 in show_channels:
         image = spec2DObj.sciimg  # Processed science image
-        chname_sciimage='sciimg-det{:s}'.format(sdet)
         mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
                                                sigma_upper=5.0)
         cut_min = mean - 1.0 * sigma
