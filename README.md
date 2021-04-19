@@ -120,6 +120,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Keck/NIRSPEC (low-dispersion)
 * LBT/Luci-I, Luci-II
 * LBT/MODS (beta)
+* LDT/DeVeny
 * Lick/APF (planned)
 * NOT/ALFOSC (grism4)
 * VLT/X-Shooter
