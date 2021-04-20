@@ -711,7 +711,7 @@ class SpecObjs:
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
             # Manual extraction?
-            manual_extract.append(specobj.MANUAL_EXTRACT)
+            manual_extract.append(specobj.hand_extract_flag)
             # Slitmask info
             if specobj.MASKDEF_ID is not None:
                 maskdef_id.append(specobj.MASKDEF_ID)

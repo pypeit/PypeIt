@@ -169,8 +169,8 @@ class SpecObj(datamodel.DataContainer):
                  'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
                  'MASKDEF_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
                                                            'at the expected location from slitmask design. '),
-                 'MANUAL_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
-                                                          'at the location provided by the user. '),
+                 'hand_extract_flag': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
+                                                             'at the location provided by the user. '),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '

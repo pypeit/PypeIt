@@ -65,7 +65,7 @@ def show_trace(specobjs, det, viewer, ch):
         obj_id = specobjs[kk].NAME
         maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
         maskdef_extr_flag = specobjs[kk].MASKDEF_EXTRACT
-        manual_extr_flag = specobjs[kk].MANUAL_EXTRACT
+        manual_extr_flag = specobjs[kk].hand_extract_flag
         if maskdef_objname is not None:
             trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
         else:
