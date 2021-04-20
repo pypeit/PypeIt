@@ -88,3 +88,5 @@ Here are additional docs related to Keck/DEIMOS:
    dev/deimos_slitmask_ids
    dev/deimos_radec_object
    dev/deimos_wavecalib
+   dev/deimos_wavecalib
+   deimos_howto

@@ -30,6 +30,9 @@
 - Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
   multiple files by group and coadd them.
 - PypeIt will now add HISTORY keyword entries to FITS files.
+- Implement multi-detector flexure estimates
+- Fix error in variance for numpy fitting routines
+- Introduce HOWTO for DEIMOS
 
 1.3.3 (24 Feb 2021)
 -------------------
