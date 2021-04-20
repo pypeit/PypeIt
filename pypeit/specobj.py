@@ -153,6 +153,10 @@ class SpecObj(datamodel.DataContainer):
                                      descr='Spatial location of the trace on detector (pixel) at half-way'),
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
+                 'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
+                                      descr='Array of pixels along the spectral direction'),
+                 'maskwidth': dict(otype=(float, np.floating),
+                                      descr='Size (in units of fwhm) of the region used for local sky subtraction'),
                  # Slit and Object
                  'WAVE_RMS': dict(otype=(float, np.floating),
                                      descr='RMS (pix) for the wavelength solution for this slit.'),
@@ -558,6 +562,29 @@ class SpecObj(datamodel.DataContainer):
         sig = np.sqrt(utils.inverse(ivar))
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
+
+    def vette_for_extraction(self):
+        """ Simple method to check all the items are filled
+        for skysub and extraction.
+
+        Returns:
+            bool: True if all checks have passed
+        """
+        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
+            'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+        if 'Echelle' in self.PYPELINE:
+            required += ['ECH_NAME']
+
+        passed = True
+        for key in required:
+            if self[key] is None:
+                msgs.warn("Item {} is missing from SpecObj. Failing vette".format(key))
+                msgs.warn('{}'.format(self))
+                passed = False
+        #
+        return passed
+                
 
     def __repr__(self):
         """ Over-ride print representation

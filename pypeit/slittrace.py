@@ -835,6 +835,11 @@ class SlitTraceSet(datamodel.DataContainer):
         spat_pixpos = sobjs.SPAT_PIXPOS
         sobjs = sobjs[spat_pixpos.argsort()]
 
+        # Vette
+        for sobj in sobjs:
+            if not sobj.vette_for_extraction():
+                msgs.error("Bad SpecObj.  Can't proceed")
+
         # Return
         return sobjs
 
