@@ -70,13 +70,14 @@ def parse_args(options=None, return_parser=False):
                         "    poly = For other type object, You might need to set fit_wv_min_max, \n"
                         "           and norder in the tell_file."
                         )
+    parser.add_argument("-r", "--redshift", type=float, default=None, help="Specify redshift. Used with the --objmodel qso option above.")
     parser.add_argument("-g", "--tell_grid", type=str, help="Telluric grid. You should download the giant grid file\n"
                         "to the pypeit/data/telluric folder. It should only be passed if you want to overwrite \n"
                         "the default tell_grid that is set via each spectrograph file")
-    parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA pickle file with full path. The default pickle file \n"
-                        "(qso_pca_1200_3100.pckl) should be stored in the pypeit/data/telluric folder. If you change the pickle \n"
+    parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA fits file with full path. The default file \n"
+                        "(qso_pca_1200_3100.fits) is stored in the pypeit/data/telluric folder. If you change the fits \n"
                         "file, make sure to set the pca_lower and pca_upper in the tell_file to specify the \n"
-                        "wavelength coverage of your model. The defaults are pca_lower=1200. and pca_upper=3100.")
+                        "wavelength coverage of your model. The defaults are pca_lower=1220. and pca_upper=3100.")
     parser.add_argument("-t", "--tell_file", type=str, help="R|Configuration file to change default telluric parameters.\n"
                         "Note that the parameters in this file will be overwritten if you set argument in your terminal. \n"
                         "The --tell_file option requires a .tell file with the following format:\n"
@@ -97,7 +98,6 @@ def parse_args(options=None, return_parser=False):
                         "         fit_wv_min_max = 9000.,9500.\n"
                         "\n"
                         )
-    parser.add_argument("-r", "--redshift", type=float, default=None, help="Object redshift")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the telluric corrected spectrum")
     parser.add_argument("--par_outfile", default='telluric.par', help="Name of outut file to save the parameters used by the fit")
@@ -128,64 +128,65 @@ def main(args):
 
     # If args was provided override defaults. Note this does undo .tell file
     if args.objmodel is not None:
-        par['tellfit']['objmodel'] = args.objmodel
+        par['telluric']['objmodel'] = args.objmodel
     if args.pca_file is not None:
-        par['tellfit']['pca_file'] = args.pca_file
+        par['telluric']['pca_file'] = args.pca_file
     if args.redshift is not None:
-        par['tellfit']['redshift'] = args.redshift
-
+        par['telluric']['redshift'] = args.redshift
     if args.tell_grid is not None:
-        par['tellfit']['tell_grid'] = args.tell_grid
+        par['telluric']['telgridfile'] = args.tell_grid
 
-    if par['tellfit']['tell_grid'] is None:
+    if par['telluric']['telgridfile'] is None:
         if par['sensfunc']['IR']['telgridfile'] is not None:
-            par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
+            par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
         else:
             msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-            par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+            par['telluric']['telgridfile'] = resource_filename('pypeit', '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
-    par['tellfit'].to_config('telluric.par', section_name='tellfit', include_descr=False)
+    par['telluric'].to_config('telluric.par', section_name='telluric', include_descr=False)
 
     # Parse the output filename
     outfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellcorr.fits')
     modelfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellmodel.fits')
 
     # Run the telluric fitting procedure.
-    if par['tellfit']['objmodel']=='qso':
+    if par['telluric']['objmodel']=='qso':
         # run telluric.qso_telluric to get the final results
-        TelQSO = telluric.qso_telluric(args.spec1dfile, par['tellfit']['tell_grid'], par['tellfit']['pca_file'],
-                                       par['tellfit']['redshift'], modelfile, outfile, npca=par['tellfit']['npca'],
-                                       pca_lower=par['tellfit']['pca_lower'], pca_upper=par['tellfit']['pca_upper'],
-                                       bounds_norm=par['tellfit']['bounds_norm'],
-                                       tell_norm_thresh=par['tellfit']['tell_norm_thresh'],
-                                       only_orders=par['tellfit']['only_orders'],
-                                       bal_wv_min_max=par['tellfit']['bal_wv_min_max'],
+        TelQSO = telluric.qso_telluric(args.spec1dfile, par['telluric']['telgridfile'], par['telluric']['pca_file'],
+                                       par['telluric']['redshift'], modelfile, outfile, npca=par['telluric']['npca'],
+                                       pca_lower=par['telluric']['pca_lower'], pca_upper=par['telluric']['pca_upper'],
+                                       bounds_norm=par['telluric']['bounds_norm'],
+                                       tell_norm_thresh=par['telluric']['tell_norm_thresh'],
+                                       only_orders=par['telluric']['only_orders'],
+                                       bal_wv_min_max=par['telluric']['bal_wv_min_max'], maxiter=par['telluric']['maxiter'],
                                        debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
-    elif par['tellfit']['objmodel']=='star':
-        TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
-                                         star_type=par['tellfit']['star_type'],
-                                         star_mag=par['tellfit']['star_mag'],
-                                         star_ra=par['tellfit']['star_ra'],
-                                         star_dec=par['tellfit']['star_dec'],
-                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
-                                         polyorder=par['tellfit']['polyorder'],
-                                         only_orders=par['tellfit']['only_orders'],
-                                         mask_abs_lines=par['tellfit']['mask_abs_lines'],
-                                         delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
-                                         minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
+    elif par['telluric']['objmodel']=='star':
+        TelStar = telluric.star_telluric(args.spec1dfile, par['telluric']['telgridfile'], modelfile, outfile,
+                                         star_type=par['telluric']['star_type'],
+                                         star_mag=par['telluric']['star_mag'],
+                                         star_ra=par['telluric']['star_ra'],
+                                         star_dec=par['telluric']['star_dec'],
+                                         func=par['telluric']['func'], model=par['telluric']['model'],
+                                         polyorder=par['telluric']['polyorder'],
+                                         only_orders=par['telluric']['only_orders'],
+                                         mask_abs_lines=par['telluric']['mask_abs_lines'],
+                                         delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
+                                         minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
+                                         maxiter=par['telluric']['maxiter'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
-    elif par['tellfit']['objmodel']=='poly':
-        TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
-                                         z_obj=par['tellfit']['redshift'],
-                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
-                                         polyorder=par['tellfit']['polyorder'],
-                                         fit_wv_min_max=par['tellfit']['fit_wv_min_max'],
-                                         mask_lyman_a=par['tellfit']['mask_lyman_a'],
-                                         delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
-                                         minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
-                                         only_orders=par['tellfit']['only_orders'],
+    elif par['telluric']['objmodel']=='poly':
+        TelPoly = telluric.poly_telluric(args.spec1dfile, par['telluric']['telgridfile'], modelfile, outfile,
+                                         z_obj=par['telluric']['redshift'],
+                                         func=par['telluric']['func'], model=par['telluric']['model'],
+                                         polyorder=par['telluric']['polyorder'],
+                                         fit_wv_min_max=par['telluric']['fit_wv_min_max'],
+                                         mask_lyman_a=par['telluric']['mask_lyman_a'],
+                                         delta_coeff_bounds=par['telluric']['delta_coeff_bounds'],
+                                         minmax_coeff_bounds=par['telluric']['minmax_coeff_bounds'],
+                                         only_orders=par['telluric']['only_orders'],
+                                         maxiter=par['telluric']['maxiter'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
         msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")

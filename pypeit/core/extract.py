@@ -653,7 +653,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     msgs.info("Gaussian vs b-spline of width " + "{:6.2f}".format(thisfwhm) + " pixels")
     area = 1.0
     # sigma_x represents the profile argument, i.e. (x-x0)/sigma
-    sigma_x = (dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat)))
+    sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
 
     # If we have too few pixels to fit a profile or S/N is too low, just use a Gaussian profile
     if((ngood < 10) or (med_sn2 < sn_gauss**2) or (gauss is True)):
@@ -700,7 +700,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     sr = si[::-1]
 
     bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
-                                   nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
+                                      nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
 
@@ -826,7 +826,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         sigma = sigma*(1.0 + sigma_factor)
         area = area * h0/(1.0 + sigma_factor)
 
-        sigma_x = dspat/(np.outer(sigma, np.ones(nspat))) - np.outer(trace_corr, np.ones(nspat))
+        sigma_x = dspat/np.outer(sigma, np.ones(nspat)) - np.outer(trace_corr, np.ones(nspat))
 
         # Update the profile B-spline fit for the next iteration
         if iiter < sigma_iter-1:
@@ -1081,10 +1081,10 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             return skymask
 
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
-            hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, has_negative=False, spec_min_max=None,
+            hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            boxcar_rad_skymask=None,
+            boxcar_rad_skymask=None, cont_sig_thresh=2.0,
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
             qa_title='objfind'):
@@ -1145,11 +1145,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nperslit: int, default = 10
             Maximum number of objects allowed per slit. The code will
             take the nperslit most significant detections.
-        bg_smth: float, default = 5.0
-            Size of the smoothing kernel in units of fwhm used to
-            determine the background level from the smash of the image
-            along the curved traces. This background subtracted smashed
-            image is used for peak finding to identify objects
         extract_maskwidth: float, default = 3.0
             This parameter determines the initial size of the region in
             units of fwhm that will be used for local sky subtraction in
@@ -1176,6 +1171,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             smashed profile.  The code uses the maximum of the
             thresholds defined by sig_thresh, peak_thers, and
             abs_thresh.
+        cont_sig_thresh (float, optional):
+            Significance threshold for peak detection for determinining which pixels to use for the iteratively
+            fit continuum of the spectral direction smashed image. This is passed as the sigthresh parameter
+            to core.arc.iter_continum. For extremely narrow slits that are almost filled by the object trace set
+            this to a smaller number like 1.0 or disable continuum fitting altogether with cont_fit=False below.
+            Default = 2.0
         trim_edg: tuple of integers or float, default = (3,3)
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
@@ -1185,6 +1186,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             above) which is used to create the skymask using the value
             of the peak flux in the slit profile (image with the
             spectral direction smashed out).
+        has_negative (bool, optional):
+            Image has negative object traces, i.e. for IR difference imaging. This impacts how the
+            iterative conntinuum is fit to the spectral directoin smashed image for object finding. Default=False
         cont_fit (bool): default=True:
             Fit a continuum to the illumination pattern across the slit when peak finding
         boxcar_rad_skymask (float, optional): Boxcar radius; only for sky masking. Needs to be in pixels
@@ -1292,8 +1296,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask0 = arc.iter_continuum(
-        fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
+        fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
         qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
 
     # Second iteration
@@ -1302,8 +1306,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
 
     cont, cont_mask = arc.iter_continuum(
-        fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
+        fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
         qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
@@ -1339,22 +1343,22 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 #                                         cont_frac_fwhm=2.0, sigthresh=2.0,
 #                                         sigrej=2.0, cont_samp=cont_samp,
 #                                         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont),
-#                                         cont_mask_neg=ir_redux, debug=debug_all)
+#                                         cont_mask_neg=has_negative, debug=debug_all)
 #    fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 ## OLD CODE
 
     if not np.any(cont_mask):
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    mean, med, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
-    mean, med, sigma     = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
+    mean_sky, med_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
+    mean, med, sigma = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
 
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
         if np.any(good):
-            mean, med_sn2, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
+            mean_sky, med_sn2_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
             mean, med_sn2, sigma = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
             msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
@@ -1397,8 +1401,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     # Possible thresholds    [significance,  fraction of brightest, absolute]
     thresh_peak = peak_thresh * ypeak.max() if len(ypeak) > 0 else 0.0
-    threshvec = np.array([sig_thresh * sigma, thresh_peak, abs_thresh])
+    threshvec = np.array([mean + sig_thresh * sigma, thresh_peak, abs_thresh])
     threshold = threshvec.max()
+    #if specobj_dict['SLITID'] == 1240:
+    #    embed()
     if npeak > 0:
         if threshvec.argmax() == 0:
             msgs.info('Used SIGNIFICANCE threshold: sig_thresh = {:3.1f}'.format(sig_thresh) +
@@ -1425,7 +1431,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     else:
         nobj_reg = 0
 
-
     # ToDo Also plot the edge trimming boundaries on the QA here.
     if show_peaks:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
@@ -1446,8 +1451,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
         plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
-        plt.show()
         viewer, ch = display.show_image(image*(thismask*inmask))
+        plt.show()
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1726,10 +1731,10 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
                 inmask=None, spec_min_max=None,
-                fof_link=1.5, plate_scale=0.2, ir_redux=False,
-                std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
+                fof_link=1.5, plate_scale=0.2, has_negative=False,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
                 debug_all=False, skymask_by_boxcar=False, boxcar_rad=None):
@@ -1818,6 +1823,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         nabove_min_snr: int, default = 1
             The required number of orders that an object must have with
             median SNR>min_snr in order to be kept.
+        cont_sig_thresh (float, optional):
+            Significance threshold for peak detection for determinining which pixels to use for the iteratively
+            fit continuum of the spectral direction smashed image. This is passed to objfind which is then passed as
+            the sigthresh parameter to core.arc.iter_continum. For extremely narrow slits that are almost filled by
+            the object trace set this to a smaller number like 1.0 or disable continuum fitting altogether with
+            cont_fit=False below. Default = 1.0
         box_radius: float,
             box_car extraction radius in arcseconds for SNR calculation and trimming
         sig_thresh: threshord for finding objects
@@ -1955,10 +1966,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
-                    hand_extract_dict=new_hand_extract_dict, ir_redux=ir_redux,
-                    nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
-                    peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
+                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
+                    hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
+                    nperslit=nperslit, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
+                    peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
+                    trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
                     boxcar_rad_skymask=boxcar_rad_skymask,

@@ -60,7 +60,7 @@ class PypeIt(object):
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via ``ginga --modules=RC &``
+            remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):
@@ -436,15 +436,25 @@ class PypeIt(object):
             display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        self.ir_redux = True if has_bg else False
+        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.ir_redux. Perhaps
+        # we should rename this to bg_redux or something like that, since it need not be IR.
+        if has_bg:
+            self.ir_redux = True
+            # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
+            # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
+            # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
+            self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
+                if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
+        else:
+            self.ir_redux = False
+            self.find_negative= False
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
-
+        all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         all_specobjs = specobjs.SpecObjs()
@@ -648,11 +658,11 @@ class PypeIt(object):
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile,
                                                 basename=self.basename)
         # Show?
         if self.show:
@@ -742,6 +752,12 @@ class PypeIt(object):
                                        history=history)
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
+            # TODO: Note we re-read in the specobjs from disk to deal with situations where
+            # only a single detector is run in a second pass but in the same reduction directory.
+            # Thiw was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
+            # option is to re-work write_info to also "append"
+            #sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+            #sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
