@@ -388,22 +388,6 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
-        # Assign here -- in case we make another pass to add in missing targets
-        if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-            msgs.info('Assign slitmask design info to detected objects')
-            all_expected_objpos = self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
-                                                             self.slits_left, self.slits_right,
-                                                             self.par['calibrations']['slitedges']['det_buffer'],
-                                                             TOLER=self.par['reduce']['slitmask']['obj_toler'])
-            # force extraction of non detected objects
-            if self.par['reduce']['slitmask']['extract_missing_objs']:
-                msgs.info('Add undetected objects at the expected location from slitmask design.')
-                # Assign un-detected objects
-                self.sobjs_obj, self.nobj = self.slits.mask_add_missing_obj(self.sobjs_obj, all_expected_objpos,
-                                            self.par['reduce']['findobj']['find_fwhm'],
-                                            self.par['reduce']['slitmask']['slitmask_offset'],
-                                            self.slits_left, self.slits_right) # Deal with flexure
-
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
@@ -1046,6 +1030,24 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
+        # If this is a second pass for objfind or this is the first one but skip_second_find is True,
+        # assign slitmask design information to detected objects
+        if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
+                (self.sobjs_obj is not None):
+            if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+                msgs.info('Assign slitmask design info to detected objects')
+                all_expected_objpos = self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
+                                                                 self.slits_left, self.slits_right,
+                                                                 self.par['calibrations']['slitedges']['det_buffer'],
+                                                                 TOLER=self.par['reduce']['slitmask']['obj_toler'])
+                # force extraction of non detected objects
+                if self.par['reduce']['slitmask']['extract_missing_objs']:
+                    msgs.info('Add undetected objects at the expected location from slitmask design.')
+                    # Assign un-detected objects
+                    sobjs = self.slits.mask_add_missing_obj(sobjs, all_expected_objpos,
+                                                self.par['reduce']['findobj']['find_fwhm'],
+                                                self.par['reduce']['slitmask']['slitmask_offset'],
+                                                self.slits_left, self.slits_right) # Deal with flexure
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

@@ -836,7 +836,7 @@ class SlitTraceSet(datamodel.DataContainer):
         sobjs = sobjs[spat_pixpos.argsort()]
 
         # Return
-        return sobjs, len(sobjs)
+        return sobjs
 
     def assign_maskinfo(self, sobjs, plate_scale, slits_left, slits_right, det_buffer, TOLER=1.):
         """
