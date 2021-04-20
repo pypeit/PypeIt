@@ -211,10 +211,8 @@ class SpecObj(datamodel.DataContainer):
         # Object finding
         self.smash_peakflux = None
         self.smash_nsig = None
-        self.maskwidth = None
 
         # Hand
-        self.hand_extract_flag = False
         self.hand_extract_spec = None
         self.hand_extract_spat = None
         self.hand_extract_det = None
@@ -225,9 +223,6 @@ class SpecObj(datamodel.DataContainer):
         self.sign = 1.0
         self.min_spat = None
         self.max_spat = None
-
-        # Trace
-        self.trace_spec = None  # Only for debuggin, internal plotting
 
         # Echelle
         self.ech_frac_was_fit = None #
@@ -563,9 +558,9 @@ class SpecObj(datamodel.DataContainer):
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
-    def vette_for_extraction(self):
+    def ready_for_extraction(self):
         """ Simple method to check all the items are filled
-        for skysub and extraction.
+        and ready for skysub and extraction.
 
         Returns:
             bool: True if all checks have passed

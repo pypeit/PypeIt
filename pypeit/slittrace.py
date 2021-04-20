@@ -837,7 +837,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Vette
         for sobj in sobjs:
-            if not sobj.vette_for_extraction():
+            if not sobj.ready_for_extraction():
                 msgs.error("Bad SpecObj.  Can't proceed")
 
         # Return

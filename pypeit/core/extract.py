@@ -1688,7 +1688,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
 
     # Vette
     for sobj in sobjs:
-        if not sobj.vette_for_extraction():
+        if not sobj.ready_for_extraction():
             msgs.error("Bad SpecObj.  Can't proceed")
 
     # Return
@@ -2302,7 +2302,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     
     # Vette
     for sobj in sobjs:
-        if not sobj.vette_for_extraction():
+        if not sobj.ready_for_extraction():
             msgs.error("Bad SpecObj.  Can't proceed")
 
     return sobjs_final, skymask[allmask]
