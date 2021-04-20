@@ -47,7 +47,9 @@ def parse_args(options=None, return_parser=False):
                         action='store_true')
     parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
+    parser.add_argument("--sensfunc", type=str, default=None, help="Pass in a sensfunc to display the sky-subtracted image with a flux calibration")
     parser.add_argument('--channels', type=str, help='Only show a subset of the channels (0-indexed), e.g. 1,3')
+
 
     if return_parser:
         return parser
@@ -127,20 +129,24 @@ def main(args):
     # Show the bitmask?
     mask_in = None
     if args.showmask:
-        viewer, ch = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
+        viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
 
     channel_names = []
     # SCIIMG
     if 0 in show_channels:
         image = spec2DObj.sciimg  # Processed science image
-        chname_sciimage='sciimg-det{:s}'.format(sdet)
+        mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
+                                               sigma_upper=5.0)
+        cut_min = mean - 1.0 * sigma
+        cut_max = mean + 4.0 * sigma
+        chname_sci = 'sciimg-det{:s}'.format(sdet)
         # Clear all channels at the beginning
-        viewer, ch = display.show_image(image, chname=chname_sciimage, waveimg=spec2DObj.waveimg, clear=True)
+        viewer, ch_sci = display.show_image(image, chname=chname_sci, waveimg=spec2DObj.waveimg, clear=True, cuts=(cut_min, cut_max))
 
         if sobjs is not None:
-            show_trace(sobjs, args.det, viewer, ch)
-        display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
-        channel_names.append(chname_sciimage)
+            show_trace(sobjs, args.det, viewer, ch_sci)
+        display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
+        channel_names.append(chname_sci)
 
     # SKYSUB
     if 1 in show_channels:
@@ -151,27 +157,46 @@ def main(args):
             gpm = spec2DObj.bpmmask == 0
 
         image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm
-        chname_skysub='skysub-det{:s}'.format(sdet)
-        # Clear all channels at the beginning
-        # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-        viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
-                                      bitmask=bitMask, mask=mask_in)
+        mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
+                                               sigma_upper=5.0)
+        cut_min = mean - 1.0 * sigma
+        cut_max = mean + 4.0 * sigma
+        chname_skysub = 'skysub-det{:s}'.format(sdet)
+        viewer, ch_skysub = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
+                                      bitmask=bitMask, mask=mask_in, cuts=(cut_min, cut_max),wcs_match=True)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
-        display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
+                show_trace(sobjs, args.det, viewer, ch_skysub)
+        display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_skysub)
 
-
+    # TODO Place holder for putting in sensfunc
+    #if args.sensfunc:
+    #    # Load the sensitivity function
+    #    wave_sens, sfunc, _, _, _ = sensfunc.SensFunc.load(sensfunc_masterframe_name)
+    #    # Interpolate the sensitivity function onto the wavelength grid of the data. Since the image is rectified
+    #    # this is trivial and we don't need to do a 2d interpolation
+    #    sens_factor = flux_calib.get_sensfunc_factor(
+    #        pseudo_dict['wave_mid'][:,islit], wave_sens, sfunc, fits.getheader(files[0])['TRUITIME'],
+    #        extrap_sens=parset['fluxcalib']['extrap_sens'])
+    #    # Compute the median sensitivity and set the sensitivity to zero at locations 100 times the median. This
+    #    # prevents the 2d image from blowing up where the sens_factor explodes because there is no throughput
+    #    sens_gpm = sens_factor < 100.0*np.median(sens_factor)
+    #    sens_factor_masked = sens_factor*sens_gpm
+    #    sens_factor_img = np.repeat(sens_factor_masked[:, np.newaxis], pseudo_dict['nspat'], axis=1)
+    #    imgminsky = sens_factor_img*pseudo_dict['imgminsky']
+    #    imgminsky_gpm = sens_gpm[:, np.newaxis] & pseudo_dict['inmask']
+    #else:
+    #    imgminsky= pseudo_dict['imgminsky']
 
     # SKRESIDS
     if 2 in show_channels:
         chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
         image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
-        viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
+        viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                       cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
-        display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
+                show_trace(sobjs, args.det, viewer, ch_sky_resids)
+        display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_skyresids)
 
     # RESIDS
@@ -179,11 +204,11 @@ def main(args):
         chname_resids = 'resid-det{:s}'.format(sdet)
         # full model residual map
         image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
-        viewer, ch = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
-                                      cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
+        viewer, ch_resids = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
+                                      cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in, wcs_match=True)
         if not args.removetrace and sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch)
-        display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
+                show_trace(sobjs, args.det, viewer, ch_resids)
+        display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs, maskdef_ids=maskdef_id)
         channel_names.append(chname_resids)
 
 

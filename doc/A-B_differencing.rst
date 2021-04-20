@@ -28,25 +28,31 @@ Parameters
 The three additional columns (``calib``, ``comb_id``, and ``bkg_id``)
 have the following meanings/definitions:
 
-* ``comb_id`` assigns a group ID to each frame
-* ``bkg_id`` indicates the ID of the frame that is used as background image to be subtracted from the current frame.
-* ``calib`` represents a calibration ID assigned to each science frame.
+* ``calib`` assigns a calibration group ID to each frame. Calibration frames with the same calibration group number
+  will be used to reduce a science frame with that calibration group number.
+* ``comb_id`` represents a combination ID assigned to each science frame. Frames with the same value of ``comb_id``
+  will be co-added together. Note that this is an unweighted co-add (and hence may not be necessarily be "optimal"
+  in terms of S/N ratio).
+* ``bkg_id`` represents a background ID assigned to each frame that will be used as a background image to be subtracted
+  from the combined image created by co-adding all the frames with the same ``comb_id``.  Frames with the same value of
+  ``bkg_id`` will be co-added together.
 
 
-All of these should be assigned integer values (with
-exceptions, see below), and values less than 63.
+
+All of these should be assigned integer values (or ``all``, see below), and values less than or equal to 63.
 
 
 Calibrations
 ============
 
-Each calibration frame in the :ref:`pypeit_file:Data Block` should have the same ``calib`` value of
-the science data that uses it, or be set to ``all`` if used by every science data.
+Each calibration frame in the :ref:`pypeit_file:Data Block` should have the same ``calib`` ID value of
+the science data that uses it, or be set to ``all`` if used by all of the science and standard frames in the pypeit
+file.
 
 For the calibration frames ``comb_id`` and ``bkg_id`` are irrelevant and their value
 should be set to ``-1``.
 
-Here is an example for the ``illumflat``, ``pixelflat``, and ``trace`` frames from the Pypeit file::
+Here is an example of a :ref:`pypeit_file:Data Block` for the ``illumflat``, ``pixelflat``, and ``trace`` frames::
 
     |          filename |                  frametype | ... | calib | comb_id | bkg_id |
     | m190627_0037.fits |  illumflat,pixelflat,trace | ... |   all |      -1 |     -1 |
@@ -58,7 +64,7 @@ Here is an example for the ``illumflat``, ``pixelflat``, and ``trace`` frames fr
 For optical spectrographs, arc/tilt images would be treated similarly.
 
 See below for near-IR spectrographs, where one typically derives the
-wavelength solution from sky lines in the science frames.
+wavelength and tilt solutions from sky lines in the science frames themselves.
 
 Image Differencing
 ==================
@@ -66,17 +72,25 @@ Image Differencing
 The user needs to edit ``comb_id``, and ``bkg_id`` in order to
 control how PypeIt combines and subtracts the spectroscopic data.
 
-Here is an example of a portion of
-the :ref:`pypeit_file:Data Block` for the science files::
+Here is an example of a portion of the :ref:`pypeit_file:Data Block` for the science files for a hypothetical
+sequence which we could represent as an ABAB dither pattern::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
-    | m190627_0001.fits | tilt,arc,science | ... |     1 |       1 |      2 |
-    | m190627_0002.fits | tilt,arc,science | ... |     2 |       2 |      1 |
-    | m190627_0003.fits | tilt,arc,science | ... |     3 |       3 |      4 |
-    | m190627_0004.fits | tilt,arc,science | ... |     4 |       4 |      3 |
+    | m190627_0001.fits | tilt,arc,science | ... |     0 |       1 |      2 |      # Position A
+    | m190627_0002.fits | tilt,arc,science | ... |     1 |       2 |      1 |      # Position B
+    | m190627_0003.fits | tilt,arc,science | ... |     2 |       3 |      4 |      # Position A
+    | m190627_0004.fits | tilt,arc,science | ... |     3 |       4 |      3 |      # Position B
 
-PypeIt always produces two frames (e.g. A-B, B-A) for each set of ``comb_id`` and ``bkg_id``.
-For the example above, PypeIt produces four 2D spectral images::
+Note that given the values specified, PypeIt is going to compute tilts and arcs from each frame
+individually, and it will use image `m190627_0002.fits` as the background to subtract from
+image `m190627_0001.fits`, and similarly it will use `m190627_0001.fits` as the background to
+subtract from image `m190627_0002.fits`. The values of the ``calib`` ID have no relation to the values for the
+``comb_id``, and ``bkg_id``.
+
+PypeIt always produces one set of reduced outputs (i.e. spec2d, spec1d, etc.) for every frame in the PypeIt file
+which is labeled as a ``science`` in the PypeIt file.  In other words, the  "positive" and "negative" traces are not
+combined into one output file, but rather only the "positive" traces are extracted (although the negative traces are
+modeled). Thus for the example above, PypeIt produces four 2D spectral images::
 
     Science/spec2d-m190627_0001...fits      # m190627_0001.fits - m190627_0002.fits (A-B)
     Science/spec2d-m190627_0002...fits      # m190627_0002.fits - m190627_0001.fits (B-A)
@@ -84,43 +98,67 @@ For the example above, PypeIt produces four 2D spectral images::
     Science/spec2d-m190627_0004...fits      # m190627_0004.fits - m190627_0003.fits (B-A)
 
 
-If each frame has a unique ``comb_id`` (as the example above) the imgaes will *not* be combined
-before the 1D extraction.
+If each frame has a unique ``comb_id`` (as in the example above) the images will *not* be combined before
+the reduction.
 
-Alternatively, frames with common values of ``comb_id`` will be
-coadded. In this case, common ``bkg_id`` should be used for all frames to be subtracted
-from frames with common ``comb_id``.
+Alternatively, frames with common values of ``comb_id`` can be co-added. In this case, a common ``bkg_id``
+should be used for all frames to be subtracted from frames with common ``comb_id``.
 
-Here is an example of the PypeIt file for combining frames,
-which we refer to as AA-BB::
+Here is an example of the PypeIt file for combining frames which would represent an ABBA dither pattern where the user
+wants to co-add the science frames and the background frames at the same dither position (i.e. AA-BB, and BB-AA)::
 
     |          filename |        frametype | ... | calib | comb_id | bkg_id |
-    | m190627_0001.fits | tilt,arc,science | ... |     1 |       1 |      2 |
-    | m190627_0002.fits | tilt,arc,science | ... |     2 |       2 |      1 |
-    | m190627_0003.fits | tilt,arc,science | ... |     1 |       1 |      2 |
-    | m190627_0004.fits | tilt,arc,science | ... |     2 |       2 |      1 |
+    | m190627_0001.fits | tilt,arc,science | ... |     0 |      10 |     11 |       # Position A
+    | m190627_0002.fits | tilt,arc,science | ... |     1 |      11 |     10 |       # Position B
+    | m190627_0003.fits | tilt,arc,science | ... |     1 |      11 |     10 |       # Position B
+    | m190627_0004.fits | tilt,arc,science | ... |     0 |      10 |     11 |       # Position A
 
-This produces only two spectral images::
+We chose values of 10 and 11 for the  ``comb_id`` and ``bkg_id`` just to illustrate that these numbers are arbitrary.
+Note also that we have assigned the science frames at the same dither position the same ``calib`` ID. This is the
+sensible thing to do since those images are being combined and so better to also compute calibrations from the
+combined images.
 
-    Science/spec2d-m190627_0001...fits      # m190627_0001+3 - m190627_0002+4 (AA-BB)
-    Science/spec2d-m190627_0002...fits      # m190627_0002+4 - m190627_0001+3 (BB-AA)
+This produces only two spec2d (and spec1d) output images::
 
+    Science/spec2d-m190627_0001...fits      # (m190627_0001+m190627_0004) - (m190627_0002+m190627_0003)  (AA-BB)
+    Science/spec2d-m190627_0002...fits      # (m190627_0002+m190627_0003) - (m190627_0001+m190627_0004) (BB-AA)
 
-In the two examples above, the sky emission lines in the science frames are used to perform
-the wavelength calibration. Specifically, the sky lines from the frames in A positions are
-used for the wavelength calibration of A-B, and the sky lines from the frames in B positions
-are used for the wavelength calibration of B-A.
+Finally, let us consider science observations at two dither positions A and B with two exposures taken at each position,
+i.e. an AABB dither pattern) but where the user wants to use an image at a third dither location C as the background
+image. But since C is purely a background image, it should not be reduced::
+
+    |          filename |        frametype | ... | calib | comb_id | bkg_id |
+    | m190627_0001.fits | tilt,arc,science | ... |     0 |      10 |     12 |       # Position A
+    | m190627_0002.fits | tilt,arc,science | ... |     0 |      10 |     12 |       # Position A
+    | m190627_0003.fits | tilt,arc,science | ... |     1 |      11 |     12 |       # Position B
+    | m190627_0004.fits | tilt,arc,science | ... |     1 |      11 |     12 |       # Position B
+    | m190627_0005.fits |       background | ... |     2 |      12 |     -1 |       # Position C
+
+This will combine the two A images for the purposes of computing arcs and tilts, and will also combine
+them into one science frame. Likewise for the B images. The C image will be used as the background
+for both sets of combined images.
+
+The following spec2d (and spec1d) output images are generated::
+
+    Science/spec2d-m190627_0001...fits      # m190627_0001+m190627_0002 - m190627_0005  (AA-C)
+    Science/spec2d-m190627_0002...fits      # m190627_0003+m190627_0004 - m190627_0005  (BB-C)
+
+Note that there is no output for image C (m190627_0005.fits). It is not reduced because it was assigned
+the `background` frametype.
+
 
 
 Summary
 =======
 
-
-* Common ``comb_id`` should be used for all science frames that the user wish to coadd before
-  spectral extraction.
-* Common ``bkg_id`` should be used for all science frames that the user wish to subtract from
-  the frames with common ``comb_id``.
-* A unique ``calib`` value should be used for each separate calibration set. It should be an integer < 63.
 * For the ``arc``, ``tilt``, ``illumflat``, ``pixelflat``, and ``trace`` frames, the user should assign
-  the same ``calib`` values of the science data that uses them (or ``all``), while ``comb_id`` 
+  the same ``calib`` values of the science data that uses them (or ``all``), while ``comb_id``
   and ``bkg_id`` should be set to ``-1``.
+* A common ``comb_id`` should be used for all science frames that the user wishes to co-add before
+  spectral extraction.
+* A common ``bkg_id`` should be used for all frames that the user wishes to subtract from
+  the frames with a common ``comb_id``.
+* A unique ``calib`` value should be used for each set of images that the user wants to combine for measuring
+  calibrations. It should be an integer <= 63.
+* The `background` frametype can be used for images that are only to be used as a background for other `science`
+  frames. Images with the `background` frametype will not be reduced.

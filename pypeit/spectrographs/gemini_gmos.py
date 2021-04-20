@@ -3,6 +3,7 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -327,8 +328,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 and head0['object'] in ['GCALflat', 'CuAr', 'Bias'] \
                 and self.nod_shuffle_pix is not None:
             # TODO -- Should double check NOD&SHUFFLE was not on
-            row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
-            nodpix = self.nod_shuffle_pix
+            nodpix = int(self.nod_shuffle_pix/xbin)
+            row1, row2 = nodpix + int(48/xbin), 2*nodpix+int(48/xbin) #48 is a solid value for the unusful rows in GMOS data
             # Shuffle me
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
@@ -430,9 +431,13 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             all of ``PypeIt`` methods.
         """
         par = super().default_pypeit_par()
+        par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
+        # Bound the detector with slit edges if no edges are found. These data are often trimmed
+        # so we implement this here as the default.
+        par['calibrations']['slitedges']['bound_detector'] = True
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):

@@ -63,7 +63,7 @@ import inspect
 from IPython import embed
 from collections import OrderedDict
 
-import numpy
+import numpy as np
 
 from configobj import ConfigObj
 
@@ -82,6 +82,24 @@ from pypeit.core.framematch import FrameTypeBitMask
 #        _number = 5 if number is None else number
 #        super(BiasPar, self).__init(frametype='bias', useframe=useframe, number=_number,
 #                                    overscan=overscan, combine=combine, lacosmic=lacosmic)
+
+def tuple_force(parset, paramname):
+    """
+    Forces a parameter in a parset to be a tuple
+
+    Parameters
+    ----------
+    parset (parset):
+    paramname (str):
+
+
+    """
+    # Force paramname to be a tuple
+    if parset[paramname] is not None and not isinstance(parset[paramname], tuple):
+        try:
+            parset[paramname] = tuple(parset[paramname])
+        except:
+            raise TypeError('Could not convert provided {:s} to a tuple.'.format(paramname))
 
 class FrameGroupPar(ParSet):
     """
@@ -142,12 +160,12 @@ class FrameGroupPar(ParSet):
 
     @classmethod
     def from_dict(cls, frametype, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['useframe', 'exprng']
         # TODO: cfg can contain frametype but it is ignored...
         allkeys = parkeys + ['process', 'frametype']
-        badkeys = numpy.array([pk not in allkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in allkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for FrameGroupPar.'.format(k[badkeys]))
         kwargs = {}
         for pk in parkeys:
@@ -349,7 +367,7 @@ class ProcessImagesPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
@@ -357,8 +375,8 @@ class ProcessImagesPar(ParSet):
                    'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ProcessImagesPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -606,14 +624,14 @@ class FlatFieldPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for FlatFieldPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -715,12 +733,12 @@ class FlexurePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
 #                   'spat_frametypes']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for FlexurePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -775,7 +793,7 @@ class AlignPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['locations'] = [0.0, 0.5, 1.0]
-        dtypes['locations'] = [list, numpy.ndarray]
+        dtypes['locations'] = [list, np.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
         defaults['trace_npoly'] = 8
@@ -804,11 +822,11 @@ class AlignPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['locations', 'trace_npoly', 'trim_edge', 'sig_thresh']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -825,16 +843,16 @@ class AlignPar(ParSet):
 
 class Coadd1DPar(ParSet):
     """
-    A parameter set holding the arguments for how to perform 2D coadds
+    A parameter set holding the arguments for how to perform 1D coadds
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sn_smooth_npix=None, wave_method=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
-                 mag_type=None, filter=None, filter_mag=None, filter_mask=None, extrap_sens=None):
+                 mag_type=None, filter=None, filter_mag=None, filter_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -859,14 +877,6 @@ class Coadd1DPar(ParSet):
         dtypes['flux_value'] = bool
         descr['flux_value'] = 'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the ' \
                               'spec1d files. If False, it will coadd the counts.'
-
-        # Fluxed?
-        defaults['extrap_sens'] = False
-        dtypes['extrap_sens'] = bool
-        descr['extrap_sens'] = "If False (default), the code will barf in Echelle mode if one tries to use " \
-                               "sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu']" \
-                               "and par['sensfunc']['extrap_red'] this domain can be extended. If True the code " \
-                               "will blindly extrapolate."
 
         # Mask edge pixels?
         defaults['nmaskedge'] = 2
@@ -894,10 +904,11 @@ class Coadd1DPar(ParSet):
                                "'linear' -- Grid is uniform in lamba." \
                                "'concatenate' -- Meld the input wavelength arrays"
 
-        defaults['samp_fact'] = 1.0
-        dtypes['samp_fact'] = float
-        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
-                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+        defaults['spec_samp_fact'] = 1.0
+        dtypes['spec_samp_fact'] = float
+        descr['spec_samp_fact'] = "Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser " \
+                                  "(spec_samp_fact > 1.0) by this sampling factor. This basically multiples the 'native' " \
+                                  "spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels."
 
         defaults['ref_percentile'] = 70.0
         dtypes['ref_percentile'] = [int, float]
@@ -1004,15 +1015,15 @@ class Coadd1DPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method',
-                   'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
+                   'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
-                   'filter', 'mag_type', 'filter_mag', 'filter_mask', 'extrap_sens']
+                   'filter', 'mag_type', 'filter_mag', 'filter_mask']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for Coadd1DPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1080,11 +1091,11 @@ class Coadd2DPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['offsets', 'weights', 'use_slits4wvgrid']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for Coadd2DPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1226,15 +1237,15 @@ class CubePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CubePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1275,11 +1286,16 @@ class FluxCalibratePar(ParSet):
                                "can be extended. If True the code will blindly extrapolate."
 
 
-        defaults['extinct_correct'] = True
+        defaults['extinct_correct'] = None
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
-                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
-                                   'sense if one is telluric correcting and this shold be set to False'
+        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UV algorithm is used ' \
+                                   '(which does not correct for telluric absorption) than an atmospheric extinction model ' \
+                                   'is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then ' \
+                                   'no extinction correction is applied since the atmosphere is modeled directly. To follow these' \
+                                   'defaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this' \
+                                   ' parameter is set, this overide this default behavior. In other words, it will force an extinction correction' \
+                                   'if extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.' \
+
 
         # Instantiate the parameter set
         super(FluxCalibratePar, self).__init__(list(pars.keys()),
@@ -1291,11 +1307,11 @@ class FluxCalibratePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['extinct_correct', 'extrap_sens']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for FluxCalibratePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1349,9 +1365,6 @@ class SensFuncPar(ParSet):
         dtypes['samp_fact'] = float
         descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
                              'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
-        defaults['polyorder'] = 5
-        dtypes['polyorder'] = int
-        descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
 
         defaults['multi_spec_det'] = None
         dtypes['multi_spec_det'] = list
@@ -1378,7 +1391,7 @@ class SensFuncPar(ParSet):
 
         # JFH SHould the default by higher like 8?
         defaults['polyorder'] = 5
-        dtypes['polyorder'] = int
+        dtypes['polyorder'] = [int, list]
         descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
 
         defaults['star_type'] = None
@@ -1411,13 +1424,13 @@ class SensFuncPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm', 'UVIS',
                    'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
                    'mask_abs_lines']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for SensFuncPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1458,8 +1471,9 @@ class SensfuncUVISPar(ParSet):
         descr = OrderedDict.fromkeys(pars.keys())
 
 
+        # TODO these masks should be set in Angstroms not pixels!!
         # These are the UV sensfunc parameters
-        defaults['balm_mask_wid'] = 5.
+        defaults['balm_mask_wid'] = 10.0
         dtypes['balm_mask_wid'] = float
         descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
 
@@ -1526,12 +1540,12 @@ class SensfuncUVISPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
                    'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for SensfuncUVISPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -1594,11 +1608,11 @@ class SlitMaskPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['obj_toler', 'assign_obj']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
                                 k[badkeys]))
 
@@ -1620,9 +1634,13 @@ class TelluricPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
+    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
-                 disp=None):
+                 disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
+                 bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
+                 pca_upper=None, star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
+                 func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1660,12 +1678,7 @@ class TelluricPar(ParSet):
 
 
         # Force resln_frac_bounds to be a tuple
-        if pars['resln_frac_bounds'] is not None and not isinstance(pars['resln_frac_bounds'], tuple):
-            try:
-                pars['resln_frac_bouncs'] = tuple(pars['resln_frac_bounds'])
-            except:
-                raise TypeError('Could not convert provided resln_frac_bounds to a tuple.')
-
+        tuple_force(pars,'resln_frac_bounds')
         defaults['resln_frac_bounds'] = (0.5,1.5)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
@@ -1673,20 +1686,30 @@ class TelluricPar(ParSet):
                                      'spectral resolution fit to be within the range ' \
                                      'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
 
-        # Force pix_shisft_bounds to be a tuple
-        if pars['pix_shift_bounds'] is not None and not isinstance(pars['pix_shift_bounds'], tuple):
-            try:
-                pars['pix_shift_bounds'] = tuple(pars['pix_shift_bounds'])
-            except:
-                raise TypeError('Could not convert provided pix_shift_bounds to a tuple.')
-
+        tuple_force(pars,'pix_shift_bounds')
         defaults['pix_shift_bounds'] = (-5.0,5.0)
         dtypes['pix_shift_bounds'] = tuple
         descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
                                     'The atmosphere will be allowed to shift within this range during the fit.'
 
+        tuple_force(pars,'delta_coeff_bounds')
+        defaults['delta_coeff_bounds'] = (-20.0, 20.0)
+        dtypes['delta_coeff_bounds'] = tuple
+        descr['delta_coeff_bounds'] = 'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
 
-        defaults['maxiter'] = 3
+        tuple_force(pars,'minmax_coeff_bounds')
+        defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
+        dtypes['minmax_coeff_bounds'] = tuple
+        descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization." \
+                                       "Bounds are currently determined as follows. We compute an initial fit to the " \
+                                       "sensfunc in the pypeit.core.telluric.init_sensfunc_model function. That deterines " \
+                                       "a set of coefficients. The bounds are then determined according to: " \
+                                       "[(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], " \
+                                       "obj_params['minmax_coeff_bounds'][0]), " \
+                                       "np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1]," \
+                                       "obj_params['minmax_coeff_bounds'][1]))]"
+
+        defaults['maxiter'] = 2
         dtypes['maxiter'] = int
         descr['maxiter'] = 'Maximum number of iterations for the telluric + object model fitting. The code performs ' \
                            'multiple iterations rejecting outliers at each step. The fit is then performed anew to the ' \
@@ -1760,102 +1783,44 @@ class TelluricPar(ParSet):
                         'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
                         'for a description of the output and how to know if things are working well.'
 
-        # Instantiate the parameter set
-        super(TelluricPar, self).__init__(list(pars.keys()),
-                                          values=list(pars.values()),
-                                          defaults=list(defaults.values()),
-                                          dtypes=list(dtypes.values()),
-                                          descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
-        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
-                   'pix_shift_bounds', 'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
-                   'popsize', 'recombination', 'polish', 'disp']
-
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for TelluricPar.'.format(k[badkeys]))
-
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        pass
-        # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
-        # scipy.optimize.differential_evoluiton probalby checks this.
-
-
-class TellFitPar(ParSet):
-    """
-    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
-    sensfunc.SensFuncUV
-
-    For a table with the current keywords, defaults, and descriptions,
-    see :ref:`pypeitpar`.
-    """
-
-    def __init__(self, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_wv_min_max=None,
-                 bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
-                 star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
-                 func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
-
-        # Grab the parameter names and values from the function arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k, values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        defaults['tell_grid'] = None
-        dtypes['tell_grid'] = str
-        descr['tell_grid'] = 'telluric grid file. needed when you use qso_telluric'
 
         defaults['only_orders'] = None
-        dtypes['only_orders'] = int
-        descr['only_orders'] = "order number if you only want to fit a single order"
+        dtypes['only_orders'] = [int, list, np.ndarray]
+        descr['only_orders'] = "Order number, or list of order numbers if you only want to fit specific orders"
 
         defaults['objmodel'] = None
         dtypes['objmodel'] = str
-        descr['objmodel'] = 'which object model you want to use for telluric fit'
+        descr['objmodel'] = 'The object model to be used for telluric fitting. Currently the options are: qso, star, and poly'
 
+        ### Parameters for qso_telluric
         defaults['redshift'] = 0.0
         dtypes['redshift'] = [int, float]
-        descr['redshift'] = 'redshift for your object model'
+        descr['redshift'] = 'The redshift for the object model. This is currently only used by objmodel=qso'
 
-        ### Start parameters for qso_telluric
         defaults['delta_redshift'] = 0.1
-        dtypes['delta_redshift'] = [int, float]
-        descr['delta_redshift'] = 'variable redshift range during the fit'
+        dtypes['delta_redshift'] = float
+        descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
+                                  'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'),
-                                            'qso_pca_1200_3100.pckl')
+        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/models/'),
+                                            'qso_pca_1200_3100.fits')
         dtypes['pca_file'] = str
-        descr['pca_file'] = 'pca pickle file. needed when you use qso_telluric'
+        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
 
         defaults['npca'] = 8
         dtypes['npca'] = int
-        descr['npca'] = 'Number of pca'
+        descr['npca'] = 'Number of pca for the objmodel=qso qso PCA fit'
 
         defaults['bal_wv_min_max'] = None
-        dtypes['bal_wv_min_max'] = [list, numpy.ndarray]
+        dtypes['bal_wv_min_max'] = [list, np.ndarray]
         descr['bal_wv_min_max'] = 'Min/max wavelength of broad absorption features. If there are several BAL features, ' \
                             'the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, ' \
                             'wave_max_bal2,...]. These masked pixels will be ignored during the fitting.'
 
-        defaults['bounds_norm'] = [0.1, 3.0]
-        dtypes['bounds_norm'] = list
-        descr['bounds_norm'] = "Normalization bounds for scaling the initial object model"
+        tuple_force(pars,'bounds_norm')
+        defaults['bounds_norm'] = (0.1, 3.0)
+        dtypes['bounds_norm'] = tuple
+        descr['bounds_norm'] = "Normalization bounds for scaling the initial object model."
 
         defaults['tell_norm_thresh'] = 0.9
         dtypes['tell_norm_thresh'] = [int, float]
@@ -1863,11 +1828,16 @@ class TellFitPar(ParSet):
 
         defaults['pca_lower'] = 1220.0
         dtypes['pca_lower'] = [int, float]
-        descr['pca_lower'] = "minimum wavelength for the pca model"
+        descr['pca_lower'] = "Minimum wavelength for the qso pca model"
 
         defaults['pca_upper'] = 3100.0
         dtypes['pca_upper'] = [int, float]
-        descr['pca_upper'] = "maximum wavelength for the pca model"
+        descr['pca_upper'] = "Maximum wavelength for the qso pca model"
+
+        defaults['mask_lyman_a'] = True
+        dtypes['mask_lyman_a'] = bool
+        descr['mask_lyman_a'] = 'Mask the blueward of Lyman-alpha line during the fitting?'
+
 
         ### Start parameters for star_telluric
         defaults['star_type'] = None
@@ -1893,24 +1863,16 @@ class TellFitPar(ParSet):
         ### parameters for both star_telluric and poly_telluric
         defaults['func'] = 'legendre'
         dtypes['func'] = str
-        descr['func'] = 'object polynomial model function'
+        descr['func'] = 'Polynomial model function'
 
         defaults['model'] = 'exp'
         dtypes['model'] = str
-        descr['model'] = 'different type polynomial model. poly, square, exp corresponding to normal polynomial,'\
+        descr['model'] = 'Types of polynomial model. Options are poly, square, exp corresponding to normal polynomial,'\
                          'squared polynomial, or exponentiated polynomial'
 
         defaults['polyorder'] = 3
         dtypes['polyorder'] = int
-        descr['polyorder'] = "polynomial order for the object model"
-
-        defaults['delta_coeff_bounds'] = [-20.0, 20.0]
-        dtypes['delta_coeff_bounds'] = list
-        descr['delta_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
-
-        defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
-        dtypes['minmax_coeff_bounds'] = list
-        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
+        descr['polyorder'] = "Order of the polynomial model fit"
 
         ### Start parameters for poly_telluric
         defaults['fit_wv_min_max'] = None
@@ -1918,13 +1880,9 @@ class TellFitPar(ParSet):
         descr['fit_wv_min_max'] = "Pixels within this mask will be used during the fitting. The format"\
                                    "is the same with bal_wv_min_max, but this mask is good pixel masks."
 
-        defaults['mask_lyman_a'] = True
-        dtypes['mask_lyman_a'] = bool
-        descr['mask_lyman_a'] = 'Mask the blueward of Lyman-alpha line during the fitting?'
-
 
         # Instantiate the parameter set
-        super(TellFitPar, self).__init__(list(pars.keys()),
+        super(TelluricPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
                                           defaults=list(defaults.values()),
                                           dtypes=list(dtypes.values()),
@@ -1933,16 +1891,19 @@ class TellFitPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
-        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
+        k = np.array([*cfg.keys()])
+        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+                   'pix_shift_bounds', 'delta_coeff_bounds', 'minmax_coeff_bounds',
+                   'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
+                   'popsize', 'recombination', 'polish', 'disp', 'objmodel','redshift', 'delta_redshift',
+                   'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
                    'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
-                   'func','model','polyorder','fit_wv_min_max','mask_lyman_a',
-                   'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
+                   'func','model','polyorder','fit_wv_min_max','mask_lyman_a']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for TellFitPar.'.format(k[badkeys]))
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for TelluricPar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
@@ -1950,7 +1911,20 @@ class TellFitPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
         pass
+        # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
+        # scipy.optimize.differential_evoluiton probalby checks this.
+
+    @property
+    def default_root(self):
+        """
+        Return the default path to the atmospheric model grids.
+        """
+        return resource_filename('pypeit', '/data/telluric/atm_grids/')
+
 
 class ManualExtractionPar(ParSet):
     """
@@ -2008,11 +1982,11 @@ class ManualExtractionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['spat_spec','det','fwhm']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
                                 k[badkeys]))
 
@@ -2151,14 +2125,14 @@ class ReduxPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
                     'redux_path', 'ignore_bad_headers', 'slitspatnum']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReduxPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -2285,11 +2259,11 @@ class WavelengthSolutionPar(ParSet):
         #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
-        dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
+        dtypes['sigdetect'] =  [int, float, list, np.ndarray]
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
-                             '(list or numpy array) that provides the detection threshold for ' \
+                             '(list or np array) that provides the detection threshold for ' \
                              'each slit.'
 
         defaults['fwhm'] = 4.
@@ -2331,7 +2305,7 @@ class WavelengthSolutionPar(ParSet):
                             '\'full_template\''
 
         defaults['cc_thresh'] = 0.70
-        dtypes['cc_thresh'] = [float, list, numpy.ndarray]
+        dtypes['cc_thresh'] = [float, list, np.ndarray]
         descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between ' \
                              'an input spectrum and member of the archive required to attempt ' \
                              'reidentification.  Spectra from the archive with a lower ' \
@@ -2364,7 +2338,7 @@ class WavelengthSolutionPar(ParSet):
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
-        dtypes['rms_threshold'] = [float, list, numpy.ndarray]
+        dtypes['rms_threshold'] = [float, list, np.ndarray]
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
                                  'single number or a list/array providing the value for each slit.'
 
@@ -2394,7 +2368,7 @@ class WavelengthSolutionPar(ParSet):
                                 'wavelength solution.'
 
         defaults['n_final'] = 4
-        dtypes['n_final'] = [int, float, list, numpy.ndarray]
+        dtypes['n_final'] = [int, float, list, np.ndarray]
         descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 ' \
                            'parameters in the fit). This can be a single number or a ' \
                            'list/array providing the value for each slit'
@@ -2450,7 +2424,7 @@ class WavelengthSolutionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
@@ -2458,8 +2432,8 @@ class WavelengthSolutionPar(ParSet):
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for WavelengthSolutionPar.'.format(
                              k[badkeys]))
 
@@ -2935,7 +2909,7 @@ class EdgeTracePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         # TODO Please provide docs
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
@@ -2949,8 +2923,8 @@ class EdgeTracePar(ParSet):
                    'order_match', 'order_offset', 'use_maskdesign', 'maskdesign_maxsep',
                    'maskdesign_step', 'maskdesign_sigrej', 'pad', 'add_slits', 'rm_slits']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for EdgeTracePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3030,7 +3004,7 @@ class WaveTiltsPar(ParSet):
                            'tilts (CURRENTLY NOT USED!)'
 
         defaults['tracethresh'] = 20.
-        dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
+        dtypes['tracethresh'] = [int, float, list, np.ndarray]
         descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts. ' \
                                'This can be a single number or a list/array providing the value for each slit/order.'
 
@@ -3058,21 +3032,21 @@ class WaveTiltsPar(ParSet):
         descr['sigrej_trace'] = 'Outlier rejection significance to determine which traced arc lines should be included in the global fit'
 
         defaults['spat_order'] = 3
-        dtypes['spat_order'] = [int, float, list, numpy.ndarray]
+        dtypes['spat_order'] = [int, float, list, np.ndarray]
         descr['spat_order'] = 'Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determines' \
                               'both the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the' \
                               '2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the' \
                               'slit/order. This can be a single number or a list/array providing the value for each slit'
 
         defaults['spec_order'] = 4
-        dtypes['spec_order'] = [int, float, list, numpy.ndarray]
+        dtypes['spec_order'] = [int, float, list, np.ndarray]
         descr['spec_order'] = 'Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is ' \
                               'fit to obtain a global solution for the tilts across the slit/order. ' \
                               'This can be a single number or a list/array providing the value for each slit'
 
 
         defaults['minmax_extrap'] = [150., 1000.]
-        dtypes['minmax_extrap'] = [list, numpy.ndarray]
+        dtypes['minmax_extrap'] = [list, np.ndarray]
         descr['minmax_extrap'] = 'Sets how far below the last measured tilt line is extrapolated in tracewave.fit_tilts()'
 
         defaults['func2d'] = 'legendre2d'
@@ -3105,7 +3079,7 @@ class WaveTiltsPar(ParSet):
 #        descr['cont_order'] = 'Order of the function used to fit the continuum to be removed.'
 
         defaults['cont_rej'] = [3, 1.5]
-        dtypes['cont_rej'] = [int, float, list, numpy.ndarray]
+        dtypes['cont_rej'] = [int, float, list, np.ndarray]
         descr['cont_rej'] = 'The sigma threshold for rejection.  Can be a single number or two ' \
                             'numbers that give the low and high sigma rejection, respectively.'
 
@@ -3143,13 +3117,13 @@ class WaveTiltsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
                    'rm_continuum', 'cont_rej', 'minmax_extrap'] #'cont_function', 'cont_order',
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3240,11 +3214,11 @@ class ReducePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
-        badkeys = numpy.array([pk not in allkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in allkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3278,7 +3252,8 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, find_min_max=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, find_negative=None, find_min_max=None,
+                 cont_sig_thresh=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3351,11 +3326,30 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+
+        defaults['find_negative'] = None
+        dtypes['find_negative'] = bool
+        descr['find_negative'] = 'Identify negative objects in object finding for spectra that are differenced. This is used to manually ' \
+                                 'override the default behavior in PypeIt for object finding by setting this parameter to something other than None' \
+                                 'The default behavior is that PypeIt will search for negative object traces if background frames ' \
+                                 'are present in the PypeIt file that are classified as "science" ' \
+                                 '(i.e. via pypeit_setup -b, and setting bkg_id in the PypeIt file). If background frames are present' \
+                                 'that are classified as "sky", then PypeIt will NOT search for negative object traces. If one wishes' \
+                                 'to explicitly override this default behavior, set this parameter to True to find negative objects or False to ignore ' \
+                                 'them.'
+
         defaults['find_min_max'] = None
         dtypes['find_min_max'] = list
         descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the'\
                                 'detector. It only used for object finding. This parameter is helpful if your object only'\
                                 'has emission lines or at high redshift and the trace only shows in part of the detector.'
+
+        defaults['cont_sig_thresh'] = 2.0
+        dtypes['cont_sig_thresh'] = [int, float]
+        descr['cont_sig_thresh'] = 'Significance threshold for peak detection for determinining which pixels to use for ' \
+                                   'the iteratively fit continuum of the spectral direction smashed image. This is ' \
+                                   'passed as the sigthresh parameter to core.arc.iter_continum. For extremely narrow ' \
+                                   'slits that are almost filled by the object trace set this to a smaller number like 1.0'
 
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
@@ -3368,17 +3362,17 @@ class FindObjPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_min_max']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_negative', 'find_min_max', 'cont_sig_thresh']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for FindObjPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3474,15 +3468,15 @@ class SkySubPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly',
                    'user_regions', 'load_mask', 'joint_fit', 'mask_by_boxcar',
                    'no_local_sky']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for SkySubPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3569,14 +3563,14 @@ class ExtractionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
                    'skip_optimal', 'use_2dmodel_mask']
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3607,7 +3601,7 @@ class CalibrationsPar(ParSet):
     def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 illumflatframe=None,
+                 illumflatframe=None, skyframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
                  raise_chk_error=None):
 
@@ -3718,6 +3712,13 @@ class CalibrationsPar(ParSet):
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
+
+        defaults['skyframe'] = FrameGroupPar(frametype='sky',
+                                                  process=ProcessImagesPar(mask_cr=True))
+        dtypes['skyframe'] = [ ParSet, dict ]
+        descr['skyframe'] = 'The frames and combination rules for the sky background ' \
+                                 'observations'
+
         defaults['alignment'] = AlignPar()
         dtypes['alignment'] = [ ParSet, dict ]
         descr['alignment'] = 'Define the procedure for the alignment of traces'
@@ -3749,17 +3750,17 @@ class CalibrationsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe',
-                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',
-                             'wavelengths', 'slitedges', 'tilts']
-        badkeys = numpy.array([pk not in allkeys for pk in k])
-        if numpy.any(badkeys):
+                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'skyframe',
+                             'flatfield', 'wavelengths', 'slitedges', 'tilts']
+        badkeys = np.array([pk not in allkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -3789,6 +3790,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'
         kwargs[pk] = FrameGroupPar.from_dict('standard', cfg[pk]) if pk in k else None
+        pk = 'skyframe'
+        kwargs[pk] = FrameGroupPar.from_dict('sky', cfg[pk]) if pk in k else None
         pk = 'flatfield'
         kwargs[pk] = FlatFieldPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'wavelengths'
@@ -3850,7 +3853,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, telluric=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3924,10 +3927,9 @@ class PypeItPar(ParSet):
         descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
 
         # Telluric Fit
-        defaults['tellfit'] = TellFitPar()
-        dtypes['tellfit'] = [ParSet, dict]
-        descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
-
+        defaults['telluric'] = TelluricPar()
+        dtypes['telluric'] = [ParSet, dict]
+        descr['telluric'] = 'Par set to control telluric fitting.  Only used in the pypeit_sensfunc and pypeit_telluric after-burner scripts.'
 
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
@@ -4125,12 +4127,12 @@ class PypeItPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
+        k = np.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit']
-        badkeys = numpy.array([pk not in allkeys for pk in k])
-        if numpy.any(badkeys):
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'telluric']
+        badkeys = np.array([pk not in allkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -4176,11 +4178,11 @@ class PypeItPar(ParSet):
                         if pk in cfg['rdx'].keys() and cfg['rdx']['sensfunc'] else None
         kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
 
-        # Allow tellfit to be turned on using cfg['rdx']
-        pk = 'tellfit'
-        default = TellFitPar() \
-                        if pk in cfg['rdx'].keys() and cfg['rdx']['tellfit'] else None
-        kwargs[pk] = TellFitPar.from_dict(cfg[pk]) if pk in k else default
+        # Allow telluric to be turned on using cfg['rdx']
+        pk = 'telluric'
+        default = TelluricParPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['telluric'] else None
+        kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
@@ -4320,8 +4322,8 @@ class PypeItPar(ParSet):
 #        options['specaxis'] = [ 0, 1]
 #        dtypes['specaxis'] = int
 #        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-#                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
-#                            'for numpy array shape)'
+#                            '(first dimension for a np array shape) or 1 (second dimension ' \
+#                            'for np array shape)'
 #
 #
 #        defaults['specflip'] = False
@@ -4428,14 +4430,14 @@ class PypeItPar(ParSet):
 #
 #    @classmethod
 #    def from_dict(cls, cfg):
-#        k = numpy.array([*cfg.keys()])
+#        k = np.array([*cfg.keys()])
 #        parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
 #                   'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
 #                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
 #                   'det']
 #
-#        badkeys = numpy.array([pk not in parkeys for pk in k])
-#        if numpy.any(badkeys):
+#        badkeys = np.array([pk not in parkeys for pk in k])
+#        if np.any(badkeys):
 #            raise ValueError('{0} not recognized key(s) for DetectorPar.'.format(k[badkeys]))
 #
 #        kwargs = {}
@@ -4479,7 +4481,7 @@ class TelescopePar(ParSet):
     :ref:`instruments`.
     """
     def __init__(self, name=None, longitude=None, latitude=None, elevation=None, fratio=None,
-                 diameter=None):
+                 diameter=None, eff_aperture=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4516,6 +4518,10 @@ class TelescopePar(ParSet):
         dtypes['diameter'] = [int, float]
         descr['diameter'] = 'Diameter of the telescope in m'
 
+        dtypes['eff_aperture'] = [int, float]
+        descr['eff_aperture'] = 'Effective aperture of the telescope in m^2'
+
+
         # Instantiate the parameter set
         super(TelescopePar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -4530,11 +4536,11 @@ class TelescopePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
-        parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter' ]
+        k = np.array([*cfg.keys()])
+        parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter', 'aperture' ]
 
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for TelescopePar.'.format(k[badkeys]))
 
         kwargs = {}
@@ -4568,3 +4574,9 @@ class TelescopePar(ParSet):
         """
         return None if self['fratio'] is None or self['diameter'] is None \
                 else 206265/self['fratio']/self['diameter']/1e3
+
+    # TODO This method is a place holder until we can get effective apertures for all of the telescopes. I did my best
+    # but could not find them all online.
+    def eff_aperture(self):
+        return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
+

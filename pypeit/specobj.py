@@ -21,6 +21,7 @@ from pypeit import msgs
 from pypeit.core import flexure
 from pypeit.core import parse
 from pypeit.core import flux_calib
+from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images import detector_container
@@ -69,11 +70,11 @@ class SpecObj(datamodel.DataContainer):
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
-                                  descr='Optimal flux (erg/s/cm^2/Ang)'),
+                                  descr='Optimal flux (1e-17 erg/s/cm^2/Ang)'),
                  'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float,
-                                      descr='Optimal flux uncertainty (erg/s/cm^2/Ang)'),
+                                      descr='Optimal flux uncertainty (1e-17 erg/s/cm^2/Ang)'),
                  'OPT_FLAM_IVAR': dict(otype=np.ndarray, atype=float,
-                                       descr='Optimal flux inverse variance (erg/s/cm^2/Ang)^-2'),
+                                       descr='Optimal flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2'),
                  'OPT_COUNTS': dict(otype=np.ndarray, atype=float, descr='Optimal flux (counts)'),
                  'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                                          descr='Inverse variance of optimally extracted flux '
@@ -103,9 +104,9 @@ class SpecObj(datamodel.DataContainer):
                  'BOX_FLAM': dict(otype=np.ndarray, atype=float,
                                   descr='Boxcar flux (erg/s/cm^2/Ang)'),
                  'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float,
-                                      descr='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
+                                      descr='Boxcar flux uncertainty (1e-17 erg/s/cm^2/Ang)'),
                  'BOX_FLAM_IVAR': dict(otype=np.ndarray, atype=float,
-                                       descr='Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2'),
+                                       descr='Boxcar flux inverse variance (1e-17 erg/s/cm^2/Ang)^-2'),
                  'BOX_COUNTS': dict(otype=np.ndarray, atype=float, descr='Boxcar flux (counts)'),
                  'BOX_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
                                          descr='Inverse variance of optimally extracted flux '
@@ -409,7 +410,7 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
-    def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
+    def apply_flux_calib(self, wave_zp, zeropoint, exptime, tellmodel=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
@@ -417,12 +418,18 @@ class SpecObj(datamodel.DataContainer):
         FLAM, FLAM_SIG, and FLAM_IVAR are generated
 
         Args:
-            sens_dict (dict):
-                Sens Function dict
+            wave_zp (float array)
+                Zeropoint wavelength array
+            zeropoint (float array):
+                zeropoint array
             exptime (float):
-            telluric_correct:
+                Exposure time
+            tellmodel:
+                Telluric correction
             extinct_correct:
+                If True, extinction correct
             airmass (float, optional):
+                Airmass
             longitude (float, optional):
                 longitude in degree for observatory
             latitude:
@@ -440,58 +447,29 @@ class SpecObj(datamodel.DataContainer):
 
             wave = self[attr+'_WAVE']
             # Interpolate the sensitivity function onto the wavelength grid of the data
+            sens_factor = flux_calib.get_sensfunc_factor(
+                wave, wave_zp, zeropoint, exptime, tellmodel=tellmodel, extinct_correct=extinct_correct,
+                                airmass=airmass, longitude=longitude, latitude=latitude, extrap_sens=extrap_sens)
 
-            # TODO Telluric corrections via this method are deprecated
-            # Did the user request a telluric correction?
-            if telluric is not None:
-                # This assumes there is a separate telluric key in this dict.
-                msgs.info('Applying telluric correction')
-                sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
-
-            sensfunc_obs = np.zeros_like(wave)
-            wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
-            try:
-                sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave[wave_mask])
-            except ValueError:
-                if extrap_sens:
-                    sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False)(wave[wave_mask])
-                    msgs.warn("Your data extends beyond the bounds of your sensfunc. You should be adjusting the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
-                else:
-                    msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                           "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.")
-
-            if extinct_correct:
-                if longitude is None or latitude is None:
-                    msgs.error('You must specify longitude and latitude if we are extinction correcting')
-                # Apply Extinction if optical bands
-                msgs.info("Applying extinction correction")
-                msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-                extinct = flux_calib.load_extinction_data(longitude, latitude)
-                ext_corr = flux_calib.extinction_correction(wave * units.AA, airmass, extinct)
-                senstot = sensfunc_obs * ext_corr
-            else:
-                senstot = sensfunc_obs.copy()
-
-            flam = self[attr+'_COUNTS'] * senstot / exptime
-            flam_sig = (senstot / exptime) / (np.sqrt(self[attr+'_COUNTS_IVAR']))
-            flam_var = self[attr+'_COUNTS_IVAR'] / (senstot / exptime) ** 2
+            flam = self[attr+'_COUNTS']*sens_factor
+            flam_sig = sens_factor/np.sqrt(self[attr+'_COUNTS_IVAR'])
+            flam_ivar = self[attr+'_COUNTS_IVAR']/sens_factor**2
 
             # Mask bad pixels
             msgs.info(" Masking bad pixels")
-            msk = np.zeros_like(senstot).astype(bool)
-            msk[senstot <= 0.] = True
+            msk = np.zeros_like(sens_factor).astype(bool)
+            msk[sens_factor <= 0.] = True
             msk[self[attr+'_COUNTS_IVAR'] <= 0.] = True
             flam[msk] = 0.
             flam_sig[msk] = 0.
-            flam_var[msk] = 0.
+            flam_ivar[msk] = 0.
             # TODO JFH We need to update the mask here. I think we need a mask for the counts and a mask for the flam,
             # since they can in principle be different. We are masking bad sensfunc locations.
 
             # Finish
             self[attr+'_FLAM'] = flam
             self[attr+'_FLAM_SIG'] = flam_sig
-            self[attr+'_FLAM_IVAR'] = flam_var
+            self[attr+'_FLAM_IVAR'] = flam_ivar
 
 
     def apply_helio(self, vel_corr, refframe):

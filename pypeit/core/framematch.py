@@ -27,6 +27,9 @@ class FrameTypeBitMask(BitMask):
         # order as part of its data model. When/if we require python
         # 3.7, we can remove this (and other) OrderedDict usage in favor
         # of just a normal dict.
+
+        # TODO JFH: I don't think we ever use pinhole. Should we remove it.
+        # TODO JFH: We need a background image type
         frame_types = OrderedDict([
                        ('align', 'Trace constant spatial positions along the slit'),
                          ('arc', 'Arc lamp observation used for wavelength calibration'),
@@ -38,7 +41,8 @@ class FrameTypeBitMask(BitMask):
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),
-                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution')
+                        ('tilt', 'Exposure used to trace the tilt in the wavelength solution'),
+                         ('sky', 'On-sky observation of the sky used for background subtraction'),
                                   ])
         super(FrameTypeBitMask, self).__init__(list(frame_types.keys()),
                                                descr=list(frame_types.values()))

@@ -2528,7 +2528,8 @@ class EdgeTraceSet(DataContainer):
                 #
                 idx = np.where(bad_slit)[0][0]
                 indx[2*idx:2*idx+2] = True
-                msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
+                # JFH Print out in the spec:spat format that corresponds to the pypeit file
+                msgs.info("Removing user-supplied slit at spec:spat {}:{}".format(y_spec, xcen))
                 # Mask
                 self.bitmask.turn_on(self.edge_msk[:,indx], 'USERRMSLIT')
 

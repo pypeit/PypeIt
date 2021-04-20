@@ -63,12 +63,11 @@ Thumbs.db
 *.pytest_cache
 *.swp
 pypeit/_compiler.c
-pypeit/data/telluric/*.pckl
-pypeit/data/telluric/*.fits
-pypeit/data/telluric/*.fits.gz
+pypeit/data/telluric/atm_grids/*.fits
 
 *.pckl
 
 # added by TEP
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
+.DS_Store
