@@ -4140,8 +4140,8 @@ class PypeItPar(ParSet):
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
                    'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'telluric', 'collate1d']
-        badkeys = numpy.array([pk not in allkeys for pk in k])
-        if numpy.any(badkeys):
+        badkeys = np.array([pk not in allkeys for pk in k])
+        if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
 
         kwargs = {}
