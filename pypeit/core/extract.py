@@ -1609,9 +1609,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             sobjs.add_sobj(thisobj)
 
     nobj = len(sobjs)
-    # If there are no regular aps and no hand aps, just return
-    #if nobj == 0:
-    #    return (None, skymask, objmask)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:
@@ -1689,6 +1686,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
 
     msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
+    # Vette
+    for sobj in sobjs:
+        if not sobj.vette_for_extraction():
+            msgs.error("Bad SpecObj.  Can't proceed")
+
+    # Return
     return sobjs, skymask[thismask]
 
 
@@ -2296,5 +2299,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         canvas.add('constructedcanvas', canvas_list)
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
+    
+    # Vette
+    for sobj in sobjs:
+        if not sobj.vette_for_extraction():
+            msgs.error("Bad SpecObj.  Can't proceed")
+
     return sobjs_final, skymask[allmask]
 
