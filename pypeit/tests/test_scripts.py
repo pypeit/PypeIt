@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 import matplotlib
+from IPython import embed
 matplotlib.use('agg')  # For Travis
 
 #import warnings
@@ -96,6 +97,7 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+
 @dev_suite_required
 def test_trace_add_rm():
     # Define the output directories (HARDCODED!!)
@@ -146,6 +148,7 @@ def test_show_1dspec():
     pargs = show_1dspec.parse_args([spec_file, '--list'])
     show_1dspec.main(pargs)
 
+
 @cooked_required
 def test_show_2dspec():
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
@@ -164,6 +167,7 @@ def test_show_2dspec():
     show_2dspec.main(pargs)
     # Go back
     os.chdir(cdir)
+
 
 @cooked_required
 def test_chk_edges():
@@ -196,6 +200,7 @@ def test_chk_flat():
     pargs = chk_flats.parse_args([mstrace_root])
     chk_flats.main(pargs)
 
+
 @cooked_required
 def test_chk_wavecalib():
     ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
@@ -203,7 +208,6 @@ def test_chk_wavecalib():
     #
     pargs = chk_wavecalib.parse_args([ms_root])
     chk_wavecalib.main(pargs)
-
 
 
 def test_coadd1d_1():

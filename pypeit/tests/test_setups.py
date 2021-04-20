@@ -10,7 +10,6 @@ from IPython import embed
 import numpy as np
 
 import pytest
-import yaml
 from configobj import ConfigObj
 
 from pypeit.pypmsgs import PypeItError

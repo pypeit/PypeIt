@@ -34,26 +34,9 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from pypeit.core import flux_calib
 
-# TODO: These shouldn't be here. They should be changed on a
-# plot-by-plot basis, and each plot should end with a recall of
-# rcdefaults.
-
-## Plotting parameters
-plt.rcdefaults()
-plt.rcParams['font.family'] = 'times new roman'
-plt.rcParams["xtick.top"] = True
-plt.rcParams["ytick.right"] = True
-plt.rcParams["xtick.minor.visible"] = True
-plt.rcParams["ytick.minor.visible"] = True
-plt.rcParams["ytick.direction"] = 'in'
-plt.rcParams["xtick.direction"] = 'in'
-plt.rcParams["xtick.labelsize"] = 15
-plt.rcParams["ytick.labelsize"] = 15
-plt.rcParams["axes.labelsize"] = 17
-
 # TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
-                  dwave=None, dv=None, dloglam=None, samp_fact=1.0):
+                  dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0):
     """
     Create a new wavelength grid for the spectra to be rebinned and coadded on
 
@@ -85,9 +68,10 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             If not input, the median km/s per pixel is calculated and used
         dloglam (float): optional
             Pixel size in log10(wave) for the log10 method.
-        samp_fact (float): optional
-            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-            samp_fact < 1.0 undersamples (coarser)
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
 
     Returns:
         tuple: Returns two numpy.ndarray objects and a float:
@@ -127,8 +111,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         else:
             dloglam_pix = dloglam_data
         # Generate wavelength array
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dloglam_pix, samp_fact=samp_fact, log10=True)
-        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix/samp_fact/2.0
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dloglam_pix, spec_samp_fact=spec_samp_fact, log10=True)
+        loglam_grid_mid = np.log10(wave_grid) + dloglam_pix*spec_samp_fact/2.0
         wave_grid_mid = np.power(10.0,loglam_grid_mid)
         dsamp = dloglam_pix
 
@@ -138,8 +122,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         else:
             dwave_pix = dwave_data
         # Generate wavelength array
-        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dwave_pix, samp_fact=samp_fact)
-        wave_grid_mid = wave_grid + dwave_pix/samp_fact/2.0
+        wave_grid = wvutils.wavegrid(wave_grid_min, wave_grid_max, dwave_pix, spec_samp_fact=spec_samp_fact)
+        wave_grid_mid = wave_grid + dwave_pix*spec_samp_fact/2.0
         dsamp = dwave_pix
 
     elif 'concatenate' in wave_method:  # Concatenate
@@ -316,7 +300,7 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     return ymult
 
 
-def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
+def poly_ratio_fitfunc_chi2(theta, thismask, arg_dict):
     """
     Function for computing the chi^2 loss function for solving for the polynomial rescaling of one spectrum to another.
     There are two non-standard things implemented here which increase ther robustness. The first is a non-standard error used for the
@@ -327,7 +311,6 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
 
     Args:
         theta (ndarray): parameter vector for the polymomial fit
-        flux_ref (ndarray): reference flux that data will be rescaled to match
         thismask (ndarray, bool): mask for the current iteration of the optimization, True=good
         arg_dict (dict): dictionary containing arguments
 
@@ -365,21 +348,23 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     vmult = np.fmax(ymult,1e-4)*(ymult <= 1.0) + np.sqrt(ymult)*(ymult > 1.0)
     ivarfit = mask_both/(1.0/(ivar_med + np.invert(mask_both)) + np.square(vmult)/(ivar_ref_med + np.invert(mask_both)))
     chi_vec = mask_both * (flux_ref_med - flux_scale) * np.sqrt(ivarfit)
+    # Changing the Huber loss parameter from step to step results in instability during optimization --MSR.
     # Robustly characterize the dispersion of this distribution
-    chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
-        chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    #chi_mean, chi_median, chi_std = stats.sigma_clipped_stats(
+    #    chi_vec, np.invert(mask_both), cenfunc='median', stdfunc=utils.nan_mad_std, maxiters=5, sigma=2.0)
+    chi_std = np.std(chi_vec)
     # The Huber loss function smoothly interpolates between being chi^2/2 for standard chi^2 rejection and
     # a linear function of residual in the outlying tails for large residuals. This transition occurs at the
     # value of the first argument, which we have set to be 2.0*chi_std, which is 2-sigma given the modified
     # errors described above from Schlegel's code.
     robust_scale = 2.0
     huber_vec = scipy.special.huber(robust_scale*chi_std, chi_vec)
-    loss_function = np.sum(np.square(huber_vec*mask_both))
+    loss_function = np.sum(huber_vec*mask_both)
     #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
 # TODO: Change thismask to gpm
-def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
+def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, init_from_last=None, **kwargs_opt):
     """
     Function to be optimized by robust_optimize for solve_poly_ratio
     polynomial rescaling of one spectrum to match a reference
@@ -420,8 +405,8 @@ def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
 
     # flux_ref, ivar_ref act like the 'data', the rescaled flux will be the 'model'
 
-    guess = arg_dict['guess']
-    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(flux_ref, thismask, arg_dict),  **kwargs_opt)
+    guess = arg_dict['guess'] if init_from_last is None else init_from_last.x
+    result = scipy.optimize.minimize(poly_ratio_fitfunc_chi2, guess, args=(thismask, arg_dict),  **kwargs_opt)
     flux = arg_dict['flux']
     ivar = arg_dict['ivar']
     mask = arg_dict['mask']
@@ -503,8 +488,8 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         mask_ref: ndarray, bool (nspec,)
             mask for reference flux
         norder: int
-            order of polynomial rescaling.  Note that the code multiplies in by the square of a polynomail of order
-            norder to ensure positivity of the scale factor.
+            Order of polynomial rescaling; norder=1 is a linear fit and norder must be >= 1 otherwise the
+            code will fault.
         scale_min: float, default =0.05
             minimum scaling factor allowed
         scale_max: float, default=100.0
@@ -539,6 +524,9 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
         optimization/rejection iterations. True=Good
     """
 
+    if norder < 1:
+        msgs.error('You cannot solve for the polynomial ratio for norder < 1. For rescaling by a constant use robust_median_ratio')
+
     if mask is None:
         mask = (ivar > 0.0)
     if mask_ref is None:
@@ -549,15 +537,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     # Determine an initial guess
     ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref,
                                 ref_percentile=ref_percentile, max_factor=scale_max)
-    if 'poly' in model:
-        guess = np.append(ratio, np.zeros(norder-1))
-    elif 'square' in model:
-        guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
-    elif 'exp' in model:
-        guess = np.append(np.log(ratio), np.zeros(norder-1))
-    else:
-        msgs.error('Unrecognized model type')
-
+    # guess = np.append(ratio, np.zeros(norder))
     wave_min = wave.min()
     wave_max = wave.max()
 
@@ -567,13 +547,50 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
 
+    if 'poly' in model:
+        guess = np.append(ratio, np.zeros(norder))
+    elif 'square' in model:
+        guess = np.append(np.sqrt(ratio), np.zeros(norder))
+    elif 'exp' in model:
+        guess = np.append(np.log(ratio), np.zeros(norder))
+    else:
+        msgs.error('Unrecognized model type')
+
+    ## JFH I'm not convinced any of this below is right or necessary. Going back to previous logic but
+    ## leaving this here for now
+
+    # Use robust_fit to get a best-guess linear fit as the starting point. The logic below deals with whether
+    # we re fitting a polynomial model to the data model='poly', to the square model='square', or taking the exponential
+    # of a polynomial fit model='exp'
+    #if 'poly' in model:
+    #    #guess = np.append(ratio, np.zeros(norder))
+    #    yval = flux_ref_med
+    #    yval_ivar = ivar_ref_med
+    #    scale_mask = np.ones_like(flux_ref_med, dtype=bool) & (wave > 1.0)
+    #elif 'square' in model:
+    #    #guess = np.append(np.sqrt(ratio), np.zeros(norder))
+    #    yval = np.sqrt(flux_ref_med + (flux_ref_med < 0))
+    #    yval_ivar = 4.0*flux_ref_med*ivar_ref_med
+    #    scale_mask = (flux_ref_med >= 0) & (wave > 1.0)
+    #elif 'exp' in model:
+    #    #guess = np.append(np.log(ratio), np.zeros(norder))
+    #    yval = np.log(flux_ref_med + (flux_ref_med <= 0))
+    #    yval_ivar = flux_ref_med**2*ivar_ref_med
+    #    scale_mask = (flux_ref_med > 0) & (wave > 1.0)
+    #else:
+    #    msgs.error('Unrecognized model type')
+
+    #pypfit = fitting.robust_fit(wave, yval, 1, function=func, in_gpm=scale_mask, invvar=yval_ivar,
+    #           sticky=False, use_mad=False, debug=debug, upper=3.0, lower=3.0)
+    #guess = np.append(pypfit.fitc, np.zeros(norder - 2)) if norder > 1 else pypfit.fitc
+
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
                     flux_ref_med = flux_ref_med, ivar_ref_med = ivar_ref_med,
                     ivar_ref = ivar_ref, wave = wave, wave_min = wave_min,
                     wave_max = wave_max, func = func, model=model, norder = norder, guess = guess, debug=debug)
 
-    result, ymodel, ivartot, outmask = utils.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
+    result, ymodel, ivartot, outmask = fitting.robust_optimize(flux_ref, poly_ratio_fitfunc, arg_dict, inmask=mask_ref,
                                                              maxiter=maxiter, lower=lower, upper=upper, sticky=sticky)
     ymult1 = poly_model_eval(result.x, func, model, wave, wave_min, wave_max)
     ymult = np.fmin(np.fmax(ymult1, scale_min), scale_max)
@@ -588,7 +605,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     return ymult, (result.x, wave_min, wave_max), flux_rescale, ivar_rescale, outmask
 
 
-def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
+def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old, sensfunc=False):
     '''
     Utility routine to perform 1d linear nterpolation of spectra onto a new wavelength grid
 
@@ -603,7 +620,11 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
             Old ivar on the wave_old grid
        mask_old: ndarray, bool, (nspec_old),
             Old mask on the wave_old grid. True=Good
-
+       sensfunc: bool (optional)
+            If set the quantities flux/delta_wave and the corresponding ivar*delta_wave**2 will be interpolated and
+            returned instead of flux and ivar. This is useful for sensitivity function computation where we need
+            flux/(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
+            in the presence of masked data requires special care.
     Returns:
         (1) flux_new: ndarray, (nspec_new,) -- interpolated flux; (2)
         ivar_new: ndarray, (nspec_new,) -- interpolated ivar; (3)
@@ -618,9 +639,17 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     # make the mask array to be float, used for interpolation
     masks_float = mask_old.astype(float)
     wave_mask = wave_old > 1.0 # Deal with the zero wavelengths
-    flux_new = scipy.interpolate.interp1d(wave_old[wave_mask], flux_old[wave_mask], kind='cubic',
+    if sensfunc:
+        delta_wave_interp = wvutils.get_delta_wave(wave_old, wave_mask)
+        flux_interp = flux_old[wave_mask]/delta_wave_interp[wave_mask]
+        ivar_interp = ivar_old[wave_mask]*delta_wave_interp[wave_mask]**2
+    else:
+        flux_interp = flux_old[wave_mask]
+        ivar_interp = ivar_old[wave_mask]
+
+    flux_new = scipy.interpolate.interp1d(wave_old[wave_mask], flux_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
-    ivar_new = scipy.interpolate.interp1d(wave_old[wave_mask], ivar_old[wave_mask], kind='cubic',
+    ivar_new = scipy.interpolate.interp1d(wave_old[wave_mask], ivar_interp, kind='cubic',
                                     bounds_error=False, fill_value=np.nan)(wave_new)
     mask_new_tmp = scipy.interpolate.interp1d(wave_old[wave_mask], masks_float[wave_mask], kind='cubic',
                                         bounds_error=False, fill_value=np.nan)(wave_new)
@@ -629,7 +658,7 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, mask_old):
     mask_new = (mask_new_tmp > 0.8) & (ivar_new > 0.0) & np.isfinite(flux_new) & np.isfinite(ivar_new)
     return flux_new, ivar_new, mask_new
 
-def interp_spec(wave_new, waves, fluxes, ivars, masks):
+def interp_spec(wave_new, waves, fluxes, ivars, masks, sensfunc=False):
     """
     Utility routine to interpolate a set of spectra onto a new
     wavelength grid, wave_new
@@ -645,6 +674,12 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
              same shape as waves, old ivar
         masks: ndarray, bool,
              same shape as waves, old mask, True=Good
+        sensfunc: bool (optional)
+             If set the quantities flux*delta_wave and the corresponding ivar/delta_wave**2 will be interpolated and
+             returned instead of flux and ivar. This is useful for sensitivity function computation where we need
+             flux*(wavelength bin width). Beacause delta_wave is a difference of the wavelength grid, interpolating
+             in the presence of masked data requires special care.
+
     Returns:
         fluxes_inter, ivars_inter, masks_inter: Interpolated flux, ivar
         and mask with the size and shape matching wave_new. masks_inter
@@ -653,7 +688,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
     # First case: interpolate either an (nspec, nexp) array of spectra onto a single wavelength grid
     if (wave_new.ndim == 1):
         if fluxes.ndim == 1:
-            fluxes_inter, ivars_inter, masks_inter = interp_oned(wave_new, waves, fluxes, ivars, masks)
+            fluxes_inter, ivars_inter, masks_inter = interp_oned(wave_new, waves, fluxes, ivars, masks, sensfunc=sensfunc)
         else:
             nexp = fluxes.shape[1]
             # Interpolate spectra to have the same wave grid with the iexp spectrum.
@@ -663,7 +698,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
             masks_inter  = np.zeros((wave_new.size, nexp), dtype=bool)
             for ii in range(nexp):
                 fluxes_inter[:, ii], ivars_inter[:, ii], masks_inter[:, ii] = interp_oned(
-                    wave_new, waves[:, ii], fluxes[:, ii], ivars[:, ii], masks[:, ii])
+                    wave_new, waves[:, ii], fluxes[:, ii], ivars[:, ii], masks[:, ii], sensfunc=sensfunc)
 
         return fluxes_inter, ivars_inter, masks_inter
 
@@ -678,7 +713,7 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
 
         for ii in range(nexp):
             fluxes_inter[:, ii], ivars_inter[:, ii], masks_inter[:, ii] = interp_oned(
-                wave_new[:, ii], waves, fluxes, ivars, masks)
+                wave_new[:, ii], waves, fluxes, ivars, masks, sensfunc=sensfunc)
 
         return fluxes_inter, ivars_inter, masks_inter
 
@@ -848,8 +883,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     # Finish
     return rms_sn, weights
 
-
-def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
+def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=True):
     """
     Get the weights based on the sensfunc
 
@@ -866,7 +900,7 @@ def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
         wavelength grid
     """
 
-    wave_sens, sens, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+    wave_zp, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
 
     if waves.ndim == 2:
         nspec, norder = waves.shape
@@ -881,28 +915,13 @@ def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
 
     weights_stack = np.zeros_like(waves_stack)
 
-    if norder != sens.shape[1]:
+    if norder != zeropoint.shape[1]:
         msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
 
     for iord in range(norder):
         for iexp in range(nexp):
-            wave_mask = waves_stack[:, iord, iexp] > 1.0
-            try:
-                sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
-                                                           bounds_error=True)(waves_stack[wave_mask, iord, iexp])
-            except ValueError:
-                if extrap_sens:
-                    sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
-                                                               bounds_error=False, fill_value=9e99)(
-                        waves_stack[wave_mask, iord, iexp])
-                    msgs.warn("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                               "You may wish to adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                               "further and recreate your sensfunc.")
-                else:
-                    msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                           "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.  Or set par['coadd1d']['extrap_sens']=True.")
-            weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
+            sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:, iord, iexp], wave_zp[:, iord], zeropoint[:, iord], 1.0, extrap_sens=extrap_sens)
+            weights_stack[:, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
         weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
@@ -1266,13 +1285,13 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         # Decide on the order of the polynomial rescaling
         if npoly is None:
             if sn > 25.0:
-                npoly = 5 # Is this stable?
+                npoly = 5 # quintic, Is this stable?
             elif sn > 8.0:
-                npoly = 3
+                npoly = 3  # cubic
             elif sn >= 5.0:
-                npoly = 2
+                npoly = 2  # quadratic
             else:
-                npoly = 1
+                npoly = 1  # linear
         scale, fit_tuple, flux_scale, ivar_scale, outmask = solve_poly_ratio(
             wave, flux, ivar, flux_ref_int, ivar_ref_int, npoly,mask=mask, mask_ref=mask_ref_int,
             ref_percentile=ref_percentile, debug=debug)
@@ -2090,7 +2109,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
 
 
 def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
-             wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+             wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
              ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2114,9 +2133,10 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
         dv: float,
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact: float, default=1.0
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser).
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min: float, default=None
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max: float, default=None
@@ -2196,7 +2216,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks = masks, wave_method=wave_method, wave_grid_min=wave_grid_min,
-                                    wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
+                                    wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam,
+                                    spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
@@ -2218,7 +2239,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
-                   wave_method='linear', dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None,
+                   wave_method='linear', dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None,
                    wave_grid_max=None, ref_percentile=70.0, maxiter_scale=5,
                    sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
@@ -2250,9 +2271,10 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         dv (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact (float): optional
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser). Default=1.0
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min (float): optional
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional
@@ -2335,7 +2357,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
     wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
-        samp_fact=samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
+        spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
         sn_min_medscale=sn_min_medscale, sn_min_polyscale=sn_min_polyscale, sn_smooth_npix=sn_smooth_npix,
         const_weights=const_weights, maxiter_reject=maxiter_reject, sn_clip=sn_clip, lower=lower, upper=upper,
@@ -2351,12 +2373,12 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
 
 def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
-                 dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
+                 dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
-                 show_exp=False, show=False, verbose=False, extrap_sens=False):
+                 show_exp=False, show=False, verbose=False):
     """
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
@@ -2388,9 +2410,10 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
         v_pix (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact (float): optional, default=1.0
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser).
+        spec_samp_fact (float, optional):
+            Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this
+            sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units
+            spec_samp_fact are pixels.
         wave_grid_min (float): optional, default=None
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
         wave_grid_max (float): optional, default=None
@@ -2460,8 +2483,6 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
             Show interactive QA plots for the rescaling of the spectra so that the overlap regions match from order to order
         show: bool, default=False,
              Show key QA plots or not
-        extrap_sens (bool, optional):
-            If True, allow the sensitivity function to extrapolate (and ignore it)
 
     Returns:
         tuple: Returns the following:
@@ -2514,7 +2535,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     # Generate a giant wave_grid
     wave_grid, _, _ = get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                     wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max,
-                                    dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
+                                    dwave=dwave, dv=dv, dloglam=dloglam, spec_samp_fact=spec_samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
     rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
@@ -2523,7 +2544,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
     rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
     weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
-    weights_sens = sensfunc_weights(sensfile, waves, debug=debug, extrap_sens=extrap_sens)
+    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
     weights = weights_exp*weights_sens
     #
     # Old code below for ivar weights if the sensfile was not passed in
@@ -2660,7 +2681,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     ## Stack with an altnernative method: combine the stacked individual order spectra directly. This is deprecated
     merge_stack = False
     if merge_stack:
-        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug, extrap_sens=extrap_sens)
+        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
         wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
             wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
         if show_order_stacks:
@@ -2774,10 +2795,12 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     return wave_grid[ind_lower:ind_upper + 1]
 
 
-def get_spat_bins(thismask_stack, trace_stack):
+def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
-
-    ..todo.. Explain what this method does
+    Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
+    images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
+    in used of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
+    in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
 
     Parameters
     ----------
@@ -2787,6 +2810,9 @@ def get_spat_bins(thismask_stack, trace_stack):
     trace_stack : array of shape (nspec, nimgs)
         Array holding the stack of traces for each image in the stack. This is either the trace of the center of the slit
         or the trace of the object in question that we are stacking about.
+    spat_samp_fact (float, optional):
+        Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
+        will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
 
     Returns
     -------
@@ -2802,29 +2828,33 @@ def get_spat_bins(thismask_stack, trace_stack):
     # Create the slit_cen_stack and determine the minimum and maximum
     # spatial offsets that we need to cover to determine the spatial
     # bins
-    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
+    spat_img = np.repeat(np.arange(nspat)[np.newaxis,:], nspec, axis=0)
     dspat_stack = np.zeros_like(thismask_stack,dtype=float)
     spat_min = np.inf
     spat_max = -np.inf
     for img in range(nimgs):
         # center of the slit replicated spatially
-        slit_cen_img = np.outer(trace_stack[:, img], np.ones(nspat))
-        dspat_iexp = (spat_img - slit_cen_img)
+        slit_cen_img = np.repeat(trace_stack[:, img][:,np.newaxis], nspat, axis=1)
+        dspat_iexp = (spat_img - slit_cen_img)/spat_samp_fact
         dspat_stack[img, :, :] = dspat_iexp
         thismask_now = thismask_stack[img, :, :]
+        # Find the minimum and maximum relative spatial position in pixels that occurs on any of the images, as this
+        # is the domain that our stack needs to cover.
         spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
         spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
 
-    spat_min_int = int(np.floor(spat_min))
-    spat_max_int = int(np.ceil(spat_max))
-    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
-
+    spat_min_all = np.floor(spat_min)
+    spat_max_all = np.ceil(spat_max)
+    #nspat_pix = int(np.ceil((spat_max_all-spat_min_all + 1.0))
+    #dspat_bins = spat_min_all + spat_samp_fact*np.arange(nspat_pix)
+    dspat_bins = np.arange(spat_min_all, spat_max_all + 1.0, 1.0,dtype=float)
     return dspat_bins, dspat_stack
 
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, weights='uniform', interp_dspat=True):
+                    thismask_stack, waveimg_stack, wave_grid, spat_samp_fact=1.0,
+                    weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2878,6 +2908,10 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             correct size of the image stacks (see
             :func:`broadcast_weights`), as necessary.  Shape must be
             (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
+        spat_samp_fact (float, optional):
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
+            will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
+
         loglam_grid (`numpy.ndarray`_, optional):
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
@@ -2935,7 +2969,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # Determine the wavelength grid that we will use for the current slit/order
     wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack)
+    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack, spat_samp_fact=spat_samp_fact)
 
     sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
                 waveimg_stack, dspat_stack]
@@ -2958,7 +2992,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
     sciivar = utils.calc_ivar(var_list_out[0])
 
-    # Compute the midpoints vectors, and lower/upper bins of the rectified image
+    # Compute the midpoints vectors, and lower/upper bins of the rectified image in spectral and spatial directions
     wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
     wave_min = wave_bins[:-1]
     wave_max = wave_bins[1:]

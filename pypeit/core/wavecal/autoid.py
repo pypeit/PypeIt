@@ -7,7 +7,6 @@ import scipy
 from linetools import utils as ltu
 from astropy import table, stats
 import copy
-import numba as nb
 import numpy as np
 from IPython import embed
 
@@ -25,7 +24,6 @@ from pypeit.core import pca
 from pypeit import utils
 
 from pypeit import msgs
-#from pypeit import debugger
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -699,7 +697,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     # Determine the central wavelength and dispersion of wavelength arxiv
     for iarxiv in range(narxiv):
         wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
-        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[:,iarxiv] - np.roll(wave_soln_arxiv[:,iarxiv], 1))
+        igood = wave_soln_arxiv[:,iarxiv] > 1.0
+        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[igood,iarxiv] - np.roll(wave_soln_arxiv[igood,iarxiv], 1))
 
     marker_tuple = ('o','v','<','>','8','s','p','P','*','X','D','d','x')
     color_tuple = ('black','green','red','cyan','magenta','blue','darkorange','yellow','dodgerblue','purple','lightgreen','cornflowerblue')
@@ -2645,7 +2644,6 @@ class HolyGrail:
         return
 
 
-@nb.jit(nopython=True, cache=True)
 def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=1):
     """ A numba speedup of the results_kdtree function in the General class (see above).
     For all of the acceptable pattern matches, estimate the central wavelength and dispersion,
@@ -2687,11 +2685,11 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
     """
     # Assign wavelengths to each pixel
     ncols = len(res)
-    wvdisp = np.zeros(ncols, dtype=nb.types.float64)
-    wvcent = np.zeros(ncols, dtype=nb.types.float64)
-    dind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    lind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    Xmat = np.ones((nindx, ordfit+1), dtype=nb.types.float64)
+    wvdisp = np.zeros(ncols, dtype=float)
+    wvcent = np.zeros(ncols, dtype=float)
+    dind = np.zeros((ncols, nindx), dtype=np.uint64)
+    lind = np.zeros((ncols, nindx), dtype=np.uint64)
+    Xmat = np.ones((nindx, ordfit+1), dtype=float)
     for x in range(ncols):
         for ii in range(ordfit, -1, -1):
             Xmat[:, ii] = np.power(use_tcent[dindex[residx[x], :]], ordfit-ii)

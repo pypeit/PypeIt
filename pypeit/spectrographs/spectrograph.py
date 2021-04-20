@@ -141,7 +141,7 @@ class Spectrograph:
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
@@ -182,7 +182,7 @@ class Spectrograph:
         gain = np.atleast_1d(detector_par['gain']) if apply_gain \
                 else np.ones(len(detector_par['gain']), dtype=float)
         return detector_par['saturation'] * detector_par['nonlinear'] \
-                * (np.mean(gain) if datasec_img is None 
+                * (np.mean(gain) if datasec_img is None
                    else procimg.gain_frame(datasec_img, gain.tolist()))
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -568,7 +568,7 @@ class Spectrograph:
         data, instead of simply reading the value of a header card.
 
         Method is undefined in this base class.
-       
+
         Args:
             headarr (:obj:`list`):
                 List of `astropy.io.fits.Header`_ objects.
@@ -889,7 +889,7 @@ class Spectrograph:
                 header will be extracted and returned as a WCS.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit traces.
-            platescale (:obj:`float`): 
+            platescale (:obj:`float`):
                 The platescale of an unbinned pixel in arcsec/pixel (e.g.
                 detector.platescale).
             wave0 (:obj:`float`):
@@ -908,7 +908,7 @@ class Spectrograph:
         Calculate the bin edges to be used when making a datacube.
 
         Args:
-            slitlength (:obj:`int`): 
+            slitlength (:obj:`int`):
                 Length of the slit in pixels
             minmax (`numpy.ndarray`_):
                 An array with the minimum and maximum pixel locations on each
@@ -916,7 +916,7 @@ class Spectrograph:
                 of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
                 typically the array returned by
                 :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
-            num_wave (:obj:`int`): 
+            num_wave (:obj:`int`):
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 
@@ -1176,45 +1176,77 @@ class Spectrograph:
                 iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
             return self.spec_min_max[:, iorder]/binspectral
 
-    # TODO: Can someone correct the docstring here?
-    def wavegrid(self, binning=None, midpoint=False, samp_fact=1.0):
-        r"""
-        Construct a fixed wavelength grid in :math:`\log_{10} \lambda`. This
-        method is mostly used for echelle spectrographs.
-
-        This is primarily a wrapper for
-        :func:`pypeit.core.wavecal.wvutils.wavegrid`.
-
-        Args:
-            binning (:obj:`str`, optional):
-                String representation of the spectral and spatial binning. If
-                None, assumed to be ``'1,1'``.
-            midpoint (:obj:`bool`, optional):
-                Increment the grid to the spectral mid-point.
-            samp_fact (:obj:`float`, optional):
-
-                The pixel-sampling factor. If 1., the spectra are sampled by
-                the logarithmic step associated with a single binned pixel
-                (:attr:`dloglam`).
-
-        Returns:
-            `numpy.ndarray`_: The logarithmically sampled wavelength grid;
-            grid points are in wavelength, *not* ``log10(wavelength)``.
+    # TODO: Shold this be a class method?
+    def parse_dither_pattern(self, file_list, ext=None):
         """
-        binspectral, binspatial = parse.parse_binning(binning)
-        logmin, logmax = self.loglam_minmax
-        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral,
-                                       samp_fact=samp_fact)
-        if midpoint:
-            loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
+        Parse headers from a file list to determine the dither pattern.
 
-        return np.power(10.0,loglam_grid)
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        pass
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
+
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (astropy.table)
+            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+            for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
+
+        """
+        return wave_in, counts_in, counts_ivar_in, gpm_in
+
+
 
     def __repr__(self):
         """Return a string representation of the instance."""
         txt = '<{:s}: '.format(self.__class__.__name__)
         txt += ' spectrograph={:s},'.format(self.name)
         txt += ' telescope={:s},'.format(self.telescope['name'])
+        txt += ' pypeline={:s},'.format(self.pypeline)
         txt += '>'
         return txt
 

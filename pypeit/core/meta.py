@@ -50,7 +50,8 @@ def convert_radec(ra, dec):
     else:
         return ra, dec
 
-
+# TODO JFH define_core_meta and define_additional_meta should be moved to the spectrograph.py modules, or added there as
+# methods. It is easier to understand all the meta tools if their definitions are all in one place.
 def define_core_meta():
     """
     Define the core set of meta data that must be defined
@@ -139,6 +140,7 @@ def define_additional_meta(nlamps=20):
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'pressure': dict(dtype=float, comment='Pressure at obstime'),
+                       'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'temperature': dict(dtype=float, comment='Temperature at obstime'),
                        'utc': dict(dtype=str, comment='UTC of observation')}

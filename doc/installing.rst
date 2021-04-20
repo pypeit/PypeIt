@@ -70,7 +70,7 @@ in which to install ``PypeIt`` so that possible dependency conflicts can be avoi
 
 or via ``conda``:
 
-        conda create -n pypeit
+        conda create -n pypeit python=3.8
         conda activate pypeit
 
 See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_ and/or `Managing Environments with Conda
@@ -153,18 +153,31 @@ Developer Install from Source
 Developers doing code development will likely want to set up an "editable" install that points to a locally checked out
 copy of the GitHub repository. It is highly recommened to use ``pip`` for this as well so that the dependencies can be managed.
 It is also recommended to install all optional dependencies within the environment used for ``PypeIt`` development. First,
-clone the repository:
+we highly recommend setting up a clean environment in which to install ``PypeIt`` to avoid conflicts, as described
+above. Using ``conda`` you would execute the commands::
+
+        conda create -n pypeit python=3.8
+        conda activate pypeit
+
+Second, clone the repository::
 
         git clone https://github.com/pypeit/PypeIt.git
 
-Then perform the install, preferably in a clean environment:
+Then perform the install, by entering the PypeIt directory and running the installation script via pip::
 
         cd PypeIt
-        pip install -e ".[dev]"
+        pip install -e ".[dev,pyqt5]"
 
 An "editable" install means that any changes you make in that code tree will become immediately available the next
 time the code is imported. Including the ``[dev]`` set of optional dependencies ensures that all of the tools you
-need to test and build ``PypeIt`` are installed.
+need to test and build ``PypeIt`` are installed. The ``pyqt5`` intructs the script to use the PyQt5 Qt backend. (Note that
+you may or may not need the quotes above depending on your shell, and that you should avoid cutting and pasting these
+commands since the quotation marks may not paste correctly). Finally, you may want to add::
+
+        conda activate pypeit
+
+to your .bashrc or .tcshrc in order to activate thge pypeit python environment when you launch a shell via the terminal.
+Otherwise you will need to always type this command at the terminal prompt to activate the pypeit environment.
 
 If any of this fails, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.

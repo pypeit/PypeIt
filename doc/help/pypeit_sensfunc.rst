@@ -2,7 +2,7 @@
 
     $ pypeit_sensfunc -h
     usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI]
-                           [-o OUTFILE] [-s SENS_FILE] [--debug] [--debug_init]
+                           [-o OUTFILE] [-s SENS_FILE] [--debug]
                            [--par_outfile PAR_OUTFILE]
                            spec1dfile
     

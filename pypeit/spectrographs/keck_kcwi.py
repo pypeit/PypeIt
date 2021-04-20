@@ -489,7 +489,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading KCWI file: {:s}".format(fil[0]))
         hdu = io.fits_open(fil[0])
-        detpar = self.get_detector_par(hdu, det if det is None else 1)
+        detpar = self.get_detector_par(hdu, det if det is not None else 1)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
 

@@ -4,7 +4,7 @@ files.
 
 .. include:: ../include/links.rst
 """
-
+import os
 import glob
 import re
 import warnings
@@ -207,9 +207,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -245,7 +244,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn on the use of mask design
-        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+        if ('Long' not in self.get_meta_value(headarr, 'decker')) and (
+                'LVMslit' not in self.get_meta_value(headarr, 'decker')):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
