@@ -230,7 +230,7 @@ Flatfield
 The code produces flat field images for correcting
 pixel-to-pixel variations and illumination of the detector.
 
-Here is a screen shot from the first tab in the *ginga*
+Here is a zoom-in screen shot from the first tab in the *ginga*
 window (pixflat_norm) after using
 :ref:`pypeit_chk_flats`, with this explicit call::
 
@@ -242,8 +242,8 @@ One notes the pixel-to-pixel variations;  these are
 at the percent level.
 The slit edges defined by the code
 are also plotted (green/red lines).
-The region of the detector beyond these images
-has been set to unit value.
+The regions of the detector beyond the slit
+boundaries have been set to unit value.
 
 See :doc:`master_flat` for further details.
 
@@ -256,6 +256,16 @@ and science frame, located in the *Science/* folder.
 
 Spec2D
 ++++++
+
+Slit inspection
+===============
+
+It is frequently useful to view a summary of the slits
+successfully reduced by PypeIt.  The
+:ref:`pypeit_chk_2dslits`, with this explicit call::
+
+Visual inspection
+=================
 
 Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det01) after using
