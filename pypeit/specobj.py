@@ -213,6 +213,7 @@ class SpecObj(datamodel.DataContainer):
         self.smash_nsig = None
 
         # Hand
+        self.hand_extract_flag = False
         self.hand_extract_spec = None
         self.hand_extract_spat = None
         self.hand_extract_det = None
