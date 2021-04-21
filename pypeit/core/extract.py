@@ -1794,8 +1794,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
         use_user_fwhm: bool, default = False
-            Boolean indicating if PypeIt should use the fwm provided by the user
-            not (i.e., determine the fwhm form the flux profile)
+            If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
+            rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm.
         hand_extract_dict (dict, optional):
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace

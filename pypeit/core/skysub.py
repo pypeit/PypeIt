@@ -959,8 +959,9 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         sigrej:
         bkpts_optimal:
         force_gauss: bool, default = False
-            Boolean indicating if a Gaussian profile should be assumed for the
-            optical extraction.
+            If True, a Gaussian profile will always be assumed for the
+            optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
+            profile.
         sn_gauss:
         model_full_slit:
         model_noise:
