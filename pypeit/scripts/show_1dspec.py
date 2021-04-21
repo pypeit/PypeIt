@@ -76,7 +76,7 @@ def main(args):
     scale = 2. * (width/3200.)
 
     # Launch
-    gui = XSpecGui(spec, screen_scale=scale)
+    gui = XSpecGui(spec)#, screen_scale=scale)
     gui.show()
     app.exec_()
 

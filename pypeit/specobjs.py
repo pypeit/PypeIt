@@ -45,6 +45,9 @@ class SpecObjs:
     """
     version = '1.0.0'
 
+    #TODO JFH This method only populates some of the underlying specobj attributes, for example RA and DEC are not
+    # getting set. We should do our best to populate everything that got written out to the file. This is part of having
+    # a rigid data model.
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
@@ -212,6 +215,7 @@ class SpecObjs:
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
+        meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
@@ -629,7 +633,7 @@ class SpecObjs:
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
-            import pdb; pdb.set_trace()
+            embed()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
@@ -659,9 +663,7 @@ class SpecObjs:
             if specobj is None:
                 continue
             # Detector items
-            #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
             binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
-            #platescale = sci_dict[det]['detector'].platescale
             platescale = specobj.DETECTOR.platescale
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)

@@ -4,7 +4,7 @@ files.
 
 .. include:: ../include/links.rst
 """
-
+import os
 import glob
 import re
 import warnings
@@ -207,9 +207,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

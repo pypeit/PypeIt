@@ -284,7 +284,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.masks,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
-            samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
+            spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
             sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
@@ -320,11 +320,11 @@ class EchelleCoAdd1D(CoAdd1D):
         (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = coadd.ech_combspec(
             self.waves, self.fluxes, self.ivars, self.masks, self.sensfile,
             nbest=self.par['nbest'], sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
-            samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
+            spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
             sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug = self.debug, show = self.show, extrap_sens=self.par['extrap_sens'])
+            debug = self.debug, show = self.show)
 
         return wave_coadd, flux_coadd, ivar_coadd, mask_coadd

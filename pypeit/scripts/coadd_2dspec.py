@@ -41,8 +41,12 @@ def parse_args(options=None, return_parser=False):
                         help="Show the peaks found by the object finding algorithm.")
     parser.add_argument("--basename", type=str, default=None,
                         help="Basename of files to save the parameters, spec1d, and spec2d")
-    parser.add_argument('--samp_fact', default=1.0, type=float,
-                        help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument('--spec_samp_fact', default=1.0, type=float,
+                        help="Make the wavelength grid finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spec_samp_fact are pixels.")
+    parser.add_argument('--spat_samp_fact', default=1.0, type=float,
+                        help="Make the spatial grid finer (spat_samp_fact < 1.0) or coarser (spat_samp_fact > 1.0) by "
+                             "this sampling factor, i.e. units of spat_samp_fact are pixels.")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
     # TODO implement an option to only do certian slits
@@ -110,8 +114,13 @@ def main(args):
 
     head2d = fits.getheader(spec2d_files[0])
     if args.basename is None:
-        filename = os.path.basename(spec2d_files[0])
-        basename = filename.split('_')[2]
+        #TODO Fix this, currently does not work if target names have - or _
+        filename_first = os.path.basename(spec2d_files[0])
+        filename_last = os.path.basename(spec2d_files[-1])
+        prefix_first = (filename_first.split('_')[1]).split('-')[0]
+        prefix_last = (filename_last.split('_')[1]).split('-')[0]
+        objname = (filename_first.split('-')[1]).split('_')[0]
+        basename = '{:s}-{:s}-{:s}'.format(prefix_first,prefix_last,objname)
     else:
         basename = args.basename
 
@@ -123,11 +132,14 @@ def main(args):
     # Now run the coadds
 
     skysub_mode = head2d['SKYSUB']
+    findobj_mode = head2d['FINDOBJ']
     ir_redux = True if 'DIFF' in skysub_mode else False
+    find_negative = True if 'NEG' in findobj_mode else False
 
     # Print status message
     msgs_string = 'Reducing target {:s}'.format(basename) + msgs.newline()
-    msgs_string += 'Performing coadd of frames reduce with {:s} imaging'.format(skysub_mode)
+    msgs_string += 'Coadding frame sky-subtraced with {:s}'.format(skysub_mode)
+    msgs_string += 'Searching for objects that are {:s}'.format(findobj_mode)
     msgs_string += msgs.newline() + 'Combining frames in 2d coadd:' + msgs.newline()
     for file in spec2d_files:
         msgs_string += '{0:s}'.format(os.path.basename(file)) + msgs.newline()
@@ -148,6 +160,8 @@ def main(args):
     sci_dict['meta'] = {}
     sci_dict['meta']['vel_corr'] = 0.
     sci_dict['meta']['ir_redux'] = ir_redux
+    sci_dict['meta']['find_negative'] = find_negative
+
 
     # Find the detectors to reduce
     detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
@@ -164,10 +178,11 @@ def main(args):
         coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
                                              offsets=parset['coadd2d']['offsets'],
                                              weights=parset['coadd2d']['weights'],
-                                             ir_redux=ir_redux,
-                                             debug_offsets=args.debug_offsets, debug=args.debug,
-                                             samp_fact=args.samp_fact)
+                                             spec_samp_fact=args.spec_samp_fact, spat_samp_fact=args.spat_samp_fact,
+                                             ir_redux=ir_redux, find_negative=find_negative,
+                                             debug_offsets=args.debug_offsets, debug=args.debug)
 
+        # TODO Add this stuff to a run method in coadd2d
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
         # Create the pseudo images
@@ -209,6 +224,7 @@ def main(args):
     # TODO -- These lines should be above once reduce() passes back something sensible
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = ir_redux
+    all_spec2d['meta']['find_negative'] = find_negative
     for det in detectors:
         all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
                                               sciimg=sci_dict[det]['sciimg'],

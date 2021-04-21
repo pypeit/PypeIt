@@ -187,6 +187,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     ythis[isrt] = yfit
     sky_frame[thismask] = ythis
 
+
     #skyset.funcname ='legendre'
     #skyset.xmin = spat_min
     #skyset.xmax = spat_max
@@ -204,7 +205,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], pix,yfit)
         plt.clf()
         ax = plt.gca()
-        was_fit_and_masked = inmask_fit & ~outmask
+        was_fit_and_masked = inmask_fit & np.logical_not(outmask)
         ax.plot(pix[inmask_fit], sky[inmask_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
         ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(pix, yfit, color='cornflowerblue')

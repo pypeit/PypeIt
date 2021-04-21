@@ -3,6 +3,7 @@ Module for Gemini FLAMINGOS.
 
 .. include:: ../include/links.rst
 """
+import os
 from pkg_resources import resource_filename
 
 from IPython import embed
@@ -144,8 +145,8 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['sensfunc']['polyorder'] = 8
         # TODO: replace the telluric grid file for Gemini-S site.
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
 

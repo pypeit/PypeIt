@@ -891,7 +891,6 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
             calib_ID = int(fitstbl['calib'][frames[0]])
-
             # Arc, tilt, science
             for ftype in ['arc', 'tilt', 'science', 'trace']:
                 rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)

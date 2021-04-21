@@ -49,7 +49,6 @@ def embed_header():
     info = inspect.getframeinfo(inspect.stack()[1][0])
     return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
 
-
 # Pulled from `pypeit.par.ParSet`. Maybe move these to
 # doc/scripts/util.py?
 def to_string(data, use_repr=True, verbatim=False):
@@ -167,7 +166,7 @@ def spec_atleast_2d(wave, flux, ivar, mask):
 def nan_mad_std(data, axis=None, func=None):
     """
 
-    Wrapper for astropy.stats.mad_stad which ignores nans, so as to
+    Wrapper for astropy.stats.mad_std which ignores nans, so as to
     prevent bugs when using sigma_clipped_stats with the axis keyword
     and stdfunc=astropy.stats.mad_std
 
@@ -868,166 +867,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
 
-def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
-                    lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
-                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
-                    verbose=False,
-                    **kwargs_optimizer):
-    """
-    A routine to perform robust optimization. It is completely analogous
-    to :func:`robust_polyfit_djs`, but is more general in that it allows
-    one to fit a more general model using the optimizer of the users
-    choice. If you are fitting simple functions like Chebyshev or
-    Legednre polynomials using a linear least-squares algorithm, you
-    should use :func:robust_polyfit_djs` instead of this function.
-
-    Args:
-        ydata (`numpy.ndarray`_):
-            Data to fit.
-        fitfunc (callable):
-            The callable object used to perform the fitting.  The
-            calling sequence must be::
-
-                ret_tuple = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
-
-            See the descriptions of `ydata`, `inmask`, `arg_dict`, and
-            `kwargs_optimizer`.  The returned object ret_tuple that can
-            have two or three elements.  If it has two elements (result,
-            ymodel):
-
-                - `result`: Object returned by the specific
-                  scipy.optimize method used to perform the fit.
-                - `ymodel`: A `numpy.ndarray` with the model fit to
-                  `ydata` and with the same shape.
-
-            If it has three elements (result, ymodel, newivar):
-
-                - `newivar`: new inverse variance for the ydata ymodel
-                  comparison, in other words chi = (ydata -
-                  ymodel)*np.sqrt(newivar). This functionality allows
-                  one to deal with cases where the noise of the
-                  data-model comaprison is model dependent.
-
-        arg_dict (:obj:`dict`):
-            Dictionary containing the other variables needed to evaluate
-            the model fit.
-        maxiter (:obj:`int`, optional):
-            Maximum number of rejection iterations.  Set this to zero to
-            disable rejection and simply do a fit.
-        inmask (`numpy.ndarray`_, optional):
-            Input mask.  Bad points are marked with a value that
-            evaluates to `False`.  Must have the same number of
-            dimensions as `ydata`.  Points masked as `False` in `inmask`
-            will also always evaluate to `False` in the output mask.
-        invvar (:obj:`float`, `numpy.ndarray`_, optional):
-            Inverse variance of the data, used to reject points based on
-            the values of `upper` and `lower`.  This can either be a
-            single float for the entire yarray or a ndarray with the
-            same shape as the yarray.
-        lower (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with ``data < model - lower * sigma``, where
-            ``sigma = 1/sqrt(invvar)``
-        upper (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with ``data > model + upper * sigma``, where
-            ``sigma = 1/sqrt(invvar)``.
-        maxdev (:obj:`int` or :class:`float`, optional):
-            If set, reject points with ``abs(data-model) > maxdev``.  It
-            is permitted to set all three of `lower`, `upper` and
-            `maxdev`.
-        maxrej (:obj:`int`, `numpy.ndarray`_, optional):
-            Maximum number of points to reject in this iteration.  If
-            `groupsize` or `groupdim` are set to arrays, this should be
-            an array, as well.
-        groupdim (:obj:`int`, optional):
-            Dimension along which to group the data. Set to 1 to group
-            along the 1st dimension, 2 for the 2nd dimension, etc.  For
-            example, if data has shape [100,200], then setting
-            `groupdim=2` is equivalent to grouping the data with
-            `groupsize=100`.  In either case, there are 200 groups,
-            specified by `[*,i]`.  This functionality is **not well
-            tested in python**!
-        groupsize (:obj:`int`, optional):
-            If this and `maxrej` are set, then reject a maximum of
-            `maxrej` points per group of `groupsize` points.  If
-            `groupdim` is also set, then this specifies sub-groups
-            within that.  This functionality is **not well tested in
-            python**!
-        groupbadpix (:obj:`bool`, optional):
-            If `True`, consecutive sets of bad pixels are considered
-            groups, overriding the values of `groupsize`.
-        grow (:obj:`int`, optional):
-            If set to a non-zero integer, N, the N nearest neighbors of
-            rejected pixels will also be rejected.
-        sticky (:obj:`bool`, optional):
-            If `True`, pixels rejected in one iteration remain rejected
-            in subsequent iterations, even if the model changes.
-        use_mad (:obj:`bool`, optional):
-            It `True`, compute the median of the maximum absolute
-            deviation between the data and use this for the rejection
-            instead of the default, which is to compute the standard
-            deviation of `ydata - modelfit`. Note that it is not
-            possible to specify `use_mad=True` and also pass in a value for
-            `invvar`, and the code will return an error if this is done.
-        **kwargs_optimizer:
-            Optional parameters passed to the optimizer.
-
-    Returns:
-        Three objects are returned:
-            - The object returned by the `scipy.optimize` function used
-              by the fitter.  See `fitfunc`.
-            - A `numpy.ndarray`_ with the model value fit to `ydata` and
-              has its same shape.
-            - Boolean `numpy.ndarray`_ with the same shape as data
-              indicating which pixels were masked in the final fit.
-              Convention is that `True` are good values where `False`
-              indicates bad values.
-
-    """
-    # Setup the initial mask
-    if inmask is None:
-        inmask = np.ones(ydata.size, dtype=bool)
-
-    nin_good = np.sum(inmask)
-    iter = 0
-    qdone = False
-    thismask = np.copy(inmask)
-
-    while (not qdone) and (iter < maxiter):
-        ret_tuple = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
-        if (len(ret_tuple) == 2):
-            result, ymodel = ret_tuple
-            invvar_use = invvar
-        elif (len(ret_tuple) == 3):
-            result, ymodel, invvar_use = ret_tuple
-        else:
-            msgs.error('Invalid return value from fitfunc')
-
-        thismask_iter = thismask.copy()
-        thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar_use,
-                                          lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
-                                          groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
-                                          use_mad=use_mad, sticky=sticky)
-        nrej = np.sum(thismask_iter & np.invert(thismask))
-        nrej_tot = np.sum(inmask & np.invert(thismask))
-        if verbose:
-            msgs.info(
-                'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
-                'total pixels'.format(iter, nrej, nrej_tot, nin_good))
-        iter += 1
-
-    if (iter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
-    outmask = np.copy(thismask)
-    if np.sum(outmask) == 0:
-        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
-
-    # Perform a final fit using the final outmask if new pixels were rejected on the last iteration
-    if qdone is False:
-        ret_tuple = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
-
-    return ret_tuple + (outmask,)
-
-    #return result, ymodel, outmask
 
 def subsample(frame):
     """
@@ -1182,3 +1021,247 @@ def load_pickle(fname):
     msgs.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
+
+
+##
+##This code was originally published by the following individuals for use with
+##Scilab:
+##    Copyright (C) 2012 - 2013 - Michael Baudin
+##    Copyright (C) 2012 - Maria Christopoulou
+##    Copyright (C) 2010 - 2011 - INRIA - Michael Baudin
+##    Copyright (C) 2009 - Yann Collette
+##    Copyright (C) 2009 - CEA - Jean-Marc Martinez
+
+##   website: forge.scilab.org/index.php/p/scidoe/sourcetree/master/macros
+##Much thanks goes to these individuals. It has been converted to Python by
+##Abraham Lee.
+##"
+
+## Python version taken from https://pythonhosted.org/pyDOE/randomized.html by JFH
+
+def lhs(n, samples=None, criterion=None, iterations=None):
+    """
+    Generate a latin-hypercube design
+
+    Parameters
+    ----------
+    n : int
+        The number of factors to generate samples for
+
+    Optional
+    --------
+    samples : int
+        The number of samples to generate for each factor (Default: n)
+    criterion : str
+        Allowable values are "center" or "c", "maximin" or "m",
+        "centermaximin" or "cm", and "correlation" or "corr". If no value
+        given, the design is simply randomized.
+    iterations : int
+        The number of iterations in the maximin and correlations algorithms
+        (Default: 5).
+
+    Returns
+    -------
+    H : 2d-array
+        An n-by-samples design matrix that has been normalized so factor values
+        are uniformly spaced between zero and one.
+
+    Example
+    -------
+    A 3-factor design (defaults to 3 samples)::
+
+        >>> lhs(3)
+        array([[ 0.40069325,  0.08118402,  0.69763298],
+               [ 0.19524568,  0.41383587,  0.29947106],
+               [ 0.85341601,  0.75460699,  0.360024  ]])
+
+    A 4-factor design with 6 samples::
+
+        >>> lhs(4, samples=6)
+        array([[ 0.27226812,  0.02811327,  0.62792445,  0.91988196],
+               [ 0.76945538,  0.43501682,  0.01107457,  0.09583358],
+               [ 0.45702981,  0.76073773,  0.90245401,  0.18773015],
+               [ 0.99342115,  0.85814198,  0.16996665,  0.65069309],
+               [ 0.63092013,  0.22148567,  0.33616859,  0.36332478],
+               [ 0.05276917,  0.5819198 ,  0.67194243,  0.78703262]])
+
+    A 2-factor design with 5 centered samples::
+
+        >>> lhs(2, samples=5, criterion='center')
+        array([[ 0.3,  0.5],
+               [ 0.7,  0.9],
+               [ 0.1,  0.3],
+               [ 0.9,  0.1],
+               [ 0.5,  0.7]])
+
+    A 3-factor design with 4 samples where the minimum distance between
+    all samples has been maximized::
+
+        >>> lhs(3, samples=4, criterion='maximin')
+        array([[ 0.02642564,  0.55576963,  0.50261649],
+               [ 0.51606589,  0.88933259,  0.34040838],
+               [ 0.98431735,  0.0380364 ,  0.01621717],
+               [ 0.40414671,  0.33339132,  0.84845707]])
+
+    A 4-factor design with 5 samples where the samples are as uncorrelated
+    as possible (within 10 iterations)::
+
+        >>> lhs(4, samples=5, criterion='correlate', iterations=10)
+
+    """
+    H = None
+
+    if samples is None:
+        samples = n
+
+    if criterion is not None:
+        assert criterion.lower() in ('center', 'c', 'maximin', 'm',
+                                     'centermaximin', 'cm', 'correlation',
+                                     'corr'), 'Invalid value for "criterion": {}'.format(criterion)
+    else:
+        H = _lhsclassic(n, samples)
+
+    if criterion is None:
+        criterion = 'center'
+
+    if iterations is None:
+        iterations = 5
+
+    if H is None:
+        if criterion.lower() in ('center', 'c'):
+            H = _lhscentered(n, samples)
+        elif criterion.lower() in ('maximin', 'm'):
+            H = _lhsmaximin(n, samples, iterations, 'maximin')
+        elif criterion.lower() in ('centermaximin', 'cm'):
+            H = _lhsmaximin(n, samples, iterations, 'centermaximin')
+        elif criterion.lower() in ('correlate', 'corr'):
+            H = _lhscorrelate(n, samples, iterations)
+
+    return H
+
+################################################################################
+
+def _lhsclassic(n, samples):
+    # Generate the intervals
+    cut = np.linspace(0, 1, samples + 1)
+
+    # Fill points uniformly in each interval
+    u = np.random.rand(samples, n)
+    a = cut[:samples]
+    b = cut[1:samples + 1]
+    rdpoints = np.zeros_like(u)
+    for j in range(n):
+        rdpoints[:, j] = u[:, j ] *( b -a) + a
+
+    # Make the random pairings
+    H = np.zeros_like(rdpoints)
+    for j in range(n):
+        order = np.random.permutation(range(samples))
+        H[:, j] = rdpoints[order, j]
+
+    return H
+
+################################################################################
+
+def _lhscentered(n, samples):
+    # Generate the intervals
+    cut = np.linspace(0, 1, samples + 1)
+
+    # Fill points uniformly in each interval
+    u = np.random.rand(samples, n)
+    a = cut[:samples]
+    b = cut[1:samples + 1]
+    _center = (a + b ) /2
+
+    # Make the random pairings
+    H = np.zeros_like(u)
+    for j in range(n):
+        H[:, j] = np.random.permutation(_center)
+
+    return H
+
+################################################################################
+
+def _lhsmaximin(n, samples, iterations, lhstype):
+    maxdist = 0
+
+    # Maximize the minimum distance between points
+    for i in range(iterations):
+        if lhstype=='maximin':
+            Hcandidate = _lhsclassic(n, samples)
+        else:
+            Hcandidate = _lhscentered(n, samples)
+
+        d = _pdist(Hcandidate)
+        if maxdist <np.min(d):
+            maxdist = np.min(d)
+            H = Hcandidate.copy()
+
+    return H
+
+################################################################################
+
+def _lhscorrelate(n, samples, iterations):
+    mincorr = np.inf
+
+    # Minimize the components correlation coefficients
+    for i in range(iterations):
+        # Generate a random LHS
+        Hcandidate = _lhsclassic(n, samples)
+        R = np.corrcoef(Hcandidate)
+        if np.max(np.abs(R[ R!=1]) ) <mincorr:
+            mincorr = np.max(np.abs( R -np.eye(R.shape[0])))
+            print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
+            H = Hcandidate.copy()
+
+    return H
+
+################################################################################
+
+def _pdist(x):
+    """
+    Calculate the pair-wise point distances of a matrix
+
+    Parameters
+    ----------
+    x : 2d-array
+        An m-by-n array of scalars, where there are m points in n dimensions.
+
+    Returns
+    -------
+    d : array
+        A 1-by-b array of scalars, where b = m*(m - 1)/2. This array contains
+        all the pair-wise point distances, arranged in the order (1, 0),
+        (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).
+
+    Examples
+    --------
+    ::
+
+        >>> x = np.array([[0.1629447, 0.8616334],
+        ...               [0.5811584, 0.3826752],
+        ...               [0.2270954, 0.4442068],
+        ...               [0.7670017, 0.7264718],
+        ...               [0.8253975, 0.1937736]])
+        >>> _pdist(x)
+        array([ 0.6358488,  0.4223272,  0.6189940,  0.9406808,  0.3593699,
+                0.3908118,  0.3087661,  0.6092392,  0.6486001,  0.5358894])
+
+    """
+
+    x = np.atleast_2d(x)
+    assert len(x.shape )==2, 'Input array must be 2d-dimensional'
+
+    m, n = x.shape
+    if m< 2:
+        return []
+
+    d = []
+    for i in range(m - 1):
+        for j in range(i + 1, m):
+            d.append((sum((x[j, :] - x[i, :]) ** 2)) ** 0.5)
+
+    return np.array(d)
+
+
+

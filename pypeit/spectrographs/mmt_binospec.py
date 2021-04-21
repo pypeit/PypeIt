@@ -3,6 +3,7 @@ Module for MMT/BINOSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -178,8 +179,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
