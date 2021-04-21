@@ -12,6 +12,7 @@ import numpy as np
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import specobj
@@ -527,7 +528,7 @@ class SpecObjs:
         return len(self.specobjs)
 
     def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
-                      slitspatnum=None, debug=False):
+                      slitspatnum=None, history=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -571,7 +572,12 @@ class SpecObjs:
         # Build up the Header
         header = io.initialize_header(primary=True)
         for key in subheader.keys():
-            header[key.upper()] = subheader[key]
+            if key.upper() == 'HISTORY':
+                if history is None:
+                    for line in str(subheader[key.upper()]).split('\n'):
+                        header[key.upper()] = line
+            else:
+                header[key.upper()] = subheader[key]
 
         # Init
         prihdu = fits.PrimaryHDU()
@@ -581,6 +587,10 @@ class SpecObjs:
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
         prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
+
+        # Add history
+        if history is not None:
+            history.write_to_header(prihdu.header)
 
         detector_hdus = {}
         nspec, ext = 0, 0

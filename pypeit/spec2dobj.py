@@ -322,7 +322,7 @@ class AllSpec2DObj(object):
         return self.__dict__[item]
 
     def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
-                          redux_path=None, subheader=None):
+                          redux_path=None, subheader=None, history=None):
         """
         Build the primary header for a spec2d file
 
@@ -354,10 +354,8 @@ class AllSpec2DObj(object):
             # Update unused ones
             hdr[key] = raw_header[key]
         # History
-        if 'HISTORY' in raw_header.keys():
-            # Strip \n
-            tmp = str(raw_header['HISTORY']).replace('\n', ' ')
-            hdr.add_history(str(tmp))
+        if history is not None:
+            history.write_to_header(hdr)
 
         # Sub-header
         if subheader is not None:

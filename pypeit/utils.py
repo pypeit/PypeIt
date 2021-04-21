@@ -1022,7 +1022,6 @@ def load_pickle(fname):
     with open(fname, 'rb') as f:
         return pickle.load(f)
 
-
 ##
 ##This code was originally published by the following individuals for use with
 ##Scilab:
@@ -1264,4 +1263,13 @@ def _pdist(x):
     return np.array(d)
 
 
+def is_float(s):
+    """
+    Detertmine if a string can be converted to a floating point number.
+    """
+    try:
+        float(s)
+    except:
+        return False
 
+    return True
