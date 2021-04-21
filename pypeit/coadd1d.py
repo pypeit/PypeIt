@@ -13,6 +13,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy.time import Time
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
@@ -20,7 +21,7 @@ from pypeit import msgs
 from pypeit.core import coadd, flux_calib
 from pypeit import datamodel
 from pypeit import io
-
+from pypeit.history import History
 
 class OneSpec(datamodel.DataContainer):
     """
@@ -93,8 +94,9 @@ class OneSpec(datamodel.DataContainer):
         self.filename = None
         self.spectrograph = None
         self.spect_meta = None
+        self.history = []
 
-    def to_file(self, ofile, primary_hdr=None, **kwargs):
+    def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
         """
         Over-load :func:`pypeit.datamodel.DataContainer.to_file`
         to deal with the header
@@ -110,12 +112,18 @@ class OneSpec(datamodel.DataContainer):
         # Build the header
         if self.head0 is not None and self.PYP_SPEC is not None:
             spectrograph = load_spectrograph(self.PYP_SPEC)
-            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
+            subheader = spectrograph.subheader_for_spec(self.head0, self.head0,
+                                                        extra_header_cards = ['RA_OBJ', 'DEC_OBJ'])
         else:
             subheader = {}
         # Add em in
         for key in subheader:
             primary_hdr[key] = subheader[key]
+
+        # Add history
+        if history is not None:
+            history.write_to_header(primary_hdr)
+
         # Do it
         super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
                                      **kwargs)
@@ -208,6 +216,9 @@ class CoAdd1D(object):
                 ivars = np.zeros_like(waves)
                 masks = np.zeros_like(waves, dtype=bool)
                 header_out = header
+                if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
+                    header_out['RA_OBJ']  = sobjs[indx][0]['RA']
+                    header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
             waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], masks[...,iexp] = wave_iexp, flux_iexp, ivar_iexp, mask_iexp
 
@@ -235,7 +246,11 @@ class CoAdd1D(object):
                           mask=self.mask_coadd[wave_mask].astype(int),
                           ext_mode=self.par['ex_value'],
                           fluxed=self.par['flux_value'])
-        onespec.head0 = fits.getheader(self.spec1dfiles[0])
+        onespec.head0 = self.header
+
+        # Add history entries for coadding.
+        history = History()
+        history.add_coadd1d(self.spec1dfiles, self.objids)
 
         # Add on others
         if telluric is not None:
@@ -243,7 +258,7 @@ class CoAdd1D(object):
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_mask]
         # Write
-        onespec.to_file(coaddfile, overwrite=overwrite)
+        onespec.to_file(coaddfile, history = history, overwrite=overwrite)
 
     def coadd(self):
         """

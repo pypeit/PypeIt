@@ -11,6 +11,8 @@ import numpy as np
 import copy
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -21,6 +23,8 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
+from pypeit import io
+from pypeit.history import History
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -317,9 +321,15 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
+                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -347,12 +357,19 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -692,7 +709,7 @@ class PypeIt(object):
         # Return
         return spec2DObj, sobjs
 
-    def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
+    def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
         """
         Save the outputs from extraction for a given exposure
 
@@ -706,7 +723,8 @@ class PypeIt(object):
                 extraction
             basename (:obj:`str`):
                 The root name for the output file.
-
+            history (:obj:`pypeit.history.History`):
+                History entries to be added to fits header
         Returns:
             None or SpecObjs:  All of the objects saved to disk
 
@@ -730,7 +748,8 @@ class PypeIt(object):
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
-                                       slitspatnum=self.par['rdx']['slitspatnum'])
+                                       slitspatnum=self.par['rdx']['slitspatnum'],
+                                       history=history)
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             # TODO: Note we re-read in the specobjs from disk to deal with situations where
@@ -748,7 +767,8 @@ class PypeIt(object):
                                                redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir,
-                                               subheader=subheader)
+                                               subheader=subheader,
+                                               history=history)
         # Write
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 
