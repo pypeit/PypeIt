@@ -2277,7 +2277,7 @@ class WavelengthSolutionPar(ParSet):
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
-                             '(list or np array) that provides the detection threshold for ' \
+                             '(list or numpy array) that provides the detection threshold for ' \
                              'each slit.'
 
         defaults['fwhm'] = 4.
@@ -4200,7 +4200,7 @@ class PypeItPar(ParSet):
 
         # Allow telluric to be turned on using cfg['rdx']
         pk = 'telluric'
-        default = TelluricParPar() \
+        default = TelluricPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['telluric'] else None
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else default
 
@@ -4342,8 +4342,8 @@ class PypeItPar(ParSet):
 #        options['specaxis'] = [ 0, 1]
 #        dtypes['specaxis'] = int
 #        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-#                            '(first dimension for a np array shape) or 1 (second dimension ' \
-#                            'for np array shape)'
+#                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
+#                            'for numpy array shape)'
 #
 #
 #        defaults['specflip'] = False
