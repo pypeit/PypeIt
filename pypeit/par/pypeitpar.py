@@ -4684,7 +4684,3 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/develop
