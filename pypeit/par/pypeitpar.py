@@ -3864,7 +3864,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None,
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, telluric=None,
                  collate1d=None):
 
         # Grab the parameter names and values from the function
@@ -3939,9 +3939,9 @@ class PypeItPar(ParSet):
         descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
 
         # Telluric Fit
-        #defaults['tellfit'] = TellFitPar()
-        #dtypes['tellfit'] = [ParSet, dict]
-        #descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
+        defaults['telluric'] = TelluricPar()
+        dtypes['telluric'] = [ParSet, dict]
+        descr['telluric'] = 'Par set to control telluric fitting.  Only used in the pypeit_sensfunc and pypeit_telluric after-burner scripts.'
 
         # Collate 1D Fit
         defaults['collate1d'] = Collate1DPar()
@@ -4147,7 +4147,7 @@ class PypeItPar(ParSet):
         k = np.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit', 'collate1d']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'telluric', 'collate1d']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
@@ -4603,7 +4603,6 @@ class TelescopePar(ParSet):
         return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
 
 
-
 class Collate1DPar(ParSet):
     """
     A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
@@ -4685,3 +4684,7 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/develop

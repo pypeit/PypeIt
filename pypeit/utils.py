@@ -1019,18 +1019,6 @@ def load_pickle(fname):
         return pickle.load(f)
 
 
-def is_float(s):
-    """
-    Detertmine if a string can be converted to a floating point number.
-    """
-    try:
-        float(s)
-    except:
-        return False
-
-    return True
-
-
 ##
 ##This code was originally published by the following individuals for use with
 ##Scilab:
@@ -1270,3 +1258,15 @@ def _pdist(x):
             d.append((sum((x[j, :] - x[i, :]) ** 2)) ** 0.5)
 
     return np.array(d)
+
+
+def is_float(s):
+    """
+    Detertmine if a string can be converted to a floating point number.
+    """
+    try:
+        float(s)
+    except:
+        return False
+
+    return True
