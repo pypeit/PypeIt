@@ -51,9 +51,10 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
-        # Dithering
-        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y')
-                                   #required_ftypes=['science', 'standard'])
+        # Dithering -- Not required for redux
+        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
+            required=False,  # This header card is *not* always present in science/standard frames
+            required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
         """
