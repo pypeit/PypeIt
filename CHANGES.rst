@@ -4,6 +4,7 @@
 
 - (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
 - (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
 
 
 1.3.2 (08 Feb 2021)
