@@ -279,7 +279,7 @@ window (sky_resid-det07) after using
 
     pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --det 7
 
-.. image:: figures/kastb_spec2d.png
+.. image:: figures/deimos_spec2d.png
 
 The green/red lines are the slit edges.
 The orange line shows the *PypeIt* trace
@@ -295,13 +295,37 @@ See :doc:`out_spec2D` for further details.
 Spec1D
 ++++++
 
-Here is a screen shot from the GUI showing the
+You can see a summary of all the extracted sources in spec1d*.txt
+files in the Science/ folder.  Here is the top of the one I've
+produced named spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.txt:
+
+.. code-block:: bash
+
+    | slit |                    name | maskdef_id | objname |     objra |   objdec | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | maskdef_extract | wv_rms |
+    |   34 | SPAT0036-SLIT0034-DET07 |    1039404 |    3394 | 260.08018 | 57.96760 |        36.4 |        0.561 |      3.00 |    0.935 | 16.78 |           False |  0.052 |
+    |   91 | SPAT0097-SLIT0091-DET07 |    1039403 |    3347 | 260.08404 | 57.94896 |        96.9 |        0.630 |      3.00 |    0.868 | 11.74 |           False |  0.041 |
+    |  139 | SPAT0139-SLIT0139-DET07 |    1039402 |    3309 | 260.08660 | 57.97074 |       138.8 |        0.496 |      3.00 |    0.593 |  2.49 |            True |  0.063 |
+    |  183 | SPAT0185-SLIT0183-DET07 |    1039401 |    3290 | 260.08949 | 57.94758 |       185.0 |        0.531 |      3.00 |    0.849 | 10.12 |           False |  0.048 |
+    |  241 | SPAT0229-SLIT0241-DET07 |    1039400 |    3273 | 260.09227 | 57.94045 |       229.5 |        0.284 |      3.00 |    0.802 |  1.73 |           False |  0.032 |
+    |  311 | SPAT0329-SLIT0311-DET07 |    1039399 |    3212 | 260.09824 | 57.98572 |       329.2 |        0.812 |      3.00 |    0.906 | 17.72 |           False |  0.056 |
+
+The *maskdef_id* and *objname* are user supplied in the mask design.
+Serendipitous sources will be named SERENDIP.  The *maskdef_extract* flag
+indicates whether the extraction was 'forced', i.e. the source was not 
+detected by PypeIt so extraction was performed based on the mask design.
+
+One can generate a similar, smaller set of output using the --list option
+with :ref:`pypeit_show_1dspec`::
+
+    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --list    
+
+Last, here is a screen shot from the GUI showing the
 1D spectrum after using
 :ref:`pypeit_show_1dspec`, with this explicit call::
 
-    pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
+   pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --exten 23
 
-.. image:: figures/kastb_spec1d.png
+.. image:: figures/deimos_spec1d.png
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
