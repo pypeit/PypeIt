@@ -1577,7 +1577,8 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None):
+    def __init__(self, obj_toler=None, assign_obj=None,
+                 slitmask_offset=None, extract_missing_objs=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1599,7 +1600,20 @@ class SlitMaskPar(ParSet):
 
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool
-        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
+
+        defaults['slitmask_offset'] = 0.
+        dtypes['slitmask_offset'] = [int, float]
+        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position. ' \
+                                   'This parameter is only used during the forced extraction of ' \
+                                   'undetected objects.'
+
+        defaults['extract_missing_objs'] = False
+        dtypes['extract_missing_objs'] = bool
+        descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
+                                        'from the slitmask design. PypeIt will try to determine the FWHM from ' \
+                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). ' \
+                                        'If the FWHM cannot be determined, ``find_fwhm`` will be assumed.'
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1612,7 +1626,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj']
+        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'extract_missing_objs']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1974,7 +1988,7 @@ class ManualExtractionPar(ParSet):
         descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
 
         dtypes['fwhm'] = [list, float]
-        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec_spat'
+        descr['fwhm'] = 'List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the parameter set
         super(ManualExtractionPar, self).__init__(list(pars.keys()),
@@ -2266,7 +2280,7 @@ class WavelengthSolutionPar(ParSet):
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
-                             '(list or np array) that provides the detection threshold for ' \
+                             '(list or numpy array) that provides the detection threshold for ' \
                              'each slit.'
 
         defaults['fwhm'] = 4.
@@ -3502,7 +3516,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, manual=None, skip_optimal=None,
-                 use_2dmodel_mask=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3549,6 +3563,12 @@ class ExtractionPar(ParSet):
         descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
+        defaults['use_user_fwhm'] = False
+        dtypes['use_user_fwhm'] = bool
+        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
+                                 '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
+                                 'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
+                                 'detected object, and uses ``find_fwhm`` as initial guess.'
 
         defaults['manual'] = ManualExtractionPar()
         dtypes['manual'] = [ ParSet, dict ]
@@ -3570,7 +3590,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_2dmodel_mask']
+                   'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4189,7 +4209,7 @@ class PypeItPar(ParSet):
 
         # Allow telluric to be turned on using cfg['rdx']
         pk = 'telluric'
-        default = TelluricParPar() \
+        default = TelluricPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['telluric'] else None
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else default
 
@@ -4336,8 +4356,8 @@ class PypeItPar(ParSet):
 #        options['specaxis'] = [ 0, 1]
 #        dtypes['specaxis'] = int
 #        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-#                            '(first dimension for a np array shape) or 1 (second dimension ' \
-#                            'for np array shape)'
+#                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
+#                            'for numpy array shape)'
 #
 #
 #        defaults['specflip'] = False

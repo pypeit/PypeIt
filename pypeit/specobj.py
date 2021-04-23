@@ -59,7 +59,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.3'
+    version = '1.1.4'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -151,9 +151,13 @@ class SpecObj(datamodel.DataContainer):
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
                  'OBJTYPE': dict(otype=str, descr='PypeIt type of object (standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
-                                     descr='Spatial location of the trace on detector (pixel)'),
+                                     descr='Spatial location of the trace on detector (pixel) at half-way'),
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
                                       descr='Fractional location of the object on the slit'),
+                 'trace_spec': dict(otype=np.ndarray, atype=(int,np.integer),
+                                      descr='Array of pixels along the spectral direction'),
+                 'maskwidth': dict(otype=(float, np.floating),
+                                      descr='Size (in units of fwhm) of the region used for local sky subtraction'),
                  # Slit and Object
                  'WAVE_RMS': dict(otype=(float, np.floating),
                                      descr='RMS (pix) for the wavelength solution for this slit.'),
@@ -168,6 +172,10 @@ class SpecObj(datamodel.DataContainer):
                  'DEC': dict(otype=float, descr='Declination (J2000) decimal degree'),
                  'MASKDEF_ID': dict(otype=(int, np.integer), descr='Slitmask definition ID'),
                  'MASKDEF_OBJNAME': dict(otype=str, descr='Name of the object from the slitmask definition'),
+                 'MASKDEF_EXTRACT': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
+                                                           'at the expected location from slitmask design. '),
+                 'hand_extract_flag': dict(otype=bool, descr='Boolean indicating if this is a forced extraction '
+                                                             'at the location provided by the user. '),
                  #
                  'ECH_OBJID': dict(otype=(int, np.integer),
                                    descr='Object ID for echelle data. Each object is given an '
@@ -204,7 +212,6 @@ class SpecObj(datamodel.DataContainer):
         # Object finding
         self.smash_peakflux = None
         self.smash_nsig = None
-        self.maskwidth = None
 
         # Hand
         self.hand_extract_flag = False
@@ -218,9 +225,6 @@ class SpecObj(datamodel.DataContainer):
         self.sign = 1.0
         self.min_spat = None
         self.max_spat = None
-
-        # Trace
-        self.trace_spec = None  # Only for debuggin, internal plotting
 
         # Echelle
         self.ech_frac_was_fit = None #
@@ -533,3 +537,48 @@ class SpecObj(datamodel.DataContainer):
         # Create
         return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 
+    def ready_for_extraction(self):
+        """ Simple method to check all the items are filled
+        and ready for skysub and extraction.
+
+        Returns:
+            bool: True if all checks have passed
+        """
+        required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
+            'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+        if 'Echelle' in self.PYPELINE:
+            required += ['ECH_NAME']
+
+        passed = True
+        for key in required:
+            if self[key] is None:
+                msgs.warn("Item {} is missing from SpecObj. Failing vette".format(key))
+                msgs.warn('{}'.format(self))
+                passed = False
+        #
+        return passed
+                
+
+    def __repr__(self):
+        """ Over-ride print representation
+
+        Returns:
+            str: Basics of the Data Container
+        """
+        repr = '<{:s}: '.format(self.__class__.__name__)
+        # Image
+        rdict = {}
+        for attr in self.datamodel.keys():
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                # Special ones
+                if attr in ['DET', 'SLITID', 'SPAT_PIXPOS', 'NAME', 'RA', 
+                            'DEC', 'MASKDEF_ID', 'MASKDEF_OBJNAME', 'MASKDEF_EXTRACT']:
+                    rdict[attr] = getattr(self,attr)
+                else:
+                    rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' items={}'.format(rdict)
+        repr = repr + '>'
+        return repr

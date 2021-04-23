@@ -663,6 +663,8 @@ class SpecObjs:
         slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
             [], [], [], [], [], [], [], [], [], [], []
         wave_rms = []
+        maskdef_extract = []
+        manual_extract = []
         # binspectral, binspatial = parse.parse_binning(binning)
 
 
@@ -720,6 +722,9 @@ class SpecObjs:
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            # Manual extraction?
+            manual_extract.append(specobj.hand_extract_flag)
+            # Slitmask info
             if specobj.MASKDEF_ID is not None:
                 maskdef_id.append(specobj.MASKDEF_ID)
             if specobj.MASKDEF_OBJNAME is not None:
@@ -727,6 +732,8 @@ class SpecObjs:
             if specobj.RA is not None:
                 objra.append(specobj.RA)
                 objdec.append(specobj.DEC)
+            if specobj.MASKDEF_EXTRACT is not None:
+                maskdef_extract.append(specobj.MASKDEF_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -741,12 +748,12 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
-            if specobj.MASKDEF_ID is not None:
+            if len(maskdef_id) > 0:
                 obj_tbl['maskdef_id'] = maskdef_id
                 obj_tbl['maskdef_id'].format = 'd'
-            if specobj.MASKDEF_OBJNAME is not None:
+            if len(objname) > 0:
                 obj_tbl['objname'] = objname
-            if specobj.RA is not None:
+            if len(objra) > 0:
                 obj_tbl['objra'] = objra
                 obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
@@ -763,6 +770,13 @@ class SpecObjs:
             obj_tbl['opt_fwhm'].unit = units.arcsec
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
+            # is this a forced extraction at the expected position from slitmask design?
+            if len(maskdef_extract) > 0:
+                obj_tbl['maskdef_extract'] = maskdef_extract
+            # only if manual extractions exist, print this
+            if np.any(manual_extract):
+                obj_tbl['manual_extract'] = manual_extract
+
             # Wavelengths
             obj_tbl['wv_rms'] = wave_rms
             obj_tbl['wv_rms'].format = '.3f'

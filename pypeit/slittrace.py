@@ -18,6 +18,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import datamodel
+from pypeit import specobj
 from pypeit.bitmask import BitMask
 from pypeit.spectrographs import slitmask
 
@@ -93,7 +94,7 @@ class SlitTraceSet(datamodel.DataContainer):
     master_file_format = 'fits.gz'
     """File format for the master frame file."""
     minimum_version = '1.1.0'
-    version = '1.1.2'
+    version = '1.1.3'
     """SlitTraceSet data model version."""
 
     hdu_prefix = None
@@ -122,6 +123,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
                  'maskfile': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'maskdef_posx_pa': dict(otype=float, descr='PA that aligns with spatial dimension of the detector'),
+                 'mask_median_off': dict(otype=float, descr='Median offset (pixels) of slitmask from expected position'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
                  'nslits': dict(otype=int,
@@ -165,7 +167,7 @@ class SlitTraceSet(datamodel.DataContainer):
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
-                 maskdef_posx_pa=None,
+                 maskdef_posx_pa=None, mask_median_off=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
@@ -721,140 +723,305 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-    def assign_maskinfo(self, sobjs, plate_scale, TOLER=1.):
+    def mask_add_missing_obj(self, sobjs, expected_objpos, fwhm, median_off, slits_left, slits_right):
+        """
+        Generate new SpecObj and add them into the SpecObjs object for any slits missing the targeted source.
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+            expected_objpos (`numpy.ndarray`_): Array with expected positions of all objects from slitmask design info.
+            fwhm (:obj:`float`): FWHM in pixels to be used in the optimal extraction
+            median_off (:obj:`float`): User provided median offset in pixels of the slitmask
+            slits_left (`numpy.ndarray`_): Array with left slit edges.
+            slits_right (`numpy.ndarray`_): Array with right slit edges.
+
+        Returns:
+            tuple:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
+            nobj (:obj:`int`): Number of objects identified
+
+        """
+
+        if fwhm is None:
+            msgs.error('A FWHM for the optimal extraction must be provided. See `find_fwhm` in `FindObjPar`.')
+
+        if median_off is not None:
+            self.mask_median_off = median_off
+            msgs.info('Slitmask median offset: {} pixels'.format(round(self.mask_median_off, 2)))
+        else:
+            self.mask_median_off = 0.
+            msgs.info('Slitmask median offset is assumed to be zero. '
+                      'To change this see `slitmask_offset` in `SlitMaskPar`.')
+
+        # midpoint in the spectral direction
+        specmid = slits_left[:,0].size//2
+        # slit center trace
+        slit_cen = (slits_left + slits_right) / 2.
+
+        # Loop on all the good slits
+        gd_slit = self.mask == 0
+        for islit in np.where(gd_slit)[0]:
+            # Check for assigned obj
+            if len(sobjs) > 0:
+                target_obj_in_slit = (sobjs.MASKDEF_ID == self.maskdef_id[islit]) & \
+                                     (sobjs.MASKDEF_OBJNAME != 'SERENDIP')
+                if np.any(target_obj_in_slit):
+                    continue
+
+            # Object index
+            oidx = np.where(self.maskdef_designtab['SLITID'].data == self.maskdef_id[islit])[0][0]
+            #
+            # Do it
+            SPAT_PIXPOS = float((expected_objpos[oidx]-self.mask_median_off) + slits_left[specmid, islit])
+
+            # TODO -- DO THIS RIGHT FOR SLITS (LIKELY) OFF THE DETECTOR/SLIT
+            #  If we keep what follows, probably should add some tolerance to be off the edge
+            #  Otherwise things break in skysub
+            if (SPAT_PIXPOS > slits_right[specmid, islit]) or (SPAT_PIXPOS < slits_left[specmid, islit]):
+                msgs.warn("Targeted object is off the detector")
+                continue
+
+            # Generate a new specobj
+            specobj_dict = {'SLITID': self.spat_id[islit], # Confirm this
+                            'DET': self.det, 
+                            'OBJTYPE': 'science',  # Confirm this is ok
+                            'PYPELINE': self.pypeline}
+            thisobj = specobj.SpecObj(**specobj_dict)
+
+            # Fill me up
+            if sobjs.nobj == 0:
+                # This uses slit edge trace
+                xoff = SPAT_PIXPOS - slit_cen[specmid, islit]
+                thisobj.TRACE_SPAT = slit_cen[:, islit] + xoff
+                thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - slits_left[specmid, islit]) / \
+                                       (slits_right[specmid, islit]-slits_left[specmid, islit])
+                thisobj.trace_spec = np.arange(slits_left.shape[0])
+                # OBJID
+                thisobj.OBJID = 1
+            else:
+                # This uses an object
+                idx_nearest = np.argmin(np.abs(sobjs.SPAT_PIXPOS-SPAT_PIXPOS))
+                specmid = sobjs[idx_nearest].TRACE_SPAT.size//2
+                xoff = SPAT_PIXPOS - sobjs[idx_nearest].TRACE_SPAT[specmid]
+                thisobj.TRACE_SPAT = sobjs[idx_nearest].TRACE_SPAT + xoff
+                thisobj.SPAT_PIXPOS = SPAT_PIXPOS
+                thisobj.trace_spec = sobjs[idx_nearest].trace_spec
+                thisobj.SPAT_FRACPOS = (SPAT_PIXPOS - slits_left[specmid, islit]) / \
+                                       (slits_right[specmid, islit]-slits_left[specmid, islit])
+                # OBJID
+                any_obj_in_slit = sobjs.MASKDEF_ID == self.maskdef_id[islit]
+                if np.any(any_obj_in_slit):
+                    thisobj.OBJID = np.max(sobjs[any_obj_in_slit].OBJID) + 1
+                else:
+                    thisobj.OBJID = 1
+
+            # FWHM
+            thisobj.FWHM = fwhm  # pixels
+            thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
+            # Finishing up
+            thisobj.set_name()
+            # Mask info
+            thisobj.RA = self.maskdef_designtab['OBJRA'][oidx]
+            thisobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
+            thisobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+            thisobj.MASKDEF_ID = self.maskdef_designtab['SLITID'][oidx]
+            thisobj.MASKDEF_EXTRACT = True
+            thisobj.hand_extract_flag = False
+            # Add to SpecObjs
+            sobjs.add_sobj(thisobj)
+
+        # Sort objects according to their spatial location
+        spat_pixpos = sobjs.SPAT_PIXPOS
+        sobjs = sobjs[spat_pixpos.argsort()]
+
+        # Vette
+        for sobj in sobjs:
+            if not sobj.ready_for_extraction():
+                msgs.error("Bad SpecObj.  Can't proceed")
+
+        # Return
+        return sobjs
+
+    def assign_maskinfo(self, sobjs, plate_scale, slits_left, slits_right, det_buffer, TOLER=1.):
         """
         Assign RA, DEC, Name to objects
         Modified in place
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-            plate_scale (float):
-            TOLER (float, optional):
-                Matching tolerance in arcsec
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+            plate_scale (:obj:`float`): platescale for the current detector
+            slits_left (`numpy.ndarray`_): Array with left slit edges.
+            slits_right (`numpy.ndarray`_): Array with right slit edges.
+            det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
+            TOLER (:obj:`float`, optional): Matching tolerance in arcsec
+
+        Returns:
+            Array with expected positions of all objects from slitmask design info.
         """
 
-        # Restrict to objects on this detector
-        on_det = sobjs.DET == self.det
-        cut_sobjs = sobjs[on_det]
-        # posx_pa, negx_pa = slitmask.fuss_with_maskpa(self.maskdef_posx_pa)
+        # midpoint in the spectral direction
+        specmid = slits_left[:,0].size//2
+        # slit center trace
+        slit_cen = (slits_left + slits_right) / 2.
 
         # Unpack -- Remove this once we have a DataModel
         obj_maskdef_id = self.maskdef_designtab['SLITID'].data
-        obj_coords = SkyCoord(ra=self.maskdef_designtab['OBJRA'],
-                              dec=self.maskdef_designtab['OBJDEC'], frame='fk5', unit='deg')
         obj_slit_coords = SkyCoord(ra=self.maskdef_designtab['SLITRA'],
                                    dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
         obj_slit_pa = self.maskdef_designtab['SLITPA']
+        # Distance (arcsec) of the object from the left edge
         obj_topdist = self.maskdef_designtab['OBJ_TOPDIST'].data
+        obj_botdist = self.maskdef_designtab['OBJ_BOTDIST'].data
 
-        # Exact pixel positions of the slit center (instead of using sobj.SLITID)
-        censpat = (self.maskdef_designtab['TRACELPIX'].data + self.maskdef_designtab['TRACERPIX'].data)/2.
-        # Measure distance of center from left and right edges
-        fromleft_censpat = censpat - self.maskdef_designtab['TRACELPIX'].data
-        fromright_censpat = censpat - self.maskdef_designtab['TRACERPIX'].data
-        # Pixel position of the slit center predicted from the slitmask info
-        maskdef_censpat = (self.maskdef_designtab['SLITLOPT'].data + self.maskdef_designtab['SLITROPT'].data)/2.
-        # Measure distance of center from left and right edges
-        fromleft_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITLOPT'].data
-        fromright_maskdef_censpat = maskdef_censpat - self.maskdef_designtab['SLITROPT'].data
-        # Find the differences. This allows to take into account the slits that are smaller than what
-        # should be because they are cut by the detector edges
-        diff_dist = fromleft_maskdef_censpat - fromleft_censpat
-        # For the leftmost slit we use the distance from right
-        diff_dist[0] = fromright_maskdef_censpat[0] - fromright_censpat[0]
-        # we define the new slit center which is consistent with the one from slitmask
-        new_censpat = censpat + diff_dist
-
-        # First pass
-        measured, expected = [], []
-        for sobj in cut_sobjs:
-            # Set MASKDEF_ID
-            sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
-            # object ID
-            # TODO -- Add to SpecObj DataModel?
-            # There is small chance that self.maskdef_id=-99. This would definitely happen if the user
-            # add a custom slit. If maskdef_id=-99 for a certain object, we cannot assign OBJECT, RA, DEC
-            oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0]
-            if oidx.size == 0:
-                # In this case I have to give a fake value for index reasons later in the code.
-                measured.append(-9999.9)
-                expected.append(9999.9)
+        # slit lengths
+        expected_slitlen = (obj_topdist + obj_botdist) / plate_scale  # pixels
+        measured_slitlen = slits_right[specmid, :] - slits_left[specmid, :]  # pixels
+        # difference between measured and expected slit length (but only for the left side).
+        left_edgeloss = np.zeros(self.maskdef_id.size)
+        # define a new slit center to take into account the slits that are smaller than what
+        # should be because they are cut by the detector edges.
+        new_slitcen = slit_cen.copy()
+        for i, maskid in enumerate(self.maskdef_id):
+            if maskid == -99:
+                left_edgeloss[i] = -9999.9
             else:
-                # Expected offset (arcsec)
-                oidx = oidx[0]
-                expected_offset = obj_topdist[oidx] - \
-                                  ((maskdef_censpat[oidx] - self.maskdef_designtab['SLITLOPT'].data[oidx])*plate_scale)
-                # Measured offset (arcsec)
-                dpix = sobj.SPAT_PIXPOS - new_censpat[self.maskdef_designtab['SPAT_ID'].data == sobj.SLITID][0]
-                darcsec = dpix * plate_scale
-                # Finish
-                measured.append(darcsec)
-                expected.append(expected_offset)
-        measured = np.array(measured)
-        expected = np.array(expected)
+                if (slits_left[specmid, i] != det_buffer) & (slits_right[specmid, i] != self.nspat - det_buffer):
+                    # for all but the slits that fall outside the detector, we assume the edge loss happens
+                    # equally in both sides of the slit
+                    left_edgeloss[i] = (expected_slitlen[obj_maskdef_id == maskid] - measured_slitlen[i]) / 2.  # pixels
+                    # because edge loss happens equally in both sides, we assume no shift in slit center
 
-        # Stats
-        if len(expected) > 3:
-            mean, median_off, std = sigma_clipped_stats(expected[expected!=9999.9] - measured[measured!=-9999.9],
+        # Stats (typical edge loss across the detector)
+        if left_edgeloss[(left_edgeloss != 0)&(left_edgeloss != -9999.9)].size > 3:
+            _, median_edgeloss, _ = sigma_clipped_stats(left_edgeloss[(left_edgeloss != 0)&(left_edgeloss != -9999.9)],
                                                         sigma=2.)
         else:
-            median_off = 0.
+            median_edgeloss = 0.
 
-        # Assign
-        # Loop on slits to deal with multiple sources within TOLER
-        # Exclude the objects that have maskdef_id=-99
-        uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
-        for maskid in uni_maskid:
-            # Index for SpecObjs on this slit
-            idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
-            # Index for slitmask
-            sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
-            # measured coordinates
-            measured_coord = obj_slit_coords[sidx].directional_offset_by(
-                np.radians(obj_slit_pa[sidx]), (measured[idx] + median_off) * units.arcsec)
-            # separation from the expected coordinates
-            separ = obj_coords[sidx].separation(measured_coord)
-            # Within TOLER?
-            # in_toler = np.abs(expected[idx]-measured[idx] - median_off) < TOLER
-            # I used separ rather than the diff between `expected` and `measured` distance from the slit center,
-            # because sometimes it does not work.
-            in_toler = np.where(separ.to('arcsec').value < TOLER)[0]
-            if in_toler.size > 0:
-                # Parse the peak fluxes
-                peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
-                imx_peak = np.argmax(peak_flux)
-                imx_idx = idx[in_toler][imx_peak]
-                # Object in Mask Definition
-                oidx = np.where(obj_maskdef_id == maskid)[0][0]
-                # Assign
-                sobj = cut_sobjs[imx_idx]
-                sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
-                sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
-                sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
-                # Remove that idx value
-                idx = idx.tolist()
-                idx.remove(imx_idx)
-                idx = np.array(idx)
-            # Fill in the rest
-            for ss in idx:
-                sobj = cut_sobjs[ss]
-                # Measured coordinates
-                new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                    np.radians(obj_slit_pa[sidx]), (measured[ss]+median_off)*units.arcsec)
-                # Assign
-                sobj.RA = new_obj_coord.ra.value
-                sobj.DEC = new_obj_coord.dec.value
-                sobj.MASKDEF_OBJNAME = 'SERENDIP'
-        # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
-        noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
-        if noidx.size > 0:
-            for sobj in cut_sobjs[noidx]:
-                # Assign
-                sobj.RA = 0.0
-                sobj.DEC = 0.0
-                sobj.MASKDEF_OBJNAME = 'NONE'
+        expected_objpos_all = np.zeros(obj_maskdef_id.size)
+        for i, maskid in enumerate(obj_maskdef_id):
+            # fix the edge loss for slits that fall off the detector
+            if slits_left[specmid, i] == det_buffer:
+                # for the leftmost slit that is cut by the detector edge, we assume that the edge loss
+                # happens mostly in the left side and we assume a value (median_edgeloss) for the right side
+                left_edgeloss[i] = expected_slitlen[obj_maskdef_id == maskid] - measured_slitlen[i] \
+                                   - median_edgeloss  # pixels
+                # shift in slit center due to slit partially falling outside the detector
+                censhift = left_edgeloss / 2.
+                new_slitcen[i] -= censhift
+            if slits_right[specmid, i] == self.nspat - det_buffer:
+                # for the rightmost slit that is cut by the detector edge, we assume that the edge loss
+                # happens mostly in the right side, and `left_edgeloss` is assumed to be equal to `median_edgeloss`.
+                left_edgeloss[i] = median_edgeloss
+                # shift in slit center due to slit partially falling outside the detector
+                censhift = (expected_slitlen[obj_maskdef_id == maskid] - measured_slitlen[i] - median_edgeloss) / 2.
+                new_slitcen[i] += censhift
+
+            # Expected objects position (distance from left edge) in pixels, corrected for edge loss
+            expected_objpos_all[i] = obj_topdist[i] / plate_scale - left_edgeloss[self.maskdef_id == maskid][0]
+
+        if sobjs.nobj == 0:
+            msgs.warn('NO detected objects')
+            return expected_objpos_all
+        else:
+            # Restrict to objects on this detector
+            on_det = sobjs.DET == self.det
+            cut_sobjs = sobjs[on_det]
+
+            # First pass
+            measured, expected = [], []
+            for sobj in cut_sobjs:
+                # Set MASKDEF_ID
+                sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
+                # object ID
+                # TODO -- Add to SpecObj DataModel?
+                # There is small chance that self.maskdef_id=-99. This would definitely happen if the user
+                # add a custom slit. If maskdef_id=-99 for a certain object, we cannot assign OBJECT, RA, DEC
+                oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0]
+                if oidx.size == 0:
+                    # In this case I have to give a fake value for index reasons later in the code.
+                    measured.append(-9999.9)
+                    expected.append(9999.9)
+                else:
+                    oidx = oidx[0]
+                    # Expected object position (distance from left edge) in pixels, corrected for edge loss
+                    expected_objpos = expected_objpos_all[oidx]
+                    # Measured object position (distance from left edge) in pixels
+                    measured_objpos = sobj.SPAT_PIXPOS - slits_left[specmid, self.maskdef_id == sobj.MASKDEF_ID][0]
+                    # Finish
+                    measured.append(measured_objpos)
+                    expected.append(expected_objpos)
+            measured = np.array(measured)
+            expected = np.array(expected)
+
+            # # Stats (offset between expected and measured object position in pixels)
+            # if len(expected) > 3:
+            #     mean, median_off, std = sigma_clipped_stats(
+            #         expected[expected != 9999.9] - measured[measured != -9999.9], sigma=2.)
+            # else:
+            #     median_off = 0.
+
+            # Assign
+            # Loop on slits to deal with multiple sources within TOLER
+            # Exclude the objects that have maskdef_id=-99
+            uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
+            for maskid in uni_maskid:
+                # Index for SpecObjs on this slit
+                idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+                # Index for slitmask
+                sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
+                # Within TOLER?
+                # separation in pixels
+                separ = expected[idx]-measured[idx]
+                msgs.info('MASKDEF_ID:{}'.format(maskid))
+                msgs.info('Difference between expected and detected object '
+                          'positions: {} arcsec'.format(np.round(separ*plate_scale, 3)))
+                in_toler = np.abs(separ*plate_scale) < TOLER
+                if np.any(in_toler):
+                    # Parse the peak fluxes
+                    peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
+                    imx_peak = np.argmax(peak_flux)
+                    imx_idx = idx[in_toler][imx_peak]
+                    # Object in Mask Definition
+                    oidx = np.where(obj_maskdef_id == maskid)[0][0]
+                    # Assign
+                    sobj = cut_sobjs[imx_idx]
+                    sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
+                    sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
+                    sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+                    sobj.MASKDEF_EXTRACT = False
+                    sobj.hand_extract_flag = False
+                    # Remove that idx value
+                    idx = idx.tolist()
+                    idx.remove(imx_idx)
+                    idx = np.array(idx)
+                # Fill in the rest
+                for ss in idx:
+                    sobj = cut_sobjs[ss]
+                    # Measured coordinates
+                    offset = measured[ss] - (new_slitcen - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
+                    new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
+                        np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
+                    # Assign
+                    sobj.RA = new_obj_coord.ra.value
+                    sobj.DEC = new_obj_coord.dec.value
+                    sobj.MASKDEF_OBJNAME = 'SERENDIP'
+                    sobj.MASKDEF_EXTRACT = False
+                    sobj.hand_extract_flag = False
+            # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
+            noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
+            if noidx.size > 0:
+                for sobj in cut_sobjs[noidx]:
+                    # Assign
+                    sobj.RA = 0.0
+                    sobj.DEC = 0.0
+                    sobj.MASKDEF_OBJNAME = 'NONE'
+                    sobj.MASKDEF_EXTRACT = False
+                    sobj.hand_extract_flag = False
+
         # Return
-        return
+        return expected_objpos_all
 
     def user_mask(self, det, slitspatnum):
         """

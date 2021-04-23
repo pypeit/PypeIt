@@ -480,7 +480,7 @@ class PypeIt(object):
                                             ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-                                set(np.arange(self.spectrograph.ndet))-set(detectors)])))
+                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
 
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
