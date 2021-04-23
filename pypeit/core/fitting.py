@@ -159,7 +159,8 @@ class PypeItFit(DataContainer):
                 w=np.sqrt(w_out) if w_out is not None else None) # numpy convention
         elif self.func == "legendre" or self.func == "chebyshev":
             xv, self.minx, self.maxx = scale_minmax(x_out, minx=self.minx, maxx=self.maxx)
-            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=np.sqrt(w_out))  \
+            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], 
+                                                      w=np.sqrt(w_out) if w_out is not None else None) \
                 if self.func == "legendre" else np.polynomial.chebyshev.chebfit(
                     xv, y_out, self.order[0], 
                     w=np.sqrt(w_out) if w_out is not None else None) # numpy convention
