@@ -18,8 +18,8 @@
     ##   magellan_mage, mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
     ##   mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
     ##   shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores,
-    ##   vlt_fors2, vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
-    ##   wht_isis_blue, wht_isis_red
+    ##   vlt_fors2, vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
+    ##   vlt_xshooter_vis, wht_isis_blue, wht_isis_red
     
     positional arguments:
       pypeit_file           PypeIt reduction file (must have .pypeit extension)
@@ -39,7 +39,7 @@
       -s, --show            Show reduction steps via plots (which will block
                             further execution until clicked on) and outputs to
                             ginga. Requires remote control ginga session via
-                            "ginga --modules=RC &"
+                            "ginga --modules=RC,SlitWavelength &"
       -o, --overwrite       Overwrite any existing files/directories
       -d DETECTOR, --detector DETECTOR
                             Detector to limit reductions on. If the output files

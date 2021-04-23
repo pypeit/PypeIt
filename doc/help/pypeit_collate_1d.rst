@@ -44,9 +44,10 @@
                             each other, they are considered the same object. If
                             match_using is 'ra/dec' (the default) this is an
                             angular distance. The defaults units are arcseconds
-                            but other units supported by astropy.coordinates.Angle
-                            can be used(e.g. '0.003d' or '0h1m30s'). If
-                            match_using is 'pixel' this is a float.
+                            but other units supported by
+                            astropy.coordinates.Angle can be used(e.g. '0.003d'
+                            or '0h1m30s'). If match_using is 'pixel' this is a
+                            float.
       --match MATCH         Determines how 1D spectra are matched as being the
                             same object. Must be either 'pixel' or 'ra/dec'.
       --dry_run             If set, the script will display the matching File and

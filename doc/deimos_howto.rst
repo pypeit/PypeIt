@@ -264,22 +264,30 @@ It is frequently useful to view a summary of the slits
 successfully reduced by PypeIt.  The
 :ref:`pypeit_chk_2dslits`, with this explicit call::
 
+    pypeit_chk_2dslits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits 
+
+this prints, detector by detector, the SpatID (internal PypeIt name),
+MaskID (user ID), and Flags for each slit.  Those with *None* have been
+successfully reduced.
+
 Visual inspection
 =================
 
 Here is a screen shot from the third tab in the *ginga*
-window (sky_resid-det01) after using
+window (sky_resid-det07) after using
 :ref:`pypeit_show_2dspec`, with this explicit call::
 
-    pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015may20T045733.560.fits
+    pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --det 7
 
 .. image:: figures/kastb_spec2d.png
 
 The green/red lines are the slit edges.
-The white line down the center is the object.
 The orange line shows the *PypeIt* trace
 of the object and the orange text is the
-*PypeIt* assigned name.
+*PypeIt* assigned name.  Yellow lines indicate
+sources that were auto-magically extracted 
+based on the mask design (i.e. they had insufficient
+S/N for detection).
 The night sky and emission lines have been subtracted.
 
 See :doc:`out_spec2D` for further details.
@@ -304,10 +312,13 @@ See :doc:`out_spec1D` for further details.
 Fluxing
 =======
 
-Now that we have a reduced standard star spectrum, we can
-use that to generate a sensitivity file.  Here is the
-call for this example, which I run in the Science/ folder::
+TO BE ADDED WHEN ARCHIVE FLUXING IS IMPLEMENTED
 
-    pypeit_sensfunc spec1d_b24-Feige66_KASTb_2015may20T041246.960.fits -o Kastb_feige66_sens.fits
+Flexure
+=======
 
-See :doc:`fluxing` for further details.
+The default run performs a flexure correction, slit-by-slit
+based on analysis of the sky lines.  For bluer observations,
+it may be preferred to perform flexure across both detectors.
+
+See :ref:`pypeit_deimos_flexure` for full details on this procedure.

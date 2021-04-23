@@ -5,8 +5,8 @@
                               [--scale_user SCALE_USER]
                               file skyfile
     
-    Compare the extracted sky spectrum against an archived sky model maintained by
-    PypeIt.
+    Compare the extracted sky spectrum against an archived sky model maintained
+    by PypeIt.
     
     positional arguments:
       file                  Spectral file

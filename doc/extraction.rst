@@ -75,3 +75,4 @@ PypeIt users make:
    :maxdepth: 1
 
    manual
+   flexure

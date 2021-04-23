@@ -127,6 +127,8 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
+.. _pypeit_chk_2dslits:
+
 pypeit_chk_2dslits
 ==================
 
