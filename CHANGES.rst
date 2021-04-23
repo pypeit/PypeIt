@@ -1,6 +1,6 @@
 
-1.3.4dev
---------
+1.4.1 (23 Apr 2021)
+-------------------
 
 - Include a fix for when no edges are detected in `EdgeTraceSet` by
   adding the `bound_detector` parameter.  Most instruments have a
