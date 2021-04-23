@@ -9,6 +9,7 @@ Important Notes:
 
 .. include:: ../include/links.rst
 """
+import os
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -57,6 +58,22 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        pypeit_keys = super().pypeit_file_keys()
+        # TODO: Why are these added here? See
+        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
+        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        return pypeit_keys
 
 
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
@@ -176,11 +193,12 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Sensitivity function parameters
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 5
+        par['sensfunc']['IR']['maxiter'] = 2
         # place holder for telgrid file
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
 

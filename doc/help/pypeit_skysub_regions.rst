@@ -3,8 +3,8 @@
     $ pypeit_skysub_regions -h
     usage: pypeit_skysub_regions [-h] [--det DET] [-o] [-i] [-f] [-s] file
     
-    Display a Raw science image and interactively definethe sky regions using a GUI. Run in the same folderas your .pypeit
-    file
+    Display a Raw science image and interactively definethe sky regions using a
+    GUI. Run in the same folderas your .pypeit file
     
     positional arguments:
       file             PypeIt file

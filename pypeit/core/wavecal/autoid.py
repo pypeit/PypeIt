@@ -5,9 +5,8 @@ from scipy.spatial import cKDTree
 import itertools
 import scipy
 from linetools import utils as ltu
-from astropy import table
+from astropy import table, stats
 import copy
-import numba as nb
 import numpy as np
 from IPython import embed
 
@@ -25,7 +24,6 @@ from pypeit.core import pca
 from pypeit import utils
 
 from pypeit import msgs
-#from pypeit import debugger
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
@@ -699,7 +697,8 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     # Determine the central wavelength and dispersion of wavelength arxiv
     for iarxiv in range(narxiv):
         wvc_arxiv[iarxiv] = wave_soln_arxiv[nspec//2, iarxiv]
-        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[:,iarxiv] - np.roll(wave_soln_arxiv[:,iarxiv], 1))
+        igood = wave_soln_arxiv[:,iarxiv] > 1.0
+        disp_arxiv[iarxiv] = np.median(wave_soln_arxiv[igood,iarxiv] - np.roll(wave_soln_arxiv[igood,iarxiv], 1))
 
     marker_tuple = ('o','v','<','>','8','s','p','P','*','X','D','d','x')
     color_tuple = ('black','green','red','cyan','magenta','blue','darkorange','yellow','dodgerblue','purple','lightgreen','cornflowerblue')
@@ -937,7 +936,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         npad = ncomb - nspec
         pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, fwhm=par['fwhm'], percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
@@ -961,6 +960,31 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         else: # Don't pad
             mspec = temp_spec[i0:i0 + nspec]
             mwv = temp_wv[i0:i0 + nspec]
+
+        if par['fwhm_fromlines'] is False:
+            fwhm = par['fwhm']
+        else:
+            # Determine the lines FWHM, i.e, approximate spectral resolution
+            _, _, _, wdth, _, best, _, nsig = arc.detect_lines(ispec, sigdetect=10., fwhm=5.)
+            # 1sigma Gaussian widths of the line detections
+            wdth = wdth[best]
+            # significance of each line detected
+            nsig = nsig[best]
+            # Nsigma (significance) threshold. We use only lines that have the highest significance
+            # We start with nsig_thrshd of 500 and iteratively reduce it if there are not more than 6 lines
+            nsig_thrshd = 500.
+            while nsig_thrshd > 10.:
+                if wdth[nsig > nsig_thrshd].size > 6:
+                    # compute average `wdth`
+                    mean, med, _ = stats.sigma_clipped_stats(wdth[nsig > nsig_thrshd], sigma_lower=2.0, sigma_upper=2.0)
+                    # FWHM in pixels
+                    fwhm = np.ceil(med * 2.35482) / binspectral
+                    msgs.info("Measured arc lines FWHM: {} pixels".format(fwhm))
+                    break
+                nsig_thrshd -= 5
+            else:
+                fwhm = par['fwhm']
+                msgs.warn("Assumed arc lines FWHM: {}".format(fwhm))
 
         # Loop on snippets
         nsub = ispec.size // nsnippet
@@ -988,7 +1012,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                                                               nonlinear_counts=nonlinear_counts,
                                                               debug_reid=debug_reid,  # verbose=True,
                                                               match_toler=par['match_toler'],
-                                                              cc_thresh=0.1, fwhm=par['fwhm'])
+                                                              cc_thresh=0.1, fwhm=fwhm)
             # Deal with IDs
             sv_det.append(j0 + detections)
             try:
@@ -2620,7 +2644,6 @@ class HolyGrail:
         return
 
 
-@nb.jit(nopython=True, cache=True)
 def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npix, ordfit=1):
     """ A numba speedup of the results_kdtree function in the General class (see above).
     For all of the acceptable pattern matches, estimate the central wavelength and dispersion,
@@ -2662,11 +2685,11 @@ def results_kdtree_nb(use_tcent, wvdata, res, residx, dindex, lindex, nindx, npi
     """
     # Assign wavelengths to each pixel
     ncols = len(res)
-    wvdisp = np.zeros(ncols, dtype=nb.types.float64)
-    wvcent = np.zeros(ncols, dtype=nb.types.float64)
-    dind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    lind = np.zeros((ncols, nindx), dtype=nb.types.uint64)
-    Xmat = np.ones((nindx, ordfit+1), dtype=nb.types.float64)
+    wvdisp = np.zeros(ncols, dtype=float)
+    wvcent = np.zeros(ncols, dtype=float)
+    dind = np.zeros((ncols, nindx), dtype=np.uint64)
+    lind = np.zeros((ncols, nindx), dtype=np.uint64)
+    Xmat = np.ones((nindx, ordfit+1), dtype=float)
     for x in range(ncols):
         for ii in range(ordfit, -1, -1):
             Xmat[:, ii] = np.power(use_tcent[dindex[residx[x], :]], ordfit-ii)

@@ -8,7 +8,6 @@ import os
 import numpy as np
 import time
 from IPython import embed
-
 import subprocess
 
 # A note from ejeschke on how to use the canvas add command in ginga: https://github.com/ejeschke/ginga/issues/720
@@ -53,7 +52,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = sh.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=RC'])
+            subprocess.Popen(['ginga', '--modules=RC,SlitWavelength'])
 
             # NOTE: time.sleep(3) is now insufficient. The loop below
             # continues to try to connect with the ginga viewer that
@@ -72,7 +71,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
                     break
             if i == maxiter-1:
                 msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
-                           '`ginga --modules=RC` on the command line.  In either case, wait for '
+                           '`ginga --modules=RC,SlitWavelength` on the command line.  In either case, wait for '
                            'the ginga viewer to open and try the pypeit command again.')
             return viewer
 
@@ -80,7 +79,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
             raise ValueError
         else:
             msgs.warn('Problem connecting to Ginga.  Launch an RC Ginga viewer and '
-                      'then continue: \n    ginga --modules=RC')
+                      'then continue: \n    ginga --modules=RC,SlitWavelength')
 
     # Return
     return viewer
@@ -141,18 +140,15 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     if mask is not None and bitmask is None:
         raise ValueError('If providing a mask, must also provide the bitmask.')
 
+    # Instantiate viewer
+    viewer = connect_to_ginga()
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
     img = io.fits_open(inp)[exten].data if isinstance(inp, str) else inp
 
-    # Instantiate viewer
-    viewer = connect_to_ginga()
     if clear:
-        # Clear existing channels
-        shell = viewer.shell()
-        chnames = shell.get_channel_names()
-        for ch in chnames:
-            shell.delete_channel(ch)
+        clear_all()
+
     ch = viewer.channel(chname)
     # Header
     header = {}
@@ -168,18 +164,18 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)
-    canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
     # ginga/ginga/ImageView.py
+    canvas = viewer.canvas(ch._chname)
     out = canvas.clear()
-    if cuts is not None:
-        out = ch.cut_levels(cuts[0], cuts[1])
     out = ch.set_color_map('ramp')
     out = ch.set_intensity_map('ramp')
     out = ch.set_color_algorithm('linear')
     out = ch.restore_contrast()
     out = ch.restore_cmap()
+    if cuts is not None:
+        out = ch.cut_levels(float(cuts[0]), float(cuts[1]))
 
     # WCS Match this to other images with this as the reference image?
     if wcs_match:
@@ -187,6 +183,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         shell = viewer.shell()
         out = shell.start_global_plugin('WCSMatch')
         out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname], {})
+
 
     # TODO: I would prefer to change the color map to indicate these
     # pixels rather than overplot points. Because for large numbers of
@@ -250,6 +247,45 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         canvas.add('constructedcanvas', canvas_list)
 
     return viewer, ch
+
+
+def show_points(viewer, ch, spec, spat, color='cyan', legend=None, legend_spec=None, legend_spat=None):
+    """
+
+
+
+    Parameters
+    ----------
+    viewer (ginga.util.grc.RemoteClient):
+        Ginga RC viewer
+    ch (ginga.util.grc._channel_proxy):
+        Ginga channel
+    spec (list):
+        List of spectral positions on image to plot
+    spat (list):
+        List of spatial positions on image to plot
+    color (str):
+        Color for points
+    legend (str):
+        Label for a legeng
+    legend_spec (float):
+        Spectral pixel loation for legend
+    legend_spat (float):
+        Pixel loation for legend
+
+    """
+    canvas = viewer.canvas(ch._chname)
+    npoints = len(spec)
+    canvas_list = [dict(type='point', args=(float(spat[i]), float(spec[i]), 2),
+                         kwargs=dict(style='plus', color=color)) for i in range(npoints)]
+    if legend is not None:
+        spec_label = np.mean(np.array(spec)) if legend_spec is None else legend_spec
+        spat_label = (np.mean(np.array(spat)) + 30) if legend_spat is None else legend_spat
+        text = [dict(type='text', args=(spat_label, spec_label, legend), kwargs=dict(color=color, fontsize=20))]
+        canvas_list += text
+
+    canvas.add('constructedcanvas', canvas_list)
+
 
 
 # TODO: Should we continue to allow rotate as an option?

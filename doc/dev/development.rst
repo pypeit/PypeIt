@@ -411,8 +411,7 @@ are as follows:
    new instrument is included in list of instruments tested by executing
    ``./pypeit_test develop``).
 
- * The continuous-integration tests performed by TravisCI on the remote
-   repository must pass.
+ * The Code Checks run by GitHub (see the Cheks tab of the PR) on the remote repository must pass.
 
  * You have to post a successful report resulting from your execution of
    both the `Unit Tests`_ and the `Development Suite`_.  You should also
@@ -608,3 +607,4 @@ Here are some developer-specific docs:
    ../metadata
    reports
    conda_forge
+   fluxing

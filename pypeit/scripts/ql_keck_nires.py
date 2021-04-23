@@ -40,7 +40,7 @@ def main(args):
 
     # Setup
     data_files = [os.path.join(args.full_rawpath, args.fileA),
-                  os.path.join(args.full_rawpath,args.fileB)]
+                  os.path.join(args.full_rawpath, args.fileB)]
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name='keck_nires')
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
@@ -57,9 +57,9 @@ def main(args):
     ps.fitstbl['bkg_id'] = [2,1]
 
     # Calibrations
-    master_dir = os.getenv('NIRES_MASTERS')
+    master_dir = os.path.join(os.getenv('QL_MASTERS'),'NIRES_MASTERS')
     if master_dir is None:
-        msgs.error('You need to set an Environmental variable NIRES_MASTERS that points at the '
+        msgs.error('You need to set an Environmental variable QL_MASTERS that points at the '
                    'Master Calibs')
 
     # Config the run

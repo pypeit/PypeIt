@@ -52,13 +52,14 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=False, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True, ascii_tbl=False, in_vac=True,
-                   shift_wave=False, binning=None):
+                   shift_wave=False, binning=None, micron=False):
     """
     Generate a full_template for a given instrument
 
     Args:
         in_files (list or str):
             Wavelength solution files, XIDL or PypeIt
+            If PypeIt, they can be a mix of MasterWaveCalib JSON and FITS files
         slits (list):
             Slits in the archive files to use
         wv_cuts (list):
@@ -96,6 +97,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             Requires PypeIt file (old JSON works for now)
         binning (list, optional):
             Allows for multiple binnings for input files
+        micron (bool, optional):
+            If True, assume the in_files archive has a solution in microns, so convert this to Angstroms
+            which is the PypeIt convention. Default=False
     """
     if outdir is None:
         outdir = outpath
@@ -111,7 +115,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
+    # Loop on the files
     for kk, slit in enumerate(slits):
+        # Load up
         if wvspec is None:
             in_file = in_files[ifiles[kk]]
             if lowredux:
@@ -120,8 +126,12 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                 wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
                 wv_vac, spec, pypeitFit = pypeit_arcspec(in_file, slit, binspec, binning[kk])
+            if micron:
+                wv_vac = 1e4*wv_vac
         else:
             wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
+        # Diagnostics
+        msgs.info("wvmin, wvmax of {}: {}, {}".format(in_file, wv_vac.min(), wv_vac.max()))
         # Cut
         if len(slits) > 1:
             wvmin, wvmax = grab_wvlim(kk, wv_cuts, len(slits))

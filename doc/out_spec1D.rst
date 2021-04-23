@@ -14,7 +14,8 @@ described by two arrays: flux, wavelength (in vacuum).  These together
 with an error array are the minimal output for even the 
 Quick reduction mode.  There are, however, several methods
 of extraction, calibration, etc. which yield various data
-products.
+products. Additionally, a `.txt` file with `Extraction Information`_ for
+each extracted 1D spectrum is also produced.
 
 .. _spec1d-output-arrays:
 
@@ -38,6 +39,7 @@ Objects
 -------
 
 Each object is named by its:
+
  - spatial position (pixel number) on the reduced image [SPAT]
  - the slit position (pixel number) on the reduced image [SLIT]
  - the detector number [DET]
@@ -134,6 +136,36 @@ Choice of :ref:`out_spec1D:Extraction` method
 ++++++
 
 Show the fluxed spectrum (only if it has been fluxed!)
+
+Extraction Information
+======================
+
+A `.txt` file with the same name as the 1D spectra `File`_ is also produced by PypeIt.
+This file lists the main extraction information for each 1D spectrum. It looks like::
+
+    | slit |                    name | spat_pixpos | spat_fracpos | box_width | opt_fwhm |   s2n | wv_rms |
+    |   69 | SPAT0071-SLIT0069-DET02 |        70.9 |        0.504 |      3.00 |    1.911 |  7.06 |  0.025 |
+    |  178 | SPAT0186-SLIT0178-DET02 |       186.1 |        0.570 |      3.00 |    1.264 |  2.60 |  0.020 |
+    |  275 | SPAT0271-SLIT0275-DET02 |       270.5 |        0.434 |      3.00 |    1.317 |  1.89 |  0.021 |
+    |  371 | SPAT0383-SLIT0371-DET02 |       383.3 |        0.578 |      3.00 |    0.425 |  2.98 |  0.022 |
+    |  469 | SPAT0461-SLIT0469-DET02 |       461.0 |        0.392 |      3.00 |    0.873 |  0.55 |  0.026 |
+
+where:
+
+- ``slit`` is the slit position in pixels on the reduced image;
+- ``name`` is the object name (see `Objects`_);
+- ``spat_pixpos`` is the object spatial position in pixels on the reduced image;
+- ``spat_fracpos`` is the fractional location of the object on the slit;
+- ``box_width`` is the width in arcsec of the boxcar;
+- ``opt_fwhm`` is the spatial FWHM in arcsec of the optimally extracted object;
+- ``s2n`` is the Signal-to-Noise ratio (SNR) of the optimally extracted object. If optimal extraction is not
+  performed, the reported SNR is for the boxcar extracted object;
+- ``wv_rms`` is the RMS in pixels of the wavelength solution.
+
+
+In addition, if reducing :doc:`deimos` data and slit-mask design matching is performed
+(see :ref:`deimos:Slit-mask design matching`), ``maskdef_id``, ``objname``, ``objra``, ``objdec`` are also provided
+for each spectrum (see :ref:`deimos_radec_object_report`).
 
 Current Data Model
 ==================
