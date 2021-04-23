@@ -1,9 +1,8 @@
 .. code-block:: console
 
     $ pypeit_coadd_2dspec -h
-    usage: pypeit_coadd_2dspec [-h] [--file FILE] [--det DET] [--obj OBJ]
-                               [--show] [--debug_offsets] [--peaks]
-                               [--basename BASENAME]
+    usage: pypeit_coadd_2dspec [-h] [--file FILE] [--det DET] [--obj OBJ] [--show]
+                               [--debug_offsets] [--peaks] [--basename BASENAME]
                                [--spec_samp_fact SPEC_SAMP_FACT]
                                [--spat_samp_fact SPAT_SAMP_FACT] [--debug]
     

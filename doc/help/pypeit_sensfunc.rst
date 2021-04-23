@@ -40,13 +40,13 @@
                                           multi_spec_det = 3,7
                             
       -o OUTFILE, --outfile OUTFILE
-                            Ouput file for sensitivity function. If not
-                            specified, the sensitivity function will be written
-                            out to a standard filename in the current working
-                            directory, i.e. if the standard spec1d file is named
-                            spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will
-                            be written to sens_b24-Feige66_KASTb_foo.fits. A QA
-                            file will also be written as
+                            Ouput file for sensitivity function. If not specified,
+                            the sensitivity function will be written out to a
+                            standard filename in the current working directory,
+                            i.e. if the standard spec1d file is named
+                            spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will be
+                            written to sens_b24-Feige66_KASTb_foo.fits. A QA file
+                            will also be written as
                             sens_spec1d_b24-Feige66_KASTb_foo_QA.pdf and a file
                             showing throughput plots to
                             sens_spec1d_b24-Feige66_KASTb_foo_throughput.pdf. The
