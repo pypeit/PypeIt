@@ -3,7 +3,8 @@
     $ pypeit_coadd_2dspec -h
     usage: pypeit_coadd_2dspec [-h] [--file FILE] [--det DET] [--obj OBJ] [--show]
                                [--debug_offsets] [--peaks] [--basename BASENAME]
-                               [--samp_fact SAMP_FACT] [--debug]
+                               [--spec_samp_fact SPEC_SAMP_FACT]
+                               [--spat_samp_fact SPAT_SAMP_FACT] [--debug]
     
     Coadd 2D spectra
     
@@ -23,9 +24,15 @@
                             (default: False)
       --basename BASENAME   Basename of files to save the parameters, spec1d, and
                             spec2d (default: None)
-      --samp_fact SAMP_FACT
-                            Make the wavelength grid finer (samp_fact > 1.0) or
-                            coarser (samp_fact < 1.0) by this sampling factor
+      --spec_samp_fact SPEC_SAMP_FACT
+                            Make the wavelength grid finer (spec_samp_fact < 1.0)
+                            or coarser (spec_samp_fact > 1.0) by this sampling
+                            factor, i.e. units of spec_samp_fact are pixels.
+                            (default: 1.0)
+      --spat_samp_fact SPAT_SAMP_FACT
+                            Make the spatial grid finer (spat_samp_fact < 1.0) or
+                            coarser (spat_samp_fact > 1.0) by this sampling
+                            factor, i.e. units of spat_samp_fact are pixels.
                             (default: 1.0)
       --debug               show debug plots? (default: False)
     
