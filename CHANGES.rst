@@ -1,5 +1,5 @@
 
-1.4.1 (23 Apr 2021)
+1.4.0 (23 Apr 2021)
 -------------------
 
 - Include a fix for when no edges are detected in `EdgeTraceSet` by
