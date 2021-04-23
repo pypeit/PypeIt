@@ -66,11 +66,18 @@ def show_trace(specobjs, det, viewer, ch):
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
         maskdef_objname = specobjs[kk].MASKDEF_OBJNAME
+        maskdef_extr_flag = specobjs[kk].MASKDEF_EXTRACT
+        manual_extr_flag = specobjs[kk].hand_extract_flag
         if maskdef_objname is not None:
             trc_name = '{}     OBJNAME:{}'.format(obj_id, maskdef_objname)
         else:
             trc_name = obj_id
-        display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
+        if maskdef_extr_flag is not None and maskdef_extr_flag is True:
+            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+        elif manual_extr_flag is True:
+            display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
+        else:
+            display.show_trace(viewer, ch, trace, trc_name, color='orange') #hdu.name)
 
 
 def main(args):
@@ -116,7 +123,7 @@ def main(args):
     if args.file[-2:] == 'gz':
         spec1d_file = spec1d_file[:-3]
     if os.path.isfile(spec1d_file):
-        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
     else:
         sobjs = None
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
@@ -190,6 +197,12 @@ def main(args):
 
     # SKRESIDS
     if 2 in show_channels:
+        # the block below is repeated because if showing this channel but not channel 1 it will crash
+        if args.ignore_extract_mask:
+            # TODO -- Is there a cleaner way to do this?
+            gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
+        else:
+            gpm = spec2DObj.bpmmask == 0
         chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
         image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
         viewer, ch_sky_resids = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,

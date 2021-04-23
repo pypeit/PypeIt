@@ -12,6 +12,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia   25 Jan 2021  1.3.1dev
+1.1         Debora Pelliccia   02 Apr 2021  1.3.4dev
 =========   ================   =========== ===========
 
 ----
@@ -20,7 +21,7 @@ Basics
 ------
 
 The procedure used to assign RA, Dec and object name to each DEIMOS 1D extracted spectrum
-is performed during the object extraction procedure described in :ref:`extraction`.
+is performed right after the object finding procedure described in :ref:`object_finding`.
 
 
 Procedure
@@ -32,24 +33,27 @@ design information stored in the :class:`~pypeit.slittrace.SlitTraceSet` datamod
 :ref:`deimos_slitmask_ids_report` for a description on how the slitmask design matching is performed,
 and :ref:`master_slits` for a description of the provided information and for a way to visualize them).
 
-Then, :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` measures the distance in pixels (converted
-then in arcsec) between the traced object and the center of the slit and, using the coordinates of the
-slit center available from the slitmask design, estimates the coordinates of the extracted spectrum.
-
-``PypeIt`` goes through all the slits in a selected detector and for each extracted spectrum checks if
-the measured coordinates are within a certain tolerance (see `Application`_ for details on how to control the
-value of this parameter) of the expected coordinates for the targeted object. If the answer is yes, the 1D 
-spectrum ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` are updated with the coordinates and name of the
-targeted object. If the answer is no, the extracted spectrum is considered a serendipitous object and 
-the measured coordinates are recorded in  ``RA`` and ``DEC`` while ``MASKDEF_OBJNAME`` is be set to "SERENDIP".
+Then, :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` goes through all the slits in a
+selected detector and for each detected object checks if the measured distance of the object from the
+left edge of the slit is within a certain tolerance (see `Application`_ for details on how to control the value of
+this parameter) of the distance expected from the slitmask design (differences between the expected and
+the measured slit length are taken into account).
+If the answer is yes, the ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` of the detected object are updated
+with the coordinates and name of the targeted object. If the answer is no, the detected object is
+considered a serendipitous object. Using the coordinates of the slit center available from the slitmask
+design and the distance in pixels (converted then in arcsec) between the traced object and the center
+of the slit, the coordinates of the serendipitous object are estimates and recorded in  ``RA``
+and ``DEC`` while ``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``MASKDEF_EXTRACT`` attribute
+is set to **False** (see :ref:`deimos_add_missing_obj_report`).
 
 
 Application
 -----------
 
-To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the **assign_obj** flag in
+To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the parameters described in
+the *Application* section of :ref:`deimos_slitmask_ids_report` must be set. Moreover, the **assign_obj** flag in
 :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
-except when *LongMirr* mask is used. One other keyword controls this procedure and it is **obj_toler**.
+except when the *LongMirr* or the *LVM* mask is used. One other keyword controls this procedure and it is **obj_toler**.
 This keyword sets the tolerance in arcsec for the matching process between
 the measured coordinates of the extracted spectrum and the expected coordinates of the targeted object.
 The default value is **obj_toler = 5**.
@@ -62,7 +66,7 @@ Access
 
 - Ra, Dec, object name and ``maskdef_id`` are visible in the .txt file with a list of all extracted spectra,
   generated at the end the ``PypeIt`` reduction.
-- Ra, Dec, object name are also visible by runing `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
+- Ra, Dec, object name are also visible by running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
 - Object names are visible in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
 
 

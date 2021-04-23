@@ -25,6 +25,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
     supported = True
+    comment = 'See :doc:`gtc_osiris`'
 
     def get_detector_par(self, hdu, det):
         """

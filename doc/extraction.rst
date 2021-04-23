@@ -65,6 +65,19 @@ detected with the :doc:`object_finding` algorithm, even
 by adjusting its parameters, then you may do a
 :doc:`manual`.
 
+Custom FWHM for optimal extraction
+----------------------------------
+
+If you want to perform an optimal extraction using a defined FWHM
+(i.e., not letting PypeIt to compute it from the flux profile), you can
+set the parameter **use_user_fwhm** in :ref:`pypeit_par:ExtractionPar Keywords`
+to **True**. In this case, PypeIt will assume for the object a Gaussian profile
+with a FWMH equal to **find_fwhm** (see :ref:`pypeit_par:FindObjPar Keywords`).
+
+It may be occasionally necessary to set **no_local_sky = True**
+in :ref:`pypeit_par:SkySubPar Keywords` to avoid a bad local sky subtraction.
+
+
 Additional Reading
 ==================
 
