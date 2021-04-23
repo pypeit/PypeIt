@@ -11,9 +11,8 @@ from linetools.spectra.io import readspec
 
 import pypeit
 from pypeit.core import flexure, arc
-from pypeit import slittrace
-from pypeit import wavetilts
 
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import cooked_required
 
 def data_path(filename):
@@ -74,8 +73,13 @@ def test_flex_multi():
    
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+
     mdFlex = flexure.MultiDetFlexure(s1dfile=spec1d_file, 
                      PYP_SPEC='keck_deimos')
+    # Parameters
+    keck_deimos = load_spectrograph('keck_deimos')
+    par = keck_deimos.default_pypeit_par()
+    mdFlex.flex_par = par['flexure']                                        
     # Init                    
     mdFlex.init_slits()
     outfile = data_path('tst_multi_flex.fits')
