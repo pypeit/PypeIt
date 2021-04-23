@@ -1,4 +1,8 @@
 """ Module for fluxing routines
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
 """
 import os
 import glob
@@ -41,6 +45,10 @@ def zp_unit_const():
                           (PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.angstrom)
                          ).to('Jy')/(3631 * units.Jy)).value
 
+# This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
+def mAB_to_cgs(mAB,wvl):
+    return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
+
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
 # It has a value of ZP_UNIT_CONST = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
@@ -76,7 +84,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['xshooter', 'calspec', 'esofil']
+    std_sets = ['xshooter', 'calspec', 'esofil', 'noao']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -146,6 +154,19 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
                 std_dict['wave'] = std_dict['wave'][np.invert(mask)]
                 std_dict['flux'] = std_dict['flux'][np.invert(mask)]
+            
+            elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = table.Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = mAB_to_cgs(std_spec['col2'],std_spec['col1']) / PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
+                # At this low resolution, best to throw out entries affected by A and B-band absorption
+                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
+                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
+                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
+            
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
             msgs.info("Fluxes are flambda, normalized to 1e-17")
@@ -364,7 +385,7 @@ def extinction_correction(wave, airmass, extinct):
 
     Parameters
     ----------
-    wave : `numpy.ndarray`_
+    wave (`numpy.ndarray`_):
         Wavelengths for interpolation. Should be sorted Assumes
         Angstroms
     airmass : float
@@ -372,9 +393,9 @@ def extinction_correction(wave, airmass, extinct):
     extinct : Table
         Table of extinction values
 
-    Returns
+    Returns:
     -------
-    flux_corr : `numpy.ndarray`_
+    `numpy.ndarray`_:
         Flux corrections at the input wavelengths
     """
     # Checks
@@ -592,7 +613,7 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
             Extrapolate the sensitivity function (instead of crashing out)
 
     Returns:
-    sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
+        sensfunc_factor (`numpy.ndarray`_): shape = (nspec,)
             This quantity is defined to be sensfunc_interp/exptime/delta_wave
 
     """
@@ -705,10 +726,8 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
             If you have significant telluric absorption you should be using telluric.sensnfunc_telluric. default = 0.9
 
     Returns:
-        tuple: Returns:
-
-            - zeropoint (`numpy.ndarray`_) -- Sensitivity function with same shape as wave (nspec,)
-            - mask_sens (bool `numpy.ndarray`_) -- Good pixel mask for sensitivity function with same shape as wave (nspec,)
+            zeropoint (`numpy.ndarray`_): Sensitivity function with same shape as wave (nspec,)
+            mask_sens (`numpy.ndarray`_): Good pixel mask for sensitivity function with same shape as wave (nspec,)
 
     """
     # Create copy of the arrays to avoid modification and convert to
@@ -730,13 +749,14 @@ def fit_zeropoint(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
     flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
                                      fill_value='extrapolate')(wave)
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
+    ## TODO This is an ugly hack. Why are we only triggering this if the extrapolated star is negative.
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         mask_model = flux_true <= 0
         pypeitFit = fitting.robust_fit(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     maxiter=50, lower=3.0, upper=3.0, maxrej=3,
                                                     grow=0, sticky=True, use_mad=True)
-        star_poly = pypeitFit.eval(wave.value)
+        star_poly = pypeitFit.eval(wave)
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
         if debug:
@@ -936,9 +956,9 @@ def Flam_to_Nlam(wave, zeropoint, zp_min=5.0, zp_max=30.0):
     zeropoint (`numpy.ndarray`_):
        zeropoint array, float, shape (nspec,)
 
-    Returns
-    -------
-    factor (`numpy.ndarray`_):
+    Returns:
+    --------
+    `numpy.ndarray`_:
         Factor that when multiplied into F_lam converts to N_lam
 
     """
@@ -966,8 +986,8 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     tellmodel (`numpy.ndarray`_):
         Telluric absorption model, optional, shape (nspec,)
 
-    Returns
-    -------
+    Returns:
+    --------
     zeropoint (`numpy.ndarray`_):
         Spectroscopic zeropoint, float, shape (nspec,)
     zeropoint_gpm (`numpy.ndarray`_):
@@ -975,9 +995,10 @@ def compute_zeropoint(wave, N_lam, N_lam_gpm, flam_std_star, tellmodel=None):
     """
 
     tellmodel = np.ones_like(N_lam) if tellmodel is None else tellmodel
-    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)*(N_lam > 0.0)
-    zeropoint = -2.5*np.log10(S_nu_dimless) + ZP_UNIT_CONST
-    zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & np.isfinite(flam_std_star) & (wave > 1.0)
+    S_nu_dimless = np.square(wave)*tellmodel*flam_std_star*utils.inverse(N_lam)
+    zeropoint = -2.5*np.log10(S_nu_dimless + (S_nu_dimless <= 0.0)) + ZP_UNIT_CONST
+    zeropoint_gpm = N_lam_gpm & np.isfinite(zeropoint) & (N_lam > 0.0) & (S_nu_dimless > 0.0) & \
+                    np.isfinite(flam_std_star) & (wave > 1.0)
     return zeropoint, zeropoint_gpm
 
 #def throughput_from_sensfile(sensfile):

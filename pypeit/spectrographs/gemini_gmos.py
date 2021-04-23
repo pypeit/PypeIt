@@ -334,7 +334,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
         # Return, transposing array back to orient the overscan properly
-        return self.get_detector_par(hdu, det if det is None else 1), \
+        return self.get_detector_par(hdu, det if det is not None else 1), \
                 array, hdu, exptime, rawdatasec_img, oscansec_img
 
 
@@ -435,7 +435,9 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         par['sensfunc']['IR']['telgridfile'] \
                 = os.path.join(par['sensfunc']['IR'].default_root,
                                'TelFit_LasCampanas_3100_26100_R20000.fits')
-
+        # Bound the detector with slit edges if no edges are found. These data are often trimmed
+        # so we implement this here as the default.
+        par['calibrations']['slitedges']['bound_detector'] = True
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -472,7 +474,6 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
 
-            # TODO: Fix this
             # Get the binning
             hdu = io.fits_open(filename)
             binning = hdu[1].header['CCDSUM']
@@ -492,8 +493,6 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             # Apply the mask
             xbin = int(binning.split(' ')[0])
-            if xbin != 2:
-                msgs.error("Not prepared for GMOS data wihout 2x binning!")
             # Up high
             badr = (902*2)//xbin # Transposed
             bpm_img[badr:badr+(3*2)//xbin,:] = 1
@@ -510,8 +509,6 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
             # Apply the mask
             xbin = int(binning.split(' ')[0])
-            if xbin != 2:
-                embed()
             badr = (281*2)//xbin # Transposed
             bpm_img[badr:badr+(2*2)//xbin,:] = 1
 

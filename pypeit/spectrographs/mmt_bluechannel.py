@@ -343,7 +343,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # TODO Store these parameters in the DetectorPar.
         # Number of amplifiers
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
         numamp = detector_par['numamplifiers']
 
         # First read over the header info to determine the size of the output array...

@@ -92,12 +92,21 @@ class SensFunc:
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
         self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
         self.debug = debug
+        # Intermediate attributes
+        self.wave = None
+        self.counts = None
+        self.conts_ivar = None
+        self.counts_mask = None
+        self.norderdet = None
         # Core attributes that will be output to file
         self.meta_table = None
         self.out_table = None
-        self.wave = None
+        self.wave_zp = None
         self.zeropoint = None
         self.throughput = None
+        self.wave_zp_splice = None
+        self.zeropoint_splice = None
+        self.throughput_splice = None
         self.steps = []
         # Are we splicing together multiple detectors?
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
@@ -143,21 +152,28 @@ class SensFunc:
         # Extrapolate the zeropoint based on par['extrap_blu'], par['extrap_red']
         self.wave_zp, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave_zp, self.zeropoint = self.splice()
+            self.wave_zp_splice, self.zeropoint_splice = self.splice()
 
         # Compute the throughput
-        self.throughput = self.compute_throughput()
+        self.throughput, self.throughput_splice = self.compute_throughput()
 
         # Write out QA and throughput plots
         self.write_QA()
 
+        # TODO This is ugly code. Maybe it should go in save. Maybe we should just output all the zeropoint arrays
+        # as 2d arrays rather than flattening them.
         # If the zeropoint has just one order, or detectors were spliced, flatten the output
-        # TODO -- Consider having self.splice() return a 2D array instead of 1D for multi_det
-        if self.wave_zp.ndim == 2:
-            if self.wave_zp.shape[1] == 1:
-                self.wave_zp = self.wave_zp.flatten()
-                self.zeropoint = self.zeropoint.flatten()
-                self.throughput = self.throughput.flatten()
+        #if self.wave_zp.ndim == 2:
+        #    # Always flatten for multi_spec_det
+        #    if self.splice_multi_det:
+        #        self.wave_zp_splice = self.wave_zp_splice.flatten()
+        #        self.zeropoint_splice = self.zeropoint_splice.flatten()
+        #        self.throughput_splice = self.throughput_splice.flatten()
+        #    # Otherwise, flatten only if the number of det/orders = 1
+        #    elif self.wave_zp.shape[1] == 1:
+        #        self.wave_zp = self.wave_zp.flatten()
+        #        self.zeropoint = self.zeropoint.flatten()
+        #        self.throughput = self.throughput.flatten()
 
         return
 
@@ -188,7 +204,11 @@ class SensFunc:
         hdr['SPC1DFIL'] = self.spec1dfile
 
         # Write the fits file
-        data = [self.wave_zp, self.zeropoint, self.throughput]
+        if self.splice_multi_det:
+            data = [self.wave_zp_splice, self.zeropoint_splice, self.throughput_splice]
+        else:
+            data = [self.wave_zp, self.zeropoint, self.throughput]
+
         extnames = ['WAVE', 'ZEROPOINT', 'THROUGHPUT']
         # Write the fits file
         hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
@@ -317,8 +337,16 @@ class SensFunc:
                         (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) & (self.wave_zp[:,idet] > 1.0)
             throughput[:,idet][wave_gpm] = flux_calib.zeropoint_to_throughput(
                 self.wave_zp[:,idet][wave_gpm], self.zeropoint[:,idet][wave_gpm], self.spectrograph.telescope.eff_aperture())
+        if self.splice_multi_det:
+            wave_gpm = (self.wave_zp_splice >= self.out_table[:]['WAVE_MIN'].min()) & \
+                        (self.wave_zp_splice <= self.out_table[:]['WAVE_MAX'].max()) & (self.wave_zp_splice > 1.0)
+            throughput_splice = np.zeros_like(self.wave_zp_splice)
+            throughput_splice[wave_gpm] = flux_calib.zeropoint_to_throughput(
+                self.wave_zp_splice[wave_gpm], self.zeropoint_splice[wave_gpm], self.spectrograph.telescope.eff_aperture())
+        else:
+            throughput_splice = None
 
-        return throughput
+        return throughput, throughput_splice
 
 
     def write_QA(self):
@@ -391,10 +419,11 @@ class SensFunc:
                                  self.out_table[idet]['SENS_ZEROPOINT_FIT'][wave_gpm],
                                  color=(rr, gg, bb), linestyle='-', linewidth=2.5, label=thru_title[idet],
                                  zorder=5 * idet)
-                    wave_zp_gpm = (self.wave_zp >= self.out_table['WAVE_MIN'].min()) &  (self.wave_zp <= self.out_table['WAVE_MAX'].max())
                     # If we are splicing, overplot the spliced zeropoint
                     if self.splice_multi_det:
-                        axis.plot(self.wave_zp[wave_zp_gpm].flatten(), self.zeropoint[wave_zp_gpm].flatten(),
+                        wave_zp_gpm = (self.wave_zp_splice >= self.out_table['WAVE_MIN'].min()) & \
+                                      (self.wave_zp_splice <= self.out_table['WAVE_MAX'].max()) & (self.wave_zp_splice > 1.0)
+                        axis.plot(self.wave_zp_splice[wave_zp_gpm].flatten(), self.zeropoint_splice[wave_zp_gpm].flatten(),
                                  color='black', linestyle='-', linewidth=2.5, label='Spliced Zeropoint', zorder=30, alpha=0.3)
 
                     axis.set_xlim((0.98 * self.out_table['WAVE_MIN'].min(), 1.02 * self.out_table['WAVE_MAX'].max()))
@@ -420,6 +449,9 @@ class SensFunc:
             bb = (order_or_det[idet] - np.min(order_or_det))/np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gpm = (self.throughput[:, idet] >= 0.0)
             axis.plot(self.wave_zp[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb), linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
+        if self.splice_multi_det:
+            axis.plot(self.wave_zp_splice[wave_zp_gpm].flatten(), self.throughput_splice[wave_zp_gpm].flatten(),
+                      color='black', linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30, alpha=0.3)
 
         axis.set_xlim((0.98*self.wave_zp[self.throughput >=0.0].min(),1.02*self.wave_zp[self.throughput >=0.0].max()))
         axis.set_ylim((0.0,1.05*self.throughput[self.throughput >=0.0].max()))

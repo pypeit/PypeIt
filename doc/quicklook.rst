@@ -94,28 +94,36 @@ Keck/NIRES spectral images.  Currently, the code takes
 Therefore, there is a first set of nires-output_ in
 approximately 1 minute.
 
-Setup
-+++++
+NIRES QL Setup
+++++++++++++++
 
 Before running this script, you will need to
 
 - Download the folder of `NIRES Master calibration frames <https://drive.google.com/open?id=1_m3Y9xz2jEiTsWjVqej6UgARyTlApLGy>`_.
-- You may place this folder anywhere.
-- Point the Environmental variable *NIRES_MASTERS* at this folder.
-   - e.g. export NIRES_MASTERS=/data/Keck_NIRES/NIRES_MASTERS
+- You may place this folder anywhere, but it is recommended to place the folder in to a 
+  folder named "QL_MASTERS" so that Master calibration frames from other instruments can
+  be placed beside it.
+- Point the Environmental variable *QL_MASTERS* at the parent of the NIRES_MASTERS folder. 
+  For example::
+
+    $ cd /data
+    $ mkdir QL_MASTERS
+    $ cd QL_MASTERS
+    $ tar xzf ~/Downloads/nires_masters.tar.gz
+    $ export QL_MASTERS=/data/QL_MASTERS/
 
 .. _nires-options:
 
-Options
-+++++++
+NIRES QL Options
+++++++++++++++++
 
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_ql_keck_nires.rst
 
-Example
-+++++++
+NIRES QL Example
+++++++++++++++++
 
 Here is an example call::
 
@@ -123,10 +131,61 @@ Here is an example call::
 
 .. _nires-output:
 
-Output
-++++++
+NIRES QL Output
++++++++++++++++
 
 If all goes smoothly, the code will generate four spectral
 output files, with 2 each with extensions of spec1d and
 spec2d.  These can be viewed with :ref:`pypeit_show_1dspec`
 and :ref:`pypeit_show_2dspec`.
+
+pypeit_ql_keck_mosfire
+======================
+
+This script performs a quick A-B reduction of pairs of
+Keck/MOSFIRE spectral images.  Currently only the "Y" filter is supported.
+
+MOSFIRE QL Setup
+++++++++++++++++
+
+Before running this script, you will need to
+
+- Download the folder of `MOSFIRE Master calibration frames <https://drive.google.com/file/d/12LqPEqldTM5Gz_gGvUVYReFBAbikuVXI/view?usp=sharing>`_
+
+- You may place this folder anywhere, but it is recommended to place the folder in to a 
+  folder named "QL_MASTERS" so that Master calibration frames from other instruments can
+  be placed beside it.
+
+- Point the Environmental variable *QL_MASTERS* at the parent of the MOSFIRE_MASTERS folder. 
+  For example::
+
+    $ cd /data
+    $ mkdir QL_MASTERS
+    $ cd QL_MASTERS
+    $ tar xzf ~/Downloads/mosfire_masters.tar.gz
+    $ export QL_MASTERS=/data/QL_MASTERS/
+
+
+.. _mosfire-options:
+
+MOSFIRE QL Options
+++++++++++++++++++
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_ql_keck_mosfire.rst
+
+MOSFIRE QL Example
+++++++++++++++++++
+
+Here is an example call::
+
+    pypeit_ql_keck_nires /data/Keck_MOSFIRE/Raw m191120_0043.fits m191120_0044.fits m191120_0045.fits m191120_0046.fits --spec_samp_fact 2.0 --spat_samp_fact 2.0
+
+.. _mosfire-output:
+
+MOSFIRE QL Output
++++++++++++++++++
+
+If all goes smoothly, a ginga window will open with the resulting image.

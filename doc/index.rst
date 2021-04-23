@@ -83,10 +83,12 @@ What this version provides
 
 * Support for 20+ :doc:`spectrographs`; see there for the full list, including
   those that are currently in various stages of development.
-
+ 
+  * Bok/B&C
   * Gemini/GNIRS
   * Gemini/GMOS
   * Gemini/FLAMINGOS 2
+  * GTC/OSIRIS
   * Lick/Kast
   * Magellan/MagE
   * Magellan/Fire
@@ -212,6 +214,7 @@ or have a feature request, please `submit an issue
    coadd1d
    coadd2d
    coadd3d
+   collate1d
 
 ----
 
@@ -221,6 +224,7 @@ or have a feature request, please `submit an issue
 
    dev/development
    PypeIt API <api/modules>
+   new_spectrograph
 
 Contributors
 ============

@@ -1081,7 +1081,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             return skymask
 
 
-def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, has_negative=False, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             boxcar_rad_skymask=None, cont_sig_thresh=2.0,
@@ -1127,6 +1127,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                       and the trace only shows in part of the detector.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
+        use_user_fwhm: bool, default = False
+            If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
+            rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm. 
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1472,54 +1475,58 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_name()
 
-        # Determine the fwhm max
-        yhalf = 0.5*sobjs[iobj].smash_peakflux
-        xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
-        x0 = int(np.rint(xpk))
-        # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
-        # Find right location where smash profile croses yhalf
-        if x0 < (int(nsamp)-1):
-            ind_righ, = np.where(fluxconv_cont[x0:] < yhalf)
-            if len(ind_righ) > 0:
-                i2 = ind_righ[0]
-                if i2 == 0:
-                    xrigh = None
+        if use_user_fwhm:
+            sobjs[iobj].FWHM = fwhm
+
+        else:
+            # Determine the fwhm max
+            yhalf = 0.5*sobjs[iobj].smash_peakflux
+            xpk = sobjs[iobj].SPAT_FRACPOS*nsamp
+            x0 = int(np.rint(xpk))
+            # TODO It seems we have two codes that do similar things, i.e. findfwhm in arextract.py. Could imagine having one
+            # Find right location where smash profile croses yhalf
+            if x0 < (int(nsamp)-1):
+                ind_righ, = np.where(fluxconv_cont[x0:] < yhalf)
+                if len(ind_righ) > 0:
+                    i2 = ind_righ[0]
+                    if i2 == 0:
+                        xrigh = None
+                    else:
+                        xrigh_int = scipy.interpolate.interp1d(fluxconv_cont[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
+                        xrigh = xrigh_int([yhalf])[0]
                 else:
-                    xrigh_int = scipy.interpolate.interp1d(fluxconv_cont[x0 + i2-1:x0 + i2 + 1], x0 + np.array([i2-1,i2],dtype=float),assume_sorted=False)
-                    xrigh = xrigh_int([yhalf])[0]
+                    xrigh = None
             else:
                 xrigh = None
-        else:
-            xrigh = None
-        # Find left location where smash profile crosses yhalf
-        if x0 > 0:
-            ind_left, = np.where(fluxconv_cont[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
-            if len(ind_left) > 0:
-                i1 = (ind_left[::-1])[0]
-                if i1 == (int(nsamp)-1):
-                    xleft = None
+            # Find left location where smash profile crosses yhalf
+            if x0 > 0:
+                ind_left, = np.where(fluxconv_cont[0:np.fmin(x0+1,int(nsamp)-1)] < yhalf)
+                if len(ind_left) > 0:
+                    i1 = (ind_left[::-1])[0]
+                    if i1 == (int(nsamp)-1):
+                        xleft = None
+                    else:
+                        xleft_int = scipy.interpolate.interp1d(fluxconv_cont[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
+                        xleft = xleft_int([yhalf])[0]
                 else:
-                    xleft_int = scipy.interpolate.interp1d(fluxconv_cont[i1:i1+2],np.array([i1,i1+1],dtype=float), assume_sorted= False)
-                    xleft = xleft_int([yhalf])[0]
+                    xleft = None
             else:
                 xleft = None
-        else:
-            xleft = None
 
-        # Set FWHM for the object
-        if (xleft is None) & (xrigh is None):
-            fwhm_measure = None
-        elif xrigh is None:
-            fwhm_measure = 2.0*(xpk- xleft)
-        elif xleft is None:
-            fwhm_measure = 2.0*(xrigh - xpk)
-        else:
-            fwhm_measure = (xrigh - xleft)
+            # Set FWHM for the object
+            if (xleft is None) & (xrigh is None):
+                fwhm_measure = None
+            elif xrigh is None:
+                fwhm_measure = 2.0*(xpk- xleft)
+            elif xleft is None:
+                fwhm_measure = 2.0*(xrigh - xpk)
+            else:
+                fwhm_measure = (xrigh - xleft)
 
-        if fwhm_measure is not None:
-            sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
-        else:
-            sobjs[iobj].FWHM = fwhm
+            if fwhm_measure is not None:
+                sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
+            else:
+                sobjs[iobj].FWHM = fwhm
 
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
@@ -1688,6 +1695,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
+    # Vette
+    for sobj in sobjs:
+        if not sobj.ready_for_extraction():
+            msgs.error("Bad SpecObj.  Can't proceed")
+
+    # Return
     return sobjs, skymask[thismask]
 
 
@@ -1733,7 +1746,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 inmask=None, spec_min_max=None,
                 fof_link=1.5, plate_scale=0.2, has_negative=False,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
@@ -1780,6 +1793,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             Input mask for the input image.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
+        use_user_fwhm: bool, default = False
+            If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
+            rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm.
         hand_extract_dict (dict, optional):
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
@@ -1966,7 +1982,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
-                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
+                    inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
                     nperslit=nperslit, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
@@ -2298,5 +2314,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         canvas.add('constructedcanvas', canvas_list)
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
+    
+    # Vette
+    for sobj in sobjs:
+        if not sobj.ready_for_extraction():
+            msgs.error("Bad SpecObj.  Can't proceed")
+
     return sobjs_final, skymask[allmask]
 

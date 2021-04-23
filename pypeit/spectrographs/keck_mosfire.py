@@ -60,8 +60,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             gain            = np.atleast_1d(2.15),  # Taken from MOSFIRE detector webpage
             ronoise         = np.atleast_1d(5.8), # This is for 16 non-destructuve reads, the default readout mode
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            datasec         = np.atleast_1d('[5:2044,5:2044]'),
+            #oscansec        = np.atleast_1d('[:,:]')
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -298,6 +298,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
 
+
     def parse_dither_pattern(self, file_list, ext=None):
         """
         Parse headers from a file list to determine the dither pattern.
@@ -367,6 +368,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         """
 
+
         # Could check the wavelenghts here to do something more robust to header/meta data issues
         if 'Y-spectroscopy' in meta_table['DISPNAME']:
             #wave_out = np.copy(wave_in)
@@ -424,6 +426,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             #    plt.axvline(wave_red, color='red')
             #    plt.legend()
             #    plt.show()
-
-        return wave, counts, counts_ivar, gpm
+            return wave, counts, counts_ivar, gpm
+        else:
+            return wave_in, counts_in, counts_ivar_in, gpm_in
 

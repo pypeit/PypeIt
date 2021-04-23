@@ -67,6 +67,17 @@ pypeit_coadd_1dspec
 
 See :doc:`coadd1d` for further details.
 
+pypeit_collate_1d
+=================
+
+This is a tool to help organize spectra in multiple spec1d files, group them
+by source, and flux/coadd them.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_collate_1d.rst
+
 Calibration Scripts
 +++++++++++++++++++
 

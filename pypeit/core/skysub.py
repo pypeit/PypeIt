@@ -118,13 +118,18 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
-    inmask_in = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
+    gpm = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
+    if not np.any(gpm):
+        msgs.warn("Input pixel mask + edges has no good pixels.  There is likely a problem with this slit.")
+        return np.zeros(np.sum(thismask))
+
+    # Sub arrays
     isrt = np.argsort(piximg[thismask])
     pix = piximg[thismask][isrt]
     sky = image[thismask][isrt]
     sky_ivar = ivar[thismask][isrt]
     ximg_fit = ximg[thismask][isrt]
-    inmask_fit = inmask_in[thismask][isrt]
+    inmask_fit = gpm[thismask][isrt]
     inmask_prop = inmask_fit.copy()
     #spatial = spatial_img[fit_sky][isrt]
 
@@ -182,6 +187,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     ythis[isrt] = yfit
     sky_frame[thismask] = ythis
 
+
     #skyset.funcname ='legendre'
     #skyset.xmin = spat_min
     #skyset.xmax = spat_max
@@ -199,7 +205,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         yfit_bkpt = np.interp(skyset.breakpoints[goodbk], pix,yfit)
         plt.clf()
         ax = plt.gca()
-        was_fit_and_masked = inmask_fit & ~outmask
+        was_fit_and_masked = inmask_fit & np.logical_not(outmask)
         ax.plot(pix[inmask_fit], sky[inmask_fit], color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full', linestyle='None')
         ax.plot(pix[was_fit_and_masked], sky[was_fit_and_masked], color='red', marker='+', markersize=1.5, mfc='red', fillstyle='full', linestyle='None')
         ax.plot(pix, yfit, color='cornflowerblue')
@@ -469,7 +475,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          thismask, slit_left, slit_righ, sobjs, ingpm=None,
                          spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
-                         debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
+                         debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
     """Perform local sky subtraction and  extraction
 
@@ -558,6 +564,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         debug_bkpts: bool, default=False
             Make an interactive plot to the screen to indicate how the
             breakpoints are being chosen.
+        force_gauss: bool, default = False
+            If True, a Gaussian profile will always be assumed for the
+            optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
+            profile. 
         sn_gauss: int or float, default = 4.0
             The signal to noise threshold above which optimal extraction
             with non-parametric b-spline fits to the objects spatial
@@ -749,7 +759,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
                         thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
+                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
@@ -909,7 +919,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                              left, right, slitmask, sobjs, order_vec, spat_pix=None,
                              fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
                              trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
-                             sigrej=3.5, bkpts_optimal=True, sn_gauss=4.0, model_full_slit=False,
+                             sigrej=3.5, bkpts_optimal=True, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False):
     """
@@ -948,6 +958,10 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
             Code assumes an np.ndarray even though the default value is int!!
         sigrej:
         bkpts_optimal:
+        force_gauss: bool, default = False
+            If True, a Gaussian profile will always be assumed for the
+            optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
+            profile.
         sn_gauss:
         model_full_slit:
         model_noise:
@@ -1090,8 +1104,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
             left[:,iord], right[:,iord], sobjs[thisobj], spat_pix=spat_pix,
             ingpm=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
             prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
-            sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,
-            show_resids=show_resids, show_profile=show_profile)
+            force_gauss=force_gauss, sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise,
+            debug_bkpts=debug_bkpts, show_resids=show_resids, show_profile=show_profile)
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord)

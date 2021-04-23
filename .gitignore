@@ -35,6 +35,14 @@ doc/build_/*
 *.tar
 *.zip
 
+# Various files #
+#################
+*.pdf
+tmp*.*
+*testing.ipynb
+Untitled.ipynb
+tst*.fits
+
 # Logs and databases #
 ######################
 *.log
@@ -70,3 +78,4 @@ pypeit/data/telluric/atm_grids/*.fits
 # added by TEP
 doc/sphinx_warnings.out
 pypeit/tests/files/setup_files/*
+.DS_Store

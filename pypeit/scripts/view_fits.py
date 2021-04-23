@@ -30,11 +30,10 @@ def parse_args(options=None, return_parser=False):
     from pypeit.spectrographs import available_spectrographs
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument('spectrograph', type=str,
                         help='A valid spectrograph identifier: {0}'.format(
                              ', '.join(available_spectrographs)))
+    parser.add_argument('file', type = str, default = None, help = 'FITS file')
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--proc", default=False,
                         help="Process the image (i.e. orient, overscan subtract, multiply by gain) using pypeit.images.buildimage. "
@@ -87,8 +86,8 @@ def main(args):
             det = None if args.det == 'mosaic' else int(args.det)
             img = spectrograph.get_rawimage(args.file, det)[1]
 
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     display.show_image(img,chname=args.chname)
-
 
 def entry_point():
     main(parse_args())

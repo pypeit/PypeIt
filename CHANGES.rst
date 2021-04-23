@@ -22,7 +22,42 @@
   (other detectors are empty)
 - Add wavelength RMS to SpecObj.  This is an update of the datamodel to
   1.3.3
-
+- Add Bok B&C spectrograph
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
+- Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
+function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
+- Added MOSFIRE QL script.
+- Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
+- Updated docs for differencing imaging sky subtraction.
+- Added "sky" frametype for difference imaging sky subtraction addressing issue # 1068
+- Improved and sped up sensitivity function telluric codes.
+- Fixed bugs in ArchiveReid automatic wavelength identification.
+- Removed numba dependency.
+- Improved pypeit_view_fits script.
+- Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
+- Added latin hypercube sampler to pypeit.utils which is required for differential evolution
+optimizations.
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
+- Updates for docs on adding new spectrographs.  And a bok test
+- Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
+  multiple files by group and coadd them.
+- PypeIt will now add HISTORY keyword entries to FITS files.
+- `use_maskdesign` is turned off for DEIMOS LVM masks
+- a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
+  the user to set their preferred fwhm
+- Improved `slittrace.assign_maskinfo`
+- PypeIt can now force extractions of DEIMOS non detected objects at the
+  location expected from slitmask design.
+- SpecObj and SlitTrace datamodel versions updated
+- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
+  with a different colors
+- Updated docs about extraction and DEIMOS
 
 1.3.3 (24 Feb 2021)
 -------------------
@@ -36,7 +71,6 @@
 
 - (Hotfix) Bug in content type of README file that prevented upload to
   PyPI
-
 
 1.3.1 (01 Feb 2021)
 -------------------
@@ -59,24 +93,7 @@
 - Add tests to CI to cover macos, windows, and conda installations
 - Refactor wrapper scripts in bin/ to be entry_points defined in setup.cfg
 - Deprecate check_requirements now that dependencies are handled by the installation
-- Add `pypeit_obslog` script that simple compiles and prints metadata
-  from a set of fits files needed by pypeit to run.
-- Change `PypeItSetup.from_file_root` to *require* the output path to
-  write the vanilla pypeit file.  If no path is provided, the object is
-  instatiated without creating any output.
-- Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
-function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
-- Added MOSFIRE QL script.
-- Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
-- Updated docs for differencing imaging sky subtraction.
-- Added "sky" frametype for difference imaging sky subtraction addressing issue # 1068
-- Improved and sped up sensitivity function telluric codes.
-- Fixed bugs in ArchiveReid automatic wavelength identification.
-- Removed numba dependency.
-- Improved pypeit_view_fits script.
-- Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
-- Added latin hypercube sampler to pypeit.utils which is required for differential evolution
-optimizations.
+
 
 
 1.3.0 (13 Dec 2020)
