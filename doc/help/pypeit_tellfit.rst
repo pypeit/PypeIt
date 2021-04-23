@@ -1,8 +1,8 @@
 .. code-block:: console
 
     $ pypeit_tellfit -h
-    usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-g TELL_GRID]
-                          [-p PCA_FILE] [-t TELL_FILE] [-r REDSHIFT] [--debug]
+    usage: pypeit_tellfit [-h] [--objmodel {qso,star,poly}] [-r REDSHIFT]
+                          [-g TELL_GRID] [-p PCA_FILE] [-t TELL_FILE] [--debug]
                           [--plot] [--par_outfile PAR_OUTFILE]
                           spec1dfile
     
@@ -23,19 +23,22 @@
                             
                                 poly = For other type object, You might need to set fit_wv_min_max, 
                                        and norder in the tell_file.
+      -r REDSHIFT, --redshift REDSHIFT
+                            Specify redshift. Used with the --objmodel qso option
+                            above.
       -g TELL_GRID, --tell_grid TELL_GRID
                             Telluric grid. You should download the giant grid file
                             to the pypeit/data/telluric folder. It should only be
                             passed if you want to overwrite the default tell_grid
                             that is set via each spectrograph file
       -p PCA_FILE, --pca_file PCA_FILE
-                            Quasar PCA pickle file with full path. The default
-                            pickle file (qso_pca_1200_3100.pckl) should be stored
-                            in the pypeit/data/telluric folder. If you change the
-                            pickle file, make sure to set the pca_lower and
-                            pca_upper in the tell_file to specify the wavelength
-                            coverage of your model. The defaults are
-                            pca_lower=1200. and pca_upper=3100.
+                            Quasar PCA fits file with full path. The default file
+                            (qso_pca_1200_3100.fits) is stored in the
+                            pypeit/data/telluric folder. If you change the fits
+                            file, make sure to set the pca_lower and pca_upper in
+                            the tell_file to specify the wavelength coverage of
+                            your model. The defaults are pca_lower=1220. and
+                            pca_upper=3100.
       -t TELL_FILE, --tell_file TELL_FILE
                             Configuration file to change default telluric parameters.
                             Note that the parameters in this file will be overwritten if you set argument in your terminal. 
@@ -56,8 +59,6 @@
                                      polyorder = 3
                                      fit_wv_min_max = 9000.,9500.
                             
-      -r REDSHIFT, --redshift REDSHIFT
-                            Object redshift
       --debug               show debug plots?
       --plot                Show the telluric corrected spectrum
       --par_outfile PAR_OUTFILE
