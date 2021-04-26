@@ -1,6 +1,10 @@
 
-1.3.4dev
+1.4.1dev
 --------
+
+
+1.4.0 (23 Apr 2021)
+-------------------
 
 - Include a fix for when no edges are detected in `EdgeTraceSet` by
   adding the `bound_detector` parameter.  Most instruments have a
@@ -64,6 +68,7 @@ optimizations.
 
 - (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
 - (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
 
 
 1.3.2 (08 Feb 2021)
