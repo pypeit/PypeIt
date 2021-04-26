@@ -655,8 +655,6 @@ class SpecObjs:
         Args:
             outfile (:obj:`str`):  Output filename
             pypeline (:obj:`str`): PypeIt pipeline mode
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): SpecObjs with all the 1d spectra that need to be
-                                          written in the file.
         """
         # TODO -- Deal with update_det
         # Lists for a Table
@@ -666,8 +664,6 @@ class SpecObjs:
         maskdef_extract = []
         manual_extract = []
         # binspectral, binspatial = parse.parse_binning(binning)
-
-
         for specobj in self.specobjs:
             det = specobj.DET
             if specobj is None:
