@@ -7,9 +7,11 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pypeit.spectrographs.bok_bc
    pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos
    pypeit.spectrographs.gemini_gnirs
+   pypeit.spectrographs.gtc_osiris
    pypeit.spectrographs.keck_deimos
    pypeit.spectrographs.keck_hires
    pypeit.spectrographs.keck_kcwi
@@ -35,6 +37,7 @@ Submodules
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
    pypeit.spectrographs.vlt_fors
+   pypeit.spectrographs.vlt_sinfoni
    pypeit.spectrographs.vlt_xshooter
    pypeit.spectrographs.wht_isis
 

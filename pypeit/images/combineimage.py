@@ -157,6 +157,7 @@ class CombineImage:
                 weights, img_list, var_list, (mask_stack == 0),
                 sigma_clip=sigma_clip, sigma_clip_stack=img_stack, sigrej=sigrej, maxiters=maxiters)
         elif combine_method == 'median':
+            # TODO This median combine should be using the mask!!!
             img_list_out = [np.median(img_stack, axis=0)]
             var_list_out = [np.median(var_stack, axis=0)]
             var_list_out += [np.median(rn2img_stack, axis=0)]

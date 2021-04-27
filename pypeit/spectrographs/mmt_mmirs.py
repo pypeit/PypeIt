@@ -3,6 +3,7 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -153,6 +154,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
@@ -181,8 +183,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
@@ -338,7 +340,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         hdu = io.fits_open(fil[0])
         head1 = fits.getheader(fil[0],1)
 
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']

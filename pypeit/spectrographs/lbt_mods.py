@@ -191,7 +191,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         # TODO These parameters should probably be stored in the detector par
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
         numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...

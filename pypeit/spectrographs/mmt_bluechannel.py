@@ -194,6 +194,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # Need to specify this for long-slit data
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7
@@ -342,7 +343,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # TODO Store these parameters in the DetectorPar.
         # Number of amplifiers
-        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
         numamp = detector_par['numamplifiers']
 
         # First read over the header info to determine the size of the output array...

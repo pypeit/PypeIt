@@ -30,6 +30,7 @@ Contents
    out_spec1D
    out_spec2D
    out_masks
+   history
 
 .. _standard-products:
 

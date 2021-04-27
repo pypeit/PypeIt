@@ -1,14 +1,81 @@
 
-1.3.2dev
+1.4.1dev
 --------
+
+
+1.4.0 (23 Apr 2021)
+-------------------
+
+- Include a fix for when no edges are detected in `EdgeTraceSet` by
+  adding the `bound_detector` parameter.  Most instruments have a
+  default of `bound_detector = False` meaning that the code will skip
+  processing any detector where no slit edges are found.  Some
+  instuments set the default to be `bound_detector = True` because the
+  slit edges always or often fall off the edge of the detector (i.e.,
+  the detector is fully illuminated).  These instruments are currently
+  `mmt_mmirs`, `mmt_bluechannel`, `not_alfosc`, and `shane_kast`; note
+  that some `gemini_gmos` data in the DevSuite require
+  `bound_detector=True`, as well.
 - Improved wavelength template for DEIMOS gratings: 600ZD, 830G.
 - Added new ArI, KrI, NeI, XeI arc lines.
-- PypeIt can now compute arc line FWHM from the lines themselves. This is
-  controlled by a new parset, ``fwhm_fromlines``, which is set to False by default, except for DEIMOS.
+- PypeIt can now compute arc line FWHM from the lines themselves. This
+  is controlled by a new parset, ``fwhm_fromlines``, which is set to
+  False by default, except for DEIMOS.
 - Added a development document about the DEIMOS wavelength calibration.
-- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used (other detectors are empty)
+- Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used
+  (other detectors are empty)
+- Add wavelength RMS to SpecObj.  This is an update of the datamodel to
+  1.3.3
+- Add Bok B&C spectrograph
+- Add `pypeit_obslog` script that simple compiles and prints metadata
+  from a set of fits files needed by pypeit to run.
+- Change `PypeItSetup.from_file_root` to *require* the output path to
+  write the vanilla pypeit file.  If no path is provided, the object is
+  instatiated without creating any output.
+- Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
+function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
+- Added MOSFIRE QL script.
+- Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
+- Updated docs for differencing imaging sky subtraction.
+- Added "sky" frametype for difference imaging sky subtraction addressing issue # 1068
+- Improved and sped up sensitivity function telluric codes.
+- Fixed bugs in ArchiveReid automatic wavelength identification.
+- Removed numba dependency.
+- Improved pypeit_view_fits script.
+- Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
+- Added latin hypercube sampler to pypeit.utils which is required for differential evolution
+optimizations.
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
+- Updates for docs on adding new spectrographs.  And a bok test
+- Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
+  multiple files by group and coadd them.
+- PypeIt will now add HISTORY keyword entries to FITS files.
+- `use_maskdesign` is turned off for DEIMOS LVM masks
+- a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
+  the user to set their preferred fwhm
+- Improved `slittrace.assign_maskinfo`
+- PypeIt can now force extractions of DEIMOS non detected objects at the
+  location expected from slitmask design.
+- SpecObj and SlitTrace datamodel versions updated
+- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
+  with a different colors
+- Updated docs about extraction and DEIMOS
+
+1.3.3 (24 Feb 2021)
+-------------------
+
+- (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
+- (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
 
 
+1.3.2 (08 Feb 2021)
+-------------------
+
+- (Hotfix) Bug in content type of README file that prevented upload to
+  PyPI
 
 1.3.1 (01 Feb 2021)
 -------------------
@@ -31,11 +98,7 @@
 - Add tests to CI to cover macos, windows, and conda installations
 - Refactor wrapper scripts in bin/ to be entry_points defined in setup.cfg
 - Deprecate check_requirements now that dependencies are handled by the installation
-- Add `pypeit_obslog` script that simple compiles and prints metadata
-  from a set of fits files needed by pypeit to run.
-- Change `PypeItSetup.from_file_root` to *require* the output path to
-  write the vanilla pypeit file.  If no path is provided, the object is
-  instatiated without creating any output.
+
 
 
 1.3.0 (13 Dec 2020)
@@ -114,7 +177,6 @@
   the .txt file with the list of 1d spectra.
 - DEIMOS object name and `maskdef_id` visible in ginga when running `pypeit_show_2d`
 - Fix sigma clipping bug!
-
 
 1.2.0 (15 Oct 2020)
 -------------------
