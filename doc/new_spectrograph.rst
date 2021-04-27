@@ -53,6 +53,12 @@ new spectrograph are as follows:
 #. Add the new module to the list imported by
    ``pypeit/spectrographs/__init__.py``.
 
+#. Generate a new Telescope object in (if new)
+   ``pypeit/telescopes.py``.
+
+#. Add telescope name to valid_telescopes in
+   ``pypeit/par/pypeitpar.py``.
+
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
