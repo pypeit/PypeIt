@@ -15,6 +15,7 @@ from glob import glob
 
 from astropy.io import fits
 from astropy.table import Table
+from pypeit import utils
 from pypeit import pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
@@ -214,25 +215,6 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       slits=copy.deepcopy(caliBrate.slits))
     return spec2DObj_A, spec2DObj_B
 
-def find_single_file(file_pattern):
-    """Find a single file matching a wildcard pattern.
-
-    Args:
-        file_pattern (str): A filename pattern, see the python 'glob' module.
-
-    Returns:
-        str: A file name, or None if no filename was found. This will give a warning
-             if multiple files are found and return the first one.
-    """
-
-    files = glob(file_pattern)
-    if len(files) == 1:
-        return files[0]
-    elif len(files) == 0:
-        return None
-    else:
-        msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
-        return files[0]
 
 def main(args):
 
@@ -260,11 +242,11 @@ def main(args):
     filter = spectrograph.get_meta_value(files[0], 'filter1')
     mosfire_masters = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter)    
 
-    slit_masterframe_name = find_single_file(os.path.join(mosfire_masters, "MasterSlits*"))
-    tilts_masterframe_name = find_single_file(os.path.join(mosfire_masters, "MasterTilts*"))
-    wvcalib_masterframe_name = find_single_file(os.path.join(mosfire_masters, 'MasterWaveCalib*'))
-    std_spec1d_file = find_single_file(os.path.join(mosfire_masters, 'spec1d_*'))
-    sensfunc_masterframe_name = find_single_file(os.path.join(mosfire_masters,'sens_*'))
+    slit_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, "MasterSlits*"))
+    tilts_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, "MasterTilts*"))
+    wvcalib_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, 'MasterWaveCalib*'))
+    std_spec1d_file = utils.find_single_file(os.path.join(mosfire_masters, 'spec1d_*'))
+    sensfunc_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters,'sens_*'))
 
     if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or  \
        (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
