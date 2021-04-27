@@ -19,10 +19,11 @@ def parse_args(options=None, return_parser=False):
 def print_slits(slits):
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
-    print("SpatID  MaskID  Flags")
+    print("SpatID  MaskID  MaskOFF(pix)  Flags")
     for slit_idx, slit_spat in enumerate(slits.spat_id):
         maskdefID = 0 if slits.maskdef_id is None else slits.maskdef_id[slit_idx]
-        line = '{:04d}    {:04d}'.format(slit_spat, maskdefID)
+        maskoff = 0 if slits.mask_median_off is None else slits.mask_median_off
+        line = '{:04d}    {:04d}    {:.2f}   '.format(slit_spat, maskdefID, maskoff)
         # Flags
         flags = []
         if slits.mask[slit_idx] == 0:

@@ -17,6 +17,7 @@ matplotlib.use('agg')  # For Travis
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
 from pypeit.scripts import identify, obslog, collate_1d
+from pypeit.scripts import parse_slits
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -421,6 +422,22 @@ def test_collate_1d(tmp_path, monkeypatch):
         # if exclude_slit_flags is empty
         parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', alt_spec1d])
         assert collate_1d.main(parsed_args) == 0
+
+@cooked_required
+def test_parse_slits():
+    slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                              'MasterSlits_A_1_01.fits.gz')
+    spec2d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+
+    # Slits
+    pargs = parse_slits.parse_args([slits_file])
+    parse_slits.main(pargs)
+
+    # Spec2d
+    pargs = parse_slits.parse_args([spec2d_file])
+    parse_slits.main(pargs)
+    
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
