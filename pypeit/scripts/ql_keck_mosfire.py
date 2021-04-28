@@ -11,9 +11,11 @@ import os
 import argparse
 import numpy as np
 import copy
+from glob import glob
 
 from astropy.io import fits
 from astropy.table import Table
+from pypeit import utils
 from pypeit import pypeit
 from pypeit import par, msgs
 from pypeit import pypeitsetup
@@ -213,6 +215,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       slits=copy.deepcopy(caliBrate.slits))
     return spec2DObj_A, spec2DObj_B
 
+
 def main(args):
 
     # Read in the spectrograph, config the parset
@@ -237,14 +240,18 @@ def main(args):
 
     # Define some hard wired master files here to be later parsed out of the directory
     filter = spectrograph.get_meta_value(files[0], 'filter1')
-    slit_masterframe_name = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter, 'MasterSlits_A_15_01.fits.gz')
-    tilts_masterframe_name = os.path.join(args.master_dir,  'MOSFIRE_MASTERS', filter, 'MasterTilts_A_4_01.fits')
-    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter, 'MasterWaveCalib_A_4_01.fits')
-    std_spec1d_file = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter, 'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
-    sensfunc_masterframe_name = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter, 'sens_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
-    if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
-        not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
-        not os.path.isfile(std_spec1d_file)):
+    mosfire_masters = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter)    
+
+    slit_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, "MasterSlits*"))
+    tilts_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, "MasterTilts*"))
+    wvcalib_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters, 'MasterWaveCalib*'))
+    std_spec1d_file = utils.find_single_file(os.path.join(mosfire_masters, 'spec1d_*'))
+    sensfunc_masterframe_name = utils.find_single_file(os.path.join(mosfire_masters,'sens_*'))
+
+    if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or  \
+       (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
+       (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)) or \
+       (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)):
         msgs.error('Master frames not found. Check that environment variable QL_MASTERS  points at the Master Calibs')
 
 
