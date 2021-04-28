@@ -2,6 +2,7 @@
 1.4.1dev
 --------
 - Adds SOAR/Goodman red camera
+- Update to Gemini-S telescope info
 
 
 1.4.0 (23 Apr 2021)

@@ -110,7 +110,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
 class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
     name = 'soar_goodman_red'
     camera = 'red'
-    comment = 'Supported gratings: M1, M2'
+    comment = 'Supported gratings: M1, M2 and 2x2 binning'
     supported = True
 
     def get_detector_par(self, hdu, det):
@@ -158,6 +158,8 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             # Overscan
             osec = f"[:,1:{int(col0*2)-2}:]"
             detector_dict['oscansec'] = np.atleast_1d(osec)
+        else:
+            msgs.error("Ask the developers to add your binning.  Or add it yourself.")
         
         # Return
         return detector_container.DetectorContainer(**detector_dict)
@@ -257,13 +259,8 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        if det == 1:
-            msgs.info("Using hard-coded BPM for Bok B&C")
-
-            bpm_img[:, 0] = 1
-
-        else:
-            msgs.error(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
+        msgs.info("Using hard-coded BPM for SOAR/Goodman")
+        bpm_img[:, 0] = 1
 
         return bpm_img
 
