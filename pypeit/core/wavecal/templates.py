@@ -20,6 +20,7 @@ from astropy import units
 
 from linetools import utils as ltu
 
+from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
