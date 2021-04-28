@@ -109,8 +109,8 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
 
 class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
     name = 'soar_goodman_red'
-    camera = 'goodman_red'
-    comment = 'Red camera; SOAR Goodman spectrometer'
+    camera = 'red'
+    comment = 'Supported gratings: M1, M2'
     supported = True
 
     def get_detector_par(self, hdu, det):
