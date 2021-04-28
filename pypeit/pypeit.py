@@ -749,7 +749,8 @@ class PypeIt(object):
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
-            embed(header='deal with the following for maskIDs;  713 of pypeit')
+            # TODO
+            #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
                                        slitspatnum=self.par['rdx']['slitspatnum'],
