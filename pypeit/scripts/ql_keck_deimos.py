@@ -230,4 +230,4 @@ def main(pargs):
 
     # Run on the science frame
     run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci)
-    embed(header='133 of ql')
+    #embed(header='133 of ql')
