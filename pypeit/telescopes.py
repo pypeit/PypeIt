@@ -90,10 +90,18 @@ class GeminiNTelescopePar(TelescopePar):
 class GeminiSTelescopePar(TelescopePar):
     def __init__(self):
         super(GeminiSTelescopePar, self).__init__(name='GEMINI-S',
-                                              longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-                                              latitude=-30.1691,              # Latitude of the telescope
-                                              elevation=2200.0,               # Elevation of the telescope (in m)
+                                              longitude=70.7367,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.24075,              # Latitude of the telescope
+                                              elevation=2750.0,               # Elevation of the telescope (in m)
                                               diameter=8.1)
+
+class SOARTelescopePar(TelescopePar):
+    def __init__(self):
+        super(SOARTelescopePar, self).__init__(name='SOAR',
+                                              longitude=70.7336,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.2379,              # Latitude of the telescope
+                                              elevation=2713.0,               # Elevation of the telescope (in m)
+                                              diameter=4.1)                   # Ignores central obscuration
 
 class LBTTelescopePar(TelescopePar):
     def __init__(self):

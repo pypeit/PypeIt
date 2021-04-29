@@ -10,6 +10,7 @@ import inspect
 import pickle
 import warnings
 import itertools
+from glob import glob
 
 from IPython import embed
 
@@ -1273,3 +1274,23 @@ def is_float(s):
         return False
 
     return True
+
+def find_single_file(file_pattern):
+    """Find a single file matching a wildcard pattern.
+
+    Args:
+        file_pattern (str): A filename pattern, see the python 'glob' module.
+
+    Returns:
+        str: A file name, or None if no filename was found. This will give a warning
+             if multiple files are found and return the first one.
+    """
+
+    files = glob(file_pattern)
+    if len(files) == 1:
+        return files[0]
+    elif len(files) == 0:
+        return None
+    else:
+        msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
+        return files[0]

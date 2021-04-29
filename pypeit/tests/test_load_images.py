@@ -165,6 +165,15 @@ def test_load_bok():
     except:
         pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
 
+@dev_suite_required
+def test_load_goodman():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/soar_goodman_red/M2',
+                         '0320_FRB210320_host_05-04-2021.fits')
+    try:
+        data_img = grab_img('soar_goodman_red', ifile)
+    except:
+        pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
+
 '''
 @dev_suite_required
 def test_load_fire():

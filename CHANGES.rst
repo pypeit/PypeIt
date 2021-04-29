@@ -1,6 +1,8 @@
 
 1.4.1dev
 --------
+- Adds SOAR/Goodman red camera
+- Update to Gemini-S telescope info
 - Make PypeIt ISO 8160 (more) compliant
 - Address an Identify bug
 - Add blocking filter to DEIMOS config
