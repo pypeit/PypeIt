@@ -1,6 +1,10 @@
 
 1.4.1dev
 --------
+- Make PypeIt ISO 8160 (more) compliant
+- Address an Identify bug
+- Add blocking filter to DEIMOS config
+- NOT/Alfosc updates
 
 
 1.4.0 (23 Apr 2021)

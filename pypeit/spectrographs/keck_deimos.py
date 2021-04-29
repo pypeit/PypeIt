@@ -407,7 +407,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc', 'filter1']
+        return super().pypeit_file_keys() + ['dateobs', 'utc']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
