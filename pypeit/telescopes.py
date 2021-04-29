@@ -101,7 +101,7 @@ class SOARTelescopePar(TelescopePar):
                                               longitude=70.7336,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
                                               latitude=-30.2379,              # Latitude of the telescope
                                               elevation=2713.0,               # Elevation of the telescope (in m)
-                                              diameter=4.1)
+                                              diameter=4.1)                   # Ignores central obscuration
 
 class LBTTelescopePar(TelescopePar):
     def __init__(self):

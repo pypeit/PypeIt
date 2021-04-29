@@ -94,6 +94,9 @@ new spectrograph are as follows:
    details for the (currently fixed) format of the orders.
 
 
+See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
+
+
 Near-IR
 +++++++
 
