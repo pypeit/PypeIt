@@ -174,16 +174,14 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'DARK')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
-                               | (fitstbl['target'] == 'LAMP,QFLAT')
-                               | (fitstbl['target'] == 'FLAT,LAMP')
-                               | (fitstbl['target'] == 'LAMP,FLAT'))
+            return good_exp & ((fitstbl['target'] == 'FLAT')
+                               | (fitstbl['target'] == 'SKY,FLAT')
+                               | (fitstbl['target'] == 'DOME'))
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['target'] == 'LAMP,WAVE')
-                               | (fitstbl['target'] == 'WAVE,LAMP'))
+            return good_exp & (fitstbl['target'] == 'WAVE')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)

@@ -89,7 +89,6 @@ def main(args):
     display.connect_to_ginga(raise_err=True, allow_new=True)
     display.show_image(img,chname=args.chname)
 
-
 def entry_point():
     main(parse_args())
 

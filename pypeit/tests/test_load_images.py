@@ -147,6 +147,24 @@ def test_load_gmos():
     except:
         pytest.fail('Gemini GMOS test data section failed: {0}'.format(ifile))
 
+@dev_suite_required
+def test_load_osiris():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gtc_osiris/R2500R',
+                         '0002851159-20210217-OSIRIS-OsirisBias.fits')
+    try:
+        data_img = grab_img('gtc_osiris', ifile)
+    except:
+        pytest.fail('GTC OSIRIS test data section failed: {0}'.format(ifile))
+
+@dev_suite_required
+def test_load_bok():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/bok_bc/600',
+                         'g0005.fits')
+    try:
+        data_img = grab_img('bok_bc', ifile)
+    except:
+        pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
+
 '''
 @dev_suite_required
 def test_load_fire():
@@ -169,7 +187,7 @@ def test_load_hires():
         data_img = proc.raw_images[0][proc.datasec[0][0]]
     except:
         pytest.fail('Keck HIRES test data section failed: {0}'.format(files))
-        
+
 @dev_suite_required
 def test_load_isis():
     files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'wht_isis_blue', 'long_R300B_d5300',
@@ -182,4 +200,3 @@ def test_load_isis():
     except:
         pytest.fail('WHT ISIS test data section failed.')
 '''
-

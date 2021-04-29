@@ -31,6 +31,7 @@ Submodules
    pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxcalibrate
+   pypeit.history
    pypeit.io
    pypeit.masterframe
    pypeit.metadata

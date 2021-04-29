@@ -59,7 +59,7 @@ def main(args):
     # Calibrations
     master_dir = os.path.join(os.getenv('QL_MASTERS'),'NIRES_MASTERS')
     if master_dir is None:
-        msgs.error('You need to set an Environmental variable NIRES_MASTERS that points at the '
+        msgs.error('You need to set an Environmental variable QL_MASTERS that points at the '
                    'Master Calibs')
 
     # Config the run

@@ -8,6 +8,7 @@ from pypeit import msgs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import sensfunc
 from pypeit import specobjs
+from pypeit.history import History
 from astropy import table
 from IPython import embed
 
@@ -54,10 +55,12 @@ class FluxCalibrate(object):
         for spec1, sens, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
             # Read in the data
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
+            history = History(sobjs.header)
             if sens != sens_last:
                 wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
+                history.append(f'PypeIt Flux calibration "{sens}"')
             self.flux_calib(sobjs, wave, zeropoint, meta_table)
-            sobjs.write_to_fits(sobjs.header, outfile, overwrite=True)
+            sobjs.write_to_fits(sobjs.header, outfile, history=history, overwrite=True)
 
     def flux_calib(self, sobjs, wave, zeropoint, meta_table):
         """
@@ -103,7 +106,7 @@ class MultiSlitFC(FluxCalibrate):
 
         # Run
         for sci_obj in sobjs:
-            sci_obj.apply_flux_calib(wave, zeropoint,
+            sci_obj.apply_flux_calib(wave[:, 0], zeropoint[:, 0],
                                      sobjs.header['EXPTIME'],
                                      extinct_correct=self._set_extinct_correct(
                                          self.par['extinct_correct'], meta_table['ALGORITHM'][0]),

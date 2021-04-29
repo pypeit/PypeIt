@@ -1,7 +1,10 @@
 
-
-1.3.4dev
+1.4.1dev
 --------
+
+
+1.4.0 (23 Apr 2021)
+-------------------
 
 - Include a fix for when no edges are detected in `EdgeTraceSet` by
   adding the `bound_detector` parameter.  Most instruments have a
@@ -25,6 +28,9 @@
   1.3.3
 - Add Bok B&C spectrograph
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8de790dca1cb5756b9cafa212a357c1227cc6f59
 - Add `pypeit_obslog` script that simple compiles and prints metadata
   from a set of fits files needed by pypeit to run.
 - Change `PypeItSetup.from_file_root` to *require* the output path to
@@ -43,18 +49,39 @@ function completely to compute zeropoints and throughput. Enhanced sensfunc.py Q
 - Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
 - Added latin hypercube sampler to pypeit.utils which is required for differential evolution
 optimizations.
+<<<<<<< HEAD
 
 =======
 - Improved GMOS R400 wavelength solution
 - Turned off GMOS-S binning restriction
 >>>>>>> 5412af20a2add090d55764478866ce4fe2fbf9be
 
+=======
+- Improved GMOS R400 wavelength solution
+- Turned off GMOS-S binning restriction
+- Add GTC OSIRIS spectrograph
+- Updates for docs on adding new spectrographs.  And a bok test
+- Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
+  multiple files by group and coadd them.
+- PypeIt will now add HISTORY keyword entries to FITS files.
+- `use_maskdesign` is turned off for DEIMOS LVM masks
+- a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
+  the user to set their preferred fwhm
+- Improved `slittrace.assign_maskinfo`
+- PypeIt can now force extractions of DEIMOS non detected objects at the
+  location expected from slitmask design.
+- SpecObj and SlitTrace datamodel versions updated
+- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
+  with a different colors
+- Updated docs about extraction and DEIMOS
+>>>>>>> 8de790dca1cb5756b9cafa212a357c1227cc6f59
 
 1.3.3 (24 Feb 2021)
 -------------------
 
 - (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
 - (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
 
 
 1.3.2 (08 Feb 2021)

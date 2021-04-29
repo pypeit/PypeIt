@@ -62,6 +62,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--mask_cr", default=False, action='store_true',
                         help="This option turns on cosmic ray rejection. This improves the reduction but doubles runtime.")
     parser.add_argument("--writefits", default=False, action='store_true', help="Write the ouputs to a fits file")
+    parser.add_argument('--no_gui', default=False, action='store_true', help="Do not display the results in a GUI")
     parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
     parser.add_argument('--offset', type=float, default=None,
                         help='R|Override the automatic offsets determined from the headers. Offset is in pixels.\n'
@@ -232,7 +233,7 @@ def main(args):
 
     # Calibration Master directory
     if args.master_dir is None:
-        msgs.error('You need to set an environment variable MOSFIRE_MASTERS that points at the Master Calibs')
+        msgs.error('You need to set an environment variable QL_MASTERS that points at the Master Calibs')
 
     # Define some hard wired master files here to be later parsed out of the directory
     filter = spectrograph.get_meta_value(files[0], 'filter1')
@@ -244,7 +245,7 @@ def main(args):
     if (not os.path.isfile(slit_masterframe_name) or  not os.path.isfile(tilts_masterframe_name) or \
         not os.path.isfile(tilts_masterframe_name) or not os.path.isfile(sensfunc_masterframe_name) or \
         not os.path.isfile(std_spec1d_file)):
-        msgs.error('Master frames not found. Check that environment variable MOSFIRE_MASTERS  points at the Master Calibs')
+        msgs.error('Master frames not found. Check that environment variable QL_MASTERS  points at the Master Calibs')
 
 
 
@@ -397,35 +398,36 @@ def main(args):
     ##########################
     # Now display the images #
     ##########################
-    display.connect_to_ginga(raise_err=True, allow_new=True)
-    # TODO: Bug in ginga prevents me from using cuts here for some reason
-    mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=3.0, sigma_upper=3.0)
-    chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet) if args.flux else 'skysub-det{:s}'.format(sdet)
-    cuts_skysub = (med - 3.0 * sigma, med + 3.0 * sigma)
-    cuts_resid = (-5.0, 5.0)
-    #fits.writeto('/Users/joe/ginga_test.fits',imgminsky, overwrite=True)
-    #fits.writeto('/Users/joe/ginga_mask.fits',imgminsky_gpm.astype(float), overwrite=True)
-    #embed()
+    if not args.no_gui:
+        display.connect_to_ginga(raise_err=True, allow_new=True)
+        # TODO: Bug in ginga prevents me from using cuts here for some reason
+        mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=3.0, sigma_upper=3.0)
+        chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet) if args.flux else 'skysub-det{:s}'.format(sdet)
+        cuts_skysub = (med - 3.0 * sigma, med + 3.0 * sigma)
+        cuts_resid = (-5.0, 5.0)
+        #fits.writeto('/Users/joe/ginga_test.fits',imgminsky, overwrite=True)
+        #fits.writeto('/Users/joe/ginga_mask.fits',imgminsky_gpm.astype(float), overwrite=True)
+        #embed()
 
 
-    # Clear all channels at the beginning
-    # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch_skysub = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
-                                   clear=True, cuts= cuts_skysub)
-    slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
-    slit_id = slits.slitord_id[0]
-    display.show_slits(viewer, ch_skysub, slit_left, slit_righ, slit_ids=slit_id)
+        # Clear all channels at the beginning
+        # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
+        viewer, ch_skysub = display.show_image(imgminsky, chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
+                                    clear=True, cuts= cuts_skysub)
+        slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
+        slit_id = slits.slitord_id[0]
+        display.show_slits(viewer, ch_skysub, slit_left, slit_righ, slit_ids=slit_id)
 
-    # SKRESIDS
-    chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
-    viewer, ch_skyresids = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
-                                  cuts=cuts_resid)
+        # SKRESIDS
+        chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
+        image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
+        viewer, ch_skyresids = display.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
+                                    cuts=cuts_resid)
 
-    display.show_slits(viewer, ch_skyresids, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
-    shell = viewer.shell()
-    out = shell.start_global_plugin('WCSMatch')
-    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skysub], {})
+        display.show_slits(viewer, ch_skyresids, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
+        shell = viewer.shell()
+        out = shell.start_global_plugin('WCSMatch')
+        out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skysub], {})
 
     # TODO extract along a spatial position
     if args.writefits:

@@ -16,7 +16,7 @@ parameter sets:
 
     - Add ``foo=None`` to the ``__init__`` method of the relevant
       parameter set.  E.g.::
-        
+
         def __init__(self, existing_par=None, foo=None):
 
     - Add any default value (the default value is ``None`` unless you set
@@ -30,7 +30,7 @@ parameter sets:
                        'Options are: {0}'.format(', '.join(options['foo']))
 
     - Add the parameter to the ``from_dict`` method:
-    
+
         - If the parameter is something that does not require
           instantiation, add the keyword to the ``parkeys`` list in the
           ``from_dict`` method.  E.g.::
@@ -55,6 +55,10 @@ sets as a template, then add the parameter set to :class:`PypeItPar`,
 assuming you want it to be accessed throughout the code.
 
 ----
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+
 """
 import os
 import warnings
@@ -70,7 +74,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-
 #-----------------------------------------------------------------------------
 # Reduction ParSets
 
@@ -250,7 +253,7 @@ class ProcessImagesPar(ParSet):
         dtypes['overscan_method'] = str
         descr['overscan_method'] = 'Method used to fit the overscan. ' \
                             'Options are: {0}'.format(', '.join(options['overscan_method']))
-        
+
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
         descr['overscan_par'] = 'Parameters for the overscan subtraction.  For ' \
@@ -428,14 +431,14 @@ class ProcessImagesPar(ParSet):
         # Convert param to list
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
-        
+
         if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
             raise ValueError('For polynomial overscan method, set overscan_par = order, '
                              'number of pixels, number of repeats')
 
         if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
-            
+
         if self.data['overscan_method'] == 'median' and self.data['overscan_par'] is not None:
             warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
 
@@ -660,7 +663,7 @@ class FlatFieldPar(ParSet):
         # Convert param to list
         #if isinstance(self.data['params'], int):
         #    self.data['params'] = [self.data['params']]
-        
+
         # Check that there are the correct number of parameters
         #if self.data['method'] == 'PolyScan' and len(self.data['params']) != 3:
         #    raise ValueError('For PolyScan method, set params = order, number of '
@@ -1574,7 +1577,8 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None):
+    def __init__(self, obj_toler=None, assign_obj=None,
+                 slitmask_offset=None, extract_missing_objs=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1596,7 +1600,20 @@ class SlitMaskPar(ParSet):
 
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool
-        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to objects'
+        descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
+
+        defaults['slitmask_offset'] = 0.
+        dtypes['slitmask_offset'] = [int, float]
+        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position. ' \
+                                   'This parameter is only used during the forced extraction of ' \
+                                   'undetected objects.'
+
+        defaults['extract_missing_objs'] = False
+        dtypes['extract_missing_objs'] = bool
+        descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
+                                        'from the slitmask design. PypeIt will try to determine the FWHM from ' \
+                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). ' \
+                                        'If the FWHM cannot be determined, ``find_fwhm`` will be assumed.'
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1609,7 +1626,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj']
+        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'extract_missing_objs']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1971,7 +1988,7 @@ class ManualExtractionPar(ParSet):
         descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
 
         dtypes['fwhm'] = [list, float]
-        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec_spat'
+        descr['fwhm'] = 'List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the parameter set
         super(ManualExtractionPar, self).__init__(list(pars.keys()),
@@ -2039,11 +2056,11 @@ class ReduxPar(ParSet):
     """
     The parameter set used to hold arguments for functionality relevant
     to the overal reduction of the the data.
-    
+
     Critically, this parameter set defines the spectrograph that was
     used to collect the data and the overall pipeline used in the
     reductions.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2151,12 +2168,12 @@ class ReduxPar(ParSet):
     def validate(self):
         pass
 
-    
+
 class WavelengthSolutionPar(ParSet):
     """
     The parameter set used to hold arguments for the determination of
     wavelength solution.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2263,7 +2280,7 @@ class WavelengthSolutionPar(ParSet):
         descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
                              'are continuum subtracted and the fluctuations are computed after ' \
                              'continuum subtraction.  This can be a single number or a vector ' \
-                             '(list or np array) that provides the detection threshold for ' \
+                             '(list or numpy array) that provides the detection threshold for ' \
                              'each slit.'
 
         defaults['fwhm'] = 4.
@@ -2486,7 +2503,7 @@ class WavelengthSolutionPar(ParSet):
 class EdgeTracePar(ParSet):
     """
     Parameters used for slit edge tracing.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
@@ -2631,25 +2648,25 @@ class EdgeTracePar(ParSet):
                          'number of detected traces.  If not provided, determined by ' \
                          'calculating the minimum number of components required to explain a ' \
                          'given percentage of variance in the edge data; see `pca_var_percent`.'
-            
+
         defaults['pca_var_percent'] = 99.8
         dtypes['pca_var_percent'] = [int, float]
         descr['pca_var_percent'] = 'The percentage (i.e., not the fraction) of the variance in ' \
                                    'the edge data accounted for by the PCA used to truncate ' \
                                    'the number of PCA coefficients to keep (see `pca_n`).  ' \
                                    'Ignored if `pca_n` is provided directly.'
-        
+
         defaults['pca_function'] = 'polynomial'
         dtypes['pca_function'] = str
         options['pca_function'] = EdgeTracePar.valid_functions()
         descr['pca_function'] = 'Type of function fit to the PCA coefficients for each ' \
                                 'component.  Options are: {0}'.format(
                                     ', '.join(options['pca_function']))
-        
+
         defaults['pca_order'] = 2
         dtypes['pca_order'] = int
         descr['pca_order'] = 'Order of the function fit to the PCA coefficients.'
-        
+
         defaults['pca_sigrej'] = [2., 2.]
         dtypes['pca_sigrej'] = [int, float, list]
         descr['pca_sigrej'] = 'Sigma rejection threshold for fitting PCA components. Individual ' \
@@ -2682,7 +2699,7 @@ class EdgeTracePar(ParSet):
                                      'image and before refitting the edge traces, the rectified ' \
                                      'image is median filtered with a kernel width of ' \
                                      '`trace_median_frac*nspec` along the spectral dimension.'
-        
+
         dtypes['trace_thresh'] = [int, float]
         descr['trace_thresh'] = 'After rectification and median filtering of the Sobel-filtered ' \
                                 'image (see `trace_median_frac`), values in the median-filtered ' \
@@ -2733,7 +2750,7 @@ class EdgeTracePar(ParSet):
         descr['sync_predict'] = 'Mode to use when predicting the form of the trace to insert.  ' \
                                 'Use `pca` to use the PCA decomposition or `nearest` to ' \
                                 'reproduce the shape of the nearest trace.'
-                      
+
         defaults['sync_center'] = 'median'
         options['sync_center'] = EdgeTracePar.valid_center_modes()
         dtypes['sync_center'] = str
@@ -2748,7 +2765,7 @@ class EdgeTracePar(ParSet):
                               'slit edges (see `sync_center`) or when nudging predicted slit ' \
                               'edges to avoid slit overlaps.  This should be larger than ' \
                               '`minimum_slit_gap` when converted to arcseconds.'
-        
+
         defaults['sync_to_edge'] = True
         dtypes['sync_to_edge'] = bool
         descr['sync_to_edge'] = 'If adding a first left edge or a last right edge, ignore ' \
@@ -2965,7 +2982,7 @@ class WaveTiltsPar(ParSet):
     """
     The parameter set used to hold arguments for tracing the
     monochromatic tilt along the slit.
-    
+
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
 
@@ -3499,7 +3516,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, manual=None, skip_optimal=None,
-                 use_2dmodel_mask=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3546,6 +3563,12 @@ class ExtractionPar(ParSet):
         descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
+        defaults['use_user_fwhm'] = False
+        dtypes['use_user_fwhm'] = bool
+        descr['use_user_fwhm'] = 'Boolean indicating if PypeIt should use the FWHM provided by the user ' \
+                                 '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
+                                 'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
+                                 'detected object, and uses ``find_fwhm`` as initial guess.'
 
         defaults['manual'] = ManualExtractionPar()
         dtypes['manual'] = [ ParSet, dict ]
@@ -3567,7 +3590,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_2dmodel_mask']
+                   'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3590,7 +3613,7 @@ class ExtractionPar(ParSet):
 class CalibrationsPar(ParSet):
     """
     The superset of parameters used to calibrate the science data.
-    
+
     Note that there are specific defaults for each frame group that are
     different from the defaults of the abstracted :class:`FrameGroupPar`
     class.
@@ -3820,10 +3843,10 @@ class CalibrationsPar(ParSet):
 class PypeItPar(ParSet):
     """
     The superset of parameters used by PypeIt.
-    
+
     This is a single object used as a container for all the
     user-specified arguments used by PypeIt.
-    
+
     To get the default parameters for a given spectrograph, e.g.::
 
         from pypeit.spectrographs.util import load_spectrograph
@@ -3846,14 +3869,15 @@ class PypeItPar(ParSet):
 
     To write the configuration of a given instance of :class:`PypeItPar`,
     use the :func:`to_config` function::
-        
+
         par.to_config('mypypeitpar.cfg')
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, telluric=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, telluric=None,
+                 collate1d=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3931,6 +3955,11 @@ class PypeItPar(ParSet):
         dtypes['telluric'] = [ParSet, dict]
         descr['telluric'] = 'Par set to control telluric fitting.  Only used in the pypeit_sensfunc and pypeit_telluric after-burner scripts.'
 
+        # Collate 1D Fit
+        defaults['collate1d'] = Collate1DPar()
+        dtypes['collate1d'] = [ParSet, dict]
+        descr['collate1d'] = 'Par set to control collating 1d spectra.  Only used in the after-burner script.'
+
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
                                        values=list(pars.values()),
@@ -3973,7 +4002,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4011,7 +4040,7 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
-        
+
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
@@ -4049,7 +4078,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4089,7 +4118,7 @@ class PypeItPar(ParSet):
     def from_pypeit_file(cls, ifile, evaluate=True):
         """
         Construct the parameter set using a pypeit file.
-        
+
         Args:
             ifile (str):
                 Name of the pypeit file to read.  Expects to find setup
@@ -4100,7 +4129,7 @@ class PypeItPar(ParSet):
                 parameters in the config file are *always* read as
                 strings, so this should almost always be true; however,
                 see the warning below.
-                
+
         .. warning::
 
             When `evaluate` is true, the function runs `eval()` on
@@ -4130,7 +4159,7 @@ class PypeItPar(ParSet):
         k = np.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'telluric']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'telluric', 'collate1d']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
@@ -4180,9 +4209,14 @@ class PypeItPar(ParSet):
 
         # Allow telluric to be turned on using cfg['rdx']
         pk = 'telluric'
-        default = TelluricParPar() \
+        default = TelluricPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['telluric'] else None
         kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else default
+
+        # collate1d
+        pk = 'collate1d'
+        default = Collate1DPar()
+        kwargs[pk] = Collate1DPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
@@ -4244,7 +4278,7 @@ class PypeItPar(ParSet):
         # Checks
         if not isinstance(proc_par, ProcessImagesPar):
             raise TypeError('Must provide an instance of ProcessImagesPar')
-        
+
         # All the relevant ParSets are already ProcessImagesPar objects,
         # so we can work directly with the internal dictionaries.
 
@@ -4256,14 +4290,14 @@ class PypeItPar(ParSet):
         frames = [ f for f in self['calibrations'].keys() if 'frame' in f ]
         for f in frames:
             # Find the keys in self that are the same as the default
-            frame_same = [ k for k in proc_par.keys() 
+            frame_same = [ k for k in proc_par.keys()
                             if self['calibrations'][f]['process'].data[k] == default[k] ]
             to_change = list(set(base_diff) & set(frame_same))
             for k in to_change:
                 self['calibrations'][f]['process'].data[k] = proc_par[k]
-            
+
         # Science frames
-        frame_same = [ k for k in proc_par.keys() 
+        frame_same = [ k for k in proc_par.keys()
                             if self['scienceframe']['process'].data[k] == default[k] ]
         to_change = list(set(base_diff) & set(frame_same))
         for k in to_change:
@@ -4322,8 +4356,8 @@ class PypeItPar(ParSet):
 #        options['specaxis'] = [ 0, 1]
 #        dtypes['specaxis'] = int
 #        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-#                            '(first dimension for a np array shape) or 1 (second dimension ' \
-#                            'for np array shape)'
+#                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
+#                            'for numpy array shape)'
 #
 #
 #        defaults['specflip'] = False
@@ -4502,7 +4536,7 @@ class TelescopePar(ParSet):
         dtypes['name'] = str
         descr['name'] = 'Name of the telescope used to obtain the observations.  ' \
                         'Options are: {0}'.format(', '.join(options['name']))
-        
+
         dtypes['longitude'] = [int, float]
         descr['longitude'] = 'Longitude of the telescope on Earth in degrees.'
 
@@ -4553,7 +4587,8 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK']
+
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'NTT']
 
     def validate(self):
         pass
@@ -4578,4 +4613,86 @@ class TelescopePar(ParSet):
     # but could not find them all online.
     def eff_aperture(self):
         return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
+
+class Collate1DPar(ParSet):
+    """
+    A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Threshold for grouping by object
+        defaults['tolerance'] = '3.0'
+        dtypes['tolerance'] = [str, float]
+        descr['tolerance'] = "The tolerance used when comparing the coordinates of objects. If two " \
+                             "objects are within this distance from each other, they " \
+                             "are considered the same object. If match_using is 'ra/dec' (the default) " \
+                             "this is an angular distance. The defaults units are arcseconds but " \
+                             "other units supported by astropy.coordinates.Angle can be used" \
+                             "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
+
+
+        # Root directory of archive
+        defaults['dry_run'] = False
+        dtypes['dry_run'] = bool
+        descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
+                           "but will not flux, coadd or archive."
+
+        # Root directory of archive
+        defaults['archive_root'] = None
+        dtypes['archive_root'] = str
+        descr['archive_root'] = "The path where files and metadata will be archived."
+
+        # What slit flags to exclude
+        defaults['slit_exclude_flags'] = []
+        dtypes['slit_exclude_flags'] = [list, str]
+        descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
+
+        # What slit flags to exclude
+        defaults['match_using'] = 'ra/dec'
+        options['match_using'] = [ 'pixel', 'ra/dec']
+        dtypes['match_using'] = str
+        descr['match_using'] = "Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'."
+
+        # Instantiate the parameter set
+        super(Collate1DPar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = [*cfg.keys()]
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Collate1DPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
 

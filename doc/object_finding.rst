@@ -1,3 +1,5 @@
+.. _object_finding:
+
 ==============
 Object Finding
 ==============

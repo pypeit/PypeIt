@@ -2,6 +2,10 @@ import os
 import copy
 import numpy as np
 import matplotlib
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.colors import LinearSegmentedColormap, Normalize
@@ -1080,10 +1084,10 @@ class Identify(object):
         Args:
             message (str): Message to be displayed
         """
+
         self.axes['info'].clear()
         if default:
-            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes,
-                          horizontalalignment='center', verticalalignment='center')
+            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes, horizontalalignment='center', verticalalignment='center')
             self.canvas.draw()
             return
         # Display the message

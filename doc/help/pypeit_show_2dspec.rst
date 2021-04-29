@@ -3,7 +3,7 @@
     $ pypeit_show_2dspec -h
     usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--showmask]
                               [--removetrace] [--embed] [--ignore_extract_mask]
-                              [--channels CHANNELS]
+                              [--sensfunc SENSFUNC] [--channels CHANNELS]
                               file
     
     Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
@@ -23,6 +23,8 @@
                             False)
       --ignore_extract_mask
                             Ignore the extraction mask (default: False)
+      --sensfunc SENSFUNC   Pass in a sensfunc to display the sky-subtracted image
+                            with a flux calibration (default: None)
       --channels CHANNELS   Only show a subset of the channels (0-indexed), e.g.
                             1,3 (default: None)
     

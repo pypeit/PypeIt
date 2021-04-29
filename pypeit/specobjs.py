@@ -12,6 +12,7 @@ import numpy as np
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import specobj
@@ -527,7 +528,7 @@ class SpecObjs:
         return len(self.specobjs)
 
     def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
-                      slitspatnum=None, debug=False):
+                      slitspatnum=None, history=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -571,7 +572,12 @@ class SpecObjs:
         # Build up the Header
         header = io.initialize_header(primary=True)
         for key in subheader.keys():
-            header[key.upper()] = subheader[key]
+            if key.upper() == 'HISTORY':
+                if history is None:
+                    for line in str(subheader[key.upper()]).split('\n'):
+                        header[key.upper()] = line
+            else:
+                header[key.upper()] = subheader[key]
 
         # Init
         prihdu = fits.PrimaryHDU()
@@ -581,6 +587,10 @@ class SpecObjs:
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
         prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
+
+        # Add history
+        if history is not None:
+            history.write_to_header(prihdu.header)
 
         detector_hdus = {}
         nspec, ext = 0, 0
@@ -645,17 +655,15 @@ class SpecObjs:
         Args:
             outfile (:obj:`str`):  Output filename
             pypeline (:obj:`str`): PypeIt pipeline mode
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): SpecObjs with all the 1d spectra that need to be
-                                          written in the file.
         """
         # TODO -- Deal with update_det
         # Lists for a Table
         slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
             [], [], [], [], [], [], [], [], [], [], []
         wave_rms = []
+        maskdef_extract = []
+        manual_extract = []
         # binspectral, binspatial = parse.parse_binning(binning)
-
-
         for specobj in self.specobjs:
             det = specobj.DET
             if specobj is None:
@@ -710,6 +718,9 @@ class SpecObjs:
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            # Manual extraction?
+            manual_extract.append(specobj.hand_extract_flag)
+            # Slitmask info
             if specobj.MASKDEF_ID is not None:
                 maskdef_id.append(specobj.MASKDEF_ID)
             if specobj.MASKDEF_OBJNAME is not None:
@@ -717,6 +728,8 @@ class SpecObjs:
             if specobj.RA is not None:
                 objra.append(specobj.RA)
                 objdec.append(specobj.DEC)
+            if specobj.MASKDEF_EXTRACT is not None:
+                maskdef_extract.append(specobj.MASKDEF_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -731,12 +744,12 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
-            if specobj.MASKDEF_ID is not None:
+            if len(maskdef_id) > 0:
                 obj_tbl['maskdef_id'] = maskdef_id
                 obj_tbl['maskdef_id'].format = 'd'
-            if specobj.MASKDEF_OBJNAME is not None:
+            if len(objname) > 0:
                 obj_tbl['objname'] = objname
-            if specobj.RA is not None:
+            if len(objra) > 0:
                 obj_tbl['objra'] = objra
                 obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
@@ -753,6 +766,13 @@ class SpecObjs:
             obj_tbl['opt_fwhm'].unit = units.arcsec
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
+            # is this a forced extraction at the expected position from slitmask design?
+            if len(maskdef_extract) > 0:
+                obj_tbl['maskdef_extract'] = maskdef_extract
+            # only if manual extractions exist, print this
+            if np.any(manual_extract):
+                obj_tbl['manual_extract'] = manual_extract
+
             # Wavelengths
             obj_tbl['wv_rms'] = wave_rms
             obj_tbl['wv_rms'].format = '.3f'
