@@ -64,6 +64,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
         #self.meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard']) did not find dispangle
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+
     
     def compound_meta(self, headarr, meta_key):
         """
@@ -112,9 +113,13 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
-
-        # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        data_x = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NX') #valid pixels along X
+        data_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NY') #valid pixels along Y
+        oscan_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 OVSCY') #Overscan region in Y, no overscan in X
+        pscan_x = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 PRSCX') #Prescan region in X, no prescan in Y        
+        
+        #According to the manual: https://www.eso.org/sci/facilities/lasilla/instruments/efosc/doc/manual/EFOSC2manual_v4.2.pdf
         detector_dict = dict(
             binning         = binning,
             det             = 1,
@@ -122,16 +127,16 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.126,  # average between order 11 & 30, see manual
+            platescale      = 0.126, # Shenli is not sure about this
             darkcurr        = 0.0,
-            saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
+            saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(0.70),
-            ronoise         = np.atleast_1d(2.9), # High gain
-            datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
-            oscansec        = np.atleast_1d('[2062:,:]'),
+            gain            = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 GAIN')),
+            ronoise         = np.atleast_1d(10), # page 108
+            datasec         = np.atleast_1d('[%s:%s,1:%s]' % (pscan_x, pscan_x+data_x, data_y)),
+            oscansec        = np.atleast_1d('[1:%s,%s:%s]' % (pscan_x, data_y, data_y+oscan_y)), #Shall we deal with the overscan and prescan region the same?
             #suffix          = '_Thor',
         )
         return detector_container.DetectorContainer(**detector_dict)
