@@ -1,7 +1,8 @@
 
 1.4.1dev
 --------
-
+- Add NTT EFOSC2 spectrograph
+- Add standard stars CD-34241 and CD-329927 to esofil
 
 1.4.0 (23 Apr 2021)
 -------------------
@@ -24,10 +25,6 @@
 - Added a development document about the DEIMOS wavelength calibration.
 - Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used
   (other detectors are empty)
-- Add wavelength RMS to SpecObj.  This is an update of the datamodel to
-  1.3.3
-- Add Bok B&C spectrograph
-<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 >>>>>>> 8de790dca1cb5756b9cafa212a357c1227cc6f59
@@ -53,8 +50,6 @@ optimizations.
 
 =======
 - Improved GMOS R400 wavelength solution
-- Turned off GMOS-S binning restriction
->>>>>>> 5412af20a2add090d55764478866ce4fe2fbf9be
 
 =======
 - Improved GMOS R400 wavelength solution
@@ -74,7 +69,6 @@ optimizations.
 - `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
   with a different colors
 - Updated docs about extraction and DEIMOS
->>>>>>> 8de790dca1cb5756b9cafa212a357c1227cc6f59
 
 1.3.3 (24 Feb 2021)
 -------------------
