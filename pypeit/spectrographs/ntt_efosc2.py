@@ -114,6 +114,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        # these are for the datasec and overscan section, Shenli is not sure whether this makes sense.
         data_x = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NX') #valid pixels along X
         data_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NY') #valid pixels along Y
         oscan_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 OVSCY') #Overscan region in Y, no overscan in X
