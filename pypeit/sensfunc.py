@@ -451,7 +451,7 @@ class SensFunc(object):
                       color='black', linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30, alpha=0.3)
 
         axis.set_xlim((0.98*self.wave_zp[self.throughput >=0.0].min(),1.02*self.wave_zp[self.throughput >=0.0].max()))
-        axis.set_ylim((0.0,1.05*self.throughput[self.throughput >=0.0].max()))
+        axis.set_ylim((0.0,min(1.05*self.throughput[self.throughput >=0.0].max(), 1.0)))
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
         axis.set_ylabel('Throughput')
