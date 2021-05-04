@@ -385,11 +385,6 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
-        # Assign here -- in case we make another pass to add in missing targets
-        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
-                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
-
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
@@ -1025,6 +1020,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
@@ -1033,6 +1029,24 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
+        # If this is a second pass for objfind or this is the first one but skip_second_find is True,
+        # assign slitmask design information to detected objects
+        if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
+                (self.sobjs_obj is not None):
+            if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+                msgs.info('Assign slitmask design info to detected objects')
+                all_expected_objpos = self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
+                                                                 self.slits_left, self.slits_right,
+                                                                 self.par['calibrations']['slitedges']['det_buffer'],
+                                                                 TOLER=self.par['reduce']['slitmask']['obj_toler'])
+                # force extraction of non detected objects
+                if self.par['reduce']['slitmask']['extract_missing_objs']:
+                    msgs.info('Add undetected objects at the expected location from slitmask design.')
+                    # Assign un-detected objects
+                    sobjs = self.slits.mask_add_missing_obj(sobjs, all_expected_objpos,
+                                                self.par['reduce']['findobj']['find_fwhm'],
+                                                self.par['reduce']['slitmask']['slitmask_offset'],
+                                                self.slits_left, self.slits_right) # Deal with flexure
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1086,6 +1100,7 @@ class MultiSlitReduce(Reduce):
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
+
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1108,6 +1123,7 @@ class MultiSlitReduce(Reduce):
                     sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                    force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
                     sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                     show_profile=show_profile,
                     use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
@@ -1233,6 +1249,7 @@ class EchelleReduce(Reduce):
             cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
             npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
+            use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
@@ -1282,6 +1299,7 @@ class EchelleReduce(Reduce):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
 
+
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -1292,6 +1310,7 @@ class EchelleReduce(Reduce):
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
                                                   box_rad_order=box_rad_order, sigrej=sigrej,
+                                                  force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
                                                   sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,

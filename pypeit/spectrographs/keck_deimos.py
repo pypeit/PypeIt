@@ -255,6 +255,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             par['reduce']['slitmask']['assign_obj'] = True
+            # force extraction of undetected objects
+            par['reduce']['slitmask']['extract_missing_objs'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':

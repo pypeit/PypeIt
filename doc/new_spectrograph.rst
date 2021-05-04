@@ -53,6 +53,12 @@ new spectrograph are as follows:
 #. Add the new module to the list imported by
    ``pypeit/spectrographs/__init__.py``.
 
+#. Generate a new Telescope object in (if new)
+   ``pypeit/telescopes.py``.
+
+#. Add telescope name to valid_telescopes in
+   ``pypeit/par/pypeitpar.py``.
+
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
@@ -86,6 +92,9 @@ new spectrograph are as follows:
 
 #. For echelle spectrographs, there are numerous methods required that provide
    details for the (currently fixed) format of the orders.
+
+
+See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
 
 
 Near-IR

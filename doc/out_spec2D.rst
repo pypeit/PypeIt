@@ -70,7 +70,8 @@ following:
  - Full residual image which removes the object too (resid-det##)
 
 Red/green lines indicate slit edges.  Orange lines (if present)
-indicate object traces.
+indicate traces for detected objects. Light blue lines (if present)
+indicate traces for manually extracted objects.
 
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.

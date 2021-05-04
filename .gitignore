@@ -35,6 +35,14 @@ doc/build_/*
 *.tar
 *.zip
 
+# Various files #
+#################
+*.pdf
+tmp*.*
+*testing.ipynb
+Untitled.ipynb
+tst*.fits
+
 # Logs and databases #
 ######################
 *.log

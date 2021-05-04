@@ -28,10 +28,11 @@ def main(args):
     for det in allspec2D.detectors:
         print("================ DET {:02d} ======================".format(det))
         spec2Dobj = allspec2D[det]
-        print("SpatID  MaskID  Flags")
+        print("SpatID  MaskID  MaskOFF(pix)  Flags")
         for slit_idx, slit_spat in enumerate(spec2Dobj.slits.spat_id):
             maskdefID = 0 if spec2Dobj.slits.maskdef_id is None else spec2Dobj.slits.maskdef_id[slit_idx]
-            line = '{:04d}    {:04d}'.format(slit_spat, maskdefID)
+            maskoff = 0 if spec2Dobj.slits.mask_median_off is None else spec2Dobj.slits.mask_median_off
+            line = '{:04d}    {:04d}    {:.2f}   '.format(slit_spat, maskdefID, maskoff)
             # Flags
             flags = []
             if spec2Dobj.slits.mask[slit_idx] == 0:

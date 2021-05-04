@@ -57,7 +57,14 @@ Slit-mask design matching
 contained as meta data in the DEIMOS observations. This functionality at the moment is
 implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
 :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
-except when *LongMirr* mask is used.
+except when the *LongMirr* or the *LVM* mask is used.
+
+``PypeIt`` also assigns to each extracted 1D spectrum the corresponding RA, Dec and object name
+information from the slitmask design, and forces the extraction of undetected object at the location
+expected from the slitmask design. See `Additional Reading`_ .
+
+When the extraction of undetected object is performed, it may be occasionally necessary to set
+**no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords` to avoid a bad local sky subtraction.
 
 Flat Fielding
 -------------
@@ -88,3 +95,4 @@ Here are additional docs related to Keck/DEIMOS:
    dev/deimos_slitmask_ids
    dev/deimos_radec_object
    dev/deimos_wavecalib
+   dev/deimos_add_missing_obj

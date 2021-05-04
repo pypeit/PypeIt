@@ -1,6 +1,12 @@
 
-1.3.4dev
+1.4.1dev
 --------
+- Adds SOAR/Goodman red camera
+- Update to Gemini-S telescope info
+
+
+1.4.0 (23 Apr 2021)
+-------------------
 
 - Include a fix for when no edges are detected in `EdgeTraceSet` by
   adding the `bound_detector` parameter.  Most instruments have a
@@ -48,12 +54,23 @@ optimizations.
 - Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
   multiple files by group and coadd them.
 - PypeIt will now add HISTORY keyword entries to FITS files.
+- `use_maskdesign` is turned off for DEIMOS LVM masks
+- a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
+  the user to set their preferred fwhm
+- Improved `slittrace.assign_maskinfo`
+- PypeIt can now force extractions of DEIMOS non detected objects at the
+  location expected from slitmask design.
+- SpecObj and SlitTrace datamodel versions updated
+- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
+  with a different colors
+- Updated docs about extraction and DEIMOS
 
 1.3.3 (24 Feb 2021)
 -------------------
 
 - (Hotfix) Command-line argument bug in `pypeit_coadd_1dspec` script.
 - (Hotfix) Bug fix in `pypeit_obslog` script.
+- (Hotfix) X-Shooter bits
 
 
 1.3.2 (08 Feb 2021)

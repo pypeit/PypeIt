@@ -52,9 +52,10 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
-        # Dithering
+        # Dithering -- Not required for redux
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
-                                   required_ftypes=['science', 'standard'])
+            required=False,  # This header card is *not* always present in science/standard frames
+            required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -141,7 +142,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'DARK')
-        if ftype in ['illumflat', 'pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')

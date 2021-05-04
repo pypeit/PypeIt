@@ -480,7 +480,7 @@ class PypeIt(object):
                                             ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-                                set(np.arange(self.spectrograph.ndet))-set(detectors)])))
+                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
 
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
@@ -756,9 +756,9 @@ class PypeIt(object):
             # only a single detector is run in a second pass but in the same reduction directory.
             # Thiw was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
             # option is to re-work write_info to also "append"
-            #sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
-            #sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
-            all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+            sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            #all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
