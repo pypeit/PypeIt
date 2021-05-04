@@ -330,25 +330,33 @@ def test_collate_1d(tmp_path, monkeypatch):
     alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
     expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    spec1d_args = ['--spec1d_files', expanded_spec1d]
     config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
 
     with open(config_file_full, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
         print("archive_root = /foo/bar", file=f)
         print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
         print("slit_exclude_flags = BADREDUCE", file=f)
-        print('spec1d read', file=f)
+        print("spec1d read", file=f)
         print(alt_spec1d, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
 
     config_file_spec1d = str(tmp_path / "test_collate1d_spec1d_only.collate1d")
     with open(config_file_spec1d, "w") as f:
         print("[collate1d]", file=f)
-        print('spec1d read', file=f)
+        print("spec1d read", file=f)
         print(spec1d_file, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
+
+    config_file_coadd1d = str(tmp_path / "test_collate1d_spec1d_only.coadd1d")
+    with open(config_file_coadd1d, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
 
     # Args only, nospec1d files should raise an exception
     with pytest.raises(PypeItError):
@@ -363,6 +371,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
@@ -374,6 +383,7 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
@@ -389,10 +399,12 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
     # Test that a config file with spec1d files. Test that default tolerance and match_using is used
+    # Also test using an external coadd1d file with the same name
     parsed_args = collate_1d.parse_args([config_file_spec1d])
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['tolerance'] == 3.0
     assert params['collate1d']['match_using'] == 'ra/dec'
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
@@ -419,7 +431,7 @@ def test_collate_1d(tmp_path, monkeypatch):
         
         # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
         # if exclude_slit_flags is empty
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', alt_spec1d])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', expanded_alt_spec1d])
         assert collate_1d.main(parsed_args) == 0
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
