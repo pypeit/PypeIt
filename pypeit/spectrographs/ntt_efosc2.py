@@ -40,7 +40,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning']
+        return ['dispname', 'decker', 'binning', 'datasec']
     
     def init_meta(self):
         """
@@ -57,6 +57,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(card=None, compound=True) #CDELT1 and CDELT2
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         
+        self.meta['datasec'] = dict(card=None, compound=True)
+        self.meta['oscansec'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['airmass'] = dict(ext=0, card='HIERARCH ESO TEL AIRM START', required_ftypes=['science', 'standard'])
         self.meta['decker'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
@@ -94,6 +96,18 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                 except KeyError:
                     return None
             return decker
+        elif meta_key == 'datasec' or meta_key == 'oscansec':
+            data_x = headarr[0]['HIERARCH ESO DET OUT1 NX'] #valid pixels along X
+            data_y = headarr[0]['HIERARCH ESO DET OUT1 NY'] #valid pixels along Y
+            oscan_y = headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] #Overscan region in Y, no overscan in X
+            pscan_x = headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] #Prescan region in X, no prescan in Y  
+            if meta_key == 'datasec':
+                datasec = '[%s:%s,:%s]' % (pscan_x, pscan_x+data_x, data_y)
+                return datasec
+            else:
+                oscansec = '[:%s,:%s]' % (pscan_x, data_y) # Actually two overscan regions, here I only dealing with the region on x-axis
+                return oscansec
+        
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -114,30 +128,26 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-        # these are for the datasec and overscan section, Shenli is not sure whether this makes sense.
-        data_x = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NX') #valid pixels along X
-        data_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 NY') #valid pixels along Y
-        oscan_y = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 OVSCY') #Overscan region in Y, no overscan in X
-        pscan_x = self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 PRSCX') #Prescan region in X, no prescan in Y        
         
-        #According to the manual: https://www.eso.org/sci/facilities/lasilla/instruments/efosc/doc/manual/EFOSC2manual_v4.2.pdf
+        # Manual: https://www.eso.org/sci/facilities/lasilla/instruments/efosc/doc/manual/EFOSC2manual_v4.2.pdf
+        # Instrument paper: http://articles.adsabs.harvard.edu/pdf/1984Msngr..38....9B
         detector_dict = dict(
             binning         = binning,
-            det             = 1,
+            det             = 1, # only one detector
             dataext         = 0,
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.126, # Shenli is not sure about this
+            platescale      = 0.005, # focal length is 200mm, unit radian/mm, manual 2.2
             darkcurr        = 0.0,
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'HIERARCH ESO DET OUT1 GAIN')),
-            ronoise         = np.atleast_1d(10), # page 108
-            datasec         = np.atleast_1d('[%s:%s,1:%s]' % (pscan_x, pscan_x+data_x, data_y)),
-            oscansec        = np.atleast_1d('[1:%s,%s:%s]' % (pscan_x, data_y, data_y+oscan_y)), #Shall we deal with the overscan and prescan region the same?
+            gain            = np.atleast_1d(0.91), # written in hgeader['HIERARCH ESO DET OUT1 GAIN']
+            ronoise         = np.atleast_1d(10.0), # manual page 108
+            datasec         = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'datasec')),
+            oscansec        = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'oscansec'))
             #suffix          = '_Thor',
         )
         return detector_container.DetectorContainer(**detector_dict)
@@ -161,7 +171,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         for key in par['calibrations'].keys():
             if 'frame' in key:
                 par['calibrations'][key]['process']['overscan_method'] = 'median'
-
+        
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
@@ -184,47 +194,6 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         return par
-
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        if det == 1:
-            msgs.info("Using hard-coded BPM for NTT EFOSC2")
-
-            bpm_img[:, -1] = 1
-
-        else:
-            msgs.error(f"Invalid detector number, {det}, for NTT EFOSC2 (only one detector).")
-
-        return bpm_img
     
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

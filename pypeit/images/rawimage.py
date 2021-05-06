@@ -206,7 +206,7 @@ class RawImage(object):
         """
         self.par = par
         self._bpm = bpm
-
+        
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
