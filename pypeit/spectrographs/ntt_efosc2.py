@@ -97,10 +97,10 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                     return None
             return decker
         elif meta_key == 'datasec' or meta_key == 'oscansec':
-            data_x = headarr[0]['HIERARCH ESO DET OUT1 NX'] #valid pixels along X
-            data_y = headarr[0]['HIERARCH ESO DET OUT1 NY'] #valid pixels along Y
-            oscan_y = headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] #Overscan region in Y, no overscan in X
-            pscan_x = headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] #Prescan region in X, no prescan in Y  
+            data_x = headarr[0]['HIERARCH ESO DET OUT1 NX'] * 2 #valid pixels along X
+            data_y = headarr[0]['HIERARCH ESO DET OUT1 NY'] * 2 #valid pixels along Y
+            oscan_y = headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] * 2 #Overscan region in Y, no overscan in X
+            pscan_x = headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] * 2 #Prescan region in X, no prescan in Y  
             if meta_key == 'datasec':
                 datasec = '[%s:%s,:%s]' % (pscan_x, pscan_x+data_x, data_y)
                 return datasec
@@ -135,7 +135,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             binning         = binning,
             det             = 1, # only one detector
             dataext         = 0,
-            specaxis        = 1,
+            specaxis        = 0,
             specflip        = False,
             spatflip        = False,
             platescale      = 0.005, # focal length is 200mm, unit radian/mm, manual 2.2
@@ -173,9 +173,12 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                 par['calibrations'][key]['process']['overscan_method'] = 'median'
         
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slitedges']['edge_thresh'] = 50.
-        par['calibrations']['slitedges']['fit_order'] = 3
-        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['traceframe']['process']['use_darkimage'] = False
+        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = False
+        par['calibrations']['illumflatframe']['process']['use_darkimage'] = False
+        
+        # Ignore PCA
+        par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0
@@ -183,6 +186,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 4
 
         # 1D wavelength solution
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -192,6 +196,18 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
+        par['reduce']['skysub']['joint_fit'] = False
+        par['reduce']['skysub']['global_sky_std']  = False
+
+        par['reduce']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['skysub']['sky_sigrej'] = 5.0
+        par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
         return par
     
