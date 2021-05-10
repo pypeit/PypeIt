@@ -30,7 +30,10 @@ def shane_kastb_830():  # if flg & (2**6):  # 830/3460
 
 # ##############################
 def shane_kastr_300_7500_Ne(overwrite=False):  # 300/7500
-    """ Warning:  This is *not* the full detector """
+    """ Build archive for 300/7500
+    
+    Now uses an un-windowed detector
+    """
 
     binspec = 1
     outroot = 'shane_kast_red_300_7500.fits'
@@ -48,6 +51,7 @@ def shane_kastr_300_7500_Ne(overwrite=False):  # 300/7500
 
 # ##############################
 def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
+    """ Warning:  This is *not* the full detector """
 
     binspec = 1
     outroot = 'shane_kast_red_300_7500_NoNe.fits'
@@ -62,5 +66,5 @@ def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
                              normalize=True, subtract_conti=True, overwrite=overwrite, shift_wave=False)
 
 if __name__ == '__main__':
-    shane_kastr_300_7500_Ne(overwrite=True)
+    shane_kastr_300_7500_Ne()#overwrite=True)
     #shane_kastr_300_7500_NoNe()
