@@ -323,7 +323,7 @@ def test_obslog():
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):
-    args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit', 'BOXSLIT']
+    args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
@@ -341,7 +341,8 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("archive_root = /foo/bar", file=f)
         print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
-        print("slit_exclude_flags = BADREDUCE", file=f)
+        print("exclude_slit_trace_bm = BADREDUCE", file=f)
+        print("exclude_serendip = False", file=f)
         print("spec1d read", file=f)
         print(alt_spec1d, file=f)
         print("spec1d end", file=f)
@@ -370,7 +371,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['tolerance'] == '0.03d'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
     assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
@@ -382,7 +384,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/foo/bar'
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
-    assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_serendip'] is False
     assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
@@ -394,7 +397,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
@@ -420,7 +424,6 @@ def test_collate_1d(tmp_path, monkeypatch):
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
-
         os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
         parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--tolerance', '3', config_file_spec1d])
@@ -430,9 +433,17 @@ def test_collate_1d(tmp_path, monkeypatch):
         os.unlink(par_file)
         
         # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
-        # if exclude_slit_flags is empty
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', expanded_alt_spec1d])
+        # if exclude_slit_flags is empty.
+        # Also test specifying archive dir, including copying a file to it
+        # To make this easier this uses a very large tolerance (3 degrees) to ensure there's only
+        # one output
+        coadd_output = "J232913.02-030531.05_DEIMOS_20100913.fits"
+        with open(coadd_output, "w") as f:
+            print("test data", file=f)
+        archive_dir = tmp_path / 'archive'
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3d', '--spec1d_files', expanded_alt_spec1d, '--archive_dir', str(archive_dir)])
         assert collate_1d.main(parsed_args) == 0
+        assert os.path.exists(archive_dir / coadd_output)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

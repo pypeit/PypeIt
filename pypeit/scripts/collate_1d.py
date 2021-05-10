@@ -26,9 +26,10 @@ from pypeit import coadd1d
 from pypeit import msgs
 from pypeit import par
 from pypeit.utils import is_float
-from pypeit.archive.archive_dir import ArchiveDir
-from pypeit.archive.archive_metadata import ArchiveMetadata
-from pypeit.core.collate import group_spectra_by_source, find_slits_to_exclude, SourceObject
+from pypeit.archive import ArchiveMetadata, ArchiveDir
+from pypeit.core.collate import collate_spectra_by_source, SourceObject
+from pypeit.slittrace import SlitTraceBitMask
+from pypeit.spec2dobj import AllSpec2DObj
 
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
@@ -122,6 +123,92 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, source_header_k
 
     return (result_rows, file_info.coaddfile, file_info.coaddfile)
 
+def find_slits_to_exclude(spec2d_files, par):
+    """Find slits that should be excluded according to the input parameters.
+    The slit mask ids are returned in a map alongside the text labels for the
+    flags that caused the slit to be excluded.
+
+    Args:
+        spec2d_files (:obj:`list` of str): 
+            List of spec2d files to build the map from.
+        par (:obj:`Collate1DPar):
+            Parameters from .collate1d file
+
+    Returns:
+        :obj:`dict`: Mapping of slit mask ids to the flags that caused the
+        slit to be excluded.
+    """
+
+    # Get the types of slits to exclude from our parameters
+    exclude_flags = par['collate1d']['exclude_slit_trace_bm']
+    if isinstance(exclude_flags, str):
+        exclude_flags = [exclude_flags]
+
+    # Go through the slit_info of all spec2d files and find
+    # which slits should be excluded based on their flags
+    bit_mask = SlitTraceBitMask()
+    exclude_map = dict()
+    for spec2d_file in spec2d_files:
+
+        allspec2d = AllSpec2DObj.from_fits(spec2d_file)
+        for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
+            for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
+                for flag in exclude_flags:
+                    if bit_mask.flagged(mask, flag):
+                        if slit_mask_id not in exclude_map:
+                            exclude_map[slit_mask_id] = {flag}
+                        else:
+                            exclude_map[slit_mask_id].add(flag)
+
+    return exclude_map
+
+def exclude_source_objects(source_objects, exclude_map, par):
+    """Exclude SourceObjects based on an slit exclude map and the user's parameters.
+
+    Args:
+    source_objects (list of :obj:`SourceObject`): 
+        List of uncollated source objects to filter. There should only be one
+        SpecObj per SourceObject.
+    exclude_map (dict): 
+        Mapping of excluded slit ids to the reasons they should be excluded.
+    par (:obj:`PypeItPar`): 
+        Configuration parameters from the command line or a configuration file.
+
+    Returns:
+    list of :obj:`SourceObject`: A list of the source objects with any excluded ones removed.
+
+    """
+
+    filtered_objects = []
+    for source_object in source_objects:
+
+        sobj = source_object.spec_obj_list[0]
+        spec1d_file = source_object.spec1d_file_list[0]
+
+        if par['collate1d']['exclude_serendip'] and sobj.MASKDEF_OBJNAME == 'SERENDIP':
+            msgs.info(f'Excluding SERENDIP object from {sobj.NAME} in {spec1d_file}')
+            continue
+
+        if sobj.MASKDEF_ID in exclude_map:
+            msgs.info(f'Excluding {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}')
+            continue
+
+        if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
+            msgs.warn(f'Excluding {sobj.NAME} in {spec1d_file} because of missing both OPT_COUNTS and BOX_COUNTS')
+            continue
+
+        if par['coadd1d']['ex_value'] == 'OPT' and sobj.OPT_COUNTS is None:
+            msgs.warn(f'Excluding {sobj.NAME} in {spec1d_file} because of missing OPT_COUNTS. Consider changing ex_value to "BOX".')
+            continue
+
+        if par['coadd1d']['ex_value'] == 'BOX' and sobj.BOX_COUNTS is None:
+            msgs.warn(f'Excluding {sobj.NAME} in {spec1d_file} because of missing BOX_COUNTS. Consider changing ex_value to "OPT".')
+            continue
+
+        filtered_objects.append(source_object)
+    return filtered_objects
+
+
 def coadd(par, source):
     """coadd the spectra for a given source.
 
@@ -143,81 +230,6 @@ def coadd(par, source):
     coAdd1d.run()
     # Save to file
     coAdd1d.save(source.coaddfile)
-
-def read_file_list(lines, block):
-    """
-    Read a list of lines from the "read" portion of a PypeIt config file.
-
-    Reads from a block of file names in a configuration file such as:
-
-    spec1d read
-    Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_2013Apr09T054342.730.fits
-    spec1d end
-
-
-    Args:
-        lines (:obj:`numpy.ndarray`): List of lines to read.
-        block (str): Name of the block to read from (e.g. 'spec1d')
-
-    Returns:
-        cfg_lines (list):
-          Config lines to modify ParSet values, i.e. lines that did not
-          contain the "read" list.
-
-        files (list):
-          Contains the list of lines read.
-
-    Raises:
-        ValueError if there was no list to read or there was a syntax error with the "read" portion.
-    """
-
-    files = []
-    is_config = np.ones(len(lines), dtype=bool)
-
-    s, e = par.util._find_pypeit_block(lines, block)
-    if s >= 0 and e < 0:
-        raise ValueError(f"Missing '{block} end' in collate1d config file")
-    elif (s < 0) or (s==e):
-        raise ValueError(f"Missing {block} block in collate1d config file")
-    else:
-        files = lines[s:e]
-
-    is_config[s-1:e+1] = False
-
-    return is_config, files
-
-
-def read_coadd1d_config(coadd1d_file):
-    """Read coadd1d configuration from a file.
-
-    This will read any configuration keys, but skip the
-    coadd1d section that contains files and objects to coadd.
-    That information is generated by group_spectra_by_source
-    instead.
-
-    Args:
-        coadd1d_file (str): 
-            Path name of coadd1d file to read
-
-    Return:
-        cfg_lines (list): 
-            Config lines to modify ParSet values
-
-    """
-
-    lines = par.util._read_pypeit_file_lines(coadd1d_file)
-
-    # Strip out the coadd list
-    try:
-        is_config, coadd_lines = read_file_list(lines, 'coadd1d')
-        cfg_lines = list(lines[is_config])
-    except ValueError as e:
-        # The coadd1d files were missing, which is okay because they
-        # are ignored when collating
-        cfg_lines = list(lines)
-
-    return cfg_lines
-
 
 def find_spec2d_from_spec1d(spec1d_files):
     """
@@ -302,8 +314,11 @@ def build_parameters(args):
     if args.match is not None:
         params['collate1d']['match_using'] = args.match
 
-    if args.exclude_slit is not None and len(args.exclude_slit) > 0:
-        params['collate1d']['slit_exclude_flags'] = args.exclude_slit
+    if args.exclude_slit_bm is not None and len(args.exclude_slit_bm) > 0:
+        params['collate1d']['exclude_slit_trace_bm'] = args.exclude_slit_bm
+
+    if args.exclude_serendip:
+        params['collate1d']['exclude_serendip'] = True
 
     if args.dry_run:
         params['collate1d']['dry_run'] = True
@@ -328,13 +343,14 @@ def parse_args(options=None, return_parser=False):
                              'line. The file must have the following format:\n'
                              '\n'
                              '[collate1d]\n'
-                             '  tolerance          <tolerance>\n'
-                             '  archive_root       <directory for archive files>\n'
-                             '  slit_exclude_flags <slit types to exclude>\n'
-                             '  match_using        Whether to match using "pixel" or\n'
-                             '                     "ra/dec"\n'
-                             '  dry_run            If set the matches are displayed\n'
-                             '                     without any processing\n'
+                             '  tolerance             <tolerance>\n'
+                             '  archive_root          <directory for archive files>\n'
+                             '  exclude_slit_trace_bm <slit types to exclude>\n'
+                             '  exclude_serendip      If set serendipitous objects are skipped.\n'  
+                             '  match_using           Whether to match using "pixel" or\n'
+                             '                        "ra/dec"\n'
+                             '  dry_run               If set the matches are displayed\n'
+                             '                        without any processing\n'
                              '\n'
                              'spec1d read\n'
                              '<path to spec1d files, wildcards allowed>\n'
@@ -349,7 +365,8 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument('--match', type=str, choices=blank_par.options['match_using'], help=blank_par.descr['match_using'])
     parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
     parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
-    parser.add_argument('--exclude_slit', type=str, nargs='*', help=blank_par.descr['slit_exclude_flags'])
+    parser.add_argument('--exclude_slit_bm', type=str, nargs='*', help=blank_par.descr['exclude_slit_trace_bm'])
+    parser.add_argument('--exclude_serendip', action='store_true', help=blank_par.descr['exclude_serendip'])
 
     if return_parser:
         return parser
@@ -369,13 +386,7 @@ def main(args):
     if par['collate1d']['archive_root'] is not None:
         os.makedirs(par['collate1d']['archive_root'], exist_ok=True)
 
-    if len(par['collate1d']['slit_exclude_flags']) > 0:
-        spec2d_files = find_spec2d_from_spec1d(spec1d_files)
-        exclude_map = find_slits_to_exclude(spec2d_files, par)
-    else:
-        spec2d_files = []
-        exclude_map = dict()
-
+    # Parse the tolerance based on the match type
     if par['collate1d']['match_using'] == 'pixel':
         tolerance = float(par['collate1d']['tolerance'])
     else:
@@ -386,12 +397,31 @@ def main(args):
         else:
             tolerance = Angle(par['collate1d']['tolerance']).arcsec
 
-    source_list = group_spectra_by_source(spec1d_files, exclude_map, par['collate1d']['match_using'], tolerance)
+
+    # Filter out unwanted source objects based on our parameters.
+    # First filter them out based on the exclude_slit_trace_bm parameter
+    if len(par['collate1d']['exclude_slit_trace_bm']) > 0:
+        spec2d_files = find_spec2d_from_spec1d(spec1d_files)
+        exclude_map = find_slits_to_exclude(spec2d_files, par)
+    else:
+        spec2d_files = []
+        exclude_map = dict()
+
+    source_objects = SourceObject.build_source_objects(spec1d_files, par['collate1d']['match_using'])
+
+    # Filter based the coadding ex_value, and the exclude_serendip 
+    # boolean
+    objects_to_coadd = exclude_source_objects(source_objects, exclude_map, par)
+
+
+    # Collate the spectra
+    source_list = collate_spectra_by_source(objects_to_coadd, tolerance)
 
     #sensfunc, how to identify standard file
 
     # fluxing etc goes here
 
+    # Coadd the spectra
     for source in source_list:
 
         msgs.info(f'Creating {source.coaddfile} from the following sources:')
@@ -401,6 +431,7 @@ def main(args):
         if not args.dry_run:
             coadd(par, source)
 
+    # Archive the files and metadata
     if not args.dry_run:
 
         if par['collate1d']['archive_root'] is not None:
@@ -423,7 +454,28 @@ def main(args):
     return 0
 
 def create_archive(archive_root, copy_to_archive):
+    """Create and Archive with the desired metadata information.
 
+    Metadata is written to two files in the 
+    `ipac <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_ format. 
+
+    ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files in
+    the archive. It is organzied by the id (either KOAID, or file name) of the 
+    original science image.
+
+    ``by_object_meta.dat`` contains metadata for the coadded output files.
+    This may have multiple rows for each file depending on how many science
+    images were coadded. The primary key is a combined key of the source 
+    object name, filename, and koaid columns.
+
+    Args:
+    archive_root (str): The path to archive the metadata and files
+    copy_to_archive (bool): If true, files will be stored in the archive. 
+                            If false, only metadata is stored.
+
+    Returns:
+    :obj:`ArchiveDir`: An ArchiveDir object for archiving files and/or metadata.
+    """
 
     ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
     OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']

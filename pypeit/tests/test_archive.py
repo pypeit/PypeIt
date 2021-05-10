@@ -7,11 +7,9 @@ import os
 from functools import partial
 import filecmp
 
-from pypeit.archive.archive_metadata import ArchiveMetadata
+from pypeit.archive import ArchiveMetadata, ArchiveDir
 from pypeit.tests.tstutils import cooked_required, data_path
 
-from pypeit.archive.archive_dir import ArchiveDir
-from pypeit.archive.archive_metadata import ArchiveMetadata
 
 from pypeit.scripts.collate_1d import extract_id, get_metadata_by_id, get_object_based_metadata
 

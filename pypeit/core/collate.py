@@ -8,6 +8,8 @@ runs flux calibration/coadding on them, and produces files suitable
 for KOA archiving.
 """
 
+import copy
+
 import numpy as np
 from astropy.time import Time
 import astropy.units as u
@@ -15,11 +17,10 @@ from astropy.coordinates import SkyCoord, Angle
 
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spec2dobj import AllSpec2DObj
 from pypeit import msgs
-from pypeit.slittrace import SlitTraceBitMask
 
 class SourceObject:
+
     """ A group of reduced spectra from the same source object. This contains
     the information needed to coadd the spectra and archive the metadata.
 
@@ -56,11 +57,36 @@ class SourceObject:
         self.match_type = match_type
 
         if (match_type == 'ra/dec'):
-            self.coord = SkyCoord(spec1d_obj.RA, spec1d_obj.DEC, unit='deg')
+            try:
+                self.coord = SkyCoord(spec1d_obj.RA, spec1d_obj.DEC, unit='deg')
+            except Exception as e:
+                msgs.error(f"Cannot do ra/dec matching on {spec1d_obj.NAME}, could not read RA/DEC.")
         else:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
         self.coaddfile = self.build_coadd_file_name()
+
+    @classmethod
+    def build_source_objects(cls, spec1d_files, match_type):
+        """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
+        SpecObj in the resulting list (i.e. no combining or collating is done by this method).
+
+        Args:
+        spec1d_files (list of str): List of spec1d filenames
+        match_type (str):           What type of matching the SourceObjects will be configured for.
+                                    Must be either 'ra/dec' or 'pixel'
+
+        Returns: 
+            list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
+        """
+        result = []
+        for spec1d_file in spec1d_files:            
+            sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+            spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
+            for sobj in sobjs:
+                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
+    
+        return result
 
     def build_coadd_file_name(self):
         """Build the output file name for coadding.
@@ -70,7 +96,8 @@ class SourceObject:
 
         Currently instrument_name is taken from spectrograph.camera
 
-        Return: str  The name of the coadd output file.
+        Returns: 
+            str:  The name of the coadd output file.
         """
         time_portion = Time(self.spec1d_header_list[0]['MJD'], format="mjd").strftime('%Y%m%d')
         if self.match_type == 'ra/dec':
@@ -90,8 +117,9 @@ class SourceObject:
         header (:obj:`astropy.io.fits.Header`):
             Header from a spec1d file.
 
-        Returns (bool): True if the configuration keys match, 
-            false if they do not.
+        Returns:
+            bool: True if the configuration keys match, 
+                  false if they do not.
         """
         # Make sure the spectrograph matches
         if 'PYP_SPEC' not in header or header['PYP_SPEC'] != self._spectrograph.name:
@@ -136,8 +164,9 @@ class SourceObject:
             Units of ``tolerance`` argument if match_type is 'ra/dec'. 
             Defaults to arcseconds. Igored if match_type is 'pixel'.
 
-        Returns (bool): True if the SpecObj matches this group,
-            False otherwise.
+        Returns:
+            bool: True if the SpecObj matches this group,
+                  False otherwise.
         """
 
         if not self._config_key_match(spec1d_header):
@@ -150,94 +179,63 @@ class SourceObject:
             coord2 =spec_obj['SPAT_PIXPOS'] 
             return np.fabs(coord2 - self.coord) <= tolerance
 
-def find_slits_to_exclude(spec2d_files, par):
-    """Find slits that should be excluded according to the input parameters.
-    The slit mask ids are returned in a map alongside the text labels for the
-    flags that caused the slit to be excluded.
+    def combine(self, other_source_object):
+        """Combine this SourceObject with another. The two objects must be from the
+        same spectrograph and use the same match type.
 
-    Args:
-        spec2d_files (:obj:`list` of str): 
-            List of spec2d files to build the map from.
-        par (:obj:`Collate1DPar):
-            Parameters from .collate1d file
+        Args:
+        other_source_object (:obj:`SourceObject`): The other object to combine with.
 
-    Return:
-        :obj:`dict` Mapping of slit mask ids to the flags that caused the
-        slit to be excluded.
-    """
+        Returns:
+            (:obj:`SourceObject`): This SourceObject, now combined with other_source_object.
+        """
+        
+        if other_source_object._spectrograph.name != self._spectrograph.name or \
+           other_source_object.match_type != self.match_type:
+           msgs.error(f"Can't append incompatible source objects. {self.spectrograph.name}/{self.match_type} does not match {other_source_object.spectrograph.name}/{other_source_object.match_type}")
 
-    # Get the types of slits to exclude from our parameters
-    exclude_flags = par['collate1d']['slit_exclude_flags']
-    if isinstance(exclude_flags, str):
-        exclude_flags = [exclude_flags]
+        self.spec_obj_list += other_source_object.spec_obj_list
+        self.spec1d_file_list += other_source_object.spec1d_file_list
+        self.spec1d_header_list += other_source_object.spec1d_header_list
 
-    # Go through the slit_info of all spec2d files and find
-    # which slits should be excluded based on their flags
-    bit_mask = SlitTraceBitMask()
-    exclude_map = dict()
-    for spec2d_file in spec2d_files:
+        return self
 
-        allspec2d = AllSpec2DObj.from_fits(spec2d_file)
-        for sobj2d in [allspec2d[det] for det in allspec2d.detectors]:
-            for (slit_id, mask, slit_mask_id) in sobj2d['slits'].slit_info:
-                for flag in exclude_flags:
-                    if bit_mask.flagged(mask, flag):
-                        if slit_mask_id not in exclude_map:
-                            exclude_map[slit_mask_id] = {flag}
-                        else:
-                            exclude_map[slit_mask_id].add(flag)
-
-    return exclude_map
-
-def group_spectra_by_source(spec1d_files, exclude_map, match_type, tolerance, unit=u.arcsec):
+def collate_spectra_by_source(source_list, tolerance, unit=u.arcsec):
     """Given a list of spec1d files from PypeIt, group the spectra within the
     files by their source object. The grouping is done by comparing the 
     position of each spectra (using either pixel or RA/DEC) using a given tolerance.
 
     Args:
-        spec1d_files (list of str): A list of spec1d files created by PypeIt.
-        exclude_map (dict): Mapping of excluded slit mask ids to the reason
-            they were excluded.  Any spectra for these slits will be ignored.
-        match_type (str): How to match the positions of spectra. 'pixel' for
-            matching by spatial pixel distance or 'ra/dec' for matching by
-            angular distance.
+        source_list (list of :obj:`SourceObject`): A list of source objects, one
+            SpecObj per object, ready for collation.
         tolerance (float): 
             Maximum distance that two spectra can be from each other to be 
             considered to be from the same source. Measured in floating
-            point pixels or as an angular distance (see ``unit1`` argument).
+            point pixels or as an angular distance (see ``unit`` argument).
         unit (:obj:`astropy.units.Unit`):
             Units of ``tolerance`` argument if match_type is 'ra/dec'. 
-            Defaults to arcseconds. Igored if match_type is 'pixel'.
+            Defaults to arcseconds. Ignored if match_type is 'pixel'.
 
-    Returns (list of `obj`:SourceObject): The grouped spectra as SourceObjects.
+    Returns:
+        (list of `obj`:SourceObject): The collated spectra as SourceObjects.
 
     """
-    source_list = []
 
-    for spec1d_file in spec1d_files:
-        sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+    collated_list = []
+    for source in source_list:
 
-        for sobj in sobjs.specobjs:
+        # Search for a collated SourceObject that matches this one.
+        # If one can't be found, treat this as a new collated SourceObject.
+        found = False
+        for collated_source in collated_list:
+            if  collated_source.match(source.spec_obj_list[0], 
+                                      source.spec1d_header_list[0],
+                                      tolerance, unit):
 
-            if sobj.MASKDEF_ID in exclude_map:
-                msgs.info(f'Excluding {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}')
-                continue
-            if sobj.OPT_COUNTS is None and sobj.BOX_COUNTS is None:
-                msgs.info(f'Excluding {sobj.NAME} in {spec1d_file} because of missing both OPT_COUNTS and BOX_COUNTS')
-                continue
+                collated_source.combine(source)
+                found = True
 
-            # Search for a SourceObject that matches this SpecObj.
-            # If one can't be found, trat this as a new SourceObject.
-            found = False
-            for source in source_list:
-                if  source.match(sobj, sobjs.header, tolerance, unit):
-                    source.spec_obj_list.append(sobj)
-                    source.spec1d_file_list.append(spec1d_file)
-                    source.spec1d_header_list.append(sobjs.header)
-                    found = True
+        if not found:
+            collated_list.append(copy.deepcopy(source))
 
-            if not found:
-                spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
-                source_list.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
-
-    return source_list
+    return collated_list
