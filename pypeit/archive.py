@@ -113,7 +113,7 @@ class ArchiveDir():
     """
     Copies files to a directory for archival purposes.
 
-    One or more ArchiveMetadata objects are be associated with this
+    One or more ArchiveMetadata objects are associated with this
     ArchiveDir, and those metadata files are also stored in the archive.
     These objects also translate the passed in objects to filenames to
     copy into the archive.

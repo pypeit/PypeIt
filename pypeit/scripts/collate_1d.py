@@ -77,7 +77,8 @@ def extract_id(header):
 def get_metadata_by_id(header_keys, file_info):
     """
     Gets the metadata from a FITS header used for the by id portion
-    of the archive and appends it to by_id_metadata
+    of the archive. It is intended to be called by a :obj:`pypeit.archive.ArchiveMetadata`
+    object.
 
     Args:
         filename (str): A filename from a file originating in the KOA.
@@ -102,7 +103,8 @@ def get_metadata_by_id(header_keys, file_info):
 def get_object_based_metadata(object_header_keys, spec_obj_keys, source_header_keys, file_info):
     """
     Gets the metadata from a SourceObject instance used for the by object
-    portion of the archive and appends it to by_object_metadata.
+    portion of the archive. It is intended to be called by a 
+    :obj:`pypeit.archive.ArchiveMetadata` object.
 
     Args:
     source (:obj:`pypeit.scripts.collate_1d.SourceObject`)): The source object containing the

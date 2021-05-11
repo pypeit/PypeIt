@@ -21,6 +21,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.alignframe
+   pypeit.archive
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations

@@ -3,9 +3,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script collates multiple 1d spectra in multiple files by object, 
-runs flux calibration/coadding on them, and produces files suitable
-for KOA archiving.
+This module contains code for collating multiple 1d spectra source object.
 """
 
 import copy
@@ -21,7 +19,7 @@ from pypeit import msgs
 
 class SourceObject:
 
-    """ A group of reduced spectra from the same source object. This contains
+    """A group of reduced spectra from the same source object. This contains
     the information needed to coadd the spectra and archive the metadata.
 
     An instance is initiated with the first spectra of the group. Additional
@@ -29,25 +27,25 @@ class SourceObject:
     match method, and are added to it if they do.
 
     Args:
-    spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
-        The initial spectra of the group as a SpecObj.
-    spec1d_header (:obj:`astropy.io.fits.Header`): 
-        The header for the first spec1d file in the group.
-    spec1d_file (str): Filename of the first spec1d file in the group.
-    spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`): 
-        The spectrograph that was used to take the data.
-    match_type (str): How spectra should be compared. 'ra/dec' means the
-        spectra should be compared using the sky coordinates in RA and DEC.
-        'pixel' means the spectra should be compared by the spatial pixel
-        coordinates in the image.
+        spec1d_obj (:obj:`pypeit.specobj.SpecObj`):
+            The initial spectra of the group as a SpecObj.
+        spec1d_header (:obj:`astropy.io.fits.Header`): 
+            The header for the first spec1d file in the group.
+        spec1d_file (str): Filename of the first spec1d file in the group.
+        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`): 
+            The spectrograph that was used to take the data.
+        match_type (str): How spectra should be compared. 'ra/dec' means the
+            spectra should be compared using the sky coordinates in RA and DEC.
+            'pixel' means the spectra should be compared by the spatial pixel
+            coordinates in the image.
 
     Attributes:
-    spec_obj_list (list of :obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
-        The list of spectra in the group as SpecObj objects.
-    spec1d_file_list (list of str): 
-        The pathnames of the spec1d files in the group.
-    spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
-        The headers of the spec1d files in the group
+        spec_obj_list (list of :obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The list of spectra in the group as SpecObj objects.
+        spec1d_file_list (list of str): 
+            The pathnames of the spec1d files in the group.
+        spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
+            The headers of the spec1d files in the group
     """
     def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
         self.spec_obj_list = [spec1d_obj]
@@ -72,9 +70,9 @@ class SourceObject:
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
         Args:
-        spec1d_files (list of str): List of spec1d filenames
-        match_type (str):           What type of matching the SourceObjects will be configured for.
-                                    Must be either 'ra/dec' or 'pixel'
+            spec1d_files (list of str): List of spec1d filenames
+            match_type (str):           What type of matching the SourceObjects will be configured for.
+                                        Must be either 'ra/dec' or 'pixel'
 
         Returns: 
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
@@ -114,8 +112,8 @@ class SourceObject:
         ones for this SourceObject.
 
         Args:
-        header (:obj:`astropy.io.fits.Header`):
-            Header from a spec1d file.
+            header (:obj:`astropy.io.fits.Header`):
+                Header from a spec1d file.
 
         Returns:
             bool: True if the configuration keys match, 
@@ -149,20 +147,20 @@ class SourceObject:
         is compatible with the ones in this SourceObject.
 
         Args:
-        spec_obj (:obj:`pypeit.specobj.SpecObj`): 
-            The SpecObj to compare with this SourceObject.
+            spec_obj (:obj:`pypeit.specobj.SpecObj`): 
+                The SpecObj to compare with this SourceObject.
 
-        spec1d_header (:obj:`astropy.io.fits.Header`):
-            The header from the spec1d that dontains the SpecObj.
-            
-        tolerance (float): 
-            Maximum distance that two spectra can be from each other to be 
-            considered to be from the same source. Measured in floating
-            point pixels or as an angular distance (see ``unit1`` argument).
+            spec1d_header (:obj:`astropy.io.fits.Header`):
+                The header from the spec1d that dontains the SpecObj.
+                
+            tolerance (float): 
+                Maximum distance that two spectra can be from each other to be 
+                considered to be from the same source. Measured in floating
+                point pixels or as an angular distance (see ``unit1`` argument).
 
-        unit (:obj:`astropy.units.Unit`):
-            Units of ``tolerance`` argument if match_type is 'ra/dec'. 
-            Defaults to arcseconds. Igored if match_type is 'pixel'.
+            unit (:obj:`astropy.units.Unit`):
+                Units of ``tolerance`` argument if match_type is 'ra/dec'. 
+                Defaults to arcseconds. Igored if match_type is 'pixel'.
 
         Returns:
             bool: True if the SpecObj matches this group,
