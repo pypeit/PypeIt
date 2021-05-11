@@ -201,7 +201,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
-        if ftype in 'standard':
+        if ftype == 'standard':
             return good_exp & ((fitstbl['target'] == 'STD')
                                 | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
