@@ -29,6 +29,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
+from pypeit import msgs
 
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
