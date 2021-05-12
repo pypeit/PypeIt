@@ -7,6 +7,7 @@
 - Address an Identify bug
 - Add blocking filter to DEIMOS config
 - NOT/Alfosc updates
+- A pair of fixes for shane_kast_red
 
 
 1.4.0 (23 Apr 2021)

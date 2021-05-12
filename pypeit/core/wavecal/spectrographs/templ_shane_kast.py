@@ -30,14 +30,20 @@ def shane_kastb_830():  # if flg & (2**6):  # 830/3460
 
 # ##############################
 def shane_kastr_300_7500_Ne(overwrite=False):  # 300/7500
+    """ Build archive for 300/7500
+    
+    Now uses an un-windowed detector
+    """
 
     binspec = 1
     outroot = 'shane_kast_red_300_7500.fits'
     #
     ifiles = [0]
-    slits = [0]
+    slits = [222]
     lcut = []
-    wfile1 = os.path.join(templates.template_path, 'Shane_Kast', '300_7500', 'shane_kast_red_300_7500_ArICdIHeIHgINeI.fits')
+    #slits = [0]
+    #wfile1 = os.path.join(templates.template_path, 'Shane_Kast', '300_7500', 'shane_kast_red_300_7500_ArICdIHeIHgINeI.fits')
+    wfile1 = os.path.join(templates.template_path, 'Shane_Kast', '300_7500', 'shane_kast_red_300_7500_full_det.fits')
     #
     templates.build_template([wfile1], slits, lcut, binspec,
                    outroot, lowredux=False, ifiles=ifiles, chk=True,
@@ -45,6 +51,7 @@ def shane_kastr_300_7500_Ne(overwrite=False):  # 300/7500
 
 # ##############################
 def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
+    """ Warning:  This is *not* the full detector """
 
     binspec = 1
     outroot = 'shane_kast_red_300_7500_NoNe.fits'
@@ -59,5 +66,5 @@ def shane_kastr_300_7500_NoNe(overwrite=False):  # 300/7500
                              normalize=True, subtract_conti=True, overwrite=overwrite, shift_wave=False)
 
 if __name__ == '__main__':
-    shane_kastr_300_7500_Ne()
-    shane_kastr_300_7500_NoNe()
+    shane_kastr_300_7500_Ne()#overwrite=True)
+    #shane_kastr_300_7500_NoNe()
