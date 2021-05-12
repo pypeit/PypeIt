@@ -319,29 +319,21 @@ class Reduce(object):
         """
         pass
 
-    def run(self, ra=None, dec=None, obstime=None, std_trace=None, show_peaks=False, return_negative=False):
+    def run_objfind(self, std_trace=None, show_peaks=False):
         """
-        Primary code flow for PypeIt reductions
+        Primary code flow for object finding in PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            ra (str, optional):
-                Required if helio-centric correction is to be applied
-            dec (str, optional):
-                Required if helio-centric correction is to be applied
-            obstime (:obj:`astropy.time.Time`, optional):
-                Required if helio-centric correction is to be applied
             std_trace (np.ndarray, optional):
                 Trace of the standard star
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
 
         Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
-               tilts (`numpy.ndarray`_).
-               See main doc string for description
+            tuple: initial_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`), skymask (`np.ndarray`_).
+            Initial global sky model, list of objects found, skymask
 
         """
 
@@ -384,6 +376,60 @@ class Reduce(object):
                                   manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
+        return self.initial_sky, self.sobjs_obj, self.skymask
+
+    def run_extraction(self, initial_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
+        """
+        Primary code flow for PypeIt reductions
+
+        *NOT* used by COADD2D
+
+        Args:
+            initial_sky (`np.ndarray`_):
+                Initial global sky model
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                List of objects found during `run_objfind`
+            skymask (`np.ndarray`_):
+               Boolean image indicating which pixels are useful for global sky subtraction
+            ra (str, optional):
+                Required if helio-centric correction is to be applied
+            dec (str, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+
+        Returns:
+            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
+               tilts (`numpy.ndarray`_).
+               See main doc string for description
+
+        """
+
+        # Deal with dynamic calibrations
+        # Tilts
+        self.waveTilts.is_synced(self.slits)
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        msgs.info("Generating tilts image")
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+
+        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
+        skymask, usersky = self.load_skyregions(skymask)
+
+        self.sobjs_obj = sobjs_obj
+        self.skymask = skymask
+        self.initial_sky = initial_sky
+        self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
