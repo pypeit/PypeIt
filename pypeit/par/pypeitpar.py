@@ -1602,9 +1602,9 @@ class SlitMaskPar(ParSet):
         dtypes['assign_obj'] = bool
         descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
 
-        defaults['slitmask_offset'] = 0.
+        defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
-        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position. ' \
+        descr['slitmask_offset'] = 'Slitmask offset (pixels) from the position expected by the slitmask design ' \
                                    'This parameter is only used during the forced extraction of ' \
                                    'undetected objects.'
 

@@ -492,7 +492,6 @@ class PypeIt(object):
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
         for self.det in detectors:
-            msgs.info('REDUCTION: Object finding')
             msgs.info("Working on detector {0}".format(self.det))
             # Instantiate Calibrations class
             self.caliBrate = calibrations.Calibrations.get_instance(
@@ -516,7 +515,6 @@ class PypeIt(object):
 
         # Extract
         for i, self.det in enumerate(detectors):
-            msgs.info('REDUCTION: Object Extraction')
             msgs.info("Working on detector {0}".format(self.det))
             # Instantiate Calibrations class
             self.caliBrate = calibrations.Calibrations.get_instance(
@@ -717,8 +715,7 @@ class PypeIt(object):
 
         # Do it
         if objfind_run:
-            sobjs_obj, skymask, initial_sky = self.redux.run_objfind(
-                std_trace=std_trace, show_peaks=self.show)
+            initial_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
             return initial_sky, sobjs_obj, skymask
         else:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(

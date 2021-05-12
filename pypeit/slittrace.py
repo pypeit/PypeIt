@@ -123,7 +123,10 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_designtab': dict(otype=Table, descr='Table with slitmask design and object info'),
                  'maskfile': dict(otype=str, descr='Data file that yielded the slitmask info'),
                  'maskdef_posx_pa': dict(otype=float, descr='PA that aligns with spatial dimension of the detector'),
-                 'mask_median_off': dict(otype=float, descr='Median offset (pixels) of slitmask from expected position'),
+                 'maskdef_offset': dict(otype=float, descr='Slitmask offset (pixels) from position expected '
+                                                           'by the slitmask design'),
+                 'maskdef_objpos': dict(otype=np.ndarray, atype=np.floating,
+                                         descr='Object positions expected by the slitmask design'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
                                    descr='Slit ID number echelle order'),
                  'nslits': dict(otype=int,
@@ -167,7 +170,7 @@ class SlitTraceSet(datamodel.DataContainer):
     def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
                  mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
-                 maskdef_posx_pa=None, mask_median_off=None,
+                 maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
                  ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
@@ -723,13 +726,12 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-    def mask_add_missing_obj(self, sobjs, expected_objpos, fwhm, median_off, slits_left, slits_right):
+    def mask_add_missing_obj(self, sobjs, fwhm, median_off, slits_left, slits_right):
         """
         Generate new SpecObj and add them into the SpecObjs object for any slits missing the targeted source.
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
-            expected_objpos (`numpy.ndarray`_): Array with expected positions of all objects from slitmask design info.
             fwhm (:obj:`float`): FWHM in pixels to be used in the optimal extraction
             median_off (:obj:`float`): User provided median offset in pixels of the slitmask
             slits_left (`numpy.ndarray`_): Array with left slit edges.
@@ -745,13 +747,15 @@ class SlitTraceSet(datamodel.DataContainer):
         if fwhm is None:
             msgs.error('A FWHM for the optimal extraction must be provided. See `find_fwhm` in `FindObjPar`.')
 
+        if self.maskdef_objpos is None:
+            msgs.error('An array with the object positions expected from slitmask design is missing.')
+
         if median_off is not None:
-            self.mask_median_off = median_off
-            msgs.info('Slitmask median offset: {} pixels'.format(round(self.mask_median_off, 2)))
-        else:
-            self.mask_median_off = 0.
-            msgs.info('Slitmask median offset is assumed to be zero. '
-                      'To change this see `slitmask_offset` in `SlitMaskPar`.')
+            self.maskdef_offset = median_off
+        elif self.maskdef_offset is None:
+            msgs.error('Slitmask offset from position expected by the slitmask design is missing.')
+
+        msgs.info('Slitmask median offset: {} pixels'.format(round(self.maskdef_offset, 2)))
 
         # midpoint in the spectral direction
         specmid = slits_left[:,0].size//2
@@ -772,7 +776,7 @@ class SlitTraceSet(datamodel.DataContainer):
             oidx = np.where(self.maskdef_designtab['SLITID'].data == self.maskdef_id[islit])[0][0]
             #
             # Do it
-            SPAT_PIXPOS = float((expected_objpos[oidx]-self.mask_median_off) + slits_left[specmid, islit])
+            SPAT_PIXPOS = float((self.maskdef_objpos[oidx]-self.maskdef_offset) + slits_left[specmid, islit])
 
             # TODO -- DO THIS RIGHT FOR SLITS (LIKELY) OFF THE DETECTOR/SLIT
             #  If we keep what follows, probably should add some tolerance to be off the edge
@@ -898,6 +902,8 @@ class SlitTraceSet(datamodel.DataContainer):
                                                         sigma=2.)
         else:
             median_edgeloss = 0.
+        msgs.info('edgeloss={} pixels'.format(left_edgeloss))
+        msgs.info('median_edgeloss={} pixels'.format(median_edgeloss))
 
         expected_objpos_all = np.zeros(obj_maskdef_id.size)
         for i, maskid in enumerate(obj_maskdef_id):
@@ -920,10 +926,12 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # Expected objects position (distance from left edge) in pixels, corrected for edge loss
             expected_objpos_all[i] = obj_topdist[i] / plate_scale - left_edgeloss[self.maskdef_id == maskid][0]
+        msgs.info('edgeloss={} pixels'.format(left_edgeloss))
+        self.maskdef_objpos = expected_objpos_all
 
         if sobjs.nobj == 0:
             msgs.warn('NO detected objects')
-            return expected_objpos_all
+            return
         else:
             # Restrict to objects on this detector
             on_det = sobjs.DET == self.det
@@ -962,6 +970,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # else:
             #     median_off = 0.
 
+            median_off = 0.0
             # Assign
             # Loop on slits to deal with multiple sources within TOLER
             # Exclude the objects that have maskdef_id=-99
@@ -975,6 +984,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 # separation in pixels
                 separ = expected[idx]-measured[idx]
                 msgs.info('MASKDEF_ID:{}'.format(maskid))
+                msgs.info('expected= {}  measured={} pixels'.format(expected[idx], measured[idx]))
                 msgs.info('Difference between expected and detected object '
                           'positions: {} arcsec'.format(np.round(separ*plate_scale, 3)))
                 in_toler = np.abs(separ*plate_scale) < TOLER
@@ -1020,8 +1030,10 @@ class SlitTraceSet(datamodel.DataContainer):
                     sobj.MASKDEF_EXTRACT = False
                     sobj.hand_extract_flag = False
 
+        self.maskdef_offset = median_off
+
         # Return
-        return expected_objpos_all
+        return
 
     def user_mask(self, det, slitspatnum):
         """

@@ -31,7 +31,7 @@ def main(args):
         print("SpatID  MaskID  MaskOFF(pix)  Flags")
         for slit_idx, slit_spat in enumerate(spec2Dobj.slits.spat_id):
             maskdefID = 0 if spec2Dobj.slits.maskdef_id is None else spec2Dobj.slits.maskdef_id[slit_idx]
-            maskoff = 0 if spec2Dobj.slits.mask_median_off is None else spec2Dobj.slits.mask_median_off
+            maskoff = 0 if spec2Dobj.slits.maskdef_offset is None else spec2Dobj.slits.maskdef_offset
             line = '{:04d}    {:04d}    {:.2f}   '.format(slit_spat, maskdefID, maskoff)
             # Flags
             flags = []
