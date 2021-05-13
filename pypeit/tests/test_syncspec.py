@@ -22,8 +22,8 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 @cooked_required
 def test_kastb():
     dpath = os.path.join(os.environ['PYPEIT_DEV'], 'Cooked', 'Science')
-    file1 = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits' #SPAT0176-SLIT0000-DET01
-    file2 = 'spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits' #SPAT0175-SLIT0000-DET01
+    file1 = 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits' #SPAT0176-SLIT0000-DET01
+    file2 = 'spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits' #SPAT0175-SLIT0000-DET01
 
     outfiles = coadd_1dspec.coadd1d_filelist([os.path.join(dpath, file1),
                                              os.path.join(dpath, file2)],

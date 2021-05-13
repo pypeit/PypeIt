@@ -342,13 +342,13 @@ def test_find_spec2d_from_spec1d(tmp_path):
 def test_archive(tmp_path):
     cooked_sci_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
 
-    spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits'
-    spec2d_name = 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits'
+    spec1d_name = 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits'
+    spec2d_name = 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits'
     spec1d_files = [os.path.join(cooked_sci_dir, spec1d_name)]
     spec2d_files = [os.path.join(cooked_sci_dir, spec2d_name)]
 
     # Don't actually need a real coadd file, just any file to see if it gets copied to the archive directory    
-    coadd_name = 'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits'
+    coadd_name = 'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits'
     coadd_file = os.path.join(cooked_sci_dir, coadd_name)
 
     # Build source for add_coadd_sources
@@ -379,10 +379,10 @@ def test_archive(tmp_path):
  
     # Now test opening and adding to an existing archive
     archive2 = ArchiveDir(archive_dir)
-    spec2d_name = 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits'
+    spec2d_name = 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits'
     spec2d_list = [os.path.join(cooked_sci_dir, spec2d_name)]
 
-    coadd_name = 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'
+    coadd_name = 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits'
     mock_sobjs = mock_specobjs('spec1d_file2')
     spectrograph = load_spectrograph('keck_deimos')
     source_list = [SourceObject(mock_sobjs.specobjs[0], mock_sobjs.header, 'spec1d_file1',
