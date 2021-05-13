@@ -143,7 +143,7 @@ def test_trace_add_rm():
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Just list
     pargs = show_1dspec.parse_args([spec_file, '--list'])
     show_1dspec.main(pargs)
@@ -153,7 +153,7 @@ def test_show_1dspec():
 def test_show_2dspec():
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
     spec2d_file = os.path.join(droot, 'Science',
-                             'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     # Save
@@ -185,7 +185,7 @@ def test_view_fits():
     """ Only test the list option
     """
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parse_args([spec_file, '--list', 'shane_kast_blue'])
 
@@ -328,8 +328,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
     alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
-    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
     config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
 
     with open(config_file_full, "w") as f:

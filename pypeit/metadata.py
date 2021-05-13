@@ -465,7 +465,7 @@ class PypeItMetaData:
         return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
                                            self['target'][row].replace(" ", ""),
                                            self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):

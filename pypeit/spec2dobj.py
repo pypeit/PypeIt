@@ -367,7 +367,7 @@ class AllSpec2DObj(object):
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['PYP_SPEC'] = spectrograph.name
-        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
 
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?
