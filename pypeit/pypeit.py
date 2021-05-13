@@ -457,11 +457,11 @@ class PypeIt(object):
         all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
-        # container for specobjs during first run (objfind run)
+        # container for specobjs during first loop (objfind)
         all_specobjs = specobjs.SpecObjs()
-        # container for specobjs during second run (extraction run)
+        # container for specobjs during second loop (extraction)
         all_specobjs_new = specobjs.SpecObjs()
-        # list of skymask and initial_sky obtained during objfind run and used in extraction run
+        # list of skymask and initial_sky obtained during objfind and used in extraction
         skymask_list = []
         initial_sky_list = []
 
@@ -488,6 +488,11 @@ class PypeIt(object):
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
 
+        # List of detectors with successful calibration
+        calibrated_det = []
+        # list of successful calibrations to be used in the extraction loop
+        calib_list = []
+
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
@@ -506,6 +511,9 @@ class PypeIt(object):
                           f'that failed was {self.caliBrate.failed_step}.  Continuing by '
                           f'skipping this detector.')
                 continue
+
+            calibrated_det.append(self.det)
+            calib_list.append(self.caliBrate)
             initial_sky, sobjs_obj, skymask = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile,
                                                               objfind_run=True)
             if len(sobjs_obj)>0:
@@ -514,21 +522,11 @@ class PypeIt(object):
             initial_sky_list.append(initial_sky)
 
         # Extract
-        for i, self.det in enumerate(detectors):
+        for i, self.det in enumerate(calibrated_det):
             msgs.info("Working on detector {0}".format(self.det))
             # Instantiate Calibrations class
-            self.caliBrate = calibrations.Calibrations.get_instance(
-                self.fitstbl, self.par['calibrations'], self.spectrograph,
-                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
-            # These need to be separate to accomodate COADD2D
-            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
-            self.caliBrate.run_the_steps()
-            if not self.caliBrate.success:
-                msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
-                          f'that failed was {self.caliBrate.failed_step}.  Continuing by '
-                          f'skipping this detector.')
-                continue
+            self.caliBrate = calib_list[i]
+
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within

@@ -743,6 +743,7 @@ class SlitTraceSet(datamodel.DataContainer):
             nobj (:obj:`int`): Number of objects identified
 
         """
+        msgs.info('Add undetected objects at the expected location from slitmask design.')
 
         if fwhm is None:
             msgs.error('A FWHM for the optimal extraction must be provided. See `find_fwhm` in `FindObjPar`.')
@@ -933,6 +934,7 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.warn('NO detected objects')
             return
         else:
+            msgs.info('Assign slitmask design info to detected objects')
             # Restrict to objects on this detector
             on_det = sobjs.DET == self.det
             cut_sobjs = sobjs[on_det]
