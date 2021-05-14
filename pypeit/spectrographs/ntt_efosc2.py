@@ -179,24 +179,32 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['rm_slits'] = '1:500:120' # remove the fake slit due to bad pixels
+
+        #edge parameters
+        par['calibrations']['slitedges']['edge_thresh'] = 75.
 
         # Tilt parameters
         par['calibrations']['tilts']['tracethresh'] = 25.0
         par['calibrations']['tilts']['spat_order'] = 3
         par['calibrations']['tilts']['spec_order'] = 4
+        
+        # Image processing
+        # The overscan region might cause oversubtraction of the background, set it to False
+        par['scienceframe']['process']['use_overscan'] = False 
 
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
-        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']  # Grating dependent
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        par['calibrations']['wavelengths']['fwhm'] = 4.0  # Good for 2x binning
+        par['calibrations']['wavelengths']['fwhm'] = 4.0
         par['calibrations']['wavelengths']['n_final'] = 4
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
-
+        
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['skysub']['no_poly'] = True
@@ -210,7 +218,38 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
         return par
-    
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == 'Gr#6':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr6.fits'
+        elif self.get_meta_value(scifile, 'dispname') == 'Gr#5':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
+            # Fringes are affecting this Grism significantly, skip flat fielding
+            par['scienceframe']['process']['use_illumflat'] = False
+            par['scienceframe']['process']['use_pixelflat'] = False
+
+        return par
+
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
         Check for frames of the provided type.
@@ -256,4 +295,42 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+    
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Generate a default bad-pixel mask.
 
+        Even though they are both optional, either the precise shape for
+        the image (``shape``) or an example file that can be read to get
+        the shape (``filename`` using :func:`get_image_shape`) *must* be
+        provided.
+
+        Args:
+            filename (:obj:`str` or None):
+                An example file to use to get the image shape.
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            shape (tuple, optional):
+                Processed image shape
+                Required if filename is None
+                Ignored if filename is not None
+            msbias (`numpy.ndarray`_, optional):
+                Master bias frame used to identify bad pixels
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to
+            0.
+        """
+
+        # Call the base-class method to generate the empty bpm
+        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+
+        msgs.info("Using hard-coded BPM for NTT EFOSC2")
+
+        bpm_img[182, 116:] = 1
+        bpm_img[646, 170:] = 1
+        bpm_img[:, 1025:] = 1
+
+        return bpm_img
