@@ -19,6 +19,7 @@ from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_excl
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
+
 from pypeit.tests.tstutils import data_path, cooked_required
 
 class mock_coadd:

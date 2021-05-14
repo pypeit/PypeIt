@@ -502,6 +502,6 @@ def write_line_list(tbl, outfile):
     tbl['wave'].format = '10.4f'
     # Write
     with open(outfile,'w') as f:
-        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%b-%d'))))
+        f.write('# Creation Date: {:s}\n'.format(str(datetime.date.today().strftime('%Y-%m-%d'))))
         tbl.write(f, format='ascii.fixed_width')
 

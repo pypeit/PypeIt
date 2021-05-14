@@ -18,9 +18,8 @@ class mock_file_info:
         self.path = path
         self.name = name
 
-_COOKED_FILE1 = "spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits"
-_COOKED_FILE2 = "spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits"
-
+_COOKED_FILE1 = "spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits"
+_COOKED_FILE2 = "spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits"
 def get_simple_metadata(file_info):
     if isinstance(file_info, mock_file_info):
         return (None, None, None)

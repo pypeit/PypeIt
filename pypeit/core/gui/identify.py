@@ -206,6 +206,7 @@ class Identify(object):
         nonlinear_counts : float, optional
             Counts where the arc is presumed to go non-linear
             Passed to arc_lines_from_spec()
+            Defaults to 1e10 if None is input
         fwhm : float, optional
             FWHM of arc lines in pixels
         pxtoler : float, optional
@@ -227,6 +228,8 @@ class Identify(object):
 
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
+        if nonlinear_counts is None:
+            nonlinear_counts = 1e10
         tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
                                                             fwhm=fwhm,
                                                             sigdetect=par['sigdetect'],
