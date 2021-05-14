@@ -33,6 +33,7 @@ Submodules
    pypeit.spectrographs.p200_tspec
    pypeit.spectrographs.shane_kast
    pypeit.spectrographs.slitmask
+   pypeit.spectrographs.soar_goodman
    pypeit.spectrographs.spectrograph
    pypeit.spectrographs.tng_dolores
    pypeit.spectrographs.util
