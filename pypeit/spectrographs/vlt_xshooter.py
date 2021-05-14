@@ -3,6 +3,7 @@ Module for VLT X-Shooter
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -51,9 +52,10 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card=None, default='default')
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
-        # Dithering
+        # Dithering -- Not required for redux
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
-                                   required_ftypes=['science', 'standard'])
+            required=False,  # This header card is *not* always present in science/standard frames
+            required_ftypes=['science', 'standard'])
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -140,7 +142,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['target'] == 'BIAS')
         if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'DARK')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
@@ -294,8 +296,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Paranal_NIR_9800_25000_R25000.fits')
 
         return par
 
@@ -330,6 +332,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
+    
+        # Dark-flat identification via exposure number
+        self.meta['seq_expno'] = dict(ext=0, card='HIERARCH ESO TPL EXPNO')
 
     def pypeit_file_keys(self):
         """
@@ -376,13 +381,24 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             return good_exp & (fitstbl['target'] == 'STD,FLUX')
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'BIAS')
-        if ftype == 'dark':
+        if ftype == 'sky':
             return good_exp & (fitstbl['target'] == 'DARK')
+        
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
+            # Lamp on flats are taken first (odd exposure number)
+            return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
                                | (fitstbl['target'] == 'LAMP,QFLAT')
                                | (fitstbl['target'] == 'LAMP,FLAT'))
+                               & (fitstbl['seq_expno'].astype(int) % 2 == 1))
+        
+        if ftype in ['dark']:
+            # Lamp off flats are taken second (even exposure number)
+            return good_exp & (((fitstbl['target'] == 'LAMP,DFLAT')
+                                | (fitstbl['target'] == 'LAMP,QFLAT')
+                                | (fitstbl['target'] == 'LAMP,FLAT'))
+                               & (fitstbl['seq_expno'].astype(int) % 2 == 0))
+        
         if ftype == 'pinhole':
             # Don't type pinhole
             return np.zeros(len(fitstbl), dtype=bool)
@@ -661,10 +677,10 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 11
+        par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Paranal_VIS_4900_11100_R25000.fits')
         return par
 
     def init_meta(self):
@@ -680,6 +696,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI4 NAME')
+    
 
     @property
     def norders(self):
@@ -808,6 +825,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
+            bpm_img[3548//binspectral_bpm:,1249//binspatial_bpm:1252//binspatial_bpm] = 1.
         return bpm_img
 
 

@@ -1,31 +1,36 @@
 .. code-block:: console
 
     $ pypeit_ql_keck_mosfire -h
-    usage: pypeit_ql_keck_mosfire [-h] [-A AFILES [AFILES ...]]
-                                  [-B BFILES [BFILES ...]] [--samp_fact SAMP_FACT]
-                                  [--mask_cr] [--box_radius BOX_RADIUS]
-                                  [--offset OFFSET] [--redux_path REDUX_PATH]
+    usage: pypeit_ql_keck_mosfire [-h] [--spec_samp_fact SPEC_SAMP_FACT]
+                                  [--spat_samp_fact SPAT_SAMP_FACT] [--flux]
+                                  [--mask_cr] [--writefits] [--no_gui]
+                                  [--box_radius BOX_RADIUS] [--offset OFFSET]
+                                  [--redux_path REDUX_PATH]
                                   [--master_dir MASTER_DIR] [--embed] [--show]
-                                  full_rawpath
+                                  full_rawpath files [files ...]
     
     Script to run PypeIt on a pair of MOSFIRE files (A-B)
     
     positional arguments:
       full_rawpath          Full path to the raw files
+      files                 list of frames i.e. img1.fits img2.fits
     
     optional arguments:
       -h, --help            show this help message and exit
-      -A AFILES [AFILES ...], --Afiles AFILES [AFILES ...]
-                            list of frames at dither position A, i.e. -A A1.fits
-                            A2.fits
-      -B BFILES [BFILES ...], --Bfiles BFILES [BFILES ...]
-                            list of frames at dither position B i.e. -B B1.fits
-                            B2.fits
-      --samp_fact SAMP_FACT
-                            Make the wavelength grid finer (samp_fact > 1.0) or
-                            coarser (samp_fact < 1.0) by this sampling factor
+      --spec_samp_fact SPEC_SAMP_FACT
+                            Make the wavelength grid finer (spec_samp_fact < 1.0)
+                            or coarser (spec_samp_fact > 1.0) by this sampling
+                            factor, i.e. units of spec_samp_fact are pixels.
+      --spat_samp_fact SPAT_SAMP_FACT
+                            Make the spatial grid finer (spat_samp_fact < 1.0) or
+                            coarser (spat_samp_fact > 1.0) by this sampling
+                            factor, i.e. units of spat_samp_fact are pixels.
+      --flux                This option will multiply in sensitivity function to
+                            obtain a flux calibrated 2d spectrum
       --mask_cr             This option turns on cosmic ray rejection. This
                             improves the reduction but doubles runtime.
+      --writefits           Write the ouputs to a fits file
+      --no_gui              Do not display the results in a GUI
       --box_radius BOX_RADIUS
                             Set the radius for the boxcar extraction
       --offset OFFSET       Override the automatic offsets determined from the headers. Offset is in pixels.

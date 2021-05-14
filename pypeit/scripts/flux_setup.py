@@ -90,7 +90,7 @@ def main(args):
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
         cfg_lines = ['[coadd1d]']
         cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name. Only required for Echelle']
         if pypeline == 'Echelle':
             cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
         else:
@@ -118,7 +118,7 @@ def main(args):
 
         ## tellfit pypeit file
         tellfit_file = '{:}.tell'.format(spectrograph)
-        cfg_lines = ['[tellfit]']
+        cfg_lines = ['[telluric]']
         if args.objmodel == 'qso':
             cfg_lines += ['  objmodel = qso']
             cfg_lines += ['  redshift = 0.0']
@@ -134,7 +134,7 @@ def main(args):
 
         with open(tellfit_file, 'w') as f:
             f.write('# Auto-generated PypeIt file\n')
-            f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime())))
+            f.write('# {0}\n'.format(time.strftime("%a %d %m %Y %H:%M:%S", time.localtime())))
             f.write("\n")
             f.write("# User-defined execution parameters\n")
             f.write("# This is only an example. Make sure to change the following parameters accordingly.\n")

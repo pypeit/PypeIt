@@ -642,9 +642,11 @@ class EdgeTraceSet(DataContainer):
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
-                                 description='Projected position of the object w.r.t. the top of the slit (arcsec)'),
+                                 description='Projected distance (in arcsec) of the object from the '
+                                             'left edge of the slit (in PypeIt orientation).'),
                     table.Column(name='OBJ_BOTDIST', dtype=float, length=length,
-                                 description='Projected position of the object w.r.t. the bottom of the slit (arcsec)'),
+                                 description='Projected distance (in arcsec) of the object from the '
+                                             'right edge of the slit (in PypeIt orientation)'),
                     table.Column(name='TRACEID', dtype=int, length=length,
                                  description='Row index that matches TRACEID in the design table')
                            ])
@@ -2528,7 +2530,8 @@ class EdgeTraceSet(DataContainer):
                 #
                 idx = np.where(bad_slit)[0][0]
                 indx[2*idx:2*idx+2] = True
-                msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
+                # JFH Print out in the spec:spat format that corresponds to the pypeit file
+                msgs.info("Removing user-supplied slit at spec:spat {}:{}".format(y_spec, xcen))
                 # Mask
                 self.bitmask.turn_on(self.edge_msk[:,indx], 'USERRMSLIT')
 
@@ -4513,8 +4516,10 @@ class EdgeTraceSet(DataContainer):
         - 'OBJDEC': Declination of the object (deg)
         - 'OBJNAME': Object name assigned by the observer
         - 'SLITID': Slit ID Number (`maskdef_id`)
-        - 'OBJ_TOPDIST': Projected position of the object w.r.t. the top of the slit (arcsec)
-        - 'OBJ_BOTDIST': Projected position of the object w.r.t. the bottom of the slit (arcsec)
+        - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
+        edge of the slit (in PypeIt orientation)
+        - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
+        edge of the slit (in PypeIt orientation)
         - 'TRACEID': Row index that matches 'TRACEID' in the design table
 
         Args:

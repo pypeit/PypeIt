@@ -6,6 +6,8 @@ import os
 
 import pytest
 
+from IPython import embed
+
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.scripts import flux_calib
@@ -29,9 +31,9 @@ def data_path(filename):
 @cooked_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits')
+                            'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits')
     sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     return [std_file, sci_file]
 
 
@@ -53,10 +55,10 @@ def test_gen_sensfunc(kast_blue_files):
     sensFunc.run()
     # Test
     assert os.path.basename(sensFunc.meta_table['CAL_FILE'][0]) == 'feige66_002.fits'
-    assert 'SENSFUNC' in sensFunc.out_table.keys()
+    # TODO: @jhennawi, please check this edit
+    assert 'SENS_ZEROPOINT' in sensFunc.out_table.keys(), 'Bad column names'
     # Write
     sensFunc.save()
-
 
 @cooked_required
 def test_from_sens_func(kast_blue_files):
@@ -76,4 +78,6 @@ def test_from_sens_func(kast_blue_files):
 
     os.remove(sens_file)
     os.remove(outfile)
+
+
 

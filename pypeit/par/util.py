@@ -575,7 +575,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     # Here we go
     with open(pypeit_file, 'w') as f:
         f.write('# Auto-generated PypeIt file\n')
-        f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
+        #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
+        f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
         f.write("\n")
         f.write("# User-defined execution parameters\n")
         f.write('\n'.join(_cfg_lines))

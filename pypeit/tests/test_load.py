@@ -15,7 +15,7 @@ def data_path(filename):
 #   RUN source copy_cooked_files.src in files/
 #   *After* you have run the Dev Suite tests
 def test_load_specobjs():
-    spec_file = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
+    spec_file = data_path('spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits')
     sobjs = specobjs.SpecObjs.from_fitsfile(spec_file)
 
     # Test

@@ -2,6 +2,10 @@ import os
 import copy
 import numpy as np
 import matplotlib
+try:
+    matplotlib.use('Qt5Agg')
+except:
+    pass
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.colors import LinearSegmentedColormap, Normalize
@@ -202,6 +206,7 @@ class Identify(object):
         nonlinear_counts : float, optional
             Counts where the arc is presumed to go non-linear
             Passed to arc_lines_from_spec()
+            Defaults to 1e10 if None is input
         fwhm : float, optional
             FWHM of arc lines in pixels
         pxtoler : float, optional
@@ -223,6 +228,8 @@ class Identify(object):
 
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
+        if nonlinear_counts is None:
+            nonlinear_counts = 1e10
         tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc,
                                                             fwhm=fwhm,
                                                             sigdetect=par['sigdetect'],
@@ -1080,10 +1087,10 @@ class Identify(object):
         Args:
             message (str): Message to be displayed
         """
+
         self.axes['info'].clear()
         if default:
-            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes,
-                          horizontalalignment='center', verticalalignment='center')
+            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes, horizontalalignment='center', verticalalignment='center')
             self.canvas.draw()
             return
         # Display the message
