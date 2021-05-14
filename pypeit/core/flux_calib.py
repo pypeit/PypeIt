@@ -173,10 +173,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'blackbody':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = table.Table.read(fil, format='ascii')
+                std_spec = io.fits_open(fil)[1].data
                 std_dict['std_source'] = sset
-                std_dict['wave'] = std_spec['col1'] * units.AA
-                std_dict['flux'] = std_spec['col2'] * 1e-17 / PYPEIT_FLUX_SCALE * \
+                std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
+                std_dict['flux'] = std_spec['FLUX'] * 1e-17 / PYPEIT_FLUX_SCALE * \
                                    units.erg / units.s / units.cm ** 2 / units.AA
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
