@@ -12,8 +12,9 @@ def blackbody_func(a, teff, outname):
     # Calculate the function
     flam = ((a*2*cons.h*cons.c**2)/waves**5)/(np.exp((cons.h*cons.c/(waves*cons.k_B*teff)).to(u.m/u.m).value)-1.0)
     flam = flam.to(u.erg / u.s / u.cm ** 2 / u.AA).value / 1.0E-17
+    bb_tab = table.Table([waves.value, flam], names=("WAVELENGTH", "FLUX"))
+    bb_tab.write(outname, format='fits')
     print("Wrote file: {0:s}".format(outname))
-    np.savetxt(outname, np.transpose((waves.value, flam)))
 
 
 # Load the table, generate the blackbody, and save the output to a file
