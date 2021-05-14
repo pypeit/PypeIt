@@ -5,6 +5,20 @@ import astropy.units as u
 
 
 def blackbody_func(a, teff, outname):
+    """
+    Generate a blackbody spectrum based on the normalisation and effective temperature.
+    See Suzuki & Fukugita, 2018, AJ, 156, 219:
+    https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
+
+    Args:
+        a (float):
+            flux normalisation factor
+        teff (float):
+            Effective temperature of the blackbody
+        outname (string):
+            The filename to write the spectrum to.
+
+    """
     waves = np.arange(3000.0, 25000.0, 0.1) * u.AA
     # Setup the units
     teff *= u.K
@@ -17,7 +31,8 @@ def blackbody_func(a, teff, outname):
     print("Wrote file: {0:s}".format(outname))
 
 
-# Load the table, generate the blackbody, and save the output to a file
-star_tbl = table.Table.read("blackbody_info.txt", comment='#', format='ascii')
-for ss, star in enumerate(star_tbl['File']):
-    blackbody_func(star_tbl['a_x10m23'][ss], star_tbl['T_K'][ss], star_tbl['File'][ss])
+if __name__ == "__main__":
+    # Load the table, generate the blackbody, and save the output to a file
+    star_tbl = table.Table.read("blackbody_info.txt", comment='#', format='ascii')
+    for ss, star in enumerate(star_tbl['File']):
+        blackbody_func(star_tbl['a_x10m23'][ss], star_tbl['T_K'][ss], star_tbl['File'][ss])
