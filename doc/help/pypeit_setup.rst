@@ -23,23 +23,22 @@
                             mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
                             mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red,
                             p200_tspec, shane_kast_blue, shane_kast_red,
-                            shane_kast_red_ret, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red
-                            (default: None)
+                            shane_kast_red_ret, soar_goodman_red, tng_dolores,
+                            vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
+                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+                            wht_isis_red (default: None)
       -r ROOT, --root ROOT  Root to search for data files. You can provide the
                             top-level directory (e.g., /data/Kast) or the search
                             string up through the wildcard (.e.g, /data/Kast/b).
                             Use the --extension option to set the types of files
                             to search for. Default is the current working
-                            directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            directory. (default: /home/dusty/work/PypeIt/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /home/dusty/work/PypeIt/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT

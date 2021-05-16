@@ -1,11 +1,13 @@
 .. code-block:: console
 
     $ pypeit_collate_1d -h
-    usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES ...]]
+    usage: pypeit_collate_1d [-h]
+                             [--spec1d_files [SPEC1D_FILES [SPEC1D_FILES ...]]]
                              [--par_outfile PAR_OUTFILE] [--tolerance TOLERANCE]
                              [--match MATCH] [--dry_run]
                              [--archive_dir ARCHIVE_DIR]
-                             [--exclude_slit [EXCLUDE_SLIT ...]]
+                             [--exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]]
+                             [--exclude_serendip]
                              [input_file]
     
     Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory
@@ -17,13 +19,14 @@
                             line. The file must have the following format:
                             
                             [collate1d]
-                              tolerance          <tolerance>
-                              archive_root       <directory for archive files>
-                              slit_exclude_flags <slit types to exclude>
-                              match_using        Whether to match using "pixel" or
-                                                 "ra/dec"
-                              dry_run            If set the matches are displayed
-                                                 without any processing
+                              tolerance             <tolerance>
+                              archive_root          <directory for archive files>
+                              exclude_slit_trace_bm <slit types to exclude>
+                              exclude_serendip      If set serendipitous objects are skipped.
+                              match_using           Whether to match using "pixel" or
+                                                    "ra/dec"
+                              dry_run               If set the matches are displayed
+                                                    without any processing
                             
                             spec1d read
                             <path to spec1d files, wildcards allowed>
@@ -32,7 +35,7 @@
     
     optional arguments:
       -h, --help            show this help message and exit
-      --spec1d_files [SPEC1D_FILES ...]
+      --spec1d_files [SPEC1D_FILES [SPEC1D_FILES ...]]
                             One or more spec1d files to flux/coadd/archive. Can
                             contain wildcards
       --par_outfile PAR_OUTFILE
@@ -52,6 +55,8 @@
                             Object Ids but will not flux, coadd or archive.
       --archive_dir ARCHIVE_DIR
                             The path where files and metadata will be archived.
-      --exclude_slit [EXCLUDE_SLIT ...]
-                            A list of slit flags that should be excluded.
+      --exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]
+                            A list of slit trace bitmask bits that should be
+                            excluded.
+      --exclude_serendip    Whether to exclude SERENDIP objects from collating.
     
