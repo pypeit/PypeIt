@@ -8,7 +8,11 @@ Overview
 ========
 
 This doc goes through a full run of ``PypeIt`` on a multi-slit
-observations with Keck/DEIMOS.
+observation with Keck/DEIMOS.
+The following was performed on a Macbook Pro with 8 GB RAM 
+(we recommend 32GB+ for DEIMOS) and took ~45min for the
+one detector.
+
 
 Setup
 =====
@@ -49,6 +53,10 @@ This creates a :doc:`pypeit_file` in the folder named
 *keck_deimos_A* beneath where the script was run.
 Note that RAW_PATH should be the *full* path, i.e. including a /
 at the start.  
+
+You will likely see a few WARNINGs about not determining 
+frames of a few types (e.g. align).  You may ignore these (and
+most other) WARNING messages of PypeIt.
 
 If your files included more than one setup (including multiple
 masks), then you may wish to replace ``A`` with ``B`` or some
@@ -108,10 +116,12 @@ and its parameter block to now read::
     spectrograph = keck_deimos
     detnum = 7
 
-A full run with all 8 detectors is both long and may 
+A full run with all 8 detectors (the default) is both long and may 
 tax (or exceed) the RAM of your computer.  
 Therefore, you may wish
 to reduce 1 or 2 detectors at a time in this fashion.
+For more than one detector, use a list for `detnum`
+(e.g.  `detnum = 3,7`).
 
 Main Run
 ========
@@ -329,7 +339,8 @@ Last, here is a screen shot from the GUI showing the
 
 This uses the
 `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
-from the *linetools* package.
+from the *linetools* package.  The black line is the flux and the
+red line is the estimated error.
 
 See :doc:`out_spec1D` for further details.
 
