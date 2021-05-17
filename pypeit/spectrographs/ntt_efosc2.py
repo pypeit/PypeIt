@@ -64,7 +64,6 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
-        #self.meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard']) did not find dispangle
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
 
     
@@ -97,17 +96,16 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                     return None
             return decker
         elif meta_key == 'datasec' or meta_key == 'oscansec':
-            data_x = headarr[0]['HIERARCH ESO DET OUT1 NX'] * 2 #valid pixels along X
-            data_y = headarr[0]['HIERARCH ESO DET OUT1 NY'] * 2 #valid pixels along Y
-            oscan_y = headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] * 2 #Overscan region in Y, no overscan in X
-            pscan_x = headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] * 2 #Prescan region in X, no prescan in Y  
+            data_x = int(headarr[0]['HIERARCH ESO DET OUT1 NX'] * headarr[0]['CDELT1']) #valid pixels along X
+            data_y = int(headarr[0]['HIERARCH ESO DET OUT1 NY'] * headarr[0]['CDELT2']) #valid pixels along Y
+            oscan_y = int(headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] * headarr[0]['CDELT1']) #Overscan region in Y, no overscan in X
+            pscan_x = int(headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] * headarr[0]['CDELT2']) #Prescan region in X, no prescan in Y  
             if meta_key == 'datasec':
                 datasec = '[%s:%s,:%s]' % (pscan_x, pscan_x+data_x, data_y)
                 return datasec
             else:
                 oscansec = '[:%s,:%s]' % (pscan_x, data_y) # Actually two overscan regions, here I only dealing with the region on x-axis
                 return oscansec
-        
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -138,16 +136,16 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.005, # focal length is 200mm, unit radian/mm, manual 2.2
+            platescale      = 5.360, # See fits header ['HIERARCH ESO TEL FOCU SCALE']
             darkcurr        = 0.0,
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(0.91), # written in hgeader['HIERARCH ESO DET OUT1 GAIN']
+            gain            = np.atleast_1d(0.91), # See fits header ['HIERARCH ESO DET OUT1 GAIN']
             ronoise         = np.atleast_1d(10.0), # manual page 108
             datasec         = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'datasec')),
-            oscansec        = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'oscansec'))
+            oscansec         = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'oscansec')),
             #suffix          = '_Thor',
         )
         return detector_container.DetectorContainer(**detector_dict)
@@ -165,12 +163,6 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
         # Always correct for flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'
-
-        # Median overscan
-        #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan_method'] = 'median'
         
         # Adjustments to slit and tilts for NIR
         par['calibrations']['traceframe']['process']['use_darkimage'] = False
@@ -213,9 +205,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False
 
         par['reduce']['extraction']['sn_gauss'] = 4.0
-        par['reduce']['findobj']['sig_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
-        par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
         return par
 
