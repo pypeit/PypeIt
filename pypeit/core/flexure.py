@@ -793,39 +793,26 @@ class MultiDetFlexure(DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
                  'nslits': dict(otype=int, descr='Number of slits'),
-                 'spat': dict(otype=np.ndarray, atype=np.floating, descr='?? (ndet, nslits)'),
                  'det': dict(otype=np.ndarray, atype=np.integer, descr='Detector number (ndet, nslits)'),
                  'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
-                 'xpos': dict(otype=np.ndarray, atype=np.floating, descr='Slit x position [pixels] (nslits)'),
-                 'ypos': dict(otype=np.ndarray, atype=np.floating, descr='Mininum wavelength of the slit [Ang] (nslits)'),
+                 'slitid': dict(otype=np.ndarray, atype=np.floating, descr='Slit ID (nslits)'),
+                 'mn_wv': dict(otype=np.ndarray, atype=np.floating, descr='Mininum wavelength of the slit [Ang] (nslits)'),
                  'indiv_fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='Fits to each slit individually (nslits)'),
                  'indiv_fit_b': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for b (nslits)'),
                  'indiv_fit_los': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for line width (nslits)'),
-                 'fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'fit_b': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'fit_los': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='Fitted slope (nslits)'),
+                 'fit_b': dict(otype=np.ndarray, atype=np.floating, descr='Fitted b value(nslits)'),
+                 'fit_los': dict(otype=np.ndarray, atype=np.floating, descr='Fitted line width(nslits)'),
                  'resid_sky': dict(otype=np.ndarray, atype=np.floating, descr='Residuals of flexure model on sky lines (nslits)'),
-                 'objra': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'objdec': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 # String arrays are no bueno with DataContainer
-                 #'slittyp': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
-                 #'slitname': dict(otype=np.ndarray, atype=np.str, descr='y pos (nslits)'),
-                 #'objname': dict(otype=np.ndarray, atype=np.str, descr='Object names (ndet, nslits)'),
-                 'maskdef_id': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
-                 'dslitid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
-                 'desid': dict(otype=np.ndarray, atype=np.integer, descr='y pos (nslits)'),
-                 'slitx1': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'slity1': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
-                 'rms_arc': dict(otype=np.ndarray, atype=np.floating, descr='y pos (ndet, nslits)'),
-                 'rms_sky': dict(otype=np.ndarray, atype=np.floating, descr='y pos (nslits)'),
+                 'objra': dict(otype=np.ndarray, atype=np.floating, descr='Object RA (nslits)'),
+                 'objdec': dict(otype=np.ndarray, atype=np.floating, descr='Object DEC (nslits)'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=np.integer, descr='Mask ID (nslits)'),
+                 'rms_arc': dict(otype=np.ndarray, atype=np.floating, descr='RMS of fit (ndet, nslits)'),
                  }
 
-    def __init__(self, s1dfile=None, PYP_SPEC=None, nslits=None, spat=None, det=None, 
-                 SN=None, xpos=None, ypos=None, fit_slope=None, fit_b=None,
-                 fit_los=None, objra=None, objdec=None, 
-                 #slittyp=None, slitname=None, objname=None, 
-                 maskdef_id=None, dslitid=None, desid=None,
-                 slitx1=None, slity1=None, rms_arc=None, rms_sky=None,
+    def __init__(self, s1dfile=None, PYP_SPEC=None, nslits=None, det=None, 
+                 SN=None, slitid=None, mn_wv=None, fit_slope=None, fit_b=None,
+                 fit_los=None, objra=None, objdec=None, maskdef_id=None, rms_arc=None, 
                  resid_sky=None, indiv_fit_slope=None, indiv_fit_b=None,
                  indiv_fit_los=None):
 
@@ -870,7 +857,7 @@ class MultiDetFlexure(DataContainer):
         self.ndet = len(self.sobj_idx)
         
         # Fill in 1D
-        self['xpos'] = self.specobjs[self.sobj_idx[0]]['SLITID'].astype(float)
+        self['slitid'] = self.specobjs[self.sobj_idx[0]]['SLITID'].astype(float)
         self['objra'] = self.specobjs[self.sobj_idx[0]]['RA']
         self['objdec'] = self.specobjs[self.sobj_idx[0]]['DEC']
         #self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
@@ -894,12 +881,12 @@ class MultiDetFlexure(DataContainer):
                 for det in range(self.ndet):
                     self[new_key][det] = self.specobjs[self.sobj_idx[det]][key]
 
-        # S/N and ypos from the spectra
+        # S/N and mn_wv from the spectra
         self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
-        self['ypos'] = np.zeros((self.ndet, self.nslits), dtype=float)
+        self['mn_wv'] = np.zeros((self.ndet, self.nslits), dtype=float)
         for det in range(self.ndet):
             self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[self.sobj_idx[det]]]
-            self['ypos'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[self.sobj_idx[det]]]
+            self['mn_wv'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[self.sobj_idx[det]]]
 
         # Return
         return

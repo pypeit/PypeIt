@@ -156,13 +156,19 @@ The models supplied with PypeIt are,
 | sky_LRISr_600_7500_5460_7950.fits |  Description to come                                                              |
 +-----------------------------------+-----------------------------------------------------------------------------------+
 
-.. _pypeit_deimos_flexure:
+.. _pypeit_multidet_flexure:
 
-pypeit_deimos_flexure
----------------------
+pypeit_multidet_flexure
+-----------------------
 
-We have now implemented (for Keck/DEIMOS only), a method to calculate a flexure
+We have now implemented a method to calculate a flexure
 correction across multiple detectors, i.e. with an expanded wavelength coverage.
+Thus far, it has only been developed and fine-tuned for the 
+1200 line grating of Keck/DEIMOS.  It is unlikely to work very
+well for wavelengths much blueward of 6000Ang (where sky emission
+lines are sparse).
+
+
 If you wish to adopt this approach (not recommended for most users), there are
 several key steps:
 
@@ -183,14 +189,14 @@ which mainly consists of a list of the spec1d files.  Here is the test file::
    spectrograph = keck_deimos
 
    flexure read
-   Science/spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits
+   Science/spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits
    flexure end
 
 As desired, you can modify the 
 :ref:`pypeit_par:FlexurePar Keywords` in the top block.
 Last, run the `pypeit_deimos_flexure` script::
 
-   pypeit_deimos_flexure flexure.file out_root
+   pypeit_multidet_flexure flexure.file out_root
 
 where out_root is the prefix for the FITS file generated that
 contains the flexure solution for all of the slits.  

@@ -1310,7 +1310,7 @@ def deimos_read_1chip(hdu,chipno):
 
 def spec1d_match_red_blue(sobjs):
     """Match up slits in a SpecObjs file
-    based on coords
+    based on coords.  Specific to DEIMOS
 
     Args:
         sobjs (pypeit.specobjs.SpecObjs): 
