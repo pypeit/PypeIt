@@ -42,6 +42,7 @@ TINY = 1e-15
 SN2_MAX = (20.0) ** 2
 PYPEIT_FLUX_SCALE = 1e-17
 
+
 def zp_unit_const():
     """
     This constant defines the units for the spectroscopic zeropoint. See the doc/dev/fluxing.rst doc for more information.
@@ -51,13 +52,42 @@ def zp_unit_const():
     """
     return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
 
+
 # This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
 def mAB_to_cgs(mAB,wvl):
     return 10**((-48.6-mAB)/2.5)*3*10**18/wvl**2
 
+
+def blackbody_func(a, teff):
+    """
+    Generate a blackbody spectrum based on the normalisation and effective temperature.
+    See Suzuki & Fukugita, 2018, AJ, 156, 219:
+    https://ui.adsabs.harvard.edu/abs/2018AJ....156..219S/abstract
+
+    Args:
+        a (float):
+            flux normalisation factor
+        teff (float):
+            Effective temperature of the blackbody
+
+    Returns:
+        waves : `numpy.ndarray`_ of the wavelengths
+        flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
+    """
+    waves = np.arange(3000.0, 25000.0, 0.1) * u.AA
+    # Setup the units
+    teff *= u.K
+    a *= 1.0E-23
+    # Calculate the function
+    flam = ((a*2*const.h*const.c**2)/waves**5)/(np.exp((const.h*const.c/(waves*const.k_B*teff)).to(u.m/u.m).value)-1.0)
+    flam = flam.to(u.erg / u.s / u.cm ** 2 / u.AA).value / PYPEIT_FLUX_SCALE
+    return waves.value, flam
+
+
 # Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
 # It has a value of ZP_UNIT_CONST = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
+
 
 def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     """
@@ -90,7 +120,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['xshooter', 'calspec', 'esofil', 'noao']
+    std_sets = ['blackbody', 'xshooter', 'calspec', 'esofil', 'noao']
 
     # SkyCoord
     obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
@@ -158,9 +188,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    units.erg / units.s / units.cm ** 2 / units.AA
                 # At this low resolution, best to throw out entries affected by A and B-band absorption
                 mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
-                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
-            
+                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
+                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'noao': #mostly copied from 'esofil', need to convert the flux units
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
                 std_spec = table.Table.read(fil, format='ascii')
@@ -170,9 +199,14 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    units.erg / units.s / units.cm ** 2 / units.AA
                 # At this low resolution, best to throw out entries affected by A and B-band absorption
                 mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
-                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
-            
+                std_dict['wave'] = std_dict['wave'][np.logical_not(mask)]
+                std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
+            elif sset == 'blackbody':
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23'], star_tbl[_idx]['T_K'])
+                std_dict['std_source'] = sset
+                std_dict['wave'] = waves * units.AA
+                std_dict['flux'] = flam * units.erg / units.s / units.cm ** 2 / units.AA
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
             msgs.info("Fluxes are flambda, normalized to 1e-17")
