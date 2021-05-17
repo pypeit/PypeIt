@@ -318,6 +318,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
         self.meta['object'] = dict(ext=0, card='OBJECT')
+        self.meta['filter1'] = dict(ext=0, card='DWFILNAM')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -365,7 +366,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # include dateobs with this. For now, amp is effectively
         # redundant because anything with the wrong amplifier used is
         # removed from the list of valid frames in PypeItMetaData.
-        return ['dispname', 'decker', 'binning', 'dispangle', 'amp']
+        return ['dispname', 'decker', 'binning', 'dispangle', 'amp', 'filter1']
 
     def valid_configuration_values(self):
         """

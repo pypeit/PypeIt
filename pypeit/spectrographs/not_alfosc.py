@@ -121,7 +121,8 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='OBJRA')
+        #self.meta['ra'] = dict(ext=0, card='OBJRA')
+        self.meta['ra'] = dict(card=None, compound=True)
         self.meta['dec'] = dict(ext=0, card='OBJDEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='ALAPRTNM')
@@ -157,6 +158,9 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             time = headarr[0]['DATE-AVG']
             ttime = Time(time, format='isot')
             return ttime.mjd
+        elif meta_key == 'ra':
+            objra = headarr[0]['OBJRA'] # Given in hours, not deg
+            return objra*15.
         msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
@@ -195,8 +199,11 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
+        if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT')
+        if ftype == 'standard':
+            return good_exp & ((fitstbl['target'] == 'STD')
+                                | (fitstbl['target'] == 'STD,SLIT'))
         if ftype == 'bias':
             return good_exp & (fitstbl['idname'] == 'BIAS')
         if ftype in ['pixelflat', 'trace', 'illumflat']:

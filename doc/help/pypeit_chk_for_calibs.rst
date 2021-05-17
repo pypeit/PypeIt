@@ -26,10 +26,10 @@
                             mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
                             mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red,
                             p200_tspec, shane_kast_blue, shane_kast_red,
-                            shane_kast_red_ret, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red
-                            (default: None)
+                            shane_kast_red_ret, soar_goodman_red, tng_dolores,
+                            vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
+                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+                            wht_isis_red (default: None)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)

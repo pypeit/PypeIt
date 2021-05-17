@@ -1,8 +1,9 @@
 """
-Module for Bok/B&C specific methods.
+Module for the SOAR/Goodman instrument
 
 .. include:: ../include/links.rst
 """
+from IPython.terminal.embed import embed
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -18,16 +19,12 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 
 
-class BokBCSpectrograph(spectrograph.Spectrograph):
+class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle BOK specific code
+    Child to handle Goodman specific code for each camera
     """
     ndet = 1
-    telescope = telescopes.BokTelescopePar()
-    name = 'bok_bc'
-    camera = 'BC'
-    comment = 'Bok B&C spectrometer'
-    supported = True
+    telescope = telescopes.SOARTelescopePar()
 
     def configuration_keys(self):
         """
@@ -57,17 +54,24 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card='APERTURE')
+        self.meta['decker'] = dict(ext=0, card='SLIT')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='DISPERSE')
-        self.meta['dispangle'] = dict(ext=0, card='TILTPOS', rtol=1e-3)
-        self.meta['idname'] = dict(ext=0, card='OBJECT')
+        self.meta['dispname'] = dict(ext=0, card='GRATING')
+        self.meta['dispangle'] = dict(ext=0, card='GRT_ANG', rtol=1e-3)
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         # used for arc and continuum lamps
-        self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
+        self.meta['lampstat01'] = dict(ext=0, card='LAMP_HGA')
+        self.meta['lampstat02'] = dict(ext=0, card='LAMP_NE')
+        self.meta['lampstat03'] = dict(ext=0, card='LAMP_AR')
+        self.meta['lampstat04'] = dict(ext=0, card='LAMP_FE')
+        self.meta['lampstat05'] = dict(ext=0, card='LAMP_CU')
+        self.meta['lampstat06'] = dict(ext=0, card='LAMP_QUA')
+        self.meta['lampstat07'] = dict(ext=0, card='LAMP_BUL')
+        self.meta['lampstat08'] = dict(ext=0, card='LAMP_DOM')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -84,41 +88,30 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspatial = headarr[0]['CCDBIN1']
-            binspec = headarr[0]['CCDBIN2']
-            return parse.binning2string(binspatial, binspec)
-            #return parse.binning2string(binspec, binspatial)
+            binspec, binspatial = [int(item) for item in headarr[0]['CCDSUM'].split(' ')]
+            return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
-            """
-            Need to combine 'DATE-OBS' and 'UT' headers and then use astropy to make an mjd.
-            """
-            date = headarr[0]['DATE-OBS']
-            ut = headarr[0]['UT']
-            ttime = Time(f"{date}T{ut}", format='isot')
+            ttime = Time(headarr[0]['DATE-OBS'], format='isot')
             return ttime.mjd
-        elif meta_key == 'lampstat01':
-            """
-            If the comparison mirror is in, there will be a 'COMPLAMP' header entry containing the lamps
-            that are turned on. However, if the comparison mirror is out, then this header entry doesn't exist.
-            So need to test for it and set to 'Off' if it's not there.
-            """
-            if 'COMPLAMP' in headarr[0]:
-                return headarr[0]['COMPLAMP']
-            else:
-                return 'off'
-        msgs.error("Not ready for this compound meta")
+        else:
+            msgs.error("Not ready for this compound meta")
 
-    def pypeit_file_keys(self):
-        """
-        Define the list of keys to be output into a standard ``PypeIt`` file.
+#    def pypeit_file_keys(self):
+#        """
+#        Define the list of keys to be output into a standard ``PypeIt`` file.
+#
+#        Returns:
+#            :obj:`list`: The list of keywords in the relevant
+#            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+#            :ref:`pypeit_file`.
+#        """
+#        return super().pypeit_file_keys() + ['slitwid']
 
-        Returns:
-            :obj:`list`: The list of keywords in the relevant
-            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
-            :ref:`pypeit_file`.
-        """
-        return super().pypeit_file_keys() + ['slitwid']
-
+class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
+    name = 'soar_goodman_red'
+    camera = 'red'
+    comment = 'Supported gratings: M1, M2 and 2x2 binning'
+    supported = True
 
     def get_detector_par(self, hdu, det):
         """
@@ -134,6 +127,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
+        header = hdu[0].header
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
 
@@ -145,18 +139,29 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            #platescale      = 15.0/18.0,
-            platescale      = 0.2,
-            darkcurr        = 5.4,
+            platescale      = 0.15,
+            darkcurr        = 0.00008,  # e-/s/pix
             saturation      = 65535.,
             nonlinear       = 1.0,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(1.5),
-            ronoise         = np.atleast_1d(3.0),
-            datasec         = np.atleast_1d('[:,1:1200]')
-            #datasec         = np.atleast_1d('[250:650,1:1200]'),
+            gain            = np.atleast_1d(header['GAIN']),
+            ronoise         = np.atleast_1d(header['RDNOISE']),
             )
+        
+        # Only tested for 2x2
+        if binning == '2,2':
+            # parse TRIMSEC
+            col0 = int(header['TRIMSEC'][1:].split(':')[0])
+            dsec = f"[:,{col0*2}:]"  # rows, columns on the raw frame
+            detector_dict['datasec'] = np.atleast_1d(dsec)
+            # Overscan
+            osec = f"[:,1:{int(col0*2)-2}:]"
+            detector_dict['oscansec'] = np.atleast_1d(osec)
+        else:
+            msgs.error("Ask the developers to add your binning.  Or add it yourself.")
+        
+        # Return
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -170,37 +175,19 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Turn off illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
-        par['calibrations']['traceframe']['process']['use_darkimage'] = False
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = False
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = False
+        # Turn off bias and turn on overscan
+        turn_off_on = dict(use_biasimage=False, use_darkimage=False, use_overscan=True)
+        par.reset_all_processimages_par(**turn_off_on)
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # JFH Is this correct?
-        # Processing steps
-        #turn_off = dict(use_overscan=False)
-        #par.reset_all_processimages_par(**turn_off)
-
-        # Turn off the overscan
-        #for ftype in par['calibrations'].keys():
-        #    try:
-        #        par['calibrations'][ftype]['process']['overscan'] = 'none'
-        #    except (TypeError, KeyError):
-        #        pass
-        par['scienceframe']['process']['use_overscan'] = False
-        # Make a bad pixel mask
-        par['calibrations']['bpm_usebias'] = False
         # Set pixel flat combination method
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        #par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'HeI']
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'HgI']
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
@@ -212,37 +199,32 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['sigdetect'] = 10.0
         #par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         #par['calibrations']['wavelengths']['disp'] = 0.2
-        # Do not flux calibrate
-        par['fluxcalib'] = None
+
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['arcframe']['exprng'] = [None, 120]
+        #par['calibrations']['biasframe']['exprng'] = [None, 1]
+        #par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
+        #par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['arcframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
         # Extraction
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
-        par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.6
-        par['reduce']['skysub']['joint_fit'] = False
-        par['reduce']['skysub']['global_sky_std']  = False
-
-        par['reduce']['extraction']['sn_gauss'] = 4.0
-        par['reduce']['findobj']['sig_thresh'] = 5.0
-        par['reduce']['skysub']['sky_sigrej'] = 5.0
-        par['reduce']['findobj']['find_trim_edge'] = [5,5]
-
-        # cosmic ray rejection parameters for science frames
-        par['scienceframe']['process']['sigclip'] = 5.0
-        par['scienceframe']['process']['objlim'] = 2.0
+        #par['reduce']['skysub']['bspline_spacing'] = 0.8
+        #par['reduce']['skysub']['no_poly'] = True
+        #par['reduce']['skysub']['bspline_spacing'] = 0.6
+        #par['reduce']['skysub']['joint_fit'] = False
+        #par['reduce']['skysub']['global_sky_std']  = False
+#
+#        par['reduce']['extraction']['sn_gauss'] = 4.0
+#        par['reduce']['findobj']['sig_thresh'] = 5.0
+#        par['reduce']['skysub']['sky_sigrej'] = 5.0
+#        par['reduce']['findobj']['find_trim_edge'] = [5,5]
 
         # Sensitivity function parameters
-        par['sensfunc']['polyorder'] = 7
+        #par['sensfunc']['polyorder'] = 7
 
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+#        par['flexure']['spec_method'] = 'skip'
 
         return par
 
@@ -277,41 +259,10 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
-        if det == 1:
-            msgs.info("Using hard-coded BPM for Bok B&C")
-
-            bpm_img[:, -1] = 1
-
-        else:
-            msgs.error(f"Invalid detector number, {det}, for Bok B&C (only one detector).")
+        msgs.info("Using hard-coded BPM for SOAR/Goodman")
+        bpm_img[:, 0] = 1
 
         return bpm_img
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the ``PypeIt`` parameters to hard-wired values used for
-        specific instrument configurations.
-
-        Args:
-            scifile (:obj:`str`):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
-            adjusted for configuration specific parameter values.
-        """
-        # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
-
-        # Wavelength calibrations
-        #if self.get_meta_value(scifile, 'dispname') == 'R1200B':
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
-
-        return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -334,30 +285,20 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['science']:
-            science = []
-            for obj in fitstbl['idname'].tolist():
-                science.append(not (("Dome Flat" in obj) or ("STANDARD" in obj) or ("HIP05" in obj) or ("HZ" in obj) or ("G191" in obj) or ("PG0220" in obj)))
-            return good_exp & (fitstbl['lampstat01'] == 'off') & science
+            return good_exp & (fitstbl['idname'] == 'SPECTRUM')
         if ftype in ['standard']:
-            standard = []
-            for obj in fitstbl['idname'].tolist():
-                standard.append(("STANDARD" in obj) or ("HIP05" in obj) or ("HZ" in obj) or ("G191" in obj) or ("PG0220" in obj) )
-            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] != 'Dome Flat') & standard
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'bias':
-            bias = []
-            for obj in fitstbl['idname'].tolist():
-                bias.append(("BIAS" in obj) or ("Bias" in obj))
-            return good_exp & (fitstbl['lampstat01'] == 'off') & bias
-        if ftype in ['pixelflat', 'trace']:
-            flat = []
-            for obj in fitstbl['idname'].tolist():
-                flat.append(("Dome Flat" in obj))
-            return good_exp & (fitstbl['lampstat01'] == 'off') & flat
+            # Don't type bias
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
+            return good_exp & (fitstbl['idname'] == 'LAMPFLAT')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['lampstat01'] != 'off')
+            return good_exp & (fitstbl['idname'] == 'ARC')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 

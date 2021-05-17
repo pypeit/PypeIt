@@ -20,6 +20,7 @@ from astropy import units
 
 from linetools import utils as ltu
 
+from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
@@ -29,6 +30,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
+from pypeit import msgs
 
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph

@@ -122,8 +122,9 @@ def main(args):
             raise FileExistsError(f'{_file} already exists.  Use -o to overwrite.')
 
     # Write/Print the data
+    #'{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())),
     header = ['Auto-generated PypeIt Observing Log',
-              '{0}'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())),
+              '{0}'.format(time.strftime("%Y-%m-%d",time.localtime())),
               f'Root file string: {args.root}']
     if args.bad_types == 'keep':
         nrows = len(ps.fitstbl)
