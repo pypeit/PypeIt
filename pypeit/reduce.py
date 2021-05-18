@@ -349,10 +349,10 @@ class Reduce(object):
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        #
+        # # Wavelengths (on unmasked slits) - DP: I'm not sure we need to generate this here
+        # msgs.info("Generating wavelength image")
+        # self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
@@ -1075,23 +1075,17 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
-        # If this is a second pass for objfind or this is the first one but skip_second_find is True,
-        # assign slitmask design information to detected objects
+        # If this is a second pass for objfind or this is the first one but skip_second_find is True, extract some
+        # useful info from slitmask design. Matching to the detected objects is done in local_skysub_extract
         if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
                 (self.sobjs_obj is not None):
             if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-                self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
+                # get object positions expected by slitmask design
+                self.slits.get_maskdef_objpos(self.get_platescale(None),
                                            self.slits_left, self.slits_right,
-                                           self.par['calibrations']['slitedges']['det_buffer'],
-                                           TOLER=self.par['reduce']['slitmask']['obj_toler'])
-                # # force extraction of non detected objects
-                # if self.par['reduce']['slitmask']['extract_missing_objs']:
-                #     msgs.info('Add undetected objects at the expected location from slitmask design.')
-                #     # Assign un-detected objects
-                #     sobjs = self.slits.mask_add_missing_obj(sobjs,
-                #                                 self.par['reduce']['findobj']['find_fwhm'],
-                #                                 self.par['reduce']['slitmask']['slitmask_offset'],
-                #                                 self.slits_left, self.slits_right) # Deal with flexure
+                                           self.par['calibrations']['slitedges']['det_buffer'])
+                # get slitmask offset in each single detector
+                self.slits.get_maskdef_offset(sobjs, self.slits_left, self.par['reduce']['slitmask']['slitmask_offset'])
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1142,13 +1136,16 @@ class MultiSlitReduce(Reduce):
         # Set initially to sciivar in case no obects were found.
         self.ivarmodel = np.copy(self.sciImg.ivar)
 
-        # Add here the undetected objects expected by the slitmask design
-        if self.par['reduce']['slitmask']['assign_obj'] and self.par['reduce']['slitmask']['extract_missing_objs'] \
-                and self.slits.maskdef_designtab is not None:
-            # Assign undetected objects
-            sobjs = self.slits.mask_add_missing_obj(sobjs, self.par['reduce']['findobj']['find_fwhm'],
-                                                    self.par['reduce']['slitmask']['slitmask_offset'],
-                                                    self.slits_left, self.slits_right) # Deal with flexure
+        # Add here slitmask stuff: assign RA,DEC, OBJNAME to detected objects and add undetected objects
+        if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+            # Assign slitmask design information to detected objects
+            self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
+                                       self.slits_left, TOLER=self.par['reduce']['slitmask']['obj_toler'])
+
+            if self.par['reduce']['slitmask']['extract_missing_objs']:
+                # Assign undetected objects
+                sobjs = self.slits.mask_add_missing_obj(sobjs, self.par['reduce']['findobj']['find_fwhm'],
+                                                        self.slits_left, self.slits_right) # Deal with flexure
 
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted

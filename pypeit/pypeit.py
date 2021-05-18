@@ -12,6 +12,7 @@ import copy
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
+from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import calibrations
@@ -490,8 +491,8 @@ class PypeIt(object):
 
         # List of detectors with successful calibration
         calibrated_det = []
-        # list of successful calibrations to be used in the extraction loop
-        calib_list = []
+        # list of successful MasterSlits calibrations to be used in the extraction loop
+        calib_slits = []
 
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
@@ -513,7 +514,7 @@ class PypeIt(object):
                 continue
 
             calibrated_det.append(self.det)
-            calib_list.append(self.caliBrate)
+            calib_slits.append(self.caliBrate.slits)
             initial_sky, sobjs_obj, skymask = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile,
                                                               objfind_run=True)
             if len(sobjs_obj)>0:
@@ -521,11 +522,25 @@ class PypeIt(object):
             skymask_list.append(skymask)
             initial_sky_list.append(initial_sky)
 
+        # determine if a slitmask offset exist and use the average offset over all the detectors
+        slitmask_offsets = [ss.maskdef_offset for ss in calib_slits]
+        if np.any(slitmask_offsets[slitmask_offsets is not None]):
+            if len(slitmask_offsets[slitmask_offsets is not None]) > 2:
+                mean, median_off, std = sigma_clipped_stats(slitmask_offsets[slitmask_offsets is not None], sigma=2.)
+                for i in range(len(calib_slits)):
+                    calib_slits[i].maskdef_offset = median_off
         # Extract
         for i, self.det in enumerate(calibrated_det):
             msgs.info("Working on detector {0}".format(self.det))
             # Instantiate Calibrations class
-            self.caliBrate = calib_list[i]
+            self.caliBrate = calibrations.Calibrations.get_instance(
+                self.fitstbl, self.par['calibrations'], self.spectrograph,
+                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            # These need to be separate to accomodate COADD2D
+            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
+            self.caliBrate.run_the_steps()
+            self.caliBrate.slits = calib_slits[i]
 
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
