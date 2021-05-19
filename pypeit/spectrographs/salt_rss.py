@@ -292,19 +292,18 @@ class SALTRSSVisiblepectrograph(SALTRSSSpectrograph):
         #par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Change the wavelength calibration parameters
+        # at least for XeI in PG0900, the below seemed to be optimal vs other n_first/n_final/line list.  Everything else seemed to not matter twoo much
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['XeI_RSS']
-        par['calibrations']['wavelengths']['n_first'] = 1
-        par['calibrations']['wavelengths']['n_final'] = 3
+        par['calibrations']['wavelengths']['n_first'] = 2
+        par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['match_toler'] = 2.0
-        par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already plenty especially in the dead zone
-        par['calibrations']['wavelengths']['numsearch'] = 5
 
-        # TODO: this should depend on slit size, binning etc! - would need to move to config_specific_par for that
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # 3 detectors splitting is already plenty especially in the dead zone
+
+        # TODO: FWHM should depend on slit size, binning etc! - would need to move to config_specific_par for that
         par['calibrations']['wavelengths']['fwhm'] = 8
-        par['calibrations']['wavelengths']['nlocal_cc'] = 11
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.3
-        par['calibrations']['wavelengths']['sigdetect'] = 5.0
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.5
 
         # Do not flux calibrate
         par['fluxcalib'] = None

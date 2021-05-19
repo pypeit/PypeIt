@@ -1507,14 +1507,14 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         ivar (`numpy.ndarray`_):
              Inverse variance for the exposure in question. Shape is
              (nspec,).
-        mask (`numpy.ndarray`_): 
+        mask (`numpy.ndarray`_):
              Boolean array with mask for the exposure in question
              True=Good. If not specified determined form inverse
              variance.  Shape is (nspec,).
         flux_stack (`numpy.ndarray`_):
              Stacked spectrum to be compared to the exposure in
              question. Shape is (nspec,).
-        ivar_stack (`numpy.ndarray`_): 
+        ivar_stack (`numpy.ndarray`_):
             Inverse variance of the stacked spectrum. Shape is
             (nspec,).
         mask_stack (`numpy.ndarray`_):
