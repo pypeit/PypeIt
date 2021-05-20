@@ -1085,7 +1085,9 @@ class MultiSlitReduce(Reduce):
                                            self.slits_left, self.slits_right,
                                            self.par['calibrations']['slitedges']['det_buffer'])
                 # get slitmask offset in each single detector
-                self.slits.get_maskdef_offset(sobjs, self.slits_left, self.par['reduce']['slitmask']['slitmask_offset'])
+                self.slits.get_maskdef_offset(sobjs, self.slits_left,
+                                              self.par['reduce']['slitmask']['slitmask_offset'],
+                                              self.par['reduce']['slitmask']['bright_maskdef_id'])
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

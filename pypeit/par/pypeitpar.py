@@ -1578,7 +1578,7 @@ class SlitMaskPar(ParSet):
 
     """
     def __init__(self, obj_toler=None, assign_obj=None,
-                 slitmask_offset=None, extract_missing_objs=None):
+                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1604,9 +1604,13 @@ class SlitMaskPar(ParSet):
 
         defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
-        descr['slitmask_offset'] = 'Slitmask offset (pixels) from the position expected by the slitmask design ' \
-                                   'This parameter is only used during the forced extraction of ' \
-                                   'undetected objects.'
+        descr['slitmask_offset'] = 'Slitmask offset (pixels) from the position expected by the slitmask design. '
+
+        defaults['bright_maskdef_id'] = None
+        dtypes['bright_maskdef_id'] = str
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
+                                     'slit containing a bright object that will be used to compute the ' \
+                                     'slitmask offset. This parameter is ignored if ``slitmask_offset`` is provided.'
 
         defaults['extract_missing_objs'] = False
         dtypes['extract_missing_objs'] = bool
@@ -1626,7 +1630,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'extract_missing_objs']
+        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'bright_maskdef_id', 'extract_missing_objs']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -691,6 +691,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             hdu['ObjectCat'].data['RA_OBJ'],
                             hdu['ObjectCat'].data['DEC_OBJ'],
                             objname,
+                            hdu['ObjectCat'].data['mag'],
+                            hdu['ObjectCat'].data['pBand'],
                             hdu['SlitObjMap'].data['TopDist'][indx],
                             hdu['SlitObjMap'].data['BotDist'][indx]]).T
         #   - Only keep the objects that are in the slit-object mapping

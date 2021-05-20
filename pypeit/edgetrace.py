@@ -639,6 +639,10 @@ class EdgeTraceSet(DataContainer):
                                  description='Declination of the object (deg)'),
                     table.Column(name='OBJNAME', dtype='<U32', length=length,
                                  description='Object name assigned by the observer'),
+                    table.Column(name='OBJMAG', dtype=float, length=length,
+                                 description='Object magnitude provided by the observer'),
+                    table.Column(name='MAG_BAND', dtype='<U32', length=length,
+                                 description='Band of the magnitude provided by the observer'),
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
@@ -4212,7 +4216,9 @@ class EdgeTraceSet(DataContainer):
                     num += 1
             msgs.info('*' * 92)
 
-        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
+        # as reference row we use the midpoint in the spectral direction
+        reference_row = self.edge_fit[:, 0].size//2
+
         spat_bedge = self.edge_fit[reference_row, self.is_left]
         spat_tedge = self.edge_fit[reference_row, self.is_right]
 
@@ -4515,6 +4521,8 @@ class EdgeTraceSet(DataContainer):
         - 'OBJRA': Right ascension of the object (deg)
         - 'OBJDEC': Declination of the object (deg)
         - 'OBJNAME': Object name assigned by the observer
+        - 'OBJMAG': Object magnitude provided by the observer
+        - 'MAG_BAND': Band of the magnitude provided by the observer
         - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
         edge of the slit (in PypeIt orientation)
@@ -4545,7 +4553,8 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJ_TOPDIST', 'OBJ_BOTDIST']):
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'MAG_BAND',
+                                'OBJ_TOPDIST', 'OBJ_BOTDIST']):
             self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
 
         # SLITINDX is the index of the slit in the `design` table, not

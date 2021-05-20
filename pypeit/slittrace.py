@@ -1019,8 +1019,9 @@ class SlitTraceSet(datamodel.DataContainer):
                                                         sigma=2.)
         else:
             median_edgeloss = 0.
-        msgs.info('edgeloss={} pixels'.format(left_edgeloss))
-        msgs.info('median_edgeloss={} pixels'.format(median_edgeloss))
+        msgs.info('edgeloss={} pixels'.format([np.round(m, 2) for m in left_edgeloss]))
+        msgs.info('median_edgeloss={:.2f} pixels'.format(median_edgeloss))
+        embed()
 
         expected_objpos_all = np.zeros(obj_maskdef_id.size)
         for i, maskid in enumerate(obj_maskdef_id):
@@ -1043,14 +1044,15 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # Expected objects position (distance from left edge) in pixels, corrected for edge loss
             expected_objpos_all[i] = obj_topdist[i] / plate_scale - left_edgeloss[self.maskdef_id == maskid][0]
-        msgs.info('edgeloss={} pixels'.format(left_edgeloss))
+        msgs.info('edgeloss={} pixels'.format([np.round(m, 2) for m in left_edgeloss]))
+        msgs.info('expected_objpos_all={} pixels'.format([np.round(m, 2) for m in expected_objpos_all]))
 
         self.maskdef_objpos = expected_objpos_all
         self.maskdef_slitcen = new_slitcen
 
         return
 
-    def get_maskdef_offset(self, sobjs, slits_left, slitmask_off):
+    def get_maskdef_offset(self, sobjs, slits_left, slitmask_off, bright_maskdefid):
         """
         Determine the object positions expected by the slitmask design
 
@@ -1058,6 +1060,7 @@ class SlitTraceSet(datamodel.DataContainer):
             sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
             slits_left (`numpy.ndarray`_): Array with left slit edges.
             slitmask_off (:obj:`float`): User provided slitmask offset in pixels
+            bright_maskdefid (:obj:`str`): User provided maskdef_id of a bright object to be used to measure offset
 
 
         """
@@ -1066,6 +1069,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.maskdef_slitcen is None:
             msgs.error('An array of slit centers predicted by the slitmask design must be provided.')
 
+        # If slitmask offset provided by the user, just save it and return
         if slitmask_off is not None:
             self.maskdef_offset = slitmask_off
             msgs.info('User-provided slitmask offset: {} pixels'.format(round(self.maskdef_offset, 2)))
@@ -1075,7 +1079,7 @@ class SlitTraceSet(datamodel.DataContainer):
             obj_maskdef_id = self.maskdef_designtab['SLITID'].data
 
             if sobjs.nobj == 0:
-                msgs.warn('NO detected objects. Slitmask offset cannot be estimated.')
+                msgs.warn('NO detected objects. Slitmask offset cannot be estimated using det={}. '.format(self.det))
                 self.maskdef_offset = 0.0
                 return
             else:
@@ -1111,27 +1115,59 @@ class SlitTraceSet(datamodel.DataContainer):
                 measured = np.array(measured)
                 expected = np.array(expected)
 
-                # Determine offsets using only detections with the highest significance
-                nsig_thrshd = 500.
-                while nsig_thrshd > 50.:
-                    highsig_measured = measured[cut_sobjs.smash_nsig > nsig_thrshd]
-                    highsig_expected = expected[cut_sobjs.smash_nsig > nsig_thrshd]
-                    if len(highsig_measured) > 0:
-                        off = highsig_expected - highsig_measured
-                        mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
-                        msgs.warn('offsets: {}'.format(off))
-                        msgs.warn('median offset: {}'.format(median_off))
-                        msgs.warn('mean offset: {}'.format(mean))
-                        break
-                    nsig_thrshd -= 1
+                # if the maskdef_id of a bright object is provided by the user, check if it is in
+                # this detector and use it to compute the offset
+                if bright_maskdefid is not None:
+                    sidx = np.where(cut_sobjs.MASKDEF_ID == bright_maskdefid)[0]
+                    if sidx.size == 0:
+                        self.maskdef_offset = 0.0
+                    else:
+                        # Parse the peak fluxes
+                        peak_flux = cut_sobjs[sidx].smash_peakflux
+                        imx_peak = np.argmax(peak_flux)
+                        imx_sidx = sidx[imx_peak]
+                        bright_measured = measured[imx_sidx]
+                        bright_expected = expected[imx_sidx]
+                        self.maskdef_offset = bright_expected - bright_measured
+                    return
+
                 else:
-                    msgs.warn('NO objects with high significance detections. Slitmask offset cannot be estimated.')
-                    median_off = 0.0
+                    # Determine offsets using only detections with the highest significance in slits where the
+                    # brightest objects are expected to be.
+                    obj_mag = self.maskdef_designtab['OBJMAG'].data
+                    brightest = (obj_mag > 11) & (obj_mag <= 21) & (self.maskdef_designtab['ALIGN'].data == 0)
+                    brightest_ids = obj_maskdef_id[brightest]
+                    if len(brightest_ids) == 0:
+                        msgs.warn('NO bright objects expected in this det. '
+                                  'Slitmask offset cannot be estimated using det={}.'.format(self.det))
+                        median_off = 0.0
+                    else:
+                        nsig_thrshd = 500.
+                        while nsig_thrshd > 40.:
+                            highsig_measured = measured[cut_sobjs.smash_nsig > nsig_thrshd]
+                            highsig_expected = expected[cut_sobjs.smash_nsig > nsig_thrshd]
+                            highsig_cut_sobjs = cut_sobjs[cut_sobjs.smash_nsig > nsig_thrshd]
+                            if len(highsig_measured) > 0:
+                                match_brightest = []
+                                for ssid in highsig_cut_sobjs.MASKDEF_ID:
+                                    match_brightest.append(ssid in brightest_ids)
+                                if np.any(match_brightest):
+                                    off = highsig_expected[match_brightest] - highsig_measured[match_brightest]
+                                    mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
+                                    msgs.warn('offsets: {}'.format([np.round(m, 2) for m in off]))
+                                    msgs.warn('median offset: {:.2f}'.format(median_off))
+                                    msgs.warn('mean offset: {:.2f}'.format(mean))
+                                    break
+                            nsig_thrshd -= 1
+                        else:
+                            msgs.warn('NO objects with high significance detections. '
+                                      'Slitmask offset cannot be estimated using det={}.'.format(self.det))
+                            median_off = 0.0
 
-                self.maskdef_offset = median_off
-                msgs.info('Slitmask offset: {} pixels'.format(round(self.maskdef_offset, 2)))
+                    self.maskdef_offset = median_off
+                    msgs.info('Slitmask offset: {} pixels'.format(round(self.maskdef_offset, 2)))
 
-            return
+                return
 
     def user_mask(self, det, slitspatnum):
         """
