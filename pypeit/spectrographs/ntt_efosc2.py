@@ -15,6 +15,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
+from IPython import embed
 
 class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     """
@@ -96,15 +97,21 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
                     return None
             return decker
         elif meta_key == 'datasec' or meta_key == 'oscansec':
+            xbin =  int(headarr[0]['CDELT2'])
             data_x = int(headarr[0]['HIERARCH ESO DET OUT1 NX'] * headarr[0]['CDELT1']) #valid pixels along X
             data_y = int(headarr[0]['HIERARCH ESO DET OUT1 NY'] * headarr[0]['CDELT2']) #valid pixels along Y
             oscan_y = int(headarr[0]['HIERARCH ESO DET OUT1 OVSCY'] * headarr[0]['CDELT1']) #Overscan region in Y, no overscan in X
             pscan_x = int(headarr[0]['HIERARCH ESO DET OUT1 PRSCX'] * headarr[0]['CDELT2']) #Prescan region in X, no prescan in Y  
+            pscan_y = int(headarr[0]['HIERARCH ESO DET OUT1 PRSCY'] * headarr[0]['CDELT2']) #Prescan region in Y
+            oscan_x = int(headarr[0]['HIERARCH ESO DET OUT1 X'])  # X location of output;  Not binned
+            max_x = int(headarr[0]['NAXIS1'] * headarr[0]['CDELT2']) # Maximum columns
             if meta_key == 'datasec':
-                datasec = '[%s:%s,:%s]' % (pscan_x, pscan_x+data_x, data_y)
+                datasec = '[%s:%s,:%s]' % (pscan_y+1, pscan_y+data_y, 
+                                           data_x)
                 return datasec
             else:
-                oscansec = '[:%s,:%s]' % (pscan_x, data_y) # Actually two overscan regions, here I only dealing with the region on x-axis
+                oscansec = '[%s:%s,%s:%s]' % (pscan_y+1, pscan_y+data_y,
+                                              oscan_x+1*xbin, max_x-1*xbin) # Actually two overscan regions, here I only dealing with the region on x-axis
                 return oscansec
         else:
             msgs.error("Not ready for this compound meta")
