@@ -171,7 +171,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['rm_slits'] = '1:500:120' # remove the fake slit due to bad pixels
+        #par['calibrations']['slitedges']['rm_slits'] = '1:500:120' # remove the fake slit due to bad pixels
 
         #edge parameters
         par['calibrations']['slitedges']['edge_thresh'] = 75.
@@ -318,9 +318,11 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         msgs.info("Using hard-coded BPM for NTT EFOSC2")
-
-        bpm_img[182, 116:] = 1
-        bpm_img[646, 170:] = 1
-        bpm_img[:, 1025:] = 1
+        binning = self.get_meta_value(filename, 'binning')
+        binspatial =  int(binning[0])
+        binspec =  int(binning[2])
+        bpm_img[int(232/binspec):, int(362/binspatial):int(366/binspatial)] = 1
+        bpm_img[int(340/binspec):, int(1292/binspatial)] = 1
+        #bpm_img[int(2050/binspec):, :] = 1
 
         return bpm_img
