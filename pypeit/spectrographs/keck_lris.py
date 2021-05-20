@@ -5,6 +5,7 @@ Module for LRIS specific methods.
 """
 import glob
 import os
+import pdb
 
 from IPython import embed
 
@@ -121,9 +122,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        # TODO: Sunil replaced TELAPSE with TTIME and mJD-OBS with MJD temporarily. Sunil needs to create a new detector class for this stuff.
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='TTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dichroic'] = dict(ext=0, card='DICHNAME')
@@ -155,7 +156,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            curr_date = time.Time(headarr[0]['MJD'], format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -837,7 +838,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Allow for post COVID detector issues
         t2020_1 = time.Time("2020-06-30", format='isot')  # First run
         t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
-        date = time.Time(hdu[0].header['MJD-OBS'], format='mjd')
+        # Allow for the new detector upgrade
+        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        date = time.Time(hdu[0].header['MJD'], format='mjd')
 
         if date < t2020_1:
             pass
@@ -847,6 +850,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             detector_dict2['gain'] = np.atleast_1d([1.26])
             detector_dict1['ronoise'] = np.atleast_1d([99.])
             detector_dict2['ronoise'] = np.atleast_1d([5.2])
+        elif date > t2021_upgrade: #Implicitly assumes 2 amps and the ampmode is HSPLIT,VUP
+            msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
+            detector_dict1['gain'] = np.atleast_1d([1.71, 1.68])
+            detector_dict2['gain'] = np.atleast_1d([1.61, 1.72])
+            detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24])
+            detector_dict2['ronoise'] = np.atleast_1d([4.41, 4.68])
+
         else: # This is the 2020 July 29 run
             msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
             detector_dict1['gain'] = np.atleast_1d([1.45])
@@ -865,8 +875,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             # Long silt mode
+            # TODO: Change AMPPSIZE to whatever is on the new FITS files for data after the upgrade.
             if hdu[0].header['AMPPSIZE'] == '[1:1024,1:4096]':
                 idx = 0 if det==1 else 1  # Vid1 for det=1, Vid4 for det=2
+                #if idx>0:
+                #    import pdb; pdb.set_trace()
                 detector.gain = np.atleast_1d(detector.gain[idx])
                 detector.ronoise = np.atleast_1d(detector.ronoise[idx])
             else:
@@ -1255,7 +1268,6 @@ def lris_read_amp(inp, ext):
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
     xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-
     # grab the components...
     predata = temp[0:precol, :]
     # datasec appears to have the x value for the keywords that are zero
@@ -1385,8 +1397,8 @@ def get_orig_rawimage(raw_file, debug=False):
         oscansec_img[:, biascols] = iamp+1
         imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
         rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
-
-    return image, hdul, float(head0['ELAPTIME']), \
+    # TODO: I've replaced TELAPSE with TTIME temporarily
+    return image, hdul, float(head0['TTIME']), \
            rawdatasec_img, oscansec_img
 
 
