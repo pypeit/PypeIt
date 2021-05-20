@@ -155,7 +155,7 @@ def main(args):
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
-    par['sensfunc'].to_config('sensfunc.par', section_name='sensfunc', include_descr=False)
+    par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
     # TODO JFH I would like to be able to run only par['sensfunc'].to_config('sensfunc.par') but this crashes.
 
     # Parse the output filename
