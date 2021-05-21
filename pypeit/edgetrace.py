@@ -4473,9 +4473,9 @@ class EdgeTraceSet(DataContainer):
 
 
         """
-        # Reference row
-        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
-                            else self.pca.reference_row
+        # as reference row we use the midpoint in the spectral direction
+        reference_row = self.edge_fit[:, 0].size // 2
+
         # matched index for the slit-mask design data.
         ind = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid, maskdef_id, strict=False)
         # if not all the element of self.spectrograph.slitmask.slitid[ind] are equal to maskdef_id, keep only the

@@ -1607,7 +1607,7 @@ class SlitMaskPar(ParSet):
         descr['slitmask_offset'] = 'Slitmask offset (pixels) from the position expected by the slitmask design. '
 
         defaults['bright_maskdef_id'] = None
-        dtypes['bright_maskdef_id'] = str
+        dtypes['bright_maskdef_id'] = int
         descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is ignored if ``slitmask_offset`` is provided.'

@@ -350,7 +350,7 @@ class Reduce(object):
         msgs.info("Generating tilts image")
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
-        # # Wavelengths (on unmasked slits) - DP: I'm not sure we need to generate this here
+        # # Wavelengths (on unmasked slits) - DP: I don't think we need to generate this here
         # msgs.info("Generating wavelength image")
         # self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
@@ -364,7 +364,7 @@ class Reduce(object):
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
 
-        # Global sky subtract
+        # Global sky subtract (self.global_sky is also generated here)
         self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -376,16 +376,16 @@ class Reduce(object):
                                   manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
-        return self.initial_sky, self.sobjs_obj, self.skymask
+        return self.global_sky, self.sobjs_obj, self.skymask
 
-    def run_extraction(self, initial_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
+    def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            initial_sky (`np.ndarray`_):
+            global_sky (`np.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
@@ -428,7 +428,8 @@ class Reduce(object):
 
         self.sobjs_obj = sobjs_obj
         self.skymask = skymask
-        self.initial_sky = initial_sky
+        self.global_sky = global_sky
+        self.initial_sky = global_sky.copy()
         self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?

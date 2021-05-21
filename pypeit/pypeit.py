@@ -464,7 +464,7 @@ class PypeIt(object):
         all_specobjs_new = specobjs.SpecObjs()
         # list of skymask and initial_sky obtained during objfind and used in extraction
         skymask_list = []
-        initial_sky_list = []
+        global_sky_list = []
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -516,12 +516,12 @@ class PypeIt(object):
             calibrated_det.append(self.det)
             calib_slits.append(self.caliBrate.slits)
             # initial_sky and skymask are needed in the extract loop
-            initial_sky, sobjs_obj, skymask = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile,
-                                                              objfind_run=True)
+            global_sky, sobjs_obj, skymask = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile,
+                                                             objfind_run=True)
             if len(sobjs_obj)>0:
                 all_specobjs.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
-            initial_sky_list.append(initial_sky)
+            global_sky_list.append(global_sky)
 
         # determine if a slitmask offset exist and use the average offset over all the detectors
         slitmask_offsets = np.array([ss.maskdef_offset for ss in calib_slits])
@@ -531,8 +531,9 @@ class PypeIt(object):
             # zero is assigned when no offset could be measured. If all detectors have maskdef_offset=0 give a warning
             if slitmask_offsets[slitmask_offsets!=0].size == 0:
                 median_off = 0.0
-                msgs.warn('No slitmask offset could be measured. Assumed to be zero. '
-                          'To provide a value set `slitmask_offset` in `SlitMaskPar`')
+                msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
+                msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG!')
+                msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
             else:
                 msgs.warn('Slitmask offsets in each det: {}.'.format([np.round(m, 2) for m in slitmask_offsets]))
                 mean, median_off, std = sigma_clipped_stats(slitmask_offsets[slitmask_offsets!=0], sigma=2.)
@@ -559,7 +560,7 @@ class PypeIt(object):
             on_det = all_specobjs.DET == self.det
             all_spec2d[self.det], tmp_sobjs \
                     = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile, objfind_run=False,
-                                      initial_sky=initial_sky_list[i], sobjs_obj=all_specobjs[on_det],
+                                      global_sky=global_sky_list[i], sobjs_obj=all_specobjs[on_det],
                                       skymask=skymask_list[i])
             # Hold em
             if tmp_sobjs.nobj > 0:
@@ -643,7 +644,7 @@ class PypeIt(object):
 
         return std_trace
 
-    def reduce_one(self, frames, det, bg_frames, std_outfile=None, objfind_run=False, initial_sky=None, sobjs_obj=None,
+    def reduce_one(self, frames, det, bg_frames, std_outfile=None, objfind_run=False, global_sky=None, sobjs_obj=None,
                    skymask=None):
         """
         Reduce + Extract a single exposure/detector pair
@@ -664,7 +665,7 @@ class PypeIt(object):
                 directly to :func:`get_std_trace`.
             objfind_run (:obj:`bool`):
                 Boolean indicating if object finding script is run
-            initial_sky (`np.ndarray`_):
+            global_sky (`np.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
@@ -739,11 +740,11 @@ class PypeIt(object):
 
         # Do it
         if objfind_run:
-            initial_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
-            return initial_sky, sobjs_obj, skymask
+            global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
+            return global_sky, sobjs_obj, skymask
         else:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-                initial_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
                 obstime=self.obstime)
 
             # TODO -- Do this upstream
