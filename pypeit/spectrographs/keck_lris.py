@@ -431,6 +431,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
+        #return self.get_detector_par(hdu, det if det is not None else 1), \
+        #        array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
         return self.get_detector_par(hdu, det if det is not None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
@@ -829,7 +831,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             det=1,
             dataext=1,
             specaxis=0,
-            specflip=False,
+            specflip=True,  # This is for the new LRISr
             spatflip=False,
             platescale=0.135,
             darkcurr=0.0,
