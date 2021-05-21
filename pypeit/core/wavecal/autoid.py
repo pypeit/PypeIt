@@ -882,6 +882,9 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
           Dict of wavelength calibration solutions
 
     """
+    #debug_xcorr=True
+    #debug_reid=True
+    #debug=True
     # Load line lists
     if 'ThAr' in par['lamps']:
         line_lists_all = waveio.load_line_lists(par['lamps'])
