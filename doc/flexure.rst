@@ -156,10 +156,10 @@ The models supplied with PypeIt are,
 | sky_LRISr_600_7500_5460_7950.fits |  Description to come                                                              |
 +-----------------------------------+-----------------------------------------------------------------------------------+
 
-.. _pypeit_multidet_flexure:
+.. _pypeit_multislit_flexure:
 
-pypeit_multidet_flexure
------------------------
+pypeit_multislit_flexure
+------------------------
 
 We have now implemented a method to calculate a flexure
 correction across multiple detectors, i.e. with an expanded wavelength coverage.
@@ -196,7 +196,7 @@ As desired, you can modify the
 :ref:`pypeit_par:FlexurePar Keywords` in the top block.
 Last, run the `pypeit_deimos_flexure` script::
 
-   pypeit_multidet_flexure flexure.file out_root
+   pypeit_multislit_flexure flexure.file out_root
 
 where out_root is the prefix for the FITS file generated that
 contains the flexure solution for all of the slits.  

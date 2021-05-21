@@ -87,7 +87,7 @@ Flexure
 
 For most users, the standard flexure correction will be sufficient.
 For RV users, you may wish to use the
-:ref:`flexure:pypeit_multidet_flexure` script which also means
+:ref:`flexure:pypeit_multislit_flexure` script which also means
 initially reducing the data without the standard corrections.
 See those docs for further details and note it has only been
 tested for the 1200 line grating and with redder wavelengths.
