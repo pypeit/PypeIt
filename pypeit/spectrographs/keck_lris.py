@@ -126,7 +126,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(card=None, compound=True)
         # TODO: Sunil replaced TELAPSE with TTIME and mJD-OBS with MJD temporarily. Sunil needs to create a new detector class for this stuff.
         self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(ext=0, card='TTIME')
+        self.meta['exptime'] = dict(ext=0, card='TELAPSE')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dichroic'] = dict(ext=0, card='DICHNAME')
@@ -1417,7 +1417,7 @@ def get_orig_rawimage(raw_file, debug=False):
         imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
         rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
     # TODO: I've replaced TELAPSE with TTIME temporarily
-    return image, hdul, float(head0['TTIME']), \
+    return image, hdul, float(head0['TELAPSE']), \
            rawdatasec_img, oscansec_img
 
 
