@@ -190,7 +190,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         
         # Image processing
         # The overscan region might cause oversubtraction of the background, set it to False
-        par['scienceframe']['process']['use_overscan'] = False 
+        #par['scienceframe']['process']['use_overscan'] = False 
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['method'] = 'full_template'
