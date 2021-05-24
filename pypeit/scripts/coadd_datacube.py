@@ -78,8 +78,9 @@ def coadd_cube(files, parset, overwrite=False):
     if cubepar['standard_cube'] is not None:
         if not os.path.exists(cubepar['standard_cube']):
             msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
-        cube = fits.open(cubepar['standard_cube'])
-        ref_scale = cube['REFSCALE'].data
+        stdcube = fits.open(cubepar['standard_cube'])
+        ref_scale = stdcube['REFSCALE'].data
+        msgs.info("Reference scale loaded from file: {0:s}".format(cubepar['standard_cube']))
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
@@ -143,6 +144,10 @@ def coadd_cube(files, parset, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax = slits.get_radec_image(wcs, initial=True, flexure=spec2DObj.sci_spat_flexure)
+
+        # Apply astrometric correction - maybe do this in get_radec_image?
+        msgs.warn("Astrometric correction is not yet implemented")
+        # Need to load alignment frames and make small corrections to the RA and DEC
 
         # Perform the DAR correction
         if wave_ref is None:

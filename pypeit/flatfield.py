@@ -10,6 +10,7 @@ import inspect
 import numpy as np
 
 from scipy import interpolate
+from scipy import ndimage
 
 from matplotlib import pyplot as plt
 
@@ -1247,8 +1248,11 @@ class FlatField(object):
                                     kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
         ### STEP 3
-        # Redo the scale model, now using the bspline fit
+        # Redo the scale model, using a median filter
         scale_model = np.ones_like(self.rawflatimg.image)
+        if debug:
+            # Only used for debugging
+            blaze_model = np.ones_like(self.rawflatimg.image)
         for slit_idx in range(0, self.slits.spat_id.size):
             msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
@@ -1260,20 +1264,11 @@ class FlatField(object):
             xfit = (waveimg[onslit_gpm] - minw) / (maxw - minw)
             yfit = rawflat[onslit_gpm] / np.exp(spec_bspl.value(waveimg[onslit_gpm])[0])
             srtd = np.argsort(xfit)
-            # Rough outlier rejection
-            med = np.median(yfit)
-            mad = 1.4826*np.median(np.abs(med-yfit))
-            inmsk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
-            slit_bspl, _, _, _, exit_status \
-                = fitting.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
-                                        nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
-                                        kwargs_bspline={'bkspace': spec_samp_fine},
-                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
-            # TODO : Perhaps mask a slit if it fails...
-            if exit_status > 1:
-                msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
-            else:
-                scale_model[onslit_init] = 1/slit_bspl.value((waveimg[onslit_init] - minw) / (maxw - minw))[0]
+            # Median filter to boost S/N
+            medfilt = ndimage.median_filter(yfit[srtd], size=int(20*spec_samp_fine))
+            blzfunc = interpolate.interp1d(xfit[srtd], medfilt, bounds_error=False, fill_value="extrapolate")
+            scale_model[onslit_init] = 1/blzfunc((waveimg[onslit_init] - minw) / (maxw - minw))
+            if debug: blaze_model[onslit_init] = np.exp(spec_bspl.value(waveimg[onslit_init])[0]) / scale_model[onslit_init]
 
         if debug:
             embed()
@@ -1282,8 +1277,9 @@ class FlatField(object):
             for ss in range(self.slits.nslits):
                 #plt.plot(waveimg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())], scale_model[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())])
                 plt.plot(waveimg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())],
-                         pltflat[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())] *
-                         scale_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
+                         pltflat[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())] /
+                         blaze_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
+                         # scale_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
             plt.show()
             # This code generates the wavy patterns seen in KCWI
             debug_model = np.ones_like(self.rawflatimg.image)

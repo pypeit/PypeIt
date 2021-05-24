@@ -1362,6 +1362,18 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Check that scaleimg is set to the correct shape
         if self.scaleimg.size == 1:
             self.scaleimg = np.ones_like(self.sciImg.image)
+        debug = False
+        if debug:
+            from matplotlib import pyplot as plt
+            pltflat = self.sciImg.image.copy()
+            censpec = np.round((0.1*self.slits.left_init + 0.9*self.slits.right_init)).astype(np.int)
+            for ss in range(self.slits.nslits):
+                plt.plot(self.waveimg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())], scaleImg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())])
+                # plt.plot(self.waveimg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())],
+                #          pltflat[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])# /
+ #                        scaleImg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
+                         # scale_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
+            plt.show()
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
         self.scaleimg *= scaleImg.copy()
@@ -1497,7 +1509,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
-        nslits = self.slits.spat_id.size
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         self.global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
@@ -1532,6 +1543,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
             var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
             var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
             model_ivar = utils.inverse(var)
+            # Redo the relative spectral illumination correction with the improved sky model
+            if self.par['scienceframe']['process']['use_specillum']:
+                self.illum_profile_spectral(self.global_sky, skymask=skymask)
 
         if update_crmask:
             # Find CRs with sky subtraction
