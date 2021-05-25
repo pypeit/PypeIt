@@ -676,59 +676,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
     # First, we find all groups of objects to local skysubtract together
-    # initialize adjacency matrix
-    adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
-    # build adjacency matrix
-    for i in range(nobj):
-        left_edge_i = sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1
-        righ_edge_i = sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1
-        for j in range(i + 1, nobj):
-            left_edge_j = sobjs[j].TRACE_SPAT - sobjs[j].maskwidth - 1
-            righ_edge_j = sobjs[j].TRACE_SPAT + sobjs[j].maskwidth + 1
-
-            # We only need to check if left_edge_j < righ_edge_i because we already know
-            # that the trace of i is to the left of the trace of j and so we cannot have
-            # the false positive case of j being entirely to the left of i.
-            touch = left_edge_j < righ_edge_i
-
-            if touch.any():
-                adj[i,j] = True
-                adj[j,i] = True
-
-    def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
-        """
-        Depth-First Search of graph given by matrix `adj` starting from `v`.
-        Updates `visited` and `group`.
-
-        Each vertex visited in one run of DFS is part of one group,
-        and the list `group` is updated to reflect that.
-
-        Args:
-            v (int): initial vertex
-            visited (List[bool]): list keeping track of which vertices have been visited
-            group (List[int]): list containing members of this connected component
-            adj (np.ndarray): Adjacency matrix description of the graph
-        """
-        stack = []
-        stack.append(v)
-        while stack:
-            u = stack.pop()
-            if not visited[u]:
-                visited[u] = True
-                group.append(u)
-                neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
-                for neighbor in neighbors:
-                    stack.append(neighbor)
-
-    # find all connected components in the graph of objects
-    visited = [False]*nobj
-    groups = []
-    while not all(visited):
-        # pick a starting unvisited vertex
-        v = visited.index(False)
-        group = []
-        DFS(v, visited, group, adj)
-        groups.append(group)
+    groups = sobjs.get_extraction_groups()
 
     for group in groups:
         # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
