@@ -143,7 +143,7 @@ def test_trace_add_rm():
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Just list
     pargs = show_1dspec.parse_args([spec_file, '--list'])
     show_1dspec.main(pargs)
@@ -153,7 +153,7 @@ def test_show_1dspec():
 def test_show_2dspec():
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
     spec2d_file = os.path.join(droot, 'Science',
-                             'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     # Save
@@ -185,7 +185,7 @@ def test_view_fits():
     """ Only test the list option
     """
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parse_args([spec_file, '--list', 'shane_kast_blue'])
 
@@ -323,32 +323,41 @@ def test_obslog():
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):
-    args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit', 'BOXSLIT']
+    args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
     alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
-    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
+    spec1d_args = ['--spec1d_files', expanded_spec1d]
     config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
 
     with open(config_file_full, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
         print("archive_root = /foo/bar", file=f)
         print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
-        print("slit_exclude_flags = BADREDUCE", file=f)
-        print('spec1d read', file=f)
+        print("exclude_slit_trace_bm = BADREDUCE", file=f)
+        print("exclude_serendip = False", file=f)
+        print("spec1d read", file=f)
         print(alt_spec1d, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
 
     config_file_spec1d = str(tmp_path / "test_collate1d_spec1d_only.collate1d")
     with open(config_file_spec1d, "w") as f:
         print("[collate1d]", file=f)
-        print('spec1d read', file=f)
+        print("spec1d read", file=f)
         print(spec1d_file, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
+
+    config_file_coadd1d = str(tmp_path / "test_collate1d_spec1d_only.coadd1d")
+    with open(config_file_coadd1d, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
 
     # Args only, nospec1d files should raise an exception
     with pytest.raises(PypeItError):
@@ -362,7 +371,9 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['tolerance'] == '0.03d'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
+    assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
@@ -373,7 +384,9 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/foo/bar'
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
-    assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_serendip'] is False
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
@@ -384,15 +397,18 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
     # Test that a config file with spec1d files. Test that default tolerance and match_using is used
+    # Also test using an external coadd1d file with the same name
     parsed_args = collate_1d.parse_args([config_file_spec1d])
     (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['tolerance'] == 3.0
     assert params['collate1d']['match_using'] == 'ra/dec'
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
@@ -418,9 +434,17 @@ def test_collate_1d(tmp_path, monkeypatch):
         os.unlink(par_file)
         
         # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
-        # if exclude_slit_flags is empty
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', alt_spec1d])
+        # if exclude_slit_flags is empty.
+        # Also test specifying archive dir, including copying a file to it
+        # To make this easier this uses a very large tolerance (3 degrees) to ensure there's only
+        # one output
+        coadd_output = "J232913.02-030531.05_DEIMOS_20100913.fits"
+        with open(coadd_output, "w") as f:
+            print("test data", file=f)
+        archive_dir = tmp_path / 'archive'
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3d', '--spec1d_files', expanded_alt_spec1d, '--archive_dir', str(archive_dir)])
         assert collate_1d.main(parsed_args) == 0
+        assert os.path.exists(archive_dir / coadd_output)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

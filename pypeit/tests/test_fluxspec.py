@@ -31,9 +31,9 @@ def data_path(filename):
 @cooked_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits')
+                            'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits')
     sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     return [std_file, sci_file]
 
 

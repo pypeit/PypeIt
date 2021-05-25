@@ -4587,8 +4587,8 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'NTT']
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT']
 
     def validate(self):
         pass
@@ -4621,7 +4621,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4658,11 +4658,16 @@ class Collate1DPar(ParSet):
         descr['archive_root'] = "The path where files and metadata will be archived."
 
         # What slit flags to exclude
-        defaults['slit_exclude_flags'] = []
-        dtypes['slit_exclude_flags'] = [list, str]
-        descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
+        defaults['exclude_slit_trace_bm'] = []
+        dtypes['exclude_slit_trace_bm'] = [list, str]
+        descr['exclude_slit_trace_bm'] = "A list of slit trace bitmask bits that should be excluded."
 
         # What slit flags to exclude
+        defaults['exclude_serendip'] = False
+        dtypes['exclude_serendip'] = bool
+        descr['exclude_serendip'] = "Whether to exclude SERENDIP objects from collating."
+
+        # How to match objects
         defaults['match_using'] = 'ra/dec'
         options['match_using'] = [ 'pixel', 'ra/dec']
         dtypes['match_using'] = str
@@ -4679,7 +4684,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

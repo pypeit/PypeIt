@@ -23,9 +23,10 @@
                             mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
                             mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red,
                             p200_tspec, shane_kast_blue, shane_kast_red,
-                            shane_kast_red_ret, tng_dolores, vlt_fors2,
-                            vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
-                            vlt_xshooter_vis, wht_isis_blue, wht_isis_red
+                            shane_kast_red_ret, soar_goodman_red, tng_dolores,
+                            vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
+                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+                            wht_isis_red
     
     optional arguments:
       -h, --help            show this help message and exit
@@ -34,8 +35,7 @@
                             string up through the wildcard (.e.g, /data/Kast/b).
                             Use the --extension option to set the types of files
                             to search for. Default is the current working
-                            directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            directory. (default: /home/dusty/work/PypeIt/doc)
       -k, --keys            Do not produce the log; simply list the pypeit-
                             specific metadata keys available for this spectrograph
                             and their associated header cards. Metadata keys with
@@ -76,7 +76,7 @@
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /home/dusty/work/PypeIt/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -f FILE, --file FILE  Name for the ascii output file. Any leading directory
