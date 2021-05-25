@@ -31,8 +31,6 @@ from pypeit.core import fitting
 from pypeit.datamodel import DataContainer
 from pypeit import specobjs
 
-from pypeit.spectrographs import keck_deimos
-
 from IPython import embed
 
 

@@ -53,7 +53,7 @@ def read_flexfile(ifile):
             spec1dfiles.append(prs[0])
             if len(prs) > 1:
                 msgs.error('Invalid format for .flex file.' + msgs.newline() +
-                           'You must have specify only spec1dfiles in the block ')
+                           'You must specify only spec1dfiles in the block ')
         is_config[s-1:e+1] = False
 
     # Chck the sizes of the inputs
