@@ -746,15 +746,15 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         # Guess
         p0 = list(fitting.guess_gauss(wave[mw],flux[mw]))
         # Fit
-        try:
-            p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
+        p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
                                 w_out = 1./np.sqrt(ivar[mw]), 
                                 guesses=p0, nparam=4)
-            perr = np.sqrt(np.diag(pcov))
-        except:
-            p=p0
-            p[2] = -99
-            perr=p0
+        perr = np.sqrt(np.diag(pcov))
+        #except:
+        #    p=p0
+        #    p[2] = -99
+        #    perr=p0
+
         # Continue
         d = p[2] - line
 
@@ -782,7 +782,8 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     # Return
     return dwave[m],diff[m],diff_err[m],los[m],los_err[m]
 
-class MultiDetFlexure(DataContainer):
+# TODO -- Consider separating the methods from the DataContainer as per calibrations
+class MultiSlitFlexure(DataContainer):
     # Class to perform Multi-Detector flexure analysis
     # Based on codes written by Marla Geha for DEIMOS
 
@@ -820,7 +821,7 @@ class MultiDetFlexure(DataContainer):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
         # Init
-        super(MultiDetFlexure, self).__init__(d=_d)
+        super(MultiSlitFlexure, self).__init__(d=_d)
 
         # Load up specobjs
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile,
@@ -924,6 +925,7 @@ class MultiDetFlexure(DataContainer):
 
 
         # Fit me (without additional rejection)
+        # TODO -- Allow for x,y position instead of RA, DEC
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
                                        self['indiv_fit_slope'][mgood], (2,2),
                                        function='polynomial2d',
@@ -962,6 +964,7 @@ class MultiDetFlexure(DataContainer):
 
                 # Measure em
                 # The following will break if only boxcar...
+                # TODO -- Allow for boxcar
                 sky_line, sky_diff, sky_ediff, los, _ = sky_em_residuals(
                     sobj['OPT_WAVE'], 
                     sobj['OPT_COUNTS_SKY'], 
@@ -1016,6 +1019,7 @@ class MultiDetFlexure(DataContainer):
                 #all_wave,all_flux,all_ivar,all_sky = dmost_utils.load_spectrum(f,hdu,vacuum = 1)
                 tmp_wave, all_flux, all_sky, all_ivar = np.ndarray(0), \
                     np.ndarray(0), np.ndarray(0), np.ndarray(0)
+                # TODO -- Allow for Boxcar
                 for det in range(self.ndet):
                     sobj = self.specobjs[self.sobj_idx[det][i]]
                     tmp_wave = np.concatenate((tmp_wave, sobj.OPT_WAVE))

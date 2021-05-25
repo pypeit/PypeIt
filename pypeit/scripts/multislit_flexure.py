@@ -116,7 +116,7 @@ def main(pargs):
     # Loop to my loop
     for filename in spec1dfiles:
         # Instantiate
-        mdFlex = flexure.MultiDetFlexure(s1dfile=filename)
+        mdFlex = flexure.MultiSlitFlexure(s1dfile=filename)
         # Initalize 
         msgs.info("Setup")
         mdFlex.init(spectrograph, par['flexure'])
