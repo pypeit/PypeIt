@@ -34,7 +34,7 @@ def read_flexfile(ifile):
 
     """
     # Read in the pypeit reduction file
-    msgs.info('Loading the coadd1d file')
+    msgs.info('Loading the flexure file')
     lines = par.util._read_pypeit_file_lines(ifile)
     is_config = np.ones(len(lines), dtype=bool)
 
@@ -46,7 +46,7 @@ def read_flexfile(ifile):
         msgs.error("Missing 'flexure end' in {0}".format(ifile))
     elif (s < 0) or (s == e):
         msgs.error(
-            "Missing flexure read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
+            "Missing flexure read block in {0}. Check the input format for the .flex file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
@@ -74,7 +74,7 @@ def parse_args(options=None, return_parser=False):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument("flex_file", type=str,
-                        help="R|File to guide fluxing process.\n"
+                        help="R|File to guide flexure corrections for this multi-slit mode.\n"
                              "This file must have the following format: \n"
                              "\n"
                              "flexure read\n"
@@ -85,13 +85,11 @@ def parse_args(options=None, return_parser=False):
                              "flexure end\n"
                              "\n"
                              "\n")
-    parser.add_argument("outroot", type=str, help='Output fileroot')
+    parser.add_argument("outroot", type=str, help='Output fileroot for the flexure fits saved as FITS.')
     parser.add_argument("--clobber", default=True,
                         action="store_true", help="Clobber output files")
     parser.add_argument("--debug", default=False,
                         action="store_true", help="show debug plots?")
-    parser.add_argument("--par_outfile", default='flexure.par',
-                        action="store_true", help="Output to save the parameters")
 
     if return_parser:
         return parser
@@ -121,13 +119,10 @@ def main(pargs):
     # Loop to my loop
     for filename in spec1dfiles:
         # Instantiate
-        mdFlex = flexure.MultiDetFlexure(s1dfile=filename,
-                                         PYP_SPEC=spectrograph.name)
-        mdFlex.flex_par = par['flexure']                                        
-
-        # Initalize slits
+        mdFlex = flexure.MultiDetFlexure(s1dfile=filename)
+        # Initalize 
         msgs.info("Setup")
-        mdFlex.init_slits()
+        mdFlex.init(spectrograph, par['flexure'])
 
         # INITIAL SKY LINE STUFF
         msgs.info("Measuring sky lines")
@@ -137,8 +132,8 @@ def main(pargs):
         msgs.info("Fitting the surface")
         mdFlex.fit_mask_surfaces()
 
-        # Apply?
-        msgs.info("Apply me")
+        # Apply
+        msgs.info("Applying flexure correction")
         mdFlex.update_fit()
 
         # REFIT FOR QA PLOTS

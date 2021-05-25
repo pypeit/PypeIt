@@ -74,14 +74,12 @@ def test_flex_multi():
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
 
-    mdFlex = flexure.MultiDetFlexure(s1dfile=spec1d_file, 
-                     PYP_SPEC='keck_deimos')
+    mdFlex = flexure.MultiDetFlexure(s1dfile=spec1d_file) 
     # Parameters
     keck_deimos = load_spectrograph('keck_deimos')
     par = keck_deimos.default_pypeit_par()
-    mdFlex.flex_par = par['flexure']                                        
+    mdFlex.init(keck_deimos, par['flexure'])
     # Init                    
-    mdFlex.init_slits()
     outfile = data_path('tst_multi_flex.fits')
     # INITIAL SKY LINE STUFF
     mdFlex.measure_sky_lines()

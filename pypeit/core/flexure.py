@@ -710,7 +710,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
                      ivar:np.ndarray, sky_waves:np.ndarray,
                      plot=False, noff=5., nfit_min=20):
     """Calculate residuals and other metrics for a set of
-    auto-magically identified sky emission lines
+    input sky emission lines 
 
     Args:
         wave (np.ndarray): Wavelengths (in air!)
@@ -722,7 +722,7 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         nfit_min (int, optional): Minimum number of pixels required to do a fit. Defaults to 20.
 
     Returns:
-        tuple: np.ndarray's -- sky line wavelength, wavelength offset, 
+        tuple: np.ndarray's -- sky line wavelength of good lines, wavelength offset, 
             error in wavelength offset, sky line width,
             error in sky line width
     """
@@ -833,6 +833,8 @@ class MultiDetFlexure(DataContainer):
     def _init_internals(self):
         # Parameters (FlexurePar)
         self.flex_par = None 
+        # spectrograph
+        self.spectrograph = None
         # Specobjs object
         self.specobjs = None
         # Index to specobjs (tuple of arrays)
@@ -844,14 +846,24 @@ class MultiDetFlexure(DataContainer):
         self.pmodel_b = None
         self.pmodel_l = None
     
-    def init_slits(self):
-        """ Initialize this and that about the slits 
+    def init(self, spectrograph, par):
+        """ Initialize this and that about the slits, par, spectrograph
         e.g. RA, DEC, S/N
+
+        Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
+                The `Spectrograph` instance that sets the
+                instrument used to take the observations.  Used to set
+                :attr:`spectrograph`.
+            par (:class:`pypeit.par.pypeitpar.FlexurePar`):
+                The parameters used for the flexure processing
         """
-        if self.PYP_SPEC == 'keck_deimos':
-            self.sobj_idx = keck_deimos.spec1d_match_red_blue(self.specobjs)
-        else:
-            msgs.error("Not ready for this spectrograph")
+        # Internals
+        self.spectrograph = spectrograph
+        self.flex_par = par
+        # Set
+        self.PYP_SPEC = self.spectrograph.name
+        self.sobj_idx = self.spectrograph.spec1d_match_spectra(self.specobjs)
         #
         self.nslits = len(self.sobj_idx[0])
         self.ndet = len(self.sobj_idx)
