@@ -675,29 +675,72 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     # TODO Can this be simply replaced with spat_img above (but not spat_pix since that could have holes)
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
-    # Loop over objects and group them
-    i1 = 0
-    while i1 < nobj:
-        group = np.array([], dtype=np.int)
-        group = np.append(group, i1)
-        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
-        min_spat1 = np.maximum(sobjs[i1].TRACE_SPAT - sobjs[i1].maskwidth - 1, slit_left)
-        max_spat1 = np.minimum(sobjs[i1].TRACE_SPAT + sobjs[i1].maskwidth + 1, slit_righ)
-        for i2 in range(i1 + 1, nobj):
-            left_edge = sobjs[i2].TRACE_SPAT - sobjs[i2].maskwidth - 1
-            righ_edge = sobjs[i2].TRACE_SPAT + sobjs[i2].maskwidth + 1
-            touch = (left_edge < max_spat1) & (sobjs[i2].TRACE_SPAT > slit_left) & (righ_edge > min_spat1)
+    # First, we find all groups of objects to local skysubtract together
+    # initialize adjacency matrix
+    adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
+    # build adjacency matrix
+    for i in range(nobj):
+        left_edge_i = sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1
+        righ_edge_i = sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1
+        for j in range(i + 1, nobj):
+            left_edge_j = sobjs[j].TRACE_SPAT - sobjs[j].maskwidth - 1
+            righ_edge_j = sobjs[j].TRACE_SPAT + sobjs[j].maskwidth + 1
+
+            touch = left_edge_j < righ_edge_i
+
             if touch.any():
-                max_spat1 = np.minimum(np.maximum(righ_edge, max_spat1), slit_righ)
-                min_spat1 = np.maximum(np.minimum(left_edge, min_spat1), slit_left)
-                group = np.append(group, i2)
+                adj[i,j] = True
+                adj[j,i] = True
+
+    def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
+        """
+        Depth-First Search of graph given by matrix `adj` starting from `v`.
+        Updates `visited` and `group`.
+
+        Each vertex visited in one run of DFS is part of one group,
+        and the list `group` is updated to reflect that.
+
+        Args:
+            v (int): initial vertex
+            visited (List[bool]): list keeping track of which vertices have been visited
+            group (List[int]): list containing members of this connected component
+            adj (np.ndarray): Adjacency matrix description of the graph
+        """
+        stack = []
+        stack.append(v)
+        while stack:
+            u = stack.pop()
+            if not visited[u]:
+                visited[u] = True
+                group.append(u)
+                neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
+                for neighbor in neighbors:
+                    stack.append(neighbor)
+
+    # find all connected components in the graph of objects
+    visited = [False]*nobj
+    groups = []
+    while not all(visited):
+        # pick a starting unvisited vertex
+        v = visited.index(False)
+        group = []
+        DFS(v, visited, group, adj)
+        groups.append(group)
+
+    for group in groups:
+        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
+        left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
+        righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
+
+        min_spat1 = np.maximum(np.amin(left_edges, axis=0), slit_left)
+        max_spat1 = np.minimum(np.amax(righ_edges, axis=0), slit_righ)
+
         # Create the local mask which defines the pixels that will be updated by local sky subtraction
         min_spat_img = np.outer(min_spat1, np.ones(nspat))
         max_spat_img = np.outer(max_spat1, np.ones(nspat))
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
         npoly = skysub_npoly(localmask)
-        # Keep for next iteration
-        i1 = group.max() + 1
+
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
         objwork = len(group)
         scope = np.sum(thismask, axis=0)
