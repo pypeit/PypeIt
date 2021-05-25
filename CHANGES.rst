@@ -8,6 +8,8 @@
 - Add blocking filter to DEIMOS config
 - NOT/Alfosc updates
 - A pair of fixes for shane_kast_red
+- Add NTT EFOSC2 spectrograph
+- Add standard stars CD-34241 and CD-329927 to esofil
 
 
 1.4.0 (23 Apr 2021)
@@ -31,9 +33,6 @@
 - Added a development document about the DEIMOS wavelength calibration.
 - Limit reduction to detectors 3 and 7 when DEIMOS LVM mask is used
   (other detectors are empty)
-- Add wavelength RMS to SpecObj.  This is an update of the datamodel to
-  1.3.3
-- Add Bok B&C spectrograph
 - Add `pypeit_obslog` script that simple compiles and prints metadata
   from a set of fits files needed by pypeit to run.
 - Change `PypeItSetup.from_file_root` to *require* the output path to
