@@ -112,9 +112,6 @@ def main(pargs):
     spectrograph_def_par = spectrograph.default_pypeit_par()
     par = pypeitpar.PypeItPar.from_cfg_lines(
         cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
-    # Write the par to disk
-    print("Writing the parameters to {}".format(pargs.par_outfile))
-    par.to_config(pargs.par_outfile)
 
     # Loop to my loop
     for filename in spec1dfiles:
