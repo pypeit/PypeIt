@@ -686,6 +686,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             left_edge_j = sobjs[j].TRACE_SPAT - sobjs[j].maskwidth - 1
             righ_edge_j = sobjs[j].TRACE_SPAT + sobjs[j].maskwidth + 1
 
+            # We only need to check if left_edge_j < righ_edge_i because we already know
+            # that the trace of i is to the left of the trace of j and so we cannot have
+            # the false positive case of j being entirely to the left of i.
             touch = left_edge_j < righ_edge_i
 
             if touch.any():
