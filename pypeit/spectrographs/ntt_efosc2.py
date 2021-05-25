@@ -25,6 +25,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     telescope = telescopes.NTTTelescopePar()
     name = 'ntt_efosc2'
     camera = 'EFOSC2'
+    supported = True
     comment = 'The ESO Faint Object Spectrograph and Camera version 2'
 
     def configuration_keys(self):
