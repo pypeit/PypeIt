@@ -80,6 +80,14 @@ class VLTTelescopePar(TelescopePar):
 # VLT aperture from https://www.eso.org/observing/etc/doc/formulabook/node15.html
 # This seems unrealistic given that pi(8.2^2)/4 = 52.81
 
+class NTTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(NTTTelescopePar, self).__init__(name='NTT',
+                                              longitude=289.2700,
+                                              latitude=-29.2567,
+                                              elevation=2375,
+                                              diameter=3.58)
+
 class GeminiNTelescopePar(TelescopePar):
     def __init__(self):
         super(GeminiNTelescopePar, self).__init__(name='GEMINI-N',

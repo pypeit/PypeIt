@@ -33,6 +33,7 @@ from pypeit.spectrographs import vlt_fors
 from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import vlt_sinfoni
 from pypeit.spectrographs import wht_isis
+from pypeit.spectrographs import ntt_efosc2
 
 # Build the list of names for the available spectrographs
 import numpy as np
