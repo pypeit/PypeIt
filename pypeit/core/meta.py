@@ -139,6 +139,7 @@ def define_additional_meta(nlamps=20):
                        'mode': dict(dtype=str, comment='Observing mode'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
+                       'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
                        'pressure': dict(dtype=float, comment='Pressure at obstime'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),

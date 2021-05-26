@@ -375,7 +375,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         x1_0 = 1             # Amp 1
         x1_1 = 512 - crval1u
-        x2_0 = x1_1+1        # Amp
+        x2_0 = max(x1_1+1,1)       # Amp 2
         x2_1 = ndata
 
         xo1_1 = x2_1+1
@@ -383,9 +383,21 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         xo2_1 = xo1_2+1
         xo2_2 = xo1_2+nover
 
-        # These are rows, columns on the raw frame, 1-indexed
-        datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]
-        oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
+        # Allow for reading only Amp 2!
+        if x1_1 < 3:
+            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
+            detector_dict['numamplifiers'] = 1
+            detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
+            detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo2_1,xo2_2)]
+        else:
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x1_0, x1_1), 
+                    '[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), 
+                        '[:,{}:{}]'.format(xo2_1,xo2_2)]
 
         # Fill it up
         detector_dict['datasec'] = np.atleast_1d(datasec)
@@ -479,6 +491,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         else:
             pass
+
         # Return
         return par
 
