@@ -523,24 +523,9 @@ class PypeIt(object):
             skymask_list.append(skymask)
             global_sky_list.append(global_sky)
 
-        # determine if a slitmask offset exist and use the average offset over all the detectors
-        slitmask_offsets = np.array([ss.maskdef_offset for ss in calib_slits])
-        # remove eventual None
-        slitmask_offsets = slitmask_offsets[slitmask_offsets != None].astype('float')
-        if np.any(slitmask_offsets):
-            # zero is assigned when no offset could be measured. If all detectors have maskdef_offset=0 give a warning
-            if slitmask_offsets[slitmask_offsets!=0].size == 0:
-                median_off = 0.0
-                msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
-                msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG!')
-                msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
-            else:
-                msgs.warn('Slitmask offsets in each det: {}.'.format([np.round(m, 2) for m in slitmask_offsets]))
-                mean, median_off, std = sigma_clipped_stats(slitmask_offsets[slitmask_offsets!=0], sigma=2.)
-                msgs.warn('Median Slitmask offset: {:.2f}.'.format(median_off))
-                msgs.warn('Mean Slitmask offset: {:.2f}.'.format(mean))
-            for i in range(len(calib_slits)):
-                calib_slits[i].maskdef_offset = median_off
+        # determine if a slitmask offset exist and assign average offsets over all the detectors
+        calib_slits = slittrace.average_maskdef_offset(calib_slits)
+
         # Extract
         for i, self.det in enumerate(calibrated_det):
             msgs.info("Working on detector {0}".format(self.det))
