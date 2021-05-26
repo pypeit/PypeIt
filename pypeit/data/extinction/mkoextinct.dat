@@ -1,6 +1,7 @@
 # Majority of the data below are based on results from the Nearby SuperNova Factory (Buton et al. 2013A&A...549A...8B)
 # The extinction curve includes contributions from Rayleigh scattering, aerosol scattering, and molecular absorption/ozone.
 # For the telluric lines, they use a high resolution model of the telluric lines, convolved to a resolution of R~1000.
+# The rms of the extinction is between 0.001-0.05 mags from 0.3-1.0 um.
 # See the paper referenced above for further details.
 # The first two values and the last value are bogus :: CFHT Bulletin http://www.gemini.edu/?q=node/10790
 3.0000e+03 2.37
