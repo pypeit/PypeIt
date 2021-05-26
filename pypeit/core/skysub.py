@@ -473,7 +473,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          thismask, slit_left, slit_righ, sobjs, ingpm=None,
-                         spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
+                         spat_pix=None, adderr=0.01, bsp=0.6, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
@@ -518,11 +518,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             ceiling on the S/N.
         bsp: float, default = 0.6
             Break point spacing in pixels for the b-spline sky subtraction.
-        extract_maskwidth: float, default = 4.0
-            Determines the initial size of the region in units of fwhm
-            that will be used for local sky subtraction. This maskwidth
-            is defined in the obfjind code, but is then updated here as
-            the profile fitting improves the fwhm estimates
         trim_edg: tuple of ints of floats, default = (3,3)
             Number of pixels to be ignored on the (left,right) edges of
             the slit in object/sky model fits.
@@ -752,18 +747,21 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
-                        thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
+                        thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
                     sobjs[iobj].FWHMFIT = fwhmfit
                     sobjs[iobj].FWHM = np.median(fwhmfit)
-                    mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
-                    maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
-                    sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
-                        sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
+                    # TODO JFH In the xidl code the maskwidth was being updated which impacted the sub-image used for the
+                    #  fit_profile profile fitting. This is no longer the case in the python version. However, I'm leaving
+                    # these lines here in case we decide to implement
+                    # something like that.
+                    #mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
+                    #maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
+                    #sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
+                    #    sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
                 else:
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
@@ -911,7 +909,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, rn2img,
                              left, right, slitmask, sobjs, order_vec, spat_pix=None,
-                             fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
+                             fit_fwhm=False, min_snr=2.0,bsp=0.6,
                              trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
                              sigrej=3.5, bkpts_optimal=True, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
@@ -943,7 +941,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         fit_fwhm:
         min_snr:
         bsp:
-        extract_maskwidth:
         trim_edg:
         std:
         prof_nsigma:
@@ -1096,7 +1093,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] = local_skysub_extract(
             sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
             left[:,iord], right[:,iord], sobjs[thisobj], spat_pix=spat_pix,
-            ingpm=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
+            ingpm=inmask,std = std, bsp=bsp, trim_edg=trim_edg,
             prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
             force_gauss=force_gauss, sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise,
             debug_bkpts=debug_bkpts, show_resids=show_resids, show_profile=show_profile)
