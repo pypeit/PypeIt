@@ -291,6 +291,10 @@ window (sky_resid-det07) after using
 
 .. image:: figures/deimos_spec2d.png
 
+For DEIMOS masks with many slits, the display time is substantial.
+You may prefer to limit viewing only a subset of the `channels`
+with the `--channels` option.
+
 The green/red lines are the slit edges.
 The orange line shows the *PypeIt* trace
 of the object and the orange text is the
@@ -353,7 +357,9 @@ Flexure
 =======
 
 The default run performs a flexure correction, slit-by-slit
-based on analysis of the sky lines.  For bluer observations,
+based on analysis of the sky lines to impose a fixed pixel shift 
+for each detector in the spectral dimension.  
+For a more accurate solution,
 it may be preferred to perform flexure across both detectors.
 
-See :ref:`pypeit_deimos_flexure` for full details on this procedure.
+See :ref:`pypeit_multislit_flexure` for full details on this procedure.
