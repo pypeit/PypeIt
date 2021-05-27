@@ -15,6 +15,7 @@ from astropy import units as u
 from astropy.time import Time
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -487,4 +488,36 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         return par
 
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Override parent bpm function with BPM specific to P200 DBSPr.
 
+        Parameters
+        ----------
+        det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        msgs.info("Custom bad pixel mask for DBSPr")
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        # Red CCD detector defect is present in data taken 2020-05-22
+        # and absent in data taken 2020-04-21
+        DEFECT_DATE = Time('2020-05-21')
+        # TODO: Model the growth of the detector defect with time.
+        # TODO: Get more precise date range for detector.
+        with io.fits_open(filename) as hdul:
+            if Time(hdul[0].header['UTSHUT']) > DEFECT_DATE:
+                spec_binning = int(self.get_meta_value([hdul[0].header], 'binning').split(',')[0])
+                bpm_img[464 // spec_binning : 723 // spec_binning, :] = 1
+
+        return bpm_img
