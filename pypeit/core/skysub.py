@@ -682,8 +682,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             max_spat1 = np.minimum(np.amax(righ_edges, axis=0), slit_righ)
 
         # Create the local mask which defines the pixels that will be updated by local sky subtraction
-        min_spat_img = np.outer(min_spat1, np.ones(nspat))
-        max_spat_img = np.outer(max_spat1, np.ones(nspat))
+        min_spat_img = min_spat1[:, None]
+        max_spat_img = max_spat1[:, None]
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
         npoly = skysub_npoly(localmask)
 
@@ -724,7 +724,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
-                    trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
+                    trace = sobjs[iobj].TRACE_SPAT[:, None]
                     objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask),
@@ -853,7 +853,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                       ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
-            trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
+            trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask), waveimg, skyimage, rn2_img, thismask, this_profile,
