@@ -609,11 +609,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         modelivar[thismask], outmask[thismask])
     """
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
-    # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
-    if model_full_slit:
-        max_slit_width = np.max(slit_righ - slit_left)
-        for spec in sobjs:
-            spec.maskwidth = max_slit_width/2.0
 
     # TODO -- This should be using the SlitTraceSet method
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
@@ -671,15 +666,20 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
     # First, we find all groups of objects to local skysubtract together
-    groups = sobjs.get_extraction_groups()
+    groups = sobjs.get_extraction_groups(model_full_slit=model_full_slit)
 
     for group in groups:
         # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
-        left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
-        righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
+        if model_full_slit:
+            # If we're modelling the full slit, update the entire slit.
+            min_spat1 = slit_left
+            max_spat1 = slit_righ
+        else:
+            left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
+            righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
 
-        min_spat1 = np.maximum(np.amin(left_edges, axis=0), slit_left)
-        max_spat1 = np.minimum(np.amax(righ_edges, axis=0), slit_righ)
+            min_spat1 = np.maximum(np.amin(left_edges, axis=0), slit_left)
+            max_spat1 = np.minimum(np.amax(righ_edges, axis=0), slit_righ)
 
         # Create the local mask which defines the pixels that will be updated by local sky subtraction
         min_spat_img = np.outer(min_spat1, np.ones(nspat))

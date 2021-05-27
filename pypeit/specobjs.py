@@ -781,13 +781,16 @@ class SpecObjs:
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
-    def get_extraction_groups(self) -> List[List[int]]:
+    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
         """
         Returns:
             List[List[int]]: List of extraction groups, a list of integer
                 object indices that should be extracted together.
         """
         nobj = len(self.specobjs)
+
+        if model_full_slit:
+            return [list(range(nobj))]
 
         # initialize adjacency matrix
         adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
