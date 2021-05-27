@@ -100,7 +100,7 @@ def get_metadata_by_id(header_keys, file_info):
 
     return ([data_row], file_info, filename)
 
-def get_object_based_metadata(object_header_keys, spec_obj_keys, source_header_keys, file_info):
+def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
     """
     Gets the metadata from a SourceObject instance used for the by object
     portion of the archive. It is intended to be called by a 
@@ -114,14 +114,16 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, source_header_k
     if not isinstance(file_info, SourceObject):
         return (None, None, None)
 
-    header_data = [file_info.spec1d_header_list[0][x] for x in object_header_keys]
-    spec_obj_data = [file_info.spec_obj_list[0][x] for x in spec_obj_keys]
-    shared_data = [os.path.basename(file_info.coaddfile)] + spec_obj_data + header_data
+    coaddfile = [os.path.basename(file_info.coaddfile)]
+
     result_rows = []
-    for header in file_info.spec1d_header_list:
+    for i in range(len(file_info.spec1d_header_list)):
+        spec_obj = file_info.spec_obj_list[i]
+        header = file_info.spec1d_header_list[i]
+        spec_obj_data = [spec_obj[x] for x in spec_obj_keys]
         id = extract_id(header)
-        unique_data = [header[x] if x in header else None for x in source_header_keys]
-        result_rows.append(shared_data + [id] + unique_data)
+        header_data = [header[x] if x in header else None for x in object_header_keys]
+        result_rows.append(coaddfile + spec_obj_data + [id] + header_data)
 
     return (result_rows, file_info.coaddfile, file_info.coaddfile)
 
@@ -480,9 +482,8 @@ def create_archive(archive_root, copy_to_archive):
     """
 
     ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
     OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
-    OBJECT_BASED_SOURCE_KEYS = ['GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
 
     by_id_names = ['id', 'filename'] + [x.lower() for x in ID_BASED_HEADER_KEYS]
     by_id_metadata = ArchiveMetadata(os.path.join(archive_root, "by_id_meta.dat"), 
@@ -492,16 +493,14 @@ def create_archive(archive_root, copy_to_archive):
 
     by_object_names = ['filename'] + \
                         [x.lower() for x in OBJECT_BASED_SPEC_KEYS] + \
-                        [x.lower() for x in OBJECT_BASED_HEADER_KEYS] + \
                         ['source_id'] + \
-                        [x.lower() for x in OBJECT_BASED_SOURCE_KEYS]
+                        [x.lower() for x in OBJECT_BASED_HEADER_KEYS]
 
     by_object_metadata = ArchiveMetadata(os.path.join(archive_root, "by_object_meta.dat"),
                                             by_object_names,
                                             partial(get_object_based_metadata, 
                                                     OBJECT_BASED_HEADER_KEYS,
-                                                    OBJECT_BASED_SPEC_KEYS,
-                                                    OBJECT_BASED_SOURCE_KEYS),
+                                                    OBJECT_BASED_SPEC_KEYS),
                                             append=True)
 
     # metadatas in archive object
