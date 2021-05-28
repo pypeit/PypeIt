@@ -669,12 +669,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     groups = sobjs.get_extraction_groups(model_full_slit=model_full_slit)
 
     for group in groups:
-        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
         if model_full_slit:
             # If we're modelling the full slit, update the entire slit.
             min_spat1 = slit_left
             max_spat1 = slit_righ
         else:
+            # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
             left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
             righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
 
