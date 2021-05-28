@@ -49,17 +49,17 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         header = hdu[0].header
         
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector
         detector_dict = dict(
             binning         = binning,
             det             = 1,
             dataext         = 0,
-            specaxis        = 1,
-            specflip        = True,
-            spatflip        = False,
-            platescale      = 0.34,
+            specaxis        = 1,        # Native spectrum is along the x-axis
+            specflip        = True,     # DeVeny CCD has blue at the right
+            spatflip        = False,    #
+            platescale      = 0.34,     # Arcsec / pixel
             darkcurr        = 0.0,      # Still need to measure this.
             saturation      = 65535.,
             nonlinear       = 1.0,      # Still need to measure this.
@@ -171,7 +171,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             """
             Remove the parenthetical knob position to leave just the filter name
             """
-            return headarr[0]['FILTREAR'].split()[0]
+            return headarr[0]['FILTREAR'].split()[0].upper()
 
         else:
             msgs.error("Not ready for this compound meta for LDT/DeVeny")
@@ -209,7 +209,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Wavelength Calibration Parameters
         # Include all the lamps available on DeVeny
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CdI', 'HgI']
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         # These are changes from defaults from another spectrograph...
         # TODO: Not sure if we will need to adjust these at some point
@@ -223,9 +223,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #  the wavelength calibration method `reidentify`.
         par['calibrations']['wavelengths']['ech_fix_format'] = False
 
-        # Slit-edge setting for long-slit data
+        # Slit-edge settings for long-slit data (slit > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['minimum_slit_length'] = 90.
     
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
@@ -311,18 +312,20 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['bias']:
+        if ftype == 'bias':
             return (fitstbl['idname'] == 'BIAS')
         if ftype in ['arc', 'tilt']:
             # FOCUS frames should have frametype None
             return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS')
         if ftype in ['trace', 'pixelflat']:
             return good_exp & (fitstbl['idname'] == 'DOME FLAT') & (fitstbl['lampstat01'] == 'off')
-        if ftype in ['illumflat']:
+        if ftype == 'illumflat':
             return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
-        if ftype in ['science', 'standard']:
+        if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lampstat01'] == 'off')
-        if ftype in ['dark']:
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'STANDARD') & (fitstbl['lampstat01'] == 'off')
+        if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'DARK') & (fitstbl['lampstat01'] == 'off')
         if ftype in ['pinhole','align']:
             # Don't types pinhole or align frames
@@ -371,7 +374,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             pass
         elif grating == 'DV4 (400/8000)':
             # Wavelength calibrations
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_DV4.fits'
+            #par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_DV4.fits'
+            pass
         elif grating == 'DV5 (500/5500)':
             pass
         elif grating == 'DV6 (600/4900)':
