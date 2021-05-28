@@ -784,8 +784,8 @@ class SpecObjs:
     def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
         """
         Returns:
-            List[List[int]]: List of extraction groups, a list of integer
-                object indices that should be extracted together.
+            List[List[int]]: A list of extraction groups, each of which is a list of integer
+                object indices that should be extracted together by core.skysub.local_skysub_extract
         """
         nobj = len(self.specobjs)
 
