@@ -12,7 +12,6 @@ import copy
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
-from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import calibrations
@@ -462,9 +461,11 @@ class PypeIt(object):
         all_specobjs = specobjs.SpecObjs()
         # container for specobjs during second loop (extraction)
         all_specobjs_new = specobjs.SpecObjs()
-        # list of skymask and initial_sky obtained during objfind and used in extraction
+        # list of skymask and global_sky obtained during objfind and used in extraction
         skymask_list = []
         global_sky_list = []
+        # list of sciImg
+        sciImg_list = []
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -498,15 +499,8 @@ class PypeIt(object):
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
         for self.det in detectors:
-            msgs.info("Working on detector {0}".format(self.det))
-            # Instantiate Calibrations class
-            self.caliBrate = calibrations.Calibrations.get_instance(
-                self.fitstbl, self.par['calibrations'], self.spectrograph,
-                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
-            # These need to be separate to accomodate COADD2D
-            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
-            self.caliBrate.run_the_steps()
+            # run calibration
+            self.caliBrate = self.calib_one(frames, self.det)
             if not self.caliBrate.success:
                 msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
                           f'that failed was {self.caliBrate.failed_step}.  Continuing by '
@@ -515,28 +509,23 @@ class PypeIt(object):
 
             calibrated_det.append(self.det)
             calib_slits.append(self.caliBrate.slits)
-            # initial_sky and skymask are needed in the extract loop
-            global_sky, sobjs_obj, skymask = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile,
-                                                             objfind_run=True)
+            # global_sky, skymask and sciImg are needed in the extract loop
+            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
+                                                                      std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
             global_sky_list.append(global_sky)
+            sciImg_list.append(sciImg)
 
         # determine if a slitmask offset exist and assign average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits)
+        all_specobjs = slittrace.assign_addobjs_alldets(all_specobjs, calib_slits, sciImg_list, self.par['reduce'])
 
         # Extract
         for i, self.det in enumerate(calibrated_det):
-            msgs.info("Working on detector {0}".format(self.det))
-            # Instantiate Calibrations class
-            self.caliBrate = calibrations.Calibrations.get_instance(
-                self.fitstbl, self.par['calibrations'], self.spectrograph,
-                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
-            # These need to be separate to accomodate COADD2D
-            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
-            self.caliBrate.run_the_steps()
+            # re-run (i.e., load) calibrations
+            self.caliBrate = self.calib_one(frames, self.det)
             self.caliBrate.slits = calib_slits[i]
 
             # TODO: pass back the background frame, pass in background
@@ -544,9 +533,8 @@ class PypeIt(object):
             # argument and instantiates science within
             on_det = all_specobjs.DET == self.det
             all_spec2d[self.det], tmp_sobjs \
-                    = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile, objfind_run=False,
-                                      global_sky=global_sky_list[i], sobjs_obj=all_specobjs[on_det],
-                                      skymask=skymask_list[i])
+                    = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
+                                       all_specobjs[on_det], skymask_list[i])
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_new.add_sobj(tmp_sobjs)
@@ -629,10 +617,37 @@ class PypeIt(object):
 
         return std_trace
 
-    def reduce_one(self, frames, det, bg_frames, std_outfile=None, objfind_run=False, global_sky=None, sobjs_obj=None,
-                   skymask=None):
+    def calib_one(self, frames, det):
         """
-        Reduce + Extract a single exposure/detector pair
+        Run Calibration for a single exposure/detector pair
+
+        Args:
+            frames (:obj:`list`):
+                List of frames to extract; stacked if more than one
+                is provided
+            det (:obj:`int`):
+                Detector number (1-indexed)
+
+        Returns:
+            caliBrate (:class:`pypeit.calibrations.Calibrations`)
+
+        """
+
+        msgs.info("Working on detector {0}".format(det))
+        # Instantiate Calibrations class
+        caliBrate = calibrations.Calibrations.get_instance(
+            self.fitstbl, self.par['calibrations'], self.spectrograph,
+            self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+            show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+        # These need to be separate to accomodate COADD2D
+        caliBrate.set_config(frames[0], det, self.par['calibrations'])
+        caliBrate.run_the_steps()
+
+        return caliBrate
+
+    def objfind_one(self, frames, det, bg_frames, std_outfile=None):
+        """
+        Reduce + Find Objects in a single exposure/detector pair
 
         sci_ID and det need to have been set internally prior to calling this method
 
@@ -648,32 +663,20 @@ class PypeIt(object):
             std_outfile (:obj:`str`, optional):
                 Filename for the standard star spec1d file. Passed
                 directly to :func:`get_std_trace`.
-            objfind_run (:obj:`bool`):
-                Boolean indicating if object finding script is run
-            global_sky (`np.ndarray`_):
-                Initial global sky model
-            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
-                List of objects found during `run_objfind`
-            skymask (`np.ndarray`_):
-               Boolean image indicating which pixels are useful for global sky subtraction
 
         Returns:
-            tuple: Returns six `numpy.ndarray`_ objects and a
-            :class:`pypeit.specobjs.SpecObjs` object with the
-            extracted spectra from this exposure/detector pair. The
-            six `numpy.ndarray`_ objects are (1) the science image,
-            (2) its inverse variance, (3) the sky model, (4) the
-            object model, (5) the model inverse variance, and (6) the
-            mask.
+            global_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`),
+            skymask (`np.ndarray`_), sciImg (:class:`PypeItImage`):
+            Initial global sky model, List of objects found, Boolean image
+            indicating which pixels are useful for global sky subtraction, PypeItImage data container
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning \
                 = self.get_sci_metadata(frames[0], det)
-        if objfind_run:
-            msgs.info("Object finding begins for {} on det={}".format(self.basename, det))
-        else:
-            msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
+
+        msgs.info("Object finding begins for {} on det={}".format(self.basename, det))
+
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         if self.std_redux:
@@ -724,47 +727,99 @@ class PypeIt(object):
                             slits=True, clear=True)
 
         # Do it
-        if objfind_run:
-            global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
-            return global_sky, sobjs_obj, skymask
-        else:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
-                obstime=self.obstime)
+        global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
+        return global_sky, sobjs_obj, skymask, sciImg
 
-            # TODO -- Do this upstream
-            # Tack on detector and wavelength RMS
-            for sobj in sobjs:
-                sobj.DETECTOR = sciImg.detector
-                iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
-                sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
+    def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):
+        """
+        Extract Objects in a single exposure/detector pair
 
-            # Construct table of spectral flexure
-            spec_flex_table = Table()
-            spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
-            spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+        sci_ID and det need to have been set internally prior to calling this method
 
-            # Construct the Spec2DObj
-            spec2DObj = spec2dobj.Spec2DObj(det=self.det,
-                                            sciimg=sciImg.image,
-                                            ivarraw=sciImg.ivar,
-                                            skymodel=skymodel,
-                                            objmodel=objmodel,
-                                            ivarmodel=ivarmodel,
-                                            scaleimg=scaleImg,
-                                            waveimg=waveImg,
-                                            bpmmask=outmask,
-                                            detector=sciImg.detector,
-                                            sci_spat_flexure=sciImg.spat_flexure,
-                                            sci_spec_flexure=spec_flex_table,
-                                            vel_corr=self.redux.vel_corr,
-                                            vel_type=self.par['calibrations']['wavelengths']['refframe'],
-                                            tilts=tilts,
-                                            slits=copy.deepcopy(self.caliBrate.slits))
-            spec2DObj.process_steps = sciImg.process_steps
+        Args:
+            frames (:obj:`list`):
+                List of frames to extract; stacked if more than one
+                is provided
+            det (:obj:`int`):
+                Detector number (1-indexed)
+            sciImg (:class:`PypeItImage`):
+                Data container that holds a single image from a
+                single detector its related images (e.g. ivar, mask)
+            global_sky (`np.ndarray`_):
+                Initial global sky model
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                List of objects found during `run_objfind`
+            skymask (`np.ndarray`_):
+               Boolean image indicating which pixels are useful for global sky subtraction
 
-            # Return
-            return spec2DObj, sobjs
+        Returns:
+            tuple: Returns six `numpy.ndarray`_ objects and a
+            :class:`pypeit.specobjs.SpecObjs` object with the
+            extracted spectra from this exposure/detector pair. The
+            six `numpy.ndarray`_ objects are (1) the science image,
+            (2) its inverse variance, (3) the sky model, (4) the
+            object model, (5) the model inverse variance, and (6) the
+            mask.
+        """
+        # Grab some meta-data needed for the reduction from the fitstbl
+        self.objtype, self.setup, self.obstime, self.basename, self.binning \
+                = self.get_sci_metadata(frames[0], det)
+        # Is this a standard star?
+        self.std_redux = 'standard' in self.objtype
+
+        msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
+
+        # Instantiate Reduce object
+        # Required for pypeline specific object
+        # At instantiaton, the fullmask in self.sciImg is modified
+        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
+                                                self.par, self.caliBrate,
+                                                self.objtype,
+                                                ir_redux=self.ir_redux,
+                                                find_negative=self.find_negative,
+                                                std_redux=self.std_redux,
+                                                setup=self.setup,
+                                                show=self.show,
+                                                det=det, binning=self.binning,
+                                                basename=self.basename)
+
+        skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
+            global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            obstime=self.obstime)
+
+        # TODO -- Do this upstream
+        # Tack on detector and wavelength RMS
+        for sobj in sobjs:
+            sobj.DETECTOR = sciImg.detector
+            iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+            sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
+
+        # Construct table of spectral flexure
+        spec_flex_table = Table()
+        spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
+        spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+
+        # Construct the Spec2DObj
+        spec2DObj = spec2dobj.Spec2DObj(det=self.det,
+                                        sciimg=sciImg.image,
+                                        ivarraw=sciImg.ivar,
+                                        skymodel=skymodel,
+                                        objmodel=objmodel,
+                                        ivarmodel=ivarmodel,
+                                        scaleimg=scaleImg,
+                                        waveimg=waveImg,
+                                        bpmmask=outmask,
+                                        detector=sciImg.detector,
+                                        sci_spat_flexure=sciImg.spat_flexure,
+                                        sci_spec_flexure=spec_flex_table,
+                                        vel_corr=self.redux.vel_corr,
+                                        vel_type=self.par['calibrations']['wavelengths']['refframe'],
+                                        tilts=tilts,
+                                        slits=copy.deepcopy(self.caliBrate.slits))
+        spec2DObj.process_steps = sciImg.process_steps
+
+        # Return
+        return spec2DObj, sobjs
 
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
         """

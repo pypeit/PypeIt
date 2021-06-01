@@ -1242,11 +1242,11 @@ def average_maskdef_offset(calib_slits):
     """
 
     Args:
-        calib_slits (:class:`pypeit.slittrace.SlitTraceSet`): Information on the traced slit edges
-
+        calib_slits (:obj:`list`):
+        List of `SlitTraceSet` with information on the traced slit edges
 
     Returns:
-        :class:`pypeit.slittrace.SlitTraceSet`: Updated information on the traced slit edges
+        List of `SlitTraceSet` with updated information on the traced slit edges
     """
 
     # determine if a slitmask offset exist and use the average offset over all the detectors
@@ -1312,3 +1312,36 @@ def average_maskdef_offset(calib_slits):
 
     return calib_slits
 
+
+def assign_addobjs_alldets(sobjs, calib_slits, sciImg_list, reduce_par):
+    """
+
+    Args:
+        sobjs:
+        calib_slits:
+        sciImg_list:
+        reduce_par:
+
+    Returns:
+
+    """
+
+    # grab corresponding detectors
+    calib_dets = np.array([ss.det for ss in calib_slits])
+    for i in range(calib_dets.size):
+        msgs.info('DET: {}'.format(calib_dets[i]))
+        # Select the edges to use
+        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=sciImg_list[i].spat_flexure)
+        on_det = sobjs.DET == calib_dets[i]
+        # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
+        if reduce_par['slitmask']['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+            # Assign slitmask design information to detected objects
+            calib_slits[i].assign_maskinfo(sobjs[on_det], sciImg_list[i].detector.platescale,
+                                           slits_left, TOLER=reduce_par['slitmask']['obj_toler'])
+
+            if reduce_par['slitmask']['extract_missing_objs']:
+                # Assign undetected objects
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs[on_det], reduce_par['findobj']['find_fwhm'],
+                                                            slits_left, slits_right)  # Deal with flexure
+
+    return sobjs

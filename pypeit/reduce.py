@@ -332,7 +332,7 @@ class Reduce(object):
                 Show peaks in find_objects methods
 
         Returns:
-            tuple: initial_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`), skymask (`np.ndarray`_).
+            tuple: global_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`), skymask (`np.ndarray`_).
             Initial global sky model, list of objects found, skymask
 
         """
@@ -376,6 +376,15 @@ class Reduce(object):
                                   manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
+
+        if self.nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
+                    self.par['reduce']['findobj']['skip_second_find'] or usersky):
+                self.global_sky = self.initial_sky.copy()
+            else:
+                self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
+
         return self.global_sky, self.sobjs_obj, self.skymask
 
     def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
@@ -434,13 +443,6 @@ class Reduce(object):
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
-                    self.par['reduce']['findobj']['skip_second_find'] or usersky):
-                self.global_sky = self.initial_sky.copy()
-            else:
-                self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
-
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -1139,17 +1141,6 @@ class MultiSlitReduce(Reduce):
         self.skymodel  = np.copy(self.global_sky)
         # Set initially to sciivar in case no obects were found.
         self.ivarmodel = np.copy(self.sciImg.ivar)
-
-        # Add here slitmask stuff: assign RA,DEC, OBJNAME to detected objects and add undetected objects
-        if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-            # Assign slitmask design information to detected objects
-            self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
-                                       self.slits_left, TOLER=self.par['reduce']['slitmask']['obj_toler'])
-
-            if self.par['reduce']['slitmask']['extract_missing_objs']:
-                # Assign undetected objects
-                sobjs = self.slits.mask_add_missing_obj(sobjs, self.par['reduce']['findobj']['find_fwhm'],
-                                                        self.slits_left, self.slits_right) # Deal with flexure
 
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
