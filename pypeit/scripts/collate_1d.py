@@ -15,6 +15,7 @@ from glob import glob
 import os.path
 from functools import partial
 import re
+import traceback
 
 import numpy as np
 from astropy.coordinates import Angle
@@ -426,6 +427,7 @@ def main(args):
     # fluxing etc goes here
 
     # Coadd the spectra
+    successful_source_list = []
     for source in source_list:
 
         msgs.info(f'Creating {source.coaddfile} from the following sources:')
@@ -433,7 +435,13 @@ def main(args):
             msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} ({source.spec_obj_list[i].MASKDEF_OBJNAME})')
 
         if not args.dry_run:
-            coadd(par, source)
+            try:
+                coadd(par, source)
+                successful_source_list.append(source)
+            except Exception:
+                formatted_exception = traceback.format_exc()
+                msgs.warn(formatted_exception)
+                msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
 
     # Archive the files and metadata
     if not args.dry_run:
@@ -448,7 +456,7 @@ def main(args):
         archive = create_archive(metadata_root, copy)
         archive.add(spec1d_files)
         archive.add(spec2d_files)
-        archive.add(source_list)
+        archive.add(successful_source_list)
         archive.save()
 
     total_time = datetime.now() - start_time
