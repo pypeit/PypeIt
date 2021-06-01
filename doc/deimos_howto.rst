@@ -22,7 +22,12 @@ Organize data
 
 Place all of the files in a single folder. Mine is named
 ``/home/xavier/Projects/PypeIt-development-suite/RAW_DATAkeck_deimos/1200G_M_7750``
-(which I will refer to as ``RAW_PATH``) and the files within are:
+(which I will refer to as ``RAW_PATH``).  A useful shortcut for this
+can be to set an export variable (here it is in bash)::
+
+    export RAW_PATH=`pwd`
+
+The files within this folder are:
 
 .. code-block:: bash
 
@@ -59,11 +64,13 @@ frames of a few types (e.g. align).  You may ignore these (and
 most other) WARNING messages of PypeIt.
 
 If your files included more than one setup (including multiple
-masks), then you may wish to replace ``A`` with ``B`` or some
+masks), then you may wish to replace ``A`` in the call to 
+:ref:`pypeit_setup` with ``B`` or some
 other setup indicator.  Inspect the .sorted file in the setup_files
 folder to see all the options.
 
-Mine looks like this::
+For this example, my .pypeit file in the keck_deimos_A directory 
+looks like this::
 
     # Auto-generated PypeIt file
     # Tue 20 Apr 2021 12:37:45
@@ -98,7 +105,10 @@ Mine looks like this::
 
 In this example, all of the frametypes were accurately assigned
 in the :doc:`pypeit_file`, so there are no edits to be made.
-This should generally be the case for DEIMOS.
+This should generally be the case for DEIMOS. 
+However, if frame types are not assigned correctly, 
+you can edit them following these instructions on
+the :ref:`data_block`.
 
 On the other hand, it is the user's responsibility to remove
 any bad (or undesired) calibration or science frames from the

@@ -10,6 +10,12 @@
 - A pair of fixes for shane_kast_red
 - Add NTT EFOSC2 spectrograph
 - Add standard stars CD-34241 and CD-329927 to esofil
+- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
+  with different colors
+- Updated docs about extraction and DEIMOS
+- Implement multi-detector flexure estimates
+- Fix error in variance for numpy fitting routines
+- Introduce HOWTO for DEIMOS
 
 
 1.4.0 (23 Apr 2021)
@@ -65,12 +71,6 @@ optimizations.
 - PypeIt can now force extractions of DEIMOS non detected objects at the
   location expected from slitmask design.
 - SpecObj and SlitTrace datamodel versions updated
-- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
-  with a different colors
-- Updated docs about extraction and DEIMOS
-- Implement multi-detector flexure estimates
-- Fix error in variance for numpy fitting routines
-- Introduce HOWTO for DEIMOS
 
 1.3.3 (24 Feb 2021)
 -------------------
