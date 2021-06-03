@@ -10,6 +10,7 @@
 - A pair of fixes for shane_kast_red
 - Add NTT EFOSC2 spectrograph
 - Add standard stars CD-34241 and CD-329927 to esofil
+- Add wavelength solution for keck_lris_red 600/10000
 - `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
   with different colors
 - Updated docs about extraction and DEIMOS
