@@ -741,7 +741,6 @@ class SlitTraceSet(datamodel.DataContainer):
         Returns:
             tuple:
             sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
-            nobj (:obj:`int`): Number of objects identified
 
         """
         msgs.info('Add undetected objects at the expected location from slitmask design.')
@@ -1237,6 +1236,39 @@ def parse_slitspatnum(slitspatnum):
     # Return
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
+def get_maskedef_objpos_offset_alldets(sobjs, calib_slits, sciImg_list, par):
+    """
+
+    Args:
+        sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+        calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
+        sciImg_list (:obj:`list`): List of sciImg
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`): PypeIt parameters
+
+    Returns:
+        List of `SlitTraceSet` with updated information on the traced slit edges
+
+    """
+
+    # grab corresponding detectors
+    calib_dets = np.array([ss.det for ss in calib_slits])
+    for i in range(calib_dets.size):
+        msgs.info('DET: {}'.format(calib_dets[i]))
+        # Select the edges to use
+        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=sciImg_list[i].spat_flexure)
+        on_det = sobjs.DET == calib_dets[i]
+        if par['reduce']['slitmask']['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+            # get object positions expected by slitmask design
+            calib_slits[i].get_maskdef_objpos(sciImg_list[i].detector.platescale, slits_left, slits_right,
+                                                    par['calibrations']['slitedges']['det_buffer'])
+
+            # get slitmask offset in each single detector
+            calib_slits[i].get_maskdef_offset(sobjs, slits_left,
+                                          par['reduce']['slitmask']['slitmask_offset'],
+                                          par['reduce']['slitmask']['bright_maskdef_id'],
+                                          par['reduce']['slitmask']['nsig_thrshd'])
+
+    return calib_slits
 
 def average_maskdef_offset(calib_slits):
     """
@@ -1262,7 +1294,8 @@ def average_maskdef_offset(calib_slits):
         # zero is assigned when no offset could be measured. If all detectors have maskdef_offset=0 give a warning
         if slitmask_offsets[slitmask_offsets!=0].size == 0:
             msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
-            msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG!')
+            msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG! '
+                      'Especially for dithered observations')
             msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
         else:
             # define which are the blue and red detectors. This is hard coded for DEIMOS but no other
@@ -1317,12 +1350,13 @@ def assign_addobjs_alldets(sobjs, calib_slits, sciImg_list, reduce_par):
     """
 
     Args:
-        sobjs:
-        calib_slits:
-        sciImg_list:
-        reduce_par:
+        sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+        calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
+        sciImg_list (:obj:`list`): List of sciImg
+        reduce_par (:class:`pypeit.par.pypeitpar.PypeItPar`): PypeIt parameters for `reduce`
 
     Returns:
+        sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
 
     """
 

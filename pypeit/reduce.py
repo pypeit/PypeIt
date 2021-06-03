@@ -1078,21 +1078,6 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
-        # If this is a second pass for objfind or this is the first one but skip_second_find is True, extract some
-        # useful info from slitmask design. Matching to the detected objects is done in local_skysub_extract
-        if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
-                (self.sobjs_obj is not None):
-            if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-                # get object positions expected by slitmask design
-                self.slits.get_maskdef_objpos(self.get_platescale(None),
-                                           self.slits_left, self.slits_right,
-                                           self.par['calibrations']['slitedges']['det_buffer'])
-                # get slitmask offset in each single detector
-                self.slits.get_maskdef_offset(sobjs, self.slits_left,
-                                              self.par['reduce']['slitmask']['slitmask_offset'],
-                                              self.par['reduce']['slitmask']['bright_maskdef_id'],
-                                              self.par['reduce']['slitmask']['nsig_thrshd'])
-
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:

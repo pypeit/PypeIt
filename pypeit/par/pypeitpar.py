@@ -1605,18 +1605,21 @@ class SlitMaskPar(ParSet):
         defaults['nsig_thrshd'] = 50.
         dtypes['nsig_thrshd'] = [int, float]
         descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
-                               'be use to compute the slitmask offset. This is ignored if ' \
+                               'be use to compute the slitmask offset. This is the default behaviour unless ' \
                                '``slitmask_offset`` or ``bright_maskdef_id`` is set.'
 
         defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
-        descr['slitmask_offset'] = 'Slitmask offset (pixels) from the position expected by the slitmask design. '
+        descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
+                                   'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
+                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`'
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
         descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
-                                     'slitmask offset. This parameter is ignored if ``slitmask_offset`` is provided.'
+                                     'slitmask offset. This parameter is optional and is ignored ' \
+                                     'if ``slitmask_offset`` is provided.'
 
         defaults['extract_missing_objs'] = False
         dtypes['extract_missing_objs'] = bool

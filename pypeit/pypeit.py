@@ -518,8 +518,11 @@ class PypeIt(object):
             global_sky_list.append(global_sky)
             sciImg_list.append(sciImg)
 
-        # determine if a slitmask offset exist and assign average offsets over all the detectors
+        # get object positions from slitmask design and slitmask offsets for all the detectors
+        calib_slits = slittrace.get_maskedef_objpos_offset_alldets(all_specobjs, calib_slits, sciImg_list, self.par)
+        # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits)
+        # slitmask design matching and add undetected objects
         all_specobjs = slittrace.assign_addobjs_alldets(all_specobjs, calib_slits, sciImg_list, self.par['reduce'])
 
         # Extract
