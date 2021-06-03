@@ -6,6 +6,7 @@ Module for the SpecObjs and SpecObj classes
 """
 import os
 import re
+from typing import List
 
 import numpy as np
 
@@ -21,6 +22,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit import slittrace
+from pypeit import utils
 
 from IPython import embed
 
@@ -779,6 +781,49 @@ class SpecObjs:
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
+    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
+        """
+        Returns:
+            List[List[int]]: A list of extraction groups, each of which is a list of integer
+                object indices that should be extracted together by core.skysub.local_skysub_extract
+        """
+        nobj = len(self.specobjs)
+
+        if model_full_slit:
+            return [list(range(nobj))]
+
+        # initialize adjacency matrix
+        adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
+        ## build adjacency matrix
+        # adj[i, j] is True iff objects i and j are touching each other
+        for i in range(nobj):
+            left_edge_i = self.specobjs[i].TRACE_SPAT - self.specobjs[i].maskwidth - 1
+            righ_edge_i = self.specobjs[i].TRACE_SPAT + self.specobjs[i].maskwidth + 1
+            for j in range(i + 1, nobj):
+                left_edge_j = self.specobjs[j].TRACE_SPAT - self.specobjs[j].maskwidth - 1
+                righ_edge_j = self.specobjs[j].TRACE_SPAT + self.specobjs[j].maskwidth + 1
+
+                touch = (left_edge_j < righ_edge_i) & (left_edge_i < righ_edge_j)
+
+                if touch.any():
+                    adj[i, j] = True
+                    adj[j, i] = True
+
+        ## Find all connected components in the graph of objects.
+        # One call to DFS will visit every object it can that is "connected" to
+        # the starting object by the touching relation.
+        visited = [False]*nobj
+        groups = []
+        while not all(visited):
+            # pick a starting unvisited vertex
+            v = visited.index(False)
+            group = []
+            # DFS starting at v. Afterwards, group contains every object that
+            # is "connected" to v by the touching relation.
+            utils.DFS(v, visited, group, adj)
+            groups.append(group)
+
+        return groups
 
 
 def lst_to_array(lst, mask=None):
