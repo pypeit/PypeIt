@@ -450,7 +450,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
                 inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
-                maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
+                prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
                 show_profile=False):
 
     """
@@ -517,7 +517,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
     totmask = inmask & (ivar > 0.0) & thismask
 
-    if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
         no_deriv = True
 
