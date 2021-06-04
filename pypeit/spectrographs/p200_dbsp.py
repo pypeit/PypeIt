@@ -251,7 +251,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['lamps'] = ['FeAr']
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
@@ -292,8 +292,13 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         disp = self.get_meta_value(scifile, 'dispname')
-        if disp == '600/4000':
+        dichroic = self.get_meta_value(scifile, 'dichroic')
+        if disp == '600/4000' and dichroic == 'D55':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
+        elif disp == '300/3990' and dichroic == 'D55':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
+        elif disp == '1200/5000' and dichroic == 'D68':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_1200_5000_d68.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
 
@@ -463,8 +468,11 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         disp = self.get_meta_value(scifile, 'dispname')
-        if disp == '316/7500':
+        dichroic = self.get_meta_value(scifile, 'dichroic')
+        if disp == '316/7500' and dichroic == 'D55':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
+        elif disp == '1200/7100' and dichroic == 'D68':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_1200_7100_d68.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
 

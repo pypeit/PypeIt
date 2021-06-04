@@ -106,7 +106,7 @@ def lines():
     line_dict['FeI'] = 2**21
     line_dict['FeII'] = 2**22
     line_dict['UNKNWN'] = 2**23
-
+    line_dict['FeAr'] = 2**24
     #
     return line_dict
 
