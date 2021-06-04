@@ -55,14 +55,14 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,
+            dataext         = 0,        # 
             specaxis        = 1,        # Native spectrum is along the x-axis
             specflip        = True,     # DeVeny CCD has blue at the right
-            spatflip        = False,    #
+            spatflip        = False,    # 
             platescale      = 0.34,     # Arcsec / pixel
-            darkcurr        = 0.0,      # Still need to measure this.
-            saturation      = 65535.,
-            nonlinear       = 1.0,      # Still need to measure this.
+            darkcurr        = 4.5,      # Electrons per hour
+            saturation      = 65535.,   # 16-bit ADC
+            nonlinear       = 1.0,      # -- Still need to measure this.
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(header['GAIN']),
@@ -94,7 +94,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         
         # Extras for config and frametyping
-        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
