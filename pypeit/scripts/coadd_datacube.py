@@ -111,8 +111,8 @@ def coadd_cube(files, parset, overwrite=False):
         if ref_scale is None:
             ref_scale = spec2DObj.scaleimg.copy()
         # Extract the information
-        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel) * (ref_scale/spec2DObj.scaleimg)  # Subtract sky and apply relative sky
-        ivar = spec2DObj.ivarraw / (ref_scale/spec2DObj.scaleimg)**2
+        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel)  # Subtract sky
+        ivar = spec2DObj.ivarraw
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
 
@@ -205,7 +205,6 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Register spatial offsets between all frames if several frames are being combined
     if combine:
-
         # Check if a reference whitelight image should be used to register the offsets
         if cubepar["reference_image"] is None:
             # Generate white light images
@@ -255,6 +254,7 @@ def coadd_cube(files, parset, overwrite=False):
         all_wghts = dc_utils.compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
                                              whitelight_img[:, :, 0], dspat, dwv,
                                              relative_weights=cubepar['relative_weights'])
+
     # Check if a whitelight image should be saved
     if cubepar['save_whitelight']:
         # Check if the white light image still needs to be generated - if so, generate it now
