@@ -11,8 +11,9 @@ from linetools.spectra.io import readspec
 
 import pypeit
 from pypeit.core import flexure, arc
-from pypeit import slittrace
-from pypeit import wavetilts
+
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import cooked_required
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -66,3 +67,42 @@ def test_flex_shift():
 #    pyplot.plot(new_wave, obj_spec.flux)
 #    pyplot.show()
     assert np.abs(flex_dict['shift'] - 43.7) < 0.1
+
+@cooked_required
+def test_flex_multi():
+   
+    spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
+
+    msFlex = flexure.MultiSlitFlexure(s1dfile=spec1d_file) 
+    # Parameters
+    keck_deimos = load_spectrograph('keck_deimos')
+    par = keck_deimos.default_pypeit_par()
+    msFlex.init(keck_deimos, par['flexure'])
+    # Init                    
+    outfile = data_path('tst_multi_flex.fits')
+    # INITIAL SKY LINE STUFF
+    msFlex.measure_sky_lines()
+    # FIT SURFACES
+    msFlex.fit_mask_surfaces()
+    # Apply
+    msFlex.update_fit()
+    # QA
+    #mask = header['TARGET'].strip()
+    #fnames = header['FILENAME'].split('.')
+    #root = mask+'_'+fnames[2]
+    #mdFlex.qa_plots('./', root)
+
+    # Write
+    msFlex.to_file(outfile, overwrite=True)
+
+    # Read
+    msFlex2 = flexure.MultiSlitFlexure.from_file(outfile)
+    msFlex2.to_file(outfile, overwrite=True)
+
+    # Check
+    assert np.all(np.isclose(msFlex2.fit_b, msFlex.fit_b))
+
+    # Clean up
+    if os.path.isfile(outfile):
+        os.remove(outfile)

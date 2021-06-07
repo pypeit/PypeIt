@@ -1,8 +1,8 @@
 .. code-block:: console
 
     $ pypeit_obslog -h
-    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
-                         [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
+    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES]
+                         [-g] [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
                          [-f FILE]
                          spec
     
@@ -37,10 +37,11 @@
                             to search for. Default is the current working
                             directory. (default: /home/dusty/work/PypeIt/doc)
       -k, --keys            Do not produce the log; simply list the pypeit-
-                            specific metadata keys available for this spectrograph
-                            and their associated header cards. Metadata keys with
-                            header cards that are None have no simple mapping
-                            between keyword and header card. (default: False)
+                            specific metadata keys available for this
+                            spectrograph and their associated header cards.
+                            Metadata keys with header cards that are None have no
+                            simple mapping between keyword and header card.
+                            (default: False)
       -c COLUMNS, --columns COLUMNS
                             A comma-separated list of columns to include in the
                             output table. Each column must be a valid pypeit
@@ -56,11 +57,11 @@
                             by pypeit. (default: False)
       -t BAD_TYPES, --bad_types BAD_TYPES
                             Dictates how frames that could not be given a valid
-                            type should be treated. Options are: "keep" to include
-                            them in the output, "rm" to remove them from the
-                            output, "only" to only include the frames with unknown
-                            types in the output (i.e, the frames with determined
-                            types are excluded). (default: keep)
+                            type should be treated. Options are: "keep" to
+                            include them in the output, "rm" to remove them from
+                            the output, "only" to only include the frames with
+                            unknown types in the output (i.e, the frames with
+                            determined types are excluded). (default: keep)
       -g, --groupings       Use this option to only determine the frame type. By
                             default, the script groups frames into expected
                             configuration and calibration groups, and it adds the
@@ -84,10 +85,11 @@
                             If None, the table is just printed to stdout. If set
                             to 'default', the file is set to
                             [spectrograph].obslog. Note the file will *not* be
-                            written if you also include the -i option to embed and
-                            interact with the table (you can write the table using
-                            the astropy.table.Table.write method in the embedded
-                            IPython session). The table is always written in ascii
-                            format using format=ascii.fixed_with for the call to
-                            Astropy.table.Table.write . (default: None)
+                            written if you also include the -i option to embed
+                            and interact with the table (you can write the table
+                            using the astropy.table.Table.write method in the
+                            embedded IPython session). The table is always
+                            written in ascii format using format=ascii.fixed_with
+                            for the call to Astropy.table.Table.write . (default:
+                            None)
     

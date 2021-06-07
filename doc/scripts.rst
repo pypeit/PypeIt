@@ -127,6 +127,46 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
+.. _pypeit_chk_2dslits:
+
+pypeit_chk_2dslits
+==================
+
+This script prints a simple summary of the state of the reduction
+for all of the slits in a given :doc:`out_spec2D` file.  
+Here is a standard call::
+
+    pypeit_chk_2dslits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
+
+And the output to screen will look like:
+
+.. code-block:: bash
+
+    ================ DET 04 ======================
+    SpatID  MaskID  Flags
+    0021    958445    None
+    0073    958470    None
+    0143    958434    None
+    0212    958458    None
+    0278    958410    None
+    0479    958400    None
+    1257    958466    None
+    1352    958392    BOXSLIT
+    1413    958396    None
+    1492    958403    None
+    1568    958457    None
+    1640    958405    None
+    1725    958435    None
+    1818    958422    None
+    1880    958390    BOXSLIT
+    1984    958393    BOXSLIT
+
+The MaskID will be populated only if the instrument includes
+mask design (e.g. Keck/DEIMOS).  The Flags column describes
+failure modes or reasons why the slit was not reduced.
+*None* is the preferred state for a science slit.
+
+
 pypeit_flux_setup
 =================
 

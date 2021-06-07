@@ -2241,10 +2241,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
                                             order=coeff_npoly, npca=npca,
                                             pca_explained_var=pca_explained_var,
-                                        trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
+                                            trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0)**2,
                                             debug=show_pca)
 
         # Trial and error shows weighting by S/N instead of S/N^2 performs better
+        # JXP -- Updated to now be S/N**2, i.e. inverse variance, with fitting fit
 
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()

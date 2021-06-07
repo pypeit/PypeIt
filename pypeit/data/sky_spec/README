@@ -8,3 +8,8 @@ sky_LRISb_600.fits
 sky_LRISb_400.fits  
   -- Taken from LowRedux (lris_sky_blue_400.sav)
   -- JXP on 16 May 2016
+
+sky_single_mg.dat
+  -- List of well vetted sky lines for flexure from Marla Geha
+  -- In vacuum
+  -- JXP on 6 Apr 2021

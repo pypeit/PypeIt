@@ -789,12 +789,7 @@ def polyval2d(x, y, m):
     return z
 
 
-
-
-
-
-
-
+'''
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
                    minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
@@ -868,6 +863,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = None
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
+'''
 
 
 def subsample(frame):
@@ -1023,6 +1019,7 @@ def load_pickle(fname):
     msgs.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
+
 
 ##
 ##This code was originally published by the following individuals for use with

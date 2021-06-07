@@ -11,6 +11,8 @@ This doc goes through a full run of ``PypeIt`` on one of the Shane
 Kast*b* datasets in the Development Suite.
 `(see here) <https://wiki.qt.io/Qt_for_Python>`_
 
+There is now a doc for :doc:`deimos_howto`. 
+
 Setup
 =====
 
@@ -41,7 +43,7 @@ Complete instructions are provided in :doc:`setup`.
 
 Here is my call for these data::
 
-    cd folder_for_reducing   # *not* the raw data folder
+    cd folder_for_reducing   # this is usually *not* the raw data folder
     pypeit_setup -r RAW_PATH/b -s shane_kast_blue -c A
 
 This creates a :doc:`pypeit_file` in the folder named
@@ -120,7 +122,7 @@ simply::
     run_pypeit shane_kast_blue_A.pypeit -o
 
 The "-o" specifies to over-write any existing science
-output files.  As there are none, it superflous but we
+output files.  As there are none, it is superflous but we
 recommend (almost) always using it.
 
 The :doc:`running` doc describes the process in some
@@ -129,7 +131,7 @@ more detail.
 Inspecting Files
 ================
 
-As the code runs a series of files are written to the disk.
+As the code runs, a series of files are written to the disk.
 
 Calibrations
 ------------

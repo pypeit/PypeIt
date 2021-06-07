@@ -54,7 +54,7 @@ class SpecObjs:
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
-        Instantiate from a FITS file
+        Instantiate from a spec1d FITS file
 
         Also tag on the Header
 
