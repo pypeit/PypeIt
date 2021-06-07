@@ -519,11 +519,17 @@ class PypeIt(object):
             sciImg_list.append(sciImg)
 
         # get object positions from slitmask design and slitmask offsets for all the detectors
-        calib_slits = slittrace.get_maskedef_objpos_offset_alldets(all_specobjs, calib_slits, sciImg_list, self.par)
+        spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
+        platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+        calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs, calib_slits, spat_flexure, platescale,
+                                                                  self.par['calibrations']['slitedges']['det_buffer'],
+                                                                  self.par['reduce']['slitmask'])
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits)
         # slitmask design matching and add undetected objects
-        all_specobjs = slittrace.assign_addobjs_alldets(all_specobjs, calib_slits, sciImg_list, self.par['reduce'])
+        all_specobjs = slittrace.assign_addobjs_alldets(all_specobjs, calib_slits, spat_flexure, platescale,
+                                                                  self.par['reduce']['findobj']['find_fwhm'],
+                                                                  self.par['reduce']['slitmask'])
 
         # Extract
         for i, self.det in enumerate(calibrated_det):

@@ -1236,14 +1236,17 @@ def parse_slitspatnum(slitspatnum):
     # Return
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
-def get_maskedef_objpos_offset_alldets(sobjs, calib_slits, sciImg_list, par):
+
+def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par):
     """
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
         calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
-        sciImg_list (:obj:`list`): List of sciImg
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`): PypeIt parameters
+        spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
+        platescale (:obj:`list`): List of platescale for every detector
+        det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
+        slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
 
     Returns:
         List of `SlitTraceSet` with updated information on the traced slit edges
@@ -1253,22 +1256,21 @@ def get_maskedef_objpos_offset_alldets(sobjs, calib_slits, sciImg_list, par):
     # grab corresponding detectors
     calib_dets = np.array([ss.det for ss in calib_slits])
     for i in range(calib_dets.size):
-        msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use
-        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=sciImg_list[i].spat_flexure)
+        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
         on_det = sobjs.DET == calib_dets[i]
-        if par['reduce']['slitmask']['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+        if slitmask_par['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
-            calib_slits[i].get_maskdef_objpos(sciImg_list[i].detector.platescale, slits_left, slits_right,
-                                                    par['calibrations']['slitedges']['det_buffer'])
+            calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
 
             # get slitmask offset in each single detector
             calib_slits[i].get_maskdef_offset(sobjs, slits_left,
-                                          par['reduce']['slitmask']['slitmask_offset'],
-                                          par['reduce']['slitmask']['bright_maskdef_id'],
-                                          par['reduce']['slitmask']['nsig_thrshd'])
+                                          slitmask_par['slitmask_offset'],
+                                          slitmask_par['bright_maskdef_id'],
+                                          slitmask_par['nsig_thrshd'])
 
     return calib_slits
+
 
 def average_maskdef_offset(calib_slits):
     """
@@ -1346,14 +1348,16 @@ def average_maskdef_offset(calib_slits):
     return calib_slits
 
 
-def assign_addobjs_alldets(sobjs, calib_slits, sciImg_list, reduce_par):
+def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):
     """
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
         calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
-        sciImg_list (:obj:`list`): List of sciImg
-        reduce_par (:class:`pypeit.par.pypeitpar.PypeItPar`): PypeIt parameters for `reduce`
+        spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
+        platescale (:obj:`list`): List of platescale for every detector
+        fwhm (:obj:`float`):  Estimate of the FWHM of objects in pixels
+        slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
 
     Returns:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
@@ -1365,17 +1369,17 @@ def assign_addobjs_alldets(sobjs, calib_slits, sciImg_list, reduce_par):
     for i in range(calib_dets.size):
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use
-        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=sciImg_list[i].spat_flexure)
+        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
         on_det = sobjs.DET == calib_dets[i]
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
-        if reduce_par['slitmask']['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+        if slitmask_par['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
-            calib_slits[i].assign_maskinfo(sobjs[on_det], sciImg_list[i].detector.platescale,
-                                           slits_left, TOLER=reduce_par['slitmask']['obj_toler'])
+            calib_slits[i].assign_maskinfo(sobjs[on_det], platescale[i],
+                                           slits_left, TOLER=slitmask_par['obj_toler'])
 
-            if reduce_par['slitmask']['extract_missing_objs']:
+            if slitmask_par['extract_missing_objs']:
                 # Assign undetected objects
-                sobjs = calib_slits[i].mask_add_missing_obj(sobjs[on_det], reduce_par['findobj']['find_fwhm'],
-                                                            slits_left, slits_right)  # Deal with flexure
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs[on_det], fwhm, slits_left,
+                                                            slits_right)  # Deal with flexure
 
     return sobjs
