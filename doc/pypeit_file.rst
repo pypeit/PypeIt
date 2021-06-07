@@ -62,6 +62,8 @@ instrument configuration. There should only be one setup shown (e.g.,
 for that instrument configuration. **You should not edit any of
 this**; it is informational and required. See :doc:`setup`.
 
+.. _data_block:
+
 Data Block
 ----------
 

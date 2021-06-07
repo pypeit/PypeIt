@@ -1,7 +1,8 @@
 .. code-block:: console
 
     $ pypeit_coadd_1dspec -h
-    usage: pypeit_coadd_1dspec [-h] [--debug] [--show] [--par_outfile PAR_OUTFILE]
+    usage: pypeit_coadd_1dspec [-h] [--debug] [--show]
+                               [--par_outfile PAR_OUTFILE]
                                [--test_spec_path TEST_SPEC_PATH]
                                coadd1d_file
     

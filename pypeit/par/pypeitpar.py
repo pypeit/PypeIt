@@ -692,7 +692,8 @@ class FlexurePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
+    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
+                 multi_min_SN=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -725,6 +726,11 @@ class FlexurePar(ParSet):
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
+        # The following are all for MultiDet flexure
+        defaults['multi_min_SN'] = 1
+        dtypes['multi_min_SN'] = [int, float]
+        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
+
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -736,8 +742,10 @@ class FlexurePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
+
         k = np.array([*cfg.keys()])
-        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
+                   'multi_min_SN']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -4614,6 +4622,7 @@ class TelescopePar(ParSet):
     def eff_aperture(self):
         return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
 
+
 class Collate1DPar(ParSet):
     """
     A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
@@ -4700,4 +4709,3 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
-

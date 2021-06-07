@@ -288,6 +288,38 @@ class SpecObj(datamodel.DataContainer):
         else:
             msgs.error("Bad PYPELINE")
 
+    @property
+    def mnx_wave(self):
+        """Return min, max wavelength of the spectrum
+        Uses OPT_WAVE if present and then BOX_WAVE
+
+        Returns:
+            tuple: min, max (float)
+        """
+        mnx = (0., 0.)
+        for pref in ['OPT', 'BOX']:
+            if self[pref+'_WAVE'] is not None:
+                mnx = self[pref+'_WAVE'].min(), self[pref+'_WAVE'].max() 
+            if mnx[0] != 0.:
+                break
+        return mnx
+
+    @property
+    def med_s2n(self):
+        """Return median S/N of the spectrum
+        Uses OPT_COUNTS if present and then BOX_COUNTS
+
+        Returns:
+            float
+        """
+        SN = 0.
+        for pref in ['OPT', 'BOX']:
+            if self[pref+'_COUNTS'] is not None:
+                SN = np.median(self[pref+'_COUNTS'] * np.sqrt(self[pref+'_COUNTS_IVAR']))
+            if SN != 0.:
+                break
+        return SN
+
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the

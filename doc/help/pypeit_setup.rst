@@ -4,8 +4,8 @@
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
                         [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-v VERBOSITY]
     
-    Parse data files to construct a pypeit file in preparation for reduction using
-    'run_pypeit'
+    Parse data files to construct a pypeit file in preparation for reduction
+    using 'run_pypeit'
     
     optional arguments:
       -h, --help            show this help message and exit

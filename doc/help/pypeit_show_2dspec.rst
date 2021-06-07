@@ -6,8 +6,8 @@
                               [--sensfunc SENSFUNC] [--channels CHANNELS]
                               file
     
-    Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
-    folder
+    Display sky subtracted, spec2d image in a Ginga viewer. Run above the
+    Science/ folder
     
     positional arguments:
       file                  PYPIT spec2d file
