@@ -78,12 +78,35 @@ def extract_id(header):
 def get_metadata_by_id(header_keys, file_info):
     """
     Gets the metadata from a FITS header used for the by id portion
-    of the archive. It is intended to be called by a :obj:`pypeit.archive.ArchiveMetadata`
-    object.
+    of the archive. It is intended to be wrapped in by functools
+    partial object that passes in header_keys. file_info
+    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+
+    If another type of file is added to the ArchiveMetadata object, the file_info
+    argument will not be a string, In this case, a list of ``None`` values are
+    returned.
+
 
     Args:
-        filename (str): A filename from a file originating in the KOA.
+        header_keys (list of str):
+            List of FITs header keywrods to read from the file being added to the
+            archive.
+
+        filename (str): A filename for a file to add to the ArchiveMetadata object.
     
+    Returns:
+        data_rows (list of list):
+            The metadata rows built from the FITS file.
+
+        str:
+            The source path of the file to go into the archive. For this
+            function this is the same as file_info.
+
+        str:
+            The base file name to use when copying orig_file to the archive.
+            For this function this is the basename of file_info.
+
+        
     """
     if isinstance(file_info, SourceObject):
         return (None, None, None)
@@ -104,12 +127,33 @@ def get_metadata_by_id(header_keys, file_info):
 def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
     """
     Gets the metadata from a SourceObject instance used for the by object
-    portion of the archive. It is intended to be called by a 
-    :obj:`pypeit.archive.ArchiveMetadata` object.
+    portion of the archive. It is intended to be wrapped in by functools
+    partial object that passes in object_header_keys and spec_obj_keys. file_info
+    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+
+    If another type of file is added to the ArchiveMetadata object, the file_info
+    argument will not be a SourceObject, In this case, a list of ``None`` values are 
+    returned.
 
     Args:
-    source (:obj:`pypeit.scripts.collate_1d.SourceObject`)): The source object containing the
-        headers, filenames and SpecObj information for a coadd output file.
+        object_header_keys (list of str):
+            The keys to read fom the spec1d headers from the SourceObject.
+
+        spec_obj_keys (list of str):
+            The keys to read from the (:obj:`pypeit.specobj.SpecObj`) objects in the SourceObject.
+
+        file_info (:obj:`pypeit.scripts.collate_1d.SourceObject`)): 
+            The source object containing the headers, filenames and SpecObj information for a coadd output file.
+
+    Returns:
+        list of list:
+            The list of metadata rows built from the source object.
+
+        str:
+            The source path of the coadd output file to go into the archive. 
+
+        str:
+            The base file name to use when copying orig_file to the archive.
     """
 
     if not isinstance(file_info, SourceObject):
