@@ -86,7 +86,7 @@ class SpecObj(datamodel.DataContainer):
                                           descr='Optimally extracted noise variance, sky+read '
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
-                                  descr='Mask for optimally extracted flux'),
+                                  descr='Mask for optimally extracted flux. True=good'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
                  'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float,
@@ -118,7 +118,7 @@ class SpecObj(datamodel.DataContainer):
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
-                                  descr='Mask for optimally extracted flux'),
+                                  descr='Mask for optimally extracted flux. True=good'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float,
@@ -210,16 +210,17 @@ class SpecObj(datamodel.DataContainer):
         self.set_name()
 
     @classmethod
-    def from_arrays(cls, PYP_SPEC:str, wave:np.ndarray, 
+    def from_arrays(cls, PYPE_LINE:str, wave:np.ndarray, 
                     counts:np.ndarray, ivar:np.ndarray, mode='OPT', 
                     DET=1, SLITID=0, **kwargs):
-        spectrograph = load_spectrograph(PYP_SPEC)
         # Instantiate
-        slf = cls(spectrograph.pypeline, DET, SLITID=SLITID)
+        slf = cls(PYPE_LINE, DET, SLITID=SLITID)
         # Add in arrays
         for item, attr in zip((wave, counts, ivar), 
                               ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
+        # Mask
+        slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
         return slf
 
     def _init_internals(self):
