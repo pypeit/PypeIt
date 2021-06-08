@@ -218,7 +218,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['ref_idx'] = 13  # The reference index - this should probably be the same for the science frame
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -245,6 +247,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
+        par['reduce']['ref_idx'] = 13  # Slit reference for applying relative spectral illumination correction (should probably be the same as that used in flatpar)
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
