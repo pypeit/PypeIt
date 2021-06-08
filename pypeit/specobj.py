@@ -25,6 +25,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images import detector_container
+from pypeit.spectrographs.util import load_spectrograph
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
@@ -207,6 +208,19 @@ class SpecObj(datamodel.DataContainer):
 
         # Name
         self.set_name()
+
+    @classmethod
+    def from_arrays(cls, PYP_SPEC:str, wave:np.ndarray, 
+                    counts:np.ndarray, ivar:np.ndarray, mode='OPT', 
+                    DET=1, SLITID=0, **kwargs):
+        spectrograph = load_spectrograph(PYP_SPEC)
+        # Instantiate
+        slf = cls(spectrograph.pypeline, DET, SLITID=SLITID)
+        # Add in arrays
+        for item, attr in zip((wave, counts, ivar), 
+                              ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+            setattr(slf, mode+attr, item.astype(float))
+        return slf
 
     def _init_internals(self):
         # Object finding
@@ -532,6 +546,7 @@ class SpecObj(datamodel.DataContainer):
 
     def to_arrays(self, extraction='OPT', fluxed=True):
         """
+        Convert spectrum into np.ndarray arrays
 
         Args:
             extraction (str): Extraction method to convert
@@ -611,6 +626,10 @@ class SpecObj(datamodel.DataContainer):
                     rdict[attr] = True
             else:
                 rdict[attr] = False
-        repr += ' items={}'.format(rdict)
+        #repr += ' items={}'.format(rdict)
+        repr += ' items={'
+        for key in rdict.keys():
+            if rdict[key] is not False:
+                repr += '{}: {}\n'.format(key, rdict[key])
         repr = repr + '>'
         return repr
