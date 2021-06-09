@@ -25,7 +25,6 @@ from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images import detector_container
-from pypeit.spectrographs.util import load_spectrograph
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
@@ -118,7 +117,7 @@ class SpecObj(datamodel.DataContainer):
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
-                                  descr='Mask for optimally extracted flux. True=good'),
+                                  descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
                  'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float,
