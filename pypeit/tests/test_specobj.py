@@ -103,6 +103,6 @@ def test_from_arrays():
     wave = np.linspace(5000., 6000, 1000)
     flux = np.ones_like(wave)
     ivar = 0.1*np.ones_like(wave)
-    sobj = specobj.SpecObj.from_arrays('keck_deimos', wave, flux, ivar)
+    sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, flux, ivar)
 
     assert sobj.OPT_WAVE[0] == 5000.
