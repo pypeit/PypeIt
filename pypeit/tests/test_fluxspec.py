@@ -11,7 +11,7 @@ from IPython import embed
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.scripts import flux_calib
-from pypeit.tests.tstutils import cooked_required
+from pypeit.tests.tstutils import cooked_required, telluric_required
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs
@@ -75,6 +75,7 @@ def test_from_sens_func(kast_blue_files):
     os.remove(outfile)
 
 
+@telluric_required
 def test_wmko_flux_std():
     # Do it
     wmko_file = data_path('2017may28_d0528_0088.fits')

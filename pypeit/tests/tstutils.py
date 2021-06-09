@@ -4,6 +4,7 @@ Odds and ends in support of tests
 import os
 import copy
 import pytest
+from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -32,6 +33,12 @@ dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
                             reason='no dev-suite cooked directory')
+
+# Tests require the Telluric file (Mauna Kea)
+telluric_required = pytest.mark.skipif(not os.path.isfile(
+    os.path.join(resource_filename('pypeit', 'data'), 'telluric',
+    'TelFit_MaunaKea_3100_26100_R20000.fits')),
+                            reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
 try:
