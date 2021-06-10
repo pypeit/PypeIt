@@ -17,9 +17,9 @@
                             this calibration group. If None, use the first
                             calibration group. (default: None)
       -d DETECTOR, --detector DETECTOR
-                            Only analyze the specified detector; otherwise analyze
-                            all or detectors selected by the pypeit file, if
-                            provided. (default: None)
+                            Only analyze the specified detector; otherwise
+                            analyze all or detectors selected by the pypeit file,
+                            if provided. (default: None)
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier, which is only used if
                             providing files directly: bok_bc, gemini_flamingos1,
@@ -39,9 +39,9 @@
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
                             wht_isis_blue, wht_isis_red (default: None)
       -b BINNING, --binning BINNING
-                            Image binning in spectral and spatial directions. Only
-                            used if providing files directly; default is 1,1.
-                            (default: None)
+                            Image binning in spectral and spatial directions.
+                            Only used if providing files directly; default is
+                            1,1. (default: None)
       -p REDUX_PATH, --redux_path REDUX_PATH
                             Path to top-level output directory. Default is the
                             current working directory. (default: None)
@@ -52,6 +52,6 @@
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       --debug               Run in debug mode. (default: False)
-      --show                Show the stages of trace refinements (only for the new
-                            code). (default: False)
+      --show                Show the stages of trace refinements (only for the
+                            new code). (default: False)
     

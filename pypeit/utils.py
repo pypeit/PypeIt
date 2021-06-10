@@ -11,6 +11,7 @@ import pickle
 import warnings
 import itertools
 from glob import glob
+from typing import List
 
 from IPython import embed
 
@@ -788,12 +789,7 @@ def polyval2d(x, y, m):
     return z
 
 
-
-
-
-
-
-
+'''
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
                    minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
@@ -867,6 +863,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = None
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
+'''
 
 
 def subsample(frame):
@@ -1022,6 +1019,7 @@ def load_pickle(fname):
     msgs.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
+
 
 ##
 ##This code was originally published by the following individuals for use with
@@ -1294,3 +1292,31 @@ def find_single_file(file_pattern):
     else:
         msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
         return files[0]
+
+def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
+    """
+    Depth-First Search of graph given by matrix `adj` starting from `v`.
+    Updates `visited` and `group`.
+
+    Args:
+        v (int): initial vertex
+        visited (List[bool]): List keeping track of which vertices have been
+            visited at any point in traversing the graph. `visited[i]` is True
+            iff vertix `i` has been visited before.
+        group (List[int]): List keeping track of which vertices have been
+            visited in THIS CALL of DFS. After DFS returns, `group` contains
+            all members of the connected component containing v. `i in group`
+            is True iff vertex `i` has been visited in THIS CALL of DFS.
+        adj (np.ndarray): Adjacency matrix description of the graph. `adj[i,j]`
+            is True iff there is a vertex between `i` and `j`.
+    """
+    stack = []
+    stack.append(v)
+    while stack:
+        u = stack.pop()
+        if not visited[u]:
+            visited[u] = True
+            group.append(u)
+            neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
+            for neighbor in neighbors:
+                stack.append(neighbor)

@@ -412,39 +412,54 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
-    # Test main, also test that --par_outfile works
+    # Mocks for testing main
     class MockCoadd:
         def run(*args, **kwargs):
             pass
 
-        def save(*args, **kwargs):
-            pass
+        def save(self, file):
+            if os.path.basename(file) == "J232856.20-030325.90_DEIMOS_20100913.fits":
+                raise ValueError("test exception")
+
     def mock_get_instance(*args, **kwargs):
         return MockCoadd()
 
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
 
+        # Test:
+        # * main
+        # * creation of collate1d.par
+        # * parsing of pixel tolerance
+        # * detection of spec2d files and excluding by slit bitmask
+
         os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--tolerance', '3', config_file_spec1d])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--tolerance', '3', config_file_spec1d, '--exclude_slit_bm', 'BADREDUCE'])
         assert collate_1d.main(parsed_args) == 0
         assert os.path.exists(par_file)
         # Remove par_file to avoid a warning
         os.unlink(par_file)
         
-        # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
-        # if exclude_slit_flags is empty.
-        # Also test specifying archive dir, including copying a file to it
-        # To make this easier this uses a very large tolerance (3 degrees) to ensure there's only
-        # one output
+        # Test:
+        # * default units of arcsec for tolerance when match is ra/dec
+        # * that a spec2d file isn't needed if exclude_slit_flags is empty.
+        # * test specifying archive dir, including copying a file to it
+        # * test exception handling when one file fails
+        # The 240 arsec tolerance is to ensure there's only two outputs, one of which the mock 
+        # coadd object will fail
         coadd_output = "J232913.02-030531.05_DEIMOS_20100913.fits"
         with open(coadd_output, "w") as f:
             print("test data", file=f)
         archive_dir = tmp_path / 'archive'
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3d', '--spec1d_files', expanded_alt_spec1d, '--archive_dir', str(archive_dir)])
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '240', '--spec1d_files', expanded_alt_spec1d, '--archive_dir', str(archive_dir)])
         assert collate_1d.main(parsed_args) == 0
         assert os.path.exists(archive_dir / coadd_output)
+
+        # Test parsing of units in ra/dec tolerance
+        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3d', '--spec1d_files', expanded_alt_spec1d])
+        assert collate_1d.main(parsed_args) == 0
+        
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

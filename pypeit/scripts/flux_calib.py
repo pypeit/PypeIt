@@ -10,7 +10,7 @@ import argparse
 import os
 from pypeit import fluxcalibrate
 from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
+
 from astropy.io import fits
 
 from IPython import embed

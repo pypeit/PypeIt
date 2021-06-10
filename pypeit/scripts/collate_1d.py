@@ -15,6 +15,7 @@ from glob import glob
 import os.path
 from functools import partial
 import re
+import traceback
 
 import numpy as np
 from astropy.coordinates import Angle
@@ -77,12 +78,35 @@ def extract_id(header):
 def get_metadata_by_id(header_keys, file_info):
     """
     Gets the metadata from a FITS header used for the by id portion
-    of the archive. It is intended to be called by a :obj:`pypeit.archive.ArchiveMetadata`
-    object.
+    of the archive. It is intended to be wrapped in by functools
+    partial object that passes in header_keys. file_info
+    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+
+    If another type of file is added to the ArchiveMetadata object, the file_info
+    argument will not be a string, In this case, a list of ``None`` values are
+    returned.
+
 
     Args:
-        filename (str): A filename from a file originating in the KOA.
+        header_keys (list of str):
+            List of FITs header keywrods to read from the file being added to the
+            archive.
+
+        filename (str): A filename for a file to add to the ArchiveMetadata object.
     
+    Returns:
+        data_rows (list of list):
+            The metadata rows built from the FITS file.
+
+        str:
+            The source path of the file to go into the archive. For this
+            function this is the same as file_info.
+
+        str:
+            The base file name to use when copying orig_file to the archive.
+            For this function this is the basename of file_info.
+
+        
     """
     if isinstance(file_info, SourceObject):
         return (None, None, None)
@@ -100,28 +124,51 @@ def get_metadata_by_id(header_keys, file_info):
 
     return ([data_row], file_info, filename)
 
-def get_object_based_metadata(object_header_keys, spec_obj_keys, source_header_keys, file_info):
+def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
     """
     Gets the metadata from a SourceObject instance used for the by object
-    portion of the archive. It is intended to be called by a 
-    :obj:`pypeit.archive.ArchiveMetadata` object.
+    portion of the archive. It is intended to be wrapped in by functools
+    partial object that passes in object_header_keys and spec_obj_keys. file_info
+    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+
+    If another type of file is added to the ArchiveMetadata object, the file_info
+    argument will not be a SourceObject, In this case, a list of ``None`` values are 
+    returned.
 
     Args:
-    source (:obj:`pypeit.scripts.collate_1d.SourceObject`)): The source object containing the
-        headers, filenames and SpecObj information for a coadd output file.
+        object_header_keys (list of str):
+            The keys to read fom the spec1d headers from the SourceObject.
+
+        spec_obj_keys (list of str):
+            The keys to read from the (:obj:`pypeit.specobj.SpecObj`) objects in the SourceObject.
+
+        file_info (:obj:`pypeit.scripts.collate_1d.SourceObject`)): 
+            The source object containing the headers, filenames and SpecObj information for a coadd output file.
+
+    Returns:
+        list of list:
+            The list of metadata rows built from the source object.
+
+        str:
+            The source path of the coadd output file to go into the archive. 
+
+        str:
+            The base file name to use when copying orig_file to the archive.
     """
 
     if not isinstance(file_info, SourceObject):
         return (None, None, None)
 
-    header_data = [file_info.spec1d_header_list[0][x] for x in object_header_keys]
-    spec_obj_data = [file_info.spec_obj_list[0][x] for x in spec_obj_keys]
-    shared_data = [os.path.basename(file_info.coaddfile)] + spec_obj_data + header_data
+    coaddfile = [os.path.basename(file_info.coaddfile)]
+
     result_rows = []
-    for header in file_info.spec1d_header_list:
+    for i in range(len(file_info.spec1d_header_list)):
+        spec_obj = file_info.spec_obj_list[i]
+        header = file_info.spec1d_header_list[i]
+        spec_obj_data = [spec_obj[x] for x in spec_obj_keys]
         id = extract_id(header)
-        unique_data = [header[x] if x in header else None for x in source_header_keys]
-        result_rows.append(shared_data + [id] + unique_data)
+        header_data = [header[x] if x in header else None for x in object_header_keys]
+        result_rows.append(coaddfile + spec_obj_data + [id] + header_data)
 
     return (result_rows, file_info.coaddfile, file_info.coaddfile)
 
@@ -424,6 +471,7 @@ def main(args):
     # fluxing etc goes here
 
     # Coadd the spectra
+    successful_source_list = []
     for source in source_list:
 
         msgs.info(f'Creating {source.coaddfile} from the following sources:')
@@ -431,7 +479,13 @@ def main(args):
             msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} ({source.spec_obj_list[i].MASKDEF_OBJNAME})')
 
         if not args.dry_run:
-            coadd(par, source)
+            try:
+                coadd(par, source)
+                successful_source_list.append(source)
+            except Exception:
+                formatted_exception = traceback.format_exc()
+                msgs.warn(formatted_exception)
+                msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
 
     # Archive the files and metadata
     if not args.dry_run:
@@ -446,7 +500,7 @@ def main(args):
         archive = create_archive(metadata_root, copy)
         archive.add(spec1d_files)
         archive.add(spec2d_files)
-        archive.add(source_list)
+        archive.add(successful_source_list)
         archive.save()
 
     total_time = datetime.now() - start_time
@@ -480,9 +534,8 @@ def create_archive(archive_root, copy_to_archive):
     """
 
     ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
     OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
-    OBJECT_BASED_SOURCE_KEYS = ['GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
 
     by_id_names = ['id', 'filename'] + [x.lower() for x in ID_BASED_HEADER_KEYS]
     by_id_metadata = ArchiveMetadata(os.path.join(archive_root, "by_id_meta.dat"), 
@@ -492,16 +545,14 @@ def create_archive(archive_root, copy_to_archive):
 
     by_object_names = ['filename'] + \
                         [x.lower() for x in OBJECT_BASED_SPEC_KEYS] + \
-                        [x.lower() for x in OBJECT_BASED_HEADER_KEYS] + \
                         ['source_id'] + \
-                        [x.lower() for x in OBJECT_BASED_SOURCE_KEYS]
+                        [x.lower() for x in OBJECT_BASED_HEADER_KEYS]
 
     by_object_metadata = ArchiveMetadata(os.path.join(archive_root, "by_object_meta.dat"),
                                             by_object_names,
                                             partial(get_object_based_metadata, 
                                                     OBJECT_BASED_HEADER_KEYS,
-                                                    OBJECT_BASED_SPEC_KEYS,
-                                                    OBJECT_BASED_SOURCE_KEYS),
+                                                    OBJECT_BASED_SPEC_KEYS),
                                             append=True)
 
     # metadatas in archive object
