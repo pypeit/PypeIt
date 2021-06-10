@@ -1335,8 +1335,10 @@ def average_maskdef_offset(calib_slits):
                 median_off_red = median_off_blue + 1.
             # at this point, we should never have both blue_slitmask_offsets and red_slitmask_offsets all zero.
 
-            msgs.warn('Average Slitmask offset for the blue detectors: {:.2f} pixels.'.format(median_off_blue))
-            msgs.warn('Average Slitmask offset for the red detectors: {:.2f} pixels.'.format(median_off_red))
+            if np.any([det in blue_dets for det in calib_dets]):
+                msgs.info('Average Slitmask offset for the blue detectors: {:.2f} pixels.'.format(median_off_blue))
+            if np.any([det in red_dets for det in calib_dets]):
+                msgs.info('Average Slitmask offset for the red detectors: {:.2f} pixels.'.format(median_off_red))
 
             # update the slit calibration with the average slitmask offset
             for i in range(len(calib_slits)):
@@ -1369,17 +1371,15 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
     for i in range(calib_dets.size):
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use
-        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
+        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])  # Deal with flexure
         on_det = sobjs.DET == calib_dets[i]
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
         if slitmask_par['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
-            calib_slits[i].assign_maskinfo(sobjs[on_det], platescale[i],
-                                           slits_left, TOLER=slitmask_par['obj_toler'])
+            calib_slits[i].assign_maskinfo(sobjs[on_det], platescale[i], slits_left, TOLER=slitmask_par['obj_toler'])
 
             if slitmask_par['extract_missing_objs']:
                 # Assign undetected objects
-                sobjs = calib_slits[i].mask_add_missing_obj(sobjs[on_det], fwhm, slits_left,
-                                                            slits_right)  # Deal with flexure
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
 
     return sobjs

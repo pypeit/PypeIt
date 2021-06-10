@@ -16,6 +16,8 @@ import numpy as np
 
 from scipy import interpolate
 from astropy.io import fits
+from astropy.coordinates import SkyCoord, Angle
+from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -661,6 +663,48 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             bpm_img[:,931:934] = 1
 
         return bpm_img
+
+    def get_telescope_offset(self, file_list):
+        """
+        For a list of frames compute telescope pointing offset w.r.t. the first frame.
+        Note that the object in the slit will appear moving in the opposite direction (=-tel_off)
+
+        Args:
+            file_list (:obj:`list`): List of frames (including the path) for which telescope offset is desired.
+            Both raw frames and spec2d files can be used.
+
+        Returns:
+            tel_off (:obj:`list`) : List of telescope offsets (in arcsec) w.r.t. the first frame
+
+        """
+        # file (can be a raw or a spec2d)
+        deimos_files = np.atleast_1d(file_list)
+        # headers for all the files
+        hdrs = np.array([self.get_headarr(file) for file in deimos_files], dtype=object)
+        # mjd for al the files
+        mjds = np.array([self.get_meta_value(aa, 'mjd') for aa in hdrs], dtype=object)
+        # sort
+        sorted_by_mjd = np.argsort(mjds)
+        # telescope coordinates
+        # precision: RA=0.15", Dec=0.1"
+        ras = np.array([self.get_meta_value(aa, 'ra') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        decs = np.array([self.get_meta_value(aa, 'dec') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        coords = SkyCoord(ra=ras, dec=decs, frame='fk5', unit='deg')
+
+        # compute telescope offsets with respect to the first frame
+        tel_off = []
+        for i in range(len(coords)):
+            offset = coords[0].separation(coords[i])
+            pa = coords[0].position_angle(coords[i])
+            # ROTPOSN take into account small changes in the mask PA
+            maskpa = Angle((hdrs[i][0]['ROTPOSN'] + 90.) * units.deg)
+            # tetha = PA in the slitmask reference frame
+            theta = pa - maskpa
+            # telescope offset
+            tel_off.append(offset.arcsec * np.cos(theta))
+
+        return np.array(tel_off)
+
 
     def get_slitmask(self, filename):
         """
