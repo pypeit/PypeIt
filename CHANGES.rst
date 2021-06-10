@@ -17,6 +17,7 @@
 - Implement multi-detector flexure estimates
 - Fix error in variance for numpy fitting routines
 - Introduce HOWTO for DEIMOS
+- Method for slupring in a standard observed and reduced by WMKO
 
 
 1.4.0 (23 Apr 2021)
