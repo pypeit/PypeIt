@@ -1495,8 +1495,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 Mask of sky regions where the spatial illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
+        ref_idx = self.par['calibrations']['flatfield']['ref_idx']
         gpm = (self.sciImg.fullmask == 0)
-        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
+        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits, ref_idx=ref_idx,
                                                     model=global_sky, gpmask=gpm, skymask=skymask, trim=trim,
                                                     flexure=self.spat_flexure_shift)
         # Now apply the correction to the science frame

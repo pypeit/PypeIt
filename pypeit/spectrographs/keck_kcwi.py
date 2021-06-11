@@ -213,7 +213,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 200.0
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
@@ -247,7 +247,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
-        par['reduce']['ref_idx'] = 13  # Slit reference for applying relative spectral illumination correction (should probably be the same as that used in flatpar)
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True

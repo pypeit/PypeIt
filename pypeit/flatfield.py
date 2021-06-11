@@ -1210,7 +1210,7 @@ class FlatField(object):
 
         ### STEP 1
         relscl_model = illum_profile_spectral(rawflat, waveimg, self.slits, ref_idx=self.flatpar['ref_idx'],
-                                              model=None, gpmask=gpm, skymask=None, trim=trim, flexure=flex)
+                                              smooth_npix=self.flatpar["spec_samp_coarse"], model=None, gpmask=gpm, skymask=None, trim=trim, flexure=flex)
         # Invert
         scale_model = 1 / (relscl_model + (relscl_model == 0))
         return scale_model
@@ -1362,7 +1362,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
             clear = False
 
 
-def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
     """
     Generate a rough estimate of the relative spectral scaling of slits
     using a low order polynomial. This routine is for slit-based IFUs.
@@ -1377,6 +1377,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask
         Information stored about the slits
     ref_idx : int
         Index of slit that is used as the reference.
+    smooth_npix : int
+        smoothing used for determining smoothly varying S/N ratio weights by sn_weights
     model : `numpy.ndarray`_, None
         A model of the rawimg data. If None, rawimg will be used.
     gpmask : `numpy.ndarray`_, None
@@ -1395,6 +1397,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask
         An image containing the appropriate scaling
     """
     msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(ref_idx))
+    #embed()
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1431,7 +1434,8 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask
     # Iterate until convergence
     maxiter = 10
     lo_prev, hi_prev = 1.0E-32, 1.0E32
-    sn_smooth_npix = int(np.round(wave_ref.size / 100))
+    #sn_smooth_npix = smooth_npix if (smooth_npix is not None) else int(np.round(wave_ref.size / 10))
+    sn_smooth_npix = int(np.round(wave_ref.size / 10))
     for rr in range(maxiter):
         # Reset the relative scaling for this iteration
         relscl_model = np.ones_like(rawimg)
@@ -1443,7 +1447,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask
             onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
             onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])
             onslit_b_olap = onslit_b & gpm & (waveimg >= mnmx_wv[wvsrt[ss], 0]) & (waveimg <= mnmx_wv[wvsrt[ss], 1]) & skymask_now
-            hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=rawimg_copy[onslit_b_olap])
+            hist, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins, weights=modelimg[onslit_b_olap])
             cntr, edge = np.histogram(waveimg[onslit_b_olap], bins=wavebins)
             cntr = cntr.astype(np.float)
             cntr *= spec_ref
@@ -1486,14 +1490,16 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, model=None, gpmask
             onslit_ref_trim = (slitid_img_trim == slits.spat_id[ss]) & gpm & skymask_now
             hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=ricp[onslit_ref_trim]/scaleImg[onslit_ref_trim])
             histScl, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=scaleImg[onslit_ref_trim])
+            histAlt, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=scaleImgAlt[onslit_ref_trim])
             cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
             cntr = cntr.astype(np.float)
             norm = (cntr != 0) / (cntr + (cntr == 0))
             spec_ref = hist * norm
             scale_ref = histScl * norm
-            plt.subplot(211)
-            plt.plot(wave_ref, spec_ref)
-            plt.subplot(212)
+            scale_refAlt = histAlt * norm
+            #plt.subplot(211)
+            plt.plot(wave_ref, scale_refAlt)
+            #plt.subplot(212)
             plt.plot(wave_ref, scale_ref)
         plt.show()
 
