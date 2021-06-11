@@ -5,7 +5,7 @@
                       [-d DETECTOR] [-c]
                       pypeit_file
     
-    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.3.4.dev367+gb4908c13b.d20210503[0m
+    ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.4.1.dev151+gf322be816[0m
     ##  
     ##  Available spectrographs include:
     ##   bok_bc, gemini_flamingos1, gemini_flamingos2, gemini_gmos_north_e2v,
@@ -16,10 +16,11 @@
     ##   keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b, lbt_mods1r,
     ##   lbt_mods2b, lbt_mods2r, magellan_fire, magellan_fire_long,
     ##   magellan_mage, mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
-    ##   mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
-    ##   shane_kast_blue, shane_kast_red, shane_kast_red_ret, soar_goodman_red,
-    ##   tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
-    ##   vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue, wht_isis_red
+    ##   mmt_mmirs, not_alfosc, ntt_efosc2, p200_dbsp_blue, p200_dbsp_red,
+    ##   p200_tspec, shane_kast_blue, shane_kast_red, shane_kast_red_ret,
+    ##   soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
+    ##   vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+    ##   wht_isis_red
     
     positional arguments:
       pypeit_file           PypeIt reduction file (must have .pypeit extension)
