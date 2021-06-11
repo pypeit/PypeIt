@@ -3184,7 +3184,7 @@ class ReducePar(ParSet):
     """
 
     def __init__(self, findobj=None, skysub=None, extraction=None,
-                 cube=None, trim_edge=None, ref_idx=None, slitmask=None):
+                 cube=None, trim_edge=None, slitmask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3225,11 +3225,6 @@ class ReducePar(ParSet):
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
 
-        defaults['ref_idx'] = 0
-        dtypes['ref_idx'] = int
-        descr['ref_idx'] = 'The index of a reference slit (0-indexed) used for estimating ' \
-                           'the relative spectral sensitivity (or the relative blaze).'
-
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                              values=list(pars.values()),
@@ -3243,7 +3238,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'ref_idx', 'slitmask']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge', 'slitmask']
         badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
