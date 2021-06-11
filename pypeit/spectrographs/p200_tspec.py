@@ -137,6 +137,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
+        #par['calibrations']['slitedges']['edge_thresh'] = 15.
         par['calibrations']['slitedges']['trace_thresh'] = 5.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3
         par['calibrations']['slitedges']['left_right_pca'] = True

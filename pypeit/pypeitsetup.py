@@ -214,7 +214,7 @@ class PypeItSetup:
         if not os.path.isdir(output_path):
             os.makedirs(output_path)
         # Set the output file name
-        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        date = str(datetime.date.today().strftime('%Y-%m-%d'))
         pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
         msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         

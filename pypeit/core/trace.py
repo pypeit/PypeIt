@@ -989,10 +989,11 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     # NOTE: keck_run_july changes: Added down-weighting of masked parts
     # of the trace.
     # TODO: This feels arbitrary
-#    trace_fit_ivar[_trace_bpm] = 0.1
-    trace_fit_ivar[_trace_bpm] = 0.01
+#    trace_fit_ivar[_trace_bpm] = 0.1**2
+    trace_fit_ivar[_trace_bpm] = 0.01**2
     # JFH Changed this parameter from 0.1 to 0.01 to fix problem with NIRES slit extrapolation. In the future
     # we may need to make this parameter, but don't touch this number unless you know what you are doing.
+    # JXP -- Squared to deal with proper usage of numpy legendre fitting routine
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data.
