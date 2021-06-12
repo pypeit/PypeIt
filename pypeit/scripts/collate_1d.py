@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-#
-# See top-level LICENSE file for Copyright information
-#
-# -*- coding: utf-8 -*-
 """
 This script collates multiple 1d spectra in multiple files by object, 
 runs flux calibration/coadding on them, and produces files suitable
@@ -10,7 +5,6 @@ for KOA archiving.
 """
 
 from datetime import datetime
-import argparse
 from glob import glob
 import os.path
 from functools import partial
@@ -29,19 +23,9 @@ from pypeit import par
 from pypeit.utils import is_float
 from pypeit.archive import ArchiveMetadata, ArchiveDir
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
+from pypeit.scripts import scriptbase
 from pypeit.slittrace import SlitTraceBitMask
 from pypeit.spec2dobj import AllSpec2DObj
-
-# A trick from stackoverflow to allow multi-line output in the help:
-#https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
-class SmartFormatter(argparse.HelpFormatter):
-
-    def _split_lines(self, text, width):
-        if text.startswith('R|'):
-            return text[2:].splitlines()
-        # this is the RawTextHelpFormatter._split_lines
-        return argparse.HelpFormatter._split_lines(self, text, width)
-
 
 
 def extract_id(header):
@@ -377,138 +361,6 @@ def build_parameters(args):
 
     return params, spectrograph, spec1d_files
 
-def parse_args(options=None, return_parser=False):
-    """Parse the command line arguments"""
-
-    # A blank Colate1DPar to avoid duplicating the help text.
-    blank_par = pypeitpar.Collate1DPar()
-
-    parser = argparse.ArgumentParser(description='Flux/Coadd multiple 1d spectra from multiple nights and prepare a directory for the KOA.',
-                                     formatter_class=SmartFormatter)
-
-    parser.add_argument('input_file', type=str,
-                        help='R|(Optional) File for guiding the collate process.\n'
-                             'Parameters in this file are overidden by the command\n'
-                             'line. The file must have the following format:\n'
-                             '\n'
-                             '[collate1d]\n'
-                             '  tolerance             <tolerance>\n'
-                             '  archive_root          <directory for archive files>\n'
-                             '  exclude_slit_trace_bm <slit types to exclude>\n'
-                             '  exclude_serendip      If set serendipitous objects are skipped.\n'  
-                             '  match_using           Whether to match using "pixel" or\n'
-                             '                        "ra/dec"\n'
-                             '  dry_run               If set the matches are displayed\n'
-                             '                        without any processing\n'
-                             '\n'
-                             'spec1d read\n'
-                             '<path to spec1d files, wildcards allowed>\n'
-                             '...\n'
-                             'end\n',                        
-                        nargs='?')
-    parser.add_argument('--spec1d_files', type=str, nargs='*', help='One or more spec1d files to ' \
-                        'flux/coadd/archive. Can contain wildcards')
-    parser.add_argument('--par_outfile', default='collate1d.par', type=str,
-                        help='Output to save the parameters')
-    parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
-    parser.add_argument('--match', type=str, choices=blank_par.options['match_using'], help=blank_par.descr['match_using'])
-    parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
-    parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
-    parser.add_argument('--exclude_slit_bm', type=str, nargs='*', help=blank_par.descr['exclude_slit_trace_bm'])
-    parser.add_argument('--exclude_serendip', action='store_true', help=blank_par.descr['exclude_serendip'])
-
-    if return_parser:
-        return parser
-
-    return parser.parse_args() if options is None else parser.parse_args(options)
-
-def main(args):
-
-    start_time = datetime.now()
-    (par, spectrograph, spec1d_files) = build_parameters(args)
-
-    # Write the par to disk
-    print("Writing the parameters to {}".format(args.par_outfile))
-    par.to_config(args.par_outfile)
-
-    # Make sure archive dir, if specified, exists
-    if par['collate1d']['archive_root'] is not None:
-        os.makedirs(par['collate1d']['archive_root'], exist_ok=True)
-
-    # Parse the tolerance based on the match type
-    if par['collate1d']['match_using'] == 'pixel':
-        tolerance = float(par['collate1d']['tolerance'])
-    else:
-        # For ra/dec matching, the default unit is arcseconds. We check for
-        # this case by seeing if the passed in tolerance is a floating point number
-        if is_float(par['collate1d']['tolerance']):
-            tolerance =  float(par['collate1d']['tolerance'])
-        else:
-            tolerance = Angle(par['collate1d']['tolerance']).arcsec
-
-
-    # Filter out unwanted source objects based on our parameters.
-    # First filter them out based on the exclude_slit_trace_bm parameter
-    if len(par['collate1d']['exclude_slit_trace_bm']) > 0:
-        spec2d_files = find_spec2d_from_spec1d(spec1d_files)
-        exclude_map = find_slits_to_exclude(spec2d_files, par)
-    else:
-        spec2d_files = []
-        exclude_map = dict()
-
-    source_objects = SourceObject.build_source_objects(spec1d_files, par['collate1d']['match_using'])
-
-    # Filter based the coadding ex_value, and the exclude_serendip 
-    # boolean
-    objects_to_coadd = exclude_source_objects(source_objects, exclude_map, par)
-
-
-    # Collate the spectra
-    source_list = collate_spectra_by_source(objects_to_coadd, tolerance)
-
-    #sensfunc, how to identify standard file
-
-    # fluxing etc goes here
-
-    # Coadd the spectra
-    successful_source_list = []
-    for source in source_list:
-
-        msgs.info(f'Creating {source.coaddfile} from the following sources:')
-        for i in range(len(source.spec_obj_list)):
-            msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} ({source.spec_obj_list[i].MASKDEF_OBJNAME})')
-
-        if not args.dry_run:
-            try:
-                coadd(par, source)
-                successful_source_list.append(source)
-            except Exception:
-                formatted_exception = traceback.format_exc()
-                msgs.warn(formatted_exception)
-                msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
-
-    # Archive the files and metadata
-    if not args.dry_run:
-
-        if par['collate1d']['archive_root'] is not None:
-            metadata_root = par['collate1d']['archive_root']
-            copy = True
-        else:
-            metadata_root = os.getcwd()
-            copy = False
-
-        archive = create_archive(metadata_root, copy)
-        archive.add(spec1d_files)
-        archive.add(spec2d_files)
-        archive.add(successful_source_list)
-        archive.save()
-
-    total_time = datetime.now() - start_time
-
-    msgs.info(f'Total duration: {total_time}')
-
-    return 0
-
 def create_archive(archive_root, copy_to_archive):
     """Create and Archive with the desired metadata information.
 
@@ -560,9 +412,140 @@ def create_archive(archive_root, copy_to_archive):
                       copy_to_archive=copy_to_archive)
 
 
+class Collate1D(scriptbase.ScriptBase):
 
-def entry_point():
-    main(parse_args())
+    @classmethod
+    def get_parser(cls, width=None):
+        # A blank Colate1DPar to avoid duplicating the help text.
+        blank_par = pypeitpar.Collate1DPar()
 
-if __name__ == '__main__':
-    entry_point()
+        parser = super().get_parser(description='Flux/Coadd multiple 1d spectra from multiple '
+                                                'nights and prepare a directory for the KOA.',
+                                    width=width, formatter=scriptbase.SmartFormatter)
+
+        parser.add_argument('input_file', type=str,
+                            help='R|(Optional) File for guiding the collate process.\n'
+                                 'Parameters in this file are overidden by the command\n'
+                                 'line. The file must have the following format:\n'
+                                 '\n'
+                                 '[collate1d]\n'
+                                 '  tolerance             <tolerance>\n'
+                                 '  archive_root          <directory for archive files>\n'
+                                 '  exclude_slit_trace_bm <slit types to exclude>\n'
+                                 '  exclude_serendip      If set serendipitous objects are skipped.\n'  
+                                 '  match_using           Whether to match using "pixel" or\n'
+                                 '                        "ra/dec"\n'
+                                 '  dry_run               If set the matches are displayed\n'
+                                 '                        without any processing\n'
+                                 '\n'
+                                 'spec1d read\n'
+                                 '<path to spec1d files, wildcards allowed>\n'
+                                 '...\n'
+                                 'end\n',                        
+                            nargs='?')
+        parser.add_argument('--spec1d_files', type=str, nargs='*',
+                            help='One or more spec1d files to flux/coadd/archive. '
+                                 'Can contain wildcards')
+        parser.add_argument('--par_outfile', default='collate1d.par', type=str,
+                            help='Output to save the parameters')
+        parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
+        parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
+                            help=blank_par.descr['match_using'])
+        parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
+        parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
+        parser.add_argument('--exclude_slit_bm', type=str, nargs='*',
+                            help=blank_par.descr['exclude_slit_trace_bm'])
+        parser.add_argument('--exclude_serendip', action='store_true',
+                            help=blank_par.descr['exclude_serendip'])
+        return parser
+
+    @staticmethod
+    def main(args):
+
+        start_time = datetime.now()
+        (par, spectrograph, spec1d_files) = build_parameters(args)
+
+        # Write the par to disk
+        print("Writing the parameters to {}".format(args.par_outfile))
+        par.to_config(args.par_outfile)
+
+        # Make sure archive dir, if specified, exists
+        if par['collate1d']['archive_root'] is not None:
+            os.makedirs(par['collate1d']['archive_root'], exist_ok=True)
+
+        # Parse the tolerance based on the match type
+        if par['collate1d']['match_using'] == 'pixel':
+            tolerance = float(par['collate1d']['tolerance'])
+        else:
+            # For ra/dec matching, the default unit is arcseconds. We check for
+            # this case by seeing if the passed in tolerance is a floating point number
+            if is_float(par['collate1d']['tolerance']):
+                tolerance =  float(par['collate1d']['tolerance'])
+            else:
+                tolerance = Angle(par['collate1d']['tolerance']).arcsec
+
+
+        # Filter out unwanted source objects based on our parameters.
+        # First filter them out based on the exclude_slit_trace_bm parameter
+        if len(par['collate1d']['exclude_slit_trace_bm']) > 0:
+            spec2d_files = find_spec2d_from_spec1d(spec1d_files)
+            exclude_map = find_slits_to_exclude(spec2d_files, par)
+        else:
+            spec2d_files = []
+            exclude_map = dict()
+
+        source_objects = SourceObject.build_source_objects(spec1d_files,
+                                                           par['collate1d']['match_using'])
+
+        # Filter based the coadding ex_value, and the exclude_serendip 
+        # boolean
+        objects_to_coadd = exclude_source_objects(source_objects, exclude_map, par)
+
+        # Collate the spectra
+        source_list = collate_spectra_by_source(objects_to_coadd, tolerance)
+
+        #sensfunc, how to identify standard file
+
+        # fluxing etc goes here
+
+        # Coadd the spectra
+        successful_source_list = []
+        for source in source_list:
+
+            msgs.info(f'Creating {source.coaddfile} from the following sources:')
+            for i in range(len(source.spec_obj_list)):
+                msgs.info(f'    {source.spec1d_file_list[i]}: {source.spec_obj_list[i].NAME} '
+                          f'({source.spec_obj_list[i].MASKDEF_OBJNAME})')
+
+            if not args.dry_run:
+                try:
+                    coadd(par, source)
+                    successful_source_list.append(source)
+                except Exception:
+                    formatted_exception = traceback.format_exc()
+                    msgs.warn(formatted_exception)
+                    msgs.warn(f"Failed to coadd {source.coaddfile}, skipping")
+
+        # Archive the files and metadata
+        if not args.dry_run:
+
+            if par['collate1d']['archive_root'] is not None:
+                metadata_root = par['collate1d']['archive_root']
+                copy = True
+            else:
+                metadata_root = os.getcwd()
+                copy = False
+
+            archive = create_archive(metadata_root, copy)
+            archive.add(spec1d_files)
+            archive.add(spec2d_files)
+            archive.add(successful_source_list)
+            archive.save()
+
+        total_time = datetime.now() - start_time
+
+        msgs.info(f'Total duration: {total_time}')
+
+        return 0
+
+

@@ -4,14 +4,14 @@ Trace slit edges for a set of images.
 
 from pypeit.scripts import scriptbase
 
-class trace_edges(scriptbase.ScriptBase):
+
+class TraceEdges(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        import argparse
         from pypeit.spectrographs import available_spectrographs
 
-        parser = super().get_parser(width=width, formatter=argparse.ArgumentDefaultsHelpFormatter)
+        parser = super().get_parser(description='Trace slit edges', width=width)
 
         # Require either a pypeit file or a fits file
         inp = parser.add_mutually_exclusive_group(required=True)

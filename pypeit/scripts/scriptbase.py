@@ -28,6 +28,11 @@ class ScriptBase:
         cls.main(cls.parse_args())
 
     @classmethod
+    @property
+    def script_name(cls):
+        return f"pypeit_{cls.__module__.split('.')[-1]}"
+
+    @classmethod
     def parse_args(cls, options=None):
         parser = cls.get_parser()
         return parser.parse_args() if options is None else parser.parse_args(options)
@@ -42,7 +47,7 @@ class ScriptBase:
     # the relevant parser arguments
     @classmethod
     def get_parser(cls, description=None, width=None,
-                   formatter=argparse.RawDescriptionHelpFormatter):
+                   formatter=argparse.ArgumentDefaultsHelpFormatter):
         return argparse.ArgumentParser(description=description,
                                        formatter_class=lambda prog: formatter(prog, width=width))
 
