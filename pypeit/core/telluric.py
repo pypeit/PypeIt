@@ -356,11 +356,6 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
         ind_upper_final = ind_upper - ind_upper_pad
     tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
 
-    embed()
-    exit()
-
-
-
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
     if ntheta == 7:
