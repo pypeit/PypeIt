@@ -140,7 +140,7 @@ class TellFit(scriptbase.ScriptBase):
             else:
                 par['telluric']['telgridfile'] = resource_filename('pypeit',
                                  '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
-                msgs.warn(f'No telluric grid file given. Using {par['telluric']['telgridfile']}.')
+                msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
         # Write the par to disk
         print("Writing the parameters to {}".format(args.par_outfile))

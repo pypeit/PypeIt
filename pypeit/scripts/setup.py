@@ -5,13 +5,13 @@ This script generates files to setup a PypeIt run
 import os
 
 from pypeit.scripts import scriptbase
+from pypeit.spectrographs import available_spectrographs
 
 
 class Setup(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        from pypeit.spectrographs import available_spectrographs
         parser = super().get_parser(description='Parse data files to construct a pypeit file in '
                                                 'preparation for reduction using \'run_pypeit\'',
                                     width=width)

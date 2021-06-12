@@ -8,7 +8,7 @@ SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
-LOCALFILES    = $(BUILDDIR)/* api/*.rst sphinx_warnings.out pypeit_par.rst
+LOCALFILES    = $(BUILDDIR)/* api/*.rst help/*.rst sphinx_warnings.out pypeit_par.rst
 
 
 # User-friendly check for sphinx-build

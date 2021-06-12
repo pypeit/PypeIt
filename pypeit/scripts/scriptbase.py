@@ -2,7 +2,6 @@
 Implements base classes for use with pypeit scripts
 """
 
-from IPython import embed
 import argparse
 
 # A trick from stackoverflow to allow multi-line output in the help:
@@ -25,21 +24,37 @@ class SmartFormatter(argparse.HelpFormatter):
 class ScriptBase:
     @classmethod
     def entry_point(cls):
+        """
+        Defines the main script entry point.
+        """
         cls.main(cls.parse_args())
 
     @classmethod
     @property
-    def script_name(cls):
+    def name(cls):
+        """
+        Provides the name of the script.  By default, this is the name of the
+        module with "pypeit_" prepended.
+
+        Returns:
+            :obj:`str`: Script name
+        """
         return f"pypeit_{cls.__module__.split('.')[-1]}"
 
     @classmethod
     def parse_args(cls, options=None):
+        """
+        Parse the command-line arguments.
+        """
         parser = cls.get_parser()
         return parser.parse_args() if options is None else parser.parse_args(options)
 
     # Base classes should override this
     @staticmethod
     def main(args):
+        """
+        Execute the script.
+        """
         pass
 
     # Base classes should override this.  Ideally they should use this
@@ -48,6 +63,23 @@ class ScriptBase:
     @classmethod
     def get_parser(cls, description=None, width=None,
                    formatter=argparse.ArgumentDefaultsHelpFormatter):
+        """
+        Construct the command-line argument parser.
+
+        Args:
+            description (:obj:`str`, optional):
+                A short description of the purpose of the script.
+            width (:obj:`int`, optional):
+                Restrict the width of the formatted help output to be no longer
+                than this number of characters, if possible given the help
+                formatter.  If None, the width is the same as the terminal
+                width.
+            formatter (`argparse.HelpFormatter`_):
+                Class used to format the help output.
+
+        Returns:
+            `argparse.ArgumentParser`_: Command-line interpreter.
+        """
         return argparse.ArgumentParser(description=description,
                                        formatter_class=lambda prog: formatter(prog, width=width))
 

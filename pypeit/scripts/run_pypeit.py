@@ -9,7 +9,7 @@ class RunPypeIt(scriptbase.ScriptBase):
 
     @classmethod
     @property
-    def script_name(cls):
+    def name(cls):
         return 'run_pypeit'
 
     @classmethod
