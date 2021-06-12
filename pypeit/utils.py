@@ -51,6 +51,7 @@ def embed_header():
     info = inspect.getframeinfo(inspect.stack()[1][0])
     return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
 
+
 # Pulled from `pypeit.par.ParSet`. Maybe move these to
 # doc/scripts/util.py?
 def to_string(data, use_repr=True, verbatim=False):
