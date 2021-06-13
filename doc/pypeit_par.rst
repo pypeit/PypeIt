@@ -495,15 +495,16 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.Collate1DPar`
 
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                   
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
-``archive_root``        str         ..       ..          The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                                                                           
-``dry_run``             bool        ..       False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                         
-``match_using``         str         ..       ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                           
-``slit_exclude_flags``  list, str   ..       []          A list of slit flags that should be excluded.                                                                                                                                                                                                                                                                                                                                                                 
-``tolerance``           str, float  ..       ``3.0``     The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+Key                        Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                   
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+``archive_root``           str         ..       ..          The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                                                                           
+``dry_run``                bool        ..       False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                         
+``exclude_serendip``       bool        ..       False       Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                           
+``exclude_slit_trace_bm``  list, str   ..       []          A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                    
+``match_using``            str         ..       ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                           
+``tolerance``              str, float  ..       ``3.0``     The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -516,6 +517,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 =================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
 Key                Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
 =================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+``multi_min_SN``   int, float  ..                                 1                                                                               Minimum S/N for analyzing sky spectrum for flexure                                                                                                                                                                    
 ``spec_maxshift``  int, float  ..                                 20                                                                              Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
 ``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
 ``spectrum``       str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
@@ -4024,6 +4026,86 @@ Alterations to the default parameters are::
           mask_cr = True
           use_overscan = False
 
+NTT EFOSC2 (``ntt_efosc2``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = ntt_efosc2
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+      [[wavelengths]]
+          method = full_template
+          lamps = HeI, ArI
+          sigdetect = 10.0
+          rms_threshold = 0.25
+      [[slitedges]]
+          edge_thresh = 75.0
+          sync_predict = nearest
+      [[tilts]]
+          tracethresh = 25.0
+  [scienceframe]
+      [[process]]
+          mask_cr = True
+  [reduce]
+      [[skysub]]
+          sky_sigrej = 5.0
+          global_sky_std = False
+          no_poly = True
+  [flexure]
+      spec_method = boxcar
+
 P200 DBSPb (``p200_dbsp_blue``)
 -------------------------------
 Alterations to the default parameters are::
@@ -4550,6 +4632,87 @@ Alterations to the default parameters are::
           mask_cr = True
   [flexure]
       spec_method = boxcar
+
+SOAR red (``soar_goodman_red``)
+-------------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = soar_goodman_red
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 30
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+      [[wavelengths]]
+          lamps = NeI, ArI, HgI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          use_biasimage = False
 
 TNG DOLORES (``tng_dolores``)
 -----------------------------

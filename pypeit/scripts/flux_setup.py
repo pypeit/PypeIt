@@ -134,7 +134,7 @@ def main(args):
 
         with open(tellfit_file, 'w') as f:
             f.write('# Auto-generated PypeIt file\n')
-            f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime())))
+            f.write('# {0}\n'.format(time.strftime("%a %d %m %Y %H:%M:%S", time.localtime())))
             f.write("\n")
             f.write("# User-defined execution parameters\n")
             f.write("# This is only an example. Make sure to change the following parameters accordingly.\n")

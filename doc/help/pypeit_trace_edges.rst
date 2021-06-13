@@ -33,11 +33,11 @@
                             lbt_mods1r, lbt_mods2b, lbt_mods2r, magellan_fire,
                             magellan_fire_long, magellan_mage, mdm_osmos_mdm4k,
                             mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            p200_dbsp_blue, p200_dbsp_red, p200_tspec,
+                            ntt_efosc2, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
                             shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
-                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
-                            wht_isis_red (default: None)
+                            soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
+                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            wht_isis_blue, wht_isis_red (default: None)
       -b BINNING, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used if providing files directly; default is 1,1.

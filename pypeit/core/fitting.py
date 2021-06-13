@@ -29,7 +29,7 @@ class PypeItFit(DataContainer):
                                      'This is a 2d array for 2d fits'),
                  'x2': dict(otype=np.ndarray, atype=np.floating,
                             descr='x2 inputs, second independent variable'),
-                 'weights': dict(otype=np.ndarray, atype=np.floating, descr='Weights'),
+                 'weights': dict(otype=np.ndarray, atype=np.floating, descr='Weights.  Often the same as invvar'),
                  'fitc': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
                  'fitcov': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Covariance of the coefficients'),
@@ -154,11 +154,16 @@ class PypeItFit(DataContainer):
                 minx=self.minx, maxx=self.maxx,
                 miny=self.minx2, maxy=self.maxx2)
         elif self.func == "polynomial":
-            self.fitc = np.polynomial.polynomial.polyfit(x_out, y_out, self.order[0], w=w_out)
+            self.fitc = np.polynomial.polynomial.polyfit(
+                x_out, y_out, self.order[0], 
+                w=np.sqrt(w_out) if w_out is not None else None) # numpy convention
         elif self.func == "legendre" or self.func == "chebyshev":
             xv, self.minx, self.maxx = scale_minmax(x_out, minx=self.minx, maxx=self.maxx)
-            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=w_out)  \
-                if self.func == "legendre" else np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
+            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], 
+                                                      w=np.sqrt(w_out) if w_out is not None else None) \
+                if self.func == "legendre" else np.polynomial.chebyshev.chebfit(
+                    xv, y_out, self.order[0], 
+                    w=np.sqrt(w_out) if w_out is not None else None) # numpy convention
         else:
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev','polynomial2d', 'legendre2d'")
@@ -618,34 +623,44 @@ def moffat(x,p0,p1,p2):
     return p0 / (1+(x/p1)**2)**p2
 
 
-def fit_gauss(x_out, y_out, guesses=None, w_out=None):
+def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3):
     """
-    Fit a 3 parameter gaussian
-
-    NOTE:  THIS WILL BE REPLACED SOON BY SOMETHING FAST
+    Fit a 3 or 4 parameter gaussian
 
     Args:
         x_out (`numpy.ndarray_`):
         y_out (`numpy.ndarray_`):
         guesses (tuple, optional):
-            ampl, cent, sigma guesses for the Gaussian; each as floats
+            ampl, cent, sigma, [floor] guesses for the Gaussian; each as floats
         w_out (`numpy.ndarray_`):
-            Weights
+            Weights.  1./sqrt(ivar) is expected
+        nparam (int, optional):
+            Number of parameters in the Gaussian
+            Only options are 3 or 4
 
     Returns:
         tuple: Fit coefficients, fit covariance
 
     """
     if guesses is None:
-        ampl, cent, sigma = guess_gauss(x_out, y_out)
+        ampl, cent, sigma, floor = guess_gauss(x_out, y_out)
     else:
-        ampl, cent, sigma = guesses
+        ampl, cent, sigma, floor = guesses
     # Error
     if w_out is not None:
         sig_y = 1. / w_out
     else:
         sig_y = None
-    return curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma], sigma=sig_y)
+    
+    # 3 param values
+    p0=[ampl, cent, sigma] 
+    func = gauss_3deg
+
+    if nparam == 4:
+        p0 = [floor] + p0
+        func = gauss_4deg
+
+    return curve_fit(func, x_out, y_out, p0=p0, sigma=sig_y)
 
 
 def gauss_2deg(x,ampl,sigm):
@@ -679,7 +694,7 @@ def gauss_3deg(x,ampl,cent,sigm):
 
 
 def gauss_4deg(x,b, ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
+    """  Simple 4 parameter Gaussian
 
     Args:
         x
@@ -720,7 +735,7 @@ def guess_gauss(x,y):
         y (ndarray): y-values
 
     Returns:
-        float, float, float:  Amplitude, centroid, sigma
+        tuple:  Amplitude, centroid, sigma, floor
 
     """
     ypos = y - y.min()
@@ -732,8 +747,10 @@ def guess_gauss(x,y):
         ampl = np.median(y[cen_pix])
     else:
         ampl = y.max()
+    # Floor
+    floor = np.median(np.percentile(y,50))
     # Return
-    return ampl, cent, sigma
+    return ampl, cent, sigma, floor
 
 
 
@@ -747,8 +764,9 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
         y (`numpy.ndarray`_):
         z (`numpy.ndarray`_): value of data at each (x,y) coordinate
         deg (tuple): degree of polynomial fit in the form [nx,ny]
-        w (`numpy.ndarray`_):
-        function:
+        w (`numpy.ndarray`_, optional):
+            weights.  Often invvar
+        function (str, optional):
         minx:
         maxx:
         miny:

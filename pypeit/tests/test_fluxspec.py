@@ -11,8 +11,9 @@ from IPython import embed
 from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.scripts import flux_calib
-from pypeit.tests.tstutils import cooked_required
+from pypeit.tests.tstutils import cooked_required, telluric_required
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs
 
 
@@ -20,20 +21,14 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-## TODO: Not used
-#@pytest.fixture
-#@dev_suite_required
-#def deimos_files():
-#    return [os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-#                         'spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits')]
 
 @pytest.fixture
 @cooked_required
 def kast_blue_files():
     std_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits')
+                            'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits')
     sci_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     return [std_file, sci_file]
 
 
@@ -80,4 +75,31 @@ def test_from_sens_func(kast_blue_files):
     os.remove(outfile)
 
 
+@telluric_required
+def test_wmko_flux_std():
+    # Do it
+    wmko_file = data_path('2017may28_d0528_0088.fits')
+    spectrograph = load_spectrograph('keck_deimos')
+
+    # Load + write
+    spec1dfile = data_path('tmp_spec1d.fits')
+    sobjs = keck_deimos.load_wmko_std_spectrum(wmko_file, outfile=spec1dfile)
+
+    # Sensfunc
+    #  The following mirrors the main() call of sensfunc.py
+    par = spectrograph.default_pypeit_par()
+    par['sensfunc']['algorithm'] = "IR"
+    par['sensfunc']['multi_spec_det'] = [3,7]
+
+    # Instantiate the relevant class for the requested algorithm
+    outfile = data_path('tmp_sens.fits')
+    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, outfile, 
+                                             par=par['sensfunc'])
+    # Generate the sensfunc
+    sensobj.run()
+    # Write it out to a file
+    sensobj.save()
+
+    os.remove(spec1dfile)
+    os.remove(outfile)
 

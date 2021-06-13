@@ -473,7 +473,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          thismask, slit_left, slit_righ, sobjs, ingpm=None,
-                         spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
+                         spat_pix=None, adderr=0.01, bsp=0.6, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
@@ -518,11 +518,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             ceiling on the S/N.
         bsp: float, default = 0.6
             Break point spacing in pixels for the b-spline sky subtraction.
-        extract_maskwidth: float, default = 4.0
-            Determines the initial size of the region in units of fwhm
-            that will be used for local sky subtraction. This maskwidth
-            is defined in the obfjind code, but is then updated here as
-            the profile fitting improves the fwhm estimates
         trim_edg: tuple of ints of floats, default = (3,3)
             Number of pixels to be ignored on the (left,right) edges of
             the slit in object/sky model fits.
@@ -614,11 +609,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         modelivar[thismask], outmask[thismask])
     """
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
-    # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
-    if model_full_slit:
-        max_slit_width = np.max(slit_righ - slit_left)
-        for spec in sobjs:
-            spec.maskwidth = max_slit_width/2.0
 
     # TODO -- This should be using the SlitTraceSet method
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
@@ -675,29 +665,28 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     # TODO Can this be simply replaced with spat_img above (but not spat_pix since that could have holes)
     spatial_img = thismask * ximg * (np.outer(xsize, np.ones(nspat)))
 
-    # Loop over objects and group them
-    i1 = 0
-    while i1 < nobj:
-        group = np.array([], dtype=np.int)
-        group = np.append(group, i1)
-        # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
-        min_spat1 = np.maximum(sobjs[i1].TRACE_SPAT - sobjs[i1].maskwidth - 1, slit_left)
-        max_spat1 = np.minimum(sobjs[i1].TRACE_SPAT + sobjs[i1].maskwidth + 1, slit_righ)
-        for i2 in range(i1 + 1, nobj):
-            left_edge = sobjs[i2].TRACE_SPAT - sobjs[i2].maskwidth - 1
-            righ_edge = sobjs[i2].TRACE_SPAT + sobjs[i2].maskwidth + 1
-            touch = (left_edge < max_spat1) & (sobjs[i2].TRACE_SPAT > slit_left) & (righ_edge > min_spat1)
-            if touch.any():
-                max_spat1 = np.minimum(np.maximum(righ_edge, max_spat1), slit_righ)
-                min_spat1 = np.maximum(np.minimum(left_edge, min_spat1), slit_left)
-                group = np.append(group, i2)
+    # First, we find all groups of objects to local skysubtract together
+    groups = sobjs.get_extraction_groups(model_full_slit=model_full_slit)
+
+    for group in groups:
+        if model_full_slit:
+            # If we're modelling the full slit, update the entire slit.
+            min_spat1 = slit_left
+            max_spat1 = slit_righ
+        else:
+            # The default value of maskwidth = 3.0 * FWHM = 7.05 * sigma in objfind with a log(S/N) correction for bright objects
+            left_edges = np.array([sobjs[i].TRACE_SPAT - sobjs[i].maskwidth - 1 for i in group])
+            righ_edges = np.array([sobjs[i].TRACE_SPAT + sobjs[i].maskwidth + 1 for i in group])
+
+            min_spat1 = np.maximum(np.amin(left_edges, axis=0), slit_left)
+            max_spat1 = np.minimum(np.amax(righ_edges, axis=0), slit_righ)
+
         # Create the local mask which defines the pixels that will be updated by local sky subtraction
-        min_spat_img = np.outer(min_spat1, np.ones(nspat))
-        max_spat_img = np.outer(max_spat1, np.ones(nspat))
+        min_spat_img = min_spat1[:, None]
+        max_spat_img = max_spat1[:, None]
         localmask = (spat_img > min_spat_img) & (spat_img < max_spat_img) & thismask
         npoly = skysub_npoly(localmask)
-        # Keep for next iteration
-        i1 = group.max() + 1
+
         # Some bookeeping to define the sub-image and make sure it does not land off the mask
         objwork = len(group)
         scope = np.sum(thismask, axis=0)
@@ -735,7 +724,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 else:
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
-                    trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
+                    trace = sobjs[iobj].TRACE_SPAT[:, None]
                     objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask),
@@ -758,18 +747,21 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     profile_model, trace_new, fwhmfit, med_sn2 = extract.fit_profile(
                         sign*img_minsky[ipix], (modelivar * outmask)[ipix],waveimg[ipix], thismask[ipix], spat_pix[ipix], sobjs[iobj].TRACE_SPAT,
                         wave, sign*flux, fluxivar, inmask = outmask[ipix],
-                        thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
-                        prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
+                        thisfwhm=sobjs[iobj].FWHM, prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, gauss=force_gauss, obj_string=obj_string,
                         show_profile=show_profile)
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
                     sobjs[iobj].FWHMFIT = fwhmfit
                     sobjs[iobj].FWHM = np.median(fwhmfit)
-                    mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
-                    maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
-                    sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
-                        sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
+                    # TODO JFH In the xidl code the maskwidth was being updated which impacted the sub-image used for the
+                    #  fit_profile profile fitting. This is no longer the case in the python version. However, I'm leaving
+                    # these lines here in case we decide to implement
+                    # something like that.
+                    #mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
+                    #maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
+                    #sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
+                    #    sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
                 else:
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
@@ -861,7 +853,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                       ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
-            trace = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))
+            trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask), waveimg, skyimage, rn2_img, thismask, this_profile,
@@ -917,7 +909,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, rn2img,
                              left, right, slitmask, sobjs, order_vec, spat_pix=None,
-                             fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
+                             fit_fwhm=False, min_snr=2.0,bsp=0.6,
                              trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
                              sigrej=3.5, bkpts_optimal=True, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
@@ -949,7 +941,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         fit_fwhm:
         min_snr:
         bsp:
-        extract_maskwidth:
         trim_edg:
         std:
         prof_nsigma:
@@ -1102,7 +1093,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] = local_skysub_extract(
             sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
             left[:,iord], right[:,iord], sobjs[thisobj], spat_pix=spat_pix,
-            ingpm=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
+            ingpm=inmask,std = std, bsp=bsp, trim_edg=trim_edg,
             prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
             force_gauss=force_gauss, sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise,
             debug_bkpts=debug_bkpts, show_resids=show_resids, show_profile=show_profile)

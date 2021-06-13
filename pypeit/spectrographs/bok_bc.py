@@ -27,6 +27,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     name = 'bok_bc'
     camera = 'BC'
     comment = 'Bok B&C spectrometer'
+    supported = True
 
     def configuration_keys(self):
         """

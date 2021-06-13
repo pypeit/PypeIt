@@ -27,11 +27,13 @@ from pypeit.spectrographs import not_alfosc
 from pypeit.spectrographs import p200_dbsp
 from pypeit.spectrographs import p200_tspec
 from pypeit.spectrographs import shane_kast
+from pypeit.spectrographs import soar_goodman
 from pypeit.spectrographs import tng_dolores
 from pypeit.spectrographs import vlt_fors
 from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import vlt_sinfoni
 from pypeit.spectrographs import wht_isis
+from pypeit.spectrographs import ntt_efosc2
 
 # Build the list of names for the available spectrographs
 import numpy as np

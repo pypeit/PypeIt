@@ -1175,6 +1175,20 @@ class Spectrograph:
             except TypeError:
                 iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
             return self.spec_min_max[:, iorder]/binspectral
+    
+    def spec1d_match_spectra(sobjs):
+        """Match up slits in a SpecObjs.  Typically across
+        multiple detectors.  See the example in keck_deimos
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): 
+                Spec1D objects
+
+        Returns:
+            tuple: array of indices for the blue detector, 
+                array of indices for the red (matched to the blue)
+        """
+        msgs.error("You need to create this for your instrument..")
 
     # TODO: Shold this be a class method?
     def parse_dither_pattern(self, file_list, ext=None):
