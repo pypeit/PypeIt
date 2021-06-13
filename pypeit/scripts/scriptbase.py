@@ -29,8 +29,16 @@ class ScriptBase:
         """
         cls.main(cls.parse_args())
 
+    # TODO: Combining classmethod and property works in python 3.9 and later
+    # only: https://docs.python.org/3.9/library/functions.html#classmethod
+    # Order matters.  In python 3.9, it would be:
+    #
+    # @classmethod
+    # @property
+    #
+    # Because we're not requiring python 3.9 yet, we have to leave this as a
+    # classmethod only:
     @classmethod
-    @property
     def name(cls):
         """
         Provides the name of the script.  By default, this is the name of the

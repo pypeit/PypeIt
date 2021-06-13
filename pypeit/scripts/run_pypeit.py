@@ -7,8 +7,16 @@ from pypeit.scripts import scriptbase
 
 class RunPypeIt(scriptbase.ScriptBase):
 
+    # TODO: Combining classmethod and property works in python 3.9 and later
+    # only: https://docs.python.org/3.9/library/functions.html#classmethod
+    # Order matters.  In python 3.9, it would be:
+    #
+    # @classmethod
+    # @property
+    #
+    # Because we're not requiring python 3.9 yet, we have to leave this as a
+    # classmethod only:
     @classmethod
-    @property
     def name(cls):
         return 'run_pypeit'
 

@@ -113,7 +113,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     piximg = tilts * (nspec-1)
     if inmask is None:
         inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
-    elif inmask.dtype != np.bool:
+    elif inmask.dtype != bool:
         # Check that it's of type bool
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
@@ -1162,7 +1162,7 @@ def read_userregions(skyreg, nslits, maxslitlength):
                             ])
         # Initialise the sky regions - For each slit, generate a mask of size `resolution`.
         # i.e. the spatial coordinate is sampled by `resolution` elements.
-        skyreg = [np.zeros(resolution, dtype=np.bool) for all in range(nslits)]
+        skyreg = [np.zeros(resolution, dtype=bool) for all in range(nslits)]
         # For all regions, set the skyreg mask to True for each region
         for reg in regions:
             # Do some checks
@@ -1244,4 +1244,7 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure
                                      mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)
     # Generate the mask, and return
-    return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(np.bool)
+    return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(bool)
+
+
+
