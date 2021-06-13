@@ -1,6 +1,7 @@
 
-1.4.1dev
---------
+1.4.1 (11 Jun 2021)
+-------------------
+
 - Adds SOAR/Goodman red camera
 - Update to Gemini-S telescope info
 - Make PypeIt ISO 8160 (more) compliant
@@ -11,8 +12,8 @@
 - Add NTT EFOSC2 spectrograph
 - Add standard stars CD-34241 and CD-329927 to esofil
 - Add wavelength solution for keck_lris_red 600/10000
-- `pypeit_show_2dspec` shows traces of forced extraction and manual extraction
-  with different colors
+- `pypeit_show_2dspec` shows traces of forced extraction and manual
+  extraction with different colors
 - Updated docs about extraction and DEIMOS
 - Implement multi-detector flexure estimates
 - Fix error in variance for numpy fitting routines
@@ -46,25 +47,27 @@
 - Change `PypeItSetup.from_file_root` to *require* the output path to
   write the vanilla pypeit file.  If no path is provided, the object is
   instatiated without creating any output.
-- Fixed bug in sensitivity function code adressing issue #747. Revamped sensitivity
-function completely to compute zeropoints and throughput. Enhanced sensfunc.py QA.
+- Fixed bug in sensitivity function code adressing issue #747. Revamped
+  sensitivity function completely to compute zeropoints and throughput.
+  Enhanced sensfunc.py QA.
 - Added MOSFIRE QL script.
 - Added support for VLT/SINFONI K 25mas (0.8x0.8 arcsec FOV) platescale
 - Updated docs for differencing imaging sky subtraction.
-- Added "sky" frametype for difference imaging sky subtraction addressing issue # 1068
+- Added "sky" frametype for difference imaging sky subtraction
+  addressing issue # 1068
 - Improved and sped up sensitivity function telluric codes.
 - Fixed bugs in ArchiveReid automatic wavelength identification.
 - Removed numba dependency.
 - Improved pypeit_view_fits script.
 - Fixed ginga bugs in display.py and added automatic cuts to show_2dspec
-- Added latin hypercube sampler to pypeit.utils which is required for differential evolution
-optimizations.
+- Added latin hypercube sampler to pypeit.utils which is required for
+  differential evolution optimizations.
 - Improved GMOS R400 wavelength solution
 - Turned off GMOS-S binning restriction
 - Add GTC OSIRIS spectrograph
 - Updates for docs on adding new spectrographs.  And a bok test
-- Added a new ``pypeit_collate_1d`` tool to automatically group 1D Spectra from
-  multiple files by group and coadd them.
+- Added a new ``pypeit_collate_1d`` tool to automatically group 1D
+  Spectra from multiple files by group and coadd them.
 - PypeIt will now add HISTORY keyword entries to FITS files.
 - `use_maskdesign` is turned off for DEIMOS LVM masks
 - a new parameter `use_user_fwhm` is added in `ExtractionPar` to allow
