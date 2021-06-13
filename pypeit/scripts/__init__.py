@@ -37,9 +37,10 @@ from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
 
+import numpy as np
+
 # Build the list of script classes
 def script_classes():
-    import numpy as np
     # Recursively collect all subclasses
     scr_c = np.array(list(all_subclasses(scriptbase.ScriptBase)))
     # Construct a dictionary with the script name and class
