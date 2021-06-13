@@ -2,6 +2,9 @@
 This script enables the user to view a 2D FITS file
 and define the sky background regions interactively.
 Run above the Science/ folder.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase

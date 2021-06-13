@@ -1,5 +1,8 @@
 """
 This script generates files to setup a PypeIt run
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import os

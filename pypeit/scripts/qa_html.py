@@ -1,5 +1,8 @@
 """
 Built HTML for PYPIT QA
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase
@@ -18,11 +21,18 @@ class QAHtml(scriptbase.ScriptBase):
                             help="Path the QA folder including QA/)")
         return parser
 
+    # TODO: unit_test and path aren't used, right?
     @staticmethod
     def main(args, unit_test=False, path=''):
-        """ Builds the HTML files
-        path : str, optional
-          Mainly for running the unit test
+        """Builds the HTML files.
+
+        Args:
+            args (`argparse.Namespace`_):
+                Parsed command-line arguments
+            unit_test (:obj:`bool`, optional):
+                Method being executed for a unit test
+            path (:obj:`str`, optional):
+                Mainly for running the unit test
         """
 
         from pypeit.core import qa

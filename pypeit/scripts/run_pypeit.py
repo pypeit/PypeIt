@@ -1,5 +1,8 @@
 """
-Main execution script for PypeIt reduction pipelines.
+Main execution script for ``PypeIt`` reduction pipelines.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase
@@ -18,6 +21,9 @@ class RunPypeIt(scriptbase.ScriptBase):
     # classmethod only:
     @classmethod
     def name(cls):
+        """
+        Return the name of the executable.
+        """
         return 'run_pypeit'
 
     @classmethod

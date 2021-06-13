@@ -2,8 +2,8 @@
 
     $ pypeit_identify -h
     usage: pypeit_identify [-h] [--lamps LAMPS] [-s] [--wmin WMIN] [--wmax WMAX]
-                           [--slit SLIT] [--det DET] [--rmstol RMSTOL]
-                           [--fwhm FWHM] [--pixtol PIXTOL] [--test] [--force_save]
+                           [--slit SLIT] [--det DET] [--rmstol RMSTOL] [--fwhm FWHM]
+                           [--pixtol PIXTOL] [--test] [--force_save]
                            arc_file slits_file
     
     Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run

@@ -1,5 +1,8 @@
 """
 Script for coadding PypeIt 1d spectra
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 
@@ -21,24 +24,21 @@ from pypeit.spectrographs.util import load_spectrograph
 # script. Consolidate them? Make this a standard method in parse or io.
 def read_coaddfile(ifile):
     """
-    Read a PypeIt .coadd1d file, akin to a standard PypeIt file
+    Read a ``PypeIt`` coadd1d file, akin to a standard PypeIt file.
 
-    The top is a config block that sets ParSet parameters
-      The spectrograph is required
+    The top is a config block that sets ParSet parameters.  The name of the
+    spectrograph is required.
 
     Args:
-        ifile (str):
-          Name of the flux file
+        ifile (:obj:`str`):
+            Name of the coadd file
 
     Returns:
-        cfg_lines (list):
-          Config lines to modify ParSet values
-        spec1dfiles (list):
-          Contains spec1dfiles to be coadded
-        objids (list):
-          Object ids aligned with each of the spec1dfiles
-
-
+        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
+        configuration entries used to modify the relevant
+        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` the names
+        of spec1d files to be coadded, and a :obj:`list` with the object IDs
+        aligned with each of the spec1d files.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the coadd1d file')
@@ -94,7 +94,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         show:
 
     Returns:
-        outfiles (list): list of files written to
+        :obj:`list`: List of output files written.
 
     """
     # Build sync_dict

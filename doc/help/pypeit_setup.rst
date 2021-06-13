@@ -27,12 +27,11 @@
                             tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red (default: None)
-      -r ROOT, --root ROOT  Root to search for data files. You can provide the
-                            top-level directory (e.g., /data/Kast) or the search
-                            string up through the wildcard (.e.g, /data/Kast/b).
-                            Use the --extension option to set the types of files
-                            to search for. Default is the current working
-                            directory. (default:
+      -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
+                            level directory (e.g., /data/Kast) or the search string
+                            up through the wildcard (.e.g, /data/Kast/b). Use the
+                            --extension option to set the types of files to search
+                            for. Default is the current working directory. (default:
                             /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not

@@ -13,7 +13,7 @@ from pypeit.scripts import script_classes
 #-----------------------------------------------------------------------------
 
 def write_help(script_cls, opath, width=80):
-    exe = script_cls.name
+    exe = script_cls.name()
     ofile = os.path.join(opath, '{0}.rst'.format(exe))
     lines = ['.. code-block:: console', '']
     lines += ['    $ {0} -h'.format(exe)]

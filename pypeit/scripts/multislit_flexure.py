@@ -1,5 +1,8 @@
 """
 Script to measure and correct for flexure in multi-slit data.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 
@@ -17,20 +20,19 @@ from pypeit.scripts import scriptbase
 
 def read_flexfile(ifile):
     """
-    Read a PypeIt .flex file, akin to a standard PypeIt file
+    Read a ``PypeIt`` flexure file, akin to a standard ``PypeIt`` file.
 
-    The top is a config block that sets ParSet parameters
+    The top is a config block that sets ParSet parameters.
 
     Args:
-        ifile (str):
-          Name of the flux file
+        ifile (:obj:`str`):
+            Name of the flexure file
 
     Returns:
-        cfg_lines (list):
-          Config lines to modify ParSet values
-        spec1dfiles (list):
-          Contains spec1dfiles to be flexure corrected
-
+        :obj:`tuple`:  Two objects are returned: a :obj:`list` with the
+        configuration entries used to modify the relevant
+        :class:`~pypeit.par.parset.ParSet` parameters and a :obj:`list` with the
+        names of spec1d files to be flexure corrected.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the flexure file')

@@ -1,5 +1,8 @@
 """
 This script displays the Trace image and the traces in an RC Ginga window.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase

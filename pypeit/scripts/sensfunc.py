@@ -1,5 +1,8 @@
 """
 Script to determine the sensitivity function for a PypeIt 1D spectrum.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 

@@ -1,6 +1,9 @@
 """
 This file contains a series of utility functions
 that can be used with the PypeIt scripts.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import os

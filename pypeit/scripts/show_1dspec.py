@@ -1,5 +1,8 @@
 """
 Wrapper to the linetools XSpecGUI
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 from IPython import embed
 

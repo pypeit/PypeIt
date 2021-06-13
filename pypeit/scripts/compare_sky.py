@@ -1,6 +1,9 @@
 """
 Plots an extracted sky spectrum with an archived one.  Probably most useful for
 exploring sky spectra in the blue
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase

@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-#
-# See top-level LICENSE file for Copyright information
-#
-# -*- coding: utf-8 -*-
 """
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 

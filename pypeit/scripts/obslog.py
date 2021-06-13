@@ -1,6 +1,9 @@
 """
 This script generates an "observing log" for a directory with a set of files
 to be reduced by PypeIt.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import time
 import os

@@ -1,5 +1,8 @@
 """
 This script runs PypeIt on a pair of NIRES images (A-B)
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase

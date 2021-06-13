@@ -1,6 +1,9 @@
 """
 This script enables the user to convert spec2D FITS files
 from IFU instruments into a 3D cube with a defined WCS.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 import copy

@@ -2,6 +2,9 @@
 This script collates multiple 1d spectra in multiple files by object, 
 runs flux calibration/coadding on them, and produces files suitable
 for KOA archiving.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from datetime import datetime
@@ -32,9 +35,11 @@ def extract_id(header):
     """
     Pull an id from a file's header.
 
-    This will give preference to a KOAID, but will return an id based on the file name if a KOAID can't be found.
-    A KOAID is of the format II.YYYYMMDD.xxxxx.fits See the `KOA FAQ <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ 
-    for more information.
+    This will give preference to a KOAID, but will return an id based on the
+    file name if a KOAID can't be found.  A KOAID is of the format
+    II.YYYYMMDD.xxxxx.fits. See the `KOA FAQ
+    <https://www2.keck.hawaii.edu/koa/public/faq/koa_faq.php>`_ for more
+    information.
 
     Args:
         header (str):   A fits file header.
@@ -70,10 +75,9 @@ def get_metadata_by_id(header_keys, file_info):
     argument will not be a string, In this case, a list of ``None`` values are
     returned.
 
-
     Args:
         header_keys (list of str):
-            List of FITs header keywrods to read from the file being added to the
+            List of FITs header keywords to read from the file being added to the
             archive.
 
         filename (str): A filename for a file to add to the ArchiveMetadata object.
@@ -157,19 +161,21 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
     return (result_rows, file_info.coaddfile, file_info.coaddfile)
 
 def find_slits_to_exclude(spec2d_files, par):
-    """Find slits that should be excluded according to the input parameters.
+    """
+    Find slits that should be excluded according to the input parameters.
+
     The slit mask ids are returned in a map alongside the text labels for the
     flags that caused the slit to be excluded.
 
     Args:
-        spec2d_files (:obj:`list` of str): 
+        spec2d_files (:obj:`list`): 
             List of spec2d files to build the map from.
-        par (:obj:`Collate1DPar):
-            Parameters from .collate1d file
+        par (:class:`~pypeit.par.pypeitpar.Collate1DPar`):
+            Parameters from a ``.collate1d`` file
 
     Returns:
-        :obj:`dict`: Mapping of slit mask ids to the flags that caused the
-        slit to be excluded.
+        :obj:`dict`: Mapping of slit mask ids to the flags that caused the slit
+        to be excluded.
     """
 
     # Get the types of slits to exclude from our parameters
@@ -196,22 +202,26 @@ def find_slits_to_exclude(spec2d_files, par):
     return exclude_map
 
 def exclude_source_objects(source_objects, exclude_map, par):
-    """Exclude SourceObjects based on an slit exclude map and the user's parameters.
+    """
+    Exclude :class:`~pypeit.core.collate.SourceObject` objects based on a slit
+    exclude map and the user's parameters.
 
     Args:
-    source_objects (list of :obj:`SourceObject`): 
-        List of uncollated source objects to filter. There should only be one
-        SpecObj per SourceObject.
-    exclude_map (dict): 
-        Mapping of excluded slit ids to the reasons they should be excluded.
-    par (:obj:`PypeItPar`): 
-        Configuration parameters from the command line or a configuration file.
+        source_objects (:obj:`list`): 
+            List of uncollated :class:`~pypeit.core.collate.SourceObject`
+            objects to filter. There should only be one
+            :class:`~pypeit.specobj.SpecObj` per
+            :class:`~pypeit.core.collate.SourceObject`.
+        exclude_map (:obj:`dict`): 
+            Mapping of excluded slit ids to the reasons they should be excluded.
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`): 
+            Configuration parameters from the command line or a configuration
+            file.
 
     Returns:
-    list of :obj:`SourceObject`: A list of the source objects with any excluded ones removed.
-
+        :obj:`list`: A list of :class:`~pypeit.core.collate.SourceObject`
+        objects with any excluded ones removed.
     """
-
     filtered_objects = []
     for source_object in source_objects:
 
@@ -292,21 +302,20 @@ def find_spec2d_from_spec1d(spec1d_files):
 
 def build_parameters(args):
     """
-    Read the command line arguments and the input .collate1d file (if any), 
-    to build the parameters needed by collate_1d.
+    Read the command-line arguments and the input ``.collate1d`` file (if any), 
+    to build the parameters needed by ``collate_1d``.
 
     Args:
-    args (:obj:`argparse.Namespace`): The parsed command line as returned
-        by the argparse module.
+        args (`argparse.Namespace`_):
+            The parsed command line as returned by the ``argparse`` module.
 
     Returns:
-    :obj:`pypeit.par.pypeitpar.PypeItPar`: 
-        The parameters for collate_1d.
-
-    :obj:`pypeit.spectrographs.spectrograph.Spectrograph`:
-        The spectrograph for the given spec1d files.
-
-    list of 'str': The spec1d files read from the command line or .collate1d file.
+        :obj:`tuple`: Returns three objects: a
+        :class:`~pypeit.par.pypeitpar.PypeItPar` instance with the parameters
+        for collate_1d, a
+        :class:`~pypeit.spectrographs.spectrograph.Spectrograph` instance with
+        the spectrograph parameters used to take the data, and a :obj:`list`
+        with the spec1d files read from the command line or ``.collate1d`` file.
     """
     # First we need to get the list of spec1d files
     if args.input_file is not None:
@@ -362,27 +371,32 @@ def build_parameters(args):
     return params, spectrograph, spec1d_files
 
 def create_archive(archive_root, copy_to_archive):
-    """Create and Archive with the desired metadata information.
+    """
+    Create an archive with the desired metadata information.
 
-    Metadata is written to two files in the 
-    `ipac <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_ format. 
+    Metadata is written to two files in the `ipac
+    <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_
+    format:
 
-    ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files in
-    the archive. It is organzied by the id (either KOAID, or file name) of the 
-    original science image.
+        - ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files
+          in the archive. It is organzied by the id (either KOAID, or file name)
+          of the original science image.
 
-    ``by_object_meta.dat`` contains metadata for the coadded output files.
-    This may have multiple rows for each file depending on how many science
-    images were coadded. The primary key is a combined key of the source 
-    object name, filename, and koaid columns.
+        - ``by_object_meta.dat`` contains metadata for the coadded output files.
+          This may have multiple rows for each file depending on how many
+          science images were coadded. The primary key is a combined key of the
+          source object name, filename, and koaid columns.
 
     Args:
-    archive_root (str): The path to archive the metadata and files
-    copy_to_archive (bool): If true, files will be stored in the archive. 
-                            If false, only metadata is stored.
+        archive_root (:obj:`str`):
+            The path to archive the metadata and files
+        copy_to_archive (:obj:`bool`):
+            If true, files will be stored in the archive.  If false, only
+            metadata is stored.
 
     Returns:
-    :obj:`ArchiveDir`: An ArchiveDir object for archiving files and/or metadata.
+        :class:`~pypeit.archive.ArchiveDir`: Object for archiving files and/or
+        metadata.
     """
 
     ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']

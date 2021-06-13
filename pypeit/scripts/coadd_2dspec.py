@@ -1,5 +1,8 @@
 """
 Script for performing 2d coadds of PypeIt data.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 import glob

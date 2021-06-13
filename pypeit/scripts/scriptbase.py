@@ -1,5 +1,8 @@
 """
-Implements base classes for use with pypeit scripts
+Implements base classes for use with ``PypeIt`` scripts.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import argparse
@@ -22,6 +25,7 @@ class SmartFormatter(argparse.HelpFormatter):
 
 
 class ScriptBase:
+
     @classmethod
     def entry_point(cls):
         """
@@ -41,11 +45,8 @@ class ScriptBase:
     @classmethod
     def name(cls):
         """
-        Provides the name of the script.  By default, this is the name of the
-        module with "pypeit_" prepended.
-
-        Returns:
-            :obj:`str`: Script name
+        Provide the name of the script.  By default, this is the name of the
+        module with "pypeit" prepended.
         """
         return f"pypeit_{cls.__module__.split('.')[-1]}"
 

@@ -1,5 +1,8 @@
 """
 Script for fluxing PYPEIT 1d spectra
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 import os
 
@@ -18,23 +21,21 @@ from pypeit.scripts import scriptbase
 
 def read_fluxfile(ifile):
     """
-    Read a PypeIt flux file, akin to a standard PypeIt file
+    Read a ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
 
-    The top is a config block that sets ParSet parameters
-      The spectrograph is required
+    The top is a config block that sets ParSet parameters.  The name of the
+    spectrograph is required.
 
     Args:
-        ifile: str
-          Name of the flux file
+        ifile (:obj:`str`):
+            Name of the flux file
 
     Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files and flux_files
-          Empty if no flux block is specified
-
+        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
+        configuration entries used to modify the relevant
+        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` with the
+        names of spec1d files to be flux-calibrated, and a :obj:`list` with the
+        names of the files with the sensitivity function to use.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the fluxcalib file')

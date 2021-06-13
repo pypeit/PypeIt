@@ -1,6 +1,9 @@
 """
 This script examines a set of files and indicates which do and
 which do not have sufficient calibs
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase

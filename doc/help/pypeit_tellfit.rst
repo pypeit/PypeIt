@@ -30,7 +30,7 @@
                             Telluric grid. You should download the giant grid file
                             to the pypeit/data/telluric folder. It should only be
                             passed if you want to overwrite the default tell_grid
-                            that is set via each spectrograph file
+                            that is set via each spectrograph file.
       -p PCA_FILE, --pca_file PCA_FILE
                             Quasar PCA fits file with full path. The default file
                             (qso_pca_1200_3100.fits) is stored in the
