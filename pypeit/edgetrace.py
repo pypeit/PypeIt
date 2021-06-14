@@ -4352,13 +4352,13 @@ class EdgeTraceSet(DataContainer):
             # We try to ensure that the left edge is inserted after the right edge of previous slit
             for i in range(bot_edge_pred[needind_b].size):
                 # Find index of smaller closest trace
-                indx_smaller = np.where(self.edge_fit[self.pca.reference_row, :] < bot_edge_pred[needind_b][i])[0]
+                indx_smaller = np.where(self.edge_fit[reference_row, :] < bot_edge_pred[needind_b][i])[0]
                 if (indx_smaller.size > 0) & (indx_smaller.size < self.traceid.size):
                     indx = indx_smaller[-1]
                     # If close trace is "left" and next one is "right", add the new trace after "right" one
                     if (self.traceid[indx] < 0) & (self.traceid[indx+1] > 0) & \
-                            (self.edge_fit[self.pca.reference_row, indx + 1] - bot_edge_pred[needind_b][i] < 5):
-                        bot_edge_pred[needind_b[i]] = self.edge_fit[self.pca.reference_row, indx + 1] + 1
+                            (self.edge_fit[reference_row, indx + 1] - bot_edge_pred[needind_b][i] < 5):
+                        bot_edge_pred[needind_b[i]] = self.edge_fit[reference_row, indx + 1] + 1
             # define which side to add the trace and insert it
             lside = -np.ones(bot_edge_pred[needind_b].shape[0], dtype=int)
             # Predict trace
@@ -4383,13 +4383,13 @@ class EdgeTraceSet(DataContainer):
             # We try to ensure that the left edge is inserted after the right edge of previous slit
             for i in range(top_edge_pred[needind_t].size):
                 # Find index of larger closest trace
-                indx_larger = np.where(self.edge_fit[self.pca.reference_row, :] < top_edge_pred[needind_t][i])[0]
+                indx_larger = np.where(self.edge_fit[reference_row, :] > top_edge_pred[needind_t][i])[0]
                 if (indx_larger.size > 0) & (indx_larger.size < self.traceid.size):
                     indx = indx_larger[0]
                     # If close trace is "right" and previous one is "left", add new trace before "left" one
                     if (self.traceid[indx] > 0) & (self.traceid[indx-1] < 0) & \
-                            (top_edge_pred[needind_t][i] - self.edge_fit[self.pca.reference_row, indx - 1] < 5):
-                        top_edge_pred[needind_t[i]] = self.edge_fit[self.pca.reference_row, indx - 1] - 1
+                            (top_edge_pred[needind_t][i] - self.edge_fit[reference_row, indx - 1] < 5):
+                        top_edge_pred[needind_t[i]] = self.edge_fit[reference_row, indx - 1] - 1
             # define which side to add the trace and insert it
             rside = np.ones(top_edge_pred[needind_t].shape[0], dtype=int)
             # Predict trace
