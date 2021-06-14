@@ -8,6 +8,7 @@
 .. _PEP 257: https://www.python.org/dev/peps/pep-0257
 .. _argparse.Namespace: https://docs.python.org/3/library/argparse.html#argparse.Namespace
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
+.. _argparse.HelpFormatter: https://docs.python.org/3/library/argparse.html#formatter-class
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 
 .. numpy

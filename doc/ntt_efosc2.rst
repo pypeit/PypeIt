@@ -1,6 +1,6 @@
-***********
+**********
 NTT EFOSC2
-***********
+**********
 
 
 Overview
@@ -26,7 +26,8 @@ use_illumflat = True
 use_pixelflat = True
 
 Overscan
-====
+========
+
 Overscan subtraction is aborted for this instrument, we found it leads to a bad subtraction for ~20% of the data.
 To allow it, add this to the pipet file:
 

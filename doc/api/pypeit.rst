@@ -12,6 +12,7 @@ Subpackages
    pypeit.display
    pypeit.images
    pypeit.par
+   pypeit.scripts
    pypeit.spectrographs
 
 Submodules

@@ -30,6 +30,29 @@ from astropy import stats
 from pypeit.core import pydl
 from pypeit import msgs
 
+
+def all_subclasses(cls):
+    """
+    Collect all the subclasses of the provided class.
+
+    The search follows the inheritance to the highest-level class.  Intermediate
+    base classes are included in the returned set, but not the base class itself.
+
+    Thanks to:
+    https://stackoverflow.com/questions/3862310/how-to-find-all-the-subclasses-of-a-class-given-its-name
+
+    Args:
+        cls (object):
+            The base class
+
+    Returns:
+        :obj:`set`: The unique set of derived classes, including any
+        intermediate base classes in the inheritance thread.
+    """
+    return set(cls.__subclasses__()).union(
+            [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
 def embed_header():
     """
     Nominal header for an execution of `IPython.embed`_.
@@ -50,6 +73,7 @@ def embed_header():
     """
     info = inspect.getframeinfo(inspect.stack()[1][0])
     return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
+
 
 # Pulled from `pypeit.par.ParSet`. Maybe move these to
 # doc/scripts/util.py?

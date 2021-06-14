@@ -1,11 +1,9 @@
-#!/usr/bin/env python
-#
-# See top-level LICENSE file for Copyright information
-#
-# -*- coding: utf-8 -*-
 """
 This file contains a series of utility functions
 that can be used with the PypeIt scripts.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
 import os
@@ -172,3 +170,6 @@ def get_slits(mkey, mdir):
                                                             master_key=mkey,
                                                             master_dir=mdir)
     return slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+
+
+
