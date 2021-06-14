@@ -35,6 +35,14 @@ to the screen::
       None True
 
 
+pypeit_obslog
+=============
+
+The ``pypeit_obslog`` script allows you to see a simple listing of the data
+files in a given directory (or directories) and the metadata that ``PypeIt``
+will pull from their headers.  See :ref:`pypeit_obslog` for details.
+
+
 .. _pypeit-setup:
 
 pypeit_setup
