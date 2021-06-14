@@ -10,6 +10,8 @@
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
 .. _argparse.HelpFormatter: https://docs.python.org/3/library/argparse.html#formatter-class
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
+.. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
+.. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html

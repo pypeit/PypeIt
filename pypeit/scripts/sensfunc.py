@@ -52,30 +52,28 @@ class SensFunc(scriptbase.ScriptBase):
                             help='spec1d file for the standard that will be used to compute '
                                  'the sensitivity function')
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
-                            help="R|Override the default algorithm for computing the sensitivity function. \n"
-                                 "Note that it is not possible to set --algorithm and simultaneously use a .sens file with\n"
-                                 "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
-                                 "\n"
-                                 "    [sensfunc]\n"
-                                 "         algorithm = IR\n"
-                                 "\n"
-                                 "The algorithm options are:\n"
-                                 "\n"
-                                 "    UVIS = Should be used for data with lambda < 7000A.\n"
-                                 "    No detailed model of telluric absorption but corrects for atmospheric extinction.\n"
-                                 "\n"
-                                 "    IR   = Should be used for data with lambbda > 7000A.\n"
-                                 "    Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.\n"
-                                 "\n")
+                            help="R|Override the default algorithm for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --algorithm and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the algorithm there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         algorithm = IR\n"
+                                 "\nThe algorithm options are:\n\n"
+                                 "UVIS = Should be used for data with lambda < 7000A.  No "
+                                 "detailed model of telluric absorption but corrects for "
+                                 "atmospheric extinction.\n\n"
+                                 "IR = Should be used for data with lambbda > 7000A. Performs "
+                                 "joint fit for sensitivity function and telluric absorption "
+                                 "using HITRAN models.\n\n")
         parser.add_argument("--multi", type=str,
-                            help="R|List of detector numbers to splice together for instruments with multiple detectors\n"
-                                 "arranged in the spectral direction, e.g. --multi = '3,7'\n"
-                                 "Note that it is not possible to set --multi and \n"
-                                 "simultaneously use a .sens file with the --sens_file option.\n"
-                                 "If you are using a .sens file set the multi_spec_det param there via:\n"
-                                 "\n"
-                                 "         [sensfunc]\n"
-                                 "              multi_spec_det = 3,7\n"
+                            help="R|List of detector numbers to splice together for instruments "
+                                 "with multiple detectors arranged in the spectral direction, "
+                                 "e.g. --multi = '3,7'.  Note that it is not possible to set "
+                                 "--multi and simultaneously use a .sens file with the "
+                                 "--sens_file option.  If you are using a .sens file, set the "
+                                 "multi_spec_det param there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|        multi_spec_det = 3,7\n"
                                  "\n")
         parser.add_argument("-o", "--outfile", type=str,
                             help='Output file for sensitivity function. If not specified, the '
@@ -102,17 +100,18 @@ class SensFunc(scriptbase.ScriptBase):
 
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens file via\n"
-                       "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
+            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens "
+                       "file via the --sens_file option. If you are using a .sens file set the "
+                       "algorithm there via:\n"
                        "\n"
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via\n"
-                       "the --sens_file option. If you are using a .sens file set the detectors there via:\n"
-                       "\n"
+            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
+                       "the --sens_file option. If you are using a .sens file set the detectors "
+                       "there via:\n"
                        "\n"
                        "         [sensfunc]\n"
                        "              multi_spec_det = 3,7\n"

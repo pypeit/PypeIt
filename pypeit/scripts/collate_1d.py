@@ -437,25 +437,27 @@ class Collate1D(scriptbase.ScriptBase):
                                                 'nights and prepare a directory for the KOA.',
                                     width=width, formatter=scriptbase.SmartFormatter)
 
+        # TODO: Is the file optional?  If so, shouldn't the first argument start
+        # with '--'?
         parser.add_argument('input_file', type=str,
-                            help='R|(Optional) File for guiding the collate process.\n'
-                                 'Parameters in this file are overidden by the command\n'
-                                 'line. The file must have the following format:\n'
+                            help='R|(Optional) File for guiding the collate process.  '
+                                 'Parameters in this file are overidden by the command line. The '
+                                 'file must have the following format:\n'
                                  '\n'
-                                 '[collate1d]\n'
-                                 '  tolerance             <tolerance>\n'
-                                 '  archive_root          <directory for archive files>\n'
-                                 '  exclude_slit_trace_bm <slit types to exclude>\n'
-                                 '  exclude_serendip      If set serendipitous objects are skipped.\n'  
-                                 '  match_using           Whether to match using "pixel" or\n'
-                                 '                        "ra/dec"\n'
-                                 '  dry_run               If set the matches are displayed\n'
-                                 '                        without any processing\n'
+                                 'F|[collate1d]\n'
+                                 'F|  tolerance             <tolerance>\n'
+                                 'F|  archive_root          <directory for archive files>\n'
+                                 'F|  exclude_slit_trace_bm <slit types to exclude>\n'
+                                 'F|  exclude_serendip      If set serendipitous objects are skipped.\n'  
+                                 'F|  match_using           Whether to match using "pixel" or\n'
+                                 'F|                        "ra/dec"\n'
+                                 'F|  dry_run               If set the matches are displayed\n'
+                                 'F|                        without any processing\n'
                                  '\n'
-                                 'spec1d read\n'
-                                 '<path to spec1d files, wildcards allowed>\n'
-                                 '...\n'
-                                 'end\n',                        
+                                 'F|spec1d read\n'
+                                 'F|<path to spec1d files, wildcards allowed>\n'
+                                 'F|...\n'
+                                 'F|end\n',                        
                             nargs='?')
         parser.add_argument('--spec1d_files', type=str, nargs='*',
                             help='One or more spec1d files to flux/coadd/archive. '

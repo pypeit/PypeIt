@@ -88,33 +88,30 @@ class FluxCalib(scriptbase.ScriptBase):
                                     width=width, formatter=scriptbase.SmartFormatter)
 
         parser.add_argument("flux_file", type=str,
-                            help="R|File to guide fluxing process.\n"
-                                 "This file must have the following format: \n"
+                            help="R|File to guide fluxing process.  This file must have the "
+                                 "following format: \n\n"
+                                 "F|flux read\n"
+                                 "F|  spec1dfile1 sensfile\n"
+                                 "F|  spec1dfile2\n"
+                                 "F|     ...    \n"
+                                 "F|flux end\n"
+                                 "\nOR\n\n"
+                                 "F|flux read\n"
+                                 "F|  spec1dfile1 sensfile1\n"
+                                 "F|  spec1dfile2 sensfile2\n"
+                                 "F|  spec1dfile3 sensfile3\n"
+                                 "F|     ...    \n"
+                                 "F|flux end\n"
                                  "\n"
-                                 "flux read\n"
-                                 "  spec1dfile1 sensfile\n"
-                                 "  spec1dfile2\n"
-                                 "     ...    \n"
-                                 "     ...    \n"
-                                 "flux end\n"
-                                 "\n"
-                                 "    OR   \n"
-                                 "\n"
-                                 "flux read\n"
-                                 "  spec1dfile1 sensfile1\n"
-                                 "  spec1dfile2 sensfile2\n"
-                                 "  spec1dfile3 sensfile3\n"
-                                 "     ...    \n"
-                                 "flux end\n"
-                                 "\n"
-                                 "That is, you must specify either a sensfile for all spec1dfiles on the first line, or \n"
-                                 "create a two column list of spec1dfiles and corresponding sensfiles\n"
-                                 "\n")
+                                 "That is, you must specify either a sensfile for all spec1dfiles "
+                                 "on the first line, or create a two column list of spec1dfiles "
+                                 "and corresponding sensfiles\n\n")
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
                             help="Output to save the parameters")
-    #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
+#        parser.add_argument("--plot", default=False, action="store_true",
+#                            help="Show the sensitivity function?")
         return parser
 
     @staticmethod

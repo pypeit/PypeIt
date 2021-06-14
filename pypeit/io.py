@@ -565,6 +565,28 @@ def read_spec2d_file(ifile, filetype='coadd2d'):
     return spectrograph_name, cfg_lines, spec2d_files
 
 
+def read_tellfile(ifile):
+    """
+    Read a PypeIt telluric file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters.  The spectrograph is
+    not required.
+
+    Parameters
+    ----------
+    ifile: str
+        Name of the telluric file
+
+    Returns
+    -------
+    cfg_lines: list
+        Config lines to modify ParSet values
+    """
+    # Read in the pypeit reduction file
+    msgs.info('Loading the telluric file')
+    return list(par.util._read_pypeit_file_lines(ifile))
+
+
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
@@ -754,19 +776,27 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     return ext if isinstance(ext, list) else [ext], _hdu
 
+
 def fits_open(filename, **kwargs):
     """
-    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+    Thin wrapper around `astropy.io.fits.open`_ that handles empty padding
+    bytes.
 
     Args:
         filename (:obj:`str`):
-            File name for the fits file to open
+            File name for the fits file to open.
+        **kwargs:
+            Passed directly to `astropy.io.fits.open`_.
+
     Returns:
-        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
-        HDUs in the fits file
+        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
     """
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
+        msgs.warn('Error opening {0}: {1}'.format(filename, str(e))
+                   + '\nTrying again, assuming the error was a header problem.')
         return fits.open(filename, ignore_missing_end=True, **kwargs)
+
+
+
