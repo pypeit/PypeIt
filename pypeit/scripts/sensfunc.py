@@ -13,7 +13,8 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import par
+from pypeit.par import util
+from pypeit.par import pypeitpar
 from pypeit import sensfunc
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
@@ -36,7 +37,7 @@ def read_sensfile(ifile):
     # TODO: If there are only ever going to be configuration style lines in the
     # input file, we should probably be reading it using ConfigObj.
     msgs.info('Loading the fluxcalib file')
-    return list(par.util._read_pypeit_file_lines(ifile))
+    return list(util._read_pypeit_file_lines(ifile))
 
 
 class SensFunc(scriptbase.ScriptBase):
@@ -123,8 +124,8 @@ class SensFunc(scriptbase.ScriptBase):
         # If the .sens file was passed in read it and overwrite default parameters
         if args.sens_file is not None:
             cfg_lines = read_sensfile(args.sens_file)
-            par = par.pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                         merge_with=cfg_lines)
+            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                     merge_with=cfg_lines)
         else:
             par = spectrograph_def_par
 
