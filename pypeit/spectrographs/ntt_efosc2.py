@@ -144,7 +144,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             specaxis        = 0,
             specflip        = False,
             spatflip        = False,
-            platescale      = 5.360, # See fits header ['HIERARCH ESO TEL FOCU SCALE']
+            platescale      = 0.12, # Manual 2.2
             darkcurr        = 0.0,
             saturation      = 65535, # Maual Table 8
             nonlinear       = 0.80,
