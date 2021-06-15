@@ -23,6 +23,7 @@ from pypeit import datamodel
 from pypeit import io
 from pypeit.history import History
 
+
 class OneSpec(datamodel.DataContainer):
     """
     DataContainer to hold the products from :class:`pypeit.coadd1d.CoAdd1D`
@@ -44,9 +45,12 @@ class OneSpec(datamodel.DataContainer):
     version = '1.0.0'
 
     datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang)'),
-                 'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
-                 'ivar': dict(otype=np.ndarray, atype=np.floating, descr='Inverse variance array (matches units of flux)'),
-                 'mask': dict(otype=np.ndarray, atype=np.integer, descr='Mask array (1=Good,0=Bad)'),
+                 'flux': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
+                 'ivar': dict(otype=np.ndarray, atype=np.floating,
+                              descr='Inverse variance array (matches units of flux)'),
+                 'mask': dict(otype=np.ndarray, atype=np.integer,
+                              descr='Mask array (1=Good,0=Bad)'),
                  'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'obj_model': dict(otype=np.ndarray, atype=np.floating,
@@ -80,8 +84,7 @@ class OneSpec(datamodel.DataContainer):
         #
         return slf
 
-
-    def __init__(self, wave, flux, PYP_SPEC, ivar=None, mask=None, telluric=None,
+    def __init__(self, wave, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -125,10 +128,10 @@ class OneSpec(datamodel.DataContainer):
             history.write_to_header(primary_hdr)
 
         # Do it
-        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
-                                     **kwargs)
+        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr, **kwargs)
 
-class CoAdd1D(object):
+
+class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
