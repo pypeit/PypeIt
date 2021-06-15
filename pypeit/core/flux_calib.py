@@ -68,18 +68,21 @@ def blackbody_func(a, teff):
         waves : `numpy.ndarray`_ of the wavelengths
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
-    waves = np.arange(3000.0, 25000.0, 0.1) * u.AA
+    waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
     # Setup the units
-    teff *= u.K
+    # TODO: This alters the input!!
+    teff *= units.K
     a *= 1.0E-23
     # Calculate the function
-    flam = ((a*2*const.h*const.c**2)/waves**5)/(np.exp((const.h*const.c/(waves*const.k_B*teff)).to(u.m/u.m).value)-1.0)
-    flam = flam.to(u.erg / u.s / u.cm ** 2 / u.AA).value / PYPEIT_FLUX_SCALE
+    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
+                (waves*constants.k_B*teff)).to(units.m/units.m).value)-1.0)
+    flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
 
 
-# Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
-# It has a value of ZP_UNIT_CONST = 40.092117379602044
+# Define this global variable to avoid constantly recomputing, which could be
+# costly in the telluric optimization routines.  It has a value of ZP_UNIT_CONST
+# = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
 
 
@@ -606,6 +609,8 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders
     out_table['SENS_WAVE'] = wave_arr.T
+    # TODO: Is this correct?
+    out_table['SENS_COUNTS_PER_ANG'] = counts_arr.T
     out_table['SENS_ZEROPOINT'] = zeropoint_data.T
     out_table['SENS_ZEROPOINT_GPM'] = zeropoint_data_gpm.T
     out_table['SENS_ZEROPOINT_FIT'] = zeropoint_fit.T

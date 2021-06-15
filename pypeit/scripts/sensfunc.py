@@ -4,40 +4,9 @@ Script to determine the sensitivity function for a PypeIt 1D spectrum.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
 from IPython import embed
 
-import numpy as np
-
-from astropy.io import fits
-
-from pypeit import msgs
-from pypeit.par import util
-from pypeit.par import pypeitpar
-from pypeit import sensfunc
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
-
-
-def read_sensfile(ifile):
-    """
-    Read a PypeIt sens file.
-
-    The format of the file is a configuration (ini) file that can be parsed by
-    `configobj`_.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the flux file
-
-    Returns:
-        :obj:`list`: The list of configuration lines read from the file.
-    """
-    # TODO: If there are only ever going to be configuration style lines in the
-    # input file, we should probably be reading it using ConfigObj.
-    msgs.info('Loading the fluxcalib file')
-    return list(util._read_pypeit_file_lines(ifile))
 
 
 class SensFunc(scriptbase.ScriptBase):
@@ -98,6 +67,18 @@ class SensFunc(scriptbase.ScriptBase):
     def main(args):
         """Executes sensitivity function computation."""
 
+        import os
+
+        import numpy as np
+
+        from astropy.io import fits
+
+        from pypeit import msgs
+        from pypeit import io
+        from pypeit.par import pypeitpar
+        from pypeit import sensfunc
+        from pypeit.spectrographs.util import load_spectrograph
+
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
             msgs.error("It is not possible to set --algorithm and simultaneously use a .sens "
@@ -116,17 +97,16 @@ class SensFunc(scriptbase.ScriptBase):
                        "         [sensfunc]\n"
                        "              multi_spec_det = 3,7\n"
                        "\n")
+
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
         spectrograph_def_par = spectrograph.default_pypeit_par()
+
         # If the .sens file was passed in read it and overwrite default parameters
-        if args.sens_file is not None:
-            cfg_lines = read_sensfile(args.sens_file)
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                     merge_with=cfg_lines)
-        else:
-            par = spectrograph_def_par
+        par = spectrograph_def_par if args.sens_file is None else \
+                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                   merge_with=io.read_sensfile(args.sens_file))
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -144,10 +124,13 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
-        print("Writing the parameters to {}".format(args.par_outfile))
-        par['sensfunc'].to_config('sensfunc.par', section_name='sensfunc', include_descr=False)
+        print(f'Writing the parameters to {args.par_outfile}')
+        par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only
+        # TODO: KBW - You can do that if you override the
+        # pypeit.par.parset.ParSet.to_config method in the
+        # pypeit.par.pypeitpar.SensFuncPar class.
         # par['sensfunc'].to_config('sensfunc.par') but this crashes.
 
         # Parse the output filename

@@ -9,6 +9,7 @@ from IPython import embed
 
 from pypeit.scripts import scriptbase
 
+
 class TellFit(scriptbase.ScriptBase):
 
     @classmethod

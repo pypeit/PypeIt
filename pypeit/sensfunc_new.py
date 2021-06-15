@@ -20,7 +20,6 @@ from pypeit import msgs
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import io
-from pypeit import datamodel
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.core import fitting
@@ -29,6 +28,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
 from pypeit.spectrographs.util import load_spectrograph
 
+from pypeit import datamodel
 
 # TODO Add the data model up here as a standard thing using DataContainer.
 
@@ -76,7 +76,7 @@ class SensFunc(datamodel.DataContainer):
                  'wave': dict(otype=np.ndarray, descr='Wavelength vectors'),
                  'zeropoint': dict(otype=np.ndarray, descr='Sensitivity function zero-points'),
                  'throughput': dict(otype=np.ndarray, descr='Estimated throughput'),
-                 'telluric': dict(otype=telluric.TelluricData, descr='Telluric model'),
+                 'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
                  'sens': dict(otype=table.Table, descr='Table with the sensitivity function')}
     """DataContainer datamodel."""
 

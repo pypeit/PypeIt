@@ -21,7 +21,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import par
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -584,6 +585,27 @@ def read_tellfile(ifile):
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the telluric file')
+    return list(par.util._read_pypeit_file_lines(ifile))
+
+
+# TODO: This is identical to the tellfile function
+def read_sensfile(ifile):
+    """
+    Read a PypeIt sens file.
+
+    The format of the file is a configuration (ini) file that can be parsed by
+    `configobj`_.
+
+    Args:
+        ifile (:obj:`str`):
+            Name of the flux file
+
+    Returns:
+        :obj:`list`: The list of configuration lines read from the file.
+    """
+    # TODO: If there are only ever going to be configuration style lines in the
+    # input file, we should probably be reading it using ConfigObj.
+    msgs.info('Loading the fluxcalib file')
     return list(par.util._read_pypeit_file_lines(ifile))
 
 

@@ -1,9 +1,11 @@
 
-1.4.2
------
+1.4.2dev
+--------
 
 - Added a common base class for all scripts
 - Script methods now included in Sphinx documentation
+- Updated `pypeit.scripts.scriptbase.SmartFormatter` to enable wrapping
+  long lines and specify lines with a fixed format using `F|`.
 
 1.4.1 (11 Jun 2021)
 -------------------

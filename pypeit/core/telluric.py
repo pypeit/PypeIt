@@ -1190,117 +1190,113 @@ def mask_star_lines(wave_star, mask_width=10.0):
 
     return mask_star
 
-def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, telgridfile,
-                      ech_orders=None,
-                      polyorder=8, mask_abs_lines=True,
+def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
+                      telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0, upper=3.0, tol=1e-3, popsize=30, recombination=0.7,
-                      polish=True, disp=False,
+                      sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
+                      upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
-    Function to compute a sensitivity function by simultaneously fitting the sensfunc and a telluric model to a standard
-    star spectrum.  The sensitivity function is defined to be S_lam = F_lam/(counts/s/A) where F_lam is in units of
-    1e-17 erg/s/cm^2/A, and so the sensitivity function has units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+    Provided a standard star spectrum, compute a best-fit telluric model.
 
-    from the PypeIt spec1d file of a standard star spectrum.
+    This method is primarily used with :class:`~pypeit.sensfunc.SensFunc` to
+    compute sensitivity functions.
+
+    .. Function to compute a sensitivity function by simultaneously fitting the
+    .. sensfunc and a telluric model to a standard star spectrum.  The sensitivity
+    .. function is defined to be S_lam = F_lam/(counts/s/A) where F_lam is in units
+    .. of 1e-17 erg/s/cm^2/A, and so the sensitivity function has units of
+    .. (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
 
     Parameters
     ----------
-    wave : array shape (nspec,) or (nspec, norders) the latter being for echelle data.
-        Wavelength array
-
-    counts : array with same shape as wave.
+    wave : `numpy.ndarray`_, shape is (nspec,) or (nspec, norders)
+        Wavelength array.  If array is 2D, the data is likely from an echelle
+        spectrograph.
+    counts : `numpy.ndarray`_, shape must match ``wave``
         Counts for the object in question.
-
-    counts_ivar: array with same shape as wave
+    counts_ivar : `numpy.ndarray`_, shape must match ``wave``
         Inverse variance for the object in question.
-
-    counts_mask : array with same shape as wave
+    counts_mask : `numpy.ndarray`_, shape must match ``wave``
         Good pixel mask for the object in question.
-
-    exptime : float
+    exptime : :obj:`float
         Exposure time
-
-    airmass : float
+    airmass : :obj:`float`
         Airmass of the observation
-
-    std_dict : dict
-        Dictionary containing the information for the true flux of the standard star.
-
-    telgridfile : str
-        File containing grid of HITRAN atmosphere models. This file is given by spectrograph.telluric_grid_file
-
-    ech_orders : array with shape (norders,), optional
-        If passed, the true order numbers will be written to the output table.
-
-    polyorder : int, optional, default = 8
-        Polynomial order for the sensitivity function fit
-
-    mask_abs_lines : bool, optional, default=True
+    std_dict : :obj:`dict`
+        Dictionary containing the information for the true flux of the standard
+        star. TODO: What's in this dictionary?
+    telgridfile : :obj:`str`
+        File containing grid of HITRAN atmosphere models. This file is given by
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.telluric_grid_file`.
+    ech_orders : `numpy.ndarray`_, shape is (norders,), optional
+        If passed, provides the true order numbers for the spectra provided.
+    polyorder : :obj:`int`, optional, default = 8
+        Polynomial order for the sensitivity function fit.
+    mask_abs_lines : :obj:`bool`, optional, default=True
         Mask proiminent stellar absorption lines?
+    delta_coeff_bounds : :obj:`tuple`, optional, default = (-20.0, 20.0)
+        Parameters setting the polynomial coefficient bounds for sensfunc
+        optimization.
+    minmax_coeff_bounds : :obj:`tuple`, optional, default = (-5.0, 5.0)
+        Parameters setting the polynomial coefficient bounds for sensfunc
+        optimization. Bounds are currently determined as follows. We compute an
+        initial fit to the sensitivity function using
+        :func:`init_sensfunc_model`, which determines a set of coefficients. The
+        bounds are then determined according to::
 
-    delta_coeff_bounds : tuple, optional, default = (-20.0, 20.0)
-        Paramters setting the polynomial coefficient bounds for sensfunc optimization.
+        [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0],
+                  obj_params['minmax_coeff_bounds'][0]),
+          np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1],
+                  obj_params['minmax_coeff_bounds'][1]))]
 
-    minmax_coeff_bounds : tuple, optional, default = (-5.0, 5.0)
-        Paramters setting the polynomial coefficient bounds for sensfunc optimization. Bounds are currently determined
-        as follows. We compute an initial fit to the sensfunc in the init_sensfunc_model function above. That deterines
-        a set of coefficients. The bounds are then determined according to:
-
-        [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
-                   np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))]
-
-    sn_clip : float, optional, default=30.0,
-        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive
-        rejection in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
-        systematics, which in this case is most likely the inadequecy of our telluric model to fit the data at the
-        the precision set by very high S/N ratio
-
+    sn_clip : :obj:`float`, optional, default=30.0
+        Errors are capped during rejection so that the S/N is never greater than
+        ``sn_clip``. This prevents overly aggressive rejection in high S/N ratio
+        spectrum, which neverthless differ at a level greater than the implied
+        S/N due to systematics.  These systematics are most likely due to the
+        inadequecy of our telluric model to fit the data at the the precision
+        required at very high S/N ratio.
     only_orders : :obj:`list` of int, optional, default = None
         Only fit these specific orders
-
-    tol (float): default = 1e-3
-        Relative tolerance for converage of the differential evolution optimization. See
-        scipy.optimize.differential_evolution for details.
-
-    popsize (int): default = 30
-        A multiplier for setting the total population size for the differential evolution optimization. See
-        scipy.optimize.differential_evolution for details.
-
-    recombination : float, optional, default = 0.7
-        The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
-        See scipy.optimize.differential_evolution for details.
-    polish : bool, optional, default=True
-        If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
-        at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
-    disp : bool, optional, default=True
-        Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
-        indicating the status of the optimization. See above for a description of the output and how to know
-        if things are working well.
-
-    debug_init : bool, optional, default=False
+    tol : :obj:`float`, optional, default = 1e-3
+        Relative tolerance for convergence of the differential evolution
+        optimization. See `scipy.optimize.differential_evolution`_ for details.
+    popsize : :obj:`int`, optional, default = 30
+        A multiplier for setting the total population size for the differential
+        evolution optimization. See `scipy.optimize.differential_evolution`_ for
+        details.
+    recombination : :obj:`float`, optional, default = 0.7
+        The recombination constant for the differential evolution optimization.
+        This should be in the range ``[0, 1]``.  See
+        `scipy.optimize.differential_evolution`_ for details.
+    polish : :obj:`bool`, optional, default=True
+        If True then differential evolution will perform an additional
+        optimization at the end to polish the best fit, which can improve the
+        optimization slightly. See `scipy.optimize.differential_evolution`_ for
+        details.
+    disp : :obj:`bool`, optional, default=True
+        Argument for `scipy.optimize.differential_evolution`_, which will
+        display status messages to the screen indicating the status of the
+        optimization. See above for a description of the output and how to know
+        if things are working well.  TODO: Where above?
+    debug_init : :obj:`bool`, optional, default=False
         Show plots to the screen useful for debugging model initialization
-
-    debug : bool, optional, default=False
-        Show plots to the screen useful for debugging the telluric/object model fits.
+    debug : :obj:`bool`, optional, default=False
+        Show plots to the screen useful for debugging the telluric/object model
+        fits.
 
     Returns
     -------
-    meta_table : astropy.table.Table object
-        Table containing meta data for the telluric/object model fit
-
-    out_table: astropy.table.Table. object
-        Table containing the values for telluric model parameters and object model parameters.
+    TelObj : :class:`Telluric`
+        Best-fitting telluric model
     """
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
         disp = True
 
-    if counts.ndim == 2:
-        norders = counts.shape[1]
-    else:
-        norders = 1
+    norders = counts.shape[1] if counts.ndim == 2 else 1
 
     # Create the polyorder_vec
     if np.size(polyorder) > 1:
@@ -1313,74 +1309,70 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     func ='legendre'
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=airmass,
-                      delta_coeff_bounds=delta_coeff_bounds, minmax_coeff_bounds=minmax_coeff_bounds,
-                      polyorder_vec=polyorder_vec, exptime=exptime,
-                      func=func, sigrej=3.0,
-                      std_src=std_dict['std_source'], std_ra=std_dict['std_ra'],
-                      std_dec=std_dict['std_dec'], std_name=std_dict['name'],
-                      std_cal=std_dict['cal_file'],
+    obj_params = dict(std_dict=std_dict, airmass=airmass, delta_coeff_bounds=delta_coeff_bounds,
+                      minmax_coeff_bounds=minmax_coeff_bounds, polyorder_vec=polyorder_vec,
+                      exptime=exptime, func=func, sigrej=3.0, std_src=std_dict['std_source'],
+                      std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
+                      std_name=std_dict['name'], std_cal=std_dict['cal_file'],
                       output_meta_keys=('airmass', 'polyorder_vec', 'func', 'std_src',
                                         'std_ra', 'std_dec', 'std_name', 'std_cal'),
                       debug=debug_init)
 
     # Optionally, mask prominent stellar absorption features
-    if mask_abs_lines:
-        inmask = mask_star_lines(wave)
-        mask_tot = inmask & counts_mask
-    else:
-        mask_tot = counts_mask
+    mask_tot = (mask_star_lines(wave) & counts_mask) if mask_abs_lines else counts_mask
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, maxiter=maxiter,
-                      lower=lower, upper=upper,
-                      tol=tol, popsize=popsize, recombination=recombination,
-                      polish=polish, disp=disp, sensfunc=True, debug=debug)
-
+                      init_sensfunc_model, eval_sensfunc_model, ech_orders=ech_orders,
+                      sn_clip=sn_clip, maxiter=maxiter, lower=lower, upper=upper, tol=tol,
+                      popsize=popsize, recombination=recombination, polish=polish, disp=disp,
+                      sensfunc=True, debug=debug)
     TelObj.run(only_orders=only_orders)
-    # Append the zeropoint to the output table for convenience
-    meta_table, out_table = TelObj.meta_table, TelObj.out_table
 
-    # For stupid reasons related to how astropy tables will let me store this data I have to redundantly write out the
-    # wavelength grid for each order. In actuality a variable length wavelength grid is needed which is a subset of the
-    # original fixed grid, but there is no way to write this to disk. Perhaps the better solution would be a list of
-    # of astropy tables, one for each order, that would save some space, since we could then write out only the subset
-    # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
-    # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
-    # somewhat heterogenous outputs of the two different fluxing algorithms.
-    out_table['SENS_COEFF'] = out_table['OBJ_THETA']
-    out_table['SENS_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
-    out_table['SENS_COUNTS_PER_ANG'] = np.zeros((norders, TelObj.wave_grid.size))
-    out_table['SENS_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
-    out_table['SENS_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
-    out_table['SENS_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
-    out_table['SENS_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
-    for iord in range(norders):
-        wave_min = out_table[iord]['WAVE_MIN']
-        wave_max = out_table[iord]['WAVE_MAX']
-        ind_lower = out_table[iord]['IND_LOWER']
-        ind_upper = out_table[iord]['IND_UPPER']
-        # Compute and assign the zeropint_data from the input data and the best-fit telluric model
-        wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
-        out_table[iord]['SENS_WAVE'][ind_lower:ind_upper+1] = wave_now
-        zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
-        out_table[iord]['SENS_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
-        tellmodel_now = TelObj.tellmodel_list[iord]
-        out_table[iord]['SENS_COUNTS_PER_ANG'][ind_lower:ind_upper + 1] = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
-        flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
-        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
-        N_lam = flux_now / exptime
-        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
-                                                         tellmodel=tellmodel_now)
-        out_table[iord]['SENS_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
-        # Compute and assign the
-        coeff = out_table[iord]['SENS_COEFF'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
-            coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
-        out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
+    return TelObj
 
-    return meta_table, out_table, TelObj
+#    # Append the zeropoint to the output table for convenience
+#    meta_table, out_table = TelObj.meta_table, TelObj.out_table
+#
+#    # For stupid reasons related to how astropy tables will let me store this data I have to redundantly write out the
+#    # wavelength grid for each order. In actuality a variable length wavelength grid is needed which is a subset of the
+#    # original fixed grid, but there is no way to write this to disk. Perhaps the better solution would be a list of
+#    # of astropy tables, one for each order, that would save some space, since we could then write out only the subset
+#    # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
+#    # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
+#    # somewhat heterogenous outputs of the two different fluxing algorithms.
+#    out_table['SENS_COEFF'] = out_table['OBJ_THETA']
+#    out_table['SENS_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
+#    out_table['SENS_COUNTS_PER_ANG'] = np.zeros((norders, TelObj.wave_grid.size))
+#    out_table['SENS_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
+#    out_table['SENS_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+#    out_table['SENS_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
+#    out_table['SENS_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
+#    for iord in range(norders):
+#        wave_min = out_table[iord]['WAVE_MIN']
+#        wave_max = out_table[iord]['WAVE_MAX']
+#        ind_lower = out_table[iord]['IND_LOWER']
+#        ind_upper = out_table[iord]['IND_UPPER']
+#        # Compute and assign the zeropint_data from the input data and the best-fit telluric model
+#        wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
+#        out_table[iord]['SENS_WAVE'][ind_lower:ind_upper+1] = wave_now
+#        zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
+#        out_table[iord]['SENS_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
+#        tellmodel_now = TelObj.tellmodel_list[iord]
+#        out_table[iord]['SENS_COUNTS_PER_ANG'][ind_lower:ind_upper + 1] = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
+#        flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
+#        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
+#        N_lam = flux_now / exptime
+#        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
+#                                                         tellmodel=tellmodel_now)
+#        out_table[iord]['SENS_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
+#        # Compute and assign the
+#        coeff = out_table[iord]['SENS_COEFF'][0:polyorder_vec[iord] + 2]
+#        out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
+#            coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
+#        out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
+#
+#    return meta_table, out_table, TelObj
 
 
 def create_bal_mask(wave, bal_wv_min_max):
@@ -2043,6 +2035,7 @@ class Telluric(datamodel.DataContainer):
 
     """
     version = '1.0.0'
+    """Datamodel version."""
 
     datamodel = {'method': dict(otype=str, descr='PypeIt method used to construct the data'),
                  'telgrid': dict(otype=str,
@@ -2130,7 +2123,7 @@ class Telluric(datamodel.DataContainer):
                          description='Flag that fit was successful'),
             table.Column(name='NITER', dtype=int, length=norders,
                          description='Number of fit iterations'),
-            table.Column(name='ECH_ORDER', dtype=int, length=norders,
+            table.Column(name='ECH_ORDERS', dtype=int, length=norders,
                          description='Echelle order for this specrum (echelle data only)'),
             table.Column(name='POLYORDER_VEC', dtype=int, length=norders,
                          description='Polynomial order for each slit/echelle (if applicable)'),
