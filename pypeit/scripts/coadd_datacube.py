@@ -1,48 +1,35 @@
-#!/usr/bin/env python
-#
-# See top-level LICENSE file for Copyright information
-#
-# -*- coding: utf-8 -*-
 """
 This script enables the user to convert spec2D FITS files
 from IFU instruments into a 3D cube with a defined WCS.
-"""
 
-import argparse
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+import os
+import copy
+
+from IPython import embed
+
+import numpy as np
 
 from astropy import units
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
-import numpy as np
-import copy, os
 
-from pypeit import msgs, par, io, spec2dobj
+from pypeit import msgs
+from pypeit import par
+from pypeit import io
+from pypeit import spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import datacube as dc_utils
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
-
-from IPython import embed
-
-
-def parse_args(options=None, return_parser=False):
-
-    parser = argparse.ArgumentParser(description='Read in an array of spec2D files and convert them into a datacube',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument('file', type = str, default=None, help='filename.coadd3d file')
-    parser.add_argument('--det', default=1, type=int, help="Detector")
-    parser.add_argument('-o', '--overwrite', default=False, action='store_true',
-                        help='Overwrite any existing files/directories')
-
-    if return_parser:
-        return parser
-
-    return parser.parse_args() if options is None else parser.parse_args(options)
+from pypeit.scripts import scriptbase
 
 
+# TODO: This function needs to be moved outside the script
 def coadd_cube(files, parset, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
@@ -341,29 +328,37 @@ def coadd_cube(files, parset, overwrite=False):
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
-def main(args):
-    if args.file is None:
-        msgs.error('You must input a coadd3d file')
-    else:
-        spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
-        spectrograph = load_spectrograph(spectrograph_name)
+class CoAddDataCube(scriptbase.ScriptBase):
 
-        # Parameters
-        spectrograph_def_par = spectrograph.default_pypeit_par()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=config_lines)
-        # If detector was passed as an argument override whatever was in the coadd3d file
-        if args.det is not None:
-            msgs.info("Restricting to detector={}".format(args.det))
-            parset['rdx']['detnum'] = int(args.det)
+    @classmethod
+    def get_parser(cls, width=None):
+        parser = super().get_parser(description='Read in an array of spec2D files and convert '
+                                                'them into a datacube', width=width)
+        parser.add_argument('file', type = str, default=None, help='filename.coadd3d file')
+        parser.add_argument('--det', default=1, type=int, help="Detector")
+        parser.add_argument('-o', '--overwrite', default=False, action='store_true',
+                            help='Overwrite any existing files/directories')
+        return parser
 
-    # Coadd the files
-    coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
+    @staticmethod
+    def main(args):
+        if args.file is None:
+            msgs.error('You must input a coadd3d file')
+        else:
+            spectrograph_name, config_lines, spec2d_files \
+                    = io.read_spec2d_file(args.file, filetype="coadd3d")
+            spectrograph = load_spectrograph(spectrograph_name)
+
+            # Parameters
+            spectrograph_def_par = spectrograph.default_pypeit_par()
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                  merge_with=config_lines)
+            # If detector was passed as an argument override whatever was in the coadd3d file
+            if args.det is not None:
+                msgs.info("Restricting to detector={}".format(args.det))
+                parset['rdx']['detnum'] = int(args.det)
+
+        # Coadd the files
+        coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
 
 
-def entry_point():
-    main(parse_args())
-
-
-if __name__ == '__main__':
-    entry_point()

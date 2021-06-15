@@ -35,10 +35,10 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             reason='no dev-suite cooked directory')
 
 # Tests require the Telluric file (Mauna Kea)
-telluric_required = pytest.mark.skipif(not os.path.isfile(
-    os.path.join(resource_filename('pypeit', 'data'), 'telluric',
-    'TelFit_MaunaKea_3100_26100_R20000.fits')),
-                            reason='no Mauna Kea telluric file')
+tell_test_grid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids',
+                              'TelFit_MaunaKea_3100_26100_R20000.fits')
+telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
+                                       reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
 try:

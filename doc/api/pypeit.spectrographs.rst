@@ -28,6 +28,7 @@ Submodules
    pypeit.spectrographs.mmt_bluechannel
    pypeit.spectrographs.mmt_mmirs
    pypeit.spectrographs.not_alfosc
+   pypeit.spectrographs.ntt_efosc2
    pypeit.spectrographs.opticalmodel
    pypeit.spectrographs.p200_dbsp
    pypeit.spectrographs.p200_tspec

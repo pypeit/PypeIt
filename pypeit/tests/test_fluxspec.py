@@ -102,3 +102,4 @@ def test_wmko_flux_std():
 
     os.remove(spec1dfile)
     os.remove(outfile)
+

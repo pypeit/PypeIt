@@ -3,7 +3,7 @@
     $ pypeit_qa_html -h
     usage: pypeit_qa_html [-h] [--qapath QAPATH] pypeit_file type
     
-    Script to build HTML files for PYPIT QA. [v1.0]
+    Script to build HTML files for PYPIT QA.
     
     positional arguments:
       pypeit_file      PYPIT file

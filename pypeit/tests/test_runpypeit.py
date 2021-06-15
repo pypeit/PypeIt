@@ -15,8 +15,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit.scripts import setup
-from pypeit.scripts import run_pypeit
+from pypeit.scripts.setup import Setup
+from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit import specobjs
 
@@ -67,9 +67,9 @@ def test_run_pypeit_calib_only():
             shutil.rmtree(outdir)
 
         # Run the setup
-        sargs = setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+        sargs = Setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
                                   '--output_path', outdir])
-        setup.main(sargs)
+        Setup.main(sargs)
 
         # Change to the configuration directory and set the pypeit file
         configdir = os.path.join(outdir, 'shane_kast_blue_A')
@@ -77,8 +77,8 @@ def test_run_pypeit_calib_only():
         assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
         # Perform the calib-only reduction
-        pargs = run_pypeit.parse_args([pyp_file, '-c', '-r', configdir])
-        run_pypeit.main(pargs)
+        pargs = RunPypeIt.parse_args([pyp_file, '-c', '-r', configdir])
+        RunPypeIt.main(pargs)
 
         # Test!
         for master_file in masters:
@@ -112,9 +112,9 @@ def test_run_pypeit():
         shutil.rmtree(outdir)
 
     # Run the setup
-    sargs = setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+    sargs = Setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
                               '--output_path', outdir])
-    setup.main(sargs)
+    Setup.main(sargs)
 
     # Change to the configuration directory and set the pypeit file
     configdir = os.path.join(outdir, 'shane_kast_blue_A')
@@ -122,8 +122,8 @@ def test_run_pypeit():
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
     # Try to run with -m and -o
-    pargs = run_pypeit.parse_args([pyp_file, '-o', '-m', '-r', configdir])
-    run_pypeit.main(pargs)
+    pargs = RunPypeIt.parse_args([pyp_file, '-o', '-m', '-r', configdir])
+    RunPypeIt.main(pargs)
 
     # #########################################################
     # Test!!
@@ -145,8 +145,8 @@ def test_run_pypeit():
     assert abs(specObjs[0].VEL_CORR - 0.9999261685542624) < 1.0E-10
 
     # Now re-use those master files
-    pargs = run_pypeit.parse_args([pyp_file, '-o', '-r', configdir])
-    run_pypeit.main(pargs)
+    pargs = RunPypeIt.parse_args([pyp_file, '-o', '-r', configdir])
+    RunPypeIt.main(pargs)
 
     # Clean-up
     shutil.rmtree(outdir)

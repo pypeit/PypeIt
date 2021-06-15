@@ -93,23 +93,25 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     #
     return dspec
 
-def test_qa():
-    """ Test QA """
-    if os.getenv('RUN_ALL_PYPIT_TESTS') is None:
-        assert True
-        return
-    # Setup
-    #wvmnx = [[5000., 6000.],
-    #         [5000.5, 6000.5],
-    #         [5000.8, 6000.8],
-    #         ]
-    #npix = [1000, 1000, 1000]
-    dspec = dummy_spectra(s2n=10.)#, wvmnx=wvmnx, npix=npix)
-    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
-    dspec.data['sig'][0, 700] *= 500.
-    #TODO rewrite this test
-    #coadd.coadd_spectra(dspec, wave_method='concatenate', qafile='tst.pdf')
-
+# TODO: This test needs to be re-written.  It currently does nothing, so I
+# removed it.
+#def test_qa():
+#    """ Test QA """
+#    if os.getenv('RUN_ALL_PYPIT_TESTS') is None:
+#        assert True
+#        return
+#    # Setup
+#    #wvmnx = [[5000., 6000.],
+#    #         [5000.5, 6000.5],
+#    #         [5000.8, 6000.8],
+#    #         ]
+#    #npix = [1000, 1000, 1000]
+#    dspec = dummy_spectra(s2n=10.)#, wvmnx=wvmnx, npix=npix)
+#    dspec.data['flux'][0, 700] *= 1000.  # One bad pixel
+#    dspec.data['sig'][0, 700] *= 500.
+#    #TODO rewrite this test
+#    #coadd.coadd_spectra(dspec, wave_method='concatenate', qafile='tst.pdf')
+#
 
 @cooked_required
 def test_coadd_datacube():
@@ -120,3 +122,5 @@ def test_coadd_datacube():
     files = [spec2d_file1, spec2d_file2]
     coadd_cube(files, None, overwrite=True)
     os.remove('datacube.fits')
+
+
