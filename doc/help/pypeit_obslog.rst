@@ -1,8 +1,8 @@
 .. code-block:: console
 
     $ pypeit_obslog -h
-    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES]
-                         [-g] [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
+    usage: pypeit_obslog [-h] [-r ROOT] [-k] [-c COLUMNS] [-b] [-t BAD_TYPES] [-g]
+                         [-i] [-s SORT] [-e EXTENSION] [-d OUTPUT_PATH] [-o]
                          [-f FILE]
                          spec
     
@@ -21,10 +21,10 @@
                             lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
                             magellan_fire, magellan_fire_long, magellan_mage,
                             mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
-                            mmt_mmirs, not_alfosc, p200_dbsp_blue, p200_dbsp_red,
-                            p200_tspec, shane_kast_blue, shane_kast_red,
-                            shane_kast_red_ret, soar_goodman_red, tng_dolores,
-                            vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
+                            mmt_mmirs, not_alfosc, ntt_efosc2, p200_dbsp_blue,
+                            p200_dbsp_red, p200_tspec, shane_kast_blue,
+                            shane_kast_red, shane_kast_red_ret, soar_goodman_red,
+                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red
     
@@ -35,13 +35,13 @@
                             string up through the wildcard (.e.g, /data/Kast/b).
                             Use the --extension option to set the types of files
                             to search for. Default is the current working
-                            directory. (default: /home/dusty/work/PypeIt/doc)
+                            directory. (default:
+                            /Users/westfall/Work/packages/pypeit/doc)
       -k, --keys            Do not produce the log; simply list the pypeit-
-                            specific metadata keys available for this
-                            spectrograph and their associated header cards.
-                            Metadata keys with header cards that are None have no
-                            simple mapping between keyword and header card.
-                            (default: False)
+                            specific metadata keys available for this spectrograph
+                            and their associated header cards. Metadata keys with
+                            header cards that are None have no simple mapping
+                            between keyword and header card. (default: False)
       -c COLUMNS, --columns COLUMNS
                             A comma-separated list of columns to include in the
                             output table. Each column must be a valid pypeit
@@ -57,11 +57,11 @@
                             by pypeit. (default: False)
       -t BAD_TYPES, --bad_types BAD_TYPES
                             Dictates how frames that could not be given a valid
-                            type should be treated. Options are: "keep" to
-                            include them in the output, "rm" to remove them from
-                            the output, "only" to only include the frames with
-                            unknown types in the output (i.e, the frames with
-                            determined types are excluded). (default: keep)
+                            type should be treated. Options are: "keep" to include
+                            them in the output, "rm" to remove them from the
+                            output, "only" to only include the frames with unknown
+                            types in the output (i.e, the frames with determined
+                            types are excluded). (default: keep)
       -g, --groupings       Use this option to only determine the frame type. By
                             default, the script groups frames into expected
                             configuration and calibration groups, and it adds the
@@ -77,7 +77,7 @@
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /home/dusty/work/PypeIt/doc)
+                            /Users/westfall/Work/packages/pypeit/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -f FILE, --file FILE  Name for the ascii output file. Any leading directory
@@ -85,11 +85,10 @@
                             If None, the table is just printed to stdout. If set
                             to 'default', the file is set to
                             [spectrograph].obslog. Note the file will *not* be
-                            written if you also include the -i option to embed
-                            and interact with the table (you can write the table
-                            using the astropy.table.Table.write method in the
-                            embedded IPython session). The table is always
-                            written in ascii format using format=ascii.fixed_with
-                            for the call to Astropy.table.Table.write . (default:
-                            None)
+                            written if you also include the -i option to embed and
+                            interact with the table (you can write the table using
+                            the astropy.table.Table.write method in the embedded
+                            IPython session). The table is always written in ascii
+                            format using format=ascii.fixed_with for the call to
+                            Astropy.table.Table.write . (default: None)
     

@@ -16,11 +16,11 @@
                        lbt_luci2, lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
                        magellan_fire, magellan_fire_long, magellan_mage,
                        mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
-                       not_alfosc, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
-                       shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                       soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
-                       vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
-                       wht_isis_blue, wht_isis_red
+                       not_alfosc, ntt_efosc2, p200_dbsp_blue, p200_dbsp_red,
+                       p200_tspec, shane_kast_blue, shane_kast_red,
+                       shane_kast_red_ret, soar_goodman_red, tng_dolores,
+                       vlt_fors2, vlt_sinfoni, vlt_xshooter_nir, vlt_xshooter_uvb,
+                       vlt_xshooter_vis, wht_isis_blue, wht_isis_red
       file             FITS file
     
     optional arguments:

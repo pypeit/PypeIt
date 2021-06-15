@@ -278,7 +278,7 @@ Spec2D
 ++++++
 
 Slit inspection
-===============
+:::::::::::::::
 
 It is frequently useful to view a summary of the slits
 successfully reduced by PypeIt.  The
@@ -291,7 +291,7 @@ MaskID (user ID), and Flags for each slit.  Those with *None* have been
 successfully reduced.
 
 Visual inspection
-=================
+:::::::::::::::::
 
 Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det07) after using
