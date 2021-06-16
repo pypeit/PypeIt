@@ -24,8 +24,8 @@ def make_example_pypeit_file():
 
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
-    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-d', oroot])
-    setup.main(pargs)
+    pargs = setup.Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all', '-d', oroot])
+    setup.Setup.main(pargs)
 
     shutil.rmtree(os.path.join(oroot, 'setup_files'))
 

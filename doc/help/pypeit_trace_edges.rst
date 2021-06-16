@@ -6,6 +6,8 @@
                               [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
                               [--show]
     
+    Trace slit edges
+    
     optional arguments:
       -h, --help            show this help message and exit
       -f PYPEIT_FILE, --pypeit_file PYPEIT_FILE
@@ -26,14 +28,14 @@
                             gemini_flamingos2, gemini_gmos_north_e2v,
                             gemini_gmos_north_ham, gemini_gmos_north_ham_ns,
                             gemini_gmos_south_ham, gemini_gnirs, gtc_osiris,
-                            keck_deimos, keck_hires_red, keck_kcwi,
-                            keck_lris_blue, keck_lris_blue_orig, keck_lris_red,
-                            keck_lris_red_orig, keck_mosfire, keck_nires,
-                            keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
-                            lbt_mods1r, lbt_mods2b, lbt_mods2r, magellan_fire,
-                            magellan_fire_long, magellan_mage, mdm_osmos_mdm4k,
-                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            ntt_efosc2, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
+                            keck_deimos, keck_hires_red, keck_kcwi, keck_lris_blue,
+                            keck_lris_blue_orig, keck_lris_red, keck_lris_red_orig,
+                            keck_mosfire, keck_nires, keck_nirspec_low, lbt_luci1,
+                            lbt_luci2, lbt_mods1b, lbt_mods1r, lbt_mods2b,
+                            lbt_mods2r, magellan_fire, magellan_fire_long,
+                            magellan_mage, mdm_osmos_mdm4k, mmt_binospec,
+                            mmt_bluechannel, mmt_mmirs, not_alfosc, ntt_efosc2,
+                            p200_dbsp_blue, p200_dbsp_red, p200_tspec,
                             shane_kast_blue, shane_kast_red, shane_kast_red_ret,
                             soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
                             vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
@@ -47,8 +49,7 @@
                             current working directory. (default: None)
       -m MASTER_DIR, --master_dir MASTER_DIR
                             Name for directory in output path for Master file(s)
-                            relative to the top-level directory. (default:
-                            Masters)
+                            relative to the top-level directory. (default: Masters)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       --debug               Run in debug mode. (default: False)

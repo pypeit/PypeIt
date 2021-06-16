@@ -1,16 +1,15 @@
 .. code-block:: console
 
     $ pypeit_sensfunc -h
-    usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI]
-                           [-o OUTFILE] [-s SENS_FILE] [--debug]
-                           [--par_outfile PAR_OUTFILE]
+    usage: pypeit_sensfunc [-h] [--algorithm {UVIS,IR}] [--multi MULTI] [-o OUTFILE]
+                           [-s SENS_FILE] [--debug] [--par_outfile PAR_OUTFILE]
                            spec1dfile
     
     Compute a sensitivity function
     
     positional arguments:
       spec1dfile            spec1d file for the standard that will be used to
-                            compute sensitivity function
+                            compute the sensitivity function
     
     optional arguments:
       -h, --help            show this help message and exit
@@ -40,10 +39,10 @@
                                           multi_spec_det = 3,7
                             
       -o OUTFILE, --outfile OUTFILE
-                            Ouput file for sensitivity function. If not specified,
+                            Output file for sensitivity function. If not specified,
                             the sensitivity function will be written out to a
-                            standard filename in the current working directory,
-                            i.e. if the standard spec1d file is named
+                            standard filename in the current working directory, i.e.
+                            if the standard spec1d file is named
                             spec1d_b24-Feige66_KASTb_foo.fits the sensfunc will be
                             written to sens_b24-Feige66_KASTb_foo.fits. A QA file
                             will also be written as
@@ -51,13 +50,12 @@
                             showing throughput plots to
                             sens_spec1d_b24-Feige66_KASTb_foo_throughput.pdf. The
                             same extensions for QA and throughput will be used if
-                            outfile is provided but with .fits trimmed off if it
-                            is in the filename
+                            outfile is provided but with .fits trimmed off if it is
+                            in the filename.
       -s SENS_FILE, --sens_file SENS_FILE
-                            Configuration file to change default sensivity
-                            function parameters
+                            Configuration file with sensitivity function parameters
       --debug               show debug plots?
       --par_outfile PAR_OUTFILE
-                            Name of outut file to save the parameters used by the
+                            Name of output file to save the parameters used by the
                             fit
     

@@ -3,7 +3,7 @@
     $ pypeit_flux_calib -h
     usage: pypeit_flux_calib [-h] [--debug] [--par_outfile] flux_file
     
-    Flux calibrate spectra
+    Flux calibrate 1D spectra produced by PypeIt
     
     positional arguments:
       flux_file      File to guide fluxing process.

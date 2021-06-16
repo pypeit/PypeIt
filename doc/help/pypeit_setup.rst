@@ -27,12 +27,11 @@
                             tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
                             vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
                             wht_isis_red (default: None)
-      -r ROOT, --root ROOT  Root to search for data files. You can provide the
-                            top-level directory (e.g., /data/Kast) or the search
-                            string up through the wildcard (.e.g, /data/Kast/b).
-                            Use the --extension option to set the types of files
-                            to search for. Default is the current working
-                            directory. (default:
+      -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
+                            level directory (e.g., /data/Kast) or the search string
+                            up through the wildcard (.e.g, /data/Kast/b). Use the
+                            --extension option to set the types of files to search
+                            for. Default is the current working directory. (default:
                             /Users/westfall/Work/packages/pypeit/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
@@ -48,8 +47,8 @@
                             identifed, use 'all', otherwise provide the list of
                             configuration letters; e.g., 'A,B' or 'B,D,E' or 'E'.
                             (default: None)
-      -b, --background      Include the background-pair columns for the user to
-                            edit (default: False)
+      -b, --background      Include the background-pair columns for the user to edit
+                            (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
                             Level of verbosity from 0 to 2. (default: 2)
     

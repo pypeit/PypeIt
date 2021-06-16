@@ -5,7 +5,7 @@
                                [--test_spec_path TEST_SPEC_PATH]
                                coadd1d_file
     
-    Parse
+    Coadd 1D spectra produced by PypeIt
     
     positional arguments:
       coadd1d_file          File to guide coadding process. This file must have the following format: 
