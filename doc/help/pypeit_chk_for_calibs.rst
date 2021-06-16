@@ -5,7 +5,7 @@
                                  [--save_setups]
                                  root
     
-    Script to check for calibrations [v1]
+    Script to check for calibrations
     
     positional arguments:
       root                  File path+root, e.g. /data/Kast/b

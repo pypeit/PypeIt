@@ -26,6 +26,6 @@
                             Use a user-supplied pixel flat (e.g. keck_lris_blue)
                             (default: None)
       --slit_spat SLIT_SPAT
-                            Reduce only this slit on this detector DET:SPAT_ID,
-                            e.g. 1:175 (default: None)
+                            Reduce only this slit on this detector DET:SPAT_ID, e.g.
+                            1:175 (default: None)
     

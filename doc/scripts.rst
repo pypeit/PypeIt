@@ -2,12 +2,13 @@
 PypeIt scripts
 **************
 
-PypeIt is packaged with several scripts that should have
-been installed directly into your path (e.g. ~/anaconda/bin).
+``PypeIt`` is packaged with several scripts that should have been installed
+directly into your path (e.g. ``~/anaconda/bin``).
+
+**If you are developing a new script, see :ref:`new_script`.**
 
 Pipeline Scripts
 ++++++++++++++++
-
 
 pypeit_chk_for_calibs
 =====================
@@ -32,6 +33,14 @@ to the screen::
     ------ -------- ---------------
          A False ALDc200205.fits
       None True
+
+
+pypeit_obslog
+=============
+
+The ``pypeit_obslog`` script allows you to see a simple listing of the data
+files in a given directory (or directories) and the metadata that ``PypeIt``
+will pull from their headers.  See :ref:`pypeit_obslog` for details.
 
 
 .. _pypeit-setup:
@@ -80,28 +89,6 @@ The script usage can be displayed by calling the script with the
 
 Calibration Scripts
 +++++++++++++++++++
-
-pypeit_arcid_plot
-=================
-
-Generate a PDF plot from a MasterFrame_WaveCalib.json file.
-This may be useful to ID lines in other data.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_arcid_plot.rst
-
-
-pypeit_lowrdx_pixflat
-=====================
-
-Convert a LowRedux pixel flat into a PypeIt ready file.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_lowrdx_pixflat.rst
 
 pypeit_chk_edges
 ================

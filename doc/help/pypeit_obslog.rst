@@ -30,18 +30,17 @@
     
     optional arguments:
       -h, --help            show this help message and exit
-      -r ROOT, --root ROOT  Root to search for data files. You can provide the
-                            top-level directory (e.g., /data/Kast) or the search
-                            string up through the wildcard (.e.g, /data/Kast/b).
-                            Use the --extension option to set the types of files
-                            to search for. Default is the current working
-                            directory. (default:
+      -r ROOT, --root ROOT  Root to search for data files. You can provide the top-
+                            level directory (e.g., /data/Kast) or the search string
+                            up through the wildcard (.e.g, /data/Kast/b). Use the
+                            --extension option to set the types of files to search
+                            for. Default is the current working directory. (default:
                             /Users/westfall/Work/packages/pypeit/doc)
-      -k, --keys            Do not produce the log; simply list the pypeit-
-                            specific metadata keys available for this spectrograph
-                            and their associated header cards. Metadata keys with
-                            header cards that are None have no simple mapping
-                            between keyword and header card. (default: False)
+      -k, --keys            Do not produce the log; simply list the pypeit-specific
+                            metadata keys available for this spectrograph and their
+                            associated header cards. Metadata keys with header cards
+                            that are None have no simple mapping between keyword and
+                            header card. (default: False)
       -c COLUMNS, --columns COLUMNS
                             A comma-separated list of columns to include in the
                             output table. Each column must be a valid pypeit
@@ -49,19 +48,19 @@
                             pypeit_obslog with the -k argument to see the valid
                             list). Additional valid keywords are directory,
                             filename, frametype, framebit, setup, calib, and
-                            calibbit. If 'all', all columns collected for the
-                            pypeit metadata table are included. If 'pypeit', the
-                            columns are the same as those included in the pypeit
-                            file. (default: pypeit)
-      -b, --bad_frames      Clean the output of bad frames that cannot be reduced
-                            by pypeit. (default: False)
+                            calibbit. If 'all', all columns collected for the pypeit
+                            metadata table are included. If 'pypeit', the columns
+                            are the same as those included in the pypeit file.
+                            (default: pypeit)
+      -b, --bad_frames      Clean the output of bad frames that cannot be reduced by
+                            pypeit. (default: False)
       -t BAD_TYPES, --bad_types BAD_TYPES
-                            Dictates how frames that could not be given a valid
-                            type should be treated. Options are: "keep" to include
-                            them in the output, "rm" to remove them from the
-                            output, "only" to only include the frames with unknown
-                            types in the output (i.e, the frames with determined
-                            types are excluded). (default: keep)
+                            Dictates how frames that could not be given a valid type
+                            should be treated. Options are: "keep" to include them
+                            in the output, "rm" to remove them from the output,
+                            "only" to only include the frames with unknown types in
+                            the output (i.e, the frames with determined types are
+                            excluded). (default: keep)
       -g, --groupings       Use this option to only determine the frame type. By
                             default, the script groups frames into expected
                             configuration and calibration groups, and it adds the
@@ -81,14 +80,14 @@
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -f FILE, --file FILE  Name for the ascii output file. Any leading directory
-                            path is stripped; use -d to set the output directory.
-                            If None, the table is just printed to stdout. If set
-                            to 'default', the file is set to
-                            [spectrograph].obslog. Note the file will *not* be
-                            written if you also include the -i option to embed and
-                            interact with the table (you can write the table using
-                            the astropy.table.Table.write method in the embedded
-                            IPython session). The table is always written in ascii
-                            format using format=ascii.fixed_with for the call to
+                            path is stripped; use -d to set the output directory. If
+                            None, the table is just printed to stdout. If set to
+                            'default', the file is set to [spectrograph].obslog.
+                            Note the file will *not* be written if you also include
+                            the -i option to embed and interact with the table (you
+                            can write the table using the astropy.table.Table.write
+                            method in the embedded IPython session). The table is
+                            always written in ascii format using
+                            format=ascii.fixed_with for the call to
                             Astropy.table.Table.write . (default: None)
     
