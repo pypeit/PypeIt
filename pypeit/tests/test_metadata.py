@@ -14,7 +14,7 @@ from pypeit.pypeitsetup import PypeItSetup
 from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit.metadata import PypeItMetaData
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.scripts import setup
+from pypeit.scripts.setup import Setup
 
 def test_read_combid():
 
@@ -30,9 +30,9 @@ def test_read_combid():
 
     # Generate the pypeit file with the comb_id
     droot = data_path('b')
-    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
+    pargs = Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
                              '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
-    setup.main(pargs)
+    Setup.main(pargs)
     shutil.rmtree(setup_dir)
 
     pypeit_file = os.path.join(config_dir, 'shane_kast_blue_A.pypeit')
