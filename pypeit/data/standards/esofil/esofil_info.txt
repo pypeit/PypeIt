@@ -6,7 +6,7 @@ fbpm16274.dat    BPM16274   00:50:03.65 -52:08:15.5
 # mcd-34241.dat		 CD-34241   00:41:46.90 -33:39:09  # this is in magnitude units, commenting out
 # mcd-329927.dat	 CD-329927  14:11:46.30 -33:03:15  # this is in magnitude units, commenting out
 fcd_34d241.dat   CD-34d241  00:41:46.92 -33:39:08.5
-fcd32d9927.dat   CD-32d9927 14:11:46.37 -33 03 14.3
+fcd32d9927.dat   CD-32d9927 14:11:46.37 -33:03:14.3
 feg21.dat        EG21       03:10:30.98 -68:36:02.2
 feg274.dat       EG274      16:23:33.75 -39:13:47.5
 ffeige110.dat    Feige110   23:19:58.39 -05:09:55.8
