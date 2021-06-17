@@ -907,7 +907,7 @@ class Coadd1DPar(ParSet):
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
-                               "the wavelength is coadd.get_wave_grid. The options are:" \
+                               "the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are:" \
                                " "\
                                "'iref' -- Use the first wavelength array" \
                                "'velocity' -- Grid is uniform in velocity" \

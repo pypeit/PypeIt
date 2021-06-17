@@ -93,8 +93,6 @@ def test_flatimages():
 
     os.remove(outfile)
 
-test_flatimages()
-
     # Illumflat
 #    left = np.full((1000,2), 90, dtype=float)
 #    left[:,1] = 190.

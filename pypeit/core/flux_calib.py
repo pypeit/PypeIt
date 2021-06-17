@@ -42,6 +42,10 @@ PYPEIT_FLUX_SCALE = 1e-17
 
 
 def zp_unit_const():
+    """
+    This constant defines the units for the spectroscopic zeropoint. See
+    :ref:`fluxcalib`.
+    """
     return -2.5*np.log10(((units.angstrom**2/constants.c) * 
                           (PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.angstrom)
                          ).to('Jy')/(3631 * units.Jy)).value
