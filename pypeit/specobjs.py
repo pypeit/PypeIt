@@ -54,7 +54,7 @@ class SpecObjs:
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
-        Instantiate from a FITS file
+        Instantiate from a spec1d FITS file
 
         Also tag on the Header
 
@@ -98,6 +98,7 @@ class SpecObjs:
         # Return
         hdul.close()
         return slf
+
 
     def __init__(self, specobjs=None, header=None):
 
@@ -457,6 +458,30 @@ class SpecObjs:
         msk[index] = False
         # Do it
         self.specobjs = self.specobjs[msk]
+
+    def ready_for_fluxing(self):
+        # Fluxing
+        required_header = ['EXPTIME', 'AIRMASS']  # These are sufficient to apply a sensitivity function
+        required_header += ['DISPNAME', 'PYP_SPEC', 'RA', 'DEC']  # These are to generate one
+        required_for_fluxing = ['_WAVE', '_COUNTS', '_IVAR']
+
+        chk = True
+        # Check header
+        for key in required_header:
+            chk &= key in self.header
+
+        for sobj in self.specobjs:
+            sub_box, sub_opt = True, True
+            if sobj is not None:
+                # Only need one of these but need them all
+                for item in required_for_fluxing:
+                    if hasattr(sobj, 'BOX'+item):
+                        sub_box &= True
+                    if hasattr(sobj, 'OPT'+item):
+                        sub_opt &= True
+                # chk
+                chk &= (sub_box or sub_opt)
+        return chk
 
     def copy(self):
         """

@@ -411,7 +411,7 @@ def test_get_object_based_metadata(monkeypatch):
     header_file1 = mock_header(filenames[0])
     header_file2 = mock_header(filenames[1])
     file1_objects = [3,  # 'SPAT3233_SLIT3235_DET03'
-                     4,] # 'SPAT3236_SLIT3245_DET05'
+                     5,] # 'SPAT3236_SLIT3245_DET05'
                      
     file2_objects = [0,  # 'SPAT3234_SLIT3236_DET03'
                      4,] # 'SPAT3237_SLIT3246_DET05'
@@ -432,20 +432,18 @@ def test_get_object_based_metadata(monkeypatch):
         source_object.spec1d_file_list.append(filenames[1])
         source_object.spec1d_header_list.append(header_file2)
 
-    (metadata_rows, file_info, filename) = get_object_based_metadata(['DISPNAME'],
+    (metadata_rows, file_info, filename) = get_object_based_metadata(['DISPNAME','MJD', 'GUIDFHWM'],
                                                                      ['MASKDEF_OBJNAME', 'NAME'],
-                                                                     ['MJD', 'GUIDFHWM'],
                                                                      source_object)
 
     assert len(metadata_rows) == 4
-    assert metadata_rows[0] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', '830G', 'DE.20100913.22358.fits', '58878.0', None]
-    assert metadata_rows[1] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', '830G', 'DE.20100913.22358.fits', '58878.0', None]
-    assert metadata_rows[2] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', '830G', 'DE.20100914.12358.fits', '58879.0', None]
-    assert metadata_rows[3] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', '830G', 'DE.20100914.12358.fits', '58879.0', None]
+    assert metadata_rows[0] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', '830G', '58878.0', None]
+    assert metadata_rows[1] == ['coaddfile.fits', 'object3', 'SPAT3236_SLIT3245_DET05', 'DE.20100913.22358.fits', '830G', '58878.0', None]
+    assert metadata_rows[2] == ['coaddfile.fits', 'object3', 'SPAT3234_SLIT3236_DET03', 'DE.20100914.12358.fits', '830G', '58879.0', None]
+    assert metadata_rows[3] == ['coaddfile.fits', 'object3', 'SPAT3237_SLIT3246_DET05', 'DE.20100914.12358.fits', '830G', '58879.0', None]
     assert file_info == source_object.coaddfile
     assert filename == source_object.coaddfile
     
-    assert (None, None, None) ==  get_object_based_metadata(['DISPNAME'],
+    assert (None, None, None) ==  get_object_based_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
                                                             ['MASKDEF_OBJNAME', 'NAME'],
-                                                            ['MJD', 'GUIDFHWM'],
                                                             "afilename")

@@ -82,6 +82,17 @@ If you use the LVMslitC (common), avoid placing your standard
 star in the right-most slit as you are likely to collide with
 a bad column.
 
+Flexure
+-------
+
+For most users, the standard flexure correction will be sufficient.
+For RV users, you may wish to use the
+:ref:`flexure:pypeit_multislit_flexure` script which also means
+initially reducing the data without the standard corrections.
+See those docs for further details and note it has only been
+tested for the 1200 line grating and with redder wavelengths.
+
+
 Additional Reading
 ==================
 
@@ -96,3 +107,4 @@ Here are additional docs related to Keck/DEIMOS:
    dev/deimos_radec_object
    dev/deimos_wavecalib
    dev/deimos_add_missing_obj
+   deimos_howto
