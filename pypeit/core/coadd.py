@@ -623,15 +623,17 @@ def interp_oned(wave_new, wave_old, flux_old, ivar_old, gpm_old, sensfunc=False)
 
     Args:
         wave_new (`numpy.ndarray`_):
-            New wavelength grid for the output spectra.
+            New wavelength grid for the output spectra.  Must be 1D.
         wave_old (`numpy.ndarray`_):
-            Old wavelength grid.
+            Old wavelength grid.  Must be 1D, need not have the same size as
+            ``wave_new``.
         flux_old (`numpy.ndarray`_):
-            Old flux on the wave_old grid.
+            Old flux on the wave_old grid.  Shape must match ``wave_old``.
         ivar_old (`numpy.ndarray`_):
-            Old ivar on the wave_old grid
+            Old ivar on the wave_old grid.  Shape must match ``wave_old``.
         gpm_old (`numpy.ndarray`_):
-            Old good-pixel mask (True=Good) on the wave_old grid.
+            Old good-pixel mask (True=Good) on the wave_old grid.  Shape must
+            match ``wave_old``.
         sensfunc (:obj:`bool`, optional):
             If True, the quantities ``flux*delta_wave`` and the corresponding
              ``ivar/delta_wave**2`` will be interpolated and returned instead of
@@ -697,33 +699,40 @@ def interp_spec(wave_new, waves, fluxes, ivars, gpms, sensfunc=False):
            *must* be 1D. The single spectrum is then interpolated onto each of
            the new wavelength grids.
 
-    Args:
-        wave_new (`numpy.ndarray`_):
-            New wavelength grid for output spectra. Shape can be 1D or 2D.
-            See the method description for how this affects the code flow
-            above.
-        waves (`numpy.ndarray`_):
-            Wavelength vector for current spectra. Shape can be 1D or 2D. See
-            the method description for how this affects the code flow above.
-        fluxes (`numpy.ndarray`_):
-            Flux vectors.  Shape must match ``waves``.
-        ivars (`numpy.ndarray`_):
-            Inverse variance vectors.  Shape must match ``waves``.
-        gpms (`numpy.ndarray`_): ndarray, bool,
-            Good-pixel masks for each spectrum (True=Good). Shape must match
-            ``waves``.
-        sensfunc (:obj:`bool`, optional):
-            If True, the quantities ``flux*delta_wave`` and the corresponding
-            ``ivar/delta_wave**2`` will be interpolated and returned instead
-            of ``flux`` and ``ivar``. This is useful for sensitivity function
-            computation where we need flux*(wavelength bin width). Beacause
-            delta_wave is a difference of the wavelength grid, interpolating
-            in the presence of masked data requires special care.
+    Parameters
+    ----------
+    wave_new : `numpy.ndarray`_, shape (nspec,) or (nspec, nimgs),
+        New wavelength grid for output spectra. Shape can be 1D or 2D.  See the
+        method description for how this affects the code flow above.
+    waves : `numpy.ndarray`_, shape (nspec,) or (nspec, nexp)
+        Wavelength vector for current spectra. Shape can be 1D or 2D, where
+        nexp, need not equal nimgs.  See the method description for how this
+        affects the code flow above.
+    fluxes : `numpy.ndarray`_
+        Flux vectors.  Shape must match ``waves``.
+    ivars : `numpy.ndarray`_
+        Inverse variance vectors.  Shape must match ``waves``.
+    gpms : `numpy.ndarray`_, bool
+        Good-pixel masks for each spectrum (True=Good). Shape must match
+        ``waves``.
+    sensfunc : :obj:`bool`, optional
+        If True, the quantities ``flux*delta_wave`` and the corresponding
+        ``ivar/delta_wave**2`` will be interpolated and returned instead of
+        ``flux`` and ``ivar``. This is useful for sensitivity function
+        computation where we need flux*(wavelength bin width). Beacause
+        delta_wave is a difference of the wavelength grid, interpolating in the
+        presence of masked data requires special care.
 
-    Returns:
-        :obj:`tuple`: Returns three `numpy.ndarray`_ objects with the
-        interpolated flux, inverse variance, and good-pixel mask arrays with
-        the size and shape matching the new wavelength grid.
+    Returns
+    -------
+    fluxes_inter : `numpy.ndarray`_,
+        interpolated flux with size and shape matching the new wavelength grid.
+    ivars_inter : `numpy.ndarray`_,
+        interpolated inverse variance with size and shape matching the new
+        wavelength grid.
+    gpms_inter : `numpy.ndarray`_,
+        interpolated good-pixel mask with size and shape matching the new
+        wavelength grid.
     """
     # Check input
     if wave_new.ndim > 2:
