@@ -10,7 +10,7 @@ import textwrap
 from functools import reduce
 
 class SmartFormatter(argparse.HelpFormatter):
-    """
+    r"""
     Enable a combination of both fixed-format and wrappable lines to be
     formatted for the help statements for command-line arguments used with
     `argparse.ArgumentParser`_.

@@ -1220,7 +1220,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Inverse variance for the object in question.
     counts_mask : `numpy.ndarray`_, shape must match ``wave``
         Good pixel mask for the object in question.
-    exptime : :obj:`float
+    exptime : :obj:`float`
         Exposure time
     airmass : :obj:`float`
         Airmass of the observation
@@ -1246,10 +1246,10 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         :func:`init_sensfunc_model`, which determines a set of coefficients. The
         bounds are then determined according to::
 
-        [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0],
-                  obj_params['minmax_coeff_bounds'][0]),
-          np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1],
-                  obj_params['minmax_coeff_bounds'][1]))]
+            [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0],
+                    obj_params['minmax_coeff_bounds'][0]),
+            np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1],
+                    obj_params['minmax_coeff_bounds'][1]))]
 
     sn_clip : :obj:`float`, optional, default=30.0
         Errors are capped during rejection so that the S/N is never greater than
@@ -1428,7 +1428,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         QSO redshift.
     telloutfile : :obj:`str`
         Output file name for the best-fit telluric model.
-    outfile : :obj:`str
+    outfile : :obj:`str`
         Output file name of the telluric corrected spectrum.
     npca : :obj:`int`, optional
         Numer of pca components.

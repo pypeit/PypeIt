@@ -525,10 +525,10 @@ class SensFunc(datamodel.DataContainer):
 
         Returns
         -------
-        throughput : `np.ndarray`_, :obj:`float`, shape is (nspec, norders)
+        throughput : `numpy.ndarray`_, :obj:`float`, shape is (nspec, norders)
             Throughput measurements
 
-        throughput_splice : `np.ndarray`_, :obj:`float`, shape is (nspec_splice, norders)
+        throughput_splice : `numpy.ndarray`_, :obj:`float`, shape is (nspec_splice, norders)
             Throughput measurements for spliced spectra
         """
 
