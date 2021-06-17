@@ -185,8 +185,8 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
     # Generate the coordinate with atmopheric conditions
     coord_atmo = SkyCoord(coord_ra + diff_ra, coord_dec + diff_dec, unit=(units.deg, units.deg))
     coord_altaz = coord_atmo.transform_to(AltAz(obstime=obstime, location=location, obswl=wave,
-                                         pressure=pressure, temperature=temperature,
-                                         relative_humidity=rel_humidity))
+                                          pressure=pressure, temperature=temperature,
+                                          relative_humidity=rel_humidity))
     # Return chi-squared value
     return np.sum((np.array([coord_altaz.alt.value, coord_altaz.az.value])-datfit)**2)
 
@@ -233,7 +233,6 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
         Relative DEC shift at each wavelength given by `wave_arr`
     """
     msgs.info("Performing differential atmospheric refraction correction")
-
     if wave_ref is None:
         wave_ref = 0.5*(wave_arr.min() + wave_arr.max())
 
@@ -248,7 +247,9 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
         # Fit the differential
         args = (coord.ra.value, coord.dec.value, datfit, wave_grid[ww], obstime, location, pressure, temperature, rel_humidity)
         #b_popt, b_pcov = opt.curve_fit(dar_fitfunc, tmp, datfit, p0=(0.0, 0.0))
-        res_lsq = opt.least_squares(dar_fitfunc, [0.0, 0.0], args=args, xtol=1.0e-6, ftol=None, gtol=None)
+        res_lsq = opt.least_squares(dar_fitfunc, [0.0, 0.0], args=args, xtol=1.0e-10, ftol=None, gtol=None)
+        if not res_lsq.success:
+            msgs.warn("DAR correction failed")
         # Store the result
         ra_grid[ww] = res_lsq.x[0]
         dec_grid[ww] = res_lsq.x[1]

@@ -140,10 +140,10 @@ def define_additional_meta(nlamps=20):
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
-                       'pressure': dict(dtype=float, comment='Pressure at obstime'),
+                       'pressure': dict(dtype=units.quantity.Quantity, comment='Pressure at obstime'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
-                       'temperature': dict(dtype=float, comment='Temperature at obstime'),
+                       'temperature': dict(dtype=units.quantity.Quantity, comment='Temperature at obstime'),
                        'utc': dict(dtype=str, comment='UTC of observation')}
 
     for kk in range(nlamps):

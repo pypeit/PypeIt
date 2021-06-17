@@ -161,10 +161,17 @@ def coadd_cube(files, parset, overwrite=False):
         rel_humidity = spec.get_meta_value([spec2DObj.head0], 'humidity')
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
         location = spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
-        ra_corr, dec_corr = dc_utils.dar_correction(waveimg[onslit_gpm], coord, obstime, location,
-                                                    pressure, temperature, rel_humidity, wave_ref=wave_ref)
-        raimg[onslit_gpm] += ra_corr
-        decimg[onslit_gpm] += dec_corr
+        if pressure.value == 0.0:
+            msgs.warn("Pressure is set to zero - DAR correction will not be performed")
+        else:
+            msgs.info("DAR correction parameters:"+msgs.newline() +
+                      "   Pressure = {0:f}".format(pressure) + msgs.newline() +
+                      "   Temperature = {0:f}".format(temperature) + msgs.newline() +
+                      "   Humidity = {0:f}".format(rel_humidity))
+            ra_corr, dec_corr = dc_utils.dar_correction(waveimg[onslit_gpm], coord, obstime, location,
+                                                        pressure, temperature, rel_humidity, wave_ref=wave_ref)
+            raimg[onslit_gpm] += ra_corr*np.cos(np.mean(decimg[onslit_gpm]) * np.pi / 180.0)
+            decimg[onslit_gpm] += dec_corr
 
         # Get copies of arrays to be saved
         wave_ext = waveimg[onslit_gpm].copy()

@@ -220,7 +220,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
         # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
-        par['calibrations']['flatfield']['ref_idx'] = 13  # The reference index - this should probably be the same for the science frame
+        par['calibrations']['flatfield']['ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -243,7 +243,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_darkimage'] = False
 
         # Don't do optimal extraction for 3D data.
-        par['reduce']['extraction']['skip_optimal'] = True
+        par['reduce']['extraction']['skip_optimal'] = True  # Because extraction occurs before the DAR correction, don't to optimal - boxcar will also be rubbish
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True

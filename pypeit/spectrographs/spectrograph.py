@@ -38,7 +38,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-
+from astropy import units
 from IPython import embed
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -841,6 +841,8 @@ class Spectrograph:
                 if not isinstance(value, tuple):
                     msgs.error('dtype for {0} is tuple, but value '.format(meta_key)
                                + 'provided is {0}.  Casting is not possible.'.format(type(value)))
+                retvalue = value
+            elif self.meta_data_model[meta_key]['dtype'] == units.quantity.Quantity:
                 retvalue = value
             castable = True
         except:

@@ -1084,6 +1084,7 @@ class FlatField(object):
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
 
         # Calculate the relative spectral illumination, if requested
+        self.spec_illum = self.spectral_illumination(twod_gpm_out, debug=debug)
         if self.flatpar['slit_illum_relative']:
             self.spec_illum = self.spectral_illumination(twod_gpm_out, debug=debug)
 
