@@ -1,22 +1,65 @@
+import os
 
 from IPython import embed
 
-from pypeit import sensfunc_new
+import numpy as np
 
-def test_telluricdata_init():
+from astropy.io import fits
+from astropy import table
 
-    td = telluric.TelluricData(norders=1, nspec=2048, n_obj_par=3)
-    assert td.model['WAVE'].shape == (1,2048), 'bad wavelength array shape'
-    assert td.model['TELL_THETA'].shape == (1,7), 'bad or changed telluric parameter shape'
-    assert td.model['OBJ_THETA'].shape == (1,3), 'bad or changed object parameter shape'
-    
+from pypeit import sensfunc
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests.tstutils import cooked_required
 
-def test_telluricdata_io():
+@cooked_required
+def test_sensfunc_io():
 
-    td = telluric.TelluricData(norders=1, nspec=2048, n_obj_par=3)
+    # Remove any existing file from previous runs that were interrupted
+    test_file = 'test_sens.fits'
+    if os.path.isfile(test_file):
+        os.remove(test_file) 
 
-    
+    # Random spec1d file of a standard from cooked
+    spec1dfile = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                              'spec1d_b24-Feige66_KASTb_20150520T041246.960.fits')
 
-if __name__ == '__main__':
-    test_telluricdata_io()
+    # Determine the spectrograph
+    header = fits.getheader(spec1dfile)
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
+    par = spectrograph.default_pypeit_par()
+    par['sensfunc']['algorithm'] = 'IR'
+
+    # Instantiate the relevant class for the requested algorithm
+    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, test_file, par=par['sensfunc'])
+
+    assert sensobj.std_dict['name'] == 'FEIGE66', 'incorrect standard star found'
+
+    # Assign junk values just to test that I/O works
+    sensobj.sens = sensobj.empty_sensfunc_table(*sensobj.wave_cnts.T.shape)
+    sensobj.wave = sensobj.wave_cnts.copy()
+    sensobj.zeropoint = sensobj.counts.copy()
+    sensobj.throughput = np.ones(sensobj.counts.shape, dtype=float)
+
+    assert sensobj.sens['SENS_WAVE'].shape == sensobj.wave_cnts.T.shape, 'shape is wrong'
+
+    # Write it
+    sensobj.to_file(test_file, overwrite=True)
+
+    # Check the extensions
+    hdu = fits.open(test_file)
+    ext = [h.name for h in hdu]
+    assert ext == ['PRIMARY', 'SENS', 'WAVE', 'ZEROPOINT', 'THROUGHPUT'], \
+                'incorrect extensions written'
+    del hdu
+
+    # Read it back in and check that the data are the same
+    _sensobj = sensfunc.SensFunc.from_file(test_file)
+
+    assert np.array_equal(_sensobj.wave, sensobj.wave), 'I/O error'
+    assert np.array_equal(_sensobj.zeropoint, sensobj.zeropoint), 'I/O error'
+    assert isinstance(_sensobj.sens, table.Table), 'sens table has wrong type'
+
+    os.remove(test_file) 
+
+
 

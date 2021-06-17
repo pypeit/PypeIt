@@ -14,6 +14,8 @@ import gzip
 import shutil
 from packaging import version
 
+from IPython import embed
+
 import numpy
 
 from configobj import ConfigObj
@@ -31,8 +33,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
-from IPython import embed
 
 # TODO -- Move this module to core/
 
@@ -729,15 +729,23 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
     Convert the input to lists that can be iterated through by an
     extension index/name.
 
-    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is
-    simply returned; otherwise, the 2nd returned item is a
-    single-element :obj:`list` with the provided HDU.
+    Importantly, note that the function does **not** alter the provided HDUs.
+    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is simply returned;
+    otherwise, the provided HDU is returned as the only element of a new
+    `astropy.io.fits.HDUList`_ object; however, the HDU is not copied!
+    The returned HDU is always the second item in the returned tuple.
 
-    If ``ext`` is None and ``hdu`` is not an
-    `astropy.io.fits.HDUList`_, the returned list just selects the
-    individual HDU provided (i.e., ``ext = [0]``). If ``ext`` is None
-    and ``hdu`` *is* an `astropy.io.fits.HDUList`_, the returned list
-    of extensions includes all extensions in the provided ``hdu``.
+    If ``ext`` is None and ``hdu`` is an `astropy.io.fits.HDUList`_, the
+    returned list of extensions includes all extensions in the provided ``hdu``.
+    The extensions are selected by their name, if the HDU has one, or by their
+    index number, otherwise.  If ``ext`` is None and ``hdu`` is **not** an
+    `astropy.io.fits.HDUList`_, the returned list of extensions just selects the
+    individual HDU provided, either using an integer or the name of the provided
+    hdu (``hdu.name``), if it has one.
+
+    The ``hdu_prefix`` parameter can be used to downselect the set of extensions
+    to only those extension strings that start with this prefix (for those
+    extensions that can be identified by a string name).
 
     .. warning::
 
@@ -756,9 +764,8 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
             (``ext``), only include extensions with this prefix.
 
     Returns:
-        :obj:`tuple`: Returns two objects: a :obj:`list` with the
-        extensions to iterate through and either a :obj:`list` or an
-        `astropy.io.fits.HDUList`_ with the list of HDUs.
+        :obj:`tuple`: Returns two objects: a :obj:`list` with the extensions to
+        iterate through and an `astropy.io.fits.HDUList`_ with the list of HDUs.
 
     Raises:
         TypeError:
@@ -788,8 +795,10 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-        ext = [0]
-        _hdu = [hdu]
+        if ext is not None:
+            raise ValueError(f'Cannot provide extension for single HDU!')
+        ext = [0 if hdu.name is None else hdu.name]
+        _hdu = fits.HDUList([hdu])
         if hdu_prefix is not None:
             if hdu_prefix not in hdu.name:
                 raise ValueError("Bad hdu_prefix for this HDU!")

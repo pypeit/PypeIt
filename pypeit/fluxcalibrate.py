@@ -57,12 +57,13 @@ class FluxCalibrate:
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
             history = History(sobjs.header)
             if sens != sens_last:
-                wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
+                s = sensfunc.SensFunc.from_file(sens)
+#                wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
                 history.append(f'PypeIt Flux calibration "{sens}"')
-            self.flux_calib(sobjs, wave, zeropoint, meta_table)
+            self.flux_calib(sobjs, s.wave, s.zeropoint, s.algorithm, s.sens)
             sobjs.write_to_fits(sobjs.header, outfile, history=history, overwrite=True)
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, algorithm):
         """
         Dummy method overloaded by subclass
 
@@ -70,7 +71,7 @@ class FluxCalibrate:
             sobjs:
             wave:
             zeropoint:
-            meta_table:
+            algorithm:
 
 
         """
@@ -88,20 +89,21 @@ class MultiSlitFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug, outfiles=outfiles)
 
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, algorithm, sens_table):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
         Args:
             sobjs (object):
-               SpecObjs object
+                SpecObjs object
             wave (ndarray):
-               wavelength array for sensitivity function (nspec,)
+                wavelength array for sensitivity function (nspec,)
             zeropoint (ndarray):
-               sensitivity function
-            meta_table (table):
-               astropy table containing meta data for sensitivity function
-
+                sensitivity function
+            algorithm (str):
+                SensFunc algorithm
+            sens_table (table.Table):
+                SensFunc data table
         """
 
         # Run
@@ -109,7 +111,7 @@ class MultiSlitFC(FluxCalibrate):
             sci_obj.apply_flux_calib(wave[:, 0], zeropoint[:, 0],
                                      sobjs.header['EXPTIME'],
                                      extinct_correct=self._set_extinct_correct(
-                                         self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
+                                         self.par['extinct_correct'], algorithm),
                                      longitude=self.spectrograph.telescope['longitude'],
                                      latitude=self.spectrograph.telescope['latitude'],
                                      extrap_sens=self.par['extrap_sens'],
@@ -127,7 +129,7 @@ class EchelleFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
 
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, wave, zeropoint, algorithm, sens):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
@@ -138,15 +140,17 @@ class EchelleFC(FluxCalibrate):
                wavelength array for sensitivity function (nspec,)
             zeropoint (ndarray):
                sensitivity function
-            meta_table (table):
-               astropy table containing meta data for sensitivity function
+            algorithm (str):
+                SensFunc algorithm
+            sens_table (table.Table):
+                SensFunc data table
 
         """
 
         # Flux calibrate the orders that are mutually in the meta_table and in the sobjs. This allows flexibility
         # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
         # i.e. X-shooter with the K-band blocking filter.
-        ech_orders = np.array(meta_table['ECH_ORDERS']).flatten()
+        ech_orders = np.array(sens['ECH_ORDERS']).flatten()
         #norders = ech_orders.size
         for sci_obj in sobjs:
             # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
@@ -155,7 +159,7 @@ class EchelleFC(FluxCalibrate):
                 sci_obj.apply_flux_calib(wave[:, indx[0]],zeropoint[:,indx[0]],
                                          sobjs.header['EXPTIME'],
                                          extinct_correct=self._set_extinct_correct(
-                                             self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
+                                             self.par['extinct_correct'], algorithm),
                                          extrap_sens = self.par['extrap_sens'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],

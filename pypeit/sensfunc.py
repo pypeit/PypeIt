@@ -23,7 +23,6 @@ from pypeit import io
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.core import fitting
-from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
 from pypeit.spectrographs.util import load_spectrograph
@@ -60,27 +59,44 @@ class SensFunc(datamodel.DataContainer):
     version = '1.0.0'
     """Datamodel version."""
 
-    datamodel = {'method': dict(otype=str, descr='PypeIt method used to construct the data'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+    # TODO: Add this if we want to set the output float type for the np.ndarray
+    # elements of the datamodel...
+#    output_float_dtype = np.float32
+#    """Regardless of datamodel, output floating-point data have this fixed bit size."""
+
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'pypeline': dict(otype=str, descr='PypeIt pipeline reduction path'),
-                 'spec1dfile': dict(otype=str,
-                                    descr='PypeIt spec1D file used to for sensitivity function'),
+                 'spec1df': dict(otype=str,
+                                 descr='PypeIt spec1D file used to for sensitivity function'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
                                  descr='File name (or shorthand) with the standard flux data'),
-                 'std_ra': dict(otype=float, descr='RA of the standard source'),
-                 'std_dec': dict(otype=float, descr='DEC of the standard source'),
+                 # TODO: Is it possible/useful to force the coordinates to always be floats
+                 'std_ra': dict(otype=(float, str), descr='RA of the standard source'),
+                 'std_dec': dict(otype=(float, str), descr='DEC of the standard source'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
                  'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
-                 'sens': dict(otype=table.Table, descr='Table with the sensitivity function')}
+                 'sens': dict(otype=table.Table, descr='Table with the sensitivity function'),
+                 'wave': dict(otype=np.ndarray, atype=float, descr='Wavelength vectors'),
+                 'zeropoint': dict(otype=np.ndarray, atype=float,
+                                   descr='Sensitivity function zeropoints'),
+                 'throughput': dict(otype=np.ndarray, atype=float,
+                                    descr='Spectrograph throughput measurements'),
+                 'wave_splice': dict(otype=np.ndarray, atype=float,
+                                     descr='Spliced-together wavelength vector'),
+                 'zeropoint_splice': dict(otype=np.ndarray, atype=float,
+                                          descr='Spliced-together sensitivity function zeropoints'),
+                 'throughput_splice': dict(otype=np.ndarray, atype=float,
+                                           descr='Spliced-together spectrograph throughput '
+                                                 'measurements')}
     """DataContainer datamodel."""
 
     algorithm = None
     """Algorithm used for the sensitivity calculation."""
 
     @staticmethod
-    def empty_sensfunc_table(norders, nspec, ncoeff=0):
+    def empty_sensfunc_table(norders, nspec, ncoeff=1):
         """
         Construct an empty `astropy.table.Table`_ for the sensitivity
         function.
@@ -128,8 +144,8 @@ class SensFunc(datamodel.DataContainer):
         ``par``.
         """
         return next(c for c in cls.__subclasses__()
-                    if c.__name__ == '{0}SensFunc'.format(par['algorithm']))(spec1dfile, sensfile,
-                                                                             par=par, debug=debug)
+                    if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par=par,
+                                                                    debug=debug)
 
 #    @classmethod
 #    def load(cls, sensfile):
@@ -148,11 +164,12 @@ class SensFunc(datamodel.DataContainer):
         # Instantiate as an empty DataContainer
         super().__init__()
 
-        # Arguments
-        self.spec1dfile = spec1dfile
+        # Input and Output files
+        self.spec1df = spec1dfile
         self.sensfile = sensfile
-        # Set spectrograph
-        header = fits.getheader(self.spec1dfile)
+
+        # Spectrograph
+        header = fits.getheader(self.spec1df)
         self.PYP_SPEC = header['PYP_SPEC']
         self.spectrograph = load_spectrograph(self.PYP_SPEC)
         self.pypeline = self.spectrograph.pypeline
@@ -160,13 +177,16 @@ class SensFunc(datamodel.DataContainer):
         # spectrograph objects with configuration specific information from
         # spec1d files.
         self.spectrograph.dispname = header['DISPNAME']
+
         # Get the algorithm parameters
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO: Check the type of the parameter object?
+
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
         self.thrufile = sensfile.replace('.fits', '') + '_throughput.pdf'
 
+        # Other
         self.debug = debug
         self.steps = []
 
@@ -174,7 +194,7 @@ class SensFunc(datamodel.DataContainer):
         self.splice_multi_det = True if self.par['multi_spec_det'] is not None else False
 
         # Read in the Standard star data
-        sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1dfile).get_std(
+        sobjs_std = specobjs.SpecObjs.from_fitsfile(self.spec1df).get_std(
                             multi_spec_det=self.par['multi_spec_det'])
 
         # Unpack standard
@@ -187,7 +207,8 @@ class SensFunc(datamodel.DataContainer):
                                                    self.meta_spec)
 
         # Reshape to 2d arrays
-        self.wave, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, self.norderdet \
+        self.wave_cnts, self.counts, self.counts_ivar, self.counts_mask, self.nspec_in, \
+            self.norderdet \
                 = utils.spec_atleast_2d(wave_twk, counts_twk, counts_ivar_twk, counts_mask_twk)
 
         # If the user provided RA and DEC use those instead of what is in meta
@@ -210,40 +231,123 @@ class SensFunc(datamodel.DataContainer):
         self.qafile = None
         self.thrufile = None
         self.debug = None
-        self.wave = None
+        self.wave_cnts = None
         self.counts = None
         self.counts_ivar = None
         self.counts_mask = None
         self.nspec_in = None
         self.norderdet = None
-        self.wave_zp = None
-        self.zeropoint = None
-        self.throughput = None
-        self.wave_zp_splice = None
-        self.zeropoint_splice = None
-        self.throughput_splice = None
+#        self.wave = None
+#        self.zeropoint = None
+#        self.throughput = None
+#        self.wave_splice = None
+#        self.zeropoint_splice = None
+#        self.throughput_splice = None
         self.steps = None
         self.splice_multi_det = None
         self.meta_spec = None
         self.std_dict = None
 
+    def _bundle(self):
+        """
+        Bundle the object for writing using
+        :func:`~pypeit.datamodel.DataContainer.to_hdu`.
+        """
+        # All of the datamodel elements that can be written as a header are
+        # written to the SENS extension.
+        d = []
+        for key in self.keys():
+            if self[key] is None:
+                continue
+            if isinstance(self[key], datamodel.DataContainer) \
+                    or isinstance(self[key], table.Table):
+                d += [{key: self[key]}]
+                continue
+            if self.datamodel[key]['otype'] == np.ndarray:
+                # TODO: We might want a general solution in
+                # DataContainer that knows to convert (and revert)
+                # boolean arrays to np.uint8 types. Does anyone know a
+                # way around this? It's annoying that ImageHDUs cannot
+                # have boolean type arrays.
+                if issubclass(self[key].dtype.type, (bool, np.bool_)):
+                    d += [{key: self[key].astype(np.uint8)}]
+#                elif issubclass(self[key].dtype.type, (float, np.floating)):
+#                    d += [{key: self[key].astype(self.output_float_dtype)}]
+                else:
+                    d += [{key: self[key]}]
+
+        # Add all the non-array, non-DataContainer, non-Table elements to the
+        # 'sens' extension. This is done after the first loop to just to make
+        # sure that the order of extensions matches the order in the datamodel.
+        for _d in d:
+            if list(_d.keys()) != ['sens']:
+                continue
+            for key in self.keys():
+                if self[key] is None or self.datamodel[key]['otype'] == np.ndarray \
+                        or isinstance(self[key], datamodel.DataContainer) \
+                        or isinstance(self[key], table.Table):
+                    continue
+                _d[key] = self[key]
+            # Add the algorithm if it has been defined
+            if self.algorithm is not None:
+                _d['algorithm'] = self.algorithm
+
+        return d
+
+    @classmethod
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+        """
+        Instantiate the object from an HDU extension.
+
+        This overrides the base-class method, essentially just to handle the
+        fact that the 'TELLURIC' extension is not called 'MODEL'.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+            hdu_prefix (:obj:`str`, optional):
+                Maintained for consistency with the base class but is
+                not used by this method.
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
+        """
+        # Run the default parser to get most of the data. This correctly parses
+        # everything except for the Telluric.model data table.
+        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu, allow_subclasses=True)
+        if not type_passed:
+            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
+        if not version_passed:
+            _f = msgs.error if chk_version else msgs.warn
+            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
+               + ' does not match version used to write your HDU(s)!')
+
+        # Load the telluric model, if it exists
+        if 'TELLURIC' in [h.name for h in hdu]:
+            # Instantiate the Telluric model from the header, if it exists
+            # TODO: I don't like this, but this is the fastest work around
+            d['telluric'] = telluric.Telluric.from_hdu(hdu['TELLURIC'], ext_pseudo='MODEL',
+                                                       chk_version=chk_version)
+        # Return the constructed object
+        return super().from_dict(d=d)
+
     def compute_zeropoint(self):
         """
         Dummy method overloaded by subclasses
-
-        Returns:
-            meta_table, out_table
-
         """
         pass
 
     def run(self):
+        """
+        Execute the sensitivity function calculations.
+        """
         # Compute the sensitivity function
-        self.meta_table, self.out_table = self.compute_zeropoint()
+        self.compute_zeropoint()
+
         # Extrapolate the zeropoint based on par['extrap_blu'], par['extrap_red']
-        self.wave_zp, self.zeropoint = self.extrapolate(samp_fact = self.par['samp_fact'])
+        self.wave, self.zeropoint = self.extrapolate(samp_fact=self.par['samp_fact'])
         if self.splice_multi_det:
-            self.wave_zp_splice, self.zeropoint_splice = self.splice()
+            self.wave_splice, self.zeropoint_splice = self.splice()
 
         # Compute the throughput
         self.throughput, self.throughput_splice = self.compute_throughput()
@@ -272,8 +376,6 @@ class SensFunc(datamodel.DataContainer):
     def eval_zeropoint(self, wave, iorddet):
         """
         Dummy method, overloaded by subclasses
-
-        Returns:
         """
         pass
 
@@ -334,14 +436,14 @@ class SensFunc(datamodel.DataContainer):
         """
         # Create a new set of oversampled and padded wavelength grids for the
         # extrapolation
-        wave_extrap_min = self.out_table['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
-        wave_extrap_max = self.out_table['WAVE_MAX'].data * (1.0 + self.par['extrap_red'])
+        wave_extrap_min = self.sens['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
+        wave_extrap_max = self.sens['WAVE_MAX'].data * (1.0 + self.par['extrap_red'])
         nspec_extrap = 0
 
         # Find the maximum size of the wavewlength grids, since we want
         # everything to have the same
         for idet in range(self.norderdet):
-            wave = self.wave if self.wave.ndim == 1 else self.wave[:, idet]
+            wave = self.wave_cnts if self.wave_cnts.ndim == 1 else self.wave_cnts[:, idet]
             dwave_data, dloglam_data, resln_guess, pix_per_sigma = wvutils.get_sampling(wave)
             nspec_now = np.ceil(samp_fact * (wave_extrap_max[idet] - wave_extrap_min[idet])
                                 / dwave_data).astype(int)
@@ -375,16 +477,16 @@ class SensFunc(datamodel.DataContainer):
         """
 
         msgs.info(f"Merging sensfunc for {self.norderdet} detectors {self.par['multi_spec_det']}")
-        wave_splice_min = self.wave_zp[self.wave_zp > 1.0].min()
-        wave_splice_max = self.wave_zp[self.wave_zp > 1.0].max()
-        wave_splice_1d, _, _ = coadd.get_wave_grid(self.wave_zp, wave_method='linear',
-                                                   wave_grid_min=wave_splice_min,
-                                                   wave_grid_max=wave_splice_max,
-                                                   spec_samp_fact=1.0)
+        wave_splice_min = self.wave[self.wave > 1.0].min()
+        wave_splice_max = self.wave[self.wave > 1.0].max()
+        wave_splice_1d, _, _ = wvutils.get_wave_grid(self.wave, wave_method='linear',
+                                                     wave_grid_min=wave_splice_min,
+                                                     wave_grid_max=wave_splice_max,
+                                                     spec_samp_fact=1.0)
         zeropoint_splice_1d = np.zeros_like(wave_splice_1d)
         for idet in range(self.norderdet):
-            wave_min = self.out_table['WAVE_MIN'][idet]
-            wave_max = self.out_table['WAVE_MAX'][idet]
+            wave_min = self.sens['WAVE_MIN'][idet]
+            wave_max = self.sens['WAVE_MAX'][idet]
             if idet == 0:
                 # If this is the bluest detector, extrapolate to wave_extrap_min
                 wave_mask_min = wave_splice_min
@@ -432,28 +534,27 @@ class SensFunc(datamodel.DataContainer):
 
         # Set the throughput to be -1 in places where it is not defined.
         throughput = np.full_like(self.zeropoint, -1.0)
-        for idet in range(self.wave_zp.shape[1]):
-            wave_gpm = (self.wave_zp[:,idet] >= self.out_table[idet]['WAVE_MIN']) \
-                            & (self.wave_zp[:,idet] <= self.out_table[idet]['WAVE_MAX']) \
-                            & (self.wave_zp[:,idet] > 1.0)
+        for idet in range(self.wave.shape[1]):
+            wave_gpm = (self.wave[:,idet] >= self.sens['WAVE_MIN'][idet]) \
+                            & (self.wave[:,idet] <= self.sens['WAVE_MAX'][idet]) \
+                            & (self.wave[:,idet] > 1.0)
             throughput[:,idet][wave_gpm] \
-                    = flux_calib.zeropoint_to_throughput(self.wave_zp[:,idet][wave_gpm],
+                    = flux_calib.zeropoint_to_throughput(self.wave[:,idet][wave_gpm],
                                                          self.zeropoint[:,idet][wave_gpm],
                                                          self.spectrograph.telescope.eff_aperture())
         if self.splice_multi_det:
-            wave_gpm = (self.wave_zp_splice >= self.out_table[:]['WAVE_MIN'].min()) \
-                            & (self.wave_zp_splice <= self.out_table[:]['WAVE_MAX'].max()) \
-                            & (self.wave_zp_splice > 1.0)
-            throughput_splice = np.zeros_like(self.wave_zp_splice)
+            wave_gpm = (self.wave_splice >= np.amin(self.sens['WAVE_MIN'])) \
+                            & (self.wave_splice <= np.amax(self.sens['WAVE_MAX'])) \
+                            & (self.wave_splice > 1.0)
+            throughput_splice = np.zeros_like(self.wave_splice)
             throughput_splice[wave_gpm] \
-                    = flux_calib.zeropoint_to_throughput(self.wave_zp_splice[wave_gpm],
+                    = flux_calib.zeropoint_to_throughput(self.wave_splice[wave_gpm],
                                                          self.zeropoint_splice[wave_gpm],
                                                          self.spectrograph.telescope.eff_aperture())
         else:
             throughput_splice = None
 
         return throughput, throughput_splice
-
 
     def write_QA(self):
         """
@@ -487,18 +588,18 @@ class SensFunc(datamodel.DataContainer):
             for ipage in range(npages):
                 figure, (ax1, ax2) = plt.subplots(2, figsize=(8.27, 11.69))
                 if (2 * ipage) < self.norderdet:
-                    flux_calib.zeropoint_qa_plot(self.out_table[2*ipage]['SENS_WAVE'],
-                                                 self.out_table[2*ipage]['SENS_ZEROPOINT'],
-                                                 self.out_table[2*ipage]['SENS_ZEROPOINT_GPM'],
-                                                 self.out_table[2*ipage]['SENS_ZEROPOINT_FIT'],
-                                                 self.out_table[2*ipage]['SENS_ZEROPOINT_FIT_GPM'],
+                    flux_calib.zeropoint_qa_plot(self.sens['SENS_WAVE'][2*ipage],
+                                                 self.sens['SENS_ZEROPOINT'][2*ipage],
+                                                 self.sens['SENS_ZEROPOINT_GPM'][2*ipage],
+                                                 self.sens['SENS_ZEROPOINT_FIT'][2*ipage],
+                                                 self.sens['SENS_ZEROPOINT_FIT_GPM'][2*ipage],
                                                  title=zp_title[2*ipage], axis=ax1)
                 if (2*ipage + 1) < self.norderdet:
-                    flux_calib.zeropoint_qa_plot(self.out_table[2*ipage+1]['SENS_WAVE'],
-                                                 self.out_table[2*ipage+1]['SENS_ZEROPOINT'],
-                                                 self.out_table[2*ipage+1]['SENS_ZEROPOINT_GPM'],
-                                                 self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT'],
-                                                 self.out_table[2*ipage+1]['SENS_ZEROPOINT_FIT_GPM'],
+                    flux_calib.zeropoint_qa_plot(self.sens['SENS_WAVE'][2*ipage+1],
+                                                 self.sens['SENS_ZEROPOINT'][2*ipage+1],
+                                                 self.sens['SENS_ZEROPOINT_GPM'][2*ipage+1],
+                                                 self.sens['SENS_ZEROPOINT_FIT'][2*ipage+1],
+                                                 self.sens['SENS_ZEROPOINT_FIT_GPM'][2*ipage+1],
                                                  title=zp_title[2*ipage+1], axis=ax2)
 
                 if self.norderdet == 1:
@@ -529,26 +630,29 @@ class SensFunc(datamodel.DataContainer):
                         gg = 0.0
                         bb = (order_or_det[idet] - np.min(order_or_det)) \
                                 / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
-                        wave_gpm = self.out_table[idet]['SENS_WAVE'] > 1.0
-                        axis.plot(self.out_table[idet]['SENS_WAVE'][wave_gpm],
-                                  self.out_table[idet]['SENS_ZEROPOINT_FIT'][wave_gpm],
+                        wave_gpm = self.sens['SENS_WAVE'][idet] > 1.0
+                        axis.plot(self.sens['SENS_WAVE'][idet,wave_gpm],
+                                  self.sens['SENS_ZEROPOINT_FIT'][idet,wave_gpm],
                                   color=(rr, gg, bb), linestyle='-', linewidth=2.5,
                                   label=thru_title[idet], zorder=5 * idet)
 
+                    _wave_min = np.amin(self.sens['WAVE_MIN'])
+                    _wave_max = np.amax(self.sens['WAVE_MAX'])
+
                     # If we are splicing, overplot the spliced zeropoint
                     if self.splice_multi_det:
-                        wave_zp_gpm = (self.wave_zp_splice >= self.out_table['WAVE_MIN'].min()) \
-                                        & (self.wave_zp_splice <= self.out_table['WAVE_MAX'].max()) \
-                                        & (self.wave_zp_splice > 1.0)
-                        axis.plot(self.wave_zp_splice[wave_zp_gpm].flatten(),
-                                  self.zeropoint_splice[wave_zp_gpm].flatten(), color='black',
+                        wave_slice_gpm = (self.wave_splice >= _wave_min) \
+                                            & (self.wave_splice <= _wave_max) \
+                                            & (self.wave_splice > 1.0)
+                        axis.plot(self.wave_splice[wave_slice_gpm].flatten(),
+                                  self.zeropoint_splice[wave_slice_gpm].flatten(), color='black',
                                   linestyle='-', linewidth=2.5, label='Spliced Zeropoint',
                                   zorder=30, alpha=0.3)
 
-                    axis.set_xlim((0.98 * self.out_table['WAVE_MIN'].min(),
-                                   1.02 * self.out_table['WAVE_MAX'].max()))
-                    axis.set_ylim((0.95*self.out_table['SENS_ZEROPOINT_FIT'][self.out_table['SENS_WAVE'] > 1.0].min(),
-                                   1.05*self.out_table['SENS_ZEROPOINT_FIT'][self.out_table['SENS_WAVE'] > 1.0].max()))
+                    wave_gpm = self.sens['SENS_WAVE'] > 1.0
+                    axis.set_xlim((0.98 * _wave_min, 1.02 * _wave_max))
+                    axis.set_ylim((0.95 * np.amin(self.sens['SENS_ZEROPOINT_FIT'][wave_gpm]),
+                                   1.05 * np.amax(self.sens['SENS_ZEROPOINT_FIT'][wave_gpm])))
                     axis.legend(fontsize=14)
                     axis.set_xlabel('Wavelength (Angstroms)')
                     axis.set_ylabel('Zeropoint (AB mag)')
@@ -560,23 +664,24 @@ class SensFunc(datamodel.DataContainer):
         # Plot throughput curve(s) for all orders/det
         fig = plt.figure(figsize=(12,8))
         axis = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-        for idet in range(self.wave_zp.shape[1]):
+        for idet in range(self.wave.shape[1]):
             # define the color
             rr = (np.max(order_or_det) - order_or_det[idet]) \
                     / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gg = 0.0
-            bb = (order_or_det[idet] - np.min(order_or_det)) \ 
+            bb = (order_or_det[idet] - np.min(order_or_det)) \
                     / np.maximum(np.max(order_or_det) - np.min(order_or_det), 1)
             gpm = (self.throughput[:, idet] >= 0.0)
-            axis.plot(self.wave_zp[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb),
+            axis.plot(self.wave[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb),
                       linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
         if self.splice_multi_det:
-            axis.plot(self.wave_zp_splice[wave_zp_gpm].flatten(),
-                      self.throughput_splice[wave_zp_gpm].flatten(), color='black', linestyle='-',
-                      linewidth=2.5, label='Spliced Throughput', zorder=30, alpha=0.3)
+            axis.plot(self.wave_splice[wave_slice_gpm].flatten(),
+                      self.throughput_splice[wave_slice_gpm].flatten(), color='black',
+                      linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30,
+                      alpha=0.3)
 
-        axis.set_xlim((0.98*self.wave_zp[self.throughput >=0.0].min(),
-                       1.02*self.wave_zp[self.throughput >=0.0].max()))
+        axis.set_xlim((0.98*self.wave[self.throughput >=0.0].min(),
+                       1.02*self.wave[self.throughput >=0.0].max()))
         axis.set_ylim((0.0, 1.05*self.throughput[self.throughput >=0.0].max()))
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
@@ -616,7 +721,7 @@ class IRSensFunc(SensFunc):
         TelObj : :class:`~pypeit.core.telluric.Telluric`
             Best-fitting telluric model
         """
-        self.telluric = telluric.sensfunc_telluric(self.wave, self.counts, self.counts_ivar,
+        self.telluric = telluric.sensfunc_telluric(self.wave_cnts, self.counts, self.counts_ivar,
                                                    self.counts_mask, self.meta_spec['EXPTIME'],
                                                    self.meta_spec['AIRMASS'], self.std_dict,
                                                    self.par['IR']['telgridfile'],
@@ -674,7 +779,7 @@ class IRSensFunc(SensFunc):
             self.sens['SENS_WAVE'][i,s[i]:e[i]] = self.telluric.wave_grid[s[i]:e[i]]
             self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]] = self.telluric.mask_arr[s[i]:e[i],i]
             self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] = self.telluric.flux_arr[s[i]:e[i],i]
-            N_lam = self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] / exptime
+            N_lam = self.sens['SENS_COUNTS_PER_ANG'][i,s[i]:e[i]] / self.exptime
             self.sens['SENS_ZEROPOINT'][i,s[i]:e[i]] \
                     = flux_calib.compute_zeropoint(self.sens['SENS_WAVE'][i,s[i]:e[i]], N_lam,
                                                    self.sens['SENS_ZEROPOINT_GPM'][i,s[i]:e[i]],
@@ -741,15 +846,8 @@ class UVISSensFunc(SensFunc):
     def compute_zeropoint(self):
         """
         Calls routine to compute the sensitivity function.
-
-        Returns
-        -------
-        meta_table: astropy table
-               Table containing zeropoint meta data
-        out_table: astropy table
-               Table containing zeropoint information.
         """
-        meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar,
+        meta_table, out_table = flux_calib.sensfunc(self.wave_cnts, self.counts, self.counts_ivar,
                                                     self.counts_mask, self.meta_spec['EXPTIME'],
                                                     self.meta_spec['AIRMASS'], self.std_dict,
                                                     self.meta_spec['LONGITUDE'],
@@ -763,6 +861,7 @@ class UVISSensFunc(SensFunc):
                                                     polycorrect=self.par['UVIS']['polycorrect'],
                                                     polyfunc=self.par['UVIS']['polyfunc'],
                                                     debug=self.debug)
+
         # Copy the relevant metadata
         self.std_name = meta_table['STD_NAME'][0]
         self.std_cal = meta_table['CAL_FILE'][0]
@@ -777,13 +876,15 @@ class UVISSensFunc(SensFunc):
         self.sens = self.empty_sensfunc_table(norder, nspec)
 
         # Copy the relevant data
+        # NOTE: SENS_COEFF is empty!
         self.sens['SENS_WAVE'] = out_table['SENS_WAVE']
         self.sens['SENS_COUNTS_PER_ANG'] = out_table['SENS_COUNTS_PER_ANG']
         self.sens['SENS_ZEROPOINT'] = out_table['SENS_ZEROPOINT']
         self.sens['SENS_ZEROPOINT_GPM'] = out_table['SENS_ZEROPOINT_GPM']
         self.sens['SENS_ZEROPOINT_FIT'] = out_table['SENS_ZEROPOINT_FIT']
         self.sens['SENS_ZEROPOINT_FIT_GPM'] = out_table['SENS_ZEROPOINT_FIT_GPM']
-        self.sens['ECH_ORDERS'] = self.meta_spec['ECH_ORDERS']
+        if self.meta_spec['ECH_ORDERS'] is not None:
+            self.sens['ECH_ORDERS'] = self.meta_spec['ECH_ORDERS']
         self.sens['POLYORDER_VEC'] = np.full(norder, self.par['polyorder'])
         self.sens['WAVE_MIN'] = out_table['WAVE_MIN']
         self.sens['WAVE_MAX'] = out_table['WAVE_MAX']
@@ -807,5 +908,58 @@ class UVISSensFunc(SensFunc):
         return scipy.interpolate.interp1d(self.sens['SENS_WAVE'][iorddet,:],
                                           self.sens['SENS_ZEROPOINT_FIT'][iorddet,:],
                                           bounds_error=False, fill_value='extrapolate')(wave)
+
+
+# This was moved from pypeit/core/coadd.py, and appropriate adjustments were
+# made to coadd.ech_combspec and coadd1d.py
+def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=True):
+    """
+    Get the weights based on the sensfunc
+
+    Args:
+        sensfile (str):
+            the name of your fits format sensfile
+        waves (ndarray): (nspec, norders, nexp) or (nspec, norders)
+            wavelength grid for your output weights
+        debug (bool): default=False
+            show the weights QA
+
+    Returns:
+        ndarray: sensfunc weights evaluated on the input waves
+        wavelength grid
+    """
+    sens = SensFunc.from_file(sensfile)
+#    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+
+    if waves.ndim == 2:
+        nspec, norder = waves.shape
+        nexp = 1
+        waves_stack = np.reshape(waves, (nspec, norder, 1))
+    elif waves.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = waves
+    else:
+        msgs.error('Unrecognized dimensionality for waves')
+
+    weights_stack = np.zeros_like(waves_stack)
+
+    if norder != sens.zeropoint.shape[1]:
+        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+    for iord in range(norder):
+        for iexp in range(nexp):
+            sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:,iord,iexp],
+                                                           sens.wave[:,iord],
+                                                           sens.zeropoint[:,iord], 1.0,
+                                                           extrap_sens=extrap_sens)
+            weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
+
+    if debug:
+        weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+
+    if waves.ndim == 2:
+        weights_stack = np.reshape(weights_stack, (nspec, norder))
+
+    return weights_stack
 
 

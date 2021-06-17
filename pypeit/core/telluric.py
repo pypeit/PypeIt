@@ -16,13 +16,14 @@ import matplotlib.pyplot as plt
 from astropy import table
 from astropy.io import fits
 
-from pypeit.core import load, flux_calib
+from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
-from pypeit.core import coadd, fitting
+from pypeit.core import coadd
+from pypeit.core import fitting
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
-from pypeit import coadd1d
+from pypeit import onespec
 from pypeit import io
 from pypeit import datamodel
 from pypeit.spectrographs.util import load_spectrograph
@@ -636,14 +637,14 @@ def general_spec_reader(specfile, ret_flam=False):
         #TODO Make it so that we can type a file based on the DataContainer file header
         msgs.warn('Ignore the error message above. This is a hack for now until DataContainer is tightened up')
         # Load
-        onespec = coadd1d.OneSpec.from_file(specfile)
+        spec = onespec.OneSpec.from_file(specfile)
         # Unpack
-        wave = onespec.wave
-        counts = onespec.flux
-        counts_ivar = onespec.ivar
-        counts_mask = onespec.mask.astype(bool)
-        spect_dict = onespec.spect_meta
-        head = onespec.head0
+        wave = spec.wave
+        counts = spec.flux
+        counts_ivar = spec.ivar
+        counts_mask = spec.mask.astype(bool)
+        spect_dict = spec.spect_meta
+        head = spec.head0
 
     # Build this
     meta_spec = dict(bonus=bonus)
@@ -681,14 +682,14 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
            Overwrite existing file?
     """
     wave_mask = wave > 1.0
-    onespec = coadd1d.OneSpec(wave[wave_mask], flux[wave_mask], PYP_SPEC=spectrograph,
-                              ivar=ivar[wave_mask], mask=mask[wave_mask].astype(int),
-                              telluric=None if telluric is None else telluric[wave_mask],
-                              obj_model=None if obj_model is None else obj_model[wave_mask],
-                              ext_mode=ex_value, fluxed=True)
+    spec = onespec.OneSpec(wave[wave_mask], flux[wave_mask], PYP_SPEC=spectrograph,
+                           ivar=ivar[wave_mask], mask=mask[wave_mask].astype(int),
+                           telluric=None if telluric is None else telluric[wave_mask],
+                           obj_model=None if obj_model is None else obj_model[wave_mask],
+                           ext_mode=ex_value, fluxed=True)
     # TODO: We need a better way of assigning the header...
-    onespec.head0 = header
-    onespec.to_file(outfile, overwrite=overwrite)
+    spec.head0 = header
+    spec.to_file(outfile, overwrite=overwrite)
 
 
 ##############
@@ -1314,7 +1315,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       exptime=exptime, func=func, sigrej=3.0, std_src=std_dict['std_source'],
                       std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
                       std_name=std_dict['name'], std_cal=std_dict['cal_file'],
-                      output_meta_keys=('airmass', 'polyorder_vec', 'func', 'std_src',
+                      output_meta_keys=('airmass', 'exptime', 'polyorder_vec', 'func', 'std_src',
                                         'std_ra', 'std_dec', 'std_name', 'std_cal'),
                       debug=debug_init)
 
@@ -1404,17 +1405,6 @@ def create_bal_mask(wave, bal_wv_min_max):
 
     return np.logical_not(bal_bpm)
 
-
-
-#def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
-#                  func='legendre', model='exp', polyorder=5, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
-#                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
-#                  recombination=0.7, polish=True,
-#                  disp=False, debug_init=False, debug=False, show=False):
-#def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-#                  fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
-#                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
-#                  recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
 
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8,
@@ -2037,8 +2027,7 @@ class Telluric(datamodel.DataContainer):
     version = '1.0.0'
     """Datamodel version."""
 
-    datamodel = {'method': dict(otype=str, descr='PypeIt method used to construct the data'),
-                 'telgrid': dict(otype=str,
+    datamodel = {'telgrid': dict(otype=str,
                                  descr='File containing grid of HITRAN atmosphere models'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
@@ -2061,8 +2050,9 @@ class Telluric(datamodel.DataContainer):
                                       'see scipy.optimize.differential_evolution.'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
-                 'std_ra': dict(otype=float, descr='RA of the standard source'),
-                 'std_dec': dict(otype=float, descr='DEC of the standard source'),
+                 # TODO: Is it possible/useful to force the coordinates to always be floats
+                 'std_ra': dict(otype=(float, str), descr='RA of the standard source'),
+                 'std_dec': dict(otype=(float, str), descr='DEC of the standard source'),
                  'npca': dict(otype=int, descr='Number of PCA components'),
                  'z_qso': dict(otype=float, descr='Redshift of the QSO'),
                  'delta_zqso': dict(otype=float,
@@ -2491,7 +2481,6 @@ class Telluric(datamodel.DataContainer):
             return (mask & inmask_out)
         else:
             return mask
-
 
     def get_ind_lower_upper(self):
         """

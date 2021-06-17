@@ -128,10 +128,10 @@ class SensFunc(scriptbase.ScriptBase):
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only
+        # par['sensfunc'].to_config('sensfunc.par') but this crashes.
         # TODO: KBW - You can do that if you override the
         # pypeit.par.parset.ParSet.to_config method in the
         # pypeit.par.pypeitpar.SensFuncPar class.
-        # par['sensfunc'].to_config('sensfunc.par') but this crashes.
 
         # Parse the output filename
         outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
@@ -142,7 +142,7 @@ class SensFunc(scriptbase.ScriptBase):
         # Generate the sensfunc
         sensobj.run()
         # Write it out to a file
-        sensobj.save()
+        sensobj.to_file(outfile, overwrite=True)
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
