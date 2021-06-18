@@ -291,12 +291,12 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        disp = self.get_meta_value(scifile, 'dispname')
+        grating = self.get_meta_value(scifile, 'dispname')
         dichroic = self.get_meta_value(scifile, 'dichroic')
 
         angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
         slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+        lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 38.5 * 2*np.pi / 360. - angle
         order = 2. if lines_mm == 158. * u.mm else 1.
@@ -324,7 +324,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             }
         }
 
-        if disp.split("/")[0] == "1200":
+        if grating.split("/")[0] == "1200":
             # high resolution grating!
             # here we need to select the reid_arxiv that most closely matches the central wavelength
             # and emit a warning if the difference is too great / the wavelength overlap is too small
@@ -345,14 +345,14 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                         "\t[[wavelengths]]\n"
                         "\t\tmethod = holy-grail")
             except KeyError:
-                msgs.error("Your grating " + disp + " needs a template spectrum for the blue arm of DBSP.")
+                msgs.error("Your grating " + grating + " needs a template spectrum for the blue arm of DBSP.")
         else:
-            if disp == '600/4000' and dichroic == 'D55':
+            if grating == '600/4000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
-            elif disp == '300/3990' and dichroic == 'D55':
+            elif grating == '300/3990' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
             else:
-                msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
+                msgs.error("Your grating " + grating + ' needs a template spectrum for the blue arm of DBSP.')
         
         return par
 
@@ -502,12 +502,12 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        disp = self.get_meta_value(scifile, 'dispname')
+        grating = self.get_meta_value(scifile, 'dispname')
         dichroic = self.get_meta_value(scifile, 'dichroic')
 
         angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
         slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+        lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 35.0 * 2*np.pi / 360. - angle
         order = 1.
@@ -537,7 +537,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             }
         }
 
-        if disp.split("/")[0] == "1200":
+        if grating.split("/")[0] == "1200":
             # high resolution grating!
             # here we need to select the reid_arxiv that most closely matches the central wavelength
             # and emit a warning if the difference is too great / the wavelength overlap is too small
@@ -558,14 +558,14 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                         "\t[[wavelengths]]\n"
                         "\t\tmethod = holy-grail")
             except KeyError:
-                msgs.error("Your grating " + disp + " needs a template spectrum for the red arm of DBSP.")
+                msgs.error("Your grating " + grating + " needs a template spectrum for the red arm of DBSP.")
         else:
-            if disp == '316/7500' and dichroic == 'D55':
+            if grating == '316/7500' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
-            elif disp == '600/10000' and dichroic == 'D55':
+            elif grating == '600/10000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
             else:
-                msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
+                msgs.error("Your grating " + grating + ' needs a template spectrum for the red arm of DBSP.')
 
         return par
 
