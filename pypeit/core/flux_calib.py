@@ -181,6 +181,9 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    * units.erg / units.s / units.cm ** 2 / units.AA
             elif sset == 'esofil':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                if not fil.startswith('f'):
+                    msgs.error('The ESO reference standard filename must start with `f`. \
+                        Make sure it is the case, and also that the flux units are in 10**(-16) erg/s/cm2/AA.')
                 std_spec = table.Table.read(fil, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
