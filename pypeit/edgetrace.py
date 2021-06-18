@@ -4093,7 +4093,8 @@ class EdgeTraceSet(DataContainer):
 
         # Remove any fully masked traces. Keeps any inserted or
         # box-slit traces.
-        self.clean_traces(rebuild_pca=True)
+        self.clean_traces(rebuild_pca=False)
+        self.sync()
 
         # Check that there are traces to match!
         if self.is_empty:
@@ -4216,9 +4217,9 @@ class EdgeTraceSet(DataContainer):
                     num += 1
             msgs.info('*' * 92)
 
-        # as reference row we use the midpoint in the spectral direction
-        reference_row = self.edge_fit[:, 0].size//2
-
+        bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
+        reference_row = trace.most_common_trace_row(bpm) if self.pcatype is None \
+            else (self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row)
         spat_bedge = self.edge_fit[reference_row, self.is_left]
         spat_tedge = self.edge_fit[reference_row, self.is_right]
 
@@ -4356,8 +4357,9 @@ class EdgeTraceSet(DataContainer):
                 if (indx_smaller.size > 0) & (indx_smaller.size < self.traceid.size):
                     indx = indx_smaller[-1]
                     # If close trace is "left" and next one is "right", add the new trace after "right" one
-                    if (self.traceid[indx] < 0) & (self.traceid[indx+1] > 0) & \
-                            (self.edge_fit[reference_row, indx + 1] - bot_edge_pred[needind_b][i] < 5):
+                    if ((self.traceid[indx] < 0) and (self.traceid[indx+1] == -1*self.traceid[indx])) or \
+                            ((self.traceid[indx+1] > 0) and (self.edge_fit[self.pca.reference_row, indx + 1] -
+                                                             bot_edge_pred[needind_b][i] < 5)):
                         bot_edge_pred[needind_b[i]] = self.edge_fit[reference_row, indx + 1] + 1
             # define which side to add the trace and insert it
             lside = -np.ones(bot_edge_pred[needind_b].shape[0], dtype=int)
@@ -4387,8 +4389,9 @@ class EdgeTraceSet(DataContainer):
                 if (indx_larger.size > 0) & (indx_larger.size < self.traceid.size):
                     indx = indx_larger[0]
                     # If close trace is "right" and previous one is "left", add new trace before "left" one
-                    if (self.traceid[indx] > 0) & (self.traceid[indx-1] < 0) & \
-                            (top_edge_pred[needind_t][i] - self.edge_fit[reference_row, indx - 1] < 5):
+                    if ((self.traceid[indx] > 0) and (self.traceid[indx-1] == -1*self.traceid[indx])) or \
+                            ((self.traceid[indx-1] < 0) and (top_edge_pred[needind_t][i] -
+                                                             self.edge_fit[reference_row, indx - 1] < 5)):
                         top_edge_pred[needind_t[i]] = self.edge_fit[reference_row, indx - 1] - 1
             # define which side to add the trace and insert it
             rside = np.ones(top_edge_pred[needind_t].shape[0], dtype=int)

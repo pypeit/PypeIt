@@ -1602,7 +1602,7 @@ class SlitMaskPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['obj_toler'] = 5.
+        defaults['obj_toler'] = 1.
         dtypes['obj_toler'] = float
         descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
 
