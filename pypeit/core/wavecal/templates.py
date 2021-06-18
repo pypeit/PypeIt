@@ -781,6 +781,20 @@ def main(flg):
         slits = [222]
         lcut = None # only matters if >1 slit
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        # HeNeAr 1200/9400 D55
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_9400_D55', 'wvcalib.fits')
+        outroot = 'p200_dbsp_red_1200_9400_d55.fits'
+        binspec = 1
+        slits = [0]
+        lcut = None # only matters if >1 slit
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        # HeNeAr 600/10000 D55
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R600_10000_D55', 'MasterWaveCalib_A_1_01.fits')
+        outroot = 'p200_dbsp_red_600_10000_d55.fits'
+        binspec = 1
+        slits = [221]
+        lcut = None # only matters if >1 slit
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
     # P200 DBSP b
     if flg & (2 ** 31):
@@ -803,6 +817,13 @@ def main(flg):
         outroot = 'p200_dbsp_blue_1200_5000_d68.fits'
         binspec = 1
         slits = [180]
+        lcut = None
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        # FeAr 1200/5000 D55
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B1200_5000_D55', 'wvcalib.fits')
+        outroot = 'p200_dbsp_blue_1200_5000_d55.fits'
+        binspec = 1
+        slits = [0]
         lcut = None
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 

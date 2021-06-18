@@ -299,6 +299,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
         elif disp == '1200/5000' and dichroic == 'D68':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_1200_5000_d68.fits'
+        elif disp == '1200/5000' and dichroic == 'D55':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_1200_5000_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
 
@@ -473,6 +475,10 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
         elif disp == '1200/7100' and dichroic == 'D68':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_1200_7100_d68.fits'
+        elif disp == '1200/9400' and dichroic == 'D55':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_1200_9400_d55.fits'
+        elif disp == '600/10000' and dichroic == 'D55':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
 
