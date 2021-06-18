@@ -77,6 +77,11 @@ To make this modification, add the following to your
 Interactive object finding/tracing
 ----------------------------------
 
+.. warning::
+
+    The ``pypeit_find_objects`` script has been deprecated until it can be
+    updated.  The following description is outdated!!
+
 THE FOLLOWING IS UNDER DEVELOPMENT.
 
 In some cases, the code may not find the object that you're after,
@@ -166,7 +171,10 @@ left mouse button near the object trace. Once selected, press the
 'd' key. If you're sure you want to delete this trace, select "Yes"
 from the information panel.
 
-The script usage can be displayed by calling the script with the
-``-h`` option:
+.. The following lines are commented out.
+.. The script usage can be displayed by calling the script with the
+.. ``-h`` option:
 
-.. include:: help/pypeit_find_objects.rst
+.. .. include:: help/pypeit_find_objects.rst
+
+

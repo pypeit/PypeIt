@@ -3,7 +3,7 @@
     $ pypeit_show_arxiv -h
     usage: pypeit_show_arxiv [-h] [--det DET] file
     
-    Show an archived arc spectrum in pypeit/data/arc_liens/reid_arxiv
+    Show an archived arc spectrum located in pypeit/data/arc_liens/reid_arxiv
     
     positional arguments:
       file        Arxiv filename, e.g. gemini_gmos_r831_ham.fits
