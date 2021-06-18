@@ -774,16 +774,16 @@ def main(flg):
         slits = [221]
         lcut = None # only matters if >1 slit
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # HeNeAr 1200/7100 D68
-        wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_7100_D68', 'MasterWaveCalib_A_1_01.fits')
-        outroot = 'p200_dbsp_red_1200_7100_d68.fits'
+        # HeNeAr 1200/7100 D68 7600
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_7100_D68', 'MasterWaveCalib_A_1_01_7600.fits')
+        outroot = 'p200_dbsp_red_1200_7100_d68_7600.fits'
         binspec = 1
         slits = [222]
         lcut = None # only matters if >1 slit
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # HeNeAr 1200/9400 D55
-        wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_9400_D55', 'wvcalib.fits')
-        outroot = 'p200_dbsp_red_1200_9400_d55.fits'
+        # HeNeAr 1200/9400 D55 8800
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_9400_D55', 'wvcalib_8800.fits')
+        outroot = 'p200_dbsp_red_1200_9400_d55_8800.fits'
         binspec = 1
         slits = [0]
         lcut = None # only matters if >1 slit
@@ -812,16 +812,16 @@ def main(flg):
         slits = [0]
         lcut = None
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # FeAr 1200/5000 D68
-        wfile = os.path.join(template_path, 'P200_DBSP', 'B1200_5000_D68', 'MasterWaveCalib_A_1_01.fits')
-        outroot = 'p200_dbsp_blue_1200_5000_d68.fits'
+        # FeAr 1200/5000 D68 6000
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B1200_5000_D68', 'MasterWaveCalib_A_1_01_6000.fits')
+        outroot = 'p200_dbsp_blue_1200_5000_d68_6000.fits'
         binspec = 1
         slits = [180]
         lcut = None
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # FeAr 1200/5000 D55
-        wfile = os.path.join(template_path, 'P200_DBSP', 'B1200_5000_D55', 'wvcalib.fits')
-        outroot = 'p200_dbsp_blue_1200_5000_d55.fits'
+        # FeAr 1200/5000 D55 4700
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B1200_5000_D55', 'wvcalib_4700.fits')
+        outroot = 'p200_dbsp_blue_1200_5000_d55_4700.fits'
         binspec = 1
         slits = [0]
         lcut = None
