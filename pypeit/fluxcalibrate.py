@@ -63,7 +63,7 @@ class FluxCalibrate:
             self.flux_calib(sobjs, s.wave, s.zeropoint, s.algorithm, s.sens)
             sobjs.write_to_fits(sobjs.header, outfile, history=history, overwrite=True)
 
-    def flux_calib(self, sobjs, wave, zeropoint, algorithm):
+    def flux_calib(self, sobjs, wave, zeropoint, algorithm, sens):
         """
         Dummy method overloaded by subclass
 
@@ -89,7 +89,7 @@ class MultiSlitFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug, outfiles=outfiles)
 
 
-    def flux_calib(self, sobjs, wave, zeropoint, algorithm, sens_table):
+    def flux_calib(self, sobjs, wave, zeropoint, algorithm, sens):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
@@ -102,7 +102,7 @@ class MultiSlitFC(FluxCalibrate):
                 sensitivity function
             algorithm (str):
                 SensFunc algorithm
-            sens_table (table.Table):
+            sens (table.Table):
                 SensFunc data table
         """
 
@@ -142,7 +142,7 @@ class EchelleFC(FluxCalibrate):
                sensitivity function
             algorithm (str):
                 SensFunc algorithm
-            sens_table (table.Table):
+            sens (table.Table):
                 SensFunc data table
 
         """

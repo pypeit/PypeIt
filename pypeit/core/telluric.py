@@ -5,7 +5,7 @@
 """
 import os
 import sys
-import pickle
+#import pickle
 
 from IPython import embed
 
@@ -2049,7 +2049,7 @@ class Telluric(datamodel.DataContainer):
                                 descr='Perform a final optimization to tweak the best solution; '
                                       'see scipy.optimize.differential_evolution.'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
-                 'exptime': dict(otype=float, descr='Exposure time'),
+                 'exptime': dict(otype=float, descr='Exposure time (s)'),
                  # TODO: Is it possible/useful to force the coordinates to always be floats
                  'std_ra': dict(otype=(float, str), descr='RA of the standard source'),
                  'std_dec': dict(otype=(float, str), descr='DEC of the standard source'),

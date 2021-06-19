@@ -664,22 +664,30 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     zeropoint_obs = np.zeros_like(wave)
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
     delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+
     try:
-        zeropoint_obs[wave_mask] = interpolate.interp1d(wave_zp, zeropoint, bounds_error=True)(wave[wave_mask])
+        zeropoint_obs[wave_mask] \
+                = interpolate.interp1d(wave_zp, zeropoint, bounds_error=True)(wave[wave_mask])
     except ValueError:
+
+        embed()
+        exit()
+
         if extrap_sens:
-            zeropoint_obs[wave_mask] = interpolate.interp1d(wave_zp, zeropoint, bounds_error=False)(wave[wave_mask])
-            msgs.warn(
-                "Your data extends beyond the bounds of your sensfunc. You should be adjusting "
-                "the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further "
-                "and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
+            zeropoint_obs[wave_mask] \
+                    = interpolate.interp1d(wave_zp, zeropoint, bounds_error=False)(wave[wave_mask])
+            msgs.warn("Your data extends beyond the bounds of your sensfunc. You should be "
+                      "adjusting the par['sensfunc']['extrap_blu'] and/or "
+                      "par['sensfunc']['extrap_red'] to extrapolate further and recreate your "
+                      "sensfunc. But we are extrapolating per your direction. Good luck!")
         else:
             msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                       "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                       "further and recreate your sensfunc.")
+                       "Adjust the par['sensfunc']['extrap_blu'] and/or "
+                       "par['sensfunc']['extrap_red'] to extrapolate further and recreate "
+                       "your sensfunc.")
 
-    # This is the S_lam factor required to convert N_lam = counts/sec/Ang to F_lam = 1e-17 erg/s/cm^2/Ang, i.e.
-    # F_lam = S_lam*N_lam
+    # This is the S_lam factor required to convert N_lam = counts/sec/Ang to
+    # F_lam = 1e-17 erg/s/cm^2/Ang, i.e.  F_lam = S_lam*N_lam
     sensfunc_obs = Nlam_to_Flam(wave, zeropoint_obs)
 
     # TODO Telluric corrections via this method are deprecated

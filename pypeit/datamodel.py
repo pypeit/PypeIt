@@ -476,7 +476,9 @@ from pypeit import io
 from pypeit import masterframe
 from pypeit import msgs
 
-# TODO: We need methods that:
+# TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
+# datamodels for specific datacontainers.  It would be useful if we had
+# generalized methods in this base class that
 #   - construct an rst table that documents the datamodel.
 #   - construct an rst table that documents each Table component of the datamodel
 #     (like a nested DataContainer)
