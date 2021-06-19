@@ -82,14 +82,15 @@ class SensFunc(datamodel.DataContainer):
                  'zeropoint': dict(otype=np.ndarray, atype=float,
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
-                                    descr='Spectrograph throughput measurements'),
-                 'wave_splice': dict(otype=np.ndarray, atype=float,
-                                     descr='Spliced-together wavelength vector'),
-                 'zeropoint_splice': dict(otype=np.ndarray, atype=float,
-                                          descr='Spliced-together sensitivity function zeropoints'),
-                 'throughput_splice': dict(otype=np.ndarray, atype=float,
-                                           descr='Spliced-together spectrograph throughput '
-                                                 'measurements')}
+                                    descr='Spectrograph throughput measurements')}
+#                                    ,
+#                 'wave_splice': dict(otype=np.ndarray, atype=float,
+#                                     descr='Spliced-together wavelength vector'),
+#                 'zeropoint_splice': dict(otype=np.ndarray, atype=float,
+#                                          descr='Spliced-together sensitivity function zeropoints'),
+#                 'throughput_splice': dict(otype=np.ndarray, atype=float,
+#                                           descr='Spliced-together spectrograph throughput '
+#                                                 'measurements')}
     """DataContainer datamodel."""
 
     algorithm = None
@@ -240,9 +241,9 @@ class SensFunc(datamodel.DataContainer):
 #        self.wave = None
 #        self.zeropoint = None
 #        self.throughput = None
-#        self.wave_splice = None
-#        self.zeropoint_splice = None
-#        self.throughput_splice = None
+        self.wave_splice = None
+        self.zeropoint_splice = None
+        self.throughput_splice = None
         self.steps = None
         self.splice_multi_det = None
         self.meta_spec = None
@@ -275,6 +276,25 @@ class SensFunc(datamodel.DataContainer):
 #                    d += [{key: self[key].astype(self.output_float_dtype)}]
                 else:
                     d += [{key: self[key]}]
+
+        # If the spliced arrays have been set, use these to replace the
+        # multislit/echelle wave, zeropoint, and throughput arrays
+        if self.splice_multi_det:
+            # TODO: I added this neurotic check, just to make sure...
+            if self.wave_splice is None or self.zeropoint_splice is None \
+                    or self.throughput_splice is None:
+                msgs.error('CODING ERROR: Assumed if splice_multi_det is True, then the *_splice '
+                           'arrays have all been defined.  Found a case where this is not true!')
+            # Loop through this list of dictionaries
+            for _d in d:
+                if list(_d.keys())[0] not in ['wave', 'zeropoint', 'throughput']:
+                    # Keep going if it's not one of the relevant attributes
+                    continue
+                # Replace with the spliced version.  Warning: This requires that
+                # the relevant attribute names are paired as self.attr and
+                # self.attr_splice
+                attr = list(_d.keys())[0]
+                _d[attr] = getattr(self, f'{attr}_splice')
 
         # Add all the non-array, non-DataContainer, non-Table elements to the
         # 'sens' extension. This is done after the first loop to just to make
