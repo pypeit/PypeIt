@@ -665,13 +665,16 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
     delta_wave = wvutils.get_delta_wave(wave, wave_mask)
 
+    print(f'get_sensfunc_factor: {np.amin(wave_zp):.1f}, {np.amax(wave_zp):.1f}, '
+          f'{np.amin(wave[wave_mask]):.1f}, {np.amax(wave[wave_mask]):.1f}')
+
     try:
         zeropoint_obs[wave_mask] \
                 = interpolate.interp1d(wave_zp, zeropoint, bounds_error=True)(wave[wave_mask])
     except ValueError:
-
-        embed()
-        exit()
+#
+#        embed()
+#        exit()
 
         if extrap_sens:
             zeropoint_obs[wave_mask] \
