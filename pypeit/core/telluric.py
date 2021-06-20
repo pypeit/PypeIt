@@ -5,7 +5,6 @@
 """
 import os
 import sys
-#import pickle
 
 from IPython import embed
 
@@ -1487,12 +1486,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
                       eval_qso_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
-#    TelObj.save(telloutfile)
     TelObj.to_file(telloutfile, overwrite=True)
 
     # Apply the telluric correction
-#    telluric = TelObj.out_table['TELLURIC'][0,:]
-#    pca_model = TelObj.out_table['OBJ_MODEL'][0,:]
     telluric = TelObj.model['TELLURIC'][0,:]
     pca_model = TelObj.model['OBJ_MODEL'][0,:]
 
@@ -1589,12 +1585,9 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
                       eval_star_model,  sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
-#    TelObj.save(telloutfile)
     TelObj.to_file(telloutfile, overwrite=True)
 
     # Apply the telluric correction
-#    telluric = TelObj.out_table['TELLURIC'][0,:]
-#    star_model = TelObj.out_table['OBJ_MODEL'][0,:]
     telluric = TelObj.model['TELLURIC'][0,:]
     star_model = TelObj.model['OBJ_MODEL'][0,:]
     # Plot the telluric corrected and rescaled spectrum
@@ -1686,12 +1679,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
                       eval_poly_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
-#    TelObj.save(telloutfile)
     TelObj.to_file(telloutfile, overwrite=True)
 
     # Apply the telluric correction
-#    telluric = TelObj.out_table['TELLURIC'][0,:]
-#    poly_model = TelObj.out_table['OBJ_MODEL'][0,:]
     telluric = TelObj.model['TELLURIC'][0,:]
     poly_model = TelObj.model['OBJ_MODEL'][0,:]
     # Plot the telluric corrected and rescaled spectrum
@@ -2371,12 +2361,11 @@ class Telluric(datamodel.DataContainer):
 
     def assign_output(self, iord):
         """
-        Routine to assign outputs to self.out_table for the order in question.
+        Routine to assign outputs to self.model for the order in question.
 
         Args:
             iord (int):
-            The order for which the output table should bbe assigned.
-
+                The order for which the output table should bbe assigned.
 
         """
 

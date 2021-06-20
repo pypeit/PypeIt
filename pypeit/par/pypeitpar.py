@@ -1459,14 +1459,6 @@ class SensFuncPar(ParSet):
         """
         return ['UVIS', 'IR']
 
-#    def validate(self):
-#        """
-#        Check the parameters are valid for the provided method.
-#        """
-#        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
-#            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
-#        # JFH add other checks?
-
 
 class SensfuncUVISPar(ParSet):
     """
