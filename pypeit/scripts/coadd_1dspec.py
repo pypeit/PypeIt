@@ -171,8 +171,6 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         parser.add_argument("--par_outfile", default='coadd1d.par',
                             help="Output to save the parameters")
         parser.add_argument("--test_spec_path", type=str, help="Path for testing")
-#        parser.add_argument("--plot", default=False, action="store_true",
-#                            help="Show the sensitivity function?")
         return parser
 
     @staticmethod

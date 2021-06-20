@@ -40,7 +40,7 @@ def parse_param(par, key, slit):
 # TODO: Should this code allow the user to skip the smoothing steps and just
 # provide the raw delta_wave vector? I would think there are cases where you
 # want the *exact* pixel width, as opposed to the smoothed version.
-def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
+def get_delta_wave(wave, wave_gpm, frac_spec_med_filter=0.03):
     r"""
     Compute the change in wavelength per pixel.
 
@@ -60,8 +60,8 @@ def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
     ---------- 
     wave : float `numpy.ndarray`_, shape = (nspec,)
         Array of input wavelengths. Must be 1D.
-    gpm : bool `numpy.ndarray`_, shape = (nspec)
-        Boolean good-pixel mask defining where the ``wave_old`` values are
+    wave_gpm : bool `numpy.ndarray`_, shape = (nspec)
+        Boolean good-pixel mask defining where the ``wave`` values are
         good.
     frac_spec_med_filter : :obj:`float`, optional
         Fraction of the length of the wavelength vector to use to median
@@ -72,7 +72,7 @@ def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
 
     Returns
     -------
-    delta_wave (float `numpy.ndarray`_): shape = (nspec,)
+    delta_wave : `numpy.ndarray`_, float, shape = (nspec,)
         A smooth estimate for the change in wavelength for each pixel in the
         input wavelength vector.
     """
@@ -84,9 +84,7 @@ def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
     # This needs to be an odd number
     nspec_med_filter = 2*int(np.round(nspec*frac_spec_med_filter/2.0)) + 1
     delta_wave = np.zeros_like(wave)
-    # TODO: Why is the gpm included here? The sampling of the spectrum isn't
-    # affected by whether or not the flux in a given pixel is valid, right?
-    wave_diff = np.diff(wave[gpm])
+    wave_diff = np.diff(wave[wave_gpm])
     wave_diff = np.append(wave_diff, wave_diff[-1])
     wave_diff_filt = utils.fast_running_median(wave_diff, nspec_med_filter)
 
@@ -94,7 +92,7 @@ def get_delta_wave(wave, gpm, frac_spec_med_filter=0.03):
     sig_res = np.fmax(nspec_med_filter/10.0, 3.0)
     gauss_kernel = convolution.Gaussian1DKernel(sig_res)
     wave_diff_smooth = convolution.convolve(wave_diff_filt, gauss_kernel, boundary='extend')
-    delta_wave[gpm] = wave_diff_smooth
+    delta_wave[wave_gpm] = wave_diff_smooth
     return delta_wave
 
 
@@ -145,8 +143,6 @@ def get_sampling(waves, pix_per_R=3.0):
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 
-# This function was originally in pypeit/core/coadd.py, but it was moved here to
-# avoid a circular import.
 # TODO: the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None,
                   wave_grid_max=None, dwave=None, dv=None, dloglam=None, spec_samp_fact=1.0):

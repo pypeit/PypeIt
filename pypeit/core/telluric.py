@@ -617,12 +617,13 @@ def general_spec_reader(specfile, ret_flam=False):
         if np.sum(sobjs.OPT_WAVE) is None:
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
-        wave, counts, counts_ivar, counts_mask = unpack_orders(sobjs, ret_flam=ret_flam)
+        wave, counts, counts_ivar, counts_gpm = unpack_orders(sobjs, ret_flam=ret_flam)
         if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1):
             idx = flux_calib.find_standard(sobjs)
             npix = head['NPIX']
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
-            counts_ivar, counts_mask = np.reshape(counts_ivar[:,idx],(npix,1)), np.reshape(counts_mask[:,idx],(npix,1))
+            counts_ivar = np.reshape(counts_ivar[:,idx],(npix,1))
+            counts_gpm = np.reshape(counts_gpm[:,idx],(npix,1))
         bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)
         bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
         bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
@@ -642,7 +643,7 @@ def general_spec_reader(specfile, ret_flam=False):
         wave = spec.wave
         counts = spec.flux
         counts_ivar = spec.ivar
-        counts_mask = spec.mask.astype(bool)
+        counts_gpm = spec.mask.astype(bool)
         spect_dict = spec.spect_meta
         head = spec.head0
 
@@ -650,9 +651,9 @@ def general_spec_reader(specfile, ret_flam=False):
     meta_spec = dict(bonus=bonus)
     meta_spec['core'] = spect_dict
 
-    return wave, counts, counts_ivar, counts_mask, meta_spec, head
+    return wave, counts, counts_ivar, counts_gpm, meta_spec, head
 
-def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, telluric=None,
+def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, spectrograph=None, telluric=None,
                         obj_model=None, header=None, ex_value='OPT', overwrite=True):
     """
     Write final spectrum to disk.
@@ -666,7 +667,7 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
             flux array
         ivar (`numpy.ndarray`_):
             inverse variance array.
-        mask (`numpy.ndarray`_):
+        gpm (`numpy.ndarray`_):
             good pixel mask for your spectrum.
         spectrograph (:obj:`str`, optional):
             spectrograph name
@@ -681,11 +682,11 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
         overwrite (:obj:`bool`, optional):
            Overwrite existing file?
     """
-    wave_mask = wave > 1.0
-    spec = onespec.OneSpec(wave[wave_mask], flux[wave_mask], PYP_SPEC=spectrograph,
-                           ivar=ivar[wave_mask], mask=mask[wave_mask].astype(int),
-                           telluric=None if telluric is None else telluric[wave_mask],
-                           obj_model=None if obj_model is None else obj_model[wave_mask],
+    wave_gpm = wave > 1.0
+    spec = onespec.OneSpec(wave[wave_gpm], flux[wave_gpm], PYP_SPEC=spectrograph,
+                           ivar=ivar[wave_gpm], mask=gpm[wave_gpm].astype(int),
+                           telluric=None if telluric is None else telluric[wave_gpm],
+                           obj_model=None if obj_model is None else obj_model[wave_gpm],
                            ext_mode=ex_value, fluxed=True)
     # TODO: We need a better way of assigning the header...
     spec.head0 = header
@@ -695,7 +696,7 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, tell
 ##############
 # Sensfunc Model #
 ##############
-def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tellmodel):
+def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellmodel):
     """
     Initializes a sensitivity function model fit for joint sensitivity function
     and telluric fitting by setting up the obj_dict and bounds.
@@ -738,7 +739,7 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, mask, tell
                   'Proceeding by masking these regions, but consider using another standard star')
     N_lam = counts_per_ang/obj_params['exptime']
     zeropoint_data, zeropoint_data_gpm \
-            = flux_calib.compute_zeropoint(wave, N_lam, (mask & flam_true_gpm), flam_true,
+            = flux_calib.compute_zeropoint(wave, N_lam, (gpm & flam_true_gpm), flam_true,
                                            tellmodel=tellmodel)
 
     # Perform an initial fit to the sensitivity function to set the starting
@@ -1198,16 +1199,16 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
-    Provided a standard star spectrum, compute a best-fit telluric model.
+    Compute a sensitivity function from a standard star spectrum by
+    simultaneously fitting a polynomial sensitivity function and a telluric
+    model for atmospheric absorption.
 
     This method is primarily used with :class:`~pypeit.sensfunc.SensFunc` to
     compute sensitivity functions.
 
-    .. Function to compute a sensitivity function by simultaneously fitting the
-    .. sensfunc and a telluric model to a standard star spectrum.  The sensitivity
-    .. function is defined to be S_lam = F_lam/(counts/s/A) where F_lam is in units
-    .. of 1e-17 erg/s/cm^2/A, and so the sensitivity function has units of
-    .. (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
+    The sensitivity function is defined to be S_lam = F_lam/(counts/s/A) where
+    F_lam is in units of 1e-17 erg/s/cm^2/A, and so the sensitivity function has
+    units of (erg/s/cm^2/A)/(counts/s/A) = erg/cm^2/counts
 
     Parameters
     ----------
@@ -1331,49 +1332,6 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     TelObj.run(only_orders=only_orders)
 
     return TelObj
-
-#    # Append the zeropoint to the output table for convenience
-#    meta_table, out_table = TelObj.meta_table, TelObj.out_table
-#
-#    # For stupid reasons related to how astropy tables will let me store this data I have to redundantly write out the
-#    # wavelength grid for each order. In actuality a variable length wavelength grid is needed which is a subset of the
-#    # original fixed grid, but there is no way to write this to disk. Perhaps the better solution would be a list of
-#    # of astropy tables, one for each order, that would save some space, since we could then write out only the subset
-#    # used to the table column. I'm going with this inefficient approach for now, since eventually we will want to create
-#    # a data container for these outputs. That said, coming up with that standarized model is a bit tedious given the
-#    # somewhat heterogenous outputs of the two different fluxing algorithms.
-#    out_table['SENS_COEFF'] = out_table['OBJ_THETA']
-#    out_table['SENS_WAVE'] = np.zeros((norders, TelObj.wave_grid.size))
-#    out_table['SENS_COUNTS_PER_ANG'] = np.zeros((norders, TelObj.wave_grid.size))
-#    out_table['SENS_ZEROPOINT'] = np.zeros((norders, TelObj.wave_grid.size))
-#    out_table['SENS_ZEROPOINT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
-#    out_table['SENS_ZEROPOINT_FIT'] =  np.zeros((norders, TelObj.wave_grid.size))
-#    out_table['SENS_ZEROPOINT_FIT_GPM'] = np.zeros((norders, TelObj.wave_grid.size), dtype=bool)
-#    for iord in range(norders):
-#        wave_min = out_table[iord]['WAVE_MIN']
-#        wave_max = out_table[iord]['WAVE_MAX']
-#        ind_lower = out_table[iord]['IND_LOWER']
-#        ind_upper = out_table[iord]['IND_UPPER']
-#        # Compute and assign the zeropint_data from the input data and the best-fit telluric model
-#        wave_now = TelObj.wave_grid[ind_lower:ind_upper + 1]
-#        out_table[iord]['SENS_WAVE'][ind_lower:ind_upper+1] = wave_now
-#        zeropoint_data_gpm =  TelObj.mask_arr[ind_lower:ind_upper + 1, iord]
-#        out_table[iord]['SENS_ZEROPOINT_GPM'][ind_lower:ind_upper+1] = zeropoint_data_gpm
-#        tellmodel_now = TelObj.tellmodel_list[iord]
-#        out_table[iord]['SENS_COUNTS_PER_ANG'][ind_lower:ind_upper + 1] = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
-#        flux_now = TelObj.flux_arr[ind_lower:ind_upper + 1, iord]
-#        flam_std_star = TelObj.obj_dict_list[iord]['flam_true']
-#        N_lam = flux_now / exptime
-#        zeropoint_data, _ = flux_calib.compute_zeropoint(wave_now, N_lam, zeropoint_data_gpm, flam_std_star,
-#                                                         tellmodel=tellmodel_now)
-#        out_table[iord]['SENS_ZEROPOINT'][ind_lower:ind_upper + 1] = zeropoint_data
-#        # Compute and assign the
-#        coeff = out_table[iord]['SENS_COEFF'][0:polyorder_vec[iord] + 2]
-#        out_table[iord]['SENS_ZEROPOINT_FIT'][ind_lower:ind_upper + 1]  = fitting.evaluate_fit(
-#            coeff, func, wave_now, minx=out_table[iord]['WAVE_MIN'], maxx=out_table[iord]['WAVE_MAX'])
-#        out_table[iord]['SENS_ZEROPOINT_FIT_GPM'][ind_lower:ind_upper + 1] = TelObj.outmask_list[iord]
-#
-#    return meta_table, out_table, TelObj
 
 
 def create_bal_mask(wave, bal_wv_min_max):
@@ -2051,8 +2009,8 @@ class Telluric(datamodel.DataContainer):
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time (s)'),
                  # TODO: Is it possible/useful to force the coordinates to always be floats
-                 'std_ra': dict(otype=(float, str), descr='RA of the standard source'),
-                 'std_dec': dict(otype=(float, str), descr='DEC of the standard source'),
+                 'std_ra': dict(otype=float, descr='RA of the standard source'),
+                 'std_dec': dict(otype=float, descr='DEC of the standard source'),
                  'npca': dict(otype=int, descr='Number of PCA components'),
                  'z_qso': dict(otype=float, descr='Redshift of the QSO'),
                  'delta_zqso': dict(otype=float,
@@ -2180,8 +2138,8 @@ class Telluric(datamodel.DataContainer):
 
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
-        self.tell_dict = self.read_telluric_grid(wave_min=self.wave_in_arr[wv_gpm].min(),
-                                                 wave_max=self.wave_in_arr[wv_gpm].max())
+        self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
+                                            wave_max=self.wave_in_arr[wv_gpm].max())
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
         self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] \
@@ -2507,42 +2465,9 @@ class Telluric(datamodel.DataContainer):
         # length of the fitted region is just ind_upper-ind_lower.
         return np.ma.argmin(wave_ma, axis=0), np.ma.argmax(wave_ma, axis=0)
 
-#        ind_lower = np.zeros(self.norders, dtype=int)
-#        ind_upper = np.zeros(self.norders, dtype=int)
-#        for iord in range(self.norders):
-#            # This presumes that the data has been interpolated onto the telluric model grid
-#            wave_grid_ma = np.ma.array(np.copy(self.wave_grid))
-#            # For the ind lower and upper, use the good wavelength mask, not the
-#            # data mask. This gives us the model everywhere where wavelengths
-#            # are not zero
-#            wave_grid_ma.mask = np.logical_not(self.wave_mask_arr[:, iord])
-#            #wave_grid_ma.mask = np.invert(self.mask_arr[:,iord])
-#            ind_lower[iord] = np.ma.argmin(wave_grid_ma)
-#            ind_upper[iord] = np.ma.argmax(wave_grid_ma)
-#        return ind_lower, ind_upper
-
     ##########################
     ## telluric grid methods #
     ##########################
-    # TODO: Don't need this method...
-    def read_telluric_grid(self, wave_min=None, wave_max=None, pad_frac=0.10):
-        """
-        Wrapper for utility function read_telluric_grid
-
-        Args:
-            wave_min (float):
-               Minimum wavelength
-            wave_max (float):
-               Maximum wavelength
-            pad_frac (float):
-               Padding fraction, optional, default = 0.10
-
-        Returns:
-
-        """
-        return read_telluric_grid(self.telgrid, wave_min=wave_min, wave_max=wave_max,
-                                  pad_frac=pad_frac)
-
     def get_tell_guess(self):
         """
         Return guess parameters for the telluric model.

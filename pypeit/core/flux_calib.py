@@ -116,8 +116,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             - 'cal_file': str -- Filename table
             - 'name': str -- Star name
-            - 'std_ra': str -- RA(J2000)
-            - 'std_dec': str -- DEC(J2000)
+            - 'std_ra': float -- RA(J2000)
+            - 'std_dec': float -- DEC(J2000)
 
     """
     # Priority
@@ -150,8 +150,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             _idx = int(idx)
             std_dict = dict(cal_file=os.path.join(path, star_tbl[_idx]['File']),
                             name=star_tbl[_idx]['Name'],
-                            std_ra=star_tbl[_idx]['RA_2000'],
-                            std_dec=star_tbl[_idx]['DEC_2000'])
+#                            std_ra=star_tbl[_idx]['RA_2000'],
+#                            std_dec=star_tbl[_idx]['DEC_2000'])
+                            # Force the coordinates to be decimal degrees
+                            std_ra=star_coords.ra[_idx].value,
+                            std_dec=star_coords.dec[_idx].value)
 
             if not os.path.isfile(star_file):
                 # TODO: Error or warn?
@@ -220,9 +223,13 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             closest['sep'] = mind2d
             # TODO: Is this right? Do we need to use the imind2d from
             # above?
-            closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                                ra=star_tbl[int(idx)]['RA_2000'],
-                                dec=star_tbl[int(idx)]['DEC_2000']))
+            _idx = int(idx)
+            closest.update(dict(name=star_tbl[_idx]['Name'],
+#                                ra=star_tbl[int(idx)]['RA_2000'],
+#                                dec=star_tbl[int(idx)]['DEC_2000']))
+                                # Force the coordinates to be decimal degrees
+                                std_ra=star_coords.ra[_idx].value,
+                                std_dec=star_coords.dec[_idx].value))
 
     # Standard star not found
     if check:
@@ -357,7 +364,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             ## Vega model from TSPECTOOL
             vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
             vega_data = table.Table.read(vega_file, comment='#', format='ascii')
-            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag, std_ra=ra, std_dec=dec)
+            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
+                            std_ra=ra, std_dec=dec)
             std_dict['std_source'] = 'VEGA'
             std_dict['wave'] = vega_data['col1'] * units.AA
 
@@ -613,7 +621,6 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders
     out_table['SENS_WAVE'] = wave_arr.T
-    # TODO: Is this correct?
     out_table['SENS_COUNTS_PER_ANG'] = counts_arr.T
     out_table['SENS_ZEROPOINT'] = zeropoint_data.T
     out_table['SENS_ZEROPOINT_GPM'] = zeropoint_data_gpm.T

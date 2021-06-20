@@ -72,8 +72,8 @@ class SensFunc(datamodel.DataContainer):
                  'std_cal': dict(otype=str,
                                  descr='File name (or shorthand) with the standard flux data'),
                  # TODO: Is it possible/useful to force the coordinates to always be floats
-                 'std_ra': dict(otype=(float, str), descr='RA of the standard source'),
-                 'std_dec': dict(otype=(float, str), descr='DEC of the standard source'),
+                 'std_ra': dict(otype=float, descr='RA of the standard source'),
+                 'std_dec': dict(otype=float, descr='DEC of the standard source'),
                  'airmass': dict(otype=float, descr='Airmass of the observation'),
                  'exptime': dict(otype=float, descr='Exposure time'),
                  'telluric': dict(otype=telluric.Telluric, descr='Telluric model'),
@@ -147,18 +147,6 @@ class SensFunc(datamodel.DataContainer):
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == f"{par['algorithm']}SensFunc")(spec1dfile, sensfile, par=par,
                                                                     debug=debug)
-
-#    @classmethod
-#    def load(cls, sensfile):
-#        # Write to outfile
-#        msgs.info('Reading sensitivity function from file: {:}'.format(sensfile))
-#        hdulist = io.fits_open(sensfile)
-#        header = hdulist[0].header
-#        wave = hdulist['WAVE'].data
-#        zeropoint = hdulist['ZEROPOINT'].data
-#        meta_table = table.Table(hdulist['METADATA'].data)
-#        out_table  = table.Table(hdulist['OUT_TABLE'].data)
-#        return wave, zeropoint, meta_table, out_table, header
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
 
@@ -238,9 +226,6 @@ class SensFunc(datamodel.DataContainer):
         self.counts_mask = None
         self.nspec_in = None
         self.norderdet = None
-#        self.wave = None
-#        self.zeropoint = None
-#        self.throughput = None
         self.wave_splice = None
         self.zeropoint_splice = None
         self.throughput_splice = None
@@ -375,64 +360,11 @@ class SensFunc(datamodel.DataContainer):
         # Write out QA and throughput plots
         self.write_QA()
 
-        # TODO This is ugly code. Maybe it should go in save. Maybe we should
-        # just output all the zeropoint arrays as 2d arrays rather than
-        # flattening them.
-        # If the zeropoint has just one order, or detectors were spliced, flatten the output
-        #if self.wave_zp.ndim == 2:
-        #    # Always flatten for multi_spec_det
-        #    if self.splice_multi_det:
-        #        self.wave_zp_splice = self.wave_zp_splice.flatten()
-        #        self.zeropoint_splice = self.zeropoint_splice.flatten()
-        #        self.throughput_splice = self.throughput_splice.flatten()
-        #    # Otherwise, flatten only if the number of det/orders = 1
-        #    elif self.wave_zp.shape[1] == 1:
-        #        self.wave_zp = self.wave_zp.flatten()
-        #        self.zeropoint = self.zeropoint.flatten()
-        #        self.throughput = self.throughput.flatten()
-
-        return
-
     def eval_zeropoint(self, wave, iorddet):
         """
         Dummy method, overloaded by subclasses
         """
         pass
-
-#    def save(self):
-#        """
-#        Saves sensitivity to self.sensfile
-#        """
-#
-#        # Write to outfile
-#        msgs.info('Writing sensitivity function results to file: {:}'.format(self.sensfile))
-#
-#        # Standard init
-#        hdr = io.initialize_header()
-#
-#        hdr['PYP_SPEC'] = (self.spectrograph.name, 'PypeIt: Spectrograph name')
-#        hdr['PYPELINE'] = self.spectrograph.pypeline
-#        #   - List the completed steps
-#        hdr['STEPS'] = (','.join(self.steps), 'Completed sensfunc steps')
-#        #   - Provide the file names
-#        hdr['SPC1DFIL'] = self.spec1dfile
-#
-#        # Write the fits file
-#        if self.splice_multi_det:
-#            data = [self.wave_zp_splice, self.zeropoint_splice, self.throughput_splice]
-#        else:
-#            data = [self.wave_zp, self.zeropoint, self.throughput]
-#
-#        extnames = ['WAVE', 'ZEROPOINT', 'THROUGHPUT']
-#        # Write the fits file
-#        hdulist = fits.HDUList([fits.PrimaryHDU(header=hdr)] + [fits.ImageHDU(data=d, name=n) for d, n in zip(data, extnames)])
-#        hdu_meta = fits.table_to_hdu(self.meta_table)
-#        hdu_meta.name = 'METADATA'
-#        hdu_out = fits.table_to_hdu(self.out_table)
-#        hdu_out.name = 'OUT_TABLE'
-#        hdulist.append(hdu_meta)
-#        hdulist.append(hdu_out)
-#        hdulist.writeto(self.sensfile, overwrite=True, checksum=True)
 
     def extrapolate(self, samp_fact=1.5):
         """
@@ -709,6 +641,57 @@ class SensFunc(datamodel.DataContainer):
         axis.set_title('PypeIt Throughput for' + spec_str)
         fig.savefig(self.thrufile)
 
+    @classmethod
+    def sensfunc_weights(cls, sensfile, waves, debug=False, extrap_sens=True):
+        """
+        Get the weights based on the sensfunc
+
+        Args:
+            sensfile (str):
+                the name of your fits format sensfile
+            waves (ndarray): (nspec, norders, nexp) or (nspec, norders)
+                wavelength grid for your output weights
+            debug (bool): default=False
+                show the weights QA
+
+        Returns:
+            ndarray: sensfunc weights evaluated on the input waves
+            wavelength grid
+        """
+        sens = cls.from_file(sensfile)
+    #    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
+
+        if waves.ndim == 2:
+            nspec, norder = waves.shape
+            nexp = 1
+            waves_stack = np.reshape(waves, (nspec, norder, 1))
+        elif waves.ndim == 3:
+            nspec, norder, nexp = waves.shape
+            waves_stack = waves
+        else:
+            msgs.error('Unrecognized dimensionality for waves')
+
+        weights_stack = np.zeros_like(waves_stack)
+
+        if norder != sens.zeropoint.shape[1]:
+            msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
+
+        for iord in range(norder):
+            for iexp in range(nexp):
+                sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:,iord,iexp],
+                                                               sens.wave[:,iord],
+                                                               sens.zeropoint[:,iord], 1.0,
+                                                               extrap_sens=extrap_sens)
+                weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
+
+        if debug:
+            weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
+
+        if waves.ndim == 2:
+            weights_stack = np.reshape(weights_stack, (nspec, norder))
+
+        return weights_stack
+
 
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
 
@@ -929,57 +912,5 @@ class UVISSensFunc(SensFunc):
                                           self.sens['SENS_ZEROPOINT_FIT'][iorddet,:],
                                           bounds_error=False, fill_value='extrapolate')(wave)
 
-
-# This was moved from pypeit/core/coadd.py, and appropriate adjustments were
-# made to coadd.ech_combspec and coadd1d.py
-def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=True):
-    """
-    Get the weights based on the sensfunc
-
-    Args:
-        sensfile (str):
-            the name of your fits format sensfile
-        waves (ndarray): (nspec, norders, nexp) or (nspec, norders)
-            wavelength grid for your output weights
-        debug (bool): default=False
-            show the weights QA
-
-    Returns:
-        ndarray: sensfunc weights evaluated on the input waves
-        wavelength grid
-    """
-    sens = SensFunc.from_file(sensfile)
-#    wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sensfile)
-
-    if waves.ndim == 2:
-        nspec, norder = waves.shape
-        nexp = 1
-        waves_stack = np.reshape(waves, (nspec, norder, 1))
-    elif waves.ndim == 3:
-        nspec, norder, nexp = waves.shape
-        waves_stack = waves
-    else:
-        msgs.error('Unrecognized dimensionality for waves')
-
-    weights_stack = np.zeros_like(waves_stack)
-
-    if norder != sens.zeropoint.shape[1]:
-        msgs.error('The number of orders in {:} does not agree with your data. Wrong sensfile?'.format(sensfile))
-
-    for iord in range(norder):
-        for iexp in range(nexp):
-            sensfunc_iord = flux_calib.get_sensfunc_factor(waves_stack[:,iord,iexp],
-                                                           sens.wave[:,iord],
-                                                           sens.zeropoint[:,iord], 1.0,
-                                                           extrap_sens=extrap_sens)
-            weights_stack[:,iord,iexp] = utils.inverse(sensfunc_iord)
-
-    if debug:
-        weights_qa(waves_stack, weights_stack, (waves_stack > 1.0), title='sensfunc_weights')
-
-    if waves.ndim == 2:
-        weights_stack = np.reshape(weights_stack, (nspec, norder))
-
-    return weights_stack
 
 
