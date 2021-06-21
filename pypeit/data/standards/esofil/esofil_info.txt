@@ -1,6 +1,7 @@
 # Incomplete list of the ESO standards
 # CD-34 241: This star is mistakenly named LTT 377 in Hamuy et al. (1992 & 1994)
 # https://www.eso.org/sci/observing/tools/standards/spectra/stanlis.html
+# Flux column in these files must come in flux units of 10**(-16) ergs/s/cm^2/AA
   File           Name        RA_2000     DEC_2000
 fbpm16274.dat    BPM16274   00:50:03.65 -52:08:15.5
 # mcd-34241.dat		 CD-34241   00:41:46.90 -33:39:09  # this is in magnitude units, commenting out
