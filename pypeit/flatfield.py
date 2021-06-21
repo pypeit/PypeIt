@@ -1189,7 +1189,7 @@ class FlatField(object):
             mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
 
         # Obtain relative spectral illumination
-        relscl_model = illum_profile_spectral(rawflat, waveimg, self.slits, ref_idx=self.flatpar['ref_idx'],
+        relscl_model = illum_profile_spectral(rawflat, waveimg, self.slits, slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
                                               model=None, gpmask=gpm, skymask=None, trim=trim, flexure=flex)
         # Invert
         scale_model = 1 / (relscl_model + (relscl_model == 0))
@@ -1233,7 +1233,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
             clear = False
 
 
-def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+def illum_profile_spectral(rawimg, waveimg, slits, slit_illum_ref_idx=0, smooth_npix=None, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
     """
     Determine the relative spectral illumination of all slits.
 
@@ -1245,7 +1245,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, 
         Wavelength image
     slits : :class:`pypeit.slittrace.SlitTraceSet`
         Information stored about the slits
-    ref_idx : int
+    slit_illum_ref_idx : int
         Index of slit that is used as the reference.
     smooth_npix : int
         smoothing used for determining smoothly varying S/N ratio weights by sn_weights
@@ -1266,7 +1266,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, 
     scale_model: `numpy.ndarray`_
         An image containing the appropriate scaling
     """
-    msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(ref_idx))
+    msgs.info("Performing relative spectral sensitivity correction (reference slit = {0:d})".format(slit_illum_ref_idx))
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)
     gpm = gpmask if (gpmask is not None) else np.ones_like(rawimg, dtype=bool)
@@ -1284,7 +1284,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, 
         mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
     wavecen = np.mean(mnmx_wv, axis=1)
     # Sort the central wavelengths by those that are closest to the reference slit
-    wvsrt = np.argsort(np.abs(wavecen - wavecen[ref_idx]))
+    wvsrt = np.argsort(np.abs(wavecen - wavecen[slit_illum_ref_idx]))
 
     # Prepare wavelength array for all spectra
     dwav = np.max((mnmx_wv[:, 1] - mnmx_wv[:, 0])/slits.nspec)
@@ -1292,7 +1292,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, 
     wavebins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
 
     # Start by building a reference spectrum
-    onslit_ref_trim = (slitid_img_trim == slits.spat_id[ref_idx]) & gpm & skymask_now
+    onslit_ref_trim = (slitid_img_trim == slits.spat_id[slit_illum_ref_idx]) & gpm & skymask_now
     hist, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins, weights=modelimg_copy[onslit_ref_trim])
     cntr, edge = np.histogram(waveimg[onslit_ref_trim], bins=wavebins)
     cntr = cntr.astype(np.float)
@@ -1310,7 +1310,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, ref_idx=0, smooth_npix=None, 
         # Build the relative illumination, by successively finding the slits closest in wavelength to the reference
         for ss in range(slits.spat_id.size):
             # Check if this index is the reference
-            if wvsrt[ss] == ref_idx: continue
+            if wvsrt[ss] == slit_illum_ref_idx: continue
             # Calculate the region of overlap
             onslit_b = (slitid_img_trim == slits.spat_id[wvsrt[ss]])
             onslit_b_init = (slitid_img_init == slits.spat_id[wvsrt[ss]])

@@ -134,16 +134,16 @@ def define_additional_meta(nlamps=20):
                        'dithoff': dict(dtype=float, comment='Dither offset'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
-                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime'),
+                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
                        'mode': dict(dtype=str, comment='Observing mode'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'oscansec': dict(dtype=str, comment='Overscan section (windowing)'),
-                       'pressure': dict(dtype=units.quantity.Quantity, comment='Pressure at obstime'),
+                       'pressure': dict(dtype=float, comment='Pressure (units.bar) at observation time'),
                        'seq_expno': dict(dtype=int, comment='Number of exposure in observing sequence'),
                        'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
-                       'temperature': dict(dtype=units.quantity.Quantity, comment='Temperature at obstime'),
+                       'temperature': dict(dtype=float, comment='Temperature (units.K) at observation time'),
                        'utc': dict(dtype=str, comment='UTC of observation')}
 
     for kk in range(nlamps):

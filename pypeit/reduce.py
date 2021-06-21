@@ -1362,18 +1362,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Check that scaleimg is set to the correct shape
         if self.scaleimg.size == 1:
             self.scaleimg = np.ones_like(self.sciImg.image)
-        debug = False
-        if debug:
-            from matplotlib import pyplot as plt
-            pltflat = self.sciImg.image.copy()
-            censpec = np.round((0.1*self.slits.left_init + 0.9*self.slits.right_init)).astype(np.int)
-            for ss in range(self.slits.nslits):
-                plt.plot(self.waveimg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())], scaleImg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())])
-                # plt.plot(self.waveimg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())],
-                #          pltflat[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])# /
- #                        scaleImg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
-                         # scale_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
-            plt.show()
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
         self.scaleimg *= scaleImg.copy()
@@ -1495,11 +1483,11 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 Mask of sky regions where the spatial illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
-        ref_idx = self.par['calibrations']['flatfield']['ref_idx']
+        ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         gpm = (self.sciImg.fullmask == 0)
-        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits, ref_idx=ref_idx,
-                                                    model=global_sky, gpmask=gpm, skymask=skymask, trim=trim,
-                                                    flexure=self.spat_flexure_shift)
+        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
+                                                    slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
+                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
