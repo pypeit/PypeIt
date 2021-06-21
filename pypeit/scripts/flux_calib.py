@@ -1,52 +1,41 @@
-#!/usr/bin/env python
 """
 Script for fluxing PYPEIT 1d spectra
-"""
-from configobj import ConfigObj
-import numpy as np
-from pypeit import par, msgs
-from pypeit.spectrographs.util import load_spectrograph
-import argparse
-import os
-from pypeit import fluxcalibrate
-from pypeit.par import pypeitpar
 
-from astropy.io import fits
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
+import os
 
 from IPython import embed
 
+import numpy as np
 
+from astropy.io import fits
 
-# A trick from stackoverflow to allow multi-line output in the help:
-#https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
-class SmartFormatter(argparse.HelpFormatter):
-
-    def _split_lines(self, text, width):
-        if text.startswith('R|'):
-            return text[2:].splitlines()
-        # this is the RawTextHelpFormatter._split_lines
-        return argparse.HelpFormatter._split_lines(self, text, width)
+from pypeit import par, msgs
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit import fluxcalibrate
+from pypeit.par import pypeitpar
+from pypeit.scripts import scriptbase
 
 
 def read_fluxfile(ifile):
     """
-    Read a PypeIt flux file, akin to a standard PypeIt file
+    Read a ``PypeIt`` flux file, akin to a standard ``PypeIt`` file.
 
-    The top is a config block that sets ParSet parameters
-      The spectrograph is required
+    The top is a config block that sets ParSet parameters.  The name of the
+    spectrograph is required.
 
     Args:
-        ifile: str
-          Name of the flux file
+        ifile (:obj:`str`):
+            Name of the flux file
 
     Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files and flux_files
-          Empty if no flux block is specified
-
+        :obj:`tuple`:  Three objects are returned: a :obj:`list` with the
+        configuration entries used to modify the relevant
+        :class:`~pypeit.par.parset.ParSet` parameters, a :obj:`list` with the
+        names of spec1d files to be flux-calibrated, and a :obj:`list` with the
+        names of the files with the sensitivity function to use.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the fluxcalib file')
@@ -90,67 +79,65 @@ def read_fluxfile(ifile):
     # Return
     return cfg_lines, spec1dfiles, sensfiles
 
-def parse_args(options=None, return_parser=False):
 
-    parser = argparse.ArgumentParser(description='Flux calibrate spectra',
-                                     formatter_class=SmartFormatter)
-    parser.add_argument("flux_file", type=str,
-                        help="R|File to guide fluxing process.\n"
-                             "This file must have the following format: \n"
-                             "\n"
-                             "flux read\n"
-                             "  spec1dfile1 sensfile\n"
-                             "  spec1dfile2\n"
-                             "     ...    \n"
-                             "     ...    \n"
-                             "flux end\n"
-                             "\n"
-                             "    OR   \n"
-                             "\n"
-                             "flux read\n"
-                             "  spec1dfile1 sensfile1\n"
-                             "  spec1dfile2 sensfile2\n"
-                             "  spec1dfile3 sensfile3\n"
-                             "     ...    \n"
-                             "flux end\n"
-                             "\n"
-                             "That is, you must specify either a sensfile for all spec1dfiles on the first line, or \n"
-                             "create a two column list of spec1dfiles and corresponding sensfiles\n"
-                             "\n")
-    parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-    parser.add_argument("--par_outfile", default='fluxing.par', action="store_true", help="Output to save the parameters")
-#    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
+class FluxCalib(scriptbase.ScriptBase):
 
-    if return_parser:
+    @classmethod
+    def get_parser(cls, width=None):
+        parser = super().get_parser(description='Flux calibrate 1D spectra produced by PypeIt',
+                                    width=width, formatter=scriptbase.SmartFormatter)
+
+        parser.add_argument("flux_file", type=str,
+                            help="R|File to guide fluxing process.\n"
+                                 "This file must have the following format: \n"
+                                 "\n"
+                                 "flux read\n"
+                                 "  spec1dfile1 sensfile\n"
+                                 "  spec1dfile2\n"
+                                 "     ...    \n"
+                                 "     ...    \n"
+                                 "flux end\n"
+                                 "\n"
+                                 "    OR   \n"
+                                 "\n"
+                                 "flux read\n"
+                                 "  spec1dfile1 sensfile1\n"
+                                 "  spec1dfile2 sensfile2\n"
+                                 "  spec1dfile3 sensfile3\n"
+                                 "     ...    \n"
+                                 "flux end\n"
+                                 "\n"
+                                 "That is, you must specify either a sensfile for all spec1dfiles on the first line, or \n"
+                                 "create a two column list of spec1dfiles and corresponding sensfiles\n"
+                                 "\n")
+        parser.add_argument("--debug", default=False, action="store_true",
+                            help="show debug plots?")
+        parser.add_argument("--par_outfile", default='fluxing.par', action="store_true",
+                            help="Output to save the parameters")
+    #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
         return parser
 
-    return parser.parse_args() if options is None else parser.parse_args(options)
+    @staticmethod
+    def main(args):
+        """ Runs fluxing steps
+        """
+        # Load the file
+        config_lines, spec1dfiles, sensfiles = read_fluxfile(args.flux_file)
+        # Read in spectrograph from spec1dfile header
+        header = fits.getheader(spec1dfiles[0])
+        spectrograph = load_spectrograph(header['PYP_SPEC'])
+
+        # Parameters
+        spectrograph_def_par = spectrograph.default_pypeit_par()
+        par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                 merge_with=config_lines)
+        # Write the par to disk
+        print("Writing the parameters to {}".format(args.par_outfile))
+        par.to_config(args.par_outfile)
+
+        # Instantiate
+        FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles,
+                                                           par=par['fluxcalib'], debug=args.debug)
+        msgs.info('Flux calibration complete')
 
 
-def main(args):
-    """ Runs fluxing steps
-    """
-    # Load the file
-    config_lines, spec1dfiles, sensfiles = read_fluxfile(args.flux_file)
-    # Read in spectrograph from spec1dfile header
-    header = fits.getheader(spec1dfiles[0])
-    spectrograph = load_spectrograph(header['PYP_SPEC'])
-
-    # Parameters
-    spectrograph_def_par = spectrograph.default_pypeit_par()
-    par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
-    # Write the par to disk
-    print("Writing the parameters to {}".format(args.par_outfile))
-    par.to_config(args.par_outfile)
-
-    # Instantiate
-    FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles, par=par['fluxcalib'], debug=args.debug)
-    msgs.info('Flux calibration complete')
-
-
-def entry_point():
-    main(parse_args())
-
-
-if __name__ == '__main__':
-    entry_point()

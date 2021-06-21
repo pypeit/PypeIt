@@ -1,4 +1,4 @@
-
+from pypeit.utils import all_subclasses
 from pypeit.spectrographs import spectrograph
 
 # The import of all the spectrograph modules here is what enables the dynamic
@@ -35,18 +35,11 @@ from pypeit.spectrographs import vlt_sinfoni
 from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import ntt_efosc2
 
-# Build the list of names for the available spectrographs
-import numpy as np
 
-def all_subclasses(cls):
-    """
-    Thanks to:
-    https://stackoverflow.com/questions/3862310/how-to-find-all-the-subclasses-of-a-class-given-its-name
-    """
-    return set(cls.__subclasses__()).union(
-        [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+# Build the list of names for the available spectrographs
 
 def spectrograph_classes():
+    import numpy as np
     # Recursively collect all subclasses
     spec_c = np.array(list(all_subclasses(spectrograph.Spectrograph)))
     # Select spectrograph classes with a defined name; spectrographs without a
