@@ -165,5 +165,8 @@ class LDTTelescopePar(TelescopePar):
         super(LDTTelescopePar, self).__init__(name='LDT',
                                               longitude=111.4223,
                                               latitude=34.7443,
-                                              elevation=2361.0)
+                                              elevation=2361.0,
+                                              fratio=6.1,
+                                              diameter=4.3,
+                                              eff_aperture=49.5)
 
