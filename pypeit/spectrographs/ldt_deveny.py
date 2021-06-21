@@ -27,9 +27,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.LDTTelescopePar()
     camera = 'deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
+    supported = True
 
     # Parameters equal to the PypeIt defaults, shown here for completeness
-    # supported = False
     # pypeline = 'MultiSlit'
 
     def get_detector_par(self, hdu, det):
@@ -62,7 +62,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             platescale      = 0.34,     # Arcsec / pixel
             darkcurr        = 4.5,      # Electrons per hour
             saturation      = 65535.,   # 16-bit ADC
-            nonlinear       = 1.0,      # -- Still need to measure this.
+            nonlinear       = 1.0,      # -- Still need to measure this, close to 0.99+
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(header['GAIN']),
@@ -213,10 +213,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         # These are changes from defaults from another spectrograph...
         # TODO: Not sure if we will need to adjust these at some point
-        #par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-        #par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
+        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
         #par['calibrations']['wavelengths']['nlocal_cc'] = 13  # Default: 11
-        par['calibrations']['wavelengths']['fwhm']= 3.0  # Default: 4.0
+        #par['calibrations']['wavelengths']['fwhm']= 3.0  # Default: 4.0
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
         # Needed to address ISSUE #1155 when non-echelle spectrographs use
@@ -227,6 +228,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
+
+        # For the tilts, our lines are not as well-behaved as others', 
+        #   possibly due to the Wynne type E camera.
+        par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
+        par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
     
         # Reduction and Extraction Parameters
         par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: [10.0]
@@ -369,11 +375,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         elif grating == 'DV3 (300/6750)':
             pass
         elif grating == 'DV4 (400/8000)':
-            # Wavelength calibrations
-            #par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_DV4.fits'
             pass
         elif grating == 'DV5 (500/5500)':
-            pass
+            # For whatever reason, 'holy-grail' fails on DV5 data.  Use 'full-template' instead.
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500l_HgCdAr.fits'
         elif grating == 'DV6 (600/4900)':
             pass
         elif grating == 'DV7 (600/6750)':
