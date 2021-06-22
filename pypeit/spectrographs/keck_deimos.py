@@ -208,6 +208,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Do not sigmaclip the arc frames
         par['calibrations']['arcframe']['process']['clip'] = False
+        # Lower value of tracethresh
+        par['calibrations']['tilts']['tracethresh'] = 10
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0

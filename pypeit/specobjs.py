@@ -802,7 +802,7 @@ class SpecObjs:
 
             # Wavelengths
             obj_tbl['wv_rms'] = wave_rms
-            obj_tbl['wv_rms'].format = '.3f'
+            #obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 

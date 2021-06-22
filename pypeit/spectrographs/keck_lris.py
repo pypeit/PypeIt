@@ -543,6 +543,8 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
+        # Remove slits that are too short
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
 
         # 1D wavelength solution -- Additional parameters are grism dependent
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent..

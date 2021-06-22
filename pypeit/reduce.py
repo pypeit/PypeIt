@@ -159,7 +159,7 @@ class Reduce(object):
 
         # Internal bpm mask
         self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
-                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
+                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # These may be None (i.e. COADD2D)
@@ -211,7 +211,7 @@ class Reduce(object):
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -414,6 +414,15 @@ class Reduce(object):
                See main doc string for description
 
         """
+        # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
+        self.reduce_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
+        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
+        # use the tweaked traces if they exist - DP: I'm not sure this is necessary
+        self.sciImg.update_mask_slitmask(self.slitmask)
 
         # Deal with dynamic calibrations
         # Tilts
@@ -434,6 +443,13 @@ class Reduce(object):
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask, usersky = self.load_skyregions(skymask)
+
+        # remove objects found in `BOXSLIT` (we don't want to extract those)
+        remove_idx = []
+        for i, sobj in enumerate(sobjs_obj):
+            if sobj.SLITID in list(self.slits.spat_id[self.reduce_bpm]):
+                remove_idx.append(i)
+        sobjs_obj.remove_sobj(remove_idx)
 
         self.sobjs_obj = sobjs_obj
         self.skymask = skymask
@@ -1603,6 +1619,12 @@ class IFUReduce(MultiSlitReduce, Reduce):
         #     # Re-generate a global sky sub for all slits separately
         #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
+
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        # It's needed in `illum_profile_spectral`
+        # TODO maybe would be better to move it inside `illum_profile_spectral`
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         if self.par['scienceframe']['process']['use_specillum']:
             self.illum_profile_spectral(global_sky_sep, skymask=skymask)

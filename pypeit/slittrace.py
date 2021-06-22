@@ -850,7 +850,7 @@ class SlitTraceSet(datamodel.DataContainer):
         Modified in place
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced in this det
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
             plate_scale (:obj:`float`): platescale for the current detector
             slits_left (`numpy.ndarray`_): Array with left slit edges.
             slits_right (`numpy.ndarray`_): Array with right slit edges.
@@ -872,97 +872,104 @@ class SlitTraceSet(datamodel.DataContainer):
                                    dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
         obj_slit_pa = self.maskdef_designtab['SLITPA']
 
-        if sobjs.nobj == 0:
-            msgs.warn('NO detected objects')
-            return
+        # Restrict to objects on this detector
+        if sobjs.nobj > 0:
+            on_det = sobjs.DET == self.det
+            cut_sobjs = sobjs[on_det]
+            if cut_sobjs.nobj == 0:
+                msgs.warn('NO detected objects.')
+                return
         else:
-            msgs.info('Assign slitmask design info to detected objects')
-            # midpoint in the spectral direction
-            specmid = slits_left[:, 0].size // 2
+            msgs.warn('NO detected objects.')
+            return
 
-            # First pass
-            measured, expected = [], []
-            for sobj in sobjs:
-                # Set MASKDEF_ID
-                sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
-                # object ID
-                # TODO -- Add to SpecObj DataModel?
-                # There is small chance that self.maskdef_id=-99. This would definitely happen if the user
-                # add a custom slit. If maskdef_id=-99 for a certain object, we cannot assign OBJECT, RA, DEC
-                oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0]
-                if oidx.size == 0:
-                    # In this case I have to give a fake value for index reasons later in the code.
-                    measured.append(-9999.9)
-                    expected.append(9999.9)
-                else:
-                    oidx = oidx[0]
-                    # Expected object position (distance from left edge) in pixels, corrected for edge loss
-                    expected_objpos = self.maskdef_objpos[oidx]
-                    # Measured object position (distance from left edge) in pixels
-                    measured_objpos = sobj.SPAT_PIXPOS - slits_left[specmid, self.maskdef_id == sobj.MASKDEF_ID][0]
-                    # Finish
-                    measured.append(measured_objpos)
-                    expected.append(expected_objpos)
-            measured = np.array(measured)
-            expected = np.array(expected)
+        msgs.info('Assign slitmask design info to detected objects')
+        # midpoint in the spectral direction
+        specmid = slits_left[:, 0].size // 2
 
-            # Assign
-            # Loop on slits to deal with multiple sources within TOLER
-            # Exclude the objects that have maskdef_id=-99
-            uni_maskid = np.unique(sobjs.MASKDEF_ID[sobjs.MASKDEF_ID!=-99])
-            for maskid in uni_maskid:
-                # Index for SpecObjs on this slit
-                idx = np.where(sobjs.MASKDEF_ID == maskid)[0]
-                # Index for slitmask
-                sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
-                # Within TOLER?
-                # separation in pixels
-                separ = measured[idx] - (expected[idx] + self.maskdef_offset)
-                msgs.info('MASKDEF_ID:{}'.format(maskid))
-                msgs.info('Difference between expected and detected object '
-                          'positions: {} arcsec'.format(np.round(separ*plate_scale, 3)))
-                in_toler = np.abs(separ*plate_scale) < TOLER
-                if np.any(in_toler):
-                    # Parse the peak fluxes
-                    peak_flux = sobjs[idx].smash_peakflux[in_toler]
-                    imx_peak = np.argmax(peak_flux)
-                    imx_idx = idx[in_toler][imx_peak]
-                    # Object in Mask Definition
-                    oidx = np.where(obj_maskdef_id == maskid)[0][0]
-                    # Assign
-                    sobj = sobjs[imx_idx]
-                    sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
-                    sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
-                    sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
-                    sobj.MASKDEF_EXTRACT = False
-                    sobj.hand_extract_flag = False
-                    # Remove that idx value
-                    idx = idx.tolist()
-                    idx.remove(imx_idx)
-                    idx = np.array(idx)
-                # Fill in the rest
-                for ss in idx:
-                    sobj = sobjs[ss]
-                    # Measured coordinates
-                    offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
-                    new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                        np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
-                    # Assign
-                    sobj.RA = new_obj_coord.ra.value
-                    sobj.DEC = new_obj_coord.dec.value
-                    sobj.MASKDEF_OBJNAME = 'SERENDIP'
-                    sobj.MASKDEF_EXTRACT = False
-                    sobj.hand_extract_flag = False
-            # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
-            noidx = np.where(sobjs.MASKDEF_ID == -99)[0]
-            if noidx.size > 0:
-                for sobj in sobjs[noidx]:
-                    # Assign
-                    sobj.RA = 0.0
-                    sobj.DEC = 0.0
-                    sobj.MASKDEF_OBJNAME = 'NONE'
-                    sobj.MASKDEF_EXTRACT = False
-                    sobj.hand_extract_flag = False
+        # First pass
+        measured, expected = [], []
+        for sobj in cut_sobjs:
+            # Set MASKDEF_ID
+            sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
+            # object ID
+            # TODO -- Add to SpecObj DataModel?
+            # There is small chance that self.maskdef_id=-99. This would definitely happen if the user
+            # add a custom slit. If maskdef_id=-99 for a certain object, we cannot assign OBJECT, RA, DEC
+            oidx = np.where(obj_maskdef_id == sobj.MASKDEF_ID)[0]
+            if oidx.size == 0:
+                # In this case I have to give a fake value for index reasons later in the code.
+                measured.append(-9999.9)
+                expected.append(9999.9)
+            else:
+                oidx = oidx[0]
+                # Expected object position (distance from left edge) in pixels, corrected for edge loss
+                expected_objpos = self.maskdef_objpos[oidx]
+                # Measured object position (distance from left edge) in pixels
+                measured_objpos = sobj.SPAT_PIXPOS - slits_left[specmid, self.maskdef_id == sobj.MASKDEF_ID][0]
+                # Finish
+                measured.append(measured_objpos)
+                expected.append(expected_objpos)
+        measured = np.array(measured)
+        expected = np.array(expected)
+
+        # Assign
+        # Loop on slits to deal with multiple sources within TOLER
+        # Exclude the objects that have maskdef_id=-99
+        uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
+        for maskid in uni_maskid:
+            # Index for SpecObjs on this slit
+            idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+            # Index for slitmask
+            sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
+            # Within TOLER?
+            # separation in pixels
+            separ = measured[idx] - (expected[idx] + self.maskdef_offset)
+            msgs.info('MASKDEF_ID:{}'.format(maskid))
+            msgs.info('Difference between expected and detected object '
+                      'positions: {} arcsec'.format(np.round(separ*plate_scale, 3)))
+            in_toler = np.abs(separ*plate_scale) < TOLER
+            if np.any(in_toler):
+                # Parse the peak fluxes
+                peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
+                imx_peak = np.argmax(peak_flux)
+                imx_idx = idx[in_toler][imx_peak]
+                # Object in Mask Definition
+                oidx = np.where(obj_maskdef_id == maskid)[0][0]
+                # Assign
+                sobj = cut_sobjs[imx_idx]
+                sobj.RA = self.maskdef_designtab['OBJRA'][oidx]
+                sobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
+                sobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
+                sobj.MASKDEF_EXTRACT = False
+                sobj.hand_extract_flag = False
+                # Remove that idx value
+                idx = idx.tolist()
+                idx.remove(imx_idx)
+                idx = np.array(idx)
+            # Fill in the rest
+            for ss in idx:
+                sobj = cut_sobjs[ss]
+                # Measured coordinates
+                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
+                new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
+                    np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
+                # Assign
+                sobj.RA = new_obj_coord.ra.value
+                sobj.DEC = new_obj_coord.dec.value
+                sobj.MASKDEF_OBJNAME = 'SERENDIP'
+                sobj.MASKDEF_EXTRACT = False
+                sobj.hand_extract_flag = False
+        # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
+        noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
+        if noidx.size > 0:
+            for sobj in cut_sobjs[noidx]:
+                # Assign
+                sobj.RA = 0.0
+                sobj.DEC = 0.0
+                sobj.MASKDEF_OBJNAME = 'NONE'
+                sobj.MASKDEF_EXTRACT = False
+                sobj.hand_extract_flag = False
 
         # Return
         return
@@ -1047,7 +1054,7 @@ class SlitTraceSet(datamodel.DataContainer):
         Determine the Slitmask offset (pixels) from position expected by the slitmask design
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced in this det
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
             slits_left (`numpy.ndarray`_): Array with left slit edges.
             slitmask_off (:obj:`float`): User provided slitmask offset in pixels
             bright_maskdefid (:obj:`str`): User provided maskdef_id of a bright object to be used to measure offset
@@ -1067,7 +1074,15 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.info('User-provided slitmask offset: {} pixels'.format(round(self.maskdef_offset, 2)))
             return
 
-        if sobjs.nobj == 0:
+        # Restrict to objects on this detector
+        if sobjs.nobj > 0:
+            on_det = sobjs.DET == self.det
+            cut_sobjs = sobjs[on_det]
+            if cut_sobjs.nobj == 0:
+                msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.det))
+                self.maskdef_offset = 0.0
+                return
+        else:
             msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.det))
             self.maskdef_offset = 0.0
             return
@@ -1080,7 +1095,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # First pass
         measured, expected = [], []
-        for sobj in sobjs:
+        for sobj in cut_sobjs:
             # Set MASKDEF_ID
             sobj.MASKDEF_ID = self.maskdef_id[self.spat_id == sobj.SLITID][0]
             # object ID
@@ -1108,14 +1123,14 @@ class SlitTraceSet(datamodel.DataContainer):
         # this detector and use it to compute the offset
         if bright_maskdefid is not None:
             if bright_maskdefid in obj_maskdef_id:
-                sidx = np.where(sobjs.MASKDEF_ID == bright_maskdefid)[0]
+                sidx = np.where(cut_sobjs.MASKDEF_ID == bright_maskdefid)[0]
                 if sidx.size == 0:
                     self.maskdef_offset = 0.0
                     msgs.info('Object in slit {} not detected. Slitmask offset '
                               'cannot be estimated in det={}.'.format(bright_maskdefid, self.det))
                 else:
                     # Parse the peak fluxes
-                    peak_flux = sobjs[sidx].smash_peakflux
+                    peak_flux = cut_sobjs[sidx].smash_peakflux
                     imx_peak = np.argmax(peak_flux)
                     imx_sidx = sidx[imx_peak]
                     bright_measured = measured[imx_sidx]
@@ -1130,9 +1145,9 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Determine offsets using only detections with the highest significance
         # objects added in manual extraction have smash_nsig = None
-        nonone = sobjs.smash_nsig != None
-        highsig_measured = measured[nonone][sobjs[nonone].smash_nsig > nsig_thrshd]
-        highsig_expected = expected[nonone][sobjs[nonone].smash_nsig > nsig_thrshd]
+        nonone = cut_sobjs.smash_nsig != None
+        highsig_measured = measured[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
+        highsig_expected = expected[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
         if len(highsig_measured) >= 3:
             off = highsig_measured - highsig_expected
             mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
@@ -1253,12 +1268,12 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
         # Select the edges to use
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
         on_det = sobjs.DET == calib_dets[i]
-        if slitmask_par['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+        if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
             calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
 
             # get slitmask offset in each single detector
-            calib_slits[i].get_maskdef_offset(sobjs[on_det], slits_left,
+            calib_slits[i].get_maskdef_offset(sobjs, slits_left,
                                           slitmask_par['slitmask_offset'],
                                           slitmask_par['bright_maskdef_id'],
                                           slitmask_par['nsig_thrshd'])
@@ -1366,11 +1381,10 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])  # Deal with flexure
-        on_det = sobjs.DET == calib_dets[i]
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
-        if slitmask_par['assign_obj'] and calib_slits[i].maskdef_designtab is not None:
+        if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
-            calib_slits[i].assign_maskinfo(sobjs[on_det], platescale[i], slits_left, TOLER=slitmask_par['obj_toler'])
+            calib_slits[i].assign_maskinfo(sobjs, platescale[i], slits_left, TOLER=slitmask_par['obj_toler'])
 
             if slitmask_par['extract_missing_objs']:
                 # Assign undetected objects

@@ -369,10 +369,11 @@ class BuildWaveCalib:
 #            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
-            self.wvc_bpm = np.invert(mask == 0)
+            # self.wvc_bpm = np.invert(mask == 0)
+            self.wvc_bpm = self.slits.mask.astype(bool) & np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=['BOXSLIT']))
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
-            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
+            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape

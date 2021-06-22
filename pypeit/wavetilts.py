@@ -214,11 +214,12 @@ class BuildWaveTilts:
         # Load up all slits
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
-        self.tilt_bpm = np.invert(mask == 0)
+        # self.tilt_bpm = np.invert(mask == 0)
+        self.tilt_bpm = self.slits.mask.astype(bool) & np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=['BOXSLIT']))
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
         # TODO -- Discuss further with JFH
-        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure)  # All unmasked slits
+        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure, exclude_flag=['BOXSLIT'])  # All unmasked slits
         # Resize
         gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
             else np.ones_like(self.slitmask_science, dtype=bool)
