@@ -228,10 +228,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
     
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['arcframe']['exprng'] = [None, 60]
-        
         # Reduction and Extraction Parameters
         par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: [10.0]
         
