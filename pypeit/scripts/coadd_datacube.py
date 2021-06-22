@@ -153,10 +153,10 @@ def coadd_cube(files, parset, overwrite=False):
         else:
             msgs.info("DAR correction parameters:"+msgs.newline() +
                       "   Pressure = {0:f} bar".format(pressure) + msgs.newline() +
-                      "   Temperature = {0:f} K".format(temperature) + msgs.newline() +
+                      "   Temperature = {0:f} deg C".format(temperature) + msgs.newline() +
                       "   Humidity = {0:f}".format(rel_humidity))
             ra_corr, dec_corr = dc_utils.dar_correction(waveimg[onslit_gpm], coord, obstime, location,
-                                                        pressure*units.bar, temperature*units.K, rel_humidity, wave_ref=wave_ref)
+                                                        pressure*units.bar, temperature*units.deg_C, rel_humidity, wave_ref=wave_ref)
             raimg[onslit_gpm] += ra_corr*np.cos(np.mean(decimg[onslit_gpm]) * np.pi / 180.0)
             decimg[onslit_gpm] += dec_corr
 
