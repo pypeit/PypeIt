@@ -77,7 +77,7 @@ class FluxCalibrate(object):
         pass
 
     def _set_extinct_correct(self, extinct_correct, algorithm):
-        return (True if algorithm == 'UV' else False) if extinct_correct is None else extinct_correct
+        return (True if algorithm == 'UVIS' else False) if extinct_correct is None else extinct_correct
 
 class MultiSlitFC(FluxCalibrate):
     """
