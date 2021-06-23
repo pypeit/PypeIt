@@ -541,10 +541,13 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            on_det = all_specobjs.DET == self.det
+            if all_specobjs.nobj > 0:
+                all_specobjs_on_det = all_specobjs[all_specobjs.DET == self.det]
+            else:
+                all_specobjs_on_det = all_specobjs
             all_spec2d[self.det], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
-                                       all_specobjs[on_det], skymask_list[i])
+                                       all_specobjs_on_det, skymask_list[i])
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_new.add_sobj(tmp_sobjs)

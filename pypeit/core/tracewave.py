@@ -555,6 +555,12 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
                                    tcrude_maxshift0=tcrude_maxshift0, tcrude_nave=tcrude_nave,
                                    show_tracefits=show_tracefits)
 
+    # DP: Added this because sometime there are < 2 usable arc lines for tilt tracing, PCA fit does not work
+    # and the reduction crushes
+    if np.sum(trace_dict0['use_tilt']) < 2:
+        msgs.warn('Less than 2 usable arc lines for tilts. NO PCA modeling!')
+        return trace_dict0
+
     # TODO: The PCA may not be necessary. It appears to improve the
     # results though for some instruments where the tracing is
     # problematic. We could consider making this optional to speed
