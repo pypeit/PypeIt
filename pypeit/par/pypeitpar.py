@@ -1586,7 +1586,8 @@ class SlitMaskPar(ParSet):
 
     """
     def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
-                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None):
+                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
+                 use_alignbox=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1610,11 +1611,17 @@ class SlitMaskPar(ParSet):
         dtypes['assign_obj'] = bool
         descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
 
+        defaults['use_alignbox'] = False
+        dtypes['use_alignbox'] = bool
+        descr['use_alignbox'] = 'Use stars in alignment boxes to compute the slitmask offset. ' \
+                                'If this is set to ``True`` PypeIt will NOT compute ' \
+                                'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+
         defaults['nsig_thrshd'] = 50.
         dtypes['nsig_thrshd'] = [int, float]
         descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
                                'be use to compute the slitmask offset. This is the default behaviour unless ' \
-                               '``slitmask_offset`` or ``bright_maskdef_id`` is set.'
+                               '``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
         defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
@@ -1648,7 +1655,7 @@ class SlitMaskPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset',
-                   'bright_maskdef_id', 'extract_missing_objs']
+                   'bright_maskdef_id', 'extract_missing_objs', 'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

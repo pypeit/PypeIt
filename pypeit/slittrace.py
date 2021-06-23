@@ -1049,7 +1049,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         return
 
-    def get_maskdef_offset(self, sobjs, slits_left, slitmask_off, bright_maskdefid, nsig_thrshd):
+    def get_maskdef_offset(self, sobjs, slits_left, slitmask_off, bright_maskdefid, nsig_thrshd, use_alignbox):
         """
         Determine the Slitmask offset (pixels) from position expected by the slitmask design
 
@@ -1060,6 +1060,7 @@ class SlitTraceSet(datamodel.DataContainer):
             bright_maskdefid (:obj:`str`): User provided maskdef_id of a bright object to be used to measure offset
             nsig_thrshd (:obj:`float`): Objects detected above this sigma threshold will be use to
                                         compute the slitmask offset
+            use_alignbox (:obj:`bool`): Flag that determines if the alignment boxes are used to measure the offset
 
 
         """
@@ -1089,6 +1090,9 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Maskdef ID
         obj_maskdef_id = self.maskdef_designtab['SLITID'].data
+        # Flag for slits used for alignment (1-yes; 0-no)
+        flag_align = self.maskdef_designtab['ALIGN'].data
+        align_maskdef_ids = obj_maskdef_id[flag_align == 1]
 
         # midpoint in the spectral direction
         specmid = slits_left[:, 0].size // 2
@@ -1118,6 +1122,31 @@ class SlitTraceSet(datamodel.DataContainer):
                 expected.append(expected_objpos)
         measured = np.array(measured)
         expected = np.array(expected)
+
+        # If the users want to use the alignment boxes to trace the offset they will set the flag `use_alignbox` to True
+        if use_alignbox:
+            align_offs = []
+            for align_id in align_maskdef_ids:
+                sidx = np.where(cut_sobjs.MASKDEF_ID == align_id)[0]
+                if sidx.size > 0:
+                    # Parse the peak fluxes
+                    peak_flux = cut_sobjs[sidx].smash_peakflux
+                    imx_peak = np.argmax(peak_flux)
+                    imx_sidx = sidx[imx_peak]
+                    bright_measured = measured[imx_sidx]
+                    bright_expected = expected[imx_sidx]
+                    align_offs.append(bright_measured - bright_expected)
+            align_offs = np.array(align_offs)
+            if align_offs.size > 0:
+                mean, median_off, std = sigma_clipped_stats(align_offs, sigma=2.)
+                self.maskdef_offset = median_off
+                msgs.info('Slitmask offset estimated using ALIGN BOXES in det={}: {} pixels'.format(self.det,
+                                                                                  round(self.maskdef_offset, 2)))
+            else:
+                self.maskdef_offset = 0.0
+                msgs.info('NO ALIGN BOXES. Slitmask offset '
+                          'cannot be estimated in det={}.'.format(bright_maskdefid, self.det))
+            return
 
         # if the maskdef_id of a bright object is provided by the user, check if it is in
         # this detector and use it to compute the offset
@@ -1151,7 +1180,6 @@ class SlitTraceSet(datamodel.DataContainer):
         if len(highsig_measured) >= 3:
             off = highsig_measured - highsig_expected
             mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
-            # msgs.warn('offsets: {}'.format([np.round(m, 2) for m in off]))
             self.maskdef_offset = median_off
             msgs.info('Slitmask offset estimated in det={}: {} pixels'.format(self.det,
                                                                                  round(self.maskdef_offset, 2)))
@@ -1274,9 +1302,10 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
 
             # get slitmask offset in each single detector
             calib_slits[i].get_maskdef_offset(sobjs, slits_left,
-                                          slitmask_par['slitmask_offset'],
-                                          slitmask_par['bright_maskdef_id'],
-                                          slitmask_par['nsig_thrshd'])
+                                              slitmask_par['slitmask_offset'],
+                                              slitmask_par['bright_maskdef_id'],
+                                              slitmask_par['nsig_thrshd'],
+                                              slitmask_par['use_alignbox'])
 
     return calib_slits
 
