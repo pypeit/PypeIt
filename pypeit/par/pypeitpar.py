@@ -1299,7 +1299,7 @@ class FluxCalibratePar(ParSet):
 
         defaults['extinct_correct'] = None
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UV algorithm is used ' \
+        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used ' \
                                    '(which does not correct for telluric absorption) than an atmospheric extinction model ' \
                                    'is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then ' \
                                    'no extinction correction is applied since the atmosphere is modeled directly. To follow these' \
