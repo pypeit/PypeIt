@@ -222,8 +222,11 @@ If your star is not in the repository you can add in a new
 solution if it is in the
 `ESO database <https://www.eso.org/sci/observing/tools/standards/spectra/stanlis.html>`_.
 
-You will need to place their .dat file in pypeit/data/standards/esofil/
-and then edit the *esofil_info.txt* file in their accordingly.
+You will need to place their .dat file in pypeit/data/standards/esofil/ and then edit 
+the *esofil_info.txt* file accordingly. Make sure the flux column is in flux units rather 
+than magnitudes (i.e. those files starting with `f` in the ESO database), and these fluxes 
+are in units of 10^(-16) ergs/s/cm^2/AA.
+
 Extra kudos if you submit this as a PR for others benefit.
 
 If your standard star is even more non-traditional, contact
