@@ -49,17 +49,17 @@
                             The --tell_file option requires a .tell file with the
                             following format:
                              
-                                [tellfit]
+                                [telluric]
                                      objmodel = qso
                                      redshift = 7.6
                                      bal_wv_min_max = 10825,12060
                             OR
-                                [tellfit]
+                                [telluric]
                                      objmodel = star
                                      star_type = A0
                                      star_mag = 8.
                             OR
-                                [tellfit]
+                                [telluric]
                                      objmodel = poly
                                      polyorder = 3
                                      fit_wv_min_max = 9000.,9500.
