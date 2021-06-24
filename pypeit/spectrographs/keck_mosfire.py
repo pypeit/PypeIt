@@ -147,7 +147,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='OBSMODE')
         self.meta['idname'] = dict(card=None, compound=True)
-        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps
