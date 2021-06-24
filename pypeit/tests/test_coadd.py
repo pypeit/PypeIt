@@ -12,7 +12,7 @@ from linetools.spectra.xspectrum1d import XSpectrum1D
 
 from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.scripts.coadd_datacube import coadd_cube
+from pypeit.core.datacube import coadd_cube
 from pypeit import msgs
 from pypeit import utils
 from IPython import embed
