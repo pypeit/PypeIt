@@ -37,6 +37,7 @@ from pypeit.scripts import tellfit
 from pypeit.scripts import trace_edges
 from pypeit.scripts import view_fits
 
+
 # Build the list of script classes
 def script_classes():
     import numpy as np
@@ -49,5 +50,3 @@ def script_classes():
     return dict([ (n,c) for n,c in zip(scr_n[srt],scr_c[srt])])
 
 pypeit_scripts = list(script_classes().keys())
-
-
