@@ -38,7 +38,6 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-
 from IPython import embed
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of

@@ -497,7 +497,7 @@ class FlatFieldPar(ParSet):
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
-                 slit_illum_relative=None):
+                 slit_illum_relative=None, slit_illum_ref_idx=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -614,6 +614,12 @@ class FlatFieldPar(ParSet):
                                    'extracted from the slit; \'continue\' - ignore the ' \
                                    'flat-field correction, but continue with the reduction.'
 
+        defaults['slit_illum_ref_idx'] = 0
+        dtypes['slit_illum_ref_idx'] = int
+        descr['slit_illum_ref_idx'] = 'The index of a reference slit (0-indexed) used for estimating ' \
+                                      'the relative spectral sensitivity (or the relative blaze). This' \
+                                      'parameter is only used if ``slit_illum_relative = True``.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -631,7 +637,7 @@ class FlatFieldPar(ParSet):
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
-                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits']
+                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits', 'slit_illum_ref_idx']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
