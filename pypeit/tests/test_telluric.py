@@ -72,7 +72,5 @@ def test_telluric_io():
     # Clean-up
     os.remove(test_file) 
 
-# TODO: Include a test of the fit?  The gemini_gnirs test of pypeit_tellfit in
-# the dev-suite takes about 2 min, so this might be a reasonable thing to
-# include as a unit test.
+# TODO: Additional tests?
 

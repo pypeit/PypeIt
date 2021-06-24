@@ -137,7 +137,7 @@ class SensFunc(scriptbase.ScriptBase):
         outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
-        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par=par['sensfunc'],
+        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()

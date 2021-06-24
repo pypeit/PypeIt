@@ -59,7 +59,6 @@ class FluxCalibrate:
             if sensf != sensf_last:
                 sens = sensfunc.SensFunc.from_file(sensf)
                 sensf_last = sensf
-#                wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
                 history.append(f'PypeIt Flux calibration "{sensf}"')
             self.flux_calib(sobjs, sens)
             sobjs.write_to_fits(sobjs.header, outfile, history=history, overwrite=True)

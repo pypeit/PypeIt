@@ -30,7 +30,7 @@ def test_sensfunc_io():
     par['sensfunc']['algorithm'] = 'IR'
 
     # Instantiate the relevant class for the requested algorithm
-    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, test_file, par=par['sensfunc'])
+    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, test_file, par['sensfunc'])
 
     assert sensobj.std_dict['name'] == 'FEIGE66', 'incorrect standard star found'
 

@@ -136,10 +136,9 @@ class SensFunc(datamodel.DataContainer):
             table.Column(name='WAVE_MAX', dtype=float, length=norders,
                          description='Maximum wavelength included in the fit')])
 
-    # TODO: par is *not* optional for this method!
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, spec1dfile, sensfile, par=None, debug=False):
+    def get_instance(cls, spec1dfile, sensfile, par, debug=False):
         """
         Instantiate the relevant subclass based on the algorithm provided in
         ``par``.
