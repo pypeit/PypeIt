@@ -141,7 +141,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTR')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
-        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
 
     def configuration_keys(self):
         """
