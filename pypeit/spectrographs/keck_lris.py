@@ -132,6 +132,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -196,6 +197,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return super().configuration_keys() + ['binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

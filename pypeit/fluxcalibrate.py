@@ -14,7 +14,7 @@ from IPython import embed
 
 
 
-class FluxCalibrate(object):
+class FluxCalibrate:
     """
     Class for flux calibrating spectra.
 
@@ -51,28 +51,31 @@ class FluxCalibrate(object):
         self.debug = debug
         self.algorithm = None
 
-        sens_last = None
-        for spec1, sens, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
+        sensf_last = None
+        for spec1, sensf, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
             # Read in the data
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
             history = History(sobjs.header)
-            if sens != sens_last:
-                wave, zeropoint, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
-                history.append(f'PypeIt Flux calibration "{sens}"')
-            self.flux_calib(sobjs, wave, zeropoint, meta_table)
+            if sensf != sensf_last:
+                sens = sensfunc.SensFunc.from_file(sensf)
+                sensf_last = sensf
+                history.append(f'PypeIt Flux calibration "{sensf}"')
+            self.flux_calib(sobjs, sens)
             sobjs.write_to_fits(sobjs.header, outfile, history=history, overwrite=True)
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, sens):
         """
-        Dummy method overloaded by subclass
+        Flux calibrate the provided object spectra (``sobjs``) using the
+        provided sensitivity function (``sens``).
 
+        This is an empty base-class method that must be overloaded by the
+        subclasses.
+        
         Args:
-            sobjs:
-            wave:
-            zeropoint:
-            meta_table:
-
-
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Object spectra
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
+                Sensitivity function
         """
         pass
 
@@ -88,28 +91,22 @@ class MultiSlitFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug, outfiles=outfiles)
 
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, sens):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
         Args:
-            sobjs (object):
-               SpecObjs object
-            wave (ndarray):
-               wavelength array for sensitivity function (nspec,)
-            zeropoint (ndarray):
-               sensitivity function
-            meta_table (table):
-               astropy table containing meta data for sensitivity function
-
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Object spectra
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
+                Sensitivity function
         """
-
         # Run
         for sci_obj in sobjs:
-            sci_obj.apply_flux_calib(wave[:, 0], zeropoint[:, 0],
+            sci_obj.apply_flux_calib(sens.wave[:, 0], sens.zeropoint[:, 0],
                                      sobjs.header['EXPTIME'],
                                      extinct_correct=self._set_extinct_correct(
-                                         self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
+                                         self.par['extinct_correct'], sens.algorithm),
                                      longitude=self.spectrograph.telescope['longitude'],
                                      latitude=self.spectrograph.telescope['latitude'],
                                      extrap_sens=self.par['extrap_sens'],
@@ -127,35 +124,31 @@ class EchelleFC(FluxCalibrate):
         super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
 
 
-    def flux_calib(self, sobjs, wave, zeropoint, meta_table):
+    def flux_calib(self, sobjs, sens):
         """
         Apply sensitivity function to all the spectra in an sobjs object.
 
         Args:
-            sobjs (object):
-               SpecObjs object
-            wave (ndarray):
-               wavelength array for sensitivity function (nspec,)
-            zeropoint (ndarray):
-               sensitivity function
-            meta_table (table):
-               astropy table containing meta data for sensitivity function
-
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Object spectra
+            sens (:class:`~pypeit.sensfunc.SensFunc`):
+                Sensitivity function
         """
 
-        # Flux calibrate the orders that are mutually in the meta_table and in the sobjs. This allows flexibility
-        # for applying to data for cases where not all orders are present in the data as in the sensfunc, etc.,
+        # Flux calibrate the orders that are mutually in the meta_table and in
+        # the sobjs. This allows flexibility for applying to data for cases
+        # where not all orders are present in the data as in the sensfunc, etc.,
         # i.e. X-shooter with the K-band blocking filter.
-        ech_orders = np.array(meta_table['ECH_ORDERS']).flatten()
+        ech_orders = np.array(sens.sens['ECH_ORDERS']).flatten()
         #norders = ech_orders.size
         for sci_obj in sobjs:
             # JFH Is there a more elegant pythonic way to do this without looping over both orders and sci_obj?
             indx = np.where(ech_orders == sci_obj.ECH_ORDER)[0]
             if indx.size==1:
-                sci_obj.apply_flux_calib(wave[:, indx[0]],zeropoint[:,indx[0]],
+                sci_obj.apply_flux_calib(sens.wave[:, indx[0]], sens.zeropoint[:,indx[0]],
                                          sobjs.header['EXPTIME'],
                                          extinct_correct=self._set_extinct_correct(
-                                             self.par['extinct_correct'], meta_table['ALGORITHM'][0]),
+                                             self.par['extinct_correct'], sens.algorithm),
                                          extrap_sens = self.par['extrap_sens'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],
@@ -165,3 +158,5 @@ class EchelleFC(FluxCalibrate):
                           'Something is probably wrong with your sensitivity function.'.format(sci_obj.ECH_ORDER))
             else:
                 msgs.error('This should not happen')
+
+
