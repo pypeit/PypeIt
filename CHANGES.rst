@@ -4,6 +4,8 @@
 
 - Added a common base class for all scripts
 - Script methods now included in Sphinx documentation
+- Add LDT/DeVeny spectrograph
+- Add 6440.25A CdI line (LDT/DeVeny)
 
 1.4.1 (11 Jun 2021)
 -------------------
