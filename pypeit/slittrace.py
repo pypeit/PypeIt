@@ -1197,15 +1197,20 @@ class SlitTraceSet(datamodel.DataContainer):
         # Determine offsets using only detections with the highest significance
         # objects added in manual extraction have smash_nsig = None
         nonone = cut_sobjs.smash_nsig != None
-        highsig_measured = measured[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
-        highsig_expected = expected[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
-        if len(highsig_measured) >= 3:
-            off = highsig_measured - highsig_expected
-            mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
-            self.maskdef_offset = median_off
-            msgs.info('Slitmask offset estimated in det={}: '
-                      '{} pixels ({} arcsec)'.format(self.det, round(self.maskdef_offset, 2),
-                                                     round(self.maskdef_offset*platescale, 2)))
+        if len(cut_sobjs[nonone]) > 0:
+            highsig_measured = measured[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
+            highsig_expected = expected[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
+            if len(highsig_measured) >= 3:
+                off = highsig_measured - highsig_expected
+                mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
+                self.maskdef_offset = median_off
+                msgs.info('Slitmask offset estimated in det={}: '
+                          '{} pixels ({} arcsec)'.format(self.det, round(self.maskdef_offset, 2),
+                                                         round(self.maskdef_offset*platescale, 2)))
+            else:
+                msgs.warn('Less than 3 objects detected above {} sigma threshold. '
+                          'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.det))
+                self.maskdef_offset = 0.0
         else:
             msgs.warn('Less than 3 objects detected above {} sigma threshold. '
                       'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.det))
