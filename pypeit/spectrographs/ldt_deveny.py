@@ -192,17 +192,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
 
-        # Use median combine (rather than weighted mean) for all cals
-        par['calibrations']['biasframe']['process']['combine'] = 'median'
-        par['calibrations']['arcframe']['process']['combine'] = 'median'
-        par['calibrations']['tiltframe']['process']['combine'] = 'median'
+        # Use median combine (rather than weighted mean) for pixelflatframe since
+        #  the instrinsic shape of the flat will make sigma clipping ineffectual
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['illumflatframe']['process']['combine'] = 'median'
-
-        # For science, standard, and sky frames, combine using weighted mean (Default)
-        #par['calibrations']['standardframe']['process']['combine'] = 'weightmean'
-        #par['calibrations']['skyframe']['process']['combine'] = 'weightmean'
-        #par['scienceframe']['process']['combine'] = 'weightmean'
 
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
