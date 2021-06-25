@@ -158,8 +158,8 @@ class Reduce(object):
         self.initialise_slits()
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
-                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])))
+        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # These may be None (i.e. COADD2D)
@@ -377,6 +377,7 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # Do we have any positive objects to proceed with?
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
@@ -615,7 +616,11 @@ class Reduce(object):
         else:
             sigrej = 3.0
 
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        # We use this tmp bpm so that we exclude the BOXSLITS during the global_skysub
+        tmp_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        gdslits = np.where(np.invert(tmp_bpm))[0]
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
@@ -623,7 +628,7 @@ class Reduce(object):
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit_idx))
+            msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
             thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # All masked?

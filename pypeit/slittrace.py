@@ -94,7 +94,7 @@ class SlitTraceSet(datamodel.DataContainer):
     master_file_format = 'fits.gz'
     """File format for the master frame file."""
     minimum_version = '1.1.0'
-    version = '1.1.3'
+    version = '1.1.4'
     """SlitTraceSet data model version."""
 
     hdu_prefix = None
@@ -1145,7 +1145,7 @@ class SlitTraceSet(datamodel.DataContainer):
             else:
                 self.maskdef_offset = 0.0
                 msgs.info('NO ALIGN BOXES. Slitmask offset '
-                          'cannot be estimated in det={}.'.format(bright_maskdefid, self.det))
+                          'cannot be estimated in det={}.'.format(self.det))
             return
 
         # if the maskdef_id of a bright object is provided by the user, check if it is in

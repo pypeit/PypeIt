@@ -208,6 +208,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Do not sigmaclip the arc frames
         par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
         # Lower value of tracethresh
         par['calibrations']['tilts']['tracethresh'] = 10
 
@@ -261,7 +263,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
             par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
             # Sometime the added missing slits at the edge of the detector are to small to be useful.
-            par['calibrations']['slitedges']['minimum_slit_length'] = 2.5
+            par['calibrations']['slitedges']['minimum_slit_length'] = 3.
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             # Lower edge_thresh works better

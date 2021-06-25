@@ -370,7 +370,9 @@ class BuildWaveCalib:
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             # self.wvc_bpm = np.invert(mask == 0)
-            self.wvc_bpm = self.slits.mask.astype(bool) & np.logical_not(self.slits.bitmask.flagged(self.slits.mask, flag=['BOXSLIT']))
+            # We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
+            # with other bad flag (for which the mask value would be > 2)
+            self.wvc_bpm = mask > 2
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
