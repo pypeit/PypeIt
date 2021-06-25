@@ -22,8 +22,6 @@ from astropy import coordinates
 from astropy import table
 from astropy.io import ascii
 from astropy import stats
-from astropy import units as u
-from astropy import constants as const
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
@@ -34,7 +32,7 @@ from pypeit import io
 from pypeit.wavemodel import conv2res
 from pypeit.core.wavecal import wvutils
 from pypeit.core import fitting
-from pypeit.core import telluric
+#from pypeit.core import telluric
 
 
 # TODO: Put these in the relevant functions
@@ -45,12 +43,12 @@ PYPEIT_FLUX_SCALE = 1e-17
 
 def zp_unit_const():
     """
-    This constant defines the units for the spectroscopic zeropoint. See the doc/dev/fluxing.rst doc for more information.
-    Returns
-    -------
-
+    This constant defines the units for the spectroscopic zeropoint. See
+    :ref:`fluxcalib`.
     """
-    return -2.5*np.log10(((u.angstrom**2/const.c)*(PYPEIT_FLUX_SCALE*u.erg/u.s/u.cm**2/u.angstrom)).to('Jy')/(3631 * u.Jy)).value
+    return -2.5*np.log10(((units.angstrom**2/constants.c) * 
+                          (PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.angstrom)
+                         ).to('Jy')/(3631 * units.Jy)).value
 
 
 # This function is defined to convert AB magnitudes to cgs unit erg cm^-2 s^-1 A^-1
@@ -74,18 +72,21 @@ def blackbody_func(a, teff):
         waves : `numpy.ndarray`_ of the wavelengths
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
-    waves = np.arange(3000.0, 25000.0, 0.1) * u.AA
+    waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
     # Setup the units
-    teff *= u.K
+    # TODO: This alters the input!!
+    teff *= units.K
     a *= 1.0E-23
     # Calculate the function
-    flam = ((a*2*const.h*const.c**2)/waves**5)/(np.exp((const.h*const.c/(waves*const.k_B*teff)).to(u.m/u.m).value)-1.0)
-    flam = flam.to(u.erg / u.s / u.cm ** 2 / u.AA).value / PYPEIT_FLUX_SCALE
+    flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
+                (waves*constants.k_B*teff)).to(units.m/units.m).value)-1.0)
+    flam = flam.to(units.erg / units.s / units.cm ** 2 / units.AA).value / PYPEIT_FLUX_SCALE
     return waves.value, flam
 
 
-# Define this global variable to avoid constantly recomputing, which could be costly in the telluric optimization routines.
-# It has a value of ZP_UNIT_CONST = 40.092117379602044
+# Define this global variable to avoid constantly recomputing, which could be
+# costly in the telluric optimization routines.  It has a value of ZP_UNIT_CONST
+# = 40.092117379602044
 ZP_UNIT_CONST = zp_unit_const()
 
 
@@ -115,8 +116,8 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             - 'cal_file': str -- Filename table
             - 'name': str -- Star name
-            - 'std_ra': str -- RA(J2000)
-            - 'std_dec': str -- DEC(J2000)
+            - 'std_ra': float -- RA(J2000)
+            - 'std_dec': float -- DEC(J2000)
 
     """
     # Priority
@@ -149,8 +150,11 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             _idx = int(idx)
             std_dict = dict(cal_file=os.path.join(path, star_tbl[_idx]['File']),
                             name=star_tbl[_idx]['Name'],
-                            std_ra=star_tbl[_idx]['RA_2000'],
-                            std_dec=star_tbl[_idx]['DEC_2000'])
+#                            std_ra=star_tbl[_idx]['RA_2000'],
+#                            std_dec=star_tbl[_idx]['DEC_2000'])
+                            # Force the coordinates to be decimal degrees
+                            std_ra=star_coords.ra[_idx].value,
+                            std_dec=star_coords.dec[_idx].value)
 
             if not os.path.isfile(star_file):
                 # TODO: Error or warn?
@@ -223,9 +227,13 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             closest['sep'] = mind2d
             # TODO: Is this right? Do we need to use the imind2d from
             # above?
-            closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                                ra=star_tbl[int(idx)]['RA_2000'],
-                                dec=star_tbl[int(idx)]['DEC_2000']))
+            _idx = int(idx)
+            closest.update(dict(name=star_tbl[_idx]['Name'],
+#                                ra=star_tbl[int(idx)]['RA_2000'],
+#                                dec=star_tbl[int(idx)]['DEC_2000']))
+                                # Force the coordinates to be decimal degrees
+                                std_ra=star_coords.ra[_idx].value,
+                                std_dec=star_coords.dec[_idx].value))
 
     # Standard star not found
     if check:
@@ -360,7 +368,8 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             ## Vega model from TSPECTOOL
             vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
             vega_data = table.Table.read(vega_file, comment='#', format='ascii')
-            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag, std_ra=ra, std_dec=dec)
+            std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag,
+                            std_ra=ra, std_dec=dec)
             std_dict['std_source'] = 'VEGA'
             std_dict['wave'] = vega_data['col1'] * units.AA
 
@@ -616,6 +625,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
     out_table = table.Table(meta={'name': 'Sensitivity Function'})
     # These are transposed because we need to store them in an astropy table, with number of rows = norders
     out_table['SENS_WAVE'] = wave_arr.T
+    out_table['SENS_COUNTS_PER_ANG'] = counts_arr.T
     out_table['SENS_ZEROPOINT'] = zeropoint_data.T
     out_table['SENS_ZEROPOINT_GPM'] = zeropoint_data_gpm.T
     out_table['SENS_ZEROPOINT_FIT'] = zeropoint_fit.T
@@ -665,22 +675,29 @@ def get_sensfunc_factor(wave, wave_zp, zeropoint, exptime, tellmodel=None, extin
     zeropoint_obs = np.zeros_like(wave)
     wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
     delta_wave = wvutils.get_delta_wave(wave, wave_mask)
+
+#    print(f'get_sensfunc_factor: {np.amin(wave_zp):.1f}, {np.amax(wave_zp):.1f}, '
+#          f'{np.amin(wave[wave_mask]):.1f}, {np.amax(wave[wave_mask]):.1f}')
+
     try:
-        zeropoint_obs[wave_mask] = interpolate.interp1d(wave_zp, zeropoint, bounds_error=True)(wave[wave_mask])
+        zeropoint_obs[wave_mask] \
+                = interpolate.interp1d(wave_zp, zeropoint, bounds_error=True)(wave[wave_mask])
     except ValueError:
         if extrap_sens:
-            zeropoint_obs[wave_mask] = interpolate.interp1d(wave_zp, zeropoint, bounds_error=False)(wave[wave_mask])
-            msgs.warn(
-                "Your data extends beyond the bounds of your sensfunc. You should be adjusting "
-                "the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further "
-                "and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
+            zeropoint_obs[wave_mask] \
+                    = interpolate.interp1d(wave_zp, zeropoint, bounds_error=False)(wave[wave_mask])
+            msgs.warn("Your data extends beyond the bounds of your sensfunc. You should be "
+                      "adjusting the par['sensfunc']['extrap_blu'] and/or "
+                      "par['sensfunc']['extrap_red'] to extrapolate further and recreate your "
+                      "sensfunc. But we are extrapolating per your direction. Good luck!")
         else:
             msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
-                       "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                       "further and recreate your sensfunc.")
+                       "Adjust the par['sensfunc']['extrap_blu'] and/or "
+                       "par['sensfunc']['extrap_red'] to extrapolate further and recreate "
+                       "your sensfunc.")
 
-    # This is the S_lam factor required to convert N_lam = counts/sec/Ang to F_lam = 1e-17 erg/s/cm^2/Ang, i.e.
-    # F_lam = S_lam*N_lam
+    # This is the S_lam factor required to convert N_lam = counts/sec/Ang to
+    # F_lam = 1e-17 erg/s/cm^2/Ang, i.e.  F_lam = S_lam*N_lam
     sensfunc_obs = Nlam_to_Flam(wave, zeropoint_obs)
 
     # TODO Telluric corrections via this method are deprecated
@@ -1073,14 +1090,14 @@ def zeropoint_to_throughput(wave, zeropoint, eff_aperture):
 
     """
 
-    eff_aperture_m2 = eff_aperture*u.m**2
-    S_lam_units = 1e-17*u.erg/u.cm**2
+    eff_aperture_m2 = eff_aperture*units.m**2
+    S_lam_units = 1e-17*units.erg/units.cm**2
     # Set the throughput to be -1 in places where it is not defined.
     throughput = np.full_like(zeropoint, -1.0)
     zeropoint_gpm = (zeropoint > 5.0) & (zeropoint < 30.0) & (wave > 1.0)
     inv_S_lam = Flam_to_Nlam(wave[zeropoint_gpm], zeropoint[zeropoint_gpm])/S_lam_units
-    inv_wave = utils.inverse(wave[zeropoint_gpm])/u.angstrom
-    thru = ((const.h*const.c)*inv_wave/eff_aperture_m2*inv_S_lam).decompose()
+    inv_wave = utils.inverse(wave[zeropoint_gpm])/units.angstrom
+    thru = ((constants.h*constants.c)*inv_wave/eff_aperture_m2*inv_S_lam).decompose()
     throughput[zeropoint_gpm] = thru
     return throughput
 

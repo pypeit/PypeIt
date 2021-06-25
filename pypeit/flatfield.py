@@ -137,8 +137,11 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None, **kwargs):
 
         # Grab everything but the bsplines. The bsplines are not parsed
         # because the tailored extension names do not match any of the

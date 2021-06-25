@@ -72,10 +72,6 @@ class DataCube(datamodel.DataContainer):
 
         Args:
             ifile (str):  Filename holding the object
-
-        Returns:
-            :class:`OneSpec`:
-
         """
         hdul = fits.open(ifile)
         slf = super(DataCube, cls).from_hdu(hdul)

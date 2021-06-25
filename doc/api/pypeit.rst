@@ -37,6 +37,7 @@ Submodules
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
+   pypeit.onespec
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs

@@ -146,47 +146,59 @@ def string_table(tbl, delimeter='print'):
     return '\n'.join(row_string)+'\n'
 
 
-def spec_atleast_2d(wave, flux, ivar, mask):
+def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     """
-    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+    Force spectral arrays to be 2D.
 
+    Input and output spectra are ordered along columns; i.e., the flux vector
+    for the first spectrum is in ``flux[:,0]``.
+    
     Args:
         wave (`numpy.ndarray`_):
-            Wavelength array
+            Wavelength array. Must be 1D if the other arrays are 1D. If 1D
+            and the other arrays are 2D, the wavelength vector is assumed to
+            be the same for all spectra.
         flux (`numpy.ndarray`_):
-            Flux array
+            Flux array.  Can be 1D or 2D.
         ivar (`numpy.ndarray`_):
-            Inverse variance array
-        mask (`numpy.ndarray`_, bool):
-            Good pixel mask True=Good.
+            Inverse variance array for the flux.  Shape must match ``flux``.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask (i.e., True=Good). Shape must match ``flux``.
+        copy (:obj:`bool`, optional):
+            If the flux, inverse variance, and gpm arrays are already 2D on
+            input, the function just returns the input arrays. This flag
+            forces the returned arrays to be copies instead.
 
     Returns:
-        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. The next two
+        give the length of each spectrum and the total number of spectra;
+        i.e., the last two elements are identical to the shape of the
+        returned flux array.
 
-            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
-            with nspec, and norders = total number of orders, detectors, or exposures
-
-
+    Raises:
+        PypeItError:
+            Raised if the shape of the input objects are not appropriately
+            matched.
     """
-    # Repackage the data into arrays of shape (nspec, norders)
-    if flux.ndim == 1:
-        nspec = flux.size
-        norders = 1
-        wave_arr = wave.reshape(nspec, 1)
-        flux_arr = flux.reshape(nspec, 1)
-        ivar_arr = ivar.reshape(nspec, 1)
-        mask_arr = mask.reshape(nspec, 1)
-    else:
-        nspec, norders = flux.shape
-        if wave.ndim == 1:
-            wave_arr = np.tile(wave, (norders, 1)).T
-        else:
-            wave_arr = wave
-        flux_arr = flux
-        ivar_arr = ivar
-        mask_arr = mask
+    # Check the input
+    if wave.shape[0] != flux.shape[0] or ivar.shape != flux.shape or gpm.shape != flux.shape \
+            or wave.ndim == 2 and wave.shape != flux.shape:
+        msgs.error('Input spectral arrays have mismatching shapes.')
 
-    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+    if flux.ndim == 1:
+        # Input flux is 1D
+        # NOTE: These reshape calls return copies of the arrays
+        return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
+                    gpm.reshape(-1, 1), flux.size, 1
+
+    # Input is 2D
+    nspec, norders = flux.shape
+    _wave = np.tile(wave, (norders, 1)).T if wave.ndim == 1 else (wave.copy() if copy else wave)
+    _flux = flux.copy() if copy else flux
+    _ivar = ivar.copy() if copy else ivar
+    _gpm = gpm.copy() if copy else gpm
+    return _wave, _flux, _ivar, _gpm, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
@@ -635,45 +647,50 @@ def cross_correlate(x, y, maxlag):
     return lags, T.dot(px)
 
 
-
-def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
+def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
     """
+    Add an error floor the the inverse variance array.
 
-    This adds an error floor to the ivar, preventing too much rejection
-    at high-S/N (i.e. standard stars, bright objects)
+    This is primarily to prevent too much rejection at high-S/N (i.e.
+    standard stars, bright objects).
 
     Args:
-        flux (ndarray):
-            flux array
-        ivar (ndarray):
-            ivar array
-        sn_clip (float):
-            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
-            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
-            level greater than the formal S/N due to systematics.
-
-        mask (ndarray, bool): mask array, True=good
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        sn_clip (:obj:`float`):
+            This sets the small erorr that is added to the input ``ivar``
+            such that the output inverse variance will never give S/N greater
+            than ``sn_clip``. This prevents overly aggressive rejection in
+            high S/N spectra, which nevertheless differ at a level greater
+            than the formal S/N due to systematics. If None, the input
+            inverse variance array is simply returned.
+        gpm (`numpy.ndarray`_, optional):
+            Good-pixel mask for the input fluxes.
+        verbose (:obj:`bool`, optional):
+            Write status messages to the terminal.
 
     Returns:
-         ndarray: new ivar array
+         `numpy.ndarray`_: The new inverse variance matrix that yields a S/N
+         upper limit.
     """
     if sn_clip is None:
         return ivar
-    else:
-        if mask is None:
-            mask = (ivar > 0.0)
-        adderr = 1.0/sn_clip
-        gmask = (ivar > 0) & mask
-        ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
-        ivar_out = np.minimum(ivar, ivar_cap)
-        if verbose:
-            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
-        return ivar_out
+
+    if verbose:
+        msgs.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+
+    _gpm = ivar > 0.
+    if gpm is not None:
+        _gpm &= gpm
+    adderr = 1.0/sn_clip
+    ivar_cap = _gpm/(1.0/(ivar + np.logical_not(_gpm)) + adderr**2*(np.abs(flux))**2)
+    return np.minimum(ivar, ivar_cap)
 
 
 def inverse(array):
     """
-
     Calculate and return the inverse of the input array, enforcing
     positivity and setting values <= 0 to zero.  The input array should
     be a quantity expected to always be positive, like a variance or an
@@ -684,11 +701,11 @@ def inverse(array):
     is returned.
 
     Args:
-        a (np.ndarray):
+        array (`numpy.ndarray`_):
+            Array to invert
 
     Returns:
-        np.ndarray:
-
+        `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0)/(np.abs(array) + (array == 0.0))
 
