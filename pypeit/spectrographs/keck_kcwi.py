@@ -218,7 +218,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -241,7 +243,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_darkimage'] = False
 
         # Don't do optimal extraction for 3D data.
-        par['reduce']['extraction']['skip_optimal'] = True
+        par['reduce']['extraction']['skip_optimal'] = True  # Because extraction occurs before the DAR correction, don't to optimal - boxcar will also be rubbish
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
@@ -299,16 +301,16 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
             try:
-                return headarr[0]['WXPRESS'] * 0.001 * units.bar
+                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
             except KeyError:
                 msgs.warn("Pressure is not in header")
-                return 0.0 * units.bar
+                return 0.0
         elif meta_key == 'temperature':
             try:
-                return headarr[0]['WXOUTTMP'] * units.deg_C
+                return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
             except KeyError:
                 msgs.warn("Temperature is not in header")
-                return 0.0 * units.deg_C
+                return 0.0
         elif meta_key == 'humidity':
             try:
                 return headarr[0]['WXOUTHUM'] / 100.0

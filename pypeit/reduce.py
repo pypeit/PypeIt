@@ -1483,10 +1483,11 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 Mask of sky regions where the spatial illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
+        ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         gpm = (self.sciImg.fullmask == 0)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
-                                                    model=global_sky, gpmask=gpm, skymask=skymask, trim=trim,
-                                                    flexure=self.spat_flexure_shift)
+                                                    slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
+                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
@@ -1497,7 +1498,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
-        nslits = self.slits.spat_id.size
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         self.global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
@@ -1532,6 +1532,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
             var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
             var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
             model_ivar = utils.inverse(var)
+            # Redo the relative spectral illumination correction with the improved sky model
+            if self.par['scienceframe']['process']['use_specillum']:
+                self.illum_profile_spectral(self.global_sky, skymask=skymask)
 
         if update_crmask:
             # Find CRs with sky subtraction
