@@ -326,6 +326,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['filter1'] = dict(ext=0, card='DWFILNAM')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -414,7 +415,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc']
+        return super().pypeit_file_keys() + ['dateobs', 'utc', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

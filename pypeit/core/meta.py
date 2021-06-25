@@ -133,6 +133,7 @@ def define_additional_meta(nlamps=20):
                        'dithpos': dict(dtype=str, comment='Dither position'),
                        'dithoff': dict(dtype=float, comment='Dither offset'),
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
+                       'frameno': dict(dtype=str, comment='Frame number provided by instrument software'),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
                        'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
