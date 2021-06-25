@@ -1,9 +1,28 @@
 
-1.4.2
------
+1.4.2dev
+--------
 
 - Added a common base class for all scripts
 - Script methods now included in Sphinx documentation
+- Updated `pypeit.scripts.scriptbase.SmartFormatter` to enable wrapping
+  long lines and specify lines with a fixed format using `F|`.
+- Made `pypeit.core.telluric.Telluric` subclass from
+  `pypeit.datamodel.DataContainer`, and added some basic unit tests.
+  This led to some changes in the existing datamodel.
+- Made `pypeit.sensfunc.SensFunc` subclass from
+  `pypeit.datamodel.DataContainer`, and added some basic unit tests.
+  This led to some changes in the existing datamodel.
+- Allowed `pypeit.datamodel.DataContainer` parsing methods to used
+  pseudonyms for HDU extension names and base classes to read the
+  datamodels of subclasses.  Both added new keywords that default to
+  previous behavior.
+- Moved some functions to avoid circular imports
+    - `pypeit.coadd1d.OneSpec` -> `pypeit.onespec.OneSpec`
+    - `pypeit.core.coadd.get_wave_grid` ->
+      `pypeit.core.wavecal.wvutils.get_wave_grid`
+    - `pypeit.core.coadd.sensfunc_weights` ->
+      `pypeit.sensfunc.sensfunc_weights`
+
 
 1.4.1 (11 Jun 2021)
 -------------------

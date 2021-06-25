@@ -295,6 +295,11 @@ Run ``tox -a`` to see a list of available test environemts.
 In either case, over 100 tests should pass, nearly 100 will be skipped and none should fail. The skipped
 tests only run if the PypeIt development is installed and configured.
 
+
+.. THERE NEEDS TO BE A "DATA" SECTION HERE THAT INSTRUCTS USERS ON HOW TO
+.. DOWNLOAD AND INSTALL, E.G., THE TELLURIC GRIDS, QSO MODELS, STANDARD STARS,
+.. ETC.!!
+
 ----
 
 Developers

@@ -26,17 +26,19 @@ class FluxSetup(scriptbase.ScriptBase):
         parser = super().get_parser(description='Setup to perform flux calibration',
                                     width=width, formatter=scriptbase.SmartFormatter)
         parser.add_argument("sci_path", type=str, help="Path for Science folder")
+
         parser.add_argument("--objmodel", type=str, default='qso', choices=['qso', 'star', 'poly'],
-                            help="R|Science object model used in the telluric fitting.\n"
-                            "The options are:\n"
-                            "\n"
-                            "    qso  = For quasars. You might need to set redshift, bal_wv_min_mx in the tell file.\n"
-                            "\n"
-                            "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
-                            "\n"
-                            "    poly = For other type object, You might need to set fit_wv_min_mx, \n"
-                            "           and norder in the tell_file."
-                            )
+                            help='R|science object model used in the telluric fitting. The '
+                                 'options are:\n\n'
+                                 'qso = For quasars. You might need to set redshift, '
+                                 'bal_wv_min_max in the tell file.\n'
+                                 '\n'
+                                 'star = For stars. You need to set star_type, star_ra, star_dec, '
+                                 'and star_mag in the tell_file.\n'
+                                 '\n'
+                                 'poly = For other type object, You might need to set '
+                                 'fit_wv_min_max, and norder in the tell_file.\n'
+                                 '\n')
         return parser
 
     @staticmethod

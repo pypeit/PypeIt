@@ -14,6 +14,8 @@ import gzip
 import shutil
 from packaging import version
 
+from IPython import embed
+
 import numpy
 
 from configobj import ConfigObj
@@ -21,7 +23,8 @@ from configobj import ConfigObj
 from astropy.io import fits
 from astropy.table import Table
 
-from pypeit import par, msgs
+from pypeit import msgs
+from pypeit import par
 
 # These imports are largely just to make the versions available for
 # writing to the header. See `initialize_header`
@@ -30,8 +33,6 @@ import astropy
 import sklearn
 import pypeit
 import time
-
-from IPython import embed
 
 # TODO -- Move this module to core/
 
@@ -565,6 +566,49 @@ def read_spec2d_file(ifile, filetype='coadd2d'):
     return spectrograph_name, cfg_lines, spec2d_files
 
 
+def read_tellfile(ifile):
+    """
+    Read a PypeIt telluric file, akin to a standard PypeIt file
+
+    The top is a config block that sets ParSet parameters.  The spectrograph is
+    not required.
+
+    Parameters
+    ----------
+    ifile: str
+        Name of the telluric file
+
+    Returns
+    -------
+    cfg_lines: list
+        Config lines to modify ParSet values
+    """
+    # Read in the pypeit reduction file
+    msgs.info('Loading the telluric file')
+    return list(par.util._read_pypeit_file_lines(ifile))
+
+
+# TODO: This is identical to the tellfile function
+def read_sensfile(ifile):
+    """
+    Read a PypeIt sens file.
+
+    The format of the file is a configuration (ini) file that can be parsed by
+    `configobj`_.
+
+    Args:
+        ifile (:obj:`str`):
+            Name of the flux file
+
+    Returns:
+        :obj:`list`: The list of configuration lines read from the file.
+    """
+    # TODO: If there are only ever going to be configuration style lines in the
+    # input file, we should probably be reading it using ConfigObj.
+    msgs.info('Loading the fluxcalib file')
+    return list(par.util._read_pypeit_file_lines(ifile))
+
+
 def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
@@ -685,15 +729,23 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
     Convert the input to lists that can be iterated through by an
     extension index/name.
 
-    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is
-    simply returned; otherwise, the 2nd returned item is a
-    single-element :obj:`list` with the provided HDU.
+    Importantly, note that the function does **not** alter the provided HDUs.
+    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is simply returned;
+    otherwise, the provided HDU is returned as the only element of a new
+    `astropy.io.fits.HDUList`_ object; however, the HDU is not copied!
+    The returned HDU is always the second item in the returned tuple.
 
-    If ``ext`` is None and ``hdu`` is not an
-    `astropy.io.fits.HDUList`_, the returned list just selects the
-    individual HDU provided (i.e., ``ext = [0]``). If ``ext`` is None
-    and ``hdu`` *is* an `astropy.io.fits.HDUList`_, the returned list
-    of extensions includes all extensions in the provided ``hdu``.
+    If ``ext`` is None and ``hdu`` is an `astropy.io.fits.HDUList`_, the
+    returned list of extensions includes all extensions in the provided ``hdu``.
+    The extensions are selected by their name, if the HDU has one, or by their
+    index number, otherwise.  If ``ext`` is None and ``hdu`` is **not** an
+    `astropy.io.fits.HDUList`_, the returned list of extensions just selects the
+    individual HDU provided, either using an integer or the name of the provided
+    hdu (``hdu.name``), if it has one.
+
+    The ``hdu_prefix`` parameter can be used to downselect the set of extensions
+    to only those extension strings that start with this prefix (for those
+    extensions that can be identified by a string name).
 
     .. warning::
 
@@ -712,9 +764,8 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
             (``ext``), only include extensions with this prefix.
 
     Returns:
-        :obj:`tuple`: Returns two objects: a :obj:`list` with the
-        extensions to iterate through and either a :obj:`list` or an
-        `astropy.io.fits.HDUList`_ with the list of HDUs.
+        :obj:`tuple`: Returns two objects: a :obj:`list` with the extensions to
+        iterate through and an `astropy.io.fits.HDUList`_ with the list of HDUs.
 
     Raises:
         TypeError:
@@ -744,8 +795,10 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-        ext = [0]
-        _hdu = [hdu]
+        if ext is not None:
+            raise ValueError(f'Cannot provide extension for single HDU!')
+        ext = [0 if hdu.name is None else hdu.name]
+        _hdu = fits.HDUList([hdu])
         if hdu_prefix is not None:
             if hdu_prefix not in hdu.name:
                 raise ValueError("Bad hdu_prefix for this HDU!")
@@ -754,19 +807,27 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
 
     return ext if isinstance(ext, list) else [ext], _hdu
 
+
 def fits_open(filename, **kwargs):
     """
-    Thin wrapper around astropy.io.fits.open that handles empty padding bytes.
+    Thin wrapper around `astropy.io.fits.open`_ that handles empty padding
+    bytes.
 
     Args:
         filename (:obj:`str`):
-            File name for the fits file to open
+            File name for the fits file to open.
+        **kwargs:
+            Passed directly to `astropy.io.fits.open`_.
+
     Returns:
-        hdulist: an :obj:`astropy.io.fits.HDUList` object that contains all the
-        HDUs in the fits file
+        `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
     """
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:
-        msgs.warn('Error opening {0}: {1}'.format(filename, str(e)) + '\nTrying again, assuming the error was a header problem.')
+        msgs.warn('Error opening {0}: {1}'.format(filename, str(e))
+                   + '\nTrying again, assuming the error was a header problem.')
         return fits.open(filename, ignore_missing_end=True, **kwargs)
+
+
+

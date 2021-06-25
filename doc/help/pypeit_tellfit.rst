@@ -14,15 +14,18 @@
     optional arguments:
       -h, --help            show this help message and exit
       --objmodel {qso,star,poly}
-                            science object model used in the fitting.
-                            The options are:
-                            
-                                qso  = For quasars. You might need to set redshift, bal_wv_min_max in the tell file.
-                            
-                                star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.
-                            
-                                poly = For other type object, You might need to set fit_wv_min_max, 
-                                       and norder in the tell_file.
+                            science object model used in the fitting. The options
+                            are:
+                             
+                            qso = For quasars. You might need to set redshift,
+                            bal_wv_min_max in the tell file.
+                             
+                            star = For stars. You need to set star_type, star_ra,
+                            star_dec, and star_mag in the tell_file.
+                             
+                            poly = For other type object, You might need to set
+                            fit_wv_min_max, and norder in the tell_file.
+                             
       -r REDSHIFT, --redshift REDSHIFT
                             Specify redshift. Used with the --objmodel qso option
                             above.
@@ -40,28 +43,30 @@
                             model. The defaults are pca_lower=1220. and
                             pca_upper=3100.
       -t TELL_FILE, --tell_file TELL_FILE
-                            Configuration file to change default telluric parameters.
-                            Note that the parameters in this file will be overwritten if you set argument in your terminal. 
-                            The --tell_file option requires a .tell file with the following format:
-                            
-                                [tellfit]
+                            Configuration file to change default telluric
+                            parameters.  Note that the parameters in this file will
+                            be overwritten if you set argument in your terminal.
+                            The --tell_file option requires a .tell file with the
+                            following format:
+                             
+                                [telluric]
                                      objmodel = qso
                                      redshift = 7.6
                                      bal_wv_min_max = 10825,12060
                             OR
-                                [tellfit]
+                                [telluric]
                                      objmodel = star
                                      star_type = A0
                                      star_mag = 8.
                             OR
-                                [tellfit]
+                                [telluric]
                                      objmodel = poly
                                      polyorder = 3
                                      fit_wv_min_max = 9000.,9500.
-                            
+                             
       --debug               show debug plots?
       --plot                Show the telluric corrected spectrum
       --par_outfile PAR_OUTFILE
-                            Name of outut file to save the parameters used by the
+                            Name of output file to save the parameters used by the
                             fit
     

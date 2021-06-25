@@ -5,45 +5,9 @@ Fit telluric absorption to observed spectra
 .. include:: ../include/links.rst
 """
 
-import os
-from pkg_resources import resource_filename
+from IPython import embed
 
-from astropy.io import fits
-
-from pypeit import par, msgs
-from pypeit.par import pypeitpar
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import telluric
 from pypeit.scripts import scriptbase
-
-
-def read_tellfile(ifile):
-    """
-    Read a PypeIt telluric file, akin to a standard PypeIt file
-
-    The top is a config block that sets ParSet parameters
-      The spectrograph is not required
-
-    Parameters
-    ----------
-    ifile: str
-        Name of the flux file
-
-    Returns
-    -------
-    cfg_lines: list
-        Config lines to modify ParSet values
-    """
-
-    # Read in the pypeit reduction file
-    msgs.info('Loading the telluric file')
-    lines = par.util._read_pypeit_file_lines(ifile)
-
-    # Construct config to get spectrograph
-    cfg_lines = list(lines)
-
-    # Return
-    return cfg_lines
 
 
 class TellFit(scriptbase.ScriptBase):
@@ -55,16 +19,17 @@ class TellFit(scriptbase.ScriptBase):
         parser.add_argument("spec1dfile", type=str,
                             help="spec1d file that will be used for telluric correction.")
         parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
-                            help="R|science object model used in the fitting.\n"
-                            "The options are:\n"
-                            "\n"
-                            "    qso  = For quasars. You might need to set redshift, bal_wv_min_max in the tell file.\n"
-                            "\n"
-                            "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
-                            "\n"
-                            "    poly = For other type object, You might need to set fit_wv_min_max, \n"
-                            "           and norder in the tell_file."
-                            )
+                            help='R|science object model used in the fitting. The options are:\n'
+                                 '\n'
+                                 'qso = For quasars. You might need to set redshift, '
+                                 'bal_wv_min_max in the tell file.\n'
+                                 '\n'
+                                 'star = For stars. You need to set star_type, star_ra, star_dec, '
+                                 'and star_mag in the tell_file.\n'
+                                 '\n'
+                                 'poly = For other type object, You might need to set '
+                                 'fit_wv_min_max, and norder in the tell_file.\n'
+                                 '\n')
         parser.add_argument("-r", "--redshift", type=float, default=None,
                             help="Specify redshift. Used with the --objmodel qso option above.")
         parser.add_argument("-g", "--tell_grid", type=str,
@@ -80,32 +45,31 @@ class TellFit(scriptbase.ScriptBase):
                                  'wavelength coverage of your model. The defaults are '
                                  'pca_lower=1220. and pca_upper=3100.')
         parser.add_argument("-t", "--tell_file", type=str,
-                            help="R|Configuration file to change default telluric parameters.\n"
-                            "Note that the parameters in this file will be overwritten if you set argument in your terminal. \n"
-                            "The --tell_file option requires a .tell file with the following format:\n"
-                            "\n"
-                            "    [tellfit]\n"
-                            "         objmodel = qso\n"
-                            "         redshift = 7.6\n"
-                            "         bal_wv_min_max = 10825,12060\n"
-                            "OR\n"
-                            "    [tellfit]\n"
-                            "         objmodel = star\n"
-                            "         star_type = A0\n"
-                            "         star_mag = 8.\n"
-                            "OR\n"
-                            "    [tellfit]\n"
-                            "         objmodel = poly\n"
-                            "         polyorder = 3\n"
-                            "         fit_wv_min_max = 9000.,9500.\n"
-                            "\n"
-                            )
+                            help='R|Configuration file to change default telluric parameters.  '
+                                 'Note that the parameters in this file will be overwritten if '
+                                 'you set argument in your terminal.  The --tell_file option '
+                                 'requires a .tell file with the following format:\n\n'
+                                 'F|    [telluric]\n'
+                                 'F|         objmodel = qso\n'
+                                 'F|         redshift = 7.6\n'
+                                 'F|         bal_wv_min_max = 10825,12060\n'
+                                 'OR\n'
+                                 'F|    [telluric]\n'
+                                 'F|         objmodel = star\n'
+                                 'F|         star_type = A0\n'
+                                 'F|         star_mag = 8.\n'
+                                 'OR\n'
+                                 'F|    [telluric]\n'
+                                 'F|         objmodel = poly\n'
+                                 'F|         polyorder = 3\n'
+                                 'F|         fit_wv_min_max = 9000.,9500.\n'
+                                 '\n')
         parser.add_argument("--debug", default=False, action="store_true",
                             help="show debug plots?")
         parser.add_argument("--plot", default=False, action="store_true",
                             help="Show the telluric corrected spectrum")
         parser.add_argument("--par_outfile", default='telluric.par',
-                            help="Name of outut file to save the parameters used by the fit")
+                            help="Name of output file to save the parameters used by the fit")
         return parser
 
     @staticmethod
@@ -114,18 +78,26 @@ class TellFit(scriptbase.ScriptBase):
         Executes telluric correction.
         """
 
+        import os
+        from pkg_resources import resource_filename
+
+        from astropy.io import fits
+
+        from pypeit import msgs
+        from pypeit import io
+        from pypeit.par import pypeitpar
+        from pypeit.spectrographs.util import load_spectrograph
+        from pypeit.core import telluric
+
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
         spectrograph_def_par = spectrograph.default_pypeit_par()
 
         # If the .tell file was passed in read it and overwrite default parameters
-        if args.tell_file is not None:
-            cfg_lines = read_tellfile(args.tell_file)
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                     merge_with=cfg_lines)
-        else:
-            par = spectrograph_def_par
+        par = spectrograph_def_par if args.tell_file is None else \
+                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                   merge_with=io.read_tellfile(args.tell_file))
 
         # If args was provided override defaults. Note this does undo .tell file
         if args.objmodel is not None:
@@ -145,13 +117,24 @@ class TellFit(scriptbase.ScriptBase):
                                  '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
                 msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
+        # Checks
+        if par['telluric']['telgridfile'] is None:
+            msgs.error('A file with the telluric grid must be provided.')
+        elif not os.path.isfile(par['telluric']['telgridfile']):
+            msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Check your "
+                       f"installation.")
+
         # Write the par to disk
-        print("Writing the parameters to {}".format(args.par_outfile))
-        par['telluric'].to_config('telluric.par', section_name='telluric', include_descr=False)
+        # TODO: Make it optional to write this file?  Is the relevant metadata
+        # saved to the main output file?
+        msgs.info(f'Writing the telluric fitting parameters to {args.par_outfile}')
+        par['telluric'].to_config(args.par_outfile, section_name='telluric', include_descr=False)
 
         # Parse the output filename
         outfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellcorr.fits')
         modelfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellmodel.fits')
+        msgs.info(f'Telluric-corrected spectrum will be saved to: {outfile}.')
+        msgs.info(f'Best-fit telluric model will be saved to: {modelfile}.')
 
         # Run the telluric fitting procedure.
         if par['telluric']['objmodel']=='qso':
@@ -202,6 +185,6 @@ class TellFit(scriptbase.ScriptBase):
                                              debug_init=args.debug, disp=args.debug,
                                              debug=args.debug, show=args.plot)
         else:
-            msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
+            msgs.error("Object model is not supported yet. Must be 'qso', 'star', or 'poly'.")
 
 

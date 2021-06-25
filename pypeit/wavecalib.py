@@ -114,9 +114,12 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return _d
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+               hdu_prefix=None, **kwargs):
         """
         See datamodel.DataContainer for docs
 
