@@ -3258,13 +3258,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              combine = median
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              combine = median
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
@@ -3289,7 +3287,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
-              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
