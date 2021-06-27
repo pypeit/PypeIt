@@ -19,6 +19,7 @@ from pypeit import slittrace
 from pypeit import reduce
 from pypeit.images import pypeitimage
 from pypeit.core import extract
+from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import parse
 from pypeit import calibrations
@@ -568,12 +569,14 @@ class CoAdd2D:
 
     def get_wave_grid(self, **kwargs_wave):
         """
-        Routine to create a wavelength grid for 2d coadds using all of the wavelengths of the extracted objects. Calls
-        coadd1d.get_wave_grid.
+        Routine to create a wavelength grid for 2d coadds using all of the
+        wavelengths of the extracted objects. Calls
+        :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Args:
             **kwargs_wave (dict):
-                Optional argumments for coadd1d.get_wve_grid function
+                Optional argumments for
+                :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Returns:
             tuple: Returns the following:
@@ -628,8 +631,9 @@ class CoAdd2D:
                     gpm[:, indx] = spec.OPT_MASK
                     indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, spec_samp_fact=self.spec_samp_fact,
-                                                              **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
+                                                                spec_samp_fact=self.spec_samp_fact,
+                                                                **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
 
     def load_coadd2d_stacks(self, spec2d):

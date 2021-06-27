@@ -135,43 +135,42 @@ class CoAdd1DSpec(scriptbase.ScriptBase):
         parser = super().get_parser(description='Coadd 1D spectra produced by PypeIt',
                                     width=width, formatter=scriptbase.SmartFormatter)
 
-        parser.add_argument("coadd1d_file", type=str,
-                            help="R|File to guide coadding process. This file must have the following format: \n"
-                                "\n"
-                                "[coadd1d]\n"
-                                "   coaddfile='output_filename.fits'\n"
-                                "   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
-                                "\n"
-                                "   coadd1d read\n"
-                                "     spec1dfile1 objid1\n"
-                                "     spec1dfile2 objid2\n"
-                                "     spec1dfile3 objid3\n"
-                                "        ...    \n"
-                                "   coadd1d end\n"
-                                "\n"
-                                "         OR the coadd1d read/end block can look like \n"
-                                "\n"
-                                "  coadd1d read\n"
-                                "     spec1dfile1 objid \n"
-                                "     spec1dfile2 \n"
-                                "     spec1dfile3 \n"
-                                "     ...    \n"
-                                "  coadd1d end\n"
-                                "\n"
-                                "That is the coadd1d block must either be a two column list of spec1dfiles and objids,\n"
-                                "or you can specify a single objid for all spec1dfiles on the first line\n"
-                                "\n"
-                                "Where: \n"
-                                "\n"
-                                "   spec1dfile -- full path to a PypeIt spec1dfile\n"
-                                "   objid      -- is the object identifier. To determine the objids inspect the \n"
-                                "                 spec1d_*.txt files or run pypeit_show_1dspec spec1dfile --list\n"
-                                "\n")
+        parser.add_argument('coadd1d_file', type=str,
+                            help="R|File to guide coadding process. This file must have the "
+                                 "following format: \n\n"
+                                 "F|[coadd1d]\n"
+                                 "F|   coaddfile='output_filename.fits'\n"
+                                 "F|   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
+                                 "\n"
+                                 "F|   coadd1d read\n"
+                                 "F|     spec1dfile1 objid1\n"
+                                 "F|     spec1dfile2 objid2\n"
+                                 "F|     spec1dfile3 objid3\n"
+                                 "F|        ...    \n"
+                                 "F|   coadd1d end\n"
+                                 "\n OR the coadd1d read/end block can look like \n\n"
+                                 "F|  coadd1d read\n"
+                                 "F|     spec1dfile1 objid \n"
+                                 "F|     spec1dfile2 \n"
+                                 "F|     spec1dfile3 \n"
+                                 "F|     ...    \n"
+                                 "F|  coadd1d end\n"
+                                 "\n"
+                                 "That is the coadd1d block must either be a two column list of "
+                                 "spec1dfiles and objids, or you can specify a single objid for "
+                                 "all spec1dfiles on the first line\n\n"
+                                 "Where: \n"
+                                 "\n"
+                                 "spec1dfile: full path to a PypeIt spec1dfile\n\n"
+                                 "objid: the object identifier. To determine the objids inspect "
+                                 "the spec1d_*.txt files or run pypeit_show_1dspec spec1dfile "
+                                 "--list\n\n")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-        parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
-        parser.add_argument("--par_outfile", default='coadd1d.par', help="Output to save the parameters")
+        parser.add_argument("--show", default=False, action="store_true",
+                            help="show QA during coadding process")
+        parser.add_argument("--par_outfile", default='coadd1d.par',
+                            help="Output to save the parameters")
         parser.add_argument("--test_spec_path", type=str, help="Path for testing")
-    #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
         return parser
 
     @staticmethod

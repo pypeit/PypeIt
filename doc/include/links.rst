@@ -10,6 +10,8 @@
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
 .. _argparse.HelpFormatter: https://docs.python.org/3/library/argparse.html#formatter-class
 .. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
+.. _str.splitlines: https://docs.python.org/3/library/stdtypes.html#str.splitlines
+.. _textwrap.wrap: https://docs.python.org/3/library/textwrap.html#textwrap.wrap
 
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
@@ -17,10 +19,12 @@
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
 .. _numpy.meshgrid: http://docs.scipy.org/doc/numpy/reference/generated/numpy.meshgrid.html
 .. _numpy.where: http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
+.. _numpy.random.Generator: https://numpy.org/doc/stable/reference/random/generator.html
 
 .. scipy
 .. _scipy.optimize.least_squares: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
 .. _scipy.optimize.OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html
+.. _scipy.optimize.differential_evolution: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 .. _scipy.interpolate.interp1d: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html
 .. _scipy.sparse.spmatrix: http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.spmatrix.html
 .. _scipy.sparse.csr_matrix: http://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.csr_matrix.html

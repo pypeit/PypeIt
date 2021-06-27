@@ -36,12 +36,16 @@ sens_file = data_path('sensfunc.fits')
 
 @cooked_required
 def test_gen_sensfunc(kast_blue_files):
+
+    if os.path.isfile(sens_file):
+        os.remove(sens_file)
+
     # Get it started
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
     # Instantiate
-    sensFunc = sensfunc.UVIS(std_file, sens_file)
+    sensFunc = sensfunc.UVISSensFunc(std_file, sens_file)
     # Test the standard loaded
     assert sensFunc.meta_spec['BINNING'] == '1,1'
     assert sensFunc.meta_spec['TARGET'] == 'Feige 66'
@@ -49,20 +53,30 @@ def test_gen_sensfunc(kast_blue_files):
     # Generate the sensitivity function
     sensFunc.run()
     # Test
-    assert os.path.basename(sensFunc.meta_table['CAL_FILE'][0]) == 'feige66_002.fits'
+    assert os.path.basename(sensFunc.std_cal) == 'feige66_002.fits'
     # TODO: @jhennawi, please check this edit
-    assert 'SENS_ZEROPOINT' in sensFunc.out_table.keys(), 'Bad column names'
+    assert 'SENS_ZEROPOINT' in sensFunc.sens.keys(), 'Bad column names'
     # Write
-    sensFunc.save()
+    sensFunc.to_file(sens_file)
+
+    os.remove(sens_file)
+
 
 @cooked_required
 def test_from_sens_func(kast_blue_files):
-    """ This test will fail if the previous one does as it need its output
-    """
+    # TODO: Tests need to be self-contained...
+    if os.path.isfile(sens_file):
+        os.remove(sens_file)
+
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
-    #
+
+    # Build the sensitivity function
+    sensFunc = sensfunc.UVISSensFunc(std_file, sens_file)
+    sensFunc.run()
+    sensFunc.to_file(sens_file)
+
     # Instantiate and run
     outfile = data_path(os.path.basename(sci_file))
     fluxCalibrate = fluxcalibrate.MultiSlitFC([sci_file], [sens_file], par=par['fluxcalib'],
@@ -77,6 +91,11 @@ def test_from_sens_func(kast_blue_files):
 
 @telluric_required
 def test_wmko_flux_std():
+
+    outfile = data_path('tmp_sens.fits')
+    if os.path.isfile(outfile):
+        os.remove(outfile)
+
     # Do it
     wmko_file = data_path('2017may28_d0528_0088.fits')
     spectrograph = load_spectrograph('keck_deimos')
@@ -92,13 +111,11 @@ def test_wmko_flux_std():
     par['sensfunc']['multi_spec_det'] = [3,7]
 
     # Instantiate the relevant class for the requested algorithm
-    outfile = data_path('tmp_sens.fits')
-    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, outfile, 
-                                             par=par['sensfunc'])
+    sensobj = sensfunc.SensFunc.get_instance(spec1dfile, outfile, par['sensfunc'])
     # Generate the sensfunc
     sensobj.run()
     # Write it out to a file
-    sensobj.save()
+    sensobj.to_file(outfile)
 
     os.remove(spec1dfile)
     os.remove(outfile)

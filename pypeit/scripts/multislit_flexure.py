@@ -77,17 +77,14 @@ class MultiSlitFlexure(scriptbase.ScriptBase):
                                                 'spectra produced by PypeIt.',
                                     width=width, formatter=scriptbase.SmartFormatter)
         parser.add_argument("flex_file", type=str,
-                            help="R|File to guide flexure corrections for this multi-slit mode.\n"
-                                 "This file must have the following format: \n"
-                                 "\n"
-                                 "flexure read\n"
-                                 "  spec1dfile1\n"
-                                 "  spec1dfile2\n"
-                                 "     ...    \n"
-                                 "     ...    \n"
-                                 "flexure end\n"
-                                 "\n"
-                                 "\n")
+                            help="R|File to guide flexure corrections for this multi-slit mode."
+                                 "  This file must have the following format: \n\n"
+                                 "F|flexure read\n"
+                                 "F|  spec1dfile1\n"
+                                 "F|  spec1dfile2\n"
+                                 "F|     ...    \n"
+                                 "F|flexure end\n"
+                                 "\n\n")
         parser.add_argument("outroot", type=str,
                             help='Output fileroot for the flexure fits saved as FITS.')
         parser.add_argument("--clobber", default=True,
