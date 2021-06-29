@@ -6,26 +6,102 @@ Implements base classes for use with ``PypeIt`` scripts.
 """
 
 import argparse
+import textwrap
+from functools import reduce
 
-# A trick from stackoverflow to allow multi-line output in the help:
-#https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
 class SmartFormatter(argparse.HelpFormatter):
+    r"""
+    Enable a combination of both fixed-format and wrappable lines to be
+    formatted for the help statements for command-line arguments used with
+    `argparse.ArgumentParser`_.
+
+    Borrows from
+    https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
+
+    Help strings that use this formatter *must* begin with "R|".  If not, the
+    help string is parsed by the base class.
+
+    When parsed by this formatter, the leading "R|" characters are stripped and
+    the lines to be printed are parsed using `str.splitlines`_.  Each resulting
+    line is wrapped using `textwrap.wrap`_, unless it begins with the characters
+    "F|", which forces the line to remain unaltered (except for stripping the
+    leading characters).
+
+    For example, if you add an argument like this:
+
+    .. code-block:: python
+
+        parser.add_argument('-t', '--tell_file', type=str,
+                            help='R|Configuration file to change default telluric parameters.  '
+                                 'Note that the parameters in this file will be overwritten if '
+                                 'you set argument in your terminal.  The --tell_file option '
+                                 'requires a .tell file with the following format:\n'
+                                 '\n'
+                                 'F|    [tellfit]\n'
+                                 'F|         objmodel = qso\n'
+                                 'F|         redshift = 7.6\n'
+                                 'F|         bal_wv_min_max = 10825,12060\n'
+                                 'OR\n'
+                                 'F|    [tellfit]\n'
+                                 'F|         objmodel = star\n'
+                                 'F|         star_type = A0\n'
+                                 'F|         star_mag = 8.\n'
+                                 'OR\n'
+                                 'F|    [tellfit]\n'
+                                 'F|         objmodel = poly\n'
+                                 'F|         polyorder = 3\n'
+                                 'F|         fit_wv_min_max = 9000.,9500.\n'
+                                 '\n')
+
+    The result will be (depending on the width of your console):
+
+    .. code-block:: console
+
+        -t TELL_FILE, --tell_file TELL_FILE
+                          Configuration file to change default telluric
+                          parameters.  Note that the parameters in this file
+                          will be overwritten if you set argument in your
+                          terminal.  The --tell_file option requires a .tell
+                          file with the following format:
+
+                              [tellfit]
+                                   objmodel = qso
+                                   redshift = 7.6
+                                   bal_wv_min_max = 10825,12060
+                          OR
+                              [tellfit]
+                                   objmodel = star
+                                   star_type = A0
+                                   star_mag = 8.
+                          OR
+                              [tellfit]
+                                   objmodel = poly
+                                   polyorder = 3
+                                   fit_wv_min_max = 9000.,9500.
+    """
     def _split_lines(self, text, width):
+        """
+        Split the provided text into width constrained lines.
+
+        See the class description for formatting instructions.
+        """
         if text.startswith('R|'):
-            # TODO: We shouldn't be ignoring the terminal width here,
-            # but doing anything fancier than splitlines() gets complicated quickly. I
-            # think we should be careful with using this formatter to
-            # make lines no longer than about 60 characters.
-            # import textwrap
-            # lines = np.concatenate([textwrap.wrap(t, width) if len(t) > 0 else [' ']
-            #                            for t in text[2:].split('\n')]).tolist()
-            return text[2:].splitlines()
-        # this is the RawTextHelpFormatter._split_lines
-        return argparse.HelpFormatter._split_lines(self, text, width)
+            lines = text[2:].splitlines()
+            for i in range(len(lines)):
+                if lines[i].startswith('F|'):
+                    lines[i] = [lines[i][2:]]
+                elif len(lines[i]) == 0:
+                    lines[i] = [' ']
+                else:
+                    lines[i] = textwrap.wrap(lines[i], width)
+            return reduce(list.__add__, lines)
+        return super()._split_lines(text, width)
 
 
 class ScriptBase:
-
+    """
+    Provides a base class for all scripts.
+    """
     @classmethod
     def entry_point(cls):
         """

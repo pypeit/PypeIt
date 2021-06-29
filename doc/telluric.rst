@@ -204,3 +204,5 @@ and launches a GUI from the linetools package. e.g.::
 
     lt_xspec J1342_GNIRS_tellcorr.fits
 
+.. NEED TO DOCUMENT THE tellmodel FILE    
+

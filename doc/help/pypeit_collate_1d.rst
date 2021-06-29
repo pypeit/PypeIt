@@ -15,7 +15,7 @@
       input_file            (Optional) File for guiding the collate process.
                             Parameters in this file are overidden by the command
                             line. The file must have the following format:
-                            
+                             
                             [collate1d]
                               tolerance             <tolerance>
                               archive_root          <directory for archive files>
@@ -25,7 +25,7 @@
                                                     "ra/dec"
                               dry_run               If set the matches are displayed
                                                     without any processing
-                            
+                             
                             spec1d read
                             <path to spec1d files, wildcards allowed>
                             ...

@@ -4,40 +4,9 @@ Script to determine the sensitivity function for a PypeIt 1D spectrum.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import os
-
 from IPython import embed
 
-import numpy as np
-
-from astropy.io import fits
-
-from pypeit import msgs
-from pypeit.par import util
-from pypeit.par import pypeitpar
-from pypeit import sensfunc
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
-
-
-def read_sensfile(ifile):
-    """
-    Read a PypeIt sens file.
-
-    The format of the file is a configuration (ini) file that can be parsed by
-    `configobj`_.
-
-    Args:
-        ifile (:obj:`str`):
-            Name of the flux file
-
-    Returns:
-        :obj:`list`: The list of configuration lines read from the file.
-    """
-    # TODO: If there are only ever going to be configuration style lines in the
-    # input file, we should probably be reading it using ConfigObj.
-    msgs.info('Loading the fluxcalib file')
-    return list(util._read_pypeit_file_lines(ifile))
 
 
 class SensFunc(scriptbase.ScriptBase):
@@ -52,30 +21,28 @@ class SensFunc(scriptbase.ScriptBase):
                             help='spec1d file for the standard that will be used to compute '
                                  'the sensitivity function')
         parser.add_argument("--algorithm", type=str, default=None, choices=['UVIS', 'IR'],
-                            help="R|Override the default algorithm for computing the sensitivity function. \n"
-                                 "Note that it is not possible to set --algorithm and simultaneously use a .sens file with\n"
-                                 "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
-                                 "\n"
-                                 "    [sensfunc]\n"
-                                 "         algorithm = IR\n"
-                                 "\n"
-                                 "The algorithm options are:\n"
-                                 "\n"
-                                 "    UVIS = Should be used for data with lambda < 7000A.\n"
-                                 "    No detailed model of telluric absorption but corrects for atmospheric extinction.\n"
-                                 "\n"
-                                 "    IR   = Should be used for data with lambbda > 7000A.\n"
-                                 "    Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.\n"
-                                 "\n")
+                            help="R|Override the default algorithm for computing the sensitivity "
+                                 "function.  Note that it is not possible to set --algorithm and "
+                                 "simultaneously use a .sens file with the --sens_file option. If "
+                                 "you are using a .sens file, set the algorithm there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|         algorithm = IR\n"
+                                 "\nThe algorithm options are:\n\n"
+                                 "UVIS = Should be used for data with lambda < 7000A.  No "
+                                 "detailed model of telluric absorption but corrects for "
+                                 "atmospheric extinction.\n\n"
+                                 "IR = Should be used for data with lambbda > 7000A. Performs "
+                                 "joint fit for sensitivity function and telluric absorption "
+                                 "using HITRAN models.\n\n")
         parser.add_argument("--multi", type=str,
-                            help="R|List of detector numbers to splice together for instruments with multiple detectors\n"
-                                 "arranged in the spectral direction, e.g. --multi = '3,7'\n"
-                                 "Note that it is not possible to set --multi and \n"
-                                 "simultaneously use a .sens file with the --sens_file option.\n"
-                                 "If you are using a .sens file set the multi_spec_det param there via:\n"
-                                 "\n"
-                                 "         [sensfunc]\n"
-                                 "              multi_spec_det = 3,7\n"
+                            help="R|List of detector numbers to splice together for instruments "
+                                 "with multiple detectors arranged in the spectral direction, "
+                                 "e.g. --multi = '3,7'.  Note that it is not possible to set "
+                                 "--multi and simultaneously use a .sens file with the "
+                                 "--sens_file option.  If you are using a .sens file, set the "
+                                 "multi_spec_det param there via:\n\n"
+                                 "F|    [sensfunc]\n"
+                                 "F|        multi_spec_det = 3,7\n"
                                  "\n")
         parser.add_argument("-o", "--outfile", type=str,
                             help='Output file for sensitivity function. If not specified, the '
@@ -100,34 +67,46 @@ class SensFunc(scriptbase.ScriptBase):
     def main(args):
         """Executes sensitivity function computation."""
 
+        import os
+
+        import numpy as np
+
+        from astropy.io import fits
+
+        from pypeit import msgs
+        from pypeit import io
+        from pypeit.par import pypeitpar
+        from pypeit import sensfunc
+        from pypeit.spectrographs.util import load_spectrograph
+
         # Check parameter inputs
         if args.algorithm is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens file via\n"
-                       "the --sens_file option. If you are using a .sens file set the algorithm there via:\n"
+            msgs.error("It is not possible to set --algorithm and simultaneously use a .sens "
+                       "file via the --sens_file option. If you are using a .sens file set the "
+                       "algorithm there via:\n"
                        "\n"
                        "    [sensfunc]\n"
                        "         algorithm = IR\n"
                        "\n")
 
         if args.multi is not None and args.sens_file is not None:
-            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via\n"
-                       "the --sens_file option. If you are using a .sens file set the detectors there via:\n"
-                       "\n"
+            msgs.error("It is not possible to set --multi and simultaneously use a .sens file via "
+                       "the --sens_file option. If you are using a .sens file set the detectors "
+                       "there via:\n"
                        "\n"
                        "         [sensfunc]\n"
                        "              multi_spec_det = 3,7\n"
                        "\n")
+
         # Determine the spectrograph
         header = fits.getheader(args.spec1dfile)
         spectrograph = load_spectrograph(header['PYP_SPEC'])
         spectrograph_def_par = spectrograph.default_pypeit_par()
+
         # If the .sens file was passed in read it and overwrite default parameters
-        if args.sens_file is not None:
-            cfg_lines = read_sensfile(args.sens_file)
-            par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                     merge_with=cfg_lines)
-        else:
-            par = spectrograph_def_par
+        par = spectrograph_def_par if args.sens_file is None else \
+                pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
+                                                   merge_with=io.read_sensfile(args.sens_file))
 
         # If algorithm was provided override defaults. Note this does undo .sens
         # file since they cannot both be passed
@@ -145,22 +124,25 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
-        print("Writing the parameters to {}".format(args.par_outfile))
-        par['sensfunc'].to_config('sensfunc.par', section_name='sensfunc', include_descr=False)
+        print(f'Writing the parameters to {args.par_outfile}')
+        par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only
         # par['sensfunc'].to_config('sensfunc.par') but this crashes.
+        # TODO: KBW - You can do that if you override the
+        # pypeit.par.parset.ParSet.to_config method in the
+        # pypeit.par.pypeitpar.SensFuncPar class.
 
         # Parse the output filename
         outfile = (os.path.basename(args.spec1dfile)).replace('spec1d','sens') \
                         if args.outfile is None else args.outfile
         # Instantiate the relevant class for the requested algorithm
-        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par=par['sensfunc'],
+        sensobj = sensfunc.SensFunc.get_instance(args.spec1dfile, outfile, par['sensfunc'],
                                                  debug=args.debug)
         # Generate the sensfunc
         sensobj.run()
         # Write it out to a file
-        sensobj.save()
+        sensobj.to_file(outfile, overwrite=True)
 
         #TODO JFH Add a show_sensfunc option here and to the sensfunc classes.
 
