@@ -248,7 +248,6 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'Gr#16':
             par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
-
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
