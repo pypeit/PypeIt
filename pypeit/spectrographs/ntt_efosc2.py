@@ -245,6 +245,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             # Fringes are affecting this Grism significantly, skip flat fielding
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_pixelflat'] = False
+        else:
+            msgs.error('Grating {:s}'.format(self.get_meta_value(scifile, 'dispname')))
 
         return par
 
