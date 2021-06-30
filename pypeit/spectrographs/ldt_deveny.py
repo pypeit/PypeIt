@@ -150,24 +150,19 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Convert older FITS keyword GRATING (gpmm/blaze) into the newer
             Grating ID names (DVx) for easier identification of disperser.
             """
-            gratings = {"DV1": "150/5000", "DV2": "300/4000", "DV3": "300/6750",
-                        "DV4": "400/8500", "DV5": "500/5500", "DV6": "600/4900",
-                        "DV7": "600/6750", "DV8": "831/8000", "DV9": "1200/5000",
-                        "DV10": "2160/5000", "DVxx": "UNKNOWN"}
-            ids = list(gratings.keys())
-            kwds = list(gratings.values())
-            idx = kwds.index(headarr[0]['GRATING'])
-            return f"{ids[idx]} ({kwds[idx]})"
-        
+            gratings = {"150/5000":"DV1", "300/4000":"DV2", "300/6750":"DV3",
+                        "400/8500":"DV4", "500/5500":"DV5", "600/4900":"DV6",
+                        "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
+                        "2160/5000":"DV10", "UNKNOWN":"DVxx"}
+            if headarr[0]['GRATING'] not in gratings.keys():
+                raise ValueError(f"Grating value {headarr[0]['GRATING']} not recognized.")
+            return f"{gratings[headarr[0]['GRATING']]} ({headarr[0]['GRATING']})"
+
         elif meta_key == 'decker':
             """
             Provide a stub for future inclusion of a decker on LDT/DeVeny.
             """
-            if "DECKER" in headarr[0].keys():
-                decker = headarr[0]['DECKER']
-            else:
-                decker = "None"
-            return decker
+            return headarr[0]['DECKER'] if 'DECKER' in headarr[0].keys() else 'None'
 
         elif meta_key == 'filter1':
             """

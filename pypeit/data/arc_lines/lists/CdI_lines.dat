@@ -1,5 +1,4 @@
 # Creation Date: 2021-Jun-17
-# Creation Date: 2016-Dec-21
 # VACUUM -- MUST BE IN NIST
 | ion |       wave | NIST | Instr | amplitude |                    Source |
 | CdI |  3261.9951 |    1 |     2 |   11126.0 | lrisb_600_4000_PYPIT.json |
