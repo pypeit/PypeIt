@@ -3,8 +3,6 @@ Module for LDT/DeVeny specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from astropy.time import Time
@@ -68,6 +66,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(header['GAIN']),
             ronoise         = np.atleast_1d(header['RDNOISE']),
             # Data & Overscan Sections -- Edge tracing can handle slit edges
+            #  These values are hardwired here because they are also hardwired in
+            #  the current CCD controller software.  The user cannot easily change
+            #  the windowing of the chip, nor is there an operational incentive
+            #  to do so (the chip reads out fairly quickly as is).
             datasec         = np.atleast_1d('[5:512,54:2096]'),
             oscansec        = np.atleast_1d('[5:512,2101:2144]')
             )
@@ -233,42 +235,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['polyorder'] = 7  # Default: 5
         
         return par
-
-    def bpm(self, filename, det, shape=None, msbias=None):
-        """
-        Generate a default bad-pixel mask.
-
-        Even though they are both optional, either the precise shape for
-        the image (``shape``) or an example file that can be read to get
-        the shape (``filename`` using :func:`get_image_shape`) *must* be
-        provided.
-
-        Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
-
-        Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
-        """
-
-        # Call the base-class method to generate the empty bpm
-        bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
-
-        # msgs.info("Using hard-coded BPM for DeVeny")
-        # bpm_img[:, 0] = 1
-
-        return bpm_img
 
     def configuration_keys(self):
         """
