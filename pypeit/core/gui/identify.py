@@ -647,7 +647,7 @@ class Identify(object):
                 wvcalib = copy.deepcopy(final_fit)
         return wvcalib
 
-    def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
+    def store_solution(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None):
         """Check if the user wants to store this solution in the reid arxiv
 
@@ -656,8 +656,6 @@ class Identify(object):
 
         final_fit : dict
             Dict of wavelength calibration solutions (see self.get_results())
-        master_dir : str
-            Master directory -- NOT USED
         binspec : int
             Spectral binning
         rmstol : float
@@ -668,6 +666,7 @@ class Identify(object):
             Wavelength solution
 
         """
+        embed()
         # Line IDs
         ans = ''
         if not force_save:

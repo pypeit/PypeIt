@@ -246,8 +246,9 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_pixelflat'] = False
         elif self.get_meta_value(scifile, 'dispname') == 'Gr#16':
-            par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI']
-            par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            #par['calibrations']['wavelengths']['lamps'] = ['HeI', 'ArI', 'ArII']
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr16.fits'
+            #par['calibrations']['wavelengths']['method'] = 'identify'
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -332,7 +333,9 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         binspatial =  int(binning[0])
         binspec =  int(binning[2])
         bpm_img[int(232/binspec):, int(362/binspatial):int(366/binspatial)] = 1
+        # The line below is wrong and causes a crash for some setups, I suspect the spectral and spatial binning were mixed up JFH
         bpm_img[int(340/binspec):, int(1292/binspatial)] = 1
+
         #bpm_img[int(2050/binspec):, :] = 1
 
         return bpm_img
