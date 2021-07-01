@@ -16,7 +16,7 @@
                        keck_lris_blue_orig, keck_lris_red, keck_lris_red_orig,
                        keck_mosfire, keck_nires, keck_nirspec_low, lbt_luci1,
                        lbt_luci2, lbt_mods1b, lbt_mods1r, lbt_mods2b, lbt_mods2r,
-                       magellan_fire, magellan_fire_long, magellan_mage,
+                       ldt_deveny, magellan_fire, magellan_fire_long, magellan_mage,
                        mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel, mmt_mmirs,
                        not_alfosc, ntt_efosc2, p200_dbsp_blue, p200_dbsp_red,
                        p200_tspec, shane_kast_blue, shane_kast_red,

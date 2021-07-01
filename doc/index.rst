@@ -102,6 +102,7 @@ What this version provides
   * LBT/Luci-I
   * LBT/Luci-II
   * LBT/MODS
+  * LDT/DeVeny
   * MDM/OSMOS
   * MMT/MMIRS
   * MMT/binospec
