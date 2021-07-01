@@ -764,9 +764,9 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
                     init_obj_opt_theta = pypeitFit.fitc)
 
     if obj_params['debug']:
-        title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord)
+        title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord + 1)  # +1 to account 0-index starting
         flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit,
-                                    zeropoint_fit_gpm, title=title, show=True)
+                                    zeropoint_fit_gpm, title=title, show=True)  
 
     return obj_dict, bounds_obj
 
@@ -986,7 +986,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
         plt.plot(wave, flam_true, label='star_model')
         plt.ylim(-0.1 * flam_model.min(), 1.3 * flam_model.max())
         plt.legend()
-        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord))
+        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord+1))  # +1 to account 0-index starting
         plt.show()
 
 
@@ -1107,7 +1107,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
         plt.xlim(wave[mask].min(), wave[mask].max())
         plt.ylim(-0.3 * flux[mask].min(), 1.3 * flux[mask].max())
         plt.legend()
-        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord))
+        plt.title('Sensitivity Function Guess for iord={:d}'.format(iord + 1))   # +1 to account 0-index starting
         plt.show()
 
     return obj_dict, bounds_obj
@@ -2336,7 +2336,7 @@ class Telluric(datamodel.DataContainer):
         plt.legend()
         plt.xlabel('Wavelength')
         plt.ylabel('Flux or Counts')
-        plt.title('QA plot for order: {:d}/{:d}'.format(iord, self.norders))
+        plt.title('QA plot for order/det: {:d}/{:d}'.format(iord + 1, self.norders))   # +1 to account 0-index starting
         plt.show()
 
     def init_output(self):
