@@ -183,6 +183,15 @@ def test_load_goodman():
     except:
         pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
 
+@dev_suite_required
+def test_load_deveny():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/ldt_deveny/DV2',
+                         '20210522.0001.fits')
+    try:
+        data_img = grab_img('ldt_deveny', ifile)
+    except:
+        pytest.fail('LDT DeVeny test data section failed: {0}'.format(ifile))
+
 '''
 @dev_suite_required
 def test_load_fire():

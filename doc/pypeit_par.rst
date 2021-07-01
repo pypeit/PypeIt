@@ -532,12 +532,12 @@ FluxCalibratePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FluxCalibratePar`
 
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                  Type  Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``extinct_correct``  bool  ..       ..       The default behavior for atmospheric extinction corrections is that if UV algorithm is used (which does not correct for telluric absorption) than an atmospheric extinction model is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then no extinction correction is applied since the atmosphere is modeled directly. To follow thesedefaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this parameter is set, this overide this default behavior. In other words, it will force an extinction correctionif extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.
-``extrap_sens``      bool  ..       False    If False (default), the code will barf if one tries to use sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain can be extended. If True the code will blindly extrapolate.                                                                                                                                                                                                                                                                                                                                                                                                                     
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type  Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``extinct_correct``  bool  ..       ..       The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used (which does not correct for telluric absorption) than an atmospheric extinction model is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then no extinction correction is applied since the atmosphere is modeled directly. To follow thesedefaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this parameter is set, this overide this default behavior. In other words, it will force an extinction correctionif extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.
+``extrap_sens``      bool  ..       False    If False (default), the code will barf if one tries to use sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain can be extended. If True the code will blindly extrapolate.                                                                                                                                                                                                                                                                                                                                                                                                                       
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -3233,6 +3233,95 @@ Alterations to the default parameters are::
           mask_cr = True
   [flexure]
       spec_method = boxcar
+
+LDT deveny (``ldt_deveny``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = ldt_deveny
+  [calibrations]
+      bpm_usebias = True
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_illumflat = False
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+              use_illumflat = False
+      [[wavelengths]]
+          ech_fix_format = False
+          lamps = NeI, ArI, CdI, HgI
+          sigdetect = 10.0
+          fwhm_fromlines = True
+          rms_threshold = 0.5
+          n_first = 3
+          n_final = 5
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+          minimum_slit_length = 90.0
+      [[tilts]]
+          spat_order = 4
+          spec_order = 5
+  [scienceframe]
+      [[process]]
+          mask_cr = True
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          sig_thresh = 5.0
+  [sensfunc]
+      polyorder = 7
 
 MAGELLAN FIRE (``magellan_fire``)
 ---------------------------------

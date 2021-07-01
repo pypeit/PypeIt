@@ -159,3 +159,14 @@ class BokTelescopePar(TelescopePar):
                                               longitude=111.6004,
                                               latitude=31.9629,
                                               elevation=2071.1)
+
+class LDTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(LDTTelescopePar, self).__init__(name='LDT',
+                                              longitude=111.4223,
+                                              latitude=34.7443,
+                                              elevation=2361.0,
+                                              fratio=6.1,
+                                              diameter=4.3,
+                                              eff_aperture=49.5)
+
