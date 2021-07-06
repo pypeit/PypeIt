@@ -36,7 +36,7 @@ jobs:
       run: |
         tox -e ${{ matrix.toxenv }}
     - name: Upload coverage to codecov
-      if: "contains(matrix.tox_env, '-cov')"
+      if: "contains(matrix.toxenv, '-cov')"
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV }}
