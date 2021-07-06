@@ -626,13 +626,6 @@ class SensFunc(datamodel.DataContainer):
             axis.plot(self.wave[gpm,idet], self.throughput[gpm,idet], color=(rr, gg, bb),
                       linestyle='-', linewidth=2.5, label=thru_title[idet], zorder=5*idet)
         if self.splice_multi_det:
-<<<<<<< HEAD
-            axis.plot(self.wave_zp_splice[wave_zp_gpm].flatten(), self.throughput_splice[wave_zp_gpm].flatten(),
-                      color='black', linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30, alpha=0.3)
-
-        axis.set_xlim((0.98*self.wave_zp[self.throughput >=0.0].min(),1.02*self.wave_zp[self.throughput >=0.0].max()))
-        axis.set_ylim((0.0,min(1.05*self.throughput[self.throughput >=0.0].max(), 1.0)))
-=======
             axis.plot(self.wave_splice[wave_slice_gpm].flatten(),
                       self.throughput_splice[wave_slice_gpm].flatten(), color='black',
                       linestyle='-', linewidth=2.5, label='Spliced Throughput', zorder=30,
@@ -641,7 +634,6 @@ class SensFunc(datamodel.DataContainer):
         axis.set_xlim((0.98*self.wave[self.throughput >=0.0].min(),
                        1.02*self.wave[self.throughput >=0.0].max()))
         axis.set_ylim((0.0, 1.05*self.throughput[self.throughput >=0.0].max()))
->>>>>>> develop
         axis.legend()
         axis.set_xlabel('Wavelength (Angstroms)')
         axis.set_ylabel('Throughput')
