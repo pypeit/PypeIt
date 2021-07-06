@@ -3,9 +3,8 @@ name: CI Tests
 on:
   push:
     branches:
-    - master
+    - release
     - develop
-    tags:
   pull_request:
   schedule:
     # run every Monday at 6am UTC
@@ -22,7 +21,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: [3.8, 3.9]
-        toxenv: [test, test-alldeps, test-linetoolsdev, test-gingadev, test-astropydev, conda]
+        toxenv: [test, test-alldeps-cov, test-linetoolsdev, test-gingadev, test-astropydev, conda]
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
@@ -36,6 +35,11 @@ jobs:
     - name: Test with tox
       run: |
         tox -e ${{ matrix.toxenv }}
+    - name: Upload coverage to codecov
+      if: "contains(matrix.tox_env, '-cov')"
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.xml
 
   os-tests:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
