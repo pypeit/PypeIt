@@ -167,7 +167,7 @@ def test_load_bok():
 
 @dev_suite_required
 def test_load_efosc2():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/ntt_efosc2/gr6_g4target3',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/ntt_efosc2/gr6',
                          'EFOSC.2020-02-12T02:03:38.359.fits')
     try:
         data_img = grab_img('ntt_efosc2', ifile)
