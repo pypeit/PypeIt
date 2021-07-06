@@ -39,7 +39,9 @@ jobs:
       if: "contains(matrix.tox_env, '-cov')"
       uses: codecov/codecov-action@v1
       with:
+        token: ${{ secrets.CODECOV }}
         file: ./coverage.xml
+        fail_ci_if_error: true
 
   os-tests:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
