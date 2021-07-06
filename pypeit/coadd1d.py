@@ -16,6 +16,8 @@ from astropy.io import fits
 from astropy.time import Time
 
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.onespec import OneSpec
+from pypeit import sensfunc
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import coadd, flux_calib
@@ -23,112 +25,8 @@ from pypeit import datamodel
 from pypeit import io
 from pypeit.history import History
 
-class OneSpec(datamodel.DataContainer):
-    """
-    DataContainer to hold the products from :class:`pypeit.coadd1d.CoAdd1D`
 
-    See the datamodel for argument descriptions
-
-    Args:
-        wave:
-        flux:
-        PYP_SPEC:
-
-    Attributes:
-        head0 (`astropy.io.fits.Header`):  Primary header
-        spect_meta (:obj:`dict`): Parsed meta from the header
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Build from PYP_SPEC
-
-    """
-    version = '1.0.0'
-
-    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang)'),
-                 'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
-                 'ivar': dict(otype=np.ndarray, atype=np.floating, descr='Inverse variance array (matches units of flux)'),
-                 'mask': dict(otype=np.ndarray, atype=np.integer, descr='Mask array (1=Good,0=Bad)'),
-                 'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
-                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
-                 'obj_model': dict(otype=np.ndarray, atype=np.floating,
-                                   descr='Object model for tellurics'),
-                 'ext_mode': dict(otype=str, descr='Extraction mode (options: BOX, OPT)'),
-                 'fluxed': dict(otype=bool, descr='Boolean indicating if the spectrum is fluxed.'),
-                 'spect_meta': dict(otype=dict, descr='header dict')}
-
-    @classmethod
-    def from_file(cls, ifile):
-        """
-        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
-        to deal with the header
-
-        Args:
-            ifile (str):  Filename holding the object
-
-        Returns:
-            :class:`OneSpec`:
-
-        """
-        hdul = io.fits_open(ifile)
-        slf = super(OneSpec, cls).from_hdu(hdul)
-
-        # Internals
-        slf.filename = ifile
-        slf.head0 = hdul[0].header
-        # Meta
-        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
-        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
-        #
-        return slf
-
-
-    def __init__(self, wave, flux, PYP_SPEC, ivar=None, mask=None, telluric=None,
-                 obj_model=None, ext_mode=None, fluxed=None):
-
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=_d)
-
-    def _init_internals(self):
-        self.head0 = None
-        self.filename = None
-        self.spectrograph = None
-        self.spect_meta = None
-        self.history = []
-
-    def to_file(self, ofile, primary_hdr=None, history=None, **kwargs):
-        """
-        Over-load :func:`pypeit.datamodel.DataContainer.to_file`
-        to deal with the header
-
-        Args:
-            ofile (:obj:`str`): Filename
-            primary_hdr (`astropy.io.fits.Header`_, optional):
-            **kwargs:  Passed to super.to_file()
-
-        """
-        if primary_hdr is None:
-            primary_hdr = io.initialize_header(primary=True)
-        # Build the header
-        if self.head0 is not None and self.PYP_SPEC is not None:
-            spectrograph = load_spectrograph(self.PYP_SPEC)
-            subheader = spectrograph.subheader_for_spec(self.head0, self.head0,
-                                                        extra_header_cards = ['RA_OBJ', 'DEC_OBJ'])
-        else:
-            subheader = {}
-        # Add em in
-        for key in subheader:
-            primary_hdr[key] = subheader[key]
-
-        # Add history
-        if history is not None:
-            history.write_to_header(primary_hdr)
-
-        # Do it
-        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
-                                     **kwargs)
-
-class CoAdd1D(object):
+class CoAdd1D:
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
@@ -184,12 +82,12 @@ class CoAdd1D(object):
         """
 
         # Load the data
-        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load_arrays()
+        self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load_arrays()
         # Coadd the data
-        self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
-            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.mask_coadd, self.par)
+            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
             self.flux_coadd *= scale
             self.ivar_coadd = self.ivar_coadd / scale**2
 
@@ -199,7 +97,7 @@ class CoAdd1D(object):
 
         Returns:
             tuple:
-               - waves, fluxes, ivars, masks, header
+               - waves, fluxes, ivars, gpms, header
         """
 
         for iexp in range(self.nexp):
@@ -207,22 +105,23 @@ class CoAdd1D(object):
             indx = sobjs.name_indices(self.objids[iexp])
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
-            wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
+            wave_iexp, flux_iexp, ivar_iexp, gpm_iexp, meta_spec, header = \
                     sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
                 fluxes = np.zeros_like(waves)
                 ivars = np.zeros_like(waves)
-                masks = np.zeros_like(waves, dtype=bool)
+                gpms = np.zeros_like(waves, dtype=bool)
                 header_out = header
                 if 'RA' in sobjs[indx][0].keys() and 'DEC' in sobjs[indx][0].keys():
                     header_out['RA_OBJ']  = sobjs[indx][0]['RA']
                     header_out['DEC_OBJ'] = sobjs[indx][0]['DEC']
 
-            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], masks[...,iexp] = wave_iexp, flux_iexp, ivar_iexp, mask_iexp
+            waves[...,iexp], fluxes[...,iexp], ivars[..., iexp], gpms[...,iexp] \
+                = wave_iexp, flux_iexp, ivar_iexp, gpm_iexp
 
-        return waves, fluxes, ivars, masks, header_out
+        return waves, fluxes, ivars, gpms, header_out
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
@@ -237,15 +136,12 @@ class CoAdd1D(object):
                Overwrite existing file?
         """
         self.coaddfile = coaddfile
-        wave_mask = self.wave_coadd > 1.0
+        wave_gpm = self.wave_coadd > 1.0
         # Generate the DataContainer
-        onespec = OneSpec(self.wave_coadd[wave_mask],
-                          self.flux_coadd[wave_mask],
-                          PYP_SPEC=self.spectrograph.name,
-                          ivar=self.ivar_coadd[wave_mask],
-                          mask=self.mask_coadd[wave_mask].astype(int),
-                          ext_mode=self.par['ex_value'],
-                          fluxed=self.par['flux_value'])
+        onespec = OneSpec(self.wave_coadd[wave_gpm], self.flux_coadd[wave_gpm],
+                          PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
+                          mask=self.gpm_coadd[wave_gpm].astype(int),
+                          ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
         onespec.head0 = self.header
 
         # Add history entries for coadding.
@@ -254,9 +150,9 @@ class CoAdd1D(object):
 
         # Add on others
         if telluric is not None:
-            onespec.telluric  = telluric[wave_mask]
+            onespec.telluric  = telluric[wave_gpm]
         if obj_model is not None:
-            onespec.obj_model = obj_model[wave_mask]
+            onespec.obj_model = obj_model[wave_gpm]
         # Write
         onespec.to_file(coaddfile, history = history, overwrite=overwrite)
 
@@ -269,7 +165,7 @@ class CoAdd1D(object):
               - wave
               - flux
               - ivar
-              - mask
+              - gpm
 
         """
         return (None,)*4
@@ -293,11 +189,11 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         Returns:
             tuple
-              - wave, flux, ivar, mask
+              - wave, flux, ivar, gpm
 
         """
         return coadd.multi_combspec(
-            self.waves, self.fluxes, self.ivars, self.masks,
+            self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
@@ -329,17 +225,28 @@ class EchelleCoAdd1D(CoAdd1D):
 
         Returns:
             tuple
-              - wave, flux, ivar, mask
+              - wave, flux, ivar, gpm
 
         """
-        (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = coadd.ech_combspec(
-            self.waves, self.fluxes, self.ivars, self.masks, self.sensfile,
-            nbest=self.par['nbest'], sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
-            spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
-            maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
-            scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
-            sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
-            lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug = self.debug, show = self.show)
+        weights_sens = sensfunc.SensFunc.sensfunc_weights(self.sensfile, self.waves,
+                                                          debug=self.debug)
+        (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
+                = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, weights_sens,
+                                     nbest=self.par['nbest'],
+                                     sn_smooth_npix=self.par['sn_smooth_npix'],
+                                     wave_method=self.par['wave_method'],
+                                     spec_samp_fact=self.par['spec_samp_fact'],
+                                     ref_percentile=self.par['ref_percentile'],
+                                     maxiter_scale=self.par['maxiter_scale'],
+                                     sigrej_scale=self.par['sigrej_scale'],
+                                     scale_method=self.par['scale_method'],
+                                     sn_min_medscale=self.par['sn_min_medscale'],
+                                     sn_min_polyscale=self.par['sn_min_polyscale'],
+                                     maxiter_reject=self.par['maxiter_reject'],
+                                     lower=self.par['lower'], upper=self.par['upper'],
+                                     maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
+                                     debug=self.debug, show=self.show)
 
-        return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
+        return wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+
+

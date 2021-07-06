@@ -21,6 +21,7 @@ Submodules
    pypeit.spectrographs.keck_nirspec
    pypeit.spectrographs.lbt_luci
    pypeit.spectrographs.lbt_mods
+   pypeit.spectrographs.ldt_deveny
    pypeit.spectrographs.magellan_fire
    pypeit.spectrographs.magellan_mage
    pypeit.spectrographs.mdm_osmos
@@ -28,6 +29,7 @@ Submodules
    pypeit.spectrographs.mmt_bluechannel
    pypeit.spectrographs.mmt_mmirs
    pypeit.spectrographs.not_alfosc
+   pypeit.spectrographs.ntt_efosc2
    pypeit.spectrographs.opticalmodel
    pypeit.spectrographs.p200_dbsp
    pypeit.spectrographs.p200_tspec

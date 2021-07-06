@@ -8,7 +8,7 @@ SPHINXOPTS    = -aE -w ./sphinx_warnings.out
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
-LOCALFILES    = $(BUILDDIR)/* api/*.rst sphinx_warnings.out pypeit_par.rst
+LOCALFILES    = $(BUILDDIR)/* api/*.rst help/*.rst sphinx_warnings.out pypeit_par.rst
 
 
 # User-friendly check for sphinx-build
@@ -56,7 +56,7 @@ clean:
 	rm -rf $(LOCALFILES)
 
 apirst:
-	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/scripts/* ../pypeit/deprecated/* ../pypeit/version.py
+	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py
 	python3 ./scripts/build_par_rst.py
 	python3 ./scripts/build_specobj_rst.py
 	python3 ./scripts/build_calib_images_rst.py

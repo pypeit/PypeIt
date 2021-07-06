@@ -476,6 +476,13 @@ from pypeit import io
 from pypeit import masterframe
 from pypeit import msgs
 
+# TODO: There are methods in, e.g., doc/scripts/build_specobj_rst.py that output
+# datamodels for specific datacontainers.  It would be useful if we had
+# generalized methods in this base class that
+#   - construct an rst table that documents the datamodel.
+#   - construct an rst table that documents each Table component of the datamodel
+#     (like a nested DataContainer)
+
 class DataContainer:
     """
     Defines an abstract class for holding and manipulating data.
@@ -747,16 +754,15 @@ class DataContainer:
         For how these objects parsed into the HDUs, see
         :func:`to_hdu`.
 
-        The default behavior implemented by this base class just
-        parses the attributes into a single dictionary based on the
-        datamodel and is returned such that it all is written to a
-        single fits extension. Note that this will fault if the
-        datamodel contains:
+        The default behavior implemented by this base class just parses the
+        attributes into a single dictionary based on the datamodel, under the
+        expectation that it is all written to a single fits extension. Note that
+        this will fault if the datamodel contains:
 
             - a dictionary object
-            - more than one `astropy.table.Table`_,
+            - more than one `astropy.table.Table`_, or
             - an `astropy.table.Table`_ and an array-like object
-              (:obj:`list` or `numpy.ndarray`_), or
+              (:obj:`list` or `numpy.ndarray`_)
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
@@ -795,10 +801,6 @@ class DataContainer:
             :obj:`list`: A list of dictionaries, each list element is
             written to its own fits extension. See the description
             above.
-
-        Raises:
-            TypeError:
-                Raised if the provided ``ext`` is not a string.
         """
         d = {}
         for key in self.keys():
@@ -815,7 +817,31 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
+    def confirm_class(cls, name, allow_subclasses=False):
+        """
+        Confirm that the provided name of a datamodel class matches the calling
+        class.
+
+        Args:
+            name (:obj:`str`):
+                The name of the class to check against.
+            allow_subclasses (:obj:`bool`, optional):
+                Allow subclasses of the calling class to be included in the
+                check.
+        Returns:
+            :obj:`bool`: Class match confirmed if True
+        """
+        is_exact = name == cls.__name__
+        if is_exact or not allow_subclasses:
+            return is_exact
+        # NOTE: Unlike pypeit.utils.all_subclasses, this does *not* recursively
+        # check for all the subclasses.  We can do that, but it's not necessary
+        # yet.
+        return is_exact or name in [c.__name__ for c in cls.__subclasses__()]
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, ext_pseudo=None, transpose_table_arrays=False, hdu_prefix=None,
+               allow_subclasses=False):
         """
         Parse data read from one or more HDUs.
 
@@ -846,6 +872,10 @@ class DataContainer:
               keywords when the data is written, **they will be
               upper-case when read by this function**!
 
+            - Use ``allow_subclasses`` with care!  The expectation is that all
+              the subclasses have exactly the same datamodel and version number
+              as the main class.
+
         .. note::
 
             Currently, the only test for the object type (``otype``)
@@ -865,6 +895,18 @@ class DataContainer:
                 One or more extensions with the data. If None, the
                 function trolls through the HDU(s) and parses the
                 data into the datamodel.
+            ext_pseudo (:obj:`int`, :obj:`str`, :obj:`list`, optional):
+                Pseudonyms to use for the names of the HDU extensions instead of
+                the existing extension names.  Similar to the use of
+                ``hdu_prefix``, this is useful for parsing nested
+                :class:`DataContainer` objects; i.e., a child
+                :class:`DataContainer` may be assigned to an extension based on
+                the datamodel of its parent, meaning that it can't be properly
+                parsed by the parent's method.  If used, the number of extension
+                pseudonyms provided **must** match the list returned by::
+                    
+                    io.hdu_iter_by_ext(hdu, ext=ext, hdu_prefix=hdu_prefix)
+
             transpose_table_arrays (:obj:`bool`, optional):
                 Tranpose *all* the arrays read from any binary
                 tables. This is meant to invert the use of
@@ -874,7 +916,20 @@ class DataContainer:
                 prefix. If None, :attr:`hdu_prefix` is used. If the
                 latter is also None, all HDUs are parsed. See
                 :func:`pypeit.io.hdu_iter_by_ext`.
-
+            allow_subclasses (:obj:`bool`, optional):
+                Allow subclasses of the calling class to successfully pass the
+                check on whether or not it can parse the provided HDUs.  That
+                is, if the class provided in the HDU header is "A", setting this
+                parameter to True means that parsing will continue as long as
+                "A" is a subclass of the calling class.  In ``PypeIt`` this is
+                needed, e.g., for :class:`~pypeit.sensfunc.SensFunc` to
+                successfully parse files written by either of its subclasses,
+                :class:`~pypeit.sensfunc.IRSensFunc` or 
+                :class:`~pypeit.sensfunc.UVISSensFunc`.  This is possible
+                because the datamodel is defined by the parent class and not
+                altered by the subclasses!  **Use with care! See function
+                warnings.**
+                
         Returns:
             :obj:`tuple`: Return three objects
 
@@ -893,7 +948,14 @@ class DataContainer:
         # Setup to iterate through the provided HDUs
         _ext, _hdu = io.hdu_iter_by_ext(hdu, ext=ext, hdu_prefix=hdu_prefix)
         _ext = np.atleast_1d(np.array(_ext, dtype=object))
-        str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext])
+
+        _ext_pseudo = _ext if ext_pseudo is None else np.atleast_1d(ext_pseudo)
+
+        if len(_ext_pseudo) != len(_ext):
+            raise ValueError(f'Length of provided extension pseudonym list must match number of '
+                             f'extensions selected: {len(_ext)}.')
+
+        str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
         # Construct instantiation dictionary
         _d = dict.fromkeys(cls.datamodel.keys())
@@ -925,11 +987,13 @@ class DataContainer:
         # HDUs can have dictionary elements directly.
         keys = np.array(list(_d.keys()))
         prefkeys = np.array([prefix+key.upper() for key in keys])
-        indx = np.isin(prefkeys, _ext[str_ext])
+        indx = np.isin(prefkeys, _ext_pseudo[str_ext])
+
         if np.any(indx):
             found_data = True
             for e in keys[indx]:
-                hduindx = prefix+e.upper()
+                pseudo_hduindx = prefix+e.upper()
+                hduindx = _ext[np.where(_ext_pseudo == pseudo_hduindx)[0][0]]
                 # Add it to the list of parsed HDUs
                 parsed_hdus += [hduindx]
                 if obj_is_data_container(cls.datamodel[e]['otype']):
@@ -937,20 +1001,24 @@ class DataContainer:
                     # TODO: This only works with single extension
                     # DataContainers. Do we want this to be from_hdu
                     # instead and add chk_version to _parse?
+                    # TODO: Should this propagate allow_subclasses?  It does
+                    # not, for now.
                     _d[e], p1, p2, _ = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
                     dm_version_passed &= p1
                     dm_type_passed &= p2
                 else:
                     # Parse the Image or Table data
-                    dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
-                    dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
+                    dm_type_passed &= cls.confirm_class(_hdu[hduindx].header['DMODCLS'],
+                                                        allow_subclasses=allow_subclasses)
+                    dm_version_passed &= _hdu[hduindx].header['DMODVER'] == cls.version
                     # Grab it
-                    _d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
-                        else Table.read(hdu[hduindx]).copy()
+                    _d[e] = _hdu[hduindx].data if isinstance(_hdu[hduindx], fits.ImageHDU) \
+                        else Table.read(_hdu[hduindx]).copy()
 
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
-                    or _hdu[e].header['DMODCLS'] != cls.__name__:
+                    or not cls.confirm_class(_hdu[e].header['DMODCLS'],
+                                             allow_subclasses=allow_subclasses):
                 # Can't be parsed
                 continue
             # Check for header elements, but do not over-ride existing items
@@ -958,7 +1026,8 @@ class DataContainer:
             if np.any(indx):
                 found_data = True
                 parsed_hdus += [e if _hdu[e].name == '' else _hdu[e].name]
-                dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
+                dm_type_passed &= cls.confirm_class(_hdu[e].header['DMODCLS'],
+                                                    allow_subclasses=allow_subclasses)
                 dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
                 for key in keys[indx]:
                     if key in _d.keys() and _d[key] is not None:
@@ -974,7 +1043,8 @@ class DataContainer:
                 parsed_hdus += [e if _hdu[e].name is None else _hdu[e].name]
                 found_data = True
                 # Datamodel checking
-                dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
+                dm_type_passed &= cls.confirm_class(_hdu[e].header['DMODCLS'],
+                                                    allow_subclasses=allow_subclasses)
                 dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
                 # If the length of the table is 1, assume the table
                 # data had to be saved as a single row because of shape
@@ -1241,7 +1311,8 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+    def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, chk_version=True,
+                 allow_subclasses=False):
         """
         Instantiate the object from an HDU extension.
 
@@ -1250,21 +1321,26 @@ class DataContainer:
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
+            ext (:obj:`str`, optional):
+                Passed to :func:`_parse`.
+            ext_pseudo (:obj:`str`, optional):
+                Passed to :func:`_parse`.
             hdu_prefix (:obj:`str`, optional):
-                Passed to _parse()
+                Passed to :func:`_parse`.
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or
                 type check failed. If False, throw a warning only.
+            allow_subclasses (:obj:`bool`, optional):
+                Passed to :func:`_parse`.
         """
-        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
-        # will call the `__init__` method of the derived class and we
-        # need to use the `__init__` of the base class instead. So
-        # below, I get an empty instance of the derived class using
-        # `__new__`, call the parent `__init__`, and then return the
-        # result. The call to `DataContainer.__init__` is explicit to
-        # deal with objects inheriting from both DataContainer and
-        # other base classes, like MasterFrame.
-        d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
+        # `cls._parse`, because this will call the `__init__` method of the
+        # derived class and we need to use the `__init__` of the base class
+        # instead.  Instead, `d` is passed to `cls.from_dict`, which initiates
+        # everything correctly.
+        d, dm_version_passed, dm_type_passed, parsed_hdus \
+                = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, hdu_prefix=hdu_prefix,
+                             allow_subclasses=allow_subclasses)
         # Check version and type?
         if not dm_type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
@@ -1294,6 +1370,12 @@ class DataContainer:
             d (:obj:`dict`, optional):
                 Dictionary with the data to use for instantiation.
         """
+        # NOTE: We can't use `cls(d)` here because this will call the `__init__`
+        # method of the derived class and we need to use the `__init__` of the
+        # base class instead. So instead, I get an empty instance of the derived
+        # class using `__new__`, call the parent `__init__`, and then return the
+        # result. The call to `DataContainer.__init__` is explicit to deal with
+        # objects inheriting from both DataContainer and other base classes.
         self = super().__new__(cls)
         DataContainer.__init__(self, d=d)
         return self
@@ -1384,7 +1466,7 @@ class DataContainer:
             verbose (:obj:`bool`, optional):
                 Print informational messages
             chk_version (:obj:`bool`, optional):
-                Passed to from_hdu().  See those docs for details
+                Passed to :func:`from_hdu`.
 
         Raises:
             FileNotFoundError:
