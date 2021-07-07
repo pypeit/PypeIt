@@ -158,6 +158,8 @@ class Reduce(object):
         self.initialise_slits()
 
         # Internal bpm mask
+        # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
+        # with other bad flag (for which bpm>2)
         self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()

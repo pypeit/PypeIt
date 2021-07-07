@@ -1304,6 +1304,9 @@ def parse_slitspatnum(slitspatnum):
 
 def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par):
     """
+    Loop around all the calibrated detectors to extract information on the object positions
+    expected by the slitmask design and the offsets between the expected and measure slitmask position.
+    This info is recorded in the SlitTraceSet datamodel.
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
@@ -1340,6 +1343,8 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
 
 def average_maskdef_offset(calib_slits, platescale):
     """
+    Loop around all the calibrated detectors to compute the median offset between
+    the expected and measure slitmask position. This info is recorded in the SlitTraceSet datamodel.
 
     Args:
         calib_slits (:obj:`list`):
@@ -1422,6 +1427,8 @@ def average_maskdef_offset(calib_slits, platescale):
 
 def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):
     """
+    Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to extracted object
+    and to force extraction of undetected objects.
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced

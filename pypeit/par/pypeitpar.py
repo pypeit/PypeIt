@@ -1628,7 +1628,7 @@ class SlitMaskPar(ParSet):
         defaults['nsig_thrshd'] = 50.
         dtypes['nsig_thrshd'] = [int, float]
         descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
-                               'be use to compute the slitmask offset. This is the default behaviour unless ' \
+                               'be used to compute the slitmask offset. This is the default behaviour unless ' \
                                '``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
         defaults['slitmask_offset'] = None

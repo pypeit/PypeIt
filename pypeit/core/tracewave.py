@@ -555,12 +555,6 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
                                    tcrude_maxshift0=tcrude_maxshift0, tcrude_nave=tcrude_nave,
                                    show_tracefits=show_tracefits)
 
-    # DP: Added this because sometime there are < 2 usable arc lines for tilt tracing, PCA fit does not work
-    # and the reduction crushes
-    if np.sum(trace_dict0['use_tilt']) < 2:
-        msgs.warn('Less than 2 usable arc lines for tilts. NO PCA modeling!')
-        return trace_dict0
-
     # TODO: The PCA may not be necessary. It appears to improve the
     # results though for some instruments where the tracing is
     # problematic. We could consider making this optional to speed
@@ -577,19 +571,25 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     # Do a PCA fit, which rejects some outliers
     iuse = trace_dict0['use_tilt']
     nuse = np.sum(iuse)
-    bpm = np.ones(trace_dict0['tilts_sub_fit'].shape, dtype=bool)
-    bpm[:, iuse] = False
-    msgs.info('PCA modeling {:d} good tilts'.format(nuse))
-    pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
-                                        trace_bpm=bpm, npca=npca, coo=lines_spec, minx=0.0,
-                                        maxx=float(trace_dict0['nsub'] - 1), lower=sigrej_pca,
-                                        upper=sigrej_pca, debug=debug_pca)
+    if nuse < 2:
+        # DP: Added this because sometime there are < 2 usable arc lines for tilt tracing, PCA fit does not work
+        # and the reduction crushes
+        msgs.warn('Less than 2 usable arc lines for tilts. NO PCA modeling!')
+        return trace_dict0
+    else:
+        bpm = np.ones(trace_dict0['tilts_sub_fit'].shape, dtype=bool)
+        bpm[:, iuse] = False
+        msgs.info('PCA modeling {:d} good tilts'.format(nuse))
+        pca_fit = tracepca.pca_trace_object(trace_dict0['tilts_sub_fit'], order=coeff_npoly_pca,
+                                            trace_bpm=bpm, npca=npca, coo=lines_spec, minx=0.0,
+                                            maxx=float(trace_dict0['nsub'] - 1), lower=sigrej_pca,
+                                            upper=sigrej_pca, debug=debug_pca)
 
-    # Now trace again with the PCA predictions as the starting crutches
-    return trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask,
-                            gauss=gauss, tilts_guess=pca_fit, fwhm=fwhm, spat_order=spat_order,
-                            maxdev_tracefit=maxdev_tracefit, sigrej_trace=sigrej_trace,
-                            max_badpix_frac=max_badpix_frac, show_tracefits=show_tracefits)
+        # Now trace again with the PCA predictions as the starting crutches
+        return trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=inmask,
+                                gauss=gauss, tilts_guess=pca_fit, fwhm=fwhm, spat_order=spat_order,
+                                maxdev_tracefit=maxdev_tracefit, sigrej_trace=sigrej_trace,
+                                max_badpix_frac=max_badpix_frac, show_tracefits=show_tracefits)
 
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,

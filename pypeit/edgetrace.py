@@ -641,7 +641,7 @@ class EdgeTraceSet(DataContainer):
                                  description='Object name assigned by the observer'),
                     table.Column(name='OBJMAG', dtype=float, length=length,
                                  description='Object magnitude provided by the observer'),
-                    table.Column(name='MAG_BAND', dtype='<U32', length=length,
+                    table.Column(name='OBJMAG_BAND', dtype='<U32', length=length,
                                  description='Band of the magnitude provided by the observer'),
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
@@ -4542,7 +4542,7 @@ class EdgeTraceSet(DataContainer):
         - 'OBJDEC': Declination of the object (deg)
         - 'OBJNAME': Object name assigned by the observer
         - 'OBJMAG': Object magnitude provided by the observer
-        - 'MAG_BAND': Band of the magnitude provided by the observer
+        - 'OBJMAG_BAND': Band of the magnitude provided by the observer
         - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
         edge of the slit (in PypeIt orientation)
@@ -4573,7 +4573,7 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'MAG_BAND',
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
                                 'OBJ_TOPDIST', 'OBJ_BOTDIST']):
             self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
 

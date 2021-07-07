@@ -1289,6 +1289,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
     # In some cases flux_spec can be totally masked and the result of sigma_clipped_stats is "masked"
     # and that would crush in the following lines
+    # TODO investigate and fix this bug
     if flux_mean is np.ma.core.MaskedConstant():
         msgs.info('No objects found')
         # Instantiate a null specobj

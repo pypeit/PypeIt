@@ -507,7 +507,11 @@ class PypeIt(object):
                           f'skipping this detector.')
                 continue
 
+            # we save only the detectors that had a successful calibration,
+            # and we use only those in the extract loop below
             calibrated_det.append(self.det)
+            # we also save the successful MasterSlits calibrations because they are used and modified
+            # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
             global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
@@ -518,6 +522,7 @@ class PypeIt(object):
             global_sky_list.append(global_sky)
             sciImg_list.append(sciImg)
 
+        # slitmask stuff
         if self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
