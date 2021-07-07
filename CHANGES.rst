@@ -1,6 +1,6 @@
 
-1.4.2dev
---------
+1.4.2 (06 Jul 2021)
+-------------------
 
 - Added a common base class for all scripts
 - Script methods now included in Sphinx documentation
