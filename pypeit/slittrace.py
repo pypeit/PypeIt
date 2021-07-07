@@ -277,14 +277,25 @@ class SlitTraceSet(datamodel.DataContainer):
         else:
             return bndl
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
-    def _parse(cls, hdu, hdu_prefix=None):
+    def _parse(cls, hdu, hdu_prefix=None, **kwargs):
         """
         Parse the data that was previously written to a fits file.
 
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
+        if not hasattr(hdu, '__len__'):
+            return super(SlitTraceSet, cls)._parse(hdu, transpose_table_arrays=True)
+
+        # TODO: My edit to the code causes the code below to fault in some cases
+        # because of a consistency limitation that I put on the values that ext
+        # could have.  The if statement above fixes the issue.  But I think the
+        # code in the except block will always fault now, and I don't remember
+        # why we needed this try/except block in the first place.
         try:
             return super(SlitTraceSet, cls)._parse(hdu, ext=['SLITS', 'MASKDEF_DESIGNTAB'],
                                                    transpose_table_arrays=True)

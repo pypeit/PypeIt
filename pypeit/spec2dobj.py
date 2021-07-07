@@ -235,9 +235,7 @@ class Spec2DObj(datamodel.DataContainer):
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
 
-# TODO: In python3, you don't have to subclass from object. All classes
-# do so automatically.
-class AllSpec2DObj(object):
+class AllSpec2DObj:
     """
     Simple object to hold Spec2DObj objects
     and perform I/O
