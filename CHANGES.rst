@@ -22,6 +22,9 @@
       `pypeit.core.wavecal.wvutils.get_wave_grid`
     - `pypeit.core.coadd.sensfunc_weights` ->
       `pypeit.sensfunc.sensfunc_weights`
+- Add LDT/DeVeny spectrograph
+- Add 6440.25A CdI line (LDT/DeVeny)
+- Modify SOAR to read their (truly) raw files
 
 
 1.4.1 (11 Jun 2021)

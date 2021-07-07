@@ -51,27 +51,27 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA')
-        self.meta['dec'] = dict(ext=0, card='DEC')
-        self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card='SLIT')
+        self.meta['ra'] = dict(ext=1, card='RA')
+        self.meta['dec'] = dict(ext=1, card='DEC')
+        self.meta['target'] = dict(ext=1, card='OBJECT')
+        self.meta['decker'] = dict(ext=1, card='SLIT')
         self.meta['binning'] = dict(card=None, compound=True)
-        self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['exptime'] = dict(ext=1, card='EXPTIME')
         self.meta['mjd'] = dict(card=None, compound=True)
-        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['airmass'] = dict(ext=1, card='AIRMASS')
         # Extras for config and frametyping
-        self.meta['dispname'] = dict(ext=0, card='GRATING')
-        self.meta['dispangle'] = dict(ext=0, card='GRT_ANG', rtol=1e-3)
-        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['dispname'] = dict(ext=1, card='GRATING')
+        self.meta['dispangle'] = dict(ext=1, card='GRT_ANG', rtol=1e-3)
+        self.meta['idname'] = dict(ext=1, card='OBSTYPE')
         # used for arc and continuum lamps
-        self.meta['lampstat01'] = dict(ext=0, card='LAMP_HGA')
-        self.meta['lampstat02'] = dict(ext=0, card='LAMP_NE')
-        self.meta['lampstat03'] = dict(ext=0, card='LAMP_AR')
-        self.meta['lampstat04'] = dict(ext=0, card='LAMP_FE')
-        self.meta['lampstat05'] = dict(ext=0, card='LAMP_CU')
-        self.meta['lampstat06'] = dict(ext=0, card='LAMP_QUA')
-        self.meta['lampstat07'] = dict(ext=0, card='LAMP_BUL')
-        self.meta['lampstat08'] = dict(ext=0, card='LAMP_DOM')
+        self.meta['lampstat01'] = dict(ext=1, card='LAMP_HGA')
+        self.meta['lampstat02'] = dict(ext=1, card='LAMP_NE')
+        self.meta['lampstat03'] = dict(ext=1, card='LAMP_AR')
+        self.meta['lampstat04'] = dict(ext=1, card='LAMP_FE')
+        self.meta['lampstat05'] = dict(ext=1, card='LAMP_CU')
+        self.meta['lampstat06'] = dict(ext=1, card='LAMP_QUA')
+        self.meta['lampstat07'] = dict(ext=1, card='LAMP_BUL')
+        self.meta['lampstat08'] = dict(ext=1, card='LAMP_DOM')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -88,10 +88,10 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspec, binspatial = [int(item) for item in headarr[0]['CCDSUM'].split(' ')]
+            binspec, binspatial = [int(item) for item in headarr[1]['CCDSUM'].split(' ')]
             return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
-            ttime = Time(headarr[0]['DATE-OBS'], format='isot')
+            ttime = Time(headarr[1]['DATE-OBS'], format='isot')
             return ttime.mjd
         else:
             msgs.error("Not ready for this compound meta")
@@ -127,7 +127,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        header = hdu[0].header
+        header = hdu[1].header
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
 
@@ -135,7 +135,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,
+            dataext         = 1,
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,

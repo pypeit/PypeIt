@@ -94,7 +94,7 @@ def test_cholesky_band_versions():
     ctime = time.perf_counter() - ctime
 
     # Check time and output arrays
-    assert ctime < pytime, 'C is less efficient!'
+    assert ctime < 2 * pytime, 'C is less efficient!'
     assert np.allclose(l, _l), 'Differences in cholesky_band'
 
 
