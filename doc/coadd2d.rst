@@ -12,7 +12,7 @@ This must be done outside of the data reduction pipeline,
 i.e. PypeIt will *not* coadd your spectra as
 part of the data reduction process, although it can
 combine (without weighting) multiple exposures
-during reductions (docs still pending).
+during reductions (See :ref:`2d_combine`).
 
 pypeit_coadd_2dspec
 ===================
