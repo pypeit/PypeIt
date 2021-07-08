@@ -1,16 +1,17 @@
-.. include:: ../include/links.rst
-
 .. _2d_combine:
 
-========================================
-Combine Science Exposures (NO weighting)
-========================================
+=========================
+Combine Science Exposures
+=========================
 
 Overview
 ========
 
 PypeIt can combine (without weighting) multiple science exposures
-as part of the data reduction process. In this case, the user needs to edit
+as part of the data reduction process. See :ref:`coadd2d` for a weighted
+coadd, which is done outside of the data reduction pipeline.
+
+To combine (without weighting) multiple science exposures, the user needs to edit
 the :ref:`pypeit_file` according to the desired reduction.
 The process to combine multiple science exposures is basically identical
 to :ref:`a-b_differencing` without the subtraction of a background frame.
@@ -24,7 +25,7 @@ After running :ref:`pypeit_setup`, the user should update the
 :ref:`pypeit_file:Data Block` in the PypeIt file to add three extra
 columns, and name them ``calib``, ``comb_id`` and ``bkg_id``.
 This can also be obtained by running :ref:`pypeit_setup` and adding the `-b` option.
-The columns ``calib``and ``comb_id`` should be edited according to the desired reduction,
+The columns ``calib`` and ``comb_id`` should be edited according to the desired reduction,
 while ``bkg_id`` is not used here and its value should be set to -1.
 
 Parameter Block
@@ -42,7 +43,7 @@ the following way ::
 Extra columns
 =============
 
-The additional columns used here (``calib``, ``comb_id`) have the following meanings/definitions:
+The additional columns used here (``calib``, ``comb_id``) have the following meanings/definitions:
 
 * ``calib`` assigns a calibration group ID to each frame. Calibration frames with the same
   calibration group number will be used to reduce a science frame with that calibration group number.
@@ -52,15 +53,15 @@ The additional columns used here (``calib``, ``comb_id`) have the following mean
 
 Both should be assigned integer values (or ``all``, see below), and values less than
 or equal to 63.
-Remember that ``bkg_id`` should have a value of -1. See :ref:`a-b_differencing` for a description
+Remember that ``bkg_id`` should have a value of -1. See :ref:`a-b_differencing` for the definition
 of this ID.
 
 Science frames
 ==============
 
 Each science frame in the :ref:`pypeit_file:Data Block` should have an assigned ``calib`` ID value,
-and it should be a integer number <= 63. Generally, multiple science frames have the same ``calib``
-value, since they will be using the same calibrations.
+and it should be a integer number <= 63. Generally, science frames that are combined together can have the
+same ``calib`` value, since they will be using the same calibrations.
 
 To combine the science frames, ``comb_id`` should be set for each frame, such that frames with the same
 value of ``comb_id`` will be combined.
@@ -69,7 +70,7 @@ Calibrations
 ============
 
 Each calibration frame in the :ref:`pypeit_file:Data Block` should have the same ``calib`` ID value of
-the science data that uses it, or be set to ``all`` if used by all of the science and standard frames
+the science data that uses it, or be set to ``all`` if used by all of the science frames
 in the Pypeit file.
 
 For the calibration frames ``comb_id`` is irrelevant and its value should be set to ``-1``.
@@ -89,7 +90,7 @@ Here is an example of a Pypeit file where the science frames are combined ::
 
 The three science frames are combined together, therefore they are assigned a common value of ``comb_id``.
 Also the ``calib`` value is assigned to be the same for all the science frames, which will
-be reduced using the same calibrations (``calib = all`` for calibration frames).
+be reduced using the same calibrations (``calib`` = ``all`` for calibration frames).
 
 
 Summary
