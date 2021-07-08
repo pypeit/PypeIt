@@ -1,39 +1,35 @@
 """
-This script displays the flat images in an RC Ginga window.
+This script displays the wavelength calibration diagnostics.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
 """
 
-def parse_args(options=None, return_parser=False):
+from pypeit.scripts import scriptbase
 
-    import argparse
 
-    parser = argparse.ArgumentParser(description='Print QA on Wavelength Calib to the screen',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('master_file', type=str,
-                        help='PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits]')
-    #parser.add_argument('--try_old', default=False, action='store_true',
-    #                    help='Attempt to load old datamodel versions.  A crash may ensue..')
+class ChkWaveCalib(scriptbase.ScriptBase):
 
-    if return_parser:
+    @classmethod
+    def get_parser(cls, width=None):
+        parser = super().get_parser(description='Print QA on Wavelength Calib to the screen',
+                                    width=width)
+
+        parser.add_argument('master_file', type=str,
+                            help='PypeIt MasterWaveCalib file [e.g. MasterWaveCalib_A_1_01.fits]')
+        #parser.add_argument('--try_old', default=False, action='store_true',
+        #                    help='Attempt to load old datamodel versions.  A crash may ensue..')
         return parser
 
-    return parser.parse_args() if options is None else parser.parse_args(options)
+    @staticmethod
+    def main(args):
+
+        from pypeit import wavecalib
+
+        # Load
+        waveCalib = wavecalib.WaveCalib.from_file(args.master_file)
+                                                  #, chk_version=(not args.try_old))
+        # Do it
+        waveCalib.print_diagnostics()
 
 
-def main(args):
-
-    from pypeit import wavecalib
-
-    # Load
-    waveCalib = wavecalib.WaveCalib.from_file(args.master_file)#, chk_version=(not args.try_old))
-
-    # Do it
-    waveCalib.print_diagnostics()
-
-
-
-def entry_point():
-    main(parse_args())
-
-
-if __name__ == '__main__':
-    entry_point()

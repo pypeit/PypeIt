@@ -37,3 +37,6 @@ instrument-specific details for running ``PypeIt``.
    mage
    shane_kast
    xshooter
+   gtc_osiris
+   ntt_efosc2
+   

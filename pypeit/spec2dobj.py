@@ -10,6 +10,8 @@ import inspect
 import datetime
 from IPython import embed
 
+
+
 import numpy as np
 
 from astropy.io import fits
@@ -233,9 +235,7 @@ class Spec2DObj(datamodel.DataContainer):
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
 
-# TODO: In python3, you don't have to subclass from object. All classes
-# do so automatically.
-class AllSpec2DObj(object):
+class AllSpec2DObj:
     """
     Simple object to hold Spec2DObj objects
     and perform I/O
@@ -320,7 +320,7 @@ class AllSpec2DObj(object):
         return self.__dict__[item]
 
     def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
-                          redux_path=None, subheader=None):
+                          redux_path=None, subheader=None, history=None):
         """
         Build the primary header for a spec2d file
 
@@ -352,10 +352,8 @@ class AllSpec2DObj(object):
             # Update unused ones
             hdr[key] = raw_header[key]
         # History
-        if 'HISTORY' in raw_header.keys():
-            # Strip \n
-            tmp = str(raw_header['HISTORY']).replace('\n', ' ')
-            hdr.add_history(str(tmp))
+        if history is not None:
+            history.write_to_header(hdr)
 
         # Sub-header
         if subheader is not None:
@@ -367,7 +365,7 @@ class AllSpec2DObj(object):
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['PYP_SPEC'] = spectrograph.name
-        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
 
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?
@@ -396,6 +394,11 @@ class AllSpec2DObj(object):
             hdr['SKYSUB'] = 'DIFF'
         else:
             hdr['SKYSUB'] = 'MODEL'
+        # obj find mode
+        if self['meta']['find_negative']:
+            hdr['FINDOBJ'] = 'POS_NEG'
+        else:
+            hdr['FINDOBJ'] = 'POS'
         #
         return hdr
 

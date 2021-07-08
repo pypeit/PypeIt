@@ -4,7 +4,7 @@ files.
 
 .. include:: ../include/links.rst
 """
-
+import os
 import glob
 import re
 import warnings
@@ -15,13 +15,20 @@ from IPython import embed
 import numpy as np
 
 from scipy import interpolate
+
 from astropy.io import fits
+from astropy.table import Table
+from astropy import units
+
+import linetools
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import wave
+from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
@@ -39,7 +46,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
     supported = True
-    comment = 'Supported gratings: 600ZD, 830G, 1200G; see :doc:`deimos`'
+    comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
     def __init__(self):
         super().__init__()
@@ -207,9 +214,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
-                = resource_filename('pypeit',
-                                    '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -233,6 +239,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        # When using LVM mask reduce only detectors 3,7
+        if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
+            par['rdx']['detnum'] = [3,7]
+
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
         # long-slits...
@@ -241,7 +251,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn on the use of mask design
-        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+        if ('Long' not in self.get_meta_value(headarr, 'decker')) and (
+                'LVMslit' not in self.get_meta_value(headarr, 'decker')):
             # TODO -- Move this parameter into SlitMaskPar??
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
@@ -251,11 +262,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             par['reduce']['slitmask']['assign_obj'] = True
+            # force extraction of undetected objects
+            par['reduce']['slitmask']['extract_missing_objs'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -275,6 +288,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+        par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
         # Return
         return par
@@ -311,6 +325,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['mode'] = dict(ext=0, card='MOSMODE')
         self.meta['amp'] = dict(ext=0, card='AMPMODE')
         self.meta['object'] = dict(ext=0, card='OBJECT')
+        self.meta['filter1'] = dict(ext=0, card='DWFILNAM')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -358,7 +374,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # include dateobs with this. For now, amp is effectively
         # redundant because anything with the wrong amplifier used is
         # removed from the list of valid frames in PypeItMetaData.
-        return ['dispname', 'decker', 'binning', 'dispangle', 'amp']
+        return ['dispname', 'decker', 'binning', 'dispangle', 'amp', 'filter1']
 
     def valid_configuration_values(self):
         """
@@ -399,7 +415,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['dateobs', 'utc']
+        return super().pypeit_file_keys() + ['dateobs', 'utc', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -1013,6 +1029,90 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
+    def spec1d_match_spectra(self, sobjs):
+        """Match up slits in a SpecObjs file
+        based on coords.  Specific to DEIMOS
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): 
+                Spec1D objects
+
+        Returns:
+            tuple: array of indices for the blue detector, 
+                array of indices for the red (matched to the blue)
+        """
+
+        # ***FOR THE MOMENT, REMOVE SERENDIPS
+        good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
+        
+        # MATCH RED TO BLUE VIA RA/DEC
+        mb = sobjs['DET'] <=4
+        mr = sobjs['DET'] >4
+
+        ridx = np.where(mr & good_obj)[0]
+        robjs = sobjs[ridx]
+
+        #rslits = slits[mr]
+        #bslits = slits[mb]
+
+        n=0
+
+        # SEARCH ON BLUE FIRST
+        bmt = []
+        rmt = []
+        for ibobj in np.where(mb & good_obj)[0]:
+
+            sobj = sobjs[ibobj]
+            mtc = sobj.RA == robjs.RA
+            if np.sum(mtc) == 1:
+                irobj = int(ridx[mtc])
+                if not np.isclose(sobj.DEC, sobjs[irobj].DEC):
+                    msgs.error('DEC does not match RA!')
+                bmt.append(ibobj)
+                rmt.append(irobj)
+                # START ARRAY
+                #if (n==0):
+                #    matches = Table([[obj['name']],[robj['name']],[obj['det']],[robj['det']],\
+                #                [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+                #                names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+                #if (n > 0):
+                #    matches.add_row((obj['name'],robj['name'],obj['det'],robj['det'],\
+                #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+                #n=n+1
+            elif np.sum(mtc)>1:
+                msgs.error("Multiple RA matches?!  No good..")
+
+            # TODO - confirm with Marla this block is NG
+            '''
+            # NO RED MATCH
+            if (np.sum(mtc)==-11): 
+            #if (np.sum(mtc)==0):        
+
+                if (n==0):
+                    matches = Table([[obj['name']],['-1'],[obj['det']],[-1],\
+                                [obj['objra']],[obj['objdec']],[obj['objname']],[obj['maskdef_id']],[obj['slit']]], \
+                                names=('bname', 'rname','bdet','rdet', 'objra','objdec','objname','maskdef_id','xpos'))
+                if (n > 0):
+                    matches.add_row((obj['name'],'-1',obj['det'],-1,\
+                                    obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+                n=n+1
+            '''
+
+
+        # TODO -- Confirm with Marla that this is not used
+        '''
+        # SEARCH RED OBJECTS FOR NON-MATCHES IN BLUE
+        for obj in rslits:
+
+            mtc = (obj['objra'] == bslits['objra'])
+            #if (np.sum(mtc)==0):
+
+            #   matches.add_row(('-1',obj['name'],-1,obj['det'],\
+            #                        obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
+            #   n=n+1
+        '''
+
+        return np.array(bmt), np.array(rmt)
 
 class DEIMOSOpticalModel(OpticalModel):
     """
@@ -1253,6 +1353,7 @@ def indexing(itt, postpix, det=None):
     # Return
     return x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2
 
+
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
 
@@ -1299,3 +1400,62 @@ def deimos_read_1chip(hdu,chipno):
     return data, oscan
 
 
+def load_wmko_std_spectrum(fits_file:str, outfile=None):
+    """Load up a Standard spectrum generated by WMKO IDL scripts
+    of the great Greg Wirth
+
+    The SpecObjs generated is checked that it is ready for fluxing
+
+    Args:
+        fits_file (str): filename
+        outfile ([type], optional): Write the SpecObjs object to a FITS file. Defaults to None.
+
+    Returns:
+        specobjs.SpecObjs: object holding the spectra
+    """
+
+    # Open up
+    hdul = fits.open(fits_file)
+    meta = Table(hdul[1].data)
+    idl_spec = Table(hdul[2].data)
+
+    # Hope this always works..
+    npix = int(len(idl_spec)/2)
+
+    # Generate vacuum wavelengths
+    idl_vac = wave.airtovac(idl_spec['WAVELENGTH']*units.AA)
+
+    # Generate SpecObj
+    sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
+                                  idl_spec['COUNTS'].data[0:npix], 
+                                   1./(idl_spec['COUNTS'].data[0:npix]),
+                                   DET=3)
+    sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
+                                  idl_spec['COUNTS'].data[npix:], 
+                                   1./(idl_spec['COUNTS'].data[npix:]), 
+                                   DET=7)
+
+    # SpecObjs
+    sobjs = specobjs.SpecObjs()
+    sobjs.add_sobj(sobj1)
+    sobjs.add_sobj(sobj2)
+
+    # Fill in header
+    coord = linetools.utils.radec_to_coord((meta['RA'][0], meta['DEC'][0]))
+    sobjs.header = dict(EXPTIME=1., 
+                        AIRMASS=float(meta['AIRMASS']), 
+                        DISPNAME=str(meta['GRATING'][0]), 
+                        PYP_SPEC='keck_deimos', 
+                        RA=coord.ra.deg, 
+                        DEC=coord.dec.deg
+                   )
+
+    # Check
+    assert sobjs.ready_for_fluxing()
+
+    # Write?
+    if outfile is not None:
+        sobjs.write_to_fits(sobjs.header, outfile)
+        print("Wrote: {}".format(outfile))
+
+    return sobjs

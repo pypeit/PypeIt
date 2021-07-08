@@ -12,6 +12,7 @@ Subpackages
    pypeit.display
    pypeit.images
    pypeit.par
+   pypeit.scripts
    pypeit.spectrographs
 
 Submodules
@@ -21,20 +22,22 @@ Submodules
    :maxdepth: 4
 
    pypeit.alignframe
+   pypeit.archive
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
    pypeit.coadd1d
    pypeit.coadd2d
    pypeit.compiler_version
-   pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxcalibrate
+   pypeit.history
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
+   pypeit.onespec
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
@@ -49,7 +52,6 @@ Submodules
    pypeit.telescopes
    pypeit.tracepca
    pypeit.utils
-   pypeit.version
    pypeit.wavecalib
    pypeit.wavemodel
    pypeit.wavetilts

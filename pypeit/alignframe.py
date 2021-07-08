@@ -177,7 +177,8 @@ class TraceAlignment(object):
              show_peaks (bool, optional):
                Generate QA showing peaks identified by alignment profile tracing
              show_trace (bool, optional):
-               Generate QA showing traces identified. Requires an open ginga RC modules window
+               Generate QA showing traces identified. Requires an open ginga RC modules window.
+               Launch with ``ginga --modules=RC,SlitWavelength &``
              debug (bool, optional):
                Debug the alignment tracing algorithm
 
@@ -196,7 +197,7 @@ class TraceAlignment(object):
             align_traces, _ = extract.objfind(
                 self.rawalignimg.image, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
-                ir_redux=False, ncoeff=self.alignpar['trace_npoly'],
+                has_negative=False, ncoeff=self.alignpar['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.alignpar['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.alignpar['trim_edge'],

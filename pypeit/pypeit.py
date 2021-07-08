@@ -11,6 +11,8 @@ import numpy as np
 import copy
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
+
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -21,6 +23,8 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
+from pypeit import io
+from pypeit.history import History
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -56,7 +60,7 @@ class PypeIt(object):
         show: (:obj:`bool`, optional):
             Show reduction steps via plots (which will block further
             execution until clicked on) and outputs to ginga. Requires
-            remote control ginga session via ``ginga --modules=RC &``
+            remote control ginga session via ``ginga --modules=RC,SlitWavelength &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
         calib_only: (:obj:`bool`, optional):
@@ -317,9 +321,15 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
+                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename, history)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -347,12 +357,19 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+
+                    # Build history to document what contributd to the reduced
+                    # exposure
+                    history = History(self.fitstbl.frame_paths(frames[0]))
+                    history.add_reduce(i, self.fitstbl, frames, bg_frames)
+
                     # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
+
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -419,15 +436,25 @@ class PypeIt(object):
             display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        self.ir_redux = True if has_bg else False
+        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.ir_redux. Perhaps
+        # we should rename this to bg_redux or something like that, since it need not be IR.
+        if has_bg:
+            self.ir_redux = True
+            # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
+            # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
+            # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
+            self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
+                if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
+        else:
+            self.ir_redux = False
+            self.find_negative= False
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
-
+        all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         all_specobjs = specobjs.SpecObjs()
@@ -453,7 +480,7 @@ class PypeIt(object):
                                             ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-                                set(np.arange(self.spectrograph.ndet))-set(detectors)])))
+                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
 
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
@@ -467,6 +494,11 @@ class PypeIt(object):
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            if not self.caliBrate.success:
+                msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
+                          f'that failed was {self.caliBrate.failed_step}.  Continuing by '
+                          f'skipping this detector.')
+                continue
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -626,11 +658,11 @@ class PypeIt(object):
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile,
                                                 basename=self.basename)
         # Show?
         if self.show:
@@ -643,13 +675,12 @@ class PypeIt(object):
             ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # TODO -- Save the slits yet again?
-
-
         # TODO -- Do this upstream
-        # Tack on detector
+        # Tack on detector and wavelength RMS
         for sobj in sobjs:
             sobj.DETECTOR = sciImg.detector
+            iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+            sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
         # Construct table of spectral flexure
         spec_flex_table = Table()
@@ -678,7 +709,7 @@ class PypeIt(object):
         # Return
         return spec2DObj, sobjs
 
-    def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
+    def save_exposure(self, frame, all_spec2d, all_specobjs, basename, history=None):
         """
         Save the outputs from extraction for a given exposure
 
@@ -692,7 +723,8 @@ class PypeIt(object):
                 extraction
             basename (:obj:`str`):
                 The root name for the output file.
-
+            history (:obj:`pypeit.history.History`):
+                History entries to be added to fits header
         Returns:
             None or SpecObjs:  All of the objects saved to disk
 
@@ -716,10 +748,17 @@ class PypeIt(object):
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
-                                       slitspatnum=self.par['rdx']['slitspatnum'])
+                                       slitspatnum=self.par['rdx']['slitspatnum'],
+                                       history=history)
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
-            all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            # TODO: Note we re-read in the specobjs from disk to deal with situations where
+            # only a single detector is run in a second pass but in the same reduction directory.
+            # Thiw was to address Issue #1116 in PR #1154. Slightly inefficient, but only other
+            # option is to re-work write_info to also "append"
+            sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+            sobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+            #all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
@@ -728,7 +767,8 @@ class PypeIt(object):
                                                redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir,
-                                               subheader=subheader)
+                                               subheader=subheader,
+                                               history=history)
         # Write
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 

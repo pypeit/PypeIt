@@ -3,7 +3,11 @@ Spectrograph utility methods.
 """
 from IPython import embed
 
+import os.path
+
 import numpy as np
+
+from astropy.io import fits
 
 from pypeit import spectrographs
 from pypeit import msgs
@@ -38,6 +42,21 @@ def load_spectrograph(spec):
     if spec in classes.keys():
         return classes[spec]()
 
+    # Check if we were given a file, and if so try to read the spectrograph type from its header
+    if os.path.isfile(spec):
+        header = fits.getheader(spec)
+        if 'PYP_SPEC' in header:
+            pyp_spec = header['PYP_SPEC']
+            if pyp_spec in classes.keys():
+                spectrograph = classes[pyp_spec]()
+                if 'DISPNAME' in header:
+                    spectrograph.dispname = header['DISPNAME']
+                return spectrograph
+            else:
+                msgs.error(f'Unknown PYP_SPEC {pyp_spec} found in {spec}')
+        else:
+            msgs.error(f'{spec} did not contain PYP_SPEC in its header')
+            
     msgs.error('{0} is not a supported spectrograph.'.format(spec))
 
 

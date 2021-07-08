@@ -465,7 +465,7 @@ class PypeItMetaData:
         return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
                                            self['target'][row].replace(" ", ""),
                                            self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
@@ -780,7 +780,7 @@ class PypeItMetaData:
                 if uniq_meta.size != 1:
                     msgs.warn('When setting the instrument configuration for {0} '.format(ftype)
                               + 'frames, configuration {0} does not have unique '.format(cfg_key)
-                              + '{1} values.' .format(meta))
+                              + '{0} values.' .format(meta))
                 # Find the frames of this type that match any of the
                 # meta data values
                 indx &= np.isin(self.table[metakey], uniq_meta)
@@ -1184,7 +1184,7 @@ class PypeItMetaData:
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata
             exprng = self.par['scienceframe']['exprng'] if ftype == 'science' \
-                        else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
+                else self.par['calibrations']['{0}frame'.format(ftype)]['exprng']
             # TODO: Use & or | ?  Using idname above gets overwritten by
             # this if the frames to meet the other checks in this call.
 #            indx &= self.spectrograph.check_frame_type(ftype, self.table, exprng=exprng)

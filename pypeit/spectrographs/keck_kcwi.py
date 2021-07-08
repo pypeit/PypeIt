@@ -155,7 +155,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.meta['binning'] = dict(card=None, compound=True)
 
         self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['exptime'] = dict(ext=0, compound=True, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
 
         # Extras for config and frametyping
@@ -185,7 +185,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
@@ -218,7 +218,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
+        # Relative illumination correction
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
+        par['calibrations']['flatfield']['slit_illum_ref_idx'] = 14  # The reference index - this should probably be the same for the science frame
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -241,7 +243,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_darkimage'] = False
 
         # Don't do optimal extraction for 3D data.
-        par['reduce']['extraction']['skip_optimal'] = True
+        par['reduce']['extraction']['skip_optimal'] = True  # Because extraction occurs before the DAR correction, don't to optimal - boxcar will also be rubbish
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
@@ -271,6 +273,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'exptime':
+            try:
+                return headarr[0]['ELAPTIME']
+            except KeyError:
+                return headarr[0]['TELAPSE']
         elif meta_key == 'slitwid':
             # Get the slice scale
             slicescale = 0.00037718  # Degrees per 'large slicer' slice
@@ -293,11 +300,23 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                     hdrstr = ''
             return headarr[0][hdrstr]
         elif meta_key == 'pressure':
-            return headarr[0]['WXPRESS'] * 0.001 * units.bar
+            try:
+                return headarr[0]['WXPRESS'] * 0.001  # Must be in astropy.units.bar
+            except KeyError:
+                msgs.warn("Pressure is not in header")
+                return 0.0
         elif meta_key == 'temperature':
-            return headarr[0]['WXOUTTMP'] * units.deg_C
+            try:
+                return headarr[0]['WXOUTTMP']  # Must be in astropy.units.deg_C
+            except KeyError:
+                msgs.warn("Temperature is not in header")
+                return 0.0
         elif meta_key == 'humidity':
-            return headarr[0]['WXOUTHUM'] / 100.0
+            try:
+                return headarr[0]['WXOUTHUM'] / 100.0
+            except KeyError:
+                msgs.warn("Humidity is not in header")
+                return 0.0
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
         else:
@@ -489,7 +508,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading KCWI file: {:s}".format(fil[0]))
         hdu = io.fits_open(fil[0])
-        detpar = self.get_detector_par(hdu, det if det is None else 1)
+        detpar = self.get_detector_par(hdu, det if det is not None else 1)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
 
@@ -713,7 +732,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 header will be extracted and returned as a WCS.
             slits (:class:`~pypeit.slittrace.SlitTraceSet`):
                 Slit traces.
-            platescale (:obj:`float`): 
+            platescale (:obj:`float`):
                 The platescale of an unbinned pixel in arcsec/pixel (e.g.
                 detector.platescale).
             wave0 (:obj:`float`):
@@ -820,7 +839,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         Calculate the bin edges to be used when making a datacube.
 
         Args:
-            slitlength (:obj:`int`): 
+            slitlength (:obj:`int`):
                 Length of the slit in pixels
             minmax (`numpy.ndarray`_):
                 An array with the minimum and maximum pixel locations on each
@@ -828,7 +847,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 of the slit). Shape must be :math:`(N_{\rm slits},2)`, and is
                 typically the array returned by
                 :func:`~pypeit.slittrace.SlitTraceSet.get_radec_image`.
-            num_wave (:obj:`int`): 
+            num_wave (:obj:`int`):
                 Number of wavelength steps.  Given by::
                     int(round((wavemax-wavemin)/delta_wave))
 

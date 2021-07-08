@@ -17,12 +17,12 @@ def test_userregions():
                ":10,35:65,80:",
                "10:20;",
                "10:20,"]
-    result = [[np.array([], dtype=np.int), np.array([99], dtype=np.int)],
-              [np.array([299], dtype=np.int), np.array([598], dtype=np.int)],
-              [np.array([798], dtype=np.int), np.array([], dtype=np.int)],
-              [np.array([349, 798], dtype=np.int), np.array([99, 648], dtype=np.int)],
+    result = [[np.array([], dtype=int), np.array([99], dtype=int)],
+              [np.array([299], dtype=int), np.array([598], dtype=int)],
+              [np.array([798], dtype=int), np.array([], dtype=int)],
+              [np.array([349, 798], dtype=int), np.array([99, 648], dtype=int)],
               [],
-              [np.array([99], dtype=np.int), np.array([199], dtype=np.int)]
+              [np.array([99], dtype=int), np.array([199], dtype=int)]
               ]
     resstat = [0, 0, 0, 0, 1, 2]
     nslits = 2
@@ -49,4 +49,6 @@ def test_generatemask():
     skymask = skysub.generate_mask("IFU", regs, slits, slits.left_init, slits.right_init)
     assert(np.array_equal(skymask, tstmsk))
 
-test_userregions()
+#test_userregions()
+
+

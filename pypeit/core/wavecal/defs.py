@@ -4,7 +4,7 @@ from pypeit.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
-    """ 
+    """
     Dict to convert instrument to bitwise flag
 
     .. warning::
@@ -132,4 +132,3 @@ def str_len():
     strlen_dict['Source'] = 30
     # Return
     return strlen_dict
-

@@ -1,3 +1,6 @@
+
+.. _new_spec:
+
 ****************
 New Spectrograph
 ****************
@@ -53,6 +56,12 @@ new spectrograph are as follows:
 #. Add the new module to the list imported by
    ``pypeit/spectrographs/__init__.py``.
 
+#. Generate a new Telescope object in (if new)
+   ``pypeit/telescopes.py``.
+
+#. Add telescope name to valid_telescopes in
+   ``pypeit/par/pypeitpar.py``.
+
 #. Set the algorithmic path: the class attribute, ``pypeline``, must be
    ``'MultiSlit'``, ``'Echelle'``, or ``'IFU'``.
 
@@ -88,6 +97,9 @@ new spectrograph are as follows:
    details for the (currently fixed) format of the orders.
 
 
+See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.
+
+
 Near-IR
 +++++++
 
@@ -95,4 +107,22 @@ If this is a near-IR instrument, you may wish to turn off calibration steps.
 See :class:`~pypeit.spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph` for
 an example.
 
+Tests
++++++
+
+For a spectrograph to be supported going forth, we require a mininum set
+of tests.  These are:
+
+- A full run of the pipeline for each grating/mode of the spectrograph in the PypeIt Development Suite.
+- A unit test in ``test_load_images.py`` to tickle the I/O.
+
+Docs
+++++
+
+We request that the following docs be updated to advertise the new
+spectrograph:
+
+- The top-level ``README`` file
+- The ``index.rst`` file in ``doc/``
+- Also update the ``CHANGES.rst``
 

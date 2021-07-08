@@ -15,4 +15,6 @@ development of ``PypeIt``.
    deimos_slitmask_ids
    deimosconfig
    deimos_radec_object
+   deimos_wavecalib
+   deimos_add_missing_obj
 

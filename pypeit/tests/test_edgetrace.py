@@ -3,9 +3,11 @@ Module to run tests on TraceSlits class
 Requires files in Development suite and an Environmental variable
 """
 import os
-
 import pytest
 import glob
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit.tests.tstutils import cooked_required
@@ -21,6 +23,7 @@ def test_addrm_slit():
     trace_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                               'MasterEdges_KeckLRISr_400_8500_det1.fits.gz')
     assert os.path.isfile(trace_file), 'Trace file does not exist!'
+
     # Instantiate
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)
     assert edges.is_synced, 'Error in constructed Cooked trace file: not synced.'

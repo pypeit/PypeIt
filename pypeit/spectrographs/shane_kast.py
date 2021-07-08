@@ -41,6 +41,8 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        # Bound the detector with slit edges if no edges are found
+        par['calibrations']['slitedges']['bound_detector'] = True
 
         # Always correct for flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'
@@ -373,7 +375,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         x1_0 = 1             # Amp 1
         x1_1 = 512 - crval1u
-        x2_0 = x1_1+1        # Amp
+        x2_0 = max(x1_1+1,1)       # Amp 2
         x2_1 = ndata
 
         xo1_1 = x2_1+1
@@ -381,9 +383,21 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         xo2_1 = xo1_2+1
         xo2_2 = xo1_2+nover
 
-        # These are rows, columns on the raw frame, 1-indexed
-        datasec = ['[:,{}:{}]'.format(x1_0, x1_1), '[:,{}:{}]'.format(x2_0,x2_1)]
-        oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
+        # Allow for reading only Amp 2!
+        if x1_1 < 3:
+            msgs.warn("Only Amp 2 data was written.  Ignoring Amp 1")
+            detector_dict['numamplifiers'] = 1
+            detector_dict['gain'] = np.atleast_1d(detector_dict['gain'][0])
+            detector_dict['ronoise'] = np.atleast_1d(detector_dict['ronoise'][0])
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo2_1,xo2_2)]
+        else:
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec = ['[:,{}:{}]'.format(x1_0, x1_1), 
+                    '[:,{}:{}]'.format(x2_0,x2_1)]
+            oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), 
+                        '[:,{}:{}]'.format(xo2_1,xo2_2)]
 
         # Fill it up
         detector_dict['datasec'] = np.atleast_1d(datasec)
@@ -404,6 +418,12 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+
+        # TODO In case someone wants to use the IR algorithm for shane kast this is the telluric file. Note the IR
+        # algorithm is not the default.
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Lick_3100_11100_R10000.fits')
 
         return par
 
@@ -471,8 +491,53 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         else:
             pass
+
         # Return
         return par
+
+    def tweak_standard(self, wave_in, counts_in, counts_ivar_in, gpm_in, meta_table):
+        """
+
+        This routine is for performing instrument/disperser specific tweaks to standard stars so that sensitivity
+        function fits will be well behaved. For example, masking second order light. For instruments that don't
+        require such tweaks it will just return the inputs, but for isntruments that do this function is overloaded
+        with a method that performs the tweaks.
+
+        Parameters
+        ----------
+        wave_in: (float np.ndarray) shape = (nspec,)
+            Input standard star wavelenghts
+        counts_in: (float np.ndarray) shape = (nspec,)
+            Input standard star counts
+        counts_ivar_in: (float np.ndarray) shape = (nspec,)
+            Input inverse variance of standard star counts
+        gpm_in: (bool np.ndarray) shape = (nspec,)
+            Input good pixel mask for standard
+        meta_table: (astropy.table)
+            Table containing meta data that is slupred from the specobjs object. See unpack_object routine in specobjs.py
+            for the contents of this table.
+
+        Returns
+        -------
+        wave_out: (float np.ndarray) shape = (nspec,)
+            Output standard star wavelenghts
+        counts_out: (float np.ndarray) shape = (nspec,)
+            Output standard star counts
+        counts_ivar_out: (float np.ndarray) shape = (nspec,)
+            Output inverse variance of standard star counts
+        gpm_out: (bool np.ndarray) shape = (nspec,)
+            Output good pixel mask for standard
+
+        """
+
+        # Could check the wavelenghts here to do something more robust to header/meta data issues
+        if '600/7500' in meta_table['DISPNAME']:
+            # The blue edge and red edge of the detector have no throughput so mask by hand.
+            edge_region= (wave_in < 5400.0) | (wave_in > 8785.0)
+            gpm_out = gpm_in & np.logical_not(edge_region)
+
+        return wave_in, counts_in, counts_ivar_in, gpm_out
+
 
 
 
@@ -576,4 +641,5 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
         self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
         # Additional (for config)
+
 

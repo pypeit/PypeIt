@@ -6,12 +6,14 @@ Module for the SpecObjs and SpecObj classes
 """
 import os
 import re
+from typing import List
 
 import numpy as np
 
 from astropy import units
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import specobj
@@ -20,6 +22,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit import slittrace
+from pypeit import utils
 
 from IPython import embed
 
@@ -45,10 +48,13 @@ class SpecObjs:
     """
     version = '1.0.0'
 
+    #TODO JFH This method only populates some of the underlying specobj attributes, for example RA and DEC are not
+    # getting set. We should do our best to populate everything that got written out to the file. This is part of having
+    # a rigid data model.
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
-        Instantiate from a FITS file
+        Instantiate from a spec1d FITS file
 
         Also tag on the Header
 
@@ -92,6 +98,7 @@ class SpecObjs:
         # Return
         hdul.close()
         return slf
+
 
     def __init__(self, specobjs=None, header=None):
 
@@ -212,6 +219,7 @@ class SpecObjs:
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
+        meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
@@ -451,6 +459,30 @@ class SpecObjs:
         # Do it
         self.specobjs = self.specobjs[msk]
 
+    def ready_for_fluxing(self):
+        # Fluxing
+        required_header = ['EXPTIME', 'AIRMASS']  # These are sufficient to apply a sensitivity function
+        required_header += ['DISPNAME', 'PYP_SPEC', 'RA', 'DEC']  # These are to generate one
+        required_for_fluxing = ['_WAVE', '_COUNTS', '_IVAR']
+
+        chk = True
+        # Check header
+        for key in required_header:
+            chk &= key in self.header
+
+        for sobj in self.specobjs:
+            sub_box, sub_opt = True, True
+            if sobj is not None:
+                # Only need one of these but need them all
+                for item in required_for_fluxing:
+                    if hasattr(sobj, 'BOX'+item):
+                        sub_box &= True
+                    if hasattr(sobj, 'OPT'+item):
+                        sub_opt &= True
+                # chk
+                chk &= (sub_box or sub_opt)
+        return chk
+
     def copy(self):
         """
         Generate a copy of self
@@ -523,7 +555,7 @@ class SpecObjs:
         return len(self.specobjs)
 
     def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
-                      slitspatnum=None, debug=False):
+                      slitspatnum=None, history=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -567,7 +599,12 @@ class SpecObjs:
         # Build up the Header
         header = io.initialize_header(primary=True)
         for key in subheader.keys():
-            header[key.upper()] = subheader[key]
+            if key.upper() == 'HISTORY':
+                if history is None:
+                    for line in str(subheader[key.upper()]).split('\n'):
+                        header[key.upper()] = line
+            else:
+                header[key.upper()] = subheader[key]
 
         # Init
         prihdu = fits.PrimaryHDU()
@@ -577,6 +614,10 @@ class SpecObjs:
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
         prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
+
+        # Add history
+        if history is not None:
+            history.write_to_header(prihdu.header)
 
         detector_hdus = {}
         nspec, ext = 0, 0
@@ -629,7 +670,7 @@ class SpecObjs:
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
-            import pdb; pdb.set_trace()
+            embed()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
@@ -646,15 +687,16 @@ class SpecObjs:
         # Lists for a Table
         slits, names, maskdef_id, objname, objra, objdec, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = \
             [], [], [], [], [], [], [], [], [], [], []
+        wave_rms = []
+        maskdef_extract = []
+        manual_extract = []
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:
             det = specobj.DET
             if specobj is None:
                 continue
             # Detector items
-            #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
             binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
-            #platescale = sci_dict[det]['detector'].platescale
             platescale = specobj.DETECTOR.platescale
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
@@ -662,14 +704,17 @@ class SpecObjs:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'IFU':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
+                wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
             if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
@@ -700,6 +745,9 @@ class SpecObjs:
                     ivar = specobj.BOX_COUNTS_IVAR
                     is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
+            # Manual extraction?
+            manual_extract.append(specobj.hand_extract_flag)
+            # Slitmask info
             if specobj.MASKDEF_ID is not None:
                 maskdef_id.append(specobj.MASKDEF_ID)
             if specobj.MASKDEF_OBJNAME is not None:
@@ -707,6 +755,8 @@ class SpecObjs:
             if specobj.RA is not None:
                 objra.append(specobj.RA)
                 objdec.append(specobj.DEC)
+            if specobj.MASKDEF_EXTRACT is not None:
+                maskdef_extract.append(specobj.MASKDEF_EXTRACT)
 
         # Generate the table, if we have at least one source
         if len(names) > 0:
@@ -721,12 +771,12 @@ class SpecObjs:
                 obj_tbl['order'] = slits
                 obj_tbl['order'].format = 'd'
             obj_tbl['name'] = names
-            if specobj.MASKDEF_ID is not None:
+            if len(maskdef_id) > 0:
                 obj_tbl['maskdef_id'] = maskdef_id
                 obj_tbl['maskdef_id'].format = 'd'
-            if specobj.MASKDEF_OBJNAME is not None:
+            if len(objname) > 0:
                 obj_tbl['objname'] = objname
-            if specobj.RA is not None:
+            if len(objra) > 0:
                 obj_tbl['objra'] = objra
                 obj_tbl['objra'].format = '.5f'
                 obj_tbl['objdec'] = objdec
@@ -743,9 +793,62 @@ class SpecObjs:
             obj_tbl['opt_fwhm'].unit = units.arcsec
             obj_tbl['s2n'] = s2n
             obj_tbl['s2n'].format = '.2f'
+            # is this a forced extraction at the expected position from slitmask design?
+            if len(maskdef_extract) > 0:
+                obj_tbl['maskdef_extract'] = maskdef_extract
+            # only if manual extractions exist, print this
+            if np.any(manual_extract):
+                obj_tbl['manual_extract'] = manual_extract
+
+            # Wavelengths
+            obj_tbl['wv_rms'] = wave_rms
+            obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
+    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
+        """
+        Returns:
+            List[List[int]]: A list of extraction groups, each of which is a list of integer
+                object indices that should be extracted together by core.skysub.local_skysub_extract
+        """
+        nobj = len(self.specobjs)
+
+        if model_full_slit:
+            return [list(range(nobj))]
+
+        # initialize adjacency matrix
+        adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
+        ## build adjacency matrix
+        # adj[i, j] is True iff objects i and j are touching each other
+        for i in range(nobj):
+            left_edge_i = self.specobjs[i].TRACE_SPAT - self.specobjs[i].maskwidth - 1
+            righ_edge_i = self.specobjs[i].TRACE_SPAT + self.specobjs[i].maskwidth + 1
+            for j in range(i + 1, nobj):
+                left_edge_j = self.specobjs[j].TRACE_SPAT - self.specobjs[j].maskwidth - 1
+                righ_edge_j = self.specobjs[j].TRACE_SPAT + self.specobjs[j].maskwidth + 1
+
+                touch = (left_edge_j < righ_edge_i) & (left_edge_i < righ_edge_j)
+
+                if touch.any():
+                    adj[i, j] = True
+                    adj[j, i] = True
+
+        ## Find all connected components in the graph of objects.
+        # One call to DFS will visit every object it can that is "connected" to
+        # the starting object by the touching relation.
+        visited = [False]*nobj
+        groups = []
+        while not all(visited):
+            # pick a starting unvisited vertex
+            v = visited.index(False)
+            group = []
+            # DFS starting at v. Afterwards, group contains every object that
+            # is "connected" to v by the touching relation.
+            utils.DFS(v, visited, group, adj)
+            groups.append(group)
+
+        return groups
 
 
 def lst_to_array(lst, mask=None):

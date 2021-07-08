@@ -52,8 +52,6 @@ class Reduce(object):
           True = Masked
         show (bool, optional):
            Show plots along the way?
-        std_outfile (str):
-           Filename of the standard star output
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -96,8 +94,8 @@ class Reduce(object):
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None, basename=None):
+                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
+                 binning=None, setup=None, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -120,13 +118,12 @@ class Reduce(object):
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
-            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, det=det,
-            std_redux=std_redux, show=show,binning=binning, setup=setup,
-            std_outfile=std_outfile, basename=basename)
+            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, find_negative=find_negative, det=det,
+            std_redux=std_redux, show=show,binning=binning, setup=setup, basename=basename)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None, basename=None):
+                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
+                 binning=None, setup=None, basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -136,7 +133,6 @@ class Reduce(object):
         self.objtype = objtype
         self.par = par
         self.caliBrate = caliBrate
-        self.std_outfile = std_outfile
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
         # Parse
@@ -172,6 +168,8 @@ class Reduce(object):
 
         # Load up other input items
         self.ir_redux = ir_redux
+        self.find_negative = find_negative
+
         self.std_redux = std_redux
         self.det = det
         self.binning = binning
@@ -376,7 +374,6 @@ class Reduce(object):
 
         # Global sky subtract
         self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
-
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
@@ -387,11 +384,6 @@ class Reduce(object):
                                   manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
-
-        # Assign here -- in case we make another pass to add in missing targets
-        if self.nobj > 0 and self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-            self.slits.assign_maskinfo(self.sobjs_obj, self.get_platescale(None),
-                                       TOLER=self.par['reduce']['slitmask']['obj_toler'])
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
@@ -410,7 +402,7 @@ class Reduce(object):
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
-            if self.ir_redux:
+            if self.find_negative:
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
@@ -418,7 +410,7 @@ class Reduce(object):
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
                 self.spec_flexure_correct(mode='global')
             #Could have negative objects but no positive objects so purge them
-            if self.ir_redux:
+            if self.find_negative:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -462,7 +454,7 @@ class Reduce(object):
         """
         Single pass at finding objects in the input image
 
-        If self.ir_redux is True, do a search for negative objects too
+        If self.find_negative is True, do a search for negative objects too
 
         Args:
             image (np.ndarray):
@@ -491,7 +483,7 @@ class Reduce(object):
                                        manual_extract_dict=parse_manual, debug=debug)
 
         # For nobj we take only the positive objects
-        if self.ir_redux:
+        if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
             parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
@@ -585,6 +577,7 @@ class Reduce(object):
                                                              pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
+                msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
                 self.reduce_bpm[slit_idx] = True
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
@@ -619,6 +612,7 @@ class Reduce(object):
 
         return None, None, None, None, None
 
+    # TODO This method only used for IFUs, so it should be present in the IFU subclass not here.
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
@@ -781,13 +775,13 @@ class Reduce(object):
                 Spectrally extracted objects
 
         """
-        radec = ltu.radec_to_coord((ra, dec))
         # Correct Telescope's motion
         refframe = self.par['calibrations']['wavelengths']['refframe']
         if (refframe in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
             # Calculate correction
+            radec = ltu.radec_to_coord((ra, dec))
             vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
@@ -1014,10 +1008,11 @@ class MultiSlitReduce(Reduce):
                     extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
-                                inmask=inmask, ir_redux=self.ir_redux,
+                                inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
                                 sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+                                cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
@@ -1025,6 +1020,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
@@ -1033,6 +1029,24 @@ class MultiSlitReduce(Reduce):
 
             sobjs.add_sobj(sobjs_slit)
 
+        # If this is a second pass for objfind or this is the first one but skip_second_find is True,
+        # assign slitmask design information to detected objects
+        if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
+                (self.sobjs_obj is not None):
+            if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
+                msgs.info('Assign slitmask design info to detected objects')
+                all_expected_objpos = self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
+                                                                 self.slits_left, self.slits_right,
+                                                                 self.par['calibrations']['slitedges']['det_buffer'],
+                                                                 TOLER=self.par['reduce']['slitmask']['obj_toler'])
+                # force extraction of non detected objects
+                if self.par['reduce']['slitmask']['extract_missing_objs']:
+                    msgs.info('Add undetected objects at the expected location from slitmask design.')
+                    # Assign un-detected objects
+                    sobjs = self.slits.mask_add_missing_obj(sobjs, all_expected_objpos,
+                                                self.par['reduce']['findobj']['find_fwhm'],
+                                                self.par['reduce']['slitmask']['slitmask_offset'],
+                                                self.slits_left, self.slits_right) # Deal with flexure
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1086,6 +1100,7 @@ class MultiSlitReduce(Reduce):
         # Could actually create a model anyway here, but probably
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
+
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1108,6 +1123,7 @@ class MultiSlitReduce(Reduce):
                     sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                    force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
                     sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                     show_profile=show_profile,
                     use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
@@ -1222,16 +1238,18 @@ class EchelleReduce(Reduce):
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
+            inmask=inmask, has_negative=self.find_negative, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
             sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+            cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
             show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
             npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
+            use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
@@ -1281,6 +1299,7 @@ class EchelleReduce(Reduce):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
 
+
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveimg,
@@ -1291,6 +1310,7 @@ class EchelleReduce(Reduce):
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
                                                   box_rad_order=box_rad_order, sigrej=sigrej,
+                                                  force_gauss=self.par['reduce']['extraction']['use_user_fwhm'],
                                                   sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,
@@ -1463,10 +1483,11 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 Mask of sky regions where the spatial illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
+        ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
         gpm = (self.sciImg.fullmask == 0)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
-                                                    model=global_sky, gpmask=gpm, skymask=skymask, trim=trim,
-                                                    flexure=self.spat_flexure_shift)
+                                                    slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
+                                                    skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
         # Now apply the correction to the science frame
         self.apply_relative_scale(scaleImg)
 
@@ -1477,7 +1498,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
-        nslits = self.slits.spat_id.size
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         self.global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
@@ -1512,6 +1532,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
             var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
             var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
             model_ivar = utils.inverse(var)
+            # Redo the relative spectral illumination correction with the improved sky model
+            if self.par['scienceframe']['process']['use_specillum']:
+                self.illum_profile_spectral(self.global_sky, skymask=skymask)
 
         if update_crmask:
             # Find CRs with sky subtraction

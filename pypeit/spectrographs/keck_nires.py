@@ -3,7 +3,7 @@ Module for Keck/NIRES specific methods.
 
 .. include:: ../include/links.rst
 """
-
+import os
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -113,7 +113,10 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['maxiter'] = 2
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
 
@@ -129,7 +132,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
-        self.meta['decker'] = dict(ext=0, card=None, default='default')
+        self.meta['decker'] = dict(ext=0, card=None, default='0.55 slit')
         self.meta['binning'] = dict(ext=0, card=None, default='1,1')
 
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
@@ -138,6 +141,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTR')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
 
     def configuration_keys(self):
         """
@@ -167,7 +171,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['frameno', 'calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

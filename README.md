@@ -4,6 +4,8 @@
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/pypeit?label=conda%20downloads)](https://anaconda.org/conda-forge/pypeit)
 
 [![CI Tests](https://github.com/pypeit/PypeIt/workflows/CI%20Tests/badge.svg)](https://github.com/pypeit/PypeIt/actions?query=workflow%3A"CI+Tests")
+[![Coverage (release)](https://codecov.io/gh/PypeIt/pypeit/branch/release/graph/badge.svg)](https://codecov.io/gh/PypeIt/pypeit)
+[![Coverage (develop)](https://codecov.io/gh/PypeIt/pypeit/branch/develop/graph/badge.svg)](https://codecov.io/gh/PypeIt/pypeit)
 [![Documentation Status](https://readthedocs.org/projects/pypeit/badge/?version=latest)](https://pypeit.readthedocs.io/en/latest/?badge=latest)
 [![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 
@@ -100,9 +102,11 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 
 # Instruments Served
+* Bok/B&C
 * Gemini/GNIRS
 * Gemini/GMOS
 * Gemini/FLAMINGOS 2
+* GTC/OSIRIS
 * Lick/Kast
 * Magellan/MagE
 * Magellan/Fire
@@ -118,6 +122,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Keck/NIRSPEC (low-dispersion)
 * LBT/Luci-I, Luci-II
 * LBT/MODS (beta)
+* LDT/DeVeny
 * Lick/APF (planned)
 * NOT/ALFOSC (grism4)
 * VLT/X-Shooter
@@ -177,5 +182,3 @@ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
 LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
