@@ -329,8 +329,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             # here we need to select the reid_arxiv that most closely matches the central wavelength
             # and emit a warning if the difference is too great / the wavelength overlap is too small
             try:
-                reids = high_res_reids[disp][dichroic]
-                cen_wvs = np.array(reids.keys())
+                reids = high_res_reids[grating][dichroic]
+                cen_wvs = np.array(list(reids))
                 best_wv = cen_wvs[np.argmin(np.abs(cen_wvs - cen_wv_AA))]
 
                 # blue wavelength coverage with a 1200 lines/mm grating is about 1550 A
@@ -344,6 +344,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                         "[calibrations]\n"
                         "\t[[wavelengths]]\n"
                         "\t\tmethod = holy-grail")
+                par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
                 msgs.error("Your grating " + grating + " needs a template spectrum for the blue arm of DBSP.")
         else:
@@ -542,8 +543,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             # here we need to select the reid_arxiv that most closely matches the central wavelength
             # and emit a warning if the difference is too great / the wavelength overlap is too small
             try:
-                reids = high_res_reids[disp][dichroic]
-                cen_wvs = np.array(reids.keys())
+                reids = high_res_reids[grating][dichroic]
+                cen_wvs = np.array(list(reids))
                 best_wv = cen_wvs[np.argmin(np.abs(cen_wvs - cen_wv_AA))]
 
                 # red wavelength coverage with a 1200 lines/mm grating is about 1600 A
@@ -557,6 +558,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                         "[calibrations]\n"
                         "\t[[wavelengths]]\n"
                         "\t\tmethod = holy-grail")
+                par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
                 msgs.error("Your grating " + grating + " needs a template spectrum for the red arm of DBSP.")
         else:
