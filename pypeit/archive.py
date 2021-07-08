@@ -13,16 +13,39 @@ What types of files and what metadata is archived is delegated to a
             The object to be archived.
 
     Returns:
+        tuple: metadata, files_to_copy
+
         metadata (list of list of str):
             The metadata rows read from the object. One object can result
             in multiple rows.  Each row is a list of strings.
 
-        source_file (str):
-            The full path of the source file for the object.
+        files_to_copy (iterable):
+            An iterable of tuples. Each tuple has a src file to copy to the archive
+            and a relative pathname for that file in the archive. The file will be copied
+            to the dest pathname relative to the archive's root.
 
-        dest_file (str):
-            The relative path of the file indicating where in the archive
-            it should be placed.
+Below is an example ``get_metadata_func`` function that gets metadata for a single fits file and
+archives it in a directory based on observation date::
+
+    import os.path
+    from astropy.io import fits
+    from astropy.time import Time
+
+    def get_target_metadata(file_info):
+
+        header = fits.getheader(file_info)
+
+        # Determine the path within the archive to store the file. The subdir
+        # has the format YYYYMM based on the observation date.
+        mjd = header['MJD']
+        subdir_name = Time(mjd, format='mjd').strftime("%Y%m")
+        dest_pathname = os.path.join(subdir_name, os.path.basename(file_info))
+
+        # Return a single data row with a column for file name, date and target
+        data_rows = [ [dest_pathname, mjd, header['TARGET']] ]
+
+        return (data_rows, [(file_info, dest_pathname)])
+
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
@@ -57,6 +80,10 @@ class ArchiveMetadata():
         get_metadata_func (func): 
             Function that reads metadata and file information from the objects
             being archived.
+
+        append (bool):
+            If true append new metadata to an existing file. If this is false
+            any existing file will be overwritten.
           
              
     """
@@ -83,22 +110,19 @@ class ArchiveMetadata():
             item: The object to add to the archive.
 
         Returns:
-            source_file: 
-                The source filename for the object, as returned by the
-                get_metadata_func passed to the ArchiveMetadata constructor.
-
-            dest_file:
-                The destination filename for the object within the archive, 
-                as returned by the get_metadata_func passed to the ArchiveMetadata 
-                constructor.
+        files_to_copy (iterable):
+            An iterable of tuple, as returned by ``get_metadata_func``. 
+            Each tuple has a src file to copy to the archive
+            and a relative pathname for that file in the archive. The file will be copied
+            to the dest pathname relative to the archive's root.
 
         """        
-        (rows, orig_file, dest_file) = self.get_metadata_func(item)
+        (rows, files_to_copy) = self.get_metadata_func(item)
 
         if rows is not None:
             self._metadata += rows
 
-        return orig_file, dest_file
+        return files_to_copy
 
     def save(self):
         """
@@ -139,18 +163,30 @@ class ArchiveDir():
         Adds items to the archive.
 
         Args:
-            items (object or list): 
-                The item or list of items to add to the archive. The items
+            items (object, or iterable): 
+                The item or iterable object of items to add to the archive. The items
                 will be passed to a ArchiveMetadata object so that 
                 metadata and file names can be read from it.
         """
-        if not isinstance(items, list):
+        # Allow any iterable object, or a single object, by testing the "iter"
+        # built in function. If it fails, then it's a single object
+        try:
+            iter(items)
+
+            # It's iterable, it could also be a str which we want to treat it as a single object
+            if isinstance(items, str):
+                items = [items]
+                
+        except TypeError:
+            # A single object, wrap it in a list
             items = [items]
+
         for item in items:
             for metadata in self.metadata_list:
-                (source_file, dest_file) = metadata.add(item)
-                if source_file is not None and dest_file is not None:
-                    self._archive_file(source_file, dest_file)
+                files_to_copy = metadata.add(item)
+                if files_to_copy  is not None:
+                    for source_file, dest_file in files_to_copy:
+                        self._archive_file(source_file, dest_file)
 
 
 

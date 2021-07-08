@@ -329,6 +329,8 @@ def test_obslog():
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):
+
+    # Build up arguments for testing command line parsing
     args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
@@ -337,6 +339,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
     spec1d_args = ['--spec1d_files', expanded_spec1d]
+
+    # Create config files for testing config file parsing
     config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
 
     with open(config_file_full, "w") as f:
@@ -435,47 +439,80 @@ def test_collate_1d(tmp_path, monkeypatch):
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
 
+        os.chdir(tmp_path)
+        par_file = str(tmp_path / 'collate1d.par')
+        
+        # For testing archiving, create a fake pypeit output directory structure
+        # in temp space.
+        temp_spec1d_dir = tmp_path / 'Science'
+        temp_spec1d_dir.mkdir()
+        # Copy spec1d and spec2d
+        shutil.copy2(expanded_spec1d, temp_spec1d_dir)
+        temp_spec1d = os.path.join(temp_spec1d_dir, os.path.basename(expanded_spec1d))
+
+        spec2d_file = expanded_spec1d.replace("spec1d", "spec2d")
+        shutil.copy2(spec2d_file, temp_spec1d_dir)
+        temp_spec2d = os.path.join(temp_spec1d_dir, os.path.basename(spec2d_file))
+
+        # Create fake text files for archiving, and a fake coadd output. We copy the
+        # the spec1d over to the fake output file because the archiving code reads
+        # the MJD from the header of the coadd output
+
+        temp_spec1d_text = temp_spec1d.replace(".fits", ".txt")
+        temp_pypeit_file = str(tmp_path / "temp.pypeit")
+        with open(temp_spec1d.replace(".fits", ".txt"), "w") as f:
+            print("test data", file=f)
+        shutil.copy2(temp_spec1d_text, temp_pypeit_file)
+
+        temp_coadd_output = str(tmp_path / "SPAT0176-SLIT0175-DET01_KASTb_20150520.fits")
+        shutil.copy2(temp_spec1d, temp_coadd_output)
+
         # Test:
         # * main
         # * creation of collate1d.par
         # * parsing of pixel tolerance
         # * detection of spec2d files and excluding by slit bitmask
+        # * archiving of spec1ds, spec2ds, .txt files, and pypeit files
 
-        os.chdir(tmp_path)
-        par_file = str(tmp_path / 'collate1d.par')
+        archive_dir = tmp_path / 'archive'
+
         parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file, '--match',
                                                                'pixel', '--tolerance', '3',
-                                                               config_file_spec1d,
-                                                               '--exclude_slit_bm', 'BADREDUCE'])
+                                                               '--spec1d_files', temp_spec1d,
+                                                               '--exclude_slit_bm', 'BADREDUCE', 
+                                                               '--archive_dir', str(archive_dir)])
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         assert os.path.exists(par_file)
+
+        archive_dest_dir = archive_dir / "201505"
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_coadd_output))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec1d))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec2d))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec1d_text))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_pypeit_file))
+
         # Remove par_file to avoid a warning
         os.unlink(par_file)
         
         # Test:
         # * default units of arcsec for tolerance when match is ra/dec
         # * that a spec2d file isn't needed if exclude_slit_flags is empty.
-        # * test specifying archive dir, including copying a file to it
         # * test exception handling when one file fails
         # The 240 arsec tolerance is to ensure there's only two outputs, one of which the mock 
         # coadd object will fail
-        coadd_output = "J232913.02-030531.05_DEIMOS_20100913.fits"
-        with open(coadd_output, "w") as f:
-            print("test data", file=f)
-        archive_dir = tmp_path / 'archive'
         parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file,
                                                                '--match', 'ra/dec', '--tolerance',
                                                                '240', '--spec1d_files',
-                                                               expanded_alt_spec1d,
-                                                               '--archive_dir', str(archive_dir)])
+                                                               expanded_alt_spec1d])                                                            
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
-        assert os.path.exists(archive_dir / coadd_output)
+
+        # Remove par_file to avoid a warning
+        os.unlink(par_file)
 
         # Test parsing of units in ra/dec tolerance
         parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file,
-                                                               '--match', 'ra/dec', '--tolerance',
-                                                               '3d', '--spec1d_files',
-                                                               expanded_alt_spec1d])
+                                                               '--match', 'ra/dec', '--tolerance', '3d',
+                                                               '--spec1d_files', expanded_alt_spec1d])
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         
 

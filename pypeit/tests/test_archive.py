@@ -22,17 +22,17 @@ _COOKED_FILE1 = "spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits"
 _COOKED_FILE2 = "spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits"
 def get_simple_metadata(file_info):
     if isinstance(file_info, mock_file_info):
-        return (None, None, None)
+        return (None, None)
 
     dest_file = os.path.basename(file_info)
     metadata = {_COOKED_FILE1: [1, dest_file, "2021-01-01"],
                 _COOKED_FILE2: [2, dest_file, "2021-01-02"] }
 
-    return ([metadata[dest_file]], file_info, dest_file)
+    return ([metadata[dest_file]], [(file_info, dest_file)])
 
 def get_multirow_metadata(file_info):
     if isinstance(file_info, str):
-        return (None, None, None)
+        return (None, None)
 
     dest_file = file_info.name
     metadata = {_COOKED_FILE1: [[1, dest_file, "part1"],
@@ -41,7 +41,7 @@ def get_multirow_metadata(file_info):
                                 [2, dest_file, "part2"],
                                 [2, dest_file, "part3"]]}
 
-    return (metadata[dest_file], os.path.join(file_info.path, file_info.name), dest_file)
+    return (metadata[dest_file], [(os.path.join(file_info.path, file_info.name), dest_file)])
 
 def test_archive_meta(tmp_path):
     test_meta_path = str(tmp_path / "test_meta.dat")
@@ -59,15 +59,15 @@ def test_archive_meta(tmp_path):
     # Test creating a new file, and adding a new row to it
     test_meta1 = ArchiveMetadata(test_meta_path, col_names, get_simple_metadata, True)
 
-    (orig_file, dest_file) = test_meta1.add(orig_file1)
-    assert orig_file == orig_file1
-    assert dest_file == dest_file1
+    files_to_add = test_meta1.add(orig_file1)
+    assert files_to_add[0][0] == orig_file1
+    assert files_to_add[0][1] == dest_file1
 
     test_meta1.save()
 
     # Test loading an existing file, and adding a second row to it
     test_meta2 = ArchiveMetadata(test_meta_path, col_names, get_simple_metadata, True)
-    (orig_file, dest_file) = test_meta2.add(orig_file2)
+    (orig_file, dest_file) = test_meta2.add(orig_file2)[0]
     assert orig_file == orig_file2
     assert dest_file == dest_file2
 

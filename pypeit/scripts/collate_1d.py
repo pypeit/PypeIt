@@ -17,7 +17,7 @@ import traceback
 import numpy as np
 from astropy.coordinates import Angle
 from astropy.io import fits
-
+from astropy.time import Time
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import coadd1d
@@ -83,34 +83,39 @@ def get_metadata_by_id(header_keys, file_info):
         filename (str): A filename for a file to add to the ArchiveMetadata object.
     
     Returns:
+        tuple: data_rows, files_to_copy
+
         data_rows (list of list):
             The metadata rows built from the FITS file.
 
-        str:
-            The source path of the file to go into the archive. For this
-            function this is the same as file_info.
-
-        str:
-            The base file name to use when copying orig_file to the archive.
-            For this function this is the basename of file_info.
+        files_to_copy (iterable):
+            An iterable of tuples. Each tuple has a src file to copy to the archive
+            and a relative pathname for that file in the archive. The file will be copied
+            to the dest pathname relative to the archive's root.
 
         
     """
+    # Source objects are handled by get_object_based_metadata
     if isinstance(file_info, SourceObject):
-        return (None, None, None)
+        return (None, None)
 
+    # Anything else should be a tuple of filename, txt info, pypeit file
 
-    filename = os.path.basename(file_info)
+    # Place the files in a subdir of the archive based on the observation date
+    # This is intended to prevent any one directory from having too many files
 
-    header = fits.getheader(file_info)
+    filename = file_info[0]
+    header = fits.getheader(filename)
+    subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
+    dest_files = [os.path.join(subdir_name, os.path.basename(x)) for x in file_info]
 
     # Extract koa id from source image filename in header
     id = extract_id(header)
 
-    # Build data row, which starts with koaid and filename + the metadata
-    data_row = [id, filename] + [None if x not in header else header[x] for x in header_keys]
+    # Build data row, which starts with koaid, filenames within the archvie, + the metadata
+    data_row = [id] + dest_files + [None if x not in header else header[x] for x in header_keys]
 
-    return ([data_row], file_info, filename)
+    return ([data_row], zip(file_info, dest_files))
 
 def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
     """
@@ -137,28 +142,97 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
         list of list:
             The list of metadata rows built from the source object.
 
-        str:
-            The source path of the coadd output file to go into the archive. 
-
-        str:
-            The base file name to use when copying orig_file to the archive.
+        files_to_copy (list):
+            An list of tuples. Each tuple has a src file to copy to the archive
+            and a relative pathname for that file in the archive. The file will be copied
+            to the dest pathname relative to the archive's root.
     """
 
     if not isinstance(file_info, SourceObject):
-        return (None, None, None)
+        return (None, None)
 
-    coaddfile = [os.path.basename(file_info.coaddfile)]
+    # Place the file in a subdir of the archive based on the observation date
+    # This is intended to prevent any one directory from having too many files
+    header = fits.getheader(file_info.coaddfile)
+    subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
+    coaddfile = os.path.join(subdir_name, os.path.basename(file_info.coaddfile))
 
     result_rows = []
     for i in range(len(file_info.spec1d_header_list)):
+
+        # Get the spec_obj metadata needed for the archive
+        spec_obj = file_info.spec_obj_list[i]
+        # Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
+        spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
+
+        # Get the spec1d header metadata needed for the archive
+        # Use the MJD in the spec1d file to build it's subdirectory, just like get_metadata_by_id does
+        # when the spec1d is added to the archive
+        header = file_info.spec1d_header_list[i]
+
+        # Get the KOAID of the original image for the spec1d
+        id = extract_id(header)
+
+
+        subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
+        spec1d_filename = os.path.join(subdir_name, os.path.basename(file_info.spec1d_file_list[i]))
+
+        header_data = [header[x] if x in header else None for x in object_header_keys]
+        result_rows.append([coaddfile] + spec_obj_data + [id, spec1d_filename] + header_data)
+
+    return (result_rows, [(file_info.coaddfile, coaddfile)])
+
+def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
+    """
+    Gets the metadata from a SourceObject instance used building a report
+    on the results of collation. Unlike the other get_*_metadata functions, this
+    is not used for archiving.  It is intended to be wrapped in by functools
+    partial object that passes in object_header_keys and spec_obj_keys. file_info
+    is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+
+    If another type of file is added to the ArchiveMetadata object, the file_info
+    argument will not be a SourceObject, In this case, a list of ``None`` values are 
+    returned.
+
+    Args:
+        object_header_keys (list of str):
+            The keys to read fom the spec1d headers from the SourceObject.
+
+        spec_obj_keys (list of str):
+            The keys to read from the (:obj:`pypeit.specobj.SpecObj`) objects in the SourceObject.
+
+        file_info (:obj:`pypeit.scripts.collate_1d.SourceObject`)): 
+            The source object containing the headers, filenames and SpecObj information for a coadd output file.
+
+    Returns:
+        list of list:
+            The list of metadata rows built from the source object.
+
+        files_to_copy (list):
+            An list of tuples of files to copy. Because this function is not used for
+            archving data, this is always None.
+    """
+
+    if not isinstance(file_info, SourceObject):
+        return (None, None)
+
+    coaddfile = os.path.basename(file_info.coaddfile)
+    result_rows = []
+    for i in range(len(file_info.spec1d_header_list)):
+
+        # Get the spec_obj metadata needed for the report
         spec_obj = file_info.spec_obj_list[i]
         header = file_info.spec1d_header_list[i]
-        spec_obj_data = [spec_obj[x] for x in spec_obj_keys]
-        id = extract_id(header)
-        header_data = [header[x] if x in header else None for x in object_header_keys]
-        result_rows.append(coaddfile + spec_obj_data + [id] + header_data)
 
-    return (result_rows, file_info.coaddfile, file_info.coaddfile)
+        # Get the spec1d header metadata needed for the report
+        # Use getattr for the spec_obj data because one of the attributes is actually a property (med_s2n)
+        spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
+        spec1d_filename =  os.path.basename(file_info.spec1d_file_list[i])
+        header_data = [header[x] if x in header else None for x in object_header_keys]
+        result_rows.append([coaddfile] + spec_obj_data + [spec1d_filename] + header_data)
+
+    return (result_rows, None)
+
 
 def find_slits_to_exclude(spec2d_files, par):
     """
@@ -300,6 +374,47 @@ def find_spec2d_from_spec1d(spec1d_files):
 
     return spec2d_files
 
+def find_archvie_files_from_spec1d(spec1d_files):
+    """
+    Find files related to a spec1d file that should be copied to the archive. 
+    Currently these are the spec1d text and the .pypeit file. This function
+    assumes a directory structure where the .pypeit file is in the parent directory
+    of the spec1d file, and the text file is in the same directory as the spec1d file.    
+    It will exit with an error if a file cannot be found.
+
+    Args:
+    spec1d_files (list of str): List of spec1d files generated by PypeIt.
+
+    Returns:
+    tuple: spec1d_text_files, pypeit_files
+
+    spec1d_text_files list of str: List of the matching spec1d text files.
+    pypeit_files list of str: List of the matching pypeit files.
+    """
+
+    spec1d_text_files = []
+    pypeit_files = []
+    for spec1d_file in spec1d_files:
+        # Check for a corresponding .txt file
+        (filepath, ext) = os.path.splitext(spec1d_file)
+        text_file = filepath + ".txt"
+
+        if not os.path.exists(text_file):
+            msgs.error(f'Could not archive matching text file for {spec1d_file}, file not found.')
+
+        # Check for a corresponding .pypeit file
+        found_pypeit_files = glob(os.path.join(os.path.dirname(os.path.dirname(spec1d_file)), '*.pypeit'))
+
+        if len(found_pypeit_files) == 0:
+            msgs.error(f'Could not archive matching .pypeit file for {spec1d_file}, file not found.')
+        elif len(found_pypeit_files) > 1:
+            msgs.error(f'Could not archive matching .pypeit file for {spec1d_file}, found more than one file.')
+        
+        spec1d_text_files.append(text_file)
+        pypeit_files += found_pypeit_files
+
+    return spec1d_text_files, pypeit_files
+
 def build_parameters(args):
     """
     Read the command-line arguments and the input ``.collate1d`` file (if any), 
@@ -374,18 +489,24 @@ def create_archive(archive_root, copy_to_archive):
     """
     Create an archive with the desired metadata information.
 
-    Metadata is written to two files in the `ipac
+    Metadata is written to three files in the `ipac
     <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_
     format:
 
         - ``by_id_meta.dat`` contains metadata for the spec1d and spec2d files
           in the archive. It is organzied by the id (either KOAID, or file name)
-          of the original science image.
+          of the original science image. This file is only written if copy_to_archive
+          is true.
 
         - ``by_object_meta.dat`` contains metadata for the coadded output files.
           This may have multiple rows for each file depending on how many
           science images were coadded. The primary key is a combined key of the
-          source object name, filename, and koaid columns.
+          source object name, filename, and koaid columns. This file is only written 
+          if copy_to_archive is true.
+
+        - ``report.dat`` contains metadata to report on the coadded output files
+          from the collate process. Like ``by_object_meta.dat`` it may have more
+          than one row per output file.  This file is always written to the current directory.     
 
     Args:
         archive_root (:obj:`str`):
@@ -399,31 +520,50 @@ def create_archive(archive_root, copy_to_archive):
         metadata.
     """
 
-    ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PJROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
-    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PJROGPI', 'SEMESTER', 'PROGID']
-    OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC']
+    archive_metadata_list = []
 
-    by_id_names = ['id', 'filename'] + [x.lower() for x in ID_BASED_HEADER_KEYS]
-    by_id_metadata = ArchiveMetadata(os.path.join(archive_root, "by_id_meta.dat"), 
-                                        by_id_names, 
-                                        partial(get_metadata_by_id, ID_BASED_HEADER_KEYS),
-                                        append=True)
+    ID_BASED_HEADER_KEYS  = ['RA', 'DEC', 'TARGET', 'PROGPI', 'SEMESTER', 'PROGID', 'DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME']
+    OBJECT_BASED_HEADER_KEYS = ['DISPNAME', 'DECKER', 'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PROGPI', 'SEMESTER', 'PROGID']
+    OBJECT_BASED_SPEC_KEYS   = ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA', 'DEC','med_s2n', 'WAVE_RMS']
 
-    by_object_names = ['filename'] + \
+
+    if copy_to_archive:
+        by_id_names = ['id', 'filename', 'text_info', 'pypeit_file'] + [x.lower() for x in ID_BASED_HEADER_KEYS]
+        by_id_metadata = ArchiveMetadata(os.path.join(archive_root, "by_id_meta.dat"),
+                                         by_id_names,
+                                         partial(get_metadata_by_id,
+                                                 ID_BASED_HEADER_KEYS),
+                                         append=True)
+        archive_metadata_list.append(by_id_metadata)
+
+        by_object_names = ['filename'] + \
+                            [x.lower() for x in OBJECT_BASED_SPEC_KEYS] + \
+                            ['source_id', 'spec1d_filename'] + \
+                            [x.lower() for x in OBJECT_BASED_HEADER_KEYS]
+
+        by_object_metadata = ArchiveMetadata(os.path.join(archive_root, "by_object_meta.dat"),
+                                             by_object_names,
+                                             partial(get_object_based_metadata,
+                                                     OBJECT_BASED_HEADER_KEYS,
+                                                     OBJECT_BASED_SPEC_KEYS),
+                                             append=True)
+        archive_metadata_list.append(by_object_metadata)
+
+    report_names = ['filename'] + \
                         [x.lower() for x in OBJECT_BASED_SPEC_KEYS] + \
-                        ['source_id'] + \
+                        ['spec1d_filename'] + \
                         [x.lower() for x in OBJECT_BASED_HEADER_KEYS]
 
-    by_object_metadata = ArchiveMetadata(os.path.join(archive_root, "by_object_meta.dat"),
-                                            by_object_names,
-                                            partial(get_object_based_metadata, 
-                                                    OBJECT_BASED_HEADER_KEYS,
-                                                    OBJECT_BASED_SPEC_KEYS),
-                                            append=True)
+    report_metadata = ArchiveMetadata("collate_report.dat",
+                                      report_names,
+                                      partial(get_report_metadata,
+                                              OBJECT_BASED_HEADER_KEYS,
+                                              OBJECT_BASED_SPEC_KEYS),
+                                      append=True)
+    archive_metadata_list.append(report_metadata)
 
     # metadatas in archive object
-    return ArchiveDir(archive_root, [by_id_metadata, by_object_metadata],
-                      copy_to_archive=copy_to_archive)
+    return ArchiveDir(archive_root, archive_metadata_list, copy_to_archive=copy_to_archive)
 
 
 class Collate1D(scriptbase.ScriptBase):
@@ -548,13 +688,24 @@ class Collate1D(scriptbase.ScriptBase):
             if par['collate1d']['archive_root'] is not None:
                 metadata_root = par['collate1d']['archive_root']
                 copy = True
+
+                # If we're archiving, always copy the spec2d files even if
+                # they weren't needed for collating
+                if len(spec2d_files) == 0:
+                    spec2d_files = find_spec2d_from_spec1d(spec1d_files)
             else:
                 metadata_root = os.getcwd()
                 copy = False
 
             archive = create_archive(metadata_root, copy)
-            archive.add(spec1d_files)
-            archive.add(spec2d_files)
+
+            if copy:
+                spec1d_text_files, pypeit_files = find_archvie_files_from_spec1d(spec1d_files)
+
+                archive.add(zip(spec1d_files, spec1d_text_files, pypeit_files))
+                if len(spec2d_files) > 0:
+                    archive.add(zip(spec2d_files, spec1d_text_files, pypeit_files))
+
             archive.add(successful_source_list)
             archive.save()
 
