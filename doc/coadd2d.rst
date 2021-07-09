@@ -67,12 +67,12 @@ Here is an example for `keck_lris_blue`::
             sig_thresh=5.0
 
     # Read in the data
-    coadd2d read
+    spec2d read
     Science/spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
     Science/spec2d_b170320_2090-c17_60L._LRISb_2017Mar20T082144.525.fits
     Science/spec2d_b170320_2084-c17_60L._LRISb_2017Mar20T062414.630.fits
     Science/spec2d_b170320_2091-c17_60L._LRISb_2017Mar20T085223.894.fits
-    coadd2d end
+    spec2d end
 
 
 The opening block sets parameters for the reduction steps
