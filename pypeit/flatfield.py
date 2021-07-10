@@ -451,15 +451,11 @@ class FlatField(object):
         Returns:
             :class:`FlatImages`:
         """
-        # Build the pixel flat (as needed)
-        #self.build_pixflat()
-
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
         self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
 
         if show:
-            # Global skysub is the first step in a new extraction so clear the channels here
             self.show(wcs_match=True)
 
         # Build the mask
@@ -628,6 +624,14 @@ class FlatField(object):
         # Iteratively construct the illumination profile by rejecting outliers
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
+
+        # Build wavelength image -- not always used, but for convenience done here
+        slitmask = self.slits.slit_img(initial=True, 
+                                       flexure=self.wavetilts.spat_flexure)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, 
+                                           flexure=self.wavetilts.spat_flexure)
+        waveimg = self.wv_calib.build_waveimg(
+            tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -1062,13 +1066,16 @@ class FlatField(object):
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
             # Construct the pixel flat
-            #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
-            #self.mspixelflat[onslit_tweak] = 1.
             #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
             #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
             self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak]/self.flat_model[onslit_tweak]
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
+
+            # Minimum wavelength?
+            if self.flatpar['pixelflat_min_wave'] is not None:
+                bad_wv = waveimg[onslit_tweak] < self.flatpar['pixelflat_min_wave'] 
+                self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
@@ -1084,6 +1091,8 @@ class FlatField(object):
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
+
+        
 
         # Calculate the relative spectral illumination, if requested
         if self.flatpar['slit_illum_relative']:
