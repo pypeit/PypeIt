@@ -18,6 +18,23 @@ taken in Nod+Shuffle mode by simply replicating the calibrations.
 That is, we do *not* subtract the nodded images but reduce
 it as if it were a separate slit.
 
+For this mode, you need to specify the `gemini_gmos_north_ham_ns` 
+spectrograph.
+
+Slits
+=====
+
+Somewhat too frequently when using the longslit,
+the "3" slits are not all identified in the bluest detector.
+
+To mitigate this, we recommend adding to this to your PypeIt file::
+
+    [calibrations]
+      [[slitedges]]
+        det_min_spec_length=0.1
+        fit_min_spec_length=0.1
+        edge_thresh=3.
+
 Arcs
 ====
 
