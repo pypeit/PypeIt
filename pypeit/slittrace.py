@@ -1166,7 +1166,7 @@ class SlitTraceSet(datamodel.DataContainer):
                                                          round(self.maskdef_offset*platescale, 2)))
             else:
                 self.maskdef_offset = 0.0
-                msgs.info('NO objects detected ALIGN BOXES. Slitmask offset '
+                msgs.info('NO objects detected in ALIGN BOXES. Slitmask offset '
                           'cannot be estimated in det={}.'.format(self.det))
             return
 

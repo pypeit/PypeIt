@@ -615,6 +615,13 @@ class BuildWaveTilts:
             msgs.info('Trace the tilts')
             self.trace_dict = self.trace_tilts(_mstilt, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:, slit_idx])
+            # IF there are < 2 usable arc lines for tilt tracing, PCA fit does not work and the reduction crushes
+            # TODO investigate why some slits have <2 usable arc lines
+            if np.sum(self.trace_dict['use_tilt']) < 2:
+                msgs.warn('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                          '. This slit/order will not reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
 
             # TODO: Show the traces before running the 2D fit
 

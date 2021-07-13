@@ -403,9 +403,9 @@ class Reduce(object):
                 List of objects found during `run_objfind`
             skymask (`np.ndarray`_):
                Boolean image indicating which pixels are useful for global sky subtraction
-            ra (str, optional):
+            ra (float, optional):
                 Required if helio-centric correction is to be applied
-            dec (str, optional):
+            dec (float, optional):
                 Required if helio-centric correction is to be applied
             obstime (:obj:`astropy.time.Time`, optional):
                 Required if helio-centric correction is to be applied
