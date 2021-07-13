@@ -506,7 +506,7 @@ class Reduce(object):
         self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
 
         # Update the mask
-        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
+        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADREDUCE')
@@ -1072,6 +1072,14 @@ class MultiSlitReduce(Reduce):
                             'DET': self.det, 'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
+            # This condition allows to not use a threshold to find objects in alignment boxes
+            # because these boxes are smaller than normal slits and the stars are very bright,
+            # the detection threshold would be too high and the star not detected.
+            if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag='BOXSLIT'):
+                sig_thresh = 0.
+            else:
+                sig_thresh = self.par['reduce']['findobj']['sig_thresh']
+
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
@@ -1083,7 +1091,7 @@ class MultiSlitReduce(Reduce):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+                                sig_thresh= sig_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,

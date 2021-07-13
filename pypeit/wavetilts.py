@@ -215,7 +215,7 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
         # self.tilt_bpm = np.invert(mask == 0)
-        # We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
+        # We want to keep the 'BOXSLIT', for which mask value is 2. But we don't want to keep 'BOXSLIT'
         # with other bad flag (for which the mask value would be > 2)
         self.tilt_bpm = mask > 2
         self.tilt_bpm_init = self.tilt_bpm.copy()
