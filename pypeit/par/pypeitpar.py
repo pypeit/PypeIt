@@ -498,7 +498,7 @@ class FlatFieldPar(ParSet):
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
                  slit_illum_relative=None, slit_illum_ref_idx=None,
-                 pixelflat_min_wave=None):
+                 pixelflat_min_wave=None, pixelflat_max_wave=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -547,6 +547,10 @@ class FlatFieldPar(ParSet):
         defaults['pixelflat_min_wave'] = None
         dtypes['pixelflat_min_wave'] = [int, float]
         descr['pixelflat_min_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths below this value.'
+
+        defaults['pixelflat_max_wave'] = None
+        dtypes['pixelflat_max_wave'] = [int, float]
+        descr['pixelflat_max_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths above this value.'
 
 
         # Slits
@@ -643,7 +647,7 @@ class FlatFieldPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
-                   'spat_samp', 'pixelflat_min_wave',
+                   'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
                    'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits', 'slit_illum_ref_idx']
