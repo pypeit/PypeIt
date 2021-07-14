@@ -171,7 +171,7 @@ class SensFunc(datamodel.DataContainer):
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO: Check the type of the parameter object?
 
-        #
+        # Set the algorithm in the datamodel
         self.algorithm = self.__class__.algorithm
 
         # QA and throughput plot filenames
