@@ -639,6 +639,10 @@ class EdgeTraceSet(DataContainer):
                                  description='Declination of the object (deg)'),
                     table.Column(name='OBJNAME', dtype='<U32', length=length,
                                  description='Object name assigned by the observer'),
+                    table.Column(name='OBJMAG', dtype=float, length=length,
+                                 description='Object magnitude provided by the observer'),
+                    table.Column(name='OBJMAG_BAND', dtype='<U32', length=length,
+                                 description='Band of the magnitude provided by the observer'),
                     table.Column(name='SLITID', dtype=int, length=length,
                                  description='Slit ID Number'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
@@ -4212,7 +4216,11 @@ class EdgeTraceSet(DataContainer):
                     num += 1
             msgs.info('*' * 92)
 
-        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
+        # reference row
+        bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
+        # TODO make reference row an attribute of EdgeTraceSet
+        reference_row = trace.most_common_trace_row(bpm) if self.pcatype is None \
+            else (self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row)
         spat_bedge = self.edge_fit[reference_row, self.is_left]
         spat_tedge = self.edge_fit[reference_row, self.is_right]
 
@@ -4330,6 +4338,7 @@ class EdgeTraceSet(DataContainer):
         needind_t = np.where(needadd_t)[0]  # edges we are missing
 
         #  The code below is to add traces that are predicted but not found.
+        # Left edges
         if needind_b.size > 0:
             msgs.info('Adding {} left missing edge(s)'.format(needind_b.size))
             # Append the missing indices and re-sort all
@@ -4337,59 +4346,53 @@ class EdgeTraceSet(DataContainer):
             sortind_b = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
                                                          self.spectrograph.slitmask.slitid[ind_b], strict=True))
             ind_b = ind_b[sortind_b]
-            # check if any of the traces that will be added is off detector
-            loffdet = bot_edge_pred[needind_b] < self.par['det_buffer']
-            if np.any(loffdet):
-                # IF any, add a trace parallel to the detector edge (i.e., no pca)
-                self.insert_traces(-1, np.full(self.nspec, self.par['det_buffer']), mode='mask', nudge=False)
-                needind_b = needind_b[np.logical_not(loffdet)]
-            # We try to ensure that the left edge is inserted after the right edge of previous slit
             for i in range(bot_edge_pred[needind_b].size):
-                # Find index of smaller closest trace
-                indx_smaller = np.where(self.edge_fit[self.pca.reference_row, :] < bot_edge_pred[needind_b][i])[0]
-                if (indx_smaller.size > 0) & (indx_smaller.size < self.traceid.size):
-                    indx = indx_smaller[-1]
-                    # If close trace is "left" and next one is "right", add the new trace after "right" one
-                    if (self.traceid[indx] < 0) & (self.traceid[indx+1] > 0) & \
-                            (self.edge_fit[self.pca.reference_row, indx + 1] - bot_edge_pred[needind_b][i] < 5):
-                        bot_edge_pred[needind_b[i]] = self.edge_fit[self.pca.reference_row, indx + 1] + 1
-            # define which side to add the trace and insert it
-            lside = -np.ones(bot_edge_pred[needind_b].shape[0], dtype=int)
-            # Predict trace
-            missing_left_traces = self.predict_traces(bot_edge_pred[needind_b], side=lside)
-            # Add
-            self.insert_traces(lside, missing_left_traces, mode='mask', nudge=False)
+                # check if the trace that will be added is off detector
+                if bot_edge_pred[needind_b][i] < self.par['det_buffer']:
+                    # add a trace parallel to the detector edge (i.e., no pca)
+                    missing_left_traces = np.full(self.nspec, self.par['det_buffer'])
+                    self.insert_traces(-1, missing_left_traces, mode='mask', nudge=False)
+                else:
+                    # We try to ensure that the left edge is inserted after the right edge of previous slit
+                    # Find index of larger closest trace
+                    indx_larger = np.where(self.edge_fit[reference_row, :] > bot_edge_pred[needind_b][i])[0]
+                    if (indx_larger.size > 0) & (indx_larger.size < self.traceid.size):
+                        indx = indx_larger[0]
+                        # If close trace is "right" but it's too close to the new left trace,
+                        # add the new trace after "right" one
+                        if (self.traceid[indx] > 0) and \
+                                ((self.edge_fit[self.pca.reference_row, indx] - bot_edge_pred[needind_b][i]) < 5):
+                            bot_edge_pred[needind_b[i]] = self.edge_fit[reference_row, indx] + 1
+                    missing_left_traces = self.predict_traces(bot_edge_pred[needind_b][i], side=-1)
+                    self.insert_traces(-1, missing_left_traces, mode='mask', nudge=False)
 
         if needind_t.size > 0:
+            # Right edges
             msgs.info('Adding {} right missing edge(s)'.format(needind_t.size))
             # Append the missing indices and re-sort all
             ind_t = np.append(ind_t, needind_t)
             sortind_t = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
                                                          self.spectrograph.slitmask.slitid[ind_t], strict=True))
             ind_t = ind_t[sortind_t]
-            # check if any of the traces that will be added is off detector
-            roffdet = top_edge_pred[needind_t] > self.nspat - self.par['det_buffer']
-            if np.any(roffdet):
-                # IF any, add a trace parallel to the detector edge (i.e., no pca)
-                self.insert_traces(1, np.full(self.nspec, self.nspat - (self.par['det_buffer'])),
-                                   mode='mask', nudge=False)
-                needind_t = needind_t[np.logical_not(roffdet)]
-            # We try to ensure that the left edge is inserted after the right edge of previous slit
             for i in range(top_edge_pred[needind_t].size):
-                # Find index of larger closest trace
-                indx_larger = np.where(self.edge_fit[self.pca.reference_row, :] < top_edge_pred[needind_t][i])[0]
-                if (indx_larger.size > 0) & (indx_larger.size < self.traceid.size):
-                    indx = indx_larger[0]
-                    # If close trace is "right" and previous one is "left", add new trace before "left" one
-                    if (self.traceid[indx] > 0) & (self.traceid[indx-1] < 0) & \
-                            (top_edge_pred[needind_t][i] - self.edge_fit[self.pca.reference_row, indx - 1] < 5):
-                        top_edge_pred[needind_t[i]] = self.edge_fit[self.pca.reference_row, indx - 1] - 1
-            # define which side to add the trace and insert it
-            rside = np.ones(top_edge_pred[needind_t].shape[0], dtype=int)
-            # Predict trace
-            missing_right_traces = self.predict_traces(top_edge_pred[needind_t], side=rside)
-            # Add
-            self.insert_traces(rside, missing_right_traces, mode='mask', nudge=False)
+                # check if the trace that will be added is off detector
+                if top_edge_pred[needind_t][i] > self.nspat - self.par['det_buffer']:
+                    # add a trace parallel to the detector edge (i.e., no pca)
+                    missing_right_traces = np.full(self.nspec, self.nspat - self.par['det_buffer'])
+                    self.insert_traces(1, missing_right_traces, mode='mask', nudge=False)
+                else:
+                    # We try to ensure that the right edge is inserted before the left edge of following slit
+                    # Find index of smaller closest trace
+                    indx_smaller = np.where(self.edge_fit[reference_row, :] < top_edge_pred[needind_t][i])[0]
+                    if (indx_smaller.size > 0) & (indx_smaller.size < self.traceid.size):
+                        indx = indx_smaller[-1]
+                        # If close trace is "left" but it's too close to the new left trace,
+                        # add new trace before "left" one
+                        if (self.traceid[indx] < 0) and \
+                                ((top_edge_pred[needind_t][i] - self.edge_fit[reference_row, indx]) < 5):
+                            top_edge_pred[needind_t[i]] = self.edge_fit[reference_row, indx] - 1
+                    missing_right_traces = self.predict_traces(top_edge_pred[needind_t][i], side=1)
+                    self.insert_traces(1, missing_right_traces, mode='mask', nudge=False)
 
         if debug:
             slitdesign_matching.plot_matches(self.edge_fit[:, self.is_left], ind_b, bot_edge_pred, reference_row,
@@ -4421,7 +4424,31 @@ class EdgeTraceSet(DataContainer):
             self.edge_msk[:, -1] = self.bitmask.turn_on(self.edge_msk[:, -1], 'OFFDETECTOR')
         if self.traceid[0] > 0:
             self.edge_msk[:, 0] = self.bitmask.turn_on(self.edge_msk[:, 0], 'OFFDETECTOR')
-        self.clean_traces(rebuild_pca=True)
+
+        # sync
+        self.sync()
+
+        # remove traces with a mismatch in the maskdef_id (it's better to remove the traces
+        # rather than propagating the mismatch)
+        diff_maskdef_id = np.repeat(self.maskdef_id[self.is_left] - self.maskdef_id[self.is_right] != 0, 2)
+        if np.any(diff_maskdef_id):
+            self.edge_msk[:, diff_maskdef_id] = self.bitmask.turn_on(self.edge_msk[:, diff_maskdef_id], 'SYNCERROR')
+
+        # remove short slits
+        platescale = parse.parse_binning(self.traceimg.detector.binning)[1] * self.traceimg.detector['platescale']
+        # minimum slit length
+        min_slitlen = self.par['minimum_slit_length'] / platescale if \
+            self.par['minimum_slit_length'] is not None else 20.
+        slit_length = np.median(np.squeeze(np.diff(self.edge_fit.reshape(self.nspec, -1, 2), axis=-1)), axis=0)
+        ind_short = np.repeat(slit_length < min_slitlen, 2)
+        if np.any(ind_short):
+            msgs.info('Rejecting {0} traces that are too short.'.format(np.sum(ind_short)))
+            self.edge_msk[:, ind_short] = self.bitmask.turn_on(self.edge_msk[:, ind_short], 'SHORTSLIT')
+
+        # force clean_traces for certain flags, because if a slit has one of these flags
+        # but has also a bitmask.exclude_flags it will not be removed
+        self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
+                          sync_mode='both', assume_synced=True)
 
         if self.is_synced:
             msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED AFTER MASK DESIGN MATCHING')
@@ -4467,9 +4494,9 @@ class EdgeTraceSet(DataContainer):
 
 
         """
-        # Reference row
-        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
-                            else self.pca.reference_row
+        # as reference row we use the midpoint in the spectral direction
+        reference_row = self.edge_fit[:, 0].size // 2
+
         # matched index for the slit-mask design data.
         ind = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid, maskdef_id, strict=False)
         # if not all the element of self.spectrograph.slitmask.slitid[ind] are equal to maskdef_id, keep only the
@@ -4515,6 +4542,8 @@ class EdgeTraceSet(DataContainer):
         - 'OBJRA': Right ascension of the object (deg)
         - 'OBJDEC': Declination of the object (deg)
         - 'OBJNAME': Object name assigned by the observer
+        - 'OBJMAG': Object magnitude provided by the observer
+        - 'OBJMAG_BAND': Band of the magnitude provided by the observer
         - 'SLITID': Slit ID Number (`maskdef_id`)
         - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
         edge of the slit (in PypeIt orientation)
@@ -4545,7 +4574,8 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJ_TOPDIST', 'OBJ_BOTDIST']):
+        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
+                                'OBJ_TOPDIST', 'OBJ_BOTDIST']):
             self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
 
         # SLITINDX is the index of the slit in the `design` table, not

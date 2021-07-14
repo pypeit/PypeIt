@@ -87,9 +87,11 @@ class SlitMask:
             position angle of the slit from N through E in degrees.
         objects (`numpy.ndarray`_, optional):
             List of objects observed as a 1D or 2D array with shape
-            :math:`(4,)` or :math:`(N_{\rm obj},4)`. The four
+            :math:`(9,)` or :math:`(N_{\rm obj},9)`. The nine
             elements for each object is the slit id, the object ID,
-            and the right ascension and declination of the target.
+            the right ascension and declination of the target, the
+            object name, the object magnitude and band, and the
+            object top and bottom distances from the slit edges.
             The order of the objects does not have to match that of
             the slit IDs. Also, there can be slits without objects
             and slits with multiple objects; however, objects cannot
@@ -206,9 +208,9 @@ class SlitMask:
         self.slitindx = None
         if objects is not None:
             self.objects = numpy.atleast_2d(objects)
-            if self.objects.shape[1] != 7:
-                raise ValueError('Must provide the slit ID, sky coordinates, object name, top '
-                                 'and bottom distance for each object.')
+            if self.objects.shape[1] != 9:
+                raise ValueError('Must provide the slit ID, object ID, sky coordinates, object name, '
+                                 'object magnitude and band, top and bottom distance for each object.')
             try:
                 self.slitindx = index_of_x_eq_y(self.slitid, self.objects[:,0].astype(int),
                                                 strict=True)
