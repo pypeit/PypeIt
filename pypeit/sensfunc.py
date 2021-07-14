@@ -296,9 +296,6 @@ class SensFunc(datamodel.DataContainer):
                         or isinstance(self[key], table.Table):
                     continue
                 _d[key] = self[key]
-            # Add the algorithm if it has been defined
-            if self.algorithm is not None:
-                _d['algorithm'] = self.algorithm
 
         return d
 
