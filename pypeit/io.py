@@ -34,6 +34,22 @@ import sklearn
 import pypeit
 import time
 
+
+def get_time_string(codetime):
+    if codetime < 60.0:
+        retstr = 'Execution time: {0:.2f}s'.format(codetime)
+    elif codetime / 60.0 < 60.0:
+        mns = int(codetime / 60.0)
+        scs = codetime - 60.0 * mns
+        retstr = 'Execution time: {0:d}m {1:.2f}s'.format(mns, scs)
+    else:
+        hrs = int(codetime / 3600.0)
+        mns = int(60.0 * (codetime / 3600.0 - hrs))
+        scs = codetime - 60.0 * mns - 3600.0 * hrs
+        retstr = 'Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs)
+    return retstr
+
+
 # TODO -- Move this module to core/
 
 def init_record_array(shape, dtype):
