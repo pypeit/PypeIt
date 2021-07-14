@@ -263,7 +263,9 @@ class CoAdd2D:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
                                                          objid=self.objid_bri)
-            thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= 3 #Within some pixel range of reference spat_ID
+            thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= 3
+            # TODO Added a 3 pixel tolerance to spat_ID equality in line above, could make a parameter later on?
+
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -875,7 +877,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                                            find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
-            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
+            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT # SHANE - This line causes the failure in 4-exp multi-dispang 2Dcoadd
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
         med_traces_rect = np.median(traces_rect,axis=0)
         offsets = med_traces_rect[0] - med_traces_rect
