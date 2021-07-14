@@ -231,14 +231,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # Set the number of alignments in the align frames
-        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
+        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = True  # correct for spatial flexure
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
 
