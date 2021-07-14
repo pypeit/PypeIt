@@ -21,8 +21,8 @@ What types of files and what metadata is archived is delegated to a
 
         files_to_copy (iterable):
             An iterable of tuples. Each tuple has a src file to copy to the archive
-            and a relative pathname for that file in the archive. The file will be copied
-            to the dest pathname relative to the archive's root.
+            and a destination pathname for that file in the archive. The destination
+            pathname is relative to the archive's root directory.
 
 Below is an example ``get_metadata_func`` function that gets metadata for a single fits file and
 archives it in a directory based on observation date::
@@ -109,13 +109,11 @@ class ArchiveMetadata():
         Args:
             item: The object to add to the archive.
 
-        Returns:
-        files_to_copy (iterable):
-            An iterable of tuple, as returned by ``get_metadata_func``. 
+        Returns: 
+            iterable: An iterable of tuples, as returned by ``get_metadata_func``. 
             Each tuple has a src file to copy to the archive
-            and a relative pathname for that file in the archive. The file will be copied
-            to the dest pathname relative to the archive's root.
-
+            and a destination pathname for that file in the archive. The
+            destination pathname is relative to the archive's root directory.
         """        
         (rows, files_to_copy) = self.get_metadata_func(item)
 
@@ -205,12 +203,12 @@ class ArchiveDir():
         is enable.
 
         Args:
-        orig_file (str): Path to the file to copy.
+            orig_file (str): Path to the file to copy.
 
-        dest_file (str): Relative path to the file to copy.
+            dest_file (str): Relative path to the file to copy.
 
         Returns:
-        str: The full path to the new copy in the archive.
+            str: The full path to the new copy in the archive.
         """
 
         if self._copy_files is False:

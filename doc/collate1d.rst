@@ -176,7 +176,7 @@ RA/DEC
 ++++++
 If RA/DEC matching is being used, the tolerance is specified as an angular distance.
 By default, it is treated as arcseconds, but any format supported by astropy `Angles <https://docs.astropy.org/en/stable/coordinates/angles.html>`_ 
-can be used. The matching is done the _astropy.coordinates.SkyCoord ``separation`` method.
+can be used. The matching is done using the `Astropy SkyCoord separation method <https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html#astropy.coordinates.SkyCoord.separation>`_.
 
 Currently only the ``DEIMOS`` instrument supports RA/DEC matching.
 
@@ -190,37 +190,140 @@ Archiving
 =========
 ``pypeit_collate_1d`` can copy all of the input files it uses and all of the files
 it creates into an archive directory suitable to be compressed and sent to KOA for
-ingest. 
+ingest.  Reduced data and associated files are stored in subdirectories based on the 
+year and month the data was observed.  Additional metadata information is stored in
+the top level of the directory.
 
-Metadata
-========
+
+Archived Files
+--------------
+
+spec1d
+++++++
+FITS files beginning with the prefix ``spec1d`` contain calibrated 1d spectra extracted from the science data. 
+See https://pypeit.readthedocs.io/en/latest/out_spec1D.html for a detailed description of these files.
+
+
+spec1d text files
++++++++++++++++++
+Text files with extraction information about each spec1d file are also copied to the archive directory. 
+More information about these files can be found at https://pypeit.readthedocs.io/en/latest/out_spec1D.html#extraction-information.
+
+
+spec2d
+++++++
+FITS files with the ``spec2d`` prefix contain a 2d spectral image created by ``PypeIt`` during data reduction.
+They are described in detail at https://pypeit.readthedocs.io/en/latest/out_spec2D.html.
+
+coadd output files
+++++++++++++++++++
+FITS files that begin with a sky coordinate prefix are coadded spectra from multiple exposures of a single object.
+They are described in detail at https://pypeit.readthedocs.io/en/latest/coadd1d.html#current-coadd1d-data-model.
+
+pypeit files
+++++++++++++
+Files ending in ".pypeit" are the original ``PypeIt`` reduction files that were used to reduce the raw data.
+They are described at https://pypeit.readthedocs.io/en/latest/pypeit_file.html.
+
+Archive Metadata
+----------------
 ``pypeit_collate_1d`` writes out two metadata files named ``by_id.dat`` and 
 ``by_object_id.dat``. These files are written in the `IPAC <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_
 format. 
 
 ``by_id.dat``
--------------
-The ``by_id.dat`` file contains metadata from any spec1d or spec2d files used by 
-``pypeit_collate_1d``.  This file is organized by KOAID for files that originated,
-in KOA or by filename for files from other sources.
++++++++++++++
+The ``by_id.dat`` file contains metadata from any spec1d or spec2d files in the archive.  This file is 
+organized by KOAID. Below is the description of some of the columns in the ``by_id.dat`` file. All filenames
+are relative to the top level of the archive directory.
 
++---------------+-------------------------------------------------------------+
+| Column Name   | Description                                                 |
++===============+=============================================================+
+| id            | The KOAID of the source image that was reduced to create the|
+|               | spec1d or spec2d file.                                      |
++---------------+-------------------------------------------------------------+
+| filename      | The filename of the spec1d or spec2d file.                  |
++---------------+-------------------------------------------------------------+
+| text_info     | The filename of the extraction info text file associated    |
+|               | with a spec1d file.                                         |
++---------------+-------------------------------------------------------------+
+| pypeit_file   | The ``PypeIt`` reduction file used to reduce the file.      |
++---------------+-------------------------------------------------------------+
+| ra            | RA from the source image header.                            |
++---------------+-------------------------------------------------------------+
+| dec           | DEC from the source image header.                           |
++---------------+-------------------------------------------------------------+
+| progpi        | Program Principle Investigator from the source image header.|
++---------------+-------------------------------------------------------------+
+| semester      | Semester from the source image header.                      |
++---------------+-------------------------------------------------------------+
+| progid        | Program ID from the source image header.                    |
++---------------+-------------------------------------------------------------+
+| dispname      | The grating used for the source image.                      |
++---------------+-------------------------------------------------------------+
+| decker        | The slitmask used for the source image.                     | 
++---------------+-------------------------------------------------------------+
+| binning       | Binning from the source image header.                       |
++---------------+-------------------------------------------------------------+
+| mjd           | Modified Julian Date from the the source image header.      |
++---------------+-------------------------------------------------------------+
+| airmass       | Airmass from the the source image header.                   | 
++---------------+-------------------------------------------------------------+
+| exptime       | Exposure time from the the source image header.             |
++---------------+-------------------------------------------------------------+
 
 ``by_object.dat``
------------------
-The ``by_object.dat`` file contains metadata about the coadded output files
-created by Metadata about the coadded outut files created by ``pypeit_collate_1d``.
-The file is organized by the output file name, and has multiple rows per output file,
-one row per source of the object file. For example:
++++++++++++++++++
+The ``by_object.dat`` file contains metadata about the coadded output files.
+The file is organized by the output file name, and has multiple rows per output 
+file: one row per extracted spectra that was coadded to create the file. Below 
+is the description of some of the columns in the ``by_id.dat`` file. All filenames
+are relative to the top level of the archive directory.
 
-+-----------------------------------------+---------------+---+----------------------+---+
-|                                 filename|maskdef_objname|...|             source_id|...|
-+=========================================+===============+===+======================+===+
-|J132402.48+271212.38_DEIMOS_20130409.fits|      sbzk_1440|...|DE.20130409.20629.fits|...|
-+-----------------------------------------+---------------+---+----------------------+---+
-|J132402.48+271212.38_DEIMOS_20130409.fits|      sbzk_1440|...|DE.20130409.22509.fits|...|
-+-----------------------------------------+---------------+---+----------------------+---+
-|J132401.95+271237.80_DEIMOS_20130409.fits|      sbzk_1796|...|DE.20130409.20629.fits|...|
-+-----------------------------------------+---------------+---+----------------------+---+
-|J132401.95+271237.80_DEIMOS_20130409.fits|      sbzk_1796|...|DE.20130409.22509.fits|...|
-+-----------------------------------------+---------------+---+----------------------+---+
-
++-----------------+-----------------------------------------------------------+
+| Column Name     | Description                                               |
++=================+===========================================================+
+| filename        | The filename of the coadded output file.                  |
++-----------------+-----------------------------------------------------------+
+| maskdef_objname | The name of the object being coadded.                     |
++-----------------+-----------------------------------------------------------+
+| maskdef_id      | The slit id for the according to the mask definition.     |
++-----------------+-----------------------------------------------------------+
+| det             | The detector the spectrum was captured on.                |
++-----------------+-----------------------------------------------------------+
+| ra              | The RA of the source object, determined from the mask     |
+|                 | definition.                                               |
++-----------------+-----------------------------------------------------------+
+| dec             | The DEC of the source object, determined from the mask    |
+|                 | definition.                                               |
++-----------------+-----------------------------------------------------------+
+| med_s2n         | The signal to noise ratio of the extracted object.        |
++-----------------+-----------------------------------------------------------+
+| wav_rms         | The RMS in pixels of the wavelength solution.             |
++-----------------+-----------------------------------------------------------+
+| source_id       | The KOAID of the original source image.                   |
++-----------------+-----------------------------------------------------------+
+| spec1d_filename | The name of the spec1d file containing the spectrum.      |
++-----------------+-----------------------------------------------------------+
+| dispname        | The grating used for the source image.                    |
++-----------------+-----------------------------------------------------------+
+| decker          | The slitmask used for the source image.                   |
++-----------------+-----------------------------------------------------------+
+| binning         | Binning from the source image header.                     |
++-----------------+-----------------------------------------------------------+
+| mjd             | Modified Julian Date from the the source image header.    |
++-----------------+-----------------------------------------------------------+
+| airmass         | Airmass from the the source image header.                 |
++-----------------+-----------------------------------------------------------+
+| exptime         | Exposure time from the the source image header.           | 
++-----------------+-----------------------------------------------------------+
+| guidfwhm        | Guide star FWHM value from the source image header.       |
++-----------------+-----------------------------------------------------------+
+| progpi          | Program Principle Investigator from the source image      |
+|                 | header.                                                   |
++-----------------+-----------------------------------------------------------+
+| semester        | Semester from the source image header.                    |
++-----------------+-----------------------------------------------------------+
+| progid          | Program ID from the source image header.                  |
++-----------------+-----------------------------------------------------------+

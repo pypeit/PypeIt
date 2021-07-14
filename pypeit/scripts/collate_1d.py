@@ -83,16 +83,15 @@ def get_metadata_by_id(header_keys, file_info):
         filename (str): A filename for a file to add to the ArchiveMetadata object.
     
     Returns:
-        tuple: data_rows, files_to_copy
+        tuple: A tuple of two lists, **data_rows** and **files_to_copy**.
 
-        data_rows (list of list):
-            The metadata rows built from the FITS file.
+               data_rows (list of list):
+                   The metadata rows built from the FITS file.
 
-        files_to_copy (iterable):
-            An iterable of tuples. Each tuple has a src file to copy to the archive
-            and a relative pathname for that file in the archive. The file will be copied
-            to the dest pathname relative to the archive's root.
-
+               files_to_copy (iterable):
+                   An iterable of tuples. Each tuple has a src file to copy to the archive
+                   and a destination pathname for that file in the archive. The destination
+                   pathname is relative to the archive's root directory.
         
     """
     # Source objects are handled by get_object_based_metadata
@@ -139,13 +138,15 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
             The source object containing the headers, filenames and SpecObj information for a coadd output file.
 
     Returns:
-        list of list:
-            The list of metadata rows built from the source object.
+        tuple: A tuple of two lists, **data_rows** and **files_to_copy**.
 
-        files_to_copy (list):
-            An list of tuples. Each tuple has a src file to copy to the archive
-            and a relative pathname for that file in the archive. The file will be copied
-            to the dest pathname relative to the archive's root.
+               data_rows (list of list):
+                   The metadata rows built from the source object.
+
+               files_to_copy (iterable):
+                   An iterable of tuples. Each tuple has a src file to copy to the archive
+                   and a destination pathname for that file in the archive. The destination
+                   pathname is relative to the archive's root directory.
     """
 
     if not isinstance(file_info, SourceObject):
@@ -166,14 +167,14 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
         spec_obj_data = [getattr(spec_obj, x) for x in spec_obj_keys]
 
         # Get the spec1d header metadata needed for the archive
-        # Use the MJD in the spec1d file to build it's subdirectory, just like get_metadata_by_id does
-        # when the spec1d is added to the archive
         header = file_info.spec1d_header_list[i]
 
         # Get the KOAID of the original image for the spec1d
         id = extract_id(header)
 
 
+        # Use the MJD in the spec1d file to build it's subdirectory, just like get_metadata_by_id does
+        # when the spec1d is added to the archive
         subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
         spec1d_filename = os.path.join(subdir_name, os.path.basename(file_info.spec1d_file_list[i]))
 
@@ -185,10 +186,11 @@ def get_object_based_metadata(object_header_keys, spec_obj_keys, file_info):
 def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
     """
     Gets the metadata from a SourceObject instance used building a report
-    on the results of collation. Unlike the other get_*_metadata functions, this
-    is not used for archiving.  It is intended to be wrapped in by functools
+    on the results of collation.  It is intended to be wrapped in by functools
     partial object that passes in object_header_keys and spec_obj_keys. file_info
     is then passed as in by the :obj:`pypeit.archive.ArchiveMetadata` object.
+    Unlike the other get_*_metadata functions, this is not used for archiving; it is
+    used for reporting on the results of collating.
 
     If another type of file is added to the ArchiveMetadata object, the file_info
     argument will not be a SourceObject, In this case, a list of ``None`` values are 
@@ -205,12 +207,14 @@ def get_report_metadata(object_header_keys, spec_obj_keys, file_info):
             The source object containing the headers, filenames and SpecObj information for a coadd output file.
 
     Returns:
-        list of list:
-            The list of metadata rows built from the source object.
+        tuple: A tuple of two lists, **data_rows** and **files_to_copy**.
 
-        files_to_copy (list):
-            An list of tuples of files to copy. Because this function is not used for
-            archving data, this is always None.
+               data_rows (list of list):
+                   The metadata rows built from the source object.
+
+               files_to_copy (iterable):
+                   An list of tuples of files to copy. Because this function is not used for
+                   archving data, this is always ``None``.
     """
 
     if not isinstance(file_info, SourceObject):
@@ -355,10 +359,10 @@ def find_spec2d_from_spec1d(spec1d_files):
     It will exit with an error if a spec2d file cannot be found.
 
     Args:
-    spec1d_files (list of str): List of spec1d files generated by PypeIt.
+        spec1d_files (list of str): List of spec1d files generated by PypeIt.
 
     Returns:
-    list of str: List of the matching spec2d files.
+        list of str: List of the matching spec2d files.
     """
 
     spec2d_files = []
@@ -383,13 +387,17 @@ def find_archvie_files_from_spec1d(spec1d_files):
     It will exit with an error if a file cannot be found.
 
     Args:
-    spec1d_files (list of str): List of spec1d files generated by PypeIt.
+        spec1d_files (list of str): 
+            List of spec1d files generated by PypeIt.
 
     Returns:
-    tuple: spec1d_text_files, pypeit_files
-
-    spec1d_text_files list of str: List of the matching spec1d text files.
-    pypeit_files list of str: List of the matching pypeit files.
+        tuple: Returns two lists, **spec1d_text_files**, and **pypeit_files**.
+        
+               spec1d_text_files (list of str): The list of spec1d text files corresponding to the passed
+                                                in spec1d files.
+                                                
+               pypeit_files (list of str): The list of .pypeit files corresponding to the passed in 
+                                           spec1d files.
     """
 
     spec1d_text_files = []
@@ -703,8 +711,7 @@ class Collate1D(scriptbase.ScriptBase):
                 spec1d_text_files, pypeit_files = find_archvie_files_from_spec1d(spec1d_files)
 
                 archive.add(zip(spec1d_files, spec1d_text_files, pypeit_files))
-                if len(spec2d_files) > 0:
-                    archive.add(zip(spec2d_files, spec1d_text_files, pypeit_files))
+                archive.add(zip(spec2d_files, spec1d_text_files, pypeit_files))
 
             archive.add(successful_source_list)
             archive.save()
