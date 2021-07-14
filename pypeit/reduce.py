@@ -158,7 +158,9 @@ class Reduce(object):
         self.initialise_slits()
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
+        # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
+        # with other bad flag (for which bpm>2)
+        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -211,7 +213,7 @@ class Reduce(object):
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -319,29 +321,21 @@ class Reduce(object):
         """
         pass
 
-    def run(self, ra=None, dec=None, obstime=None, std_trace=None, show_peaks=False, return_negative=False):
+    def run_objfind(self, std_trace=None, show_peaks=False):
         """
-        Primary code flow for PypeIt reductions
+        Primary code flow for object finding in PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            ra (str, optional):
-                Required if helio-centric correction is to be applied
-            dec (str, optional):
-                Required if helio-centric correction is to be applied
-            obstime (:obj:`astropy.time.Time`, optional):
-                Required if helio-centric correction is to be applied
             std_trace (np.ndarray, optional):
                 Trace of the standard star
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
 
         Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
-               tilts (`numpy.ndarray`_).
-               See main doc string for description
+            tuple: global_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`), skymask (`np.ndarray`_).
+            Initial global sky model, list of objects found, skymask
 
         """
 
@@ -357,10 +351,10 @@ class Reduce(object):
             tilt_flexure_shift = self.spat_flexure_shift
         msgs.info("Generating tilts image")
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-
-        # Wavelengths (on unmasked slits)
-        msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+        #
+        # # Wavelengths (on unmasked slits) - DP: I don't think we need to generate this here
+        # msgs.info("Generating wavelength image")
+        # self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
@@ -372,7 +366,7 @@ class Reduce(object):
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
 
-        # Global sky subtract
+        # Global sky subtract (self.global_sky is also generated here)
         self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -394,6 +388,80 @@ class Reduce(object):
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
 
+        return self.global_sky, self.sobjs_obj, self.skymask
+
+    def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
+        """
+        Primary code flow for PypeIt reductions
+
+        *NOT* used by COADD2D
+
+        Args:
+            global_sky (`np.ndarray`_):
+                Initial global sky model
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                List of objects found during `run_objfind`
+            skymask (`np.ndarray`_):
+               Boolean image indicating which pixels are useful for global sky subtraction
+            ra (float, optional):
+                Required if helio-centric correction is to be applied
+            dec (float, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+
+        Returns:
+            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
+               tilts (`numpy.ndarray`_).
+               See main doc string for description
+
+        """
+        # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
+        self.reduce_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
+        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
+        # use the tweaked traces if they exist - DP: I'm not sure this is necessary
+        self.sciImg.update_mask_slitmask(self.slitmask)
+
+        # Deal with dynamic calibrations
+        # Tilts
+        self.waveTilts.is_synced(self.slits)
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        msgs.info("Generating tilts image")
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
+
+        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
+        skymask, usersky = self.load_skyregions(skymask)
+
+        # remove objects found in `BOXSLIT` (we don't want to extract those)
+        remove_idx = []
+        for i, sobj in enumerate(sobjs_obj):
+            if sobj.SLITID in list(self.slits.spat_id[self.reduce_bpm]):
+                remove_idx.append(i)
+        sobjs_obj.remove_sobj(remove_idx)
+
+        self.sobjs_obj = sobjs_obj
+        self.skymask = skymask
+        self.global_sky = global_sky
+        self.initial_sky = global_sky.copy()
+        self.nobj = len(sobjs_obj)
+
+        # Do we have any positive objects to proceed with?
+        if self.nobj > 0:
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -438,7 +506,7 @@ class Reduce(object):
         self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
 
         # Update the mask
-        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
+        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm & (self.slits.mask > 2))[0]
         if len(reduce_masked) > 0:
             self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[reduce_masked], 'BADREDUCE')
@@ -550,7 +618,11 @@ class Reduce(object):
         else:
             sigrej = 3.0
 
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        # We use this tmp bpm so that we exclude the BOXSLITS during the global_skysub
+        tmp_bpm = (self.slits.mask > 0) & \
+                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
+                                                                flag=self.slits.bitmask.exclude_for_reducing)))
+        gdslits = np.where(np.invert(tmp_bpm))[0]
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
@@ -558,7 +630,7 @@ class Reduce(object):
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit_idx))
+            msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
             thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # All masked?
@@ -1000,6 +1072,14 @@ class MultiSlitReduce(Reduce):
                             'DET': self.det, 'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
+            # This condition allows to not use a threshold to find objects in alignment boxes
+            # because these boxes are smaller than normal slits and the stars are very bright,
+            # the detection threshold would be too high and the star not detected.
+            if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag='BOXSLIT'):
+                sig_thresh = 0.
+            else:
+                sig_thresh = self.par['reduce']['findobj']['sig_thresh']
+
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
@@ -1011,7 +1091,7 @@ class MultiSlitReduce(Reduce):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+                                sig_thresh= sig_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -1028,25 +1108,6 @@ class MultiSlitReduce(Reduce):
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
-
-        # If this is a second pass for objfind or this is the first one but skip_second_find is True,
-        # assign slitmask design information to detected objects
-        if ((self.sobjs_obj is None) and (self.par['reduce']['findobj']['skip_second_find'])) or \
-                (self.sobjs_obj is not None):
-            if self.par['reduce']['slitmask']['assign_obj'] and self.slits.maskdef_designtab is not None:
-                msgs.info('Assign slitmask design info to detected objects')
-                all_expected_objpos = self.slits.assign_maskinfo(sobjs, self.get_platescale(None),
-                                                                 self.slits_left, self.slits_right,
-                                                                 self.par['calibrations']['slitedges']['det_buffer'],
-                                                                 TOLER=self.par['reduce']['slitmask']['obj_toler'])
-                # force extraction of non detected objects
-                if self.par['reduce']['slitmask']['extract_missing_objs']:
-                    msgs.info('Add undetected objects at the expected location from slitmask design.')
-                    # Assign un-detected objects
-                    sobjs = self.slits.mask_add_missing_obj(sobjs, all_expected_objpos,
-                                                self.par['reduce']['findobj']['find_fwhm'],
-                                                self.par['reduce']['slitmask']['slitmask_offset'],
-                                                self.slits_left, self.slits_right) # Deal with flexure
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1576,6 +1637,12 @@ class IFUReduce(MultiSlitReduce, Reduce):
         #     # Re-generate a global sky sub for all slits separately
         #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
         #                                           show_fit=show_fit, show=show, show_objs=show_objs)
+
+        # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
+        # It's needed in `illum_profile_spectral`
+        # TODO maybe would be better to move it inside `illum_profile_spectral`
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         if self.par['scienceframe']['process']['use_specillum']:
             self.illum_profile_spectral(global_sky_sep, skymask=skymask)

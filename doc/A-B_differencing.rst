@@ -1,3 +1,5 @@
+.. _a-b_differencing:
+
 ======================
 A-B image differencing
 ======================
