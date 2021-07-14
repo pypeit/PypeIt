@@ -115,8 +115,12 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
                                        det=det)
 
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
-        std_trace=std_trace, return_negative=True, show_peaks=show)
+    # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
+    #     std_trace=std_trace, return_negative=True, show_peaks=show)
+
+    global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
+        global_sky, sobjs_obj, skymask, return_negative=True)
 
     # TODO -- Do this upstream
     # Tack on detector
