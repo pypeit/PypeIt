@@ -1076,6 +1076,10 @@ class FlatField(object):
             if self.flatpar['pixelflat_min_wave'] is not None:
                 bad_wv = waveimg[onslit_tweak] < self.flatpar['pixelflat_min_wave'] 
                 self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
+            # Maximum wavelength?
+            if self.flatpar['pixelflat_max_wave'] is not None:
+                bad_wv = waveimg[onslit_tweak] > self.flatpar['pixelflat_max_wave'] 
+                self.mspixelflat[np.where(onslit_tweak)[0][bad_wv]] = 1.
 
         # No need to continue if we're just doing the spatial illumination
         if spat_illum_only:
