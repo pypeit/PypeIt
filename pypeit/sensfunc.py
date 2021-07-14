@@ -56,7 +56,7 @@ class SensFunc(datamodel.DataContainer):
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
-    version = '1.0.0'
+    version = '1.0.1'
     """Datamodel version."""
 
     # TODO: Add this if we want to set the output float type for the np.ndarray
@@ -82,7 +82,8 @@ class SensFunc(datamodel.DataContainer):
                  'zeropoint': dict(otype=np.ndarray, atype=float,
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
-                                    descr='Spectrograph throughput measurements')}
+                                    descr='Spectrograph throughput measurements'),
+                 'algorithm': dict(otype=str, descr='Algorithm used for the sensitivity calculation.')}
 #                                    ,
 #                 'wave_splice': dict(otype=np.ndarray, atype=float,
 #                                     descr='Spliced-together wavelength vector'),
@@ -169,6 +170,9 @@ class SensFunc(datamodel.DataContainer):
         # Get the algorithm parameters
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO: Check the type of the parameter object?
+
+        #
+        self.algorithm = self.__class__.algorithm
 
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
@@ -844,6 +848,7 @@ class UVISSensFunc(SensFunc):
         # already in unpack object
         self.meta_spec['LATITUDE'] = self.spectrograph.telescope['latitude']
         self.meta_spec['LONGITUDE'] = self.spectrograph.telescope['longitude']
+        #self.algorithm = self.__class__.algorithm
 
     def compute_zeropoint(self):
         """
