@@ -94,7 +94,7 @@ class SensFunc(datamodel.DataContainer):
 #                                                 'measurements')}
     """DataContainer datamodel."""
 
-    algorithm = None
+    _algorithm = None
     """Algorithm used for the sensitivity calculation."""
 
     @staticmethod
@@ -172,7 +172,7 @@ class SensFunc(datamodel.DataContainer):
         # TODO: Check the type of the parameter object?
 
         # Set the algorithm in the datamodel
-        self.algorithm = self.__class__.algorithm
+        self.algorithm = self.__class__._algorithm
 
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
@@ -712,7 +712,7 @@ class IRSensFunc(SensFunc):
             Run in debug mode.
     """
 
-    algorithm = 'IR'
+    _algorithm = 'IR'
     """Algorithm used for the sensitivity calculation."""
 
     def compute_zeropoint(self):
@@ -835,7 +835,7 @@ class UVISSensFunc(SensFunc):
             Run in debug mode.
     """
 
-    algorithm = 'UVIS'
+    _algorithm = 'UVIS'
     """Algorithm used for the sensitivity calculation."""
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
@@ -845,7 +845,6 @@ class UVISSensFunc(SensFunc):
         # already in unpack object
         self.meta_spec['LATITUDE'] = self.spectrograph.telescope['latitude']
         self.meta_spec['LONGITUDE'] = self.spectrograph.telescope['longitude']
-        #self.algorithm = self.__class__.algorithm
 
     def compute_zeropoint(self):
         """
