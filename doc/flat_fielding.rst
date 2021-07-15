@@ -188,3 +188,17 @@ Using *mask* will preclude the slit from any further
 reduction.  Using *continue* will set the flat to unit value
 and extraction will be attempted.
 
+
+Ignoring Extremma
+-----------------
+
+If you wish to set the pixelflat to unity below/above a 
+user-specified wavelength, then use *pixelflat_min_wave* or
+*pixelflat_max_wave*, e.g.::
+
+    [calibrations]
+    [[flatfield]]
+        pixelflat_min_wave = 3750.
+
+This will set the flat to be 1. for pixel with wavelength
+less than 3750Ang in every slit.
