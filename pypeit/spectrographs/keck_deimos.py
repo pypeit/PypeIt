@@ -17,6 +17,7 @@ import numpy as np
 from scipy import interpolate
 
 from astropy.io import fits
+from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table
 from astropy import units
 
@@ -207,6 +208,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Do not sigmaclip the arc frames
         par['calibrations']['arcframe']['process']['clip'] = False
+        # Do not sigmaclip the tilt frames
+        par['calibrations']['tiltframe']['process']['clip'] = False
+        # Lower value of tracethresh
+        par['calibrations']['tilts']['tracethresh'] = 10
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
@@ -258,9 +263,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # Since we use the slitmask info to find the alignment boxes, I don't need `minimum_slit_length_sci`
             par['calibrations']['slitedges']['minimum_slit_length_sci'] = None
             # Sometime the added missing slits at the edge of the detector are to small to be useful.
-            par['calibrations']['slitedges']['minimum_slit_length'] = 2.
+            par['calibrations']['slitedges']['minimum_slit_length'] = 3.
             # Since we use the slitmask info to add and remove traces, 'minimum_slit_gap' may undo the matching effort.
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
+            # Lower edge_thresh works better
+            par['calibrations']['slitedges']['edge_thresh'] = 10.
+            # Assign RA, DEC, OBJNAME to detected objects
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
@@ -707,6 +715,48 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
+    def get_telescope_offset(self, file_list):
+        """
+        For a list of frames compute telescope pointing offset w.r.t. the first frame.
+        Note that the object in the slit will appear moving in the opposite direction (=-tel_off)
+
+        Args:
+            file_list (:obj:`list`): List of frames (including the path) for which telescope offset is desired.
+            Both raw frames and spec2d files can be used.
+
+        Returns:
+            tel_off (:obj:`list`) : List of telescope offsets (in arcsec) w.r.t. the first frame
+
+        """
+        # file (can be a raw or a spec2d)
+        deimos_files = np.atleast_1d(file_list)
+        # headers for all the files
+        hdrs = np.array([self.get_headarr(file) for file in deimos_files], dtype=object)
+        # mjd for al the files
+        mjds = np.array([self.get_meta_value(aa, 'mjd') for aa in hdrs], dtype=object)
+        # sort
+        sorted_by_mjd = np.argsort(mjds)
+        # telescope coordinates
+        # precision: RA=0.15", Dec=0.1"
+        ras = np.array([self.get_meta_value(aa, 'ra') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        decs = np.array([self.get_meta_value(aa, 'dec') for aa in hdrs], dtype=object)[sorted_by_mjd]
+        coords = SkyCoord(ra=ras, dec=decs, frame='fk5', unit='deg')
+
+        # compute telescope offsets with respect to the first frame
+        tel_off = []
+        for i in range(len(coords)):
+            offset = coords[0].separation(coords[i])
+            pa = coords[0].position_angle(coords[i])
+            # ROTPOSN take into account small changes in the mask PA
+            maskpa = Angle((hdrs[i][0]['ROTPOSN'] + 90.) * units.deg)
+            # tetha = PA in the slitmask reference frame
+            theta = pa - maskpa
+            # telescope offset
+            tel_off.append(offset.arcsec * np.cos(theta))
+
+        return np.array(tel_off)
+
+
     def get_slitmask(self, filename):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
@@ -737,6 +787,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                             hdu['ObjectCat'].data['RA_OBJ'],
                             hdu['ObjectCat'].data['DEC_OBJ'],
                             objname,
+                            hdu['ObjectCat'].data['mag'],
+                            hdu['ObjectCat'].data['pBand'],
                             hdu['SlitObjMap'].data['TopDist'][indx],
                             hdu['SlitObjMap'].data['BotDist'][indx]]).T
         #   - Only keep the objects that are in the slit-object mapping
