@@ -12,7 +12,14 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import cooked_required
 
 @cooked_required
-def test_sensfunc_io():
+def sensfunc_io_ir_test():
+    sensfunc_io_tester('IR')
+
+@cooked_required
+def sensfunc_io_uvis_test():
+    sensfunc_io_tester('UVIS')
+
+def sensfunc_io_tester(algorithm):
 
     # Remove any existing file from previous runs that were interrupted
     test_file = 'test_sens.fits'
@@ -27,7 +34,7 @@ def test_sensfunc_io():
     header = fits.getheader(spec1dfile)
     spectrograph = load_spectrograph(header['PYP_SPEC'])
     par = spectrograph.default_pypeit_par()
-    par['sensfunc']['algorithm'] = 'IR'
+    par['sensfunc']['algorithm'] = algorithm
 
     # Instantiate the relevant class for the requested algorithm
     sensobj = sensfunc.SensFunc.get_instance(spec1dfile, test_file, par['sensfunc'])
@@ -58,8 +65,7 @@ def test_sensfunc_io():
     assert np.array_equal(_sensobj.wave, sensobj.wave), 'I/O error'
     assert np.array_equal(_sensobj.zeropoint, sensobj.zeropoint), 'I/O error'
     assert isinstance(_sensobj.sens, table.Table), 'sens table has wrong type'
+    assert _sensobj.algorithm == sensobj.algorithm, \
+        'algorithm mismatch after writing to and reading from disk'
 
     os.remove(test_file) 
-
-
-
