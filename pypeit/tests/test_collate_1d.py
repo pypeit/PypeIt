@@ -15,7 +15,7 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.archive import ArchiveDir
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_by_id, get_object_based_metadata, get_report_metadata
+from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_reduced, get_metadata_coadded, get_report_metadata
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -387,12 +387,12 @@ def test_extract_id():
     assert extract_id(mock_header_with_short_non_koa_filename) == 'short.fits'
     assert extract_id(mock_header_with_long_non_koa_filename) == 'file_name_longer_than_17.fits'
 
-def test_get_metadata_by_id(monkeypatch):
+def test_get_metadata_reduced(monkeypatch):
 
     monkeypatch.setattr(fits, "getheader", mock_header)
     mock_files = (os.path.join('Science', 'spec1d_file1'), os.path.join('Science', 'spec1d_file1.txt'), 'test.pypeit')
     dest_files = (os.path.join('202001', 'spec1d_file1'), os.path.join('202001', 'spec1d_file1.txt'), os.path.join('202001', 'test.pypeit'))
-    (metadata_rows, files_to_copy) = get_metadata_by_id(['DISPNAME', 'TESTKEY'], mock_files)
+    (metadata_rows, files_to_copy) = get_metadata_reduced(['DISPNAME', 'TESTKEY'], mock_files)
     header = mock_header('spec1d_file1')
     assert len(metadata_rows) == 1
     assert metadata_rows[0] == [header['FILENAME'] + ".fits", dest_files[0], dest_files[1], dest_files[2], '830G', None]
@@ -406,9 +406,9 @@ def test_get_metadata_by_id(monkeypatch):
     spectrograph = load_spectrograph('keck_deimos')
     source_object = SourceObject(mock_specobjs("spec1d_file1").specobjs[0], header, "spec1d_file1", spectrograph, 'ra/dec')
 
-    assert (None, None) == get_metadata_by_id(['DISPNAME', 'TESTKEY'], source_object)
+    assert (None, None) == get_metadata_reduced(['DISPNAME', 'TESTKEY'], source_object)
 
-def test_get_object_based_metadata(monkeypatch):
+def test_get_coadded_metadata(monkeypatch):
 
     spectrograph = load_spectrograph('keck_deimos')
     filenames = ['spec1d_file1', 'spec1d_file2']
@@ -441,9 +441,9 @@ def test_get_object_based_metadata(monkeypatch):
 
     monkeypatch.setattr(fits, "getheader", mock_header)
 
-    (metadata_rows, files_to_copy) = get_object_based_metadata(['DISPNAME','MJD', 'GUIDFHWM'],
-                                                               ['MASKDEF_OBJNAME', 'NAME'],
-                                                               source_object)
+    (metadata_rows, files_to_copy) = get_metadata_coadded(['DISPNAME','MJD', 'GUIDFHWM'],
+                                                          ['MASKDEF_OBJNAME', 'NAME'],
+                                                          source_object)
 
     assert len(metadata_rows) == 4
     assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', os.path.join('202001', 'spec1d_file1'), '830G', '58878.0', None]
@@ -453,9 +453,9 @@ def test_get_object_based_metadata(monkeypatch):
     assert files_to_copy[0][0] == source_object.coaddfile
     assert files_to_copy[0][1] == dest_file
     
-    assert (None, None) ==  get_object_based_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
-                                                      ['MASKDEF_OBJNAME', 'NAME'],
-                                                       "afilename")
+    assert (None, None) ==  get_metadata_coadded(['DISPNAME', 'MJD', 'GUIDFHWM'],
+                                                 ['MASKDEF_OBJNAME', 'NAME'],
+                                                 "afilename")
 
 def test_get_report_metadata(monkeypatch):
 

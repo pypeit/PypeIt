@@ -11,8 +11,6 @@ from pypeit.archive import ArchiveMetadata, ArchiveDir
 from pypeit.tests.tstutils import cooked_required, data_path
 
 
-from pypeit.scripts.collate_1d import extract_id, get_metadata_by_id, get_object_based_metadata
-
 class mock_file_info:
     def __init__(self, path, name):
         self.path = path

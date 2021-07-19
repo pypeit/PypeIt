@@ -227,14 +227,14 @@ They are described at https://pypeit.readthedocs.io/en/latest/pypeit_file.html.
 
 Archive Metadata
 ----------------
-``pypeit_collate_1d`` writes out two metadata files named ``by_id.dat`` and 
-``by_object_id.dat``. These files are written in the `IPAC <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_
+``pypeit_collate_1d`` writes out two metadata files named ``reduced_files.dat`` and 
+``coadded_files_meta.dat``. These files are written in the `IPAC <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_
 format. 
 
-``by_id.dat``
-+++++++++++++
-The ``by_id.dat`` file contains metadata from any spec1d or spec2d files in the archive.  This file is 
-organized by KOAID. Below is the description of some of the columns in the ``by_id.dat`` file. All filenames
+``reduced_files.dat``
++++++++++++++++++++++
+The ``reduced_files.dat`` file contains metadata from any spec1d or spec2d files in the archive.  This file is 
+organized by KOAID. Below is the description of some of the columns in the ``reduced_files.dat`` file. All filenames
 are relative to the top level of the archive directory.
 
 +---------------+-------------------------------------------------------------+
@@ -262,7 +262,7 @@ are relative to the top level of the archive directory.
 +---------------+-------------------------------------------------------------+
 | dispname      | The grating used for the source image.                      |
 +---------------+-------------------------------------------------------------+
-| decker        | The slitmask used for the source image.                     | 
+| slmsknam      | The slit mask used for the source image.                    | 
 +---------------+-------------------------------------------------------------+
 | binning       | Binning from the source image header.                       |
 +---------------+-------------------------------------------------------------+
@@ -273,12 +273,12 @@ are relative to the top level of the archive directory.
 | exptime       | Exposure time from the the source image header.             |
 +---------------+-------------------------------------------------------------+
 
-``by_object.dat``
-+++++++++++++++++
-The ``by_object.dat`` file contains metadata about the coadded output files.
+``coadded_files.dat``
++++++++++++++++++++++
+The ``coadded_files.dat`` file contains metadata about the coadded output files.
 The file is organized by the output file name, and has multiple rows per output 
 file: one row per extracted spectra that was coadded to create the file. Below 
-is the description of some of the columns in the ``by_id.dat`` file. All filenames
+is the description of the columns in the ``coadded_files.dat`` file. All filenames
 are relative to the top level of the archive directory.
 
 +-----------------+-----------------------------------------------------------+
@@ -292,10 +292,10 @@ are relative to the top level of the archive directory.
 +-----------------+-----------------------------------------------------------+
 | det             | The detector the spectrum was captured on.                |
 +-----------------+-----------------------------------------------------------+
-| ra              | The RA of the source object, determined from the mask     |
+| objra           | The RA of the source object, determined from the mask     |
 |                 | definition.                                               |
 +-----------------+-----------------------------------------------------------+
-| dec             | The DEC of the source object, determined from the mask    |
+| objdec          | The DEC of the source object, determined from the mask    |
 |                 | definition.                                               |
 +-----------------+-----------------------------------------------------------+
 | med_s2n         | The signal to noise ratio of the extracted object.        |
@@ -308,7 +308,7 @@ are relative to the top level of the archive directory.
 +-----------------+-----------------------------------------------------------+
 | dispname        | The grating used for the source image.                    |
 +-----------------+-----------------------------------------------------------+
-| decker          | The slitmask used for the source image.                   |
+| slmsknam        | The slitmask used for the source image.                   |
 +-----------------+-----------------------------------------------------------+
 | binning         | Binning from the source image header.                     |
 +-----------------+-----------------------------------------------------------+
