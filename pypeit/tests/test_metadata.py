@@ -52,7 +52,7 @@ def test_read_combid():
 
     indx = pmd['filename'] == 'b27.fits.gz'
     assert pmd['comb_id'][indx] == [1], 'Incorrect combination group ID'
-    assert pmd['comb_id'][~indx] == [-1], 'Incorrect combination group ID'
+    assert pmd['comb_id'][np.where(~indx)[0]][0] == -1, 'Incorrect combination group ID'
 
     shutil.rmtree(config_dir)
 
