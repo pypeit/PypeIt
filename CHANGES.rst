@@ -3,7 +3,7 @@
 --------
 
 - Doc updates
-
+- Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
 
 1.4.2 (06 Jul 2021)
 -------------------

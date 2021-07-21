@@ -100,10 +100,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
             name of a fits image that can be read by `astropy.io.fits`.
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
-        waveimg (:obj:`str`, optional):
-            The name of a FITS image with the relevant WCS coordinates
-            in its header, mainly for wavelength array.  If None, no WCS
-            is used.
+        waveimg (:obj:`numpy.ndarray`, optional):
+            Wavelength image
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
             The object used to unpack the mask values.  If this is
             provided, mask must also be provided and the expectation is

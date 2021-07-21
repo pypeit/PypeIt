@@ -70,7 +70,7 @@ def test_setup_made_pypeit_file():
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
     # Test
-    assert len(data_files) == 2
+    assert len(data_files) == 8
     assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert setups[0] == 'A'
 
