@@ -4218,6 +4218,7 @@ class EdgeTraceSet(DataContainer):
 
         # reference row
         bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
+        # TODO make reference row an attribute of EdgeTraceSet
         reference_row = trace.most_common_trace_row(bpm) if self.pcatype is None \
             else (self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row)
         spat_bedge = self.edge_fit[reference_row, self.is_left]

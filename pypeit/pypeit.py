@@ -458,9 +458,9 @@ class PypeIt(object):
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         # container for specobjs during first loop (objfind)
-        all_specobjs = specobjs.SpecObjs()
+        all_specobjs_objfind = specobjs.SpecObjs()
         # container for specobjs during second loop (extraction)
-        all_specobjs_new = specobjs.SpecObjs()
+        all_specobjs_extract = specobjs.SpecObjs()
         # list of skymask and global_sky obtained during objfind and used in extraction
         skymask_list = []
         global_sky_list = []
@@ -517,7 +517,7 @@ class PypeIt(object):
             global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
                                                                       std_outfile=std_outfile)
             if len(sobjs_obj)>0:
-                all_specobjs.add_sobj(sobjs_obj)
+                all_specobjs_objfind.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
             global_sky_list.append(global_sky)
             sciImg_list.append(sciImg)
@@ -527,13 +527,13 @@ class PypeIt(object):
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             platescale = np.array([ss.detector.platescale for ss in sciImg_list])
-            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs, calib_slits, spat_flexure, platescale,
+            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['calibrations']['slitedges']['det_buffer'],
                                                                       self.par['reduce']['slitmask'])
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0])
             # slitmask design matching and add undetected objects
-            all_specobjs = slittrace.assign_addobjs_alldets(all_specobjs, calib_slits, spat_flexure, platescale,
+            all_specobjs_objfind = slittrace.assign_addobjs_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['reduce']['findobj']['find_fwhm'],
                                                                       self.par['reduce']['slitmask'])
 
@@ -546,22 +546,22 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            if all_specobjs.nobj > 0:
-                all_specobjs_on_det = all_specobjs[all_specobjs.DET == self.det]
+            if all_specobjs_objfind.nobj > 0:
+                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == self.det]
             else:
-                all_specobjs_on_det = all_specobjs
+                all_specobjs_on_det = all_specobjs_objfind
             all_spec2d[self.det], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
                                        all_specobjs_on_det, skymask_list[i])
             # Hold em
             if tmp_sobjs.nobj > 0:
-                all_specobjs_new.add_sobj(tmp_sobjs)
+                all_specobjs_extract.add_sobj(tmp_sobjs)
             # JFH TODO write out the background frame?
 
             # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
 
         # Return
-        return all_spec2d, all_specobjs_new
+        return all_spec2d, all_specobjs_extract
 
     def get_sci_metadata(self, frame, det):
         """

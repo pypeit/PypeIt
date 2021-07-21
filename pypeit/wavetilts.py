@@ -215,7 +215,7 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
         # self.tilt_bpm = np.invert(mask == 0)
-        # We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
+        # We want to keep the 'BOXSLIT', for which mask value is 2. But we don't want to keep 'BOXSLIT'
         # with other bad flag (for which the mask value would be > 2)
         self.tilt_bpm = mask > 2
         self.tilt_bpm_init = self.tilt_bpm.copy()
@@ -615,6 +615,13 @@ class BuildWaveTilts:
             msgs.info('Trace the tilts')
             self.trace_dict = self.trace_tilts(_mstilt, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:, slit_idx])
+            # IF there are < 2 usable arc lines for tilt tracing, PCA fit does not work and the reduction crushes
+            # TODO investigate why some slits have <2 usable arc lines
+            if np.sum(self.trace_dict['use_tilt']) < 2:
+                msgs.warn('Less than 2 usable arc lines for slit/order = {:d}'.format(self.slits.slitord_id[slit_idx]) +
+                          '. This slit/order will not reduced!')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
+                continue
 
             # TODO: Show the traces before running the 2D fit
 
