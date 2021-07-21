@@ -536,7 +536,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         high_res_reids = {
             '1200/7100': {
                 'D68': {
-                    7600: 'p200_dbsp_red_1200_7100_d68_7600.fits'
+                    7600: 'p200_dbsp_red_1200_7100_d68_spliced.fits',
+                    8200: 'p200_dbsp_red_1200_7100_d68_spliced.fits'
                 }
             },
             '1200/9400': {
