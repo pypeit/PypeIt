@@ -239,6 +239,9 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         """
         par = super().default_pypeit_par()
 
+        par['scienceframe']['process']['combine'] = 'median'
+        par['calibrations']['standardframe']['process']['combine'] = 'median'
+
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.55
@@ -451,6 +454,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        par['scienceframe']['process']['combine'] = 'median'
+        par['calibrations']['standardframe']['process']['combine'] = 'median'
 
         par['scienceframe']['process']['use_overscan'] = True
         par['scienceframe']['process']['sigclip'] = 4.0 # Tweaked downward from 4.5. 
