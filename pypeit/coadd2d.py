@@ -932,7 +932,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
             for islit, spat_id in enumerate(spat_ids):
-                ithis = sobjs.SLITID == spat_id
+                ithis = np.abs(sobjs.SLITID - spat_id) <= 3
+                # TODO - Added 3 Pixel tolerance to ithis line. Make this a parameter.
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
@@ -960,7 +961,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                        'ratio on the same slit of every exposure')
 
         self.snr_report(snr_bar, slitid=slitid)
-
+        embed()
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
