@@ -216,6 +216,7 @@ or have a feature request, please `submit an issue
    A-B_differencing
    fluxing
    coadd1d
+   telluric
    coadd2d
    coadd3d
    collate1d

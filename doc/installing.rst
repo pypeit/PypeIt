@@ -1,6 +1,13 @@
 
 .. _installing:
 
+.. TODO:
+..  - I don't think it's useful to have the full list of dependencies here.
+..    They're currently out of date because we don't update them...
+..  - I think we should remove all the developer installation details, and move
+..    it to the development.rst file.  It muddies the waters for the typical user.
+..  - We probably need a section on upgrading for the particularly novice user.
+
 ============
 Installation
 ============
@@ -294,11 +301,6 @@ Run ``tox -a`` to see a list of available test environemts.
 
 In either case, over 100 tests should pass, nearly 100 will be skipped and none should fail. The skipped
 tests only run if the PypeIt development is installed and configured.
-
-
-.. THERE NEEDS TO BE A "DATA" SECTION HERE THAT INSTRUCTS USERS ON HOW TO
-.. DOWNLOAD AND INSTALL, E.G., THE TELLURIC GRIDS, QSO MODELS, STANDARD STARS,
-.. ETC.!!
 
 ----
 
