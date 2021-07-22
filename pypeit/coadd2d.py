@@ -836,7 +836,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         objid_bri, slitidx_bri, spatid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'],
                                                                     self.spat_ids)
         msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(spatid_bri,np.mean(snr_bar_bri)))
-        thismask_stack = self.stack_dict['slitmask_stack'] == spatid_bri
+        thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - spatid_bri) <= 3
+        # TODO Added 3 pixel tolerance to spatid_bri identification for slitmask_stack. Possibly add as parameter in the future.
         trace_stack_bri = np.zeros((self.nspec, self.nexp))
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
         for iexp in range(self.nexp):
@@ -848,6 +849,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
         ## compute offsets at full resolution??
         wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
+        embed()
         dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
@@ -877,7 +879,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                                            find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
-            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT # SHANE - This line causes the failure in 4-exp multi-dispang 2Dcoadd
+            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
         # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
         med_traces_rect = np.median(traces_rect,axis=0)
         offsets = med_traces_rect[0] - med_traces_rect
