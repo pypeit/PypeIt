@@ -454,7 +454,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :obj:`dict`: Dictionary with data to include an output fits
             header file or table downstream.
         """
-        koa_header_cards = ['KOAID', 'PROGPI', "PROGID", "SEMESTER"]
+        koa_header_cards = ['KOAID', 'PROGPI', "PROGID", "SEMESTER", 'GUIDFWHM']
         if extra_header_cards is not None:
             extra_header_cards += koa_header_cards
         else:

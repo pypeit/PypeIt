@@ -57,7 +57,9 @@ def mock_header(file):
                 'BINNING': '1,1',
                 'AIRMASS': '1.0',
                 'EXPTIME': '1200.0',
-                'FILENAME': 'DE.20100913.22358'}
+                'FILENAME': 'DE.20100913.22358',
+                'SEMESTER': '2019B',
+                'PROGID':   'TEST1'}
     else:
         # Return a different decker to make sure it's properly ignored
         return {'MJD': '58879.0',
@@ -391,7 +393,7 @@ def test_get_metadata_reduced(monkeypatch):
 
     monkeypatch.setattr(fits, "getheader", mock_header)
     mock_files = (os.path.join('Science', 'spec1d_file1'), os.path.join('Science', 'spec1d_file1.txt'), 'test.pypeit')
-    dest_files = (os.path.join('202001', 'spec1d_file1'), os.path.join('202001', 'spec1d_file1.txt'), os.path.join('202001', 'test.pypeit'))
+    dest_files = (os.path.join('2019B_TEST1', 'spec1d_file1'), os.path.join('2019B_TEST1', 'spec1d_file1.txt'), os.path.join('2019B_TEST1', 'test.pypeit'))
     (metadata_rows, files_to_copy) = get_metadata_reduced(['DISPNAME', 'TESTKEY'], mock_files)
     header = mock_header('spec1d_file1')
     assert len(metadata_rows) == 1
@@ -428,7 +430,10 @@ def test_get_coadded_metadata(monkeypatch):
                                  spectrograph, 
                                  'ra/dec')
     source_object.coaddfile = "/user/test/coaddfile.fits"
-    dest_file = os.path.join("202001", os.path.basename(source_object.coaddfile))
+
+    # The coadded file's mock header doesn't have PROGID and SEMESTER, so it will be in the
+    # archive's base directory
+    dest_file = os.path.basename(source_object.coaddfile)
     for object in file1_objects[1:]:
         source_object.spec_obj_list.append(specobjs_file1.specobjs[object])
         source_object.spec1d_file_list.append(filenames[0])
@@ -446,10 +451,12 @@ def test_get_coadded_metadata(monkeypatch):
                                                           source_object)
 
     assert len(metadata_rows) == 4
-    assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', os.path.join('202001', 'spec1d_file1'), '830G', '58878.0', None]
-    assert metadata_rows[1] == [dest_file, 'object3', 'SPAT3236_SLIT3245_DET05', 'DE.20100913.22358.fits', os.path.join('202001', 'spec1d_file1'), '830G', '58878.0', None]
-    assert metadata_rows[2] == [dest_file, 'object3', 'SPAT3234_SLIT3236_DET03', 'DE.20100914.12358.fits', os.path.join('202001', 'spec1d_file2'), '830G', '58879.0', None]
-    assert metadata_rows[3] == [dest_file, 'object3', 'SPAT3237_SLIT3246_DET05', 'DE.20100914.12358.fits', os.path.join('202001', 'spec1d_file2'), '830G', '58879.0', None]
+    # The spec1d_file2's header doesn't have the semester and prog id, so it's path will be the root directory
+    # of the archive
+    assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', os.path.join('2019B_TEST1', 'spec1d_file1'), '830G', '58878.0', None]
+    assert metadata_rows[1] == [dest_file, 'object3', 'SPAT3236_SLIT3245_DET05', 'DE.20100913.22358.fits', os.path.join('2019B_TEST1', 'spec1d_file1'), '830G', '58878.0', None]
+    assert metadata_rows[2] == [dest_file, 'object3', 'SPAT3234_SLIT3236_DET03', 'DE.20100914.12358.fits', 'spec1d_file2', '830G', '58879.0', None]
+    assert metadata_rows[3] == [dest_file, 'object3', 'SPAT3237_SLIT3246_DET05', 'DE.20100914.12358.fits', 'spec1d_file2', '830G', '58879.0', None]
     assert files_to_copy[0][0] == source_object.coaddfile
     assert files_to_copy[0][1] == dest_file
     

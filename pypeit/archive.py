@@ -211,7 +211,7 @@ class ArchiveDir():
             str: The full path to the new copy in the archive.
         """
 
-        if self._copy_files is False:
+        if self._copy_files is False or orig_file is None:
             return orig_file
 
         if not os.path.exists(orig_file):

@@ -13,6 +13,7 @@ import os.path
 from functools import partial
 import re
 import traceback
+from itertools import zip_longest
 
 import numpy as np
 from astropy.coordinates import Angle
@@ -64,6 +65,14 @@ def extract_id(header):
         # For non KOA products, we use the filename
         return filename
 
+def get_archive_subdir(header):
+    if 'PROGID' in header and 'SEMESTER' in header:
+        return header['SEMESTER'] + '_' + header['PROGID']
+    else:
+        # If there's not enough information in the header to determine the subdirectory name,
+        # place the file in the root directory
+        return ""
+
 def get_metadata_reduced(header_keys, file_info):
     """
     Gets the metadata from FITS files reduced by PypeIt. It is intended to be wrapped 
@@ -104,8 +113,8 @@ def get_metadata_reduced(header_keys, file_info):
 
     filename = file_info[0]
     header = fits.getheader(filename)
-    subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
-    dest_files = [os.path.join(subdir_name, os.path.basename(x)) for x in file_info]
+    subdir_name = get_archive_subdir(header)
+    dest_files = [os.path.join(subdir_name, os.path.basename(x)) if x is not None else None for x in file_info]
 
     # Extract koa id from source image filename in header
     id = extract_id(header)
@@ -154,7 +163,7 @@ def get_metadata_coadded(spec1d_header_keys, spec_obj_keys, file_info):
     # Place the file in a subdir of the archive based on the observation date
     # This is intended to prevent any one directory from having too many files
     header = fits.getheader(file_info.coaddfile)
-    subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
+    subdir_name = get_archive_subdir(header)
     coaddfile = os.path.join(subdir_name, os.path.basename(file_info.coaddfile))
 
     result_rows = []
@@ -174,7 +183,7 @@ def get_metadata_coadded(spec1d_header_keys, spec_obj_keys, file_info):
 
         # Use the MJD in the spec1d file to build it's subdirectory, just like get_metadata_reduced does
         # when the spec1d is added to the archive
-        subdir_name = Time(header['MJD'], format='mjd').strftime("%Y%m")
+        subdir_name = get_archive_subdir(header)
         spec1d_filename = os.path.join(subdir_name, os.path.basename(file_info.spec1d_file_list[i]))
 
         header_data = [header[x] if x in header else None for x in spec1d_header_keys]
@@ -337,7 +346,7 @@ def coadd(par, source):
         source (`obj`:SourceObject): The SourceObject with information on
             which files and spectra to coadd.
     """
-    par['coadd1d']['coaddfile'] = source.coaddfile
+    par['coadd1d']['coaddfile'] = os.path.join(par['collate1d']['outdir'], source.coaddfile)
     par['coadd1d']['flux_value'] = False
     spectrograph = load_spectrograph(par['rdx']['spectrograph'])
 
@@ -349,7 +358,7 @@ def coadd(par, source):
     # Run
     coAdd1d.run()
     # Save to file
-    coAdd1d.save(source.coaddfile)
+    coAdd1d.save(par['coadd1d']['coaddfile'])
 
 def find_spec2d_from_spec1d(spec1d_files):
     """
@@ -490,9 +499,15 @@ def build_parameters(args):
     if args.archive_dir is not None:
         params['collate1d']['archive_root'] = args.archive_dir
 
+    if args.outdir is not None:
+        params['collate1d']['outdir'] = args.outdir
+
+    if args.pypeit_file is not None:
+        params['collate1d']['pypeit_file'] = args.pypeit_file
+
     return params, spectrograph, spec1d_files
 
-def create_archive(archive_root, copy_to_archive):
+def create_archive(par, archive_root, copy_to_archive):
     """
     Create an archive with the desired metadata information.
 
@@ -563,9 +578,9 @@ def create_archive(archive_root, copy_to_archive):
     report_names = ['filename'] + \
                    COADDED_SOBJ_COLUMN_NAMES + \
                    ['spec1d_filename'] + \
-                   COADDED_SPEC1D_HEADER_KEYS
+                   COADDED_SPEC1D_COLUMN_NAMES
 
-    report_metadata = ArchiveMetadata("collate_report.dat",
+    report_metadata = ArchiveMetadata(os.path.join(par['collate1d']['outdir'], "collate_report.dat"),
                                       report_names,
                                       partial(get_report_metadata,
                                               COADDED_SPEC1D_HEADER_KEYS,
@@ -597,7 +612,9 @@ class Collate1D(scriptbase.ScriptBase):
                                  '\n'
                                  'F|[collate1d]\n'
                                  'F|  tolerance             <tolerance>\n'
+                                 'F|  outdir                <directory to place output files>\n'
                                  'F|  archive_root          <directory for archive files>\n'
+                                 'F|  pypeit_file           <A pypeit file to include with archived files>'
                                  'F|  exclude_slit_trace_bm <slit types to exclude>\n'
                                  'F|  exclude_serendip      If set serendipitous objects are skipped.\n'  
                                  'F|  match_using           Whether to match using "pixel" or\n'
@@ -613,13 +630,15 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--spec1d_files', type=str, nargs='*',
                             help='One or more spec1d files to flux/coadd/archive. '
                                  'Can contain wildcards')
-        parser.add_argument('--par_outfile', default='collate1d.par', type=str,
+        parser.add_argument('--par_outfile', default=None, type=str,
                             help='Output to save the parameters')
+        parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'])
         parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
         parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
                             help=blank_par.descr['match_using'])
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
         parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
+        parser.add_argument('--pypeit_file', type=str, help=blank_par.descr['pypeit_file'])
         parser.add_argument('--exclude_slit_bm', type=str, nargs='*',
                             help=blank_par.descr['exclude_slit_trace_bm'])
         parser.add_argument('--exclude_serendip', action='store_true',
@@ -632,7 +651,12 @@ class Collate1D(scriptbase.ScriptBase):
         start_time = datetime.now()
         (par, spectrograph, spec1d_files) = build_parameters(args)
 
+        outdir = par['collate1d']['outdir'] 
+        os.makedirs(outdir, exist_ok=True)
+
         # Write the par to disk
+        if args.par_outfile is None:
+            args.par_outfile = os.path.join(outdir, 'collate1d.par')
         print("Writing the parameters to {}".format(args.par_outfile))
         par.to_config(args.par_outfile)
 
@@ -708,13 +732,13 @@ class Collate1D(scriptbase.ScriptBase):
                 metadata_root = os.getcwd()
                 copy = False
 
-            archive = create_archive(metadata_root, copy)
+            archive = create_archive(par, metadata_root, copy)
 
             if copy:
                 spec1d_text_files, pypeit_files = find_archvie_files_from_spec1d(spec1d_files)
 
                 archive.add(zip(spec1d_files, spec1d_text_files, pypeit_files))
-                archive.add(zip(spec2d_files, spec1d_text_files, pypeit_files))
+                archive.add(zip_longest(spec2d_files, [], pypeit_files))
 
             archive.add(successful_source_list)
             archive.save()

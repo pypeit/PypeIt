@@ -436,8 +436,12 @@ def test_collate_1d(tmp_path, monkeypatch):
     def mock_get_instance(*args, **kwargs):
         return MockCoadd()
 
+    def mock_get_subdir(*args, **kwargs):
+        return "subdir"
+
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
+        monkeypatch.setattr(scripts.collate_1d, "get_archive_subdir", mock_get_subdir)
 
         os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
@@ -456,7 +460,7 @@ def test_collate_1d(tmp_path, monkeypatch):
 
         # Create fake text files for archiving, and a fake coadd output. We copy the
         # the spec1d over to the fake output file because the archiving code reads
-        # the MJD from the header of the coadd output
+        # the header of the coadd output
 
         temp_spec1d_text = temp_spec1d.replace(".fits", ".txt")
         temp_pypeit_file = str(tmp_path / "temp.pypeit")
@@ -484,7 +488,7 @@ def test_collate_1d(tmp_path, monkeypatch):
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         assert os.path.exists(par_file)
 
-        archive_dest_dir = archive_dir / "201505"
+        archive_dest_dir = archive_dir / "subdir"
         assert os.path.exists(archive_dest_dir / os.path.basename(temp_coadd_output))
         assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec1d))
         assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec2d))
