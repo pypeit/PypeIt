@@ -849,7 +849,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
         ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
         ## compute offsets at full resolution??
         wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
-        embed()
         dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
@@ -963,7 +962,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                        'ratio on the same slit of every exposure')
 
         self.snr_report(snr_bar, slitid=slitid)
-        embed()
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is

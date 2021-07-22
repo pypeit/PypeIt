@@ -413,10 +413,13 @@ class SpecObjs:
         """
         Return the set of indices matching the input slit/order and the input objid
         """
+
         if self[0].PYPELINE == 'Echelle':
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
-            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
+            indx = (np.abs(self.SLITID - slitorder) <= 3) & (self.OBJID == objid)
+            # TODO Added 3 pixel tolerance to SLITID, May want tolerance as parameter in future. May need same fix for
+            # Both Echelle and IFU options.
         elif self[0].PYPELINE == 'IFU':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
