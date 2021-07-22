@@ -1166,7 +1166,7 @@ class SlitTraceSet(datamodel.DataContainer):
                                                          round(self.maskdef_offset*platescale, 2)))
             else:
                 self.maskdef_offset = 0.0
-                msgs.info('NO objects detected ALIGN BOXES. Slitmask offset '
+                msgs.info('NO objects detected in ALIGN BOXES. Slitmask offset '
                           'cannot be estimated in det={}.'.format(self.det))
             return
 
@@ -1265,7 +1265,10 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         for islit in range(self.nslits):
             if wv_calib.wv_fits[islit] is None or wv_calib.wv_fits[islit].pypeitfit is None:
-                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
+                # This condition is added to avoid to give a 'BADWVCALIB' flag to alignment boxes,
+                # which are purposely not wavelength calibrated, but are used during find object
+                if np.logical_not(self.bitmask.flagged(self.mask[islit], flag='BOXSLIT')):
+                    self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

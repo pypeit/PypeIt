@@ -497,7 +497,8 @@ class FlatFieldPar(ParSet):
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
-                 slit_illum_relative=None, slit_illum_ref_idx=None):
+                 slit_illum_relative=None, slit_illum_ref_idx=None,
+                 pixelflat_min_wave=None, pixelflat_max_wave=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -522,6 +523,7 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
+        # Pixel flat parameter keys
         defaults['pixelflat_file'] = None
         dtypes['pixelflat_file'] = str
         descr['pixelflat_file'] = 'Filename of the image to use for pixel-level field flattening'
@@ -542,6 +544,16 @@ class FlatFieldPar(ParSet):
                              'filter in pixels used to determine the slit illumination function, and thus sets the ' \
                              'minimum scale on which the illumination function will have features.'
 
+        defaults['pixelflat_min_wave'] = None
+        dtypes['pixelflat_min_wave'] = [int, float]
+        descr['pixelflat_min_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths below this value.'
+
+        defaults['pixelflat_max_wave'] = None
+        dtypes['pixelflat_max_wave'] = [int, float]
+        descr['pixelflat_max_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths above this value.'
+
+
+        # Slits
         defaults['tweak_slits'] = True
         dtypes['tweak_slits'] = bool
         descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
@@ -635,7 +647,8 @@ class FlatFieldPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
-                   'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
+                   'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
+                   'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
                    'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits', 'slit_illum_ref_idx']
 
@@ -1613,7 +1626,9 @@ class SlitMaskPar(ParSet):
 
         defaults['obj_toler'] = 1.
         dtypes['obj_toler'] = float
-        descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
+        descr['obj_toler'] = 'If slitmask design information is provided, and slit matching is performed ' \
+                             '(``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides ' \
+                             'the desired tolerance (arcsec) to match sources to targeted objects'
 
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool

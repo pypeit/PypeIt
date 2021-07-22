@@ -30,7 +30,7 @@ def test_initialization():
 
     # Test
     assert spectrograph.name == 'shane_kast_blue'
-    assert len(fitstbl) == 2
+    assert len(fitstbl) == 8
 
     # Clean-up
     os.remove(data_path('test.calib'))
