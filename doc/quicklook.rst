@@ -97,20 +97,8 @@ approximately 1 minute.
 NIRES QL Setup
 ++++++++++++++
 
-Before running this script, you will need to
-
-- Download the folder of `NIRES Master calibration frames <https://drive.google.com/open?id=1_m3Y9xz2jEiTsWjVqej6UgARyTlApLGy>`_.
-- You may place this folder anywhere, but it is recommended to place the folder in to a 
-  folder named "QL_MASTERS" so that Master calibration frames from other instruments can
-  be placed beside it.
-- Point the Environmental variable *QL_MASTERS* at the parent of the NIRES_MASTERS folder. 
-  For example::
-
-    $ cd /data
-    $ mkdir QL_MASTERS
-    $ cd QL_MASTERS
-    $ tar xzf ~/Downloads/nires_masters.tar.gz
-    $ export QL_MASTERS=/data/QL_MASTERS/
+Before running this script, you will need to download the quick-look masters.
+See the :ref:`data_installation` section of the :ref:`installing` instructions.
 
 .. _nires-options:
 
@@ -148,23 +136,8 @@ Keck/MOSFIRE spectral images.  Currently only the "Y" filter is supported.
 MOSFIRE QL Setup
 ++++++++++++++++
 
-Before running this script, you will need to
-
-- Download the folder of `MOSFIRE Master calibration frames <https://drive.google.com/file/d/12LqPEqldTM5Gz_gGvUVYReFBAbikuVXI/view?usp=sharing>`_
-
-- You may place this folder anywhere, but it is recommended to place the folder in to a 
-  folder named "QL_MASTERS" so that Master calibration frames from other instruments can
-  be placed beside it.
-
-- Point the Environmental variable *QL_MASTERS* at the parent of the MOSFIRE_MASTERS folder. 
-  For example::
-
-    $ cd /data
-    $ mkdir QL_MASTERS
-    $ cd QL_MASTERS
-    $ tar xzf ~/Downloads/mosfire_masters.tar.gz
-    $ export QL_MASTERS=/data/QL_MASTERS/
-
+Before running this script, you will need to download the quick-look masters.
+See the :ref:`data_installation` section of the :ref:`installing` instructions.
 
 .. _mosfire-options:
 
@@ -189,3 +162,5 @@ MOSFIRE QL Output
 +++++++++++++++++
 
 If all goes smoothly, a ginga window will open with the resulting image.
+
+

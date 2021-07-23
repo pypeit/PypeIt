@@ -251,7 +251,7 @@ To install the quick-look master files:
 
         .. code-block:: console
 
-            pypeit_install_ql_masters --zip QL_MASTERS-20210722T162355Z-001.zip --odir my_path
+            pypeit_install_ql_masters --zip ~/Downloads/QL_MASTERS-20210722T162355Z-001.zip --odir my_path
 
 The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
 ``my_path`` directory and create a symlink to the extracted directory in the
@@ -434,7 +434,7 @@ window.)
 
 Finally, you may want to add lines to your relevant shell configuration file
 (e.g., ``.zshrc`` or ``.bashrc``) that activate the relevant environment
-whenever you start up a new shell.  For example::
+whenever you start up a new shell.  For example:
 
 .. code-block:: console
 
@@ -476,7 +476,7 @@ Developer Tests
 ---------------
 
 If you performed a developer installation by cloning the repository into a local
-directory (e.g., `~/PypeIt`), you can run the standard unit tests within the
+directory (e.g., ``~/PypeIt``), you can run the standard unit tests within the
 ``PypeIt`` environment by executing:
 
 .. code-block:: console
@@ -484,11 +484,10 @@ directory (e.g., `~/PypeIt`), you can run the standard unit tests within the
     cd ~/PypeIt
     pytest
 
-.. WHO AMONG THE CORE DEVELOPERS ACTUALLY USE TOX?  SHOULD WE BE RECOMMENDING
-.. IT?
+.. WHO AMONG THE CORE DEVELOPERS USE TOX?  WE USE IT FOR CI TESTS, BUT SHOULD WE BE RECOMMENDING IT FOR USERS?
 
 To test within isolated environments and against different versions of various
-dependencies, we recommend using ``tox``::
+dependencies, we recommend using ``tox``:
 
 .. code-block:: console
 

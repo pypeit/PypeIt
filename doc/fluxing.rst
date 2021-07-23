@@ -334,30 +334,37 @@ Problem with Empty filename
 If you encounter this error when doing flux calibration with the IR algorithm,
 please do the following steps:
 
- - Make sure you have installed the relevant atmosphere telluric models.  See
-   the instructions for installing this :ref:`data_installation`. 
+- Make sure you have installed the relevant atmosphere telluric models.  See the
+  instructions for installing this :ref:`data_installation`. 
 
 .. WHEN INSTALLING VIA PIP/CONDA, THE PATH TO THE PYPEIT DIRECTORY IS NOT
 .. STRAIGHT-FORWARD FOR SOMEONE NOT FAMILIAR WITH PYTHON PACKAGE INSTALLATION.
 .. THIS IS WHY I ADDED THE NEW "DATA INSTALLATION" SCRIPTS.  CAN THE TELGRIDFILE
 .. JUST BE THE NAME OF A FILE IN THE /pypeit/data/telluric/atm_grids/ DIRECTORY?
 
- - Write the filename of the corresponding file for your observatory in the
-   parameter telgridfile (i.e. keck_lris_sens.txt), e.g. ::
+- Write the filename of the corresponding file for your observatory in the
+  parameter telgridfile (i.e. keck_lris_sens.txt), e.g.:
 
-    [sensfunc]
-      algorithm = IR
-      polyorder = 8
-      [[IR]]
-        telgridfile = TelFit_MaunaKea_3100_26100_R20000-006.fits
+    .. code-block:: ini
 
- - Run pypeit_sensfunc with the --sens_file option, e.g.::
+        [sensfunc]
+            algorithm = IR
+            polyorder = 8
+            [[IR]]
+                telgridfile = TelFit_MaunaKea_3100_26100_R20000-006.fits
 
-    pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
+- Run pypeit_sensfunc with the --sens_file option, e.g.:
+
+    .. code-block:: console
+
+        pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
 
 
 Problem with bspline knot
 -------------------------
+
+.. THERE'S NO TEXT HERE.  CAN SOMEONE DESCRIBE THIS PROBLEM?
+
 
 Adding a Standard Star
 ======================
@@ -383,7 +390,6 @@ Here are additional docs on somewhat common edits that
 PypeIt users make:
 
 .. toctree::
-   :caption: More reading
    :maxdepth: 1
 
    standards

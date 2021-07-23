@@ -2,8 +2,12 @@
 1.4.3dev
 --------
 
-- Doc updates
+- Doc updates, including reorganization of the installation doc, fluxing and
+  telluric docs, and automatic construction of the package dependencies.
 - Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
+- Add `pypeit_install_telluric` and `pypeit_install_ql_masters` scripts.  The
+  latter creates a symlink to the directory with the QL masters that will be
+  used if the QL_MASTERS environmental variable does not exist.
 
 1.4.2 (06 Jul 2021)
 -------------------
