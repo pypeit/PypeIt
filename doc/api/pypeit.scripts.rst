@@ -21,6 +21,8 @@ Submodules
    pypeit.scripts.flux_calib
    pypeit.scripts.flux_setup
    pypeit.scripts.identify
+   pypeit.scripts.install_ql_masters
+   pypeit.scripts.install_telluric
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
