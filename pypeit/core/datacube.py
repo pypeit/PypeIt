@@ -602,6 +602,7 @@ def coadd_cube(files, parset, overwrite=False):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
         detector = spec2DObj.detector
+        flexure = None  #spec2DObj.sci_spat_flexure
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -621,7 +622,7 @@ def coadd_cube(files, parset, overwrite=False):
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
         msgs.info("Constructing slit image")
-        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
+        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
 
         # Grab the WCS of this frame
@@ -647,7 +648,7 @@ def coadd_cube(files, parset, overwrite=False):
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments, spec2DObj.tilts, locations,
-                                                      initial=True, flexure=None)
+                                                      initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:

@@ -415,7 +415,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, alignments, tilts, locations, slitlength=None, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignments, tilts, locations, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
 
         Parameters
@@ -434,9 +434,6 @@ class SlitTraceSet(datamodel.DataContainer):
             This is the slit length in pixels, and it should be the same
             value that was passed to get_wcs() to generate the WCS that
             is passed into this function as an argument.
-        slitlength : float
-            Length of the slit in pixels. This should be the minimum
-            length. TODO:: This should probably account for tilts.
         initial : bool
             Select the initial slit edges?
         flexure : float, optional
@@ -460,12 +457,6 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Generate a spline of the waveimg for interpolation
         tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
-
-        if slitlength is None:
-            # TODO:: This should probably account for tilts, but since we're taking the
-            #        minimum value, this should still be safe.
-            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
-            slitlength = np.min(right-left)
 
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
