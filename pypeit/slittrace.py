@@ -1284,16 +1284,20 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
+# TODO: Provide a better description for slitspatnum!
 def parse_slitspatnum(slitspatnum):
     """
-    Parse the slitspatnum into a list of detectors and SPAT_IDs
+    Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
 
     Args:
-        slitspatnum (:obj:`str` or :obj:`list`:
+        slitspatnum (:obj:`str`, :obj:`list`):
+            A single string or list of strings to parse.
 
     Returns:
-        tuple:  dets, spat_ids  (each is an `numpy.ndarray`_ of int's)
-
+        :obj:`tuple`:  Two integer arrays with the list of 1-indexed detector
+        numbers and spatial pixels coordinates for each slit.  The shape of each
+        array is ``(nslits,)``, where ``nslits`` is the number of
+        ``slitspatnum`` entries parsed (1 if only a single string is provided).
     """
     dets = []
     spat_ids = []

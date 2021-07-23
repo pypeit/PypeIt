@@ -58,6 +58,8 @@ class Calibrations:
         show (:obj:`bool`, optional):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
+        slitspat_num (??):
+            ??
 
     .. todo: Fix these
 
@@ -100,7 +102,15 @@ class Calibrations:
     def get_instance(cls, fitstbl, par, spectrograph, caldir, qadir=None,
                      reuse_masters=False, show=False, slitspat_num=None):
         """
+        Get the instance of the appropriate subclass of :class:`Calibrations` to
+        use for reducing data from the provided ``spectrograph``.  For argument
+        descriptions, see :class:`Calibrations`.
         """
+        # TODO: This is overly complicated.  Instead:
+#        calibclass = MultiSlitCalibrations if spectrograph.pypeline in ['MultiSlit', 'Echelle'] \
+#                        else IFUCalibrations
+#        return calibclass(fitstbl, par, spectrograph, caldir, qadir=qadir,
+#                          reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
         pypeline = spectrograph.pypeline
         if spectrograph.pypeline == 'Echelle':
             pypeline = 'MultiSlit'
@@ -161,7 +171,7 @@ class Calibrations:
         self.msdark = None
         self.msbpm = None
         self.wv_calib = None
-        self.slits = None
+        self.slits = Noneu
 
         self.wavecalib = None
         self.wavetilts = None
@@ -195,15 +205,19 @@ class Calibrations:
         # Return
         return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
 
+    # TODO: What does "The internal dict is left unmodified." mean?
     def set_config(self, frame, det, par=None):
         """
         Specify the parameters of the Calibrations class and reset all
         the internals to None. The internal dict is left unmodified.
 
         Args:
-            frame (int): Frame index in the fitstbl
-            det (int): Detector number
-            par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
+            frame (:obj:`int`):
+                Frame index in the fitstbl
+            det (:obj:`int`):
+                Detector number
+            par (:class:`~pypeit.par.pypeitpar.CalibrationsPar`):
+                Parameters used by the calibration procedures.
 
         """
         # Reset internals to None
@@ -808,13 +822,14 @@ class Calibrations:
 class MultiSlitCalibrations(Calibrations):
     """
     Child of Calibrations class for performing multi-slit (and longslit)
-    calibrations.  See :class:`pypeit.calibrations.Calibrations` for
+    calibrations.  See :class:`~pypeit.calibrations.Calibrations` for
     arguments.
 
     NOTE: Echelle uses this same class.  It had been possible there would be
     a different order of the default_steps
 
-    ..todo:: Rename this child or eliminate altogether
+    .. todo::
+        Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir, **kwargs)
@@ -823,13 +838,13 @@ class MultiSlitCalibrations(Calibrations):
     @staticmethod
     def default_steps():
         """
-        This defines the steps for calibrations and their order
+        This defines the calibration steps and their order.
 
         Returns:
-            list: Calibration steps, in order of execution
-
+            :obj:`list`: Calibration steps, in order of execution.
         """
-        # Order matters!
+        # Order matters!  And the name must match a viable "get_{step}" method
+        # in Calibrations.
         return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
