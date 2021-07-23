@@ -57,6 +57,7 @@ class QLKeckNIRES(scriptbase.ScriptBase):
         default_master_dir = os.getenv('QL_MASTERS')
         master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
                         if default_master_dir is None else default_master_dir
+        master_dir = os.path.join(master_dir, 'NIRES_MASTERS')
         if not os.path.isdir(master_dir):
             msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '

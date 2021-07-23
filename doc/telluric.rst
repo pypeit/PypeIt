@@ -11,8 +11,8 @@ similar with that used in the IR sensitivity function, which fits an user
 defined model and telluric to a giant telluric grid. Please see :doc:`fluxing`
 for more details.
 
-Note that execution of ``pypeit_tellfit`` requires the atmospheric grids be
-installed on your system.  See the instructions for installing this
+Note that execution of ``pypeit_tellfit`` requires the atmospheric model grids
+to be installed on your system.  See the instructions for installing these
 :ref:`data_installation`.
 
 pypeit_tellfit
