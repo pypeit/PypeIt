@@ -232,6 +232,13 @@ The ``pypeit_install_telluric`` script simply searches for all the ``TelFit*``
 files in the path it is provided and creates symlinks to those files in the
 ``pypeit/data/telluric/atm_grids`` directory in your installation of ``PypeIt``.
 
+.. warning::
+
+    The installation script simply creates symlinks to the downloaded data.
+    This means that if you move the original data, the symlinks will become
+    broken **and you will need to rerun the installation script.**
+
+
 Quick-look Master Files
 -----------------------
 
@@ -259,6 +266,12 @@ The ``pypeit_install_ql_masters`` script will unzip the downloaded file in the
 automatically delete the zip file using the ``--rmzip`` option.  If you already
 have the ``QL_MASTERS`` directory, you can also use the script to simply create
 the symlink using the ``--ql_path`` option.
+
+.. warning::
+
+    The installation script simply creates symlinks to the downloaded data.
+    This means that if you move the original data, the symlinks will become
+    broken **and you will need to rerun the installation script.**
 
 ----
 
