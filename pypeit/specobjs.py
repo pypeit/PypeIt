@@ -418,8 +418,8 @@ class SpecObjs:
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
             indx = (np.abs(self.SLITID - slitorder) <= 3) & (self.OBJID == objid)
-            # TODO Added 3 pixel tolerance to SLITID, May want tolerance as parameter in future. May need same fix for
-            # Both Echelle and IFU options.
+            # TODO Added 3 pixel tolerance to SLITID, May want tolerance as parameter in future. Unsure if similar fix
+            # will be necessary for IFU option.
         elif self[0].PYPELINE == 'IFU':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
