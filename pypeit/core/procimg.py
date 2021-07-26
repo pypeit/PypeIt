@@ -945,10 +945,10 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
         used to be dnoise
 
     Args:
-        datasec_img (:obj:`numpy.ndarray`):
+        datasec_img (`numpy.ndarray`_):
             Image that identifies which amplifier (1-indexed) was used
             to read each pixel.  Anything less than 1 is ignored.
-        sciframe (:obj:`numpy.ndarray`):
+        sciframe (`numpy.ndarray`_):
             Science frame with counts in ?
         gain (:obj:`float`, array-like):
             Gain for each amplifier

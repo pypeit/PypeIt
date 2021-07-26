@@ -5,23 +5,19 @@
 """
 
 import inspect
-
 import os
-import numpy as np
-
-
-from pypeit import msgs
-
-from pypeit.core import combine
-from pypeit.par import pypeitpar
-from pypeit import utils
-
-from pypeit.images import pypeitimage
-from pypeit.images import rawimage
-from pypeit.images import imagebitmask
 
 from IPython import embed
 
+import numpy as np
+
+from pypeit import msgs
+from pypeit.core import combine
+from pypeit.par import pypeitpar
+from pypeit import utils
+from pypeit.images import pypeitimage
+from pypeit.images import rawimage
+from pypeit.images import imagebitmask
 
 class CombineImage:
     """
@@ -51,7 +47,7 @@ class CombineImage:
         self.par = par  # This musts be named this way as it is frequently a child
         self.files = files
         if self.nfiles == 0:
-            msgs.error('Combineimage requires a list of files to instantiate')
+            msgs.error('CombineImage requires a list of files to instantiate')
 
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
             bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='weightmean'):
@@ -85,8 +81,27 @@ class CombineImage:
             :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
-        # Loop on the files
+        # Number of files
         nimages = len(self.files)
+
+        # Handle a single file
+        if nimages == 1:
+            return rawimage.RawImage(self.files[0], self.spectrograph, self.det).process(
+                                        self.par, bias=bias, bpm=bpm, dark=dark,
+                                        flatimages=flatimages, slits=slits)
+
+        # Instantiate bitmask
+        bitmask = imagebitmask.ImageBitMask()
+
+        # Instantiate the stack arrays
+        shape = (nimages,) + pypeitImage.image.shape
+        img_stack = np.zeros(shape, dtype=float)
+        ivar_stack = np.ones(shape, dtype=float)
+        rn2img_stack = np.zeros(shape, dtype=float)
+        crmask_stack = np.zeros(shape, dtype=bool)
+        mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
+
+        # Loop on the files
         lampstat = []
         for kk, ifile in enumerate(self.files):
             # Load raw image
@@ -94,43 +109,29 @@ class CombineImage:
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                            flatimages=flatimages, slits=slits)
-            #embed(header='96 of combineimage')
-            # Are we all done?
-            if nimages == 1:
-                return pypeitImage
-            elif kk == 0:
-                # Get ready
-                shape = (nimages, pypeitImage.image.shape[0], pypeitImage.image.shape[1])
-                img_stack = np.zeros(shape)
-                ivar_stack= np.zeros(shape)
-                rn2img_stack = np.zeros(shape)
-                crmask_stack = np.zeros(shape, dtype=bool)
-                # Mask
-                bitmask = imagebitmask.ImageBitMask()
-                mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
             # Grab the lamp status
             lampstat += [self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)]
-            # Process
-            img_stack[kk,:,:] = pypeitImage.image
-            # Construct raw variance image and turn into inverse variance
+            # Add processed image products to stack
+            img_stack[kk] = pypeitImage.image
+            # Inverse variance
             if pypeitImage.ivar is not None:
-                ivar_stack[kk, :, :] = pypeitImage.ivar
-            else:
-                ivar_stack[kk, :, :] = 1.
-            # Mask cosmic rays
+                ivar_stack[kk] = pypeitImage.ivar
+            # Cosmic rays mask
             if pypeitImage.crmask is not None:
-                crmask_stack[kk, :, :] = pypeitImage.crmask
+                crmask_stack[kk] = pypeitImage.crmask
             # Read noise squared image
             if pypeitImage.rn2img is not None:
-                rn2img_stack[kk, :, :] = pypeitImage.rn2img
+                rn2img_stack[kk] = pypeitImage.rn2img
+
             # Final mask for this image
-            # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
-            # when the mask is actually built, rather than untoggling the bit here
+            # TODO: This seems kludgy to me. Why not just pass ignore_saturation
+            # to process_one and ignore the saturation when the mask is actually
+            # built, rather than untoggling the bit here
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag=['SATURATION'])
-                pypeitImage.fullmask[indx] = pypeitImage.bitmask.turn_off(
-                    pypeitImage.fullmask[indx], 'SATURATION')
-            mask_stack[kk, :, :] = pypeitImage.fullmask
+                indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag='SATURATION')
+                pypeitImage.fullmask[indx] \
+                        = pypeitImage.bitmask.turn_off(pypeitImage.fullmask[indx], 'SATURATION')
+            mask_stack[kk] = pypeitImage.fullmask
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -153,23 +154,31 @@ class CombineImage:
         var_stack = utils.inverse(ivar_stack)
         var_list = [var_stack, rn2img_stack]
         if combine_method == 'weightmean':
-            img_list_out, var_list_out, gpm, nused = combine.weighted_combine(
-                weights, img_list, var_list, (mask_stack == 0),
-                sigma_clip=sigma_clip, sigma_clip_stack=img_stack, sigrej=sigrej, maxiters=maxiters)
+            img_list_out, var_list_out, gpm, nused \
+                    = combine.weighted_combine(weights, img_list, var_list, (mask_stack == 0),
+                                               sigma_clip=sigma_clip, sigma_clip_stack=img_stack,
+                                               sigrej=sigrej, maxiters=maxiters)
         elif combine_method == 'median':
-            # TODO This median combine should be using the mask!!!
-            img_list_out = [np.median(img_stack, axis=0)]
-            var_list_out = [np.median(var_stack, axis=0)]
-            var_list_out += [np.median(rn2img_stack, axis=0)]
-            gpm = np.ones_like(img_list_out[0], dtype='bool')
+            bpm_stack = mask_stack > 0
+            gpm = np.sum(np.logical_not(bpm_stack), axis=0)
+            img_list_out = [np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),
+                                         axis=0).filled(0.)]
+            var_list_out = [np.ma.median(np.ma.MaskedArray(var_stack, mask=bpm_stack),
+                                         axis=0).filled(0.)]
+            var_list_out += [np.ma.median(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),
+                                          axis=0).filled(0.)]
         else:
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'weightmean'.")
 
         # Build the last one
         final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
                                                     ivar=utils.inverse(var_list_out[0]),
+                            # TODO: Why is this `pypeitImage.bpm` and not
+                            # `np.logical_not(gpm)`?
                                                     bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
+                            # TODO: The mask can be set for a bunch of reasons.
+                            # Why identify it only as the crmask?
                                                     crmask=np.logical_not(gpm),
                                                     detector=pypeitImage.detector,
                                                     PYP_SPEC=pypeitImage.PYP_SPEC)
@@ -186,11 +195,8 @@ class CombineImage:
     @property
     def nfiles(self):
         """
-        Number of files in the files attribute
-
-        Returns:
-            int
-
+        The number of files in :attr:`files`.
         """
         return len(self.files) if isinstance(self.files, (np.ndarray, list)) else 0
+
 

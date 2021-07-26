@@ -35,7 +35,7 @@ class ArcImage(pypeitimage.PypeItImage):
 
 class AlignImage(pypeitimage.PypeItImage):
     """
-    Simple DataContainer for the Arc Image
+    Simple DataContainer for the Alignment Image
     """
     # Peg the version of this class to that of PypeItImage
     version = pypeitimage.PypeItImage.version
@@ -51,7 +51,7 @@ class AlignImage(pypeitimage.PypeItImage):
 
 class BiasImage(pypeitimage.PypeItImage):
     """
-    Simple DataContainer for the Tilt Image
+    Simple DataContainer for the Bias Image
     """
     # Set the version of this class
     version = pypeitimage.PypeItImage.version
@@ -123,37 +123,43 @@ class SkyRegions(pypeitimage.PypeItImage):
     master_file_format = 'fits.gz'
 
 
-def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None, dark=None,
-                        flatimages=None,
-                        maxiters=5,
-                        ignore_saturation=True, slits=None):
+def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
+                        flatimages=None, maxiters=5, ignore_saturation=True, slits=None):
     """
-    Build a PypeItImage from a list of files (and instructions)
+    Perform basic image processing on a list of images.
 
     Args:
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
         det (:obj:`int`):
             The 1-indexed detector number to process.
-        frame_par (:class:`pypeit.par.pypeitpar.FramePar`):
+        frame_par (:class:`~pypeit.par.pypeitpar.FramePar`):
             Parameters that dictate the processing of the images.  See
-            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+            :class:`~pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
-        file_list (list):
+        file_list (:obj:`list`):
             List of files
-        bpm (np.ndarray, optional):
-            Bad pixel mask.  Held in ImageMask
-        bias (np.ndarray, optional):
-            Bias image
-        flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
-        maxiters (int, optional):
-        ignore_saturation (bool, optional):
-            Should be True for calibrations and False otherwise
+        bpm (`numpy.ndarray`_, optional):
+            Bad pixel mask.
+        bias (`numpy.ndarray`_, optional):
+            Bias image.
+        flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
+            Flat-field image.
+        maxiters (:obj:`int`, optional):
+            Maximum number of sigma-rejection iterations.  Passed to
+            :func:`~pypeit.core.combine.weighted_combine`.
+        ignore_saturation (:obj:`bool`, optional):
+            Do not flag saturated pixels during image combination.  See
+            :func:`pypeit.images.combineimage.CombineImage.run`.  This should be
+            True for calibration images and False otherwise
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
+            Edge traces for all slits.  These are used to calculate spatial
+            flexure between the image and the slits, and for constructing the
+            slit-illumination correction.  See
+            :class:`pypeit.images.rawimage.RawImage.process`.
 
     Returns:
-        :class:`pypeit.images.pypeitimage.PypeItImage`:  Or one of its children
-
+        :class:`~pypeit.images.pypeitimage.PypeItImage`:  The processed image.
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
@@ -185,9 +191,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
         finalImage = pypeitImage
     else:
-        finalImage = None
-        embed(header=utils.embed_header())
+        msgs.error(f"Unknown frame type: {frame_par['frametype']}")
+#        finalImage = None
+#        embed(header=utils.embed_header())
 
+    # TODO: Can we move everything except copying the file list into the
+    # from_pypeitimage function?
     # Internals
     finalImage.process_steps = pypeitImage.process_steps
     finalImage.files = file_list

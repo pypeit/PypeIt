@@ -19,17 +19,34 @@ from pypeit.display import display
 
 from IPython import embed
 
-class RawImage(object):
+class RawImage:
     """
     Class to load and process a raw image
 
     Args:
         ifile (:obj:`str`):
-        bpm (`numpy.ndarray`_, optional):
-            Bad pixel mask
+            File with the data
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph from which the data was collected.
+        det (:obj:`int`):
+            The detector to load/process
 
     Attributes:
+        filename
+        spectrograph
+        det
+        detector
         rawimage (`numpy.ndarray`_):
+        hdu
+        exptime
+        rawdatasec_img
+        oscansec_img
+        headarr
+        image (`numpy.ndarray`_):
+        ronoise
+        par
+        ivar
+        rn2img
         steps (dict):
             Dict describing the steps performed on the image
         datasec_img (`numpy.ndarray`_):
@@ -38,7 +55,6 @@ class RawImage(object):
             orientation and trimming.
         spat_flexure_shift (float):
             Holds the spatial flexure shift, if calculated
-        image (`numpy.ndarray`_):
     """
     def __init__(self, ifile, spectrograph, det):
 
@@ -67,6 +83,7 @@ class RawImage(object):
         self.ivar = None
         self.rn2img = None
         self.spat_flexure_shift = None
+        self._bpm = None
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -83,32 +100,36 @@ class RawImage(object):
     @property
     def bpm(self):
         """
-        Generate and return the bad pixel mask for this image
-        Warning:  BPM masks are for processed (e.g. trimmed, rotated) images only!
+        Generate and return the bad pixel mask for this image.
+
+        .. warning::
+
+            BPMs are for processed (e.g. trimmed, rotated) images only!
 
         Returns:
             `numpy.ndarray`_:  Bad pixel mask with a bad pixel = 1
 
         """
         if self._bpm is None:
-            self._bpm = self.spectrograph.bpm(shape=self.image.shape,
-                                    filename=self.filename,
-                                    det=self.det)
+            self._bpm = self.spectrograph.bpm(shape=self.image.shape, filename=self.filename,
+                                              det=self.det)
         return self._bpm
 
     def apply_gain(self, force=False):
         """
-        Apply the Gain values to self.image
+        Apply the gain values to :attr:`image`, converting from ADUs to
+        electrons.
 
         Args:
-            force (bool, optional):
+            force (:obj:`bool`, optional):
+                Re-apply the gain, even if :attr:`steps` lists the gain as
+                having already been applied.
 
         Returns:
-            `numpy.ndarray`:  copy of self.image
-
+            `numpy.ndarray`_:  Copy of :attr:`image`.
         """
         step = inspect.stack()[0][3]
-        # Check if already trimmed
+        # Check if gain has already been applied
         if self.steps[step] and (not force):
             msgs.warn("Gain was already applied. Returning")
             return self.image.copy()
@@ -116,19 +137,19 @@ class RawImage(object):
         gain = np.atleast_1d(self.detector['gain']).tolist()
         # Apply
         self.image *= procimg.gain_frame(self.datasec_img, gain)
+        # Log
         self.steps[step] = True
         # Return
         return self.image.copy()
 
     def build_ivar(self):
         """
-        Generate the Inverse Variance frame
+        Generate the inverse variance in the image.
 
-        Uses procimg.variance_frame
+        This is a simple wrapper for :func:`~pypeit.core.procimg.variance_frame`.
 
         Returns:
-            `numpy.ndarray`_: Copy of self.ivar
-
+            `numpy.ndarray`_: Copy of :attr:`ivar`.
         """
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
@@ -144,29 +165,32 @@ class RawImage(object):
     # TODO sort out dark current here. Need to use exposure time for that.
     def build_rn2img(self):
         """
-        Generate the model read noise squared image
+        Generate the model read-noise-squared image (:attr:`rn2img`).
 
-        Currently only used by ScienceImage.
-
-        Wrapper to procimg.rn_frame
+        This function is currently only used by
+        :class:`~pypeit.images.scienceimage.ScienceImage`, and is primarily a
+        wrapper for :func:`~pypeit.core.procimg.rn_frame`.
 
         Returns:
-            `numpy.ndarray`_: Copy of the read noise squared image
+            `numpy.ndarray`_: Copy of :attr:`rn2img`.
 
         """
-        # Check if we need to determine the read noise directly from the overscan region from any amplifier
+        # Check if we need to determine the read-noise directly from the
+        # overscan region from any amplifier
+        # TODO: This stuff should be in a separate function/method.  Which
+        # instruments do we need/use this for, and why don't we have a more
+        # robust measure of the detector read-noise for them?
         numamps = len(self.ronoise)
         for amp in range(numamps):
-            if self.ronoise[amp] <= 0.0:
-                biaspix = self.rawimage[self.oscansec_img==amp+1] * self.detector['gain'][amp]
-                _, _, stddev = stats.sigma_clipped_stats(biaspix, sigma=5)
-                self.ronoise[amp] = stddev
-                msgs.info("Read noise of amplifier {0:d} = {1:.3f} e-".format(amp+1, self.ronoise[amp]))
+            if self.ronoise[amp] > 0:
+                continue
+            biaspix = self.rawimage[self.oscansec_img==amp+1] * self.detector['gain'][amp]
+            _, _, stddev = stats.sigma_clipped_stats(biaspix, sigma=5)
+            self.ronoise[amp] = stddev
+            msgs.info("Read noise of amplifier {0:d} = {1:.3f} e-".format(amp+1, self.ronoise[amp]))
 
         # Build it
-        self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       self.detector['gain'],
-                                       self.ronoise)
+        self.rn2img = procimg.rn_frame(self.datasec_img, self.detector['gain'], self.ronoise)
         # Return
         return self.rn2img.copy()
 
@@ -175,18 +199,43 @@ class RawImage(object):
         """
         Process the image
 
-        Note:  The processing step order is currently 'frozen' as is.
-          We may choose to allow optional ordering
+        .. note::
 
-        Here are the allowed steps, in the order they will be applied:
-            subtract_overscan -- Analyze the overscan region and subtract from the image
-            trim -- Trim the image down to the data (i.e. remove the overscan)
-            orient -- Orient the image in the PypeIt orientation (spec, spat) with blue to red going down to up
-            subtract_bias -- Subtract a bias image
-            apply_gain -- Convert to counts, amp by amp
-            flatten -- Divide by the pixel flat and (if provided) the illumination flat
-            extras -- Generate the RN2 and IVAR images
-            crmask -- Generate a CR mask
+            The processing step order is currently 'frozen' as is.  However, in
+            the future, we may choose to allow optional ordering.
+
+        The processing steps used, in the order they will be applied are:
+
+            #. :func:`subtract_pattern`: Analyze and subtract the pattern noise
+               from the image.
+            
+            #. :func:`subtract_overscan`: Analyze the overscan region and
+               subtract from the image
+
+            #. :func:`trim`: Trim the image down to the data (i.e. remove the
+               overscan)
+
+            #. :func:`orient`: Orient the image in the PypeIt orientation ---
+               spectral coordinates ordered along the first axis and spatial
+               coordinates ordered along the second, ``(spec, spat)`` --- with
+               blue to red going from small pixel numbers to large.
+
+            #. :func:`subtract_bias`: Subtract a bias image.
+
+            #. :func:`subtract_dark`: Subtract a dark image.
+
+            #. :func:`apply_gain`: Convert from ADU to electrons, amp by amp
+
+            #. Measure any spatial shift due to flexure
+
+            #. Divide by the spatial and spectral illumination pattern and the
+               pixel flat, if ``flatimages`` and ``slits`` are provided
+
+            #. :func:`build_rn2img`: Construct the read-noise squared image
+
+            #. :func:`build_ivar`: Construct the inverse variance image
+            
+            #. :func:`crmask`: Generate a cosmic-ray mask
 
         Args:
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -201,7 +250,7 @@ class RawImage(object):
                 Used to calculate spatial flexure between the image and the slits
 
         Returns:
-            :class:`pypeit.images.pypeitimage.PypeItImage`:
+            :class:`~pypeit.images.pypeitimage.PypeItImage`:
 
         """
         self.par = par
@@ -218,15 +267,19 @@ class RawImage(object):
             self.trim()
         if par['orient']:
             self.orient()
-        if par['use_biasimage']:  # Bias frame, if it exists, is *not* trimmed nor oriented
+        if par['use_biasimage']:
+            # Bias frame, if it exists, is *not* trimmed nor oriented
             self.subtract_bias(bias)
-        if par['use_darkimage']:  # Dark frame, if it exists, is TODO:: check: trimmed, oriented (and oscan/bias subtracted?)
+        if par['use_darkimage']:
+            # Dark frame, if it exists, is TODO:: check: trimmed, oriented (and
+            # oscan/bias subtracted?)
             self.subtract_dark(dark)
         if par['apply_gain']:
             self.apply_gain()
 
         # This needs to come after trim, orient
-        # Calculate flexure -- May not be used, but always calculated when slits are provided
+
+        # Calculate flexure, if slits are provided and correction is requested
         if slits is not None and self.par['spat_flexure_correct']:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
@@ -234,9 +287,10 @@ class RawImage(object):
         illum_flat = None
         if self.par['use_illumflat']:
             if flatimages is None:
-                msgs.error("Cannot illumflatten, no such image generated. Add one or more illumflat images to your PypeIt file!!")
+                msgs.error('Cannot illumflatten, no such image generated. Add one or more '
+                           'illumflat images to your PypeIt file!')
             if slits is None:
-                msgs.error("Need to provide slits to create illumination flat")
+                msgs.error('Need to provide slits to create illumination flat.')
             illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
@@ -252,15 +306,14 @@ class RawImage(object):
         if self.par['use_specillum']:
             if flatimages is None or flatimages.get_spec_illum() is None:
                 msgs.error("Spectral illumination correction desired but not generated/provided.")
-            else:
-                spec_illum = flatimages.get_spec_illum().copy()
+            spec_illum = flatimages.get_spec_illum().copy()
 
         # Flat field -- We cannot do illumination flat without a pixel flat (yet)
         if self.par['use_pixelflat'] or self.par['use_illumflat']:
-            if flatimages is None or flatimages.get_pixelflat() is None:
+            pixflat = flatimages.get_pixelflat()
+            if flatimages is None or pixflat is None:
                 msgs.error("Flat fielding desired but not generated/provided.")
-            else:
-                self.flatten(flatimages.get_pixelflat()/spec_illum, illum_flat=illum_flat, bpm=self.bpm)
+            self.flatten(pixflat/spec_illum, illum_flat=illum_flat, bpm=self.bpm)
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
@@ -280,10 +333,8 @@ class RawImage(object):
         # Mask(s)
         if par['mask_cr']:
             pypeitImage.build_crmask(self.par)
-        #
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain=self.par['apply_gain'])
-        # Build
         pypeitImage.build_mask(saturation=nonlinear_counts)
 
         # Return
@@ -402,7 +453,7 @@ class RawImage(object):
 
     def subtract_pattern(self):
         """
-        Analyze and subtract the pattern noise from the image
+        Analyze and subtract the pattern noise from the image.
         """
         step = inspect.stack()[0][3]
         # Check if already overscan subtracted
