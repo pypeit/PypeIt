@@ -254,7 +254,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['FeAr']
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
