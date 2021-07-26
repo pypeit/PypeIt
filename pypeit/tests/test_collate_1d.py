@@ -15,7 +15,7 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.archive import ArchiveDir
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_reduced, get_metadata_coadded, get_report_metadata
+from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_reduced, get_metadata_coadded, get_report_metadata, find_archvie_files_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -344,14 +344,14 @@ def test_exclude_source_objects(monkeypatch):
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
  
-    filtered_list = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
+    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT5334_SLIT4934_DET02', 'SPAT1233_SLIT1235_DET07']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1', 'spec1d_file1']
 
     par['collate1d']['exclude_serendip'] = False
     par['coadd1d']['ex_value'] = 'BOX'
 
-    filtered_list = exclude_source_objects(uncollated_list, dict(), par)
+    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT1233_SLIT1235_DET07', 'SPAT6250_SLIT6235_DET03', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1', 'spec1d_file2', 'spec1d_file2', 'spec1d_file2' ]
 
@@ -511,3 +511,52 @@ def test_get_report_metadata(monkeypatch):
     assert (None, None) ==  get_report_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
                                                 ['MASKDEF_OBJNAME', 'NAME'],
                                                 "afilename")
+
+def test_find_archive_files_from_spec1d(tmp_path):
+
+    # Write dummy files to avoid dependency on Cooked
+    spec1d_names = [str(tmp_path / 'Science' / 'spec1d_test-name.1.fits'), str(tmp_path / 'Science' / 'spec1d_test-name.2.fits')]
+    related_files = [str(tmp_path / 'test1.pypeit'), str(tmp_path / 'test2.pypeit'), str(tmp_path / 'pypeit' / 'test3.pypeit'), str(tmp_path / 'Science' / 'spec1d_test-name.1.txt')]
+
+    for file in spec1d_names + related_files:
+        os.makedirs(os.path.dirname(file), exist_ok=True)
+        with open(file, "w") as f:
+            print("Dummy fits file", file=f)
+    
+    mock_par = {'collate1d': {"pypeit_file": None}}
+    # This will raise an exception because of too many .pypeit files
+    # find one txt file and give a warning message about one missing file. It should
+    # also find the one pypeit file
+    with pytest.raises(PypeItError, match = "found more than one file."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+
+    # Remove the extra .pypeit file, This will work but will give a warning about the missing
+    # .txt file
+    os.unlink(related_files[1])
+    (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+    assert len(text_files) == 2
+    assert text_files[0] == related_files[3]
+    assert text_files[1] == None
+    assert len(pypeit_files) == 2
+    assert pypeit_files[0] == related_files[0]
+    assert pypeit_files[1] == related_files[0]
+    assert len(missing_msgs) == 1
+    assert missing_msgs[0] == f"Could not archive matching text file for {spec1d_names[1]}, file not found."
+
+    # Remove the remaining the pypeit file, which should raise an exception
+    os.unlink(related_files[0])
+    with pytest.raises(PypeItError, match = f"Could not archive matching .pypeit file for {spec1d_names[0]}, file not found."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+
+    # Specify a custom location for the pypeit file
+    mock_par = {'collate1d': {"pypeit_file": related_files[2]}}
+    (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+    assert len(pypeit_files) == 2
+    assert pypeit_files[0] == related_files[2]
+    assert pypeit_files[1] == related_files[2]
+
+    # Remove the custom .pypeit file, which should raise an exception
+    os.unlink(related_files[2])
+    with pytest.raises(PypeItError, match = f"Could not archive passed in .pypeit file {related_files[2]}, file not found."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+
