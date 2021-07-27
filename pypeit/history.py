@@ -47,7 +47,7 @@ class History:
             HISTORY Subtracted background from frames:                                      
             HISTORY "S20161108S0088.fits.gz"                                                
             HISTORY "S20161108S0089.fits.gz"                                                
-            HISTORY Callibration frames:                                                    
+            HISTORY Calibration frames:                                                    
             HISTORY arc,science,tilt "S20161108S0069.fits.gz"                               
             HISTORY arc,science,tilt "S20161108S0070.fits.gz"                               
             HISTORY arc,science,tilt "S20161108S0071.fits.gz"                               
@@ -80,7 +80,7 @@ class History:
 
         calib_frames = metadata[metadata.find_frames(calibration_types, calib_id)]
         if len(calib_frames) > 0:
-            self.append('Callibration frames:', add_date=False)
+            self.append('Calibration frames:', add_date=False)
 
             for frame in calib_frames:
                 self.append(f'{frame["frametype"]} "{frame["filename"]}"', add_date=False)
@@ -90,8 +90,7 @@ class History:
         Add history entries for 1D coadding.
         
         The history shows what files and objects were used for coadding.
-        To save characters the unique files are listed first and then the
-        objects are listed. For example::
+        For example::
             
             HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
             HISTORY File 0 "spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits"  

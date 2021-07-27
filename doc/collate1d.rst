@@ -105,10 +105,21 @@ followed by a list of spec1d files. An example configuration file is shown below
 
     slit_exclude_flags = BOXSLIT
 
+    # Where to place coadded files and report files. Defaults to
+    # current directory.
+    #outdir = /work/output
+
     # Where to copy the input and output files, along with metadata
     # for archiving in KOA
-    #archive_root = /home/dusty/work/archive
+    #archive_root = /work/archive
 
+    # Where to look for .pypeit files when building an archive.
+    # This only takes effect when archive_root is specified. If
+    # not given the archiving code will look in the parent directory
+    # of each spec1d.
+    #pypeit_file = /work/pypeit_files
+
+    
     # A list of the spec1d files. Wildcards are allowed.
     spec1d read
     Science/spec1d*.fits
@@ -119,6 +130,87 @@ Coadd1D Configuration
 Coadd1d configuration can be configured in the ``.collate1d`` as shown above, or
 in a separate ``.coadd1d`` file with the same base name as the ``.collate1d`` file.
 :ref:`pypeit_par:Coadd1DPar Keywords`, 
+
+Reporting
+---------
+``pypeit_collate_1d`` creates two files to report on the results of collating: ``collate_report.dat`` and
+``collate_warnings.txt``.  
+
+collate_report.dat
+++++++++++++++++++
+The ``collate_report.dat`` is an `IPAC <https://irsa.ipac.caltech.edu/applications/DDGEN/Doc/ipac_tbl.html>`_ file containing
+metadata about what objects were coadded. The file is organized by the output file name, and has multiple rows per output 
+file: one row per extracted spectra that was coadded to create the file. Below is a description of its columns.
+
+
++-----------------+-----------------------------------------------------------+
+| Column Name     | Description                                               |
++=================+===========================================================+
+| filename        | The filename of the coadded output file.                  |
++-----------------+-----------------------------------------------------------+
+| maskdef_objname | The name of the object being coadded.                     |
++-----------------+-----------------------------------------------------------+
+| maskdef_id      | The slit id for the according to the mask definition.     |
++-----------------+-----------------------------------------------------------+
+| det             | The detector the spectrum was captured on.                |
++-----------------+-----------------------------------------------------------+
+| objra           | The RA of the source object, determined from the mask     |
+|                 | definition.                                               |
++-----------------+-----------------------------------------------------------+
+| objdec          | The DEC of the source object, determined from the mask    |
+|                 | definition.                                               |
++-----------------+-----------------------------------------------------------+
+| med_s2n         | The signal to noise ratio of the extracted object.        |
++-----------------+-----------------------------------------------------------+
+| wav_rms         | The RMS in pixels of the wavelength solution.             |
++-----------------+-----------------------------------------------------------+
+| spec1d_filename | The name of the spec1d file containing the spectrum.      |
++-----------------+-----------------------------------------------------------+
+| dispname        | The grating used for the source image.                    |
++-----------------+-----------------------------------------------------------+
+| slmsknam        | The slitmask used for the source image.                   |
++-----------------+-----------------------------------------------------------+
+| binning         | Binning from the source image header.                     |
++-----------------+-----------------------------------------------------------+
+| mjd             | Modified Julian Date from the the source image header.    |
++-----------------+-----------------------------------------------------------+
+| airmass         | Airmass from the the source image header.                 |
++-----------------+-----------------------------------------------------------+
+| exptime         | Exposure time from the the source image header.           | 
++-----------------+-----------------------------------------------------------+
+| guidfwhm        | Guide star FWHM value from the source image header.       |
++-----------------+-----------------------------------------------------------+
+| progpi          | Program Principle Investigator from the source image      |
+|                 | header.                                                   |
++-----------------+-----------------------------------------------------------+
+| semester        | Semester from the source image header.                    |
++-----------------+-----------------------------------------------------------+
+| progid          | Program ID from the source image header.                  |
++-----------------+-----------------------------------------------------------+
+
+collate_warnings.txt
+++++++++++++++++++++
+The ``collate_warnings.txt`` file contains information about any failures that occurred during 
+collating and/or archiving. Below is an example ``collate_warnings.txt``::
+
+   pypeit_collate_1d warnings
+
+   Started 2021-07-26 12:02:39.156118
+   Duration: 0:00:47.245288
+
+   Excluded Objects:
+
+   Excluding SERENDIP object from SPAT1510-SLIT1544-DET05 in Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_20130409T054342.730.fits
+   Excluding SERENDIP object from SPAT0071-SLIT0086-DET05 in Science/spec1d_DE.20130409.22509-S13A-SDF-z6clus_DEIMOS_20130409T061459.683.fits
+
+
+   Failed to Coadd:
+
+
+   Missing Archive Files:
+
+   Could not archive matching text file for Science/spec1d_DE.20130409.20629-S13A-SDF-z6clus_DEIMOS_20130409T054342.730.fits, file not found.
+   Could not archive matching text file for Science/spec1d_DE.20130409.22509-S13A-SDF-z6clus_DEIMOS_20130409T061459.683.fits, file not found.
 
 Matching
 ========
@@ -190,8 +282,8 @@ Archiving
 =========
 ``pypeit_collate_1d`` can copy all of the input files it uses and all of the files
 it creates into an archive directory suitable to be compressed and sent to KOA for
-ingest.  Reduced data and associated files are stored in subdirectories based on the 
-year and month the data was observed.  Additional metadata information is stored in
+ingest.  Reduced data and associated files are stored in subdirectories based semester 
+and program ID in data's header.  Additional metadata information is stored in
 the top level of the directory.
 
 
@@ -223,7 +315,8 @@ They are described in detail at https://pypeit.readthedocs.io/en/latest/coadd1d.
 pypeit files
 ++++++++++++
 Files ending in ".pypeit" are the original ``PypeIt`` reduction files that were used to reduce the raw data.
-They are described at https://pypeit.readthedocs.io/en/latest/pypeit_file.html.
+By default ``pypeit_collate_1d`` searches for .pypeit files in the parent directory of each spec1d file.
+``PypeIt`` files are described at https://pypeit.readthedocs.io/en/latest/pypeit_file.html.
 
 Archive Metadata
 ----------------
@@ -253,6 +346,8 @@ are relative to the top level of the archive directory.
 | ra            | RA from the source image header.                            |
 +---------------+-------------------------------------------------------------+
 | dec           | DEC from the source image header.                           |
++---------------+-------------------------------------------------------------+
+| target        | TARGET from the source image header.                        |
 +---------------+-------------------------------------------------------------+
 | progpi        | Program Principle Investigator from the source image header.|
 +---------------+-------------------------------------------------------------+
