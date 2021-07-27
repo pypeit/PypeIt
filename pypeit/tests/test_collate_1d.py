@@ -5,7 +5,7 @@ Module to run tests on collate_1d code.
 import pytest
 from collections import namedtuple
 import os, os.path
-import filecmp
+import re
 
 from astropy.coordinates import Angle, SkyCoord
 import numpy as np
@@ -545,7 +545,7 @@ def test_find_archive_files_from_spec1d(tmp_path):
 
     # Remove the remaining the pypeit file, which should raise an exception
     os.unlink(related_files[0])
-    with pytest.raises(PypeItError, match = f"Could not archive matching .pypeit file for {spec1d_names[0]}, file not found."):
+    with pytest.raises(PypeItError, match = f"Could not archive matching .pypeit file for {re.escape(spec1d_names[0])}, file not found."):
         (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
 
     # Specify a custom location for the pypeit file
@@ -557,6 +557,6 @@ def test_find_archive_files_from_spec1d(tmp_path):
 
     # Remove the custom .pypeit file, which should raise an exception
     os.unlink(related_files[2])
-    with pytest.raises(PypeItError, match = f"Could not archive passed in .pypeit file {related_files[2]}, file not found."):
+    with pytest.raises(PypeItError, match = f"Could not archive passed in .pypeit file {re.escape(related_files[2])}, file not found."):
         (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
 
