@@ -26,6 +26,7 @@
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
 - Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
 
 
 1.4.1 (11 Jun 2021)
