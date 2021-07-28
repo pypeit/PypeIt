@@ -44,14 +44,14 @@ Or, alternatively, the user can input a known offset in pixels (see `Application
 Then, :func:`pypeit.slittrace.average_maskdef_offset` determines an average slitmask offset, which is
 used by :func:`pypeit.slittrace.assign_addobjs_alldets` to assign RA, Dec and object name to detected
 objects and to force extract objects that were not detected (for the latter see
-:ref:`_deimos_add_missing_obj_report`).
+:ref:`deimos_add_missing_obj_report`).
 
-:func:`~pypeit.slittrace.assign_addobjs_alldets`, for each detector, goes through all the slits
-and checks if the measured distance of the detected objects from the left edge of the slit
-(corrected for the offset computed in the previous step) is within a certain tolerance
+The function :func:`~pypeit.slittrace.assign_addobjs_alldets`, for each detector, goes through
+all the slits and checks if the measured distance of the detected objects from the left edge
+of the slit (corrected for the offset computed in the previous step) is within a certain tolerance
 (see `Application`_ for details on how to control the value of this parameter) of the distance
 expected from the slitmask design (differences between the expected and the measured slit length
-are taken into account). Correcting for the slitmask offset allows to ``PypeIt`` to deal also with
+are taken into account). Correcting for the slitmask offset allows ``PypeIt`` to deal also with
 dithered observations.
 If the measured distance is within the set tolerance, the ``RA``, ``DEC`` and ``MASKDEF_OBJNAME``
 of the detected object are updated with the coordinates and name of the targeted object.
@@ -73,9 +73,10 @@ Moreover, the **assign_obj** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must
 This is the default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used.
 Five other parameters control this procedure. Four are for the slitmask offset determination
 and one is for the RA, Dec and object name assignment. They are the following.
+
 - **nsig_thrshd**: objects detected above this significance threshold are used to
   compute the slitmask offset. This is the default behaviour unless **slitmask_offset**,
-  **bright_maskdef_id** or **use_alignbox** is set. Default value is **nsig_thrshd=50.0**.
+  **bright_maskdef_id** or **use_alignbox** is set. Default value is **nsig_thrshd=50**.
 - **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` in the DEIMOS slitmask design)
   of a slit containing a bright object that will be used to compute the slitmask offset.
   This parameter is optional (default value is **bright_maskdef_id=None**) and is ignored
@@ -84,7 +85,7 @@ and one is for the RA, Dec and object name assignment. They are the following.
   If this is set to True PypeIt will NOT compute the offset using **nsig_thrshd** or
   **bright_maskdef_id**. The default is **use_alignbox=False**.
 - **slitmask_offset**: user-provided slitmask offset (pixels) from the position expected
-  by the slitmask design. This is optional (default value is **slitmask_offset=False**),
+  by the slitmask design. This is optional (default value is **slitmask_offset=None**),
   and if set PypeIt will NOT compute the offset, i.e., the above parameters will be ignored.
 - **obj_toler**: sets the tolerance in arcsec for the matching process between the measured
   coordinates of the extracted spectrum and the expected coordinates of the targeted object.

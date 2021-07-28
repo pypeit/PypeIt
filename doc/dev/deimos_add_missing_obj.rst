@@ -38,8 +38,8 @@ target object was detected (this is done by checking if ``MASKDEF_OBJNAME`` corr
 name of the target). If the answer is yes, it goes to the next slit. If the answer is no, a new
 :class:`pypeit.specobj.SpecObj` is added to the :class:`pypeit.specobjs.SpecObjs` class. The expected
 position on the slit (corrected for the slitmask offset, see :ref:`deimos_radec_object_report` for how
-to compute ths offset) is recorded in the :class:`~pypeit.specobjs.SpecObjs`'s attribute
-``SPAT_PIXPOS``. Correcting for the slitmask offset allows to ``PypeIt`` to deal also with dithered
+to compute this offset) is recorded in the :class:`~pypeit.specobjs.SpecObjs`'s attribute
+``SPAT_PIXPOS``. Correcting for the slitmask offset allows ``PypeIt`` to deal also with dithered
 observations. Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
 ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see spec1D
 :ref:`out_spec1D:Current Data Model` for a description of these parameters).
@@ -55,7 +55,6 @@ described in the *Application* section of :ref:`deimos_slitmask_ids_report` and
 :ref:`deimos_radec_object_report` must be set.
 Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
 This is the default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used.
-One other keyword control this procedure.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
