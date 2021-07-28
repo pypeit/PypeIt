@@ -12,6 +12,7 @@ Version History
 *Version*   *Author*           *Date*      ``PypeIt``
 =========   ================   =========== ===========
 1.0         Debora Pelliccia   02 Apr 2021  1.3.4dev
+1.1         Debora Pelliccia   28 Jul 2021  1.4.3dev
 =========   ================   =========== ===========
 
 ----
@@ -29,33 +30,32 @@ Procedure
 ---------
 
 The determination of the position on the slit of DEIMOS non detected objects is primarily performed by
-:func:`pypeit.slittrace.SlitTraceSet.mask_add_missing_obj`. This function relies on the output
-from :func:`pypeit.slittrace.SlitTraceSet.assign_maskinfo` which assign RA, Dec and object name
-to the detected objects and provides an array of all the expected position corrected for the differences
-between the expected and measured slit length (see :ref:`deimos_radec_object_report`).
+:func:`pypeit.slittrace.assign_addobjs_alldets`. This function, first, assigns RA, Dec and object name
+to the detected objects (see :ref:`deimos_radec_object_report`).
 
-``PypeIt`` goes through all the slits in the selected detector and for each slit checks if the
-target object was detected (this is done by checking if ``MASKDEF_OBJNAME`` corresponds to the object name
-of the target). If the answer is yes, it goes to the next slit. If the answer is no, a new
+Then, ``PypeIt``, for each detector, goes through all the slits and for each slit checks if the
+target object was detected (this is done by checking if ``MASKDEF_OBJNAME`` corresponds to the object
+name of the target). If the answer is yes, it goes to the next slit. If the answer is no, a new
 :class:`pypeit.specobj.SpecObj` is added to the :class:`pypeit.specobjs.SpecObjs` class. The expected
-position is provided as an output of :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` and is recorded
-in the :class:`~pypeit.specobjs.SpecObjs`'s attribute ``SPAT_PIXPOS``. The user can provide an additional
-offset between expected and measured position if needed (see `Application`_ for details on how to control
-the value of this parameter). Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
+position on the slit (corrected for the slitmask offset, see :ref:`deimos_radec_object_report` for how
+to compute ths offset) is recorded in the :class:`~pypeit.specobjs.SpecObjs`'s attribute
+``SPAT_PIXPOS``. Correcting for the slitmask offset allows to ``PypeIt`` to deal also with dithered
+observations. Other relevant attributes are also updated, i.e., ``TRACE_SPAT``, ``SPAT_FRACPOS``,
 ``OBJID``, ``FWHM``, ``RA``, ``DEC``, ``MASKDEF_OBJNAME``, ``MASKDEF_ID`` (see spec1D
-:ref:`out_spec1D:Current Data Model` for a description of these parameters). The attribute ``MASKDEF_EXTRACT``
-is set to **True** to flag the spectra that have been extracted from undetected objects.
+:ref:`out_spec1D:Current Data Model` for a description of these parameters).
+The attribute ``MASKDEF_EXTRACT`` is set to **True** to flag the spectra that have been extracted
+from undetected objects.
 
 
 Application
 -----------
 
-To perform the determination of the location on the slit of undetected objects, the parameters described in
-the *Application* section of :ref:`deimos_slitmask_ids_report` and :ref:`deimos_radec_object_report` must be set.
-Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the
-default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used. One other keyword control this procedure.
-It is **slitmask_offset**, which sets a user provided offset in pixels between the measured and expected
-position of the slitmask. The default is zero.
+To perform the determination of the location on the slit of undetected objects, the parameters
+described in the *Application* section of :ref:`deimos_slitmask_ids_report` and
+:ref:`deimos_radec_object_report` must be set.
+Moreover, **extract_missing_objs** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
+This is the default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used.
+One other keyword control this procedure.
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
