@@ -18,6 +18,8 @@ from pypeit.scripts import compare_sky
 from pypeit.scripts import flux_calib
 from pypeit.scripts import flux_setup
 from pypeit.scripts import identify
+from pypeit.scripts import install_ql_masters
+from pypeit.scripts import install_telluric
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
@@ -50,3 +52,5 @@ def script_classes():
     return dict([ (n,c) for n,c in zip(scr_n[srt],scr_c[srt])])
 
 pypeit_scripts = list(script_classes().keys())
+
+
