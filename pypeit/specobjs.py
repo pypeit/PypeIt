@@ -409,17 +409,23 @@ class SpecObjs:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
 
-    def slitorder_objid_indices(self, slitorder, objid):
+    def slitorder_objid_indices(self, slitorder, objid, toler=5):
         """
         Return the set of indices matching the input slit/order and the input objid
-        """
+        
+        Args:
+            slitorder: 
+            objid: 
+            toler: 
+
+        Returns: 
+
+        """ # SHANE Fill this in.
 
         if self[0].PYPELINE == 'Echelle':
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
-            indx = (np.abs(self.SLITID - slitorder) <= 3) & (self.OBJID == objid)
-            # TODO Added 3 pixel tolerance to SLITID, May want tolerance as parameter in future. Unsure if similar fix
-            # will be necessary for IFU option.
+            indx = (np.abs(self.SLITID - slitorder) <= toler) & (self.OBJID == objid)
         elif self[0].PYPELINE == 'IFU':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
