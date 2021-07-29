@@ -78,6 +78,7 @@ Thumbs.db
 *.swp
 pypeit/_compiler.c
 pypeit/data/telluric/atm_grids/*.fits
+pypeit/data/QL_MASTERS
 
 *.pckl
 
