@@ -30,7 +30,7 @@ from linetools.spectra import xspectrum1d
 from IPython import embed
 
 
-class Reduce(object):
+class Reduce:
     """
     This class will organize and run actions related to
     finding objects, sky subtraction, and extraction for
@@ -327,16 +327,21 @@ class Reduce(object):
 
         *NOT* used by COADD2D
 
-        Args:
-            std_trace (np.ndarray, optional):
-                Trace of the standard star
-            show_peaks (bool, optional):
-                Show peaks in find_objects methods
+        Parameters
+        ----------
+        std_trace : `numpy.ndarray`_, optional
+            Trace of the standard star
+        show_peaks : :obj:`bool`, optional
+            Show peaks in find_objects methods
 
-        Returns:
-            tuple: global_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`), skymask (`np.ndarray`_).
-            Initial global sky model, list of objects found, skymask
-
+        Returns
+        -------
+        global_sky : `numpy.ndarray`_
+            Initial global sky model
+        sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
+            List of objects found
+        skymask : `numpy.ndarray`_
+            Boolean mask
         """
 
         # Deal with dynamic calibrations
@@ -397,11 +402,11 @@ class Reduce(object):
         *NOT* used by COADD2D
 
         Args:
-            global_sky (`np.ndarray`_):
+            global_sky (`numpy.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            skymask (`np.ndarray`_):
+            skymask (`numpy.ndarray`_):
                Boolean image indicating which pixels are useful for global sky subtraction
             ra (float, optional):
                 Required if helio-centric correction is to be applied
@@ -524,21 +529,33 @@ class Reduce(object):
 
         If self.find_negative is True, do a search for negative objects too
 
-        Args:
-            image (np.ndarray):
-                Input image
-            std_trace (ndarray, optional):
-            show_peaks (bool, optional):
-            show_fits (bool, optional):
-            show_trace (bool, optional):
-            show (bool, optional):
-            manual_extract_dict (dict, optional):
-            debug (bool, optional):
+        Parameters
+        ----------
+        image : `numpy.ndarray`_
+            Input image
+        std_trace : `numpy.ndarray`_, optional
+            ???
+        show_peaks : :obj:`bool`, optional
+            ???
+        show_fits : :obj:`bool`, optional
+            ???
+        show_trace : :obj:`bool`, optional
+            ???
+        show : :obj:`bool`, optional
+            ???
+        manual_extract_dict : :obj:`dict`, optional
+            ???
+        debug : :obj:`bool`, optional
+            ???
 
-        Returns:
-            specobjs (:class:`pypeit.specobjs.SpecObjs`), int, np.ndarray:
-               Objects found,  number of objects found, skymask
-
+        Returns
+        -------
+        sobjs_obj_single : :class:`~pypeit.specobjs.SpecObjs`
+            Objects found
+        nobj_single : :obj:`int`
+            Number of objects found
+        skymask : `numpy.ndarray`_
+            Boolean sky mask
         """
 
         # Positive image
@@ -595,7 +612,7 @@ class Reduce(object):
         Wrapper to skysub.global_skysub
 
         Args:
-            skymask (np.ndarray, None):
+            skymask (`numpy.ndarray`_, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
             show_fit (bool, optional):
@@ -1024,28 +1041,34 @@ class MultiSlitReduce(Reduce):
         """
         Pipeline specific find objects routine
 
-        Args:
-            image (np.ndarray):
-            std_trace (np.ndarray, optional):
-            manual_extract_dict (dict, optional):
-            show_peaks (bool, optional):
-              Generate QA showing peaks identified by object finding
-            show_fits (bool, optional):
-              Generate QA  showing fits to traces
-            show_trace (bool, optional):
-              Generate QA  showing traces identified. Requires an open ginga RC modules window
-            show (bool, optional):
-            debug (bool, optional):
+        Parameters
+        ----------
 
-        Returns:
-            tuple:
-                specobjs : Specobjs object
-                    Container holding Specobj objects
-                nobj (int):
-                    Number of objects identified
-                skymask : ndarray
-                    Boolean image indicating which pixels are useful for global sky subtraction
+        image : `numpy.ndarray`_
+            ???
+        std_trace : `numpy.ndarray`_, optional
+            ???
+        manual_extract_dict : :obj:`dict`, optional
+            ???
+        show_peaks : :obj:`bool`, optional
+            Generate QA showing peaks identified by object finding
+        show_fits : :obj:`bool`, optional
+            Generate QA  showing fits to traces
+        show_trace : :obj:`bool`, optional
+            Generate QA  showing traces identified. Requires an open ginga RC
+            modules window
+        show : :obj:`bool`, optional
+        debug : :obj:`bool`, optional
 
+        Returns
+        -------
+        specobjs : :class:`~pypeot.specobjs.Specobjs`
+            Container holding Specobj objects
+        nobj : :obj:`int`
+            Number of objects identified
+        skymask : `numpy.ndarray`_
+            Boolean image indicating which pixels are useful for global sky
+            subtraction
         """
         gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
@@ -1128,17 +1151,35 @@ class MultiSlitReduce(Reduce):
 
         Wrapper to skysub.local_skysub_extract
 
-        Args:
-            global_sky (np.ndarray):
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-            spat_pix (np.ndarray, optional):
-            model_noise (bool, optional):
-            show_resids (bool, optional):
-            show_profile (bool, optional):
-            show (bool, optional):
+        Parameters
+        ----------
+        global_sky : `numpy.ndarray`_
+            ???
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            ???
+        spat_pix : `numpy.ndarray`_, optional
+            ???
+        model_noise : :obj:`bool`, optional
+            ???
+        show_resids : :obj:`bool`, optional
+            ???
+        show_profile : :obj:`bool`, optional
+            ???
+        show : :obj:`bool`, optional
+            ???
 
-        Returns:
-            tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
+        Returns
+        -------
+        skymodel : `numpy.ndarray`_
+            ???
+        objmodel : `numpy.ndarray`_
+            ???
+        ivarmodel : `numpy.ndarray`_
+            ???
+        outmask : `numpy.ndarray`_
+            ???
+        sobjs : ??
+            ???
 
         """
         self.global_sky = global_sky
@@ -1260,30 +1301,31 @@ class EchelleReduce(Reduce):
                               show_trace=False, debug=False,
                               manual_extract_dict=None):
         """
-         Pipeline specific find objects routine
+        Pipeline specific find objects routine
 
-         Args:
-             image (np.ndarray):
-             std_trace (np.ndarray, optional):
-             manual_extract_dict (dict, optional):
-             show_peaks (bool, optional):
-               Generate QA showing peaks identified by object finding
-             show_fits (bool, optional):
-               Generate QA  showing fits to traces
-             show_trace (bool, optional):
-               Generate QA  showing traces identified. Requires an open ginga RC modules window
-             show (bool, optional):
-             debug (bool, optional):
+        Parameters
+        ----------
+        image : `numpy.ndarray`_
+        std_trace : `numpy.ndarray`_, optional
+        manual_extract_dict : :obj:`dict`, optional
+        show_peaks : :obj:`bool`, optional
+            Generate QA showing peaks identified by object finding
+        show_fits : :obj:`bool`, optional
+            Generate QA  showing fits to traces
+        show_trace : :obj:`bool`, optional
+            Generate QA  showing traces identified. Requires an open ginga RC modules window
+        show : :obj:`bool`, optional
+        debug : :obj:`bool`, optional
 
-         Returns:
-             tuple:
-                 specobjs : Specobjs object
-                     Container holding Specobj objects
-                 nobj (int):
-                     Number of objects identified
-                 skymask : ndarray
-                     Boolean image indicating which pixels are useful for global sky subtraction
-
+        Returns
+        -------
+        specobjs : :class:`~pypeit.specobjs.Specobjs`
+            Container holding Specobj objects
+        nobj : :obj:`int`
+            Number of objects identified
+        skymask : `numpy.ndarray`_
+            Boolean image indicating which pixels are useful for global sky
+            subtraction
         """
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -1337,18 +1379,35 @@ class EchelleReduce(Reduce):
 
         Wrapper to skysub.local_skysub_extract
 
-        Args:
-            global_sky (np.ndarray):
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
-            spat_pix (np.ndarray, optional):
-            model_noise (bool, optional):
-            show_resids (bool, optional):
-            show_profile (bool, optional):
-            show (bool, optional):
+        Parameters
+        ----------
+        global_sky : `numpy.ndarray`_
+            ???
+        sobjs : :class:`~pypeit.specobjs.SpecObjs`
+            ???
+        spat_pix : `numpy.ndarray`_, optional
+            ???
+        model_noise : :obj:`bool`, optional
+            ???
+        show_resids : :obj:`bool`, optional
+            ???
+        show_profile : :obj:`bool`, optional
+            ???
+        show : :obj:`bool`, optional
+            ???
 
-        Returns:
-            tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
-
+        Returns
+        -------
+        skymodel : `numpy.ndarray`_
+            ???
+        objmodel : `numpy.ndarray`_
+            ???
+        ivarmodel : `numpy.ndarray`_
+            ???
+        outmask : `numpy.ndarray`_
+            ???
+        sobjs : ???
+            ???
         """
         self.global_sky = global_sky
 
@@ -1417,7 +1476,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """Apply a relative scale to the science frame (and correct the varframe, too)
 
          Args:
-             scaleImg (np.ndarray):
+             scaleImg (`numpy.ndarray`_):
                 scale image to divide the science frame by
         """
         # Check that scaleimg is set to the correct shape
@@ -1440,9 +1499,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
         is the residual spatial flexure shift in units of pixels.
 
          Args:
-             skymask (np.ndarray):
+             skymask (`numpy.ndarray`_):
                 Mask of sky regions where the spatial illumination will be determined
-             trim_edg (tuple):
+             trim_edg (:obj:`tuple`):
                 A tuple of two ints indicated how much of the slit edges should be
                 trimmed when fitting to the spatial profile.
         """
@@ -1538,9 +1597,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
         This uses the same routine as the flatfield spectral illumination profile.
 
          Args:
-             global_sky (np.ndarray):
+             global_sky (`numpy.ndarray`_):
                 Model of the sky
-             skymask (np.ndarray, None):
+             skymask (`numpy.ndarray`_, optional):
                 Mask of sky regions where the spatial illumination will be determined
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
