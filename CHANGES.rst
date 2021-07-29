@@ -20,6 +20,8 @@
   runs the extraction. In between the two loops, the slitmask offset is computed.
 - A script (`get_telescope_offset`) to determine the telescope pointing offsets is
   added to `pypeit/spectrographs/keck_deimos.py`
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+slit dependent lists. 
 
 
 1.4.2 (06 Jul 2021)
