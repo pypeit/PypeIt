@@ -785,7 +785,7 @@ def main(flg):
         wfile = os.path.join(template_path, 'P200_DBSP', 'R1200_7100_D68', 'wvcalib_8200.fits')
         outroot = 'p200_dbsp_red_1200_7100_d68_8200.fits'
         binspec = 1
-        slits = [222]
+        slits = [0]
         lcut = None # only matters if >1 slit
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
         # HeNeAr 1200/9400 D55 8800
