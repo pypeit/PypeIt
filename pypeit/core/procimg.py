@@ -3,10 +3,11 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+from IPython import embed
+
 import numpy as np
 from scipy import signal, ndimage
 from scipy.optimize import curve_fit
-from IPython import embed
 
 from pypeit import msgs
 from pypeit import utils
@@ -246,8 +247,8 @@ def gain_frame(amp_img, gain):
         amp_img (`numpy.ndarray`_):
             Integer array that identifies which (1-indexed) amplifier
             was used to read each pixel.
-        gain (:obj:`list`):
-            List of amplifier gain values.  Must be that the gain for
+        gain (array-like):
+            List of amplifier gain values in e-/ADU.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
 
     Returns:
@@ -265,59 +266,104 @@ def gain_frame(amp_img, gain):
     return gain_img
 
 
-def rn_frame(datasec_img, gain, ronoise):
-    """ Generate a RN image
+def rn2_frame(datasec_img, gain, ronoise, units='e-', digitization=True):
+    r"""
+    Construct a readnoise variance image.
 
-    Parameters
-    ----------
-    datasec_img : ndarray
-        Index image (2D array) assigning each pixel in the data section to an amplifier.
-        A value of 0 means not a data section
-    gain : ndarray, list
-        A list of the gains for each amplifier
-    ronoise : ndarray, list
-        A list of read noise values for each amplifier. If any element of the array is 0.0,
-        the read noise will be determined from the overscan region
+    Provided detector readnoise and gain for each detector amplifier, this
+    calculates the combination of the readnoise and diigitization (or
+    quantization) noise expected for a single detector readout.  Digitization
+    noise is a fixed :math:`\sqrt{1/12}` ADU [1]_ [2]_, which is typically much
+    smaller than the readnoise, unless the gain is very large.  And, depending
+    on how it was measured, the digitization noise may be incorporated in the
+    documented readnoise of given instrument.  To exclude the digitization noise
+    from the calculation, set ``digitization=False``.
 
-    Returns
-    -------
-    rn_img : ndarray
-        Read noise *variance* image (i.e. RN**2)
+    The variance calculation in electrons is :math:`V = {\rm RN}^2 +
+    \gamma^2/12`, where RN is the readnoise and :math:`\gamma` is the gain in
+    e-/ADU.  If the requested units are ADU, the returned variance is
+    :math:`V/\gamma^2`.
+    
+    .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
+    .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_
+
+    Args:
+        datasec_img (`numpy.ndarray`_):
+            An integer array indicating the 1-indexed amplifier used to read
+            each pixel in the main data section of the detector.  Values of 0
+            are ignored.  Amplifier numbers are expected sequential and match
+            the number of readnoise and gain values provided.  The shape of this
+            image dictates the shape of the output readnoise variance image.
+        gain (:obj:`float`, array-like):
+            The value of the gain for each amplifier in e-/ADU.  If
+            ``digitization`` is False, this is ignored.
+        ronoise (:obj:`float`, array-like):
+            The value of the readnoise for each amplifier in electrons (e-).  If
+            there is only one amplifier, this can be provided as a single float.
+        units (:obj:`str`, optional):
+            Units for the output variance.  Options are ``'e-'`` for variance in
+            square electrons (counts) or ``'ADU'`` for square ADU.
+        digitization (:obj:`bool`, optional):
+            Include digitization error in the calculation.
+
+    Returns:
+        `numpy.ndarray`_: The image variance resulting from reading the detector
+        in the selected units for each pixel.  The shape is the same as
+        ``datasec_img``.  Pixels where ``datasec_img`` is 0 are set to 0.
     """
+    # Check units
+    if units not in ['e-', 'ADU']:
+        msgs.error(f"Unknown units: {units}.  Must be 'e-' or 'ADU'.")
+
     # Determine the number of amplifiers from the datasec image
-    numamplifiers = np.amax(datasec_img)
+    _datasec_img = datasec_img.astype(int)
+    numamplifiers = np.amax(_datasec_img)
 
-    # Check the input types
-    _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
-    _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
+    # Check the number of RN values
+    _ronoise = np.atleast_1d(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
-    if len(_gain) != numamplifiers:
-        raise ValueError('Must provide a gain for each amplifier.')
     if len(_ronoise) != numamplifiers:
-        raise ValueError('Must provide a read-noise for each amplifier.')
-    if np.any(datasec_img > numamplifiers):
-        raise ValueError('Pixel amplifier IDs do not match number of amplifiers.')
-
-    # ToDO We should not be using numpy masked arrays!!!
+        msgs.error('Must provide a read-noise for each amplifier.')
 
     # Get the amplifier indices
-    indx = datasec_img.astype(int) == 0
-    amp = np.ma.MaskedArray(datasec_img.astype(int) - 1, mask=indx).filled(0)
+    indx = np.logical_not(_datasec_img == 0)
+    amp = _datasec_img[indx] - 1
 
-    # Return the read-noise image.  Any pixels without an assigned
-    # amplifier are given a noise of 0.
-    return np.ma.MaskedArray(np.square(_ronoise[amp]) + np.square(0.5*_gain[amp]),
-                             mask=indx).filled(0.0)
+    # Instantiate the output image.  Any pixels without an assigned amplifier
+    # are given a noise of 0.
+    var = np.zeros(_datasec_img.shape, dtype=float)
+    var[indx] = (_ronoise**2)[amp]
+
+    if not digitization and units == 'e-':
+        return var
+
+    # Check the number of gain values
+    _gain = np.atleast_1d(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
+    if len(_gain) != numamplifiers:
+        msgs.error('Must provide a gain for each amplifier.')
+
+    if digitization:
+        # Add in the digitization error
+        var[indx] += (_gain**2/12)[amp]
+
+    if units == 'ADU':
+        # Convert to ADUs
+        var[indx] /= (_gain**2)[amp]
+
+    return var
 
 
 def rect_slice_with_mask(image, mask, mask_val=1):
     """
-    Generate rectangular slices from a mask image
+    Generate rectangular slices from a mask image.
 
     Args:
-        image (np.ndarray): Image to mask
-        mask (np.ndarray): Mask image
-        mask_val (int,optiona): Value to mask on
+        image (`numpy.ndarray`_):
+            Image to mask
+        mask (`numpy.ndarray`_):
+            Mask image
+        mask_val (:obj:`int`, optional):
+            Value to mask on
 
     Returns:
         :obj:`tuple`: The image at mask values and a 2-tuple with the
@@ -328,40 +374,48 @@ def rect_slice_with_mask(image, mask, mask_val=1):
     return image[slices], slices
 
 
-def subtract_overscan(rawframe, datasec_img, oscansec_img,
-                          method='savgol', params=[5, 65]):
+def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', params=[5,65],
+                      var=None):
     """
-    Subtract overscan
+    Subtract overscan.
 
     Args:
-        rawframe (:obj:`numpy.ndarray`):
+        rawframe (`numpy.ndarray`_):
             Frame from which to subtract overscan
-        numamplifiers (int):
-            Number of amplifiers for this detector.
-        datasec_img (:obj:`numpy.ndarray`):
-            An array the same shape as rawframe that identifies
-            the pixels associated with the data on each amplifier.
-            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
+        datasec_img (`numpy.ndarray`_):
+            An array the same shape as ``rawframe`` that identifies the pixels
+            associated with the data on each amplifier; 0 for no data, 1 for
+            amplifier 1, 2 for amplifier 2, etc.
         oscansec_img (:obj:`numpy.ndarray`):
-            An array the same shape as rawframe that identifies
-            the pixels associated with the overscan region on each
-            amplifier.
-            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
+            An array the same shape as ``rawframe`` that identifies the pixels
+            associated with the overscan region on each amplifier; 0 for no
+            data, 1 for amplifier 1, 2 for amplifier 2, etc.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
             polynomial, savgol, median.
         params (:obj:`list`, optional):
-            Parameters for the overscan subtraction.  For
-            method=polynomial, set params = order, number of pixels,
-            number of repeats ; for method=savgol, set params = order,
-            window size ; for method=median, params are ignored.
+            Parameters for the overscan subtraction.  For ``method=polynomial``,
+            set ``params`` to the order, number of pixels, number of repeats;
+            for ``method=savgol``, set ``params`` to the order and window size;
+            for ``method=median``, ``params`` are ignored.
+        var (`numpy.ndarray`_, optional):
+            Variance in the raw frame.  If None, ignored.  If provided,
+            an estimate of the error in the overscan correction is included and
+            an updated variance image is returned.
 
     Returns:
-        :obj:`numpy.ndarray`: The input frame with the overscan region
-        subtracted
+        `numpy.ndarray`_, :obj:`tuple`: The input frame with the overscan region
+        subtracted.  If ``var`` is provided, the returned object is a tuple with
+        an estimate of the propagated variance in the overscan-subtracted image
+        as the second item.
     """
+    # Check input
+    if method.lower() not in ['polynomial', 'savgol', 'median']:
+        msgs.error(f'Unrecognized overscan subtraction method: {method}')
+
     # Copy the data so that the subtraction is not done in place
     no_overscan = rawframe.copy()
+    _var = None if var is None else var.copy()
 
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
@@ -369,20 +423,26 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     # Perform the overscan subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
-        overscan, _ = rect_slice_with_mask(rawframe, oscansec_img, amp)
+        overscan, os_slice = rect_slice_with_mask(rawframe, oscansec_img, amp)
+        if var is not None:
+            osvar = var[os_slice]
         # Pull out the real data
         data, data_slice = rect_slice_with_mask(rawframe, datasec_img, amp)
 
         # Shape along at least one axis must match
-        data_shape = data.shape
-        if not np.any([dd == do for dd, do in zip(data_shape, overscan.shape)]):
+        if not np.any([dd == do for dd, do in zip(data.shape, overscan.shape)]):
             msgs.error('Overscan sections do not match amplifier sections for'
                        'amplifier {0}'.format(amp))
-        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
+        compress_axis = 1 if data.shape[0] == overscan.shape[0] else 0
 
         # Fit/Model the overscan region
         osfit = np.median(overscan) if method.lower() == 'median' \
-            else np.median(overscan, axis=compress_axis)
+                    else np.median(overscan, axis=compress_axis)
+        if var is not None:
+            # pi/2 coefficient yields asymptotic variance in the median relative
+            # to the error in the mean
+            osvar = np.pi/2*(np.sum(osvar)/osvar.size if method.lower() == 'median' 
+                             else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis])
         if method.lower() == 'polynomial':
             # TODO: Use np.polynomial.polynomial.polyfit instead?
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])
@@ -392,14 +452,16 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
         elif method.lower() == 'median':
             # Subtract scalar and continue
             no_overscan[data_slice] -= osfit
+            if var is not None:
+                _var[data_slice] += osvar
             continue
-        else:
-            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+        if var is not None:
+            _var[data_slice] += (osvar[:,None] if compress_axis == 1 else osvar[None,:])
 
-    return no_overscan
+    return no_overscan if var is None else (no_overscan, _var)
 
 
 def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1, debug=False):
@@ -407,13 +469,13 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     Subtract a sinusoidal pattern from the input rawframe. The algorithm
     calculates the frequency of the signal, generates a model, and subtracts
     this signal from the data. This sinusoidal pattern noise was first
-    identified in KCWI, but the source of this pattern noise is not
-    currently known.
+    identified in KCWI, but the source of this pattern noise is not currently
+    known.
 
     Args:
         rawframe (`numpy.ndarray`_):
             Frame from which to subtract overscan
-        numamplifiers (int):
+        numamplifiers (:obj:`int`):
             Number of amplifiers for this detector.
         datasec_img (`numpy.ndarray`_):
             An array the same shape as rawframe that identifies
@@ -424,13 +486,13 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             the pixels associated with the overscan region on each
             amplifier.
             0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
-        frequency (float, list, optional):
+        frequency (:obj:`float`, :obj:`list`, optional):
             The frequency (or list of frequencies - one for each amplifier)
             of the sinusoidal pattern. If None, the frequency of each amplifier
             will be determined from the overscan region.
-        axis (int):
+        axis (:obj:`int`, optional):
             Which axis should the pattern subtraction be applied?
-        debug (bool):
+        debug (:obj:`bool`, optional):
             Debug the code (True means yes)
 
     Returns:
@@ -551,9 +613,9 @@ def pattern_frequency(frame, axis=1):
     along the specified axis.
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        frame (`numpy.ndarray`_):
             2D array to measure the pattern frequency
-        axis (int, optional):
+        axis (:obj:`int`, optional):
             Which axis should the pattern frequency be measured?
 
     Returns:
@@ -599,10 +661,10 @@ def pattern_frequency(frame, axis=1):
                                    bounds=([-np.inf, frqs[ii]-1, -np.inf],
                                            [+np.inf, frqs[ii]+1, +np.inf]))
         except ValueError:
-            msgs.warn("Input data invalid for pattern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
             continue
         except RuntimeError:
-            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
             continue
         amp_dist[ii] = popt[0]
         frq_dist[ii] = popt[1]
@@ -619,106 +681,16 @@ def pattern_frequency(frame, axis=1):
                                    bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
                                            [use_amp * 1.00000001, use_frq+1, +np.inf]))
         except ValueError:
-            msgs.warn("Input data invalid for patern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            msgs.warn(f'Input data invalid for pattern frequency fit of row {ii+1}/{arr.shape[0]}')
             continue
         except RuntimeError:
-            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            msgs.warn(f'Pattern frequency fit failed for row {ii+1}/{arr.shape[0]}')
             continue
         frq_dist[ii] = popt[1]
     # Ignore masked values, and return the best estimate of the frequency
     ww = np.where(frq_dist > 0.0)
     medfrq = np.median(frq_dist[ww])
     return medfrq/(arr.shape[1]-1)
-
-
-'''
-def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5,65]):
-    """
-    Subtract overscan
-
-    TODO: Describe the method.
-
-    Args:
-        rawframe (:obj:`numpy.ndarray`):
-            Frame from which to subtract overscan
-        numamplifiers (int):
-            Number of amplifiers for this detector.
-        datasec (list):
-            List of tuples, one per amplifier, with the slice along each
-            dimension that selects the data section of the provided raw
-            frame.  See :func:`parse.sec2slice` to convert a string
-            section (as read from a file header) into a list of slices.
-        oscansec (list):
-            List of tuples, one per amplifier, with the slice along each
-            dimension that selects the overscan section of the provided
-            raw frame.  See :func:`parse.sec2slice` to convert a string
-            section (as read from a file header) into a list of slices.
-        method (:obj:`str`, optional):
-            The method used to fit the overscan region.  Options are
-            polynomial, savgol, median.
-        params (:obj:`list`, optional):
-            Parameters for the overscan subtraction.  For
-            method=polynomial, set params = order, number of pixels,
-            number of repeats ; for method=savgol, set params = order,
-            window size ; for method=median, params are ignored.
-
-    Returns:
-        :obj:`numpy.ndarray`: The input frame with the overscan region
-        subtracted
-    """
-    # Check input
-    if len(datasec) != numamplifiers or len(oscansec) != numamplifiers:
-        msgs.error('Number of amplifiers does not match provided image sections.')
-
-    # If the input image sections are strings, convert them
-    if not isinstance(datasec[0], tuple):
-        msgs.error('Data section must be a tuple of slice objects.')
-    if not isinstance(oscansec[0], tuple):
-        msgs.error('Overscan section must be a tuple of slice objects.')
-
-    # Check that there are no overlapping data sections
-    testframe = np.zeros_like(rawframe, dtype=int)
-    for i in range(numamplifiers):
-        testframe[datasec[i]] += 1
-    if np.any(testframe > 1):
-        raise ValueError('Image has overlapping data sections!')
-
-    # Copy the data so that the subtraction is not done in place
-    nobias = rawframe.copy()
-
-    # Perform the bias subtraction for each amplifier
-    for i in range(numamplifiers):
-        # Pull out the overscan data
-        overscan = rawframe[oscansec[i]]
-
-        # Shape along at least one axis must match
-        data_shape = rawframe[datasec[i]].shape
-        if not np.any([ dd == do for dd, do in zip(data_shape, overscan.shape)]):
-            msgs.error('Overscan sections do not match amplifier sections for'
-                       'amplifier {0}'.format(i+1))
-        compress_axis = 1 if data_shape[0] == overscan.shape[0] else 0
-
-        # Fit/Model the overscan region
-        osfit = np.median(overscan) if method.lower() == 'median' \
-                        else np.median(overscan, axis=compress_axis)
-        if method.lower() == 'polynomial':
-            # TODO: Use np.polynomial.polynomial.polyfit instead?
-            c = np.polyfit(np.arange(osfit.size), osfit, params[0])
-            ossub = np.polyval(c, np.arange(osfit.size))
-        elif method.lower() == 'savgol':
-            ossub = signal.savgol_filter(osfit, params[1], params[0])
-        elif method.lower() == 'median':
-            # Subtract scalar and continue
-            nobias[datasec[i]] -= osfit
-            continue
-        else:
-            raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
-
-        # Subtract along the appropriate axis
-        nobias[datasec[i]] -= (ossub[:,None] if compress_axis == 1 else ossub[None,:])
-
-    return nobias
-'''
 
 
 # TODO: Provide a replace_pixels method that does this on a pixel by
@@ -817,8 +789,6 @@ def replace_column_mean(img, left, right):
     img[:,left:right] = 0.5*(img[:,left-1]+img[:,right])[:,None]
 
 
-
-
 def replace_column_linear(img, left, right):
     """
     Replace the column values between left and right indices for all
@@ -912,16 +882,15 @@ def trim_frame(frame, mask):
     Trim the masked regions from a frame.
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        frame (`numpy.ndarray`_):
             Image to be trimmed
-        mask (:obj:`numpy.ndarray`):
+        mask (`numpy.ndarray`_):
             Boolean image set to True for values that should be trimmed
             and False for values to be returned in the output trimmed
             image.
 
     Return:
-        :obj:`numpy.ndarray`:
-            Trimmed image
+        `numpy.ndarray`_: Trimmed image
 
     Raises:
         PypitError:
@@ -929,27 +898,23 @@ def trim_frame(frame, mask):
             because the shape of the valid region is odd.
     """
     # TODO: Should check for this failure mode earlier
-    if np.any(mask[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]):
+    if np.any(mask[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]):
         msgs.error('Data section is oddly shaped.  Trimming does not exclude all '
                    'pixels outside the data sections.')
-    return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
+    return frame[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]
 
 
-def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
+def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None, exptime=None,
+                   skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
-
-    .. todo::
-        This needs particular attention because exptime and darkcurr;
-        used to be dnoise
 
     Args:
         datasec_img (`numpy.ndarray`_):
             Image that identifies which amplifier (1-indexed) was used
             to read each pixel.  Anything less than 1 is ignored.
         sciframe (`numpy.ndarray`_):
-            Science frame with counts in ?
+            Science frame with counts in electrons.
         gain (:obj:`float`, array-like):
             Gain for each amplifier
         ronoise (:obj:`float`, array-like):
@@ -958,7 +923,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
             Dark current in electrons per second if the exposure time is
             provided, otherwise in electrons.  If None, set to 0.
         exptime (:obj:`float`, optional):
-            Exposure time in **hours**.  If None, darkcurrent *must* be
+            Exposure time in seconds.  If None, darkcurrent *must* be
             in electrons.
         skyframe (`numpy.ndarray`_, optional):
             Sky image.
@@ -979,13 +944,13 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
     if rnoise is None:
-        rnoise = rn_frame(datasec_img, gain, ronoise)
+        rnoise = rn2_frame(datasec_img, gain, ronoise)
 
     # No sky frame provided
     if skyframe is None:
         _darkcurr = 0 if darkcurr is None else darkcurr
         if exptime is not None:
-            _darkcurr *= exptime/3600.
+            _darkcurr *= exptime #/3600.
         var = np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
         var = var + adderr**2*(np.abs(sciframe))**2
         return var

@@ -208,6 +208,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
+                 shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, spat_flexure_correct=None):
 
@@ -264,26 +265,43 @@ class ProcessImagesPar(ParSet):
 
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
-        descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must be provided.'
+        descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must ' \
+                                 'be provided.'
 
         defaults['use_pattern'] = False
         dtypes['use_pattern'] = bool
-        descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be sinusoidal' \
-                               'along one direction, with a frequency that is constant across the detector.'
+        descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be ' \
+                               'sinusoidal along one direction, with a frequency that is ' \
+                               'constant across the detector.'
+
+        defaults['shot_noise'] = True
+        dtypes['shot_noise'] = bool
+        descr['shot_noise'] = 'Use the bias- and dark-subtracted image to calculate and include '
+                              'electron count shot noise in the image processing error budget'
+
+        defaults['noise_floor'] = 0.01
+        dtypes['noise_floor'] = float
+        descr['noise_floor'] = 'Impose a noise floor by adding the provided fraction of the ' \
+                               'bias- and dark-subtracted electron counts to the error budget.  ' \
+                               'E.g., a value of 0.01 means that the S/N of the counts in the ' \
+                               'image will never be greater than 100.'
 
         # Flats
         defaults['use_pixelflat'] = True
         dtypes['use_pixelflat'] = bool
-        descr['use_pixelflat'] = 'Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.'
+        descr['use_pixelflat'] = 'Use the pixel flat to make pixel-level corrections.  A ' \
+                                 'pixelflat image must be provied.'
 
         defaults['use_illumflat'] = True
         dtypes['use_illumflat'] = bool
-        descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination profile of each slit.'
+        descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination ' \
+                                 'profile of each slit.'
 
         defaults['use_specillum'] = False
         dtypes['use_specillum'] = bool
-        descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct the spectral' \
-                                 'illumination profile of each slit. This is primarily used for IFUs.'
+        descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
+                                 'the spectral illumination profile of each slit. This is ' \
+                                 'primarily used for IFUs.'
 
         # Flexure
         defaults['spat_flexure_correct'] = False
@@ -371,12 +389,11 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['trim', 'apply_gain', 'orient',
-                   'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
-                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
-                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+        parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
+                   'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
+                   'use_illumflat', 'use_specillum', 'shot_noise', 'noise_floor', 'use_pixelflat',
+                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr', 'replace', 'lamaxiter',
+                   'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -442,6 +459,13 @@ class ProcessImagesPar(ParSet):
         if self.data['overscan_method'] == 'median' and self.data['overscan_par'] is not None:
             warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
 
+        if not self.data['use_pixelflat'] \
+                and (self.data['use_illumflat'] or self.data['use_specillum']):
+            raise ValueError('To apply a slit-illumination or spectral flat-field correction, '
+                             'you must also apply the pixel flat correction.')
+
+    # TODO: Are these out of date or is this a purposeful subselection of the
+    # full parameter set?
     def to_header(self, hdr):
         """
         Write the parameters to a header object.
@@ -3726,7 +3750,6 @@ class CalibrationsPar(ParSet):
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
                                               process=ProcessImagesPar(use_biasimage=False,
                                                                        use_overscan=False,
-                                                                       apply_gain=False,
                                                                        use_pixelflat = False,
                                                                        use_illumflat = False))
         dtypes['darkframe'] = [ ParSet, dict ]

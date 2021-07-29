@@ -53,6 +53,7 @@ class PypeItImage(datamodel.DataContainer):
     version = '1.0.1'
     """Datamodel version number"""
 
+    # TODO: Add units ('e-' or 'ADU') and exposure time in s
     datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Main data image'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Main data inverse variance image'),
@@ -254,16 +255,16 @@ class PypeItImage(datamodel.DataContainer):
         self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'MINCOUNTS')
 
         # Undefined counts
-        indx = np.invert(np.isfinite(self.image))
+        indx = np.logical_not(np.isfinite(self.image))
         self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IS_NAN')
 
         if self.ivar is not None:
             # Bad inverse variance values
-            indx = np.invert(self.ivar > 0.0)
+            indx = np.logical_not(self.ivar > 0.0)
             self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IVAR0')
 
             # Undefined inverse variances
-            indx = np.invert(np.isfinite(self.ivar))
+            indx = np.logical_not(np.isfinite(self.ivar))
             self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
@@ -324,7 +325,7 @@ class PypeItImage(datamodel.DataContainer):
         # Variance
         if self.ivar is not None:
             new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
-            new_ivar[np.invert(outmask_comb)] = 0
+            new_ivar[np.logical_not(outmask_comb)] = 0
         else:
             new_ivar = None
 

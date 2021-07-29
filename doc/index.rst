@@ -203,6 +203,7 @@ or have a feature request, please `submit an issue
    :caption: Standard outputs
    :maxdepth: 1
 
+   image_proc
    calibrations
    outputs
    qa

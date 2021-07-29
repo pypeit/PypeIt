@@ -26,7 +26,8 @@ from pypeit import masterframe
 # pytest @decorators setting the tests to perform
 
 # Tests require the PypeIt dev-suite
-dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
+dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
+                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
                                         reason='test requires dev suite')
 
 # Tests require the Cooked data

@@ -235,6 +235,8 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
                 return self.illumflat_spat_bsplines
 
+    # TODO: Why are these 3 function necessary?  Why not just access the
+    # attributes directly?
     def get_pixelflat(self):
         return self.pixelflat_norm
 

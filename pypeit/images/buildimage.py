@@ -12,6 +12,7 @@ from pypeit.par import pypeitpar
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage
 from pypeit.core import procimg
+from pypeit.core.framematch import valid_frametype
 from pypeit import utils
 
 from IPython import embed
@@ -139,10 +140,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             defaults.
         file_list (:obj:`list`):
             List of files
-        bpm (`numpy.ndarray`_, optional):
-            Bad pixel mask.
         bias (`numpy.ndarray`_, optional):
             Bias image.
+        bpm (`numpy.ndarray`_, optional):
+            Bad pixel mask.
+        dark (`numpy.ndarray`_, optional):
+            Dark-current image
         flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
             Flat-field image.
         maxiters (:obj:`int`, optional):
@@ -159,11 +162,17 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
             :class:`pypeit.images.rawimage.RawImage.process`.
 
     Returns:
-        :class:`~pypeit.images.pypeitimage.PypeItImage`:  The processed image.
+        :class:`~pypeit.images.pypeitimage.PypeItImage`:  The processed and
+        combined image.
     """
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
         msgs.error('Provided ParSet for must be type FrameGroupPar.')
+    if not valid_frametype(frame_par['frametype'], quiet=True):
+        # NOTE: This should not be necessary because FrameGroupPar explicitly
+        # requires frametype to be valid
+        msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
+
     # Do it
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark,
@@ -172,13 +181,17 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
                                    sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
                                    ignore_saturation=ignore_saturation, slits=slits,
                                    combine_method=frame_par['process']['combine'])
-    #
-    # Decorate according to the type of calibration
-    #   Primarily for handling MasterFrames
-    #   WARNING, any internals in pypeitImage are lost here
+
+    # Decorate according to the type of calibration, primarily as needed for
+    # handling MasterFrames.  WARNING: Any internals in pypeitImage are lost
+    # here.
+    # TODO: This list didn't include 'pinhole' or 'sky'
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'dark':
+        # TODO: Should we allow a toggle that sets whether or not the dark image
+        # is saved in electrons or electrons per second?  Then for dark-current
+        # subtraction, we would need to pass dark=dark.image*exptime.
         finalImage = DarkImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'arc':
         finalImage = ArcImage.from_pypeitimage(pypeitImage)
@@ -188,15 +201,17 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'align':
         finalImage = AlignImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
-        finalImage = pypeitImage
+#    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
     else:
-        msgs.error(f"Unknown frame type: {frame_par['frametype']}")
+        finalImage = pypeitImage
+#    else:
+#        msgs.error(f"Unknown frame type: {frame_par['frametype']}")
 #        finalImage = None
 #        embed(header=utils.embed_header())
 
-    # TODO: Can we move everything except copying the file list into the
-    # from_pypeitimage function?
+    # TODO: Can we move all this copying into the from_pypeitimage function,
+    # except for the list of files?
+
     # Internals
     finalImage.process_steps = pypeitImage.process_steps
     finalImage.files = file_list

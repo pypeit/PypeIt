@@ -413,6 +413,7 @@ class PypeIt:
         else:
             return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
+    # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
