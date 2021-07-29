@@ -85,9 +85,13 @@
 .. _bumpversion: https://pypi.org/project/bumpversion/
 .. _rclone: https://rclone.org/
 .. _pip: https://pip.pypa.io/en/stable/
+.. _anaconda: https://www.anaconda.com/products/individual
+.. _conda: https://docs.conda.io/projects/conda/en/latest/index.html
+.. _virtualenv: https://virtualenv.pypa.io/en/latest/
 .. _pdb: https://docs.python.org/3/library/pdb.html
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
+.. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 
 .. ginga
 
@@ -100,6 +104,7 @@
 .. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite
 .. _documentation: https://pypeit.readthedocs.io/en/latest/
 .. _Submit an issue: https://github.com/pypeit/PypeIt/issues
+.. _PypeIt dev-suite Google Drive: https://drive.google.com/drive/folders/1oh19siB1-F0jjmY-F_jr73eA-TQYEiFW?usp=sharing
 
 .. emails
 .. _Joe Hennawi: joe@physics.ucsb.edu

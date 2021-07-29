@@ -669,25 +669,29 @@ class PypeIt(object):
 
         sci_ID and det need to have been set internally prior to calling this method
 
-        Args:
-            frames (:obj:`list`):
-                List of frames to extract; stacked if more than one
-                is provided
-            det (:obj:`int`):
-                Detector number (1-indexed)
-            bg_frames (:obj:`list`):
-                List of frames to use as the background. Can be
-                empty.
-            std_outfile (:obj:`str`, optional):
-                Filename for the standard star spec1d file. Passed
-                directly to :func:`get_std_trace`.
+        Parameters
+        ----------
+        frames : :obj:`list`
+            List of frames to extract; stacked if more than one is provided
+        det : :obj:`int`
+            Detector number (1-indexed)
+        bg_frames : :obj:`list`
+            List of frames to use as the background. Can be empty.
+        std_outfile : :obj:`str`, optional
+            Filename for the standard star spec1d file. Passed directly to
+            :func:`get_std_trace`.
 
-        Returns:
-            global_sky (`np.ndarray`_), sobjs_obj (:class:`pypeit.specobjs.SpecObjs`),
-            skymask (`np.ndarray`_), sciImg (:class:`PypeItImage`):
-            Initial global sky model, List of objects found, Boolean image
-            indicating which pixels are useful for global sky subtraction, PypeItImage data container
-
+        Returns
+        -------
+        global_sky : `numpy.ndarray`_
+            Initial global sky model
+        sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
+            List of objects found
+        skymask : `numpy.ndarray`_
+            Boolean image indicating which pixels are useful for global sky
+            subtraction
+        sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
+            Science image
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning \
@@ -763,11 +767,11 @@ class PypeIt(object):
             sciImg (:class:`PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
-            global_sky (`np.ndarray`_):
+            global_sky (`numpy.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            skymask (`np.ndarray`_):
+            skymask (`numpy.ndarray`_):
                Boolean image indicating which pixels are useful for global sky subtraction
 
         Returns:
