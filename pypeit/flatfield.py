@@ -276,6 +276,7 @@ class FlatImages(datamodel.DataContainer):
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
             illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
