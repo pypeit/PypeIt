@@ -1,6 +1,6 @@
 
-1.4.2dev
---------
+1.4.2 (06 Jul 2021)
+-------------------
 
 - Added a common base class for all scripts
 - Script methods now included in Sphinx documentation
@@ -25,7 +25,7 @@
 - Add LDT/DeVeny spectrograph
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
-- Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
+- GMOS doc updates
 
 
 1.4.1 (11 Jun 2021)
