@@ -1,3 +1,8 @@
+
+.. This needs to be updated to include use_specillum, right?
+
+.. flat_fielding:
+
 =============
 Flat Fielding
 =============

@@ -216,6 +216,10 @@ class RawImage:
 
             This function edits :attr:`ronoise` in place.
         """
+        # TODO: For what instruments do we use this?  For those instruments,
+        # does this provide a robust measure of the readnoise?  If we calculate
+        # the readnoise in this way, we shouldn't be including additional
+        # digitization noise in detector variance image...
         for amp in range(len(self.ronoise)):
             if self.ronoise[amp] > 0:
                 continue
@@ -372,11 +376,14 @@ class RawImage:
         if self.par['use_overscan']:
             self.subtract_overscan()
 
-        #   - Trim to the data region
+        # TODO: Do we need to keep trim and orient as optional?
+        #   - Trim to the data region.  This trims the image, rn2img, var, and
+        #     datasec_img.
         if self.par['trim']:
             self.trim()
 
-        #   - Re-orient to PypeIt convention
+        #   - Re-orient to PypeIt convention. This re-orients the image, rn2img,
+        #     var, and datasec_img.
         if self.par['orient']:
             self.orient()
             
@@ -449,7 +456,7 @@ class RawImage:
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
         # Mask(s)
-        if par['mask_cr']:
+        if self.par['mask_cr']:
             pypeitImage.build_crmask(self.par)
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain=self.par['apply_gain'])
@@ -621,9 +628,15 @@ class RawImage:
             self.var += utils.inverse(bias_image.ivar)
         self.steps[step] = True
 
-    def subtract_dark(self, dark_image, force=False):
+    # TODO: expscale is currently not a parameter that the user can control.
+    # Should it be?
+    def subtract_dark(self, dark_image, expscale=True, force=False):
         """
         Subtract a dark image.
+
+        The dark image is expected to have been bias subtracted and be in
+        electon counts.  The dark image is automatically rescaled to the
+        exposure time of this image; see ``expscale``.
 
         If the ``dark_image`` object includes an inverse variance image and if
         :attr:`var` is available, the error in the dark is propagated to the
@@ -632,6 +645,10 @@ class RawImage:
         Args:
             dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Dark image
+            expscale (:obj:`bool`, optional):
+                Scale the dark image by the ratio of the exposure times so that
+                the counts per second represented by the dark image are
+                appropriately subtracted from image being processed.
             force (:obj:`bool`, optional):
                 Force the image to be subtracted, even if the step log
                 (:attr:`steps`) indicates that it already has been.
@@ -641,10 +658,11 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already dark subtracted.  Returning.')
             return
-        self.image -= dark_image.image
+        scale = self.exptime / dark_image.exptime if expscale else 1.
+        self.image -= dark_image.image*scale
         # TODO: Also incorporate the mask?
         if self.var is not None and dark_image.ivar is not None:
-            self.var += utils.inverse(dark_image.ivar)
+            self.var += scale**2 * utils.inverse(dark_image.ivar)
         self.steps[step] = True
 
     def subtract_overscan(self, force=False):
