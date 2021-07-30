@@ -267,7 +267,8 @@ class Calibrations:
             msgs.info("Preparing a master {0:s} frame".format(buildimage.ArcImage.master_type))
             self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['arcframe'], arc_files,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        dark=self.msdark)
             # Save
             self.msarc.to_master_file(masterframe_name)
 
@@ -303,10 +304,11 @@ class Calibrations:
             return
         else: # Build
             msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
+            # NOTE: Slits passed for the spatial flexure correction
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['tiltframe'], tilt_files,
                                                          bias=self.msbias, bpm=self.msbpm,
-                                                         slits=self.slits)  # For flexure
+                                                         dark=self.msdark, slits=self.slits)
 
             # Save to Masters
             self.mstilt.to_master_file(masterframe_name)
@@ -433,6 +435,11 @@ class Calibrations:
             # from the science images, it should also be subtracted from this
             # image.  If it isn't, subtracting the dark will effectively lead to
             # subtracting the bias twice.
+            # TODO: The order is such that the bpm doesn't exist yet.  But
+            # calling buildimage_fromlist will create the bpm if it isn't
+            # passed.  So calling get_dark then get_bpm unnecessarily creates
+            # the bpm twice.  Is there any reason why creation of the bpm should
+            # come after the dark, or can we change the order?
             # Build and save it
             self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                          self.par['darkframe'], dark_files,
@@ -541,8 +548,6 @@ class Calibrations:
         # Check if the image files are the same
         pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
         if len(pixflat_image_files) > 0:
-            # TODO: How are we handling differences in exposure time between
-            # darks and pixel flats?  Should we be subtracting darks here?
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
@@ -556,8 +561,6 @@ class Calibrations:
 
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(illum_image_files) > 0:
-            # TODO: How are we handling differences in exposure time between
-            # darks and illum flats?  Should we be subtracting darks here?
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'],
                                                         illum_image_files, dark=self.msdark,
@@ -623,8 +626,8 @@ class Calibrations:
 
         # Reuse master frame?
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
-                                                           self.master_key_dict['trace'],
-                                                           master_dir=self.master_dir)
+                                                                self.master_key_dict['trace'],
+                                                                master_dir=self.master_dir)
         if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
             self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
             # Reset the bitmask
@@ -632,8 +635,8 @@ class Calibrations:
         else:
             # Slits don't exist or we're not resusing them
             edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                               self.master_key_dict['trace'],
-                                                               master_dir=self.master_dir)
+                                                                    self.master_key_dict['trace'],
+                                                                    master_dir=self.master_dir)
             # Reuse master frame?
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
@@ -642,8 +645,6 @@ class Calibrations:
                 return None
             else:
                 # Build the trace image
-                # TODO: How are we handling differences in exposure time between
-                # darks and trace frames?  Should we be subtracting darks here?
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                  self.par['traceframe'],
                                                                  trace_image_files,
@@ -856,6 +857,7 @@ class MultiSlitCalibrations(Calibrations):
         """
         # Order matters!  And the name must match a viable "get_{step}" method
         # in Calibrations.
+        # TODO: Does the bpm need to be done after the dark?
         return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 

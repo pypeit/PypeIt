@@ -157,10 +157,9 @@ class RawImage:
 
     def apply_gain(self, force=False):
         """
-        Apply the gain values to :attr:`image`, converting from ADUs to
-        electrons/counts.
+        Use the gain to convert images from ADUs to electrons/counts.
 
-        Conversion is also propagated to :attr:`var`, if it exists.
+        Conversion applied to :attr:`image, :attr:`var`, and :attr:`rn2img`.
 
         Args:
             force (:obj:`bool`, optional):
@@ -229,7 +228,7 @@ class RawImage:
             self.ronoise[amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
             msgs.info(f'Estimated readnoise of amplifier {amp+1} = {self.ronoise[amp]:.3f} e-')
 
-    def build_rn2img(self, units='e-'):
+    def build_rn2img(self, units='e-', digitization=True):
         """
         Generate the model detector variance image (:attr:`rn2img`).
 
@@ -249,7 +248,7 @@ class RawImage:
             msgs.error('Some readnoise values <=0; first call estimate_readnoise.')
         # Compute and return the readnoise variance image 
         return procimg.rn2_frame(self.datasec_img, self.detector['gain'], self.ronoise,
-                                 units=units)
+                                 units=units, digitization=digitization)
 
     def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, debug=False,
                 dark=None):
@@ -345,6 +344,10 @@ class RawImage:
             self._bpm = bpm
 
         # Check the input
+        if self.par['use_biasimage'] and bias is None:
+            msgs.error('No bias available for bias subtraction!')
+        if self.par['use_darkimage'] and dark is None:
+            msgs.error('No dark available for dark subtraction!')
         if slits is None and self.par['spat_flexure_correct']:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:

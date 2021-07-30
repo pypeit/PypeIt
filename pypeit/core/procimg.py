@@ -426,10 +426,14 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
     # Perform the overscan subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
+        if np.sum(oscansec_img == amp) == 0:
+            msgs.error(f'No overscan region for amplifier {amp+1}!')
         overscan, os_slice = rect_slice_with_mask(rawframe, oscansec_img, amp)
         if var is not None:
             osvar = var[os_slice]
         # Pull out the real data
+        if np.sum(datasec_img == amp) == 0:
+            msgs.error(f'No data region for amplifier {amp+1}!')
         data, data_slice = rect_slice_with_mask(rawframe, datasec_img, amp)
 
         # Shape along at least one axis must match
