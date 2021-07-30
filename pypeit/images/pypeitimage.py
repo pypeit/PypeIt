@@ -50,7 +50,7 @@ class PypeItImage(datamodel.DataContainer):
             Master key, only for Master frames
 
     """
-    version = '1.0.1'
+    version = '1.0.2'
     """Datamodel version number"""
 
     # TODO: Add units ('e-' or 'ADU') and exposure time in s
@@ -65,6 +65,10 @@ class PypeItImage(datamodel.DataContainer):
                  'detector': dict(otype=detector_container.DetectorContainer,
                                   descr='Detector DataContainer'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 # TODO: Use BUNIT instead?  This has a specific meaning in the
+                 # FITS standard, so I'm not sure.
+                 'units': dict(otype=str, descr='Pixel units (e- or ADU)'),
+                 'exptime': dict(otype=float, descr='Effective exposure time (s)'),
                  'spat_flexure': dict(otype=float,
                                       descr='Shift, in spatial pixels, between this image '
                                             'and SlitTrace'),
@@ -103,9 +107,9 @@ class PypeItImage(datamodel.DataContainer):
     # This needs to contain all datamodel items.
     # TODO: Not really. You don't have to pass everything to the
     # super().__init__ call...
-    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,
-                 crmask=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None, imgbitm=None):
+    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None, crmask=None, fullmask=None,
+                 detector=None, spat_flexure=None, PYP_SPEC=None, units=None, exptime=None,
+                 imgbitm=None):
 
         # Setup the DataContainer. Dictionary elements include
         # everything but self in the instantiation call.
@@ -115,7 +119,6 @@ class PypeItImage(datamodel.DataContainer):
         super(PypeItImage, self).__init__(d=_d)
 
     def _init_internals(self):
-        # TODO: Do we need head0 or filename?  If so, add filename here.
         self.head0 = None
         self.process_steps = None
         self.files = None

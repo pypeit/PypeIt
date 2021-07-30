@@ -509,6 +509,7 @@ def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, varframe=None):
     # New image
     retframe = np.zeros_like(sciframe)
 #    w = np.where(final_flat > 0.0)
+    # TODO: use utils.inverse() instead?
     indx = final_flat > 0.0
     retframe[indx] = sciframe[indx]/final_flat[indx]
     if bpm is not None and np.sum(indx) != final_flat.size:

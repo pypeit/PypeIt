@@ -399,9 +399,12 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):
-            Variance in the raw frame.  If None, ignored.  If provided,
-            an estimate of the error in the overscan correction is included and
-            an updated variance image is returned.
+            Variance in the raw frame.  If None, ignored.  If provided, an
+            estimate of the error in the overscan correction is included and an
+            updated variance image is returned.  The estimated error is the
+            standard error in the median for the pixels included in the overscan
+            correction.  This estimate is also used for the ``'savgol'`` method
+            as an upper limit.
 
     Returns:
         `numpy.ndarray`_, :obj:`tuple`: The input frame with the overscan region

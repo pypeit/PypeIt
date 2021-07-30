@@ -462,7 +462,7 @@ class ProcessImagesPar(ParSet):
         if not self.data['use_pixelflat'] \
                 and (self.data['use_illumflat'] or self.data['use_specillum']):
             raise ValueError('To apply a slit-illumination or spectral flat-field correction, '
-                             'you must also apply the pixel flat correction.')
+                             'you must also apply the pixel-flat correction.')
 
     # TODO: Are these out of date or is this a purposeful subselection of the
     # full parameter set?
