@@ -756,6 +756,7 @@ Key                       Type        Options                                   
 ``lamaxiter``             int         ..                                                                     1               Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
 ``mask_cr``               bool        ..                                                                     False           Identify CRs and mask them                                                                                                                                                                                                                 
 ``n_lohi``                list        ..                                                                     0, 0            Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                           
+``noise_floor``           float       ..                                                                     0.01            Impose a noise floor by adding the provided fraction of the bias- and dark-subtracted electron counts to the error budget.  E.g., a value of 0.01 means that the S/N of the counts in the image will never be greater than 100.            
 ``objlim``                int, float  ..                                                                     3.0             Object detection limit in LA cosmics routine                                                                                                                                                                                               
 ``orient``                bool        ..                                                                     True            Orient the raw image into the PypeIt frame                                                                                                                                                                                                 
 ``overscan_method``       str         ``polynomial``, ``savgol``, ``median``                                 ``savgol``      Method used to fit the overscan. Options are: polynomial, savgol, median                                                                                                                                                                   
@@ -763,6 +764,7 @@ Key                       Type        Options                                   
 ``replace``               str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``   If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
 ``rmcompact``             bool        ..                                                                     True            Remove compact detections in LA cosmics routine                                                                                                                                                                                            
 ``satpix``                str         ``reject``, ``force``, ``nothing``                                     ``reject``      Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
+``shot_noise``            bool        ..                                                                     True            Use the bias- and dark-subtracted image to calculate and include electron count shot noise in the image processing error budget                                                                                                            
 ``sigclip``               int, float  ..                                                                     4.5             Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
 ``sigfrac``               int, float  ..                                                                     0.3             Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
 ``spat_flexure_correct``  bool        ..                                                                     False           Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                         
@@ -771,9 +773,9 @@ Key                       Type        Options                                   
 ``use_darkimage``         bool        ..                                                                     False           Subtract off a dark image.  If True, one or more darks must be provided.                                                                                                                                                                   
 ``use_illumflat``         bool        ..                                                                     True            Use the illumination flat to correct for the illumination profile of each slit.                                                                                                                                                            
 ``use_overscan``          bool        ..                                                                     True            Subtract off the overscan.  Detector *must* have one or code will crash.                                                                                                                                                                   
-``use_pattern``           bool        ..                                                                     False           Subtract off a detector pattern. This pattern is assumed to be sinusoidalalong one direction, with a frequency that is constant across the detector.                                                                                       
+``use_pattern``           bool        ..                                                                     False           Subtract off a detector pattern. This pattern is assumed to be sinusoidal along one direction, with a frequency that is constant across the detector.                                                                                      
 ``use_pixelflat``         bool        ..                                                                     True            Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.                                                                                                                                                    
-``use_specillum``         bool        ..                                                                     False           Use the relative spectral illumination profiles to correct the spectralillumination profile of each slit. This is primarily used for IFUs.                                                                                                 
+``use_specillum``         bool        ..                                                                     False           Use the relative spectral illumination profiles to correct the spectral illumination profile of each slit. This is primarily used for IFUs.                                                                                                
 ========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
 
 
@@ -910,7 +912,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1021,7 +1022,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1130,7 +1130,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1245,7 +1244,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1320,7 +1318,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1395,7 +1392,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1470,7 +1466,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1550,7 +1545,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1663,7 +1657,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1747,7 +1740,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1843,7 +1835,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1920,7 +1911,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 0.01, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -2015,7 +2005,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2103,7 +2092,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2191,7 +2179,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2285,7 +2272,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2379,7 +2365,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2488,7 +2473,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 60, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2610,7 +2594,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2720,7 +2703,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2822,7 +2804,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2928,7 +2909,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3011,7 +2991,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3096,7 +3075,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3179,7 +3157,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3263,7 +3240,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3353,7 +3329,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3475,7 +3450,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3586,7 +3560,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3673,7 +3646,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3747,7 +3719,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3846,7 +3817,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 300, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4061,7 +4031,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4145,7 +4114,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4228,7 +4196,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4307,7 +4274,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4388,7 +4354,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 0, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4510,7 +4475,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4596,7 +4560,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4676,7 +4639,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4752,7 +4714,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4835,7 +4796,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4900,7 +4860,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
               use_biasimage = False
               use_overscan = False
@@ -4989,7 +4948,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5109,7 +5067,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5244,7 +5201,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5325,7 +5281,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
               use_biasimage = False
               use_pixelflat = False
@@ -5453,7 +5408,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5544,7 +5498,6 @@ Alterations to the default parameters are::
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False

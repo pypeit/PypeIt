@@ -1,7 +1,7 @@
 
 .. This needs to be updated to include use_specillum, right?
 
-.. flat_fielding:
+.. _flat_fielding:
 
 =============
 Flat Fielding
@@ -10,7 +10,7 @@ Flat Fielding
 Overview
 ========
 
-This doc describes the `Approach`_ used to perform flatfielding
+This doc describes the `Approach`_ used to perform flat-fielding
 in PypeIt, how one goes about `Modifying the Default Approach`_
 for a given :doc:`spectrographs`, and
 how to guide `Generating the Flat Field Images`_.

@@ -159,7 +159,7 @@ appropriately subtract the counts/s measured by the master dark frame.
     Nominally, the exposure time for dark images should always be at least as
     long as your longest exposure time in the same calibration group.
     Calibration groups are discussed by :ref:`setup_doc`,
-    :ref:`a-b_differencing`, and :ref:`2d_combine1).
+    :ref:`a-b_differencing`, and :ref:`2d_combine`.
 
 Counting Statistics and Noise Floor
 ===================================

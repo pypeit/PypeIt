@@ -276,7 +276,7 @@ class ProcessImagesPar(ParSet):
 
         defaults['shot_noise'] = True
         dtypes['shot_noise'] = bool
-        descr['shot_noise'] = 'Use the bias- and dark-subtracted image to calculate and include '
+        descr['shot_noise'] = 'Use the bias- and dark-subtracted image to calculate and include ' \
                               'electron count shot noise in the image processing error budget'
 
         defaults['noise_floor'] = 0.01
