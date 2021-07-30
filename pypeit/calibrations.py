@@ -171,7 +171,7 @@ class Calibrations:
         self.msdark = None
         self.msbpm = None
         self.wv_calib = None
-        self.slits = Noneu
+        self.slits = None
 
         self.wavecalib = None
         self.wavetilts = None
@@ -542,7 +542,7 @@ class Calibrations:
         pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
         if len(pixflat_image_files) > 0:
             # TODO: How are we handling differences in exposure time between
-            # darks and pixel flats?  Should be be subtracting darks here?
+            # darks and pixel flats?  Should we be subtracting darks here?
             pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['pixelflatframe'],
                                                         pixflat_image_files, dark=self.msdark,
@@ -557,7 +557,7 @@ class Calibrations:
         # Only build illum_flat if the input files are different from the pixel flat
         if not pix_is_illum and len(illum_image_files) > 0:
             # TODO: How are we handling differences in exposure time between
-            # darks and illum flats?  Should be be subtracting darks here?
+            # darks and illum flats?  Should we be subtracting darks here?
             illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['illumflatframe'],
                                                         illum_image_files, dark=self.msdark,
@@ -643,7 +643,7 @@ class Calibrations:
             else:
                 # Build the trace image
                 # TODO: How are we handling differences in exposure time between
-                # darks and trace frames?  Should be be subtracting darks here?
+                # darks and trace frames?  Should we be subtracting darks here?
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                  self.par['traceframe'],
                                                                  trace_image_files,

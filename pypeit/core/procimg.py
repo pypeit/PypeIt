@@ -271,13 +271,13 @@ def rn2_frame(datasec_img, gain, ronoise, units='e-', digitization=True):
     Construct a readnoise variance image.
 
     Provided detector readnoise and gain for each detector amplifier, this
-    calculates the combination of the readnoise and diigitization (or
+    calculates the combination of the readnoise and digitization (or
     quantization) noise expected for a single detector readout.  Digitization
     noise is a fixed :math:`\sqrt{1/12}` ADU [1]_ [2]_, which is typically much
     smaller than the readnoise, unless the gain is very large.  And, depending
     on how it was measured, the digitization noise may be incorporated in the
-    documented readnoise of given instrument.  To exclude the digitization noise
-    from the calculation, set ``digitization=False``.
+    documented readnoise of the given instrument.  To exclude the digitization
+    noise from the calculation, set ``digitization=False``.
 
     The variance calculation in electrons is :math:`V = {\rm RN}^2 +
     \gamma^2/12`, where RN is the readnoise and :math:`\gamma` is the gain in

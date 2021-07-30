@@ -53,7 +53,6 @@ class PypeItImage(datamodel.DataContainer):
     version = '1.0.2'
     """Datamodel version number"""
 
-    # TODO: Add units ('e-' or 'ADU') and exposure time in s
     datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Main data image'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
                               descr='Main data inverse variance image'),

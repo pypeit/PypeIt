@@ -227,7 +227,7 @@ class RawImage:
 
     def build_rn2img(self, units='e-'):
         """
-        Generate the model read-noise-squared image (:attr:`rn2img`).
+        Generate the model detector variance image (:attr:`rn2img`).
 
         This is primarily a wrapper for :func:`~pypeit.core.procimg.rn2_frame`.
 
@@ -241,9 +241,8 @@ class RawImage:
             `numpy.ndarray`_: Readnoise variance image.
         """
         if not np.all(self.ronoise > 0):
-            # NOTE: Because this is checked in the instantiation, it should not
-            # get here if everything is working as it should.
-            msgs.error('CODING ERROR: build_rn2img called with ronoise values <=0.')
+            # TODO: Consider just calling estimate_readnoise here...
+            msgs.error('Some readnoise values <=0; first call estimate_readnoise.')
         # Compute and return the readnoise variance image 
         return procimg.rn2_frame(self.datasec_img, self.detector['gain'], self.ronoise,
                                  units=units)
@@ -408,9 +407,9 @@ class RawImage:
             # Dark frame.  Shape and orientation must match *processed* image,
             # and the units *must* be in electrons/counts.  Uncertainty from the
             # dark subtraction is added to the variance.
-            # TODO: We should add exptime to PypeItImage so that we can
-            # explicitly check and/or account for the difference in exposure
-            # time between the dark image and the image being processed.
+            # TODO: With exptime now included in PypeItImage, we can explicitly
+            # check and/or account for the difference in exposure time between
+            # the dark image and the image being processed.
             self.subtract_dark(dark)
         
         # Use the bias-subtracted and dark-subtracted counts to include shot
@@ -572,10 +571,10 @@ class RawImage:
 
     def orient(self, force=False):
         """
-        Orient :attr:`image`, :attr:`var` (if it exists), and
-        :attr:`datasec_img` such that they follow the ``PypeIt`` convention with
-        spectra running blue (down) to red (up) and with orders decreasing from
-        high (left) to low (right).
+        Orient :attr:`image`, :attr:`var` (if it exists), :attr:`rn2img` (if it
+        exists), and :attr:`datasec_img` such that they follow the ``PypeIt``
+        convention with spectra running blue (down) to red (up) and with orders
+        decreasing from high (left) to low (right).
 
         Args:
             force (:obj:`bool`, optional):
@@ -591,6 +590,8 @@ class RawImage:
         self.image = self.spectrograph.orient_image(self.detector, self.image)
         if self.var is not None:
             self.var = self.spectrograph.orient_image(self.detector, self.var)
+        if self.rn2img is not None:
+            self.rn2img = self.spectrograph.orient_image(self.detector, self.rn2img)
         self.datasec_img = self.spectrograph.orient_image(self.detector, self.datasec_img)
         self.steps[step] = True
 
@@ -709,8 +710,8 @@ class RawImage:
 
     def trim(self, force=False):
         """
-        Trim :attr:`image`, :attr:`var` (if it exists), and :attr:`datasec_img`
-        to include only the science data.
+        Trim :attr:`image`, :attr:`var` (if it exists), :attr:`rn2img` (if it
+        exists), and :attr:`datasec_img` to include only the science data.
 
         Args:
             force (:obj:`bool`, optional):
@@ -731,6 +732,10 @@ class RawImage:
         self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
         if self.var is not None:
             self.var = procimg.trim_frame(self.var, self.datasec_img < 1)
+        if self.rn2img is not None:
+            self.rn2img = procimg.trim_frame(self.rn2img, self.datasec_img < 1)
+        # NOTE: This must be done last because the untrimmed image is used for
+        # deciding what to trim!
         self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
         self.steps[step] = True
 
