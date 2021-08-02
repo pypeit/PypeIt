@@ -371,8 +371,8 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("[coadd1d]", file=f)
         print("ex_value = BOX", file=f)
 
-    # Args only, nospec1d files should raise an exception
-    with pytest.raises(PypeItError):
+    # Args only, nospec1d files should exit with an errror
+    with pytest.raises(SystemExit):
         parsed_args = scripts.collate_1d.Collate1D.parse_args(args + tol_args)
         params, spectrograph, expanded_spec1d_files \
                 = scripts.collate_1d.build_parameters(parsed_args)

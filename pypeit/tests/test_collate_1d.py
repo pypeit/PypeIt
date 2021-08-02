@@ -392,18 +392,20 @@ def test_extract_id():
 def test_get_metadata_reduced(monkeypatch):
 
     monkeypatch.setattr(fits, "getheader", mock_header)
-    mock_files = (os.path.join('Science', 'spec1d_file1'), os.path.join('Science', 'spec1d_file1.txt'), 'test.pypeit')
-    dest_files = (os.path.join('2019B_TEST1', 'spec1d_file1'), os.path.join('2019B_TEST1', 'spec1d_file1.txt'), os.path.join('2019B_TEST1', 'test.pypeit'))
+    mock_files = (os.path.join('Science', 'spec1d_file1'), os.path.join('Science', 'spec1d_file1.txt'),  os.path.join('Science', 'spec2d_file1.fits'),'test.pypeit')
+    dest_files = (os.path.join('2019B_TEST1', 'spec1d_file1'), os.path.join('2019B_TEST1', 'spec1d_file1.txt'), os.path.join('2019B_TEST1', 'spec2d_file1.fits'), os.path.join('2019B_TEST1', 'test.pypeit'))
     (metadata_rows, files_to_copy) = get_metadata_reduced(['DISPNAME', 'TESTKEY'], mock_files)
     header = mock_header('spec1d_file1')
     assert len(metadata_rows) == 1
-    assert metadata_rows[0] == [header['FILENAME'] + ".fits", dest_files[0], dest_files[1], dest_files[2], '830G', None]
+    assert len(metadata_rows[0]) == 7
+    assert metadata_rows[0] == [header['FILENAME'] + ".fits", dest_files[0], dest_files[1], dest_files[2], dest_files[3], '830G', None]
 
     # Convert the iterable files_to_copy to a list
     files_to_copy = list(files_to_copy)
     assert files_to_copy[0] == (mock_files[0],   dest_files[0])
     assert files_to_copy[1] == (mock_files[1],   dest_files[1])
     assert files_to_copy[2] == (mock_files[2],   dest_files[2])
+    assert files_to_copy[3] == (mock_files[3],   dest_files[3])
 
     spectrograph = load_spectrograph('keck_deimos')
     source_object = SourceObject(mock_specobjs("spec1d_file1").specobjs[0], header, "spec1d_file1", spectrograph, 'ra/dec')

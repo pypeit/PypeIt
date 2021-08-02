@@ -333,13 +333,15 @@ are relative to the top level of the archive directory.
 +---------------+-------------------------------------------------------------+
 | Column Name   | Description                                                 |
 +===============+=============================================================+
-| id            | The KOAID of the source image that was reduced to create the|
-|               | spec1d or spec2d file.                                      |
+| koaid         | The KOAID of the source image that was reduced to create the|
+|               | reduced files.                                              |
 +---------------+-------------------------------------------------------------+
-| filename      | The filename of the spec1d or spec2d file.                  |
+| spec1d_file   | The filename of the spec1d file.                            |
 +---------------+-------------------------------------------------------------+
-| text_info     | The filename of the extraction info text file associated    |
+| spec1d_info   | The filename of the extraction info text file associated    |
 |               | with a spec1d file.                                         |
++---------------+-------------------------------------------------------------+
+| spec2d_file   | The filename of the spec2d file.                            |
 +---------------+-------------------------------------------------------------+
 | pypeit_file   | The ``PypeIt`` reduction file used to reduce the file.      |
 +---------------+-------------------------------------------------------------+

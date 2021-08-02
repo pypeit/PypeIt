@@ -21,7 +21,8 @@
                               tolerance             <tolerance>
                               outdir                <directory to place output files>
                               archive_root          <directory for archive files>
-                              pypeit_file           <A pypeit file to include with archived files>F|  exclude_slit_trace_bm <slit types to exclude>
+                              pypeit_file           <A pypeit file to include with archived files>
+                              exclude_slit_trace_bm <slit types to exclude>
                               exclude_serendip      If set serendipitous objects are skipped.
                               match_using           Whether to match using "pixel" or
                                                     "ra/dec"
@@ -41,7 +42,7 @@
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
       --outdir OUTDIR       The path where all coadded output files and report files
-                            will be placed.
+                            will be placed. Defaults to the current directory.
       --tolerance TOLERANCE
                             The tolerance used when comparing the coordinates of
                             objects. If two objects are within this distance from

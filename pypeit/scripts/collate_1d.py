@@ -14,6 +14,7 @@ from functools import partial
 import re
 import traceback
 from itertools import zip_longest
+import sys
 
 import numpy as np
 from astropy.coordinates import Angle
@@ -96,8 +97,9 @@ def get_metadata_reduced(header_keys, file_info):
             List of FITs header keywords to read from the file being added to the
             archive.
 
-        file_info (str): A tuple containing the reduced file's name, a spec1d text file related to that
-                         file, and the .pypeit file that was used to create the file.
+        file_info (str): A tuple containing the spec1d file's name, a spec1d text file related to that
+                         file, a spec2d file related to the spec1d file, and the .pypeit file that was used 
+                         to create these files.
     
     Returns:
         tuple: A tuple of two lists:
@@ -115,13 +117,13 @@ def get_metadata_reduced(header_keys, file_info):
     if isinstance(file_info, SourceObject):
         return (None, None)
 
-    # Anything else should be a tuple of filename, txt info, pypeit file
+    # Anything else should be a tuple of spec1d file, spec1d text info file, spec2d file, pypeit file
 
     # Place the files in a subdir of the archive based on the observation date
     # This is intended to prevent any one directory from having too many files
 
-    filename = file_info[0]
-    header = fits.getheader(filename)
+    spec1d_file = file_info[0]
+    header = fits.getheader(spec1d_file)
     subdir_name = get_archive_subdir(header)
     dest_files = [os.path.join(subdir_name, os.path.basename(x)) if x is not None else None for x in file_info]
 
@@ -542,7 +544,10 @@ def build_parameters(args):
         spec1d_files = args.spec1d_files
 
     if spec1d_files is None or len(spec1d_files) == 0:
-        msgs.error("A list of spec1d files must be specified via command line or config file.")
+        parser = Collate1D.get_parser()
+        print("Missing arguments: A list of spec1d files must be specified via command line or config file.")
+        parser.print_usage()
+        sys.exit(1)
 
     # Get the spectrograph for these files and then create a ParSet. 
     spectrograph = load_spectrograph(spec1d_files[0])
@@ -630,7 +635,7 @@ def create_archive(par, archive_root, copy_to_archive):
 
 
     if copy_to_archive:
-        reduced_names = ['id', 'filename', 'text_info', 'pypeit_file'] + REDUCED_COLUMN_NAMES
+        reduced_names = ['koaid', 'spec1d_file', 'spec1d_info', 'spec2d_file', 'pypeit_file'] + REDUCED_COLUMN_NAMES
         reduced_metadata = ArchiveMetadata(os.path.join(archive_root, "reduced_files_meta.dat"),
                                                   reduced_names,
                                                   partial(get_metadata_reduced, REDUCED_HEADER_KEYS),
@@ -689,7 +694,7 @@ class Collate1D(scriptbase.ScriptBase):
                                  'F|  tolerance             <tolerance>\n'
                                  'F|  outdir                <directory to place output files>\n'
                                  'F|  archive_root          <directory for archive files>\n'
-                                 'F|  pypeit_file           <A pypeit file to include with archived files>'
+                                 'F|  pypeit_file           <A pypeit file to include with archived files>\n'
                                  'F|  exclude_slit_trace_bm <slit types to exclude>\n'
                                  'F|  exclude_serendip      If set serendipitous objects are skipped.\n'  
                                  'F|  match_using           Whether to match using "pixel" or\n'
@@ -707,7 +712,7 @@ class Collate1D(scriptbase.ScriptBase):
                                  'Can contain wildcards')
         parser.add_argument('--par_outfile', default=None, type=str,
                             help='Output to save the parameters')
-        parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'])
+        parser.add_argument('--outdir', type=str, help=blank_par.descr['outdir'] + " Defaults to the current directory.")
         parser.add_argument('--tolerance', type=str, help=blank_par.descr['tolerance'])
         parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
                             help=blank_par.descr['match_using'])
@@ -821,8 +826,7 @@ class Collate1D(scriptbase.ScriptBase):
 
             if copy:
 
-                archive.add(zip(spec1d_files, spec1d_text_files, pypeit_files))
-                archive.add(zip_longest(spec2d_files, [], pypeit_files))
+                archive.add(zip(spec1d_files, spec1d_text_files, spec2d_files, pypeit_files))
 
             archive.add(successful_source_list)
             archive.save()
