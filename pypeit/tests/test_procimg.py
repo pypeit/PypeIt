@@ -79,7 +79,6 @@ def test_trim():
     assert _datasec.shape == (10,7), 'Trimming error'
     assert np.array_equal(datasec[datasec > 0], _datasec.flat), 'Values changed'
 
-test_trim()
 
 
 

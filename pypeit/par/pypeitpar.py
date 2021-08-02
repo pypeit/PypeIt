@@ -335,6 +335,7 @@ class ProcessImagesPar(ParSet):
         dtypes['mask_cr'] = bool
         descr['mask_cr'] = 'Identify CRs and mask them'
 
+        # TODO: Is this ever used?
         defaults['cr_sigrej'] = 20.0
         dtypes['cr_sigrej'] = [int, float]
         descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
@@ -363,6 +364,9 @@ class ProcessImagesPar(ParSet):
         dtypes['rmcompact'] = bool
         descr['rmcompact'] = 'Remove compact detections in LA cosmics routine'
 
+        # TODO: This is passed to lacosmic in
+        # `pypeit.images.pypeitimage.PypeItImage.build_crmask`, *not*
+        # `cr_sigrej`.
         defaults['sigclip'] = 4.5
         dtypes['sigclip'] = [int, float]
         descr['sigclip'] = 'Sigma level for rejection in LA cosmics routine'
@@ -3776,6 +3780,7 @@ class CalibrationsPar(ParSet):
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
+                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                                                         cr_sigrej=-1,
                                                                         use_pixelflat=False,
                                                                         use_illumflat=False))
@@ -3783,6 +3788,7 @@ class CalibrationsPar(ParSet):
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
+                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                              process=ProcessImagesPar(cr_sigrej=-1,
                                                                       use_pixelflat=False,
                                                                       use_illumflat=False))
@@ -3790,6 +3796,7 @@ class CalibrationsPar(ParSet):
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
+                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                               process=ProcessImagesPar(cr_sigrej=-1,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
@@ -3970,10 +3977,6 @@ class PypeItPar(ParSet):
         defaults['rdx'] = ReduxPar()
         dtypes['rdx'] = [ ParSet, dict ]
         descr['rdx'] = 'PypeIt reduction rules.'
-
-#        defaults['baseprocess'] = ProcessImagesPar()
-#        dtypes['baseprocess'] = [ ParSet, dict ]
-#        descr['baseprocess'] = 'Default-level parameters used when processing all images'
 
         defaults['calibrations'] = CalibrationsPar()
         dtypes['calibrations'] = [ ParSet, dict ]

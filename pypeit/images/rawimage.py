@@ -169,7 +169,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already applied
-            msgs.warn("Gain was already applied. Returning")
+            msgs.warn('Gain was already applied.')
             return
         gain = procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
         self.image *= gain
@@ -253,17 +253,25 @@ class RawImage:
     def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, debug=False,
                 dark=None):
         """
-        Process the image
+        Process the image.
+
+        See further discussion of :ref:`image_proc` in ``PypeIt``.
 
         .. note::
 
             The processing step order is currently 'frozen' as is.  However, in
             the future, we may choose to allow optional ordering.
 
-        The processing steps used, in the order they will be applied are:
+        The processing steps used (depending on the parameter toggling in
+        :attr:`par`), in the order they will be applied are:
 
             #. :func:`subtract_pattern`: Analyze and subtract the pattern noise
                from the image.
+
+            #. :func:`build_rn2img`: Construct the detector variance image,
+               which includes readnoise and digitization error.  If any of the
+               amplifiers on the detector do not have a measured readnoise, the
+               readnoise is estimated using :func:`estimate_readnoise`.
             
             #. :func:`subtract_overscan`: Analyze the overscan region and
                subtract from the image
@@ -282,25 +290,28 @@ class RawImage:
                trimmed and oriented the bias frames.  The units of the bias
                image *must* be ADU.
 
-            #. :func:`apply_gain`: Convert from ADU to electrons, amp by amp
+            #. :func:`apply_gain`: Convert from ADU to electrons, amp by amp.
 
             #. :func:`subtract_dark`: Subtract a dark image.  The shape and
                orientation of the dark image must match the *processed* image.
                I.e., if you trim and orient this image, you must also have
                trimmed and oriented the dark frames.  The units of the dark
-               frame *must* be electrons (counts), and the exposure time of the
-               dark must be identical to the image being processed.
+               frame *must* be electrons (counts).
 
-            #. Measure any spatial shift due to flexure
+            #. :func:`add_shot_noise`: Include shot-noise from the image
+               variance.
 
-            #. Divide by the spatial and spectral illumination pattern and the
-               pixel flat, if ``flatimages`` and ``slits`` are provided
+            #. :func:`impose_noise_floor`: Add uncertainty to the variance image
+               such that the S/N per pixel is never reaches higher than
+               ``1/noise_floor``.
 
-            #. :func:`build_rn2img`: Construct the read-noise squared image
+            #. :func:`spatial_flexure_shift`: Measure any spatial shift due to flexure.
 
-            #. :func:`build_ivar`: Construct the inverse variance image
-            
-            #. :func:`crmask`: Generate a cosmic-ray mask
+            #. :func:`flatten`: Divide by the pixel-to-pixel, spatial and
+               spectral response functions.
+
+            #. :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask`:
+               Generate a cosmic-ray mask
 
         Args:
             par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -348,7 +359,7 @@ class RawImage:
             msgs.error('No bias available for bias subtraction!')
         if self.par['use_darkimage'] and dark is None:
             msgs.error('No dark available for dark subtraction!')
-        if slits is None and self.par['spat_flexure_correct']:
+        if self.par['spat_flexure_correct'] and slits is None:
             msgs.error('Spatial flexure correction requested but no slits provided.')
         if self.use_flat and flatimages is None:
             msgs.error('Flat-field corrections requested but no flat-field images generated '
@@ -486,7 +497,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already field flattened
-            msgs.warn('Spatial flexure shift already calculated.  Returning.')
+            msgs.warn('Spatial flexure shift already calculated.')
             return
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
         self.steps[step] = True
@@ -523,14 +534,14 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already field flattened
-            msgs.warn('Image was already flat fielded. Returning')
+            msgs.warn('Image was already flat fielded.')
             return
 
         # Check input
         if flatimages.pixelflat_norm is None:
             # We cannot do any flat-field correction without a pixel flat (yet)
             msgs.error("Flat fielding desired but not generated/provided.")
-        if slits is None and self.par['use_illumflat']:
+        if self.par['use_illumflat'] and slits is None:
             msgs.error('Need to provide slits to create illumination flat.')
         if self.par['use_specillum'] and flatimages.pixelflat_spec_illum is None:
             msgs.error("Spectral illumination correction desired but not generated/provided.")
@@ -556,8 +567,7 @@ class RawImage:
             # the definition of spec_illum to be the illumination profile itself
             # instead of the scale factor required to remove the illumination
             # profile? cf. pypeit.flatfield.FlatField.spectral_illumination
-            spec_scale = flatimages.pixelflat_spec_illum.copy()
-            spec_illum = utils.inverse(spec_scale)
+            spec_illum = utils.inverse(flatimages.pixelflat_spec_illum)
 
         # Apply flat-field correction
         ret = flat.flatfield(self.image, flatimages.pixelflat_norm * illum_flat * spec_illum,
@@ -594,7 +604,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         # Check if already oriented
         if self.steps[step] and not force:
-            msgs.warn("Image was already oriented.  Returning current image")
+            msgs.warn('Image was already oriented.')
             return
         # Orient the image to have blue/red run bottom to top
         self.image = self.spectrograph.orient_image(self.detector, self.image)
@@ -623,7 +633,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already bias subtracted
-            msgs.warn("Image was already bias subtracted.  Returning the current image")
+            msgs.warn('Image was already bias subtracted.')
             return
         self.image -= bias_image.image
         # TODO: Also incorporate the mask?
@@ -659,7 +669,7 @@ class RawImage:
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already bias subtracted
-            msgs.warn('Image was already dark subtracted.  Returning.')
+            msgs.warn('Image was already dark subtracted.')
             return
         scale = self.exptime / dark_image.exptime if expscale else 1.
         self.image -= dark_image.image*scale
@@ -744,11 +754,11 @@ class RawImage:
             # Image *must* have been trimmed already because shape does not
             # match raw image
             self.steps[step] = True
-            msgs.warn("Image shape does not match original.  Returning current image")
+            msgs.warn('Image shape does not match original.')
             return
         if self.steps[step] and not force:
             # Already trimmed
-            msgs.warn("Image was already trimmed.  Returning current image")
+            msgs.warn('Image was already trimmed.')
             return
         self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
         if self.var is not None:

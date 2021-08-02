@@ -45,18 +45,18 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     r"""
     Combine multiple sets of images, all using the same weights and mask.
 
-    Multiple sets of images and image variances can be combined.  All image sets
-    must have the same shape --- ``(nimgs, nspec, nspat)`` --- and this shape
-    must match the provided *single* mask set (``inmask_stack``).  The provided
-    weights are broadcast to the necessary shape (see below), where the provided
-    weights can be one per image, one per image spatial coordinate (i.e.,
+    The multiple sets of images and variances to combine must have the same
+    shape --- ``(nimgs, nspec, nspat)`` --- and this shape must match the
+    provided *single* mask set (``inmask_stack``).  The provided weights are
+    broadcast to the necessary shape (see below), where one can provide one
+    weight per image, one weight per image spatial coordinate (i.e.,
     wavelength-dependent weights), or independent weights for each pixel.
 
     Optionally, the image stack can be sigma-clipped by setting
     ``sigma_clip=True``.  If sigma-clipping is requested and no sigma-rejection
     thresholds are provided (``sigrej`` is None), the sigma-rejection thresholds
-    are set *automatically* depending on the number of images to combine.  In
-    this case, the rejection thresholds 1.1, 1.3, 1.6, 1.9, or 2.0 for,
+    are set *automatically* depending on the number of images to combine.  The
+    default rejection thresholds are 1.1, 1.3, 1.6, 1.9, or 2.0 for,
     respectively, 3, 4, 5, 6, or :math:`\geq 7` images.  Sigma-clipping cannot
     be performed if there are fewer than 3 images.  The pixel rejection is based
     on a *single* image stack provided by ``sigma_clip_stack``, which does not
@@ -148,7 +148,8 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
-            msgs.error('You must specify sigma_clip_stack (quantity to use for sigma clipping).')
+            msgs.error('You must specify sigma_clip_stack; sigma-clipping is based on this array '
+                       'and propagated to the arrays to be stacked.')
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
             if nimgs <= 2:

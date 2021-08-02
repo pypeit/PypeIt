@@ -189,9 +189,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'dark':
-        # TODO: Should we allow a toggle that sets whether or not the dark image
-        # is saved in electrons or electrons per second?  Then for dark-current
-        # subtraction, we would need to pass dark=dark.image*exptime.
         finalImage = DarkImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'arc':
         finalImage = ArcImage.from_pypeitimage(pypeitImage)

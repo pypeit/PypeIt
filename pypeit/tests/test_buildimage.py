@@ -47,8 +47,4 @@ def test_lris_red_biases():
 
     bias = buildimage.buildimage_fromlist(spectrograph, 1, par['calibrations']['biasframe'], files)
 
-    embed()
-    exit()
 
-
-test_lris_red_biases()

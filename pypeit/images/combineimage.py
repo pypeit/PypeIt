@@ -200,9 +200,6 @@ class CombineImage:
                       + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
             print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
 
-        embed()
-        exit()
-
         # Coadd them
         var_stack = utils.inverse(ivar_stack)
         if combine_method == 'weightmean':
