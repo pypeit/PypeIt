@@ -72,7 +72,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             platescale      = 0.34,     # Arcsec / pixel
             darkcurr        = 4.5,      # Electrons per hour
             saturation      = 65535.,   # 16-bit ADC
-            nonlinear       = 1.0,      # -- Still need to measure this, close to 0.99+
+            nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = gain, #np.atleast_1d(header['GAIN']),
@@ -222,9 +222,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
-        # Needed to address ISSUE #1155 when non-echelle spectrographs use
-        #  the wavelength calibration method `reidentify`.
-        par['calibrations']['wavelengths']['ech_fix_format'] = False
 
         # Slit-edge settings for long-slit data (slit > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -283,11 +280,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return (fitstbl['idname'] == 'BIAS')
         if ftype in ['arc', 'tilt']:
-            # FOCUS frames should have frametype None
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS')
+            # FOCUS frames should have frametype None, Bias is bias regardless of lamp status
+            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & (fitstbl['idname'] != 'BIAS')
         if ftype in ['trace', 'pixelflat']:
             return good_exp & (fitstbl['idname'] == 'DOME FLAT') & (fitstbl['lampstat01'] == 'off')
-        if ftype == 'illumflat':
+        if ftype in ['illumflat','sky']:
             return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
         if ftype == 'science':
             return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lampstat01'] == 'off')
@@ -335,7 +332,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Set parameters based on grating used:
         grating = self.get_meta_value(scifile, 'dispname')
         if grating == 'DV1 (150/5000)':
-            pass
+            # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
+            # Reduction File if the default method fails.  This parameter pre-loads the proper
+            # reid_arxiv in this case.
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150l_HgCdNeAr.fits'
         elif grating == 'DV2 (300/4000)':
             pass
         elif grating == 'DV3 (300/6750)':
