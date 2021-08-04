@@ -414,13 +414,20 @@ class SpecObjs:
         Return the set of indices matching the input slit/order and the input objid
         
         Args:
-            slitorder: 
-            objid: 
-            toler: 
+        ----------
+            slitorder (int):
+                Order/Spatial pixel value for slit of interest.
+            objid (int):
+                ID value for object of interest.
+            toler (int, optional):
+                Tolerance for slit spatial pixel values used for slit identification. Default = 5
 
-        Returns: 
+        Returns:
+        -------
+            indx (int):
+               Index value for input slit/order and object ID values for specobjs object.
 
-        """ # SHANE Fill this in.
+        """
 
         if self[0].PYPELINE == 'Echelle':
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
