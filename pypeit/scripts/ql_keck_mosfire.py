@@ -9,6 +9,8 @@ import os
 import copy
 from glob import glob
 
+from pkg_resources import resource_filename
+
 from IPython import embed
 
 import numpy as np
@@ -241,13 +243,17 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         files = files[np.argsort(mjds)]
 
         # Calibration Master directory
-        if args.master_dir is None:
-            # TODO: Why isn't this a direct check for the environmental variable?
-            msgs.error('Environment variable QL_MASTERS required to point at the Master Calibs.')
+        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+                        if args.master_dir is None else args.master_dir
+        if not os.path.isdir(master_dir):
+            msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
+                       'directory; download the data from the PypeIt dev-suite Google Drive and '
+                       'either define a QL_MASTERS environmental variable or use the '
+                       'pypeit_install_ql_masters script.')
 
         # Define some hard wired master files here to be later parsed out of the directory
-        filter = spectrograph.get_meta_value(files[0], 'filter1')
-        mosfire_masters = os.path.join(args.master_dir, 'MOSFIRE_MASTERS', filter)    
+        mosfire_filter = spectrograph.get_meta_value(files[0], 'filter1')
+        mosfire_masters = os.path.join(master_dir, 'MOSFIRE_MASTERS', mosfire_filter)    
 
         slit_masterframe_name \
                 = utils.find_single_file(os.path.join(mosfire_masters, "MasterSlits*"))

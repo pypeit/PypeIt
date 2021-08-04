@@ -282,6 +282,8 @@ Key                      Type               Options                            D
 ``illum_rej``            int, float         ..                                 5.0          The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.                                                                                                                                                                       
 ``method``               str                ``bspline``, ``skip``              ``bspline``  Method used to flat field the data; use skip to skip flat-fielding.  Options are: None, bspline, skip                                                                                                                                                                                                                                    
 ``pixelflat_file``       str                ..                                 ..           Filename of the image to use for pixel-level field flattening                                                                                                                                                                                                                                                                            
+``pixelflat_max_wave``   int, float         ..                                 ..           All values of the normalized pixel flat are set to 1 for wavelengths above this value.                                                                                                                                                                                                                                                   
+``pixelflat_min_wave``   int, float         ..                                 ..           All values of the normalized pixel flat are set to 1 for wavelengths below this value.                                                                                                                                                                                                                                                   
 ``rej_sticky``           bool               ..                                 False        Propagate the rejected pixels through the stages of the flat-field fitting (i.e, from the spectral fit, to the spatial fit, and finally to the 2D residual fit).  If False, pixels rejected in each stage are included in each subsequent stage.                                                                                         
 ``saturated_slits``      str                ``crash``, ``mask``, ``continue``  ``crash``    Behavior when a slit is encountered with a large fraction of saturated pixels in the flat-field.  The options are: 'crash' - Raise an error and halt the data reduction; 'mask' - Mask the slit, meaning no science data will be extracted from the slit; 'continue' - ignore the flat-field correction, but continue with the reduction.
 ``slit_illum_pad``       int, float         ..                                 5.0          The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.                                                                                                                                                                                                          
@@ -709,9 +711,12 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
 Key                       Type        Options  Default  Description                                                                                                                                                                                                                                                                      
 ========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
 ``assign_obj``            bool        ..       False    If SlitMask object was generated, assign RA,DEC,name to detected objects                                                                                                                                                                                                         
+``bright_maskdef_id``     int         ..       ..       `maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a slit containing a bright object that will be used to compute the slitmask offset. This parameter is optional and is ignored if ``slitmask_offset`` is provided.                                     
 ``extract_missing_objs``  bool        ..       False    Force extraction of undetected objects at the location expected from the slitmask design. PypeIt will try to determine the FWHM from the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). If the FWHM cannot be determined, ``find_fwhm`` will be assumed.
-``obj_toler``             float       ..       5.0      Tolerance (arcsec) to match source to targeted object                                                                                                                                                                                                                            
-``slitmask_offset``       int, float  ..       0.0      Median offset in pixels of the slitmask from expected position. This parameter is only used during the forced extraction of undetected objects.                                                                                                                                  
+``nsig_thrshd``           int, float  ..       50.0     Objects detected above this significance threshold will be used to compute the slitmask offset. This is the default behaviour unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.                                                                      
+``obj_toler``             float       ..       1.0      If slitmask design information is provided, and slit matching is performed (``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides the desired tolerance (arcsec) to match sources to targeted objects                                                          
+``slitmask_offset``       int, float  ..       ..       User-provided slitmask offset (pixels) from the position expected by the slitmask design. This is optional, and if set PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                             
+``use_alignbox``          bool        ..       False    Use stars in alignment boxes to compute the slitmask offset. If this is set to ``True`` PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                                                            
 ========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
 
 
@@ -1756,6 +1761,7 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              clip = False
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
@@ -1806,6 +1812,8 @@ Alterations to the default parameters are::
           fit_order = 3
           minimum_slit_length_sci = 4.0
           minimum_slit_gap = 0.25
+      [[tilts]]
+          tracethresh = 10
   [scienceframe]
       [[process]]
           mask_cr = True
@@ -2067,6 +2075,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
   [scienceframe]
       exprng = 60, None
@@ -2154,6 +2163,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
   [scienceframe]
       exprng = 60, None
@@ -2235,6 +2245,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
       [[tilts]]
           tracethresh = 25
@@ -2328,6 +2339,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
       [[tilts]]
           tracethresh = 25
