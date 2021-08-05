@@ -456,8 +456,8 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
         if var is not None:
             # pi/2 coefficient yields asymptotic variance in the median relative
             # to the error in the mean
-            osvar = np.pi/2*(np.sum(osvar)/osvar.size if method.lower() == 'median' 
-                             else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis])
+            osvar = np.pi/2*(np.sum(osvar)/osvar.size**2 if method.lower() == 'median' 
+                             else np.sum(osvar, axis=compress_axis)/osvar.shape[compress_axis]**2)
         if method.lower() == 'polynomial':
             # TODO: Use np.polynomial.polynomial.polyfit instead?
             c = np.polyfit(np.arange(osfit.size), osfit, params[0])

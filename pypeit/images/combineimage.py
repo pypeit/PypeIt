@@ -213,13 +213,19 @@ class CombineImage:
                                                sigrej=sigrej, maxiters=maxiters)
         elif combine_method == 'median':
             bpm_stack = mask_stack > 0
-            gpm = np.sum(np.logical_not(bpm_stack), axis=0)
+            nstack = np.sum(np.logical_not(bpm_stack).astype(int), axis=0)
+            gpm = nstack > 0
             img_list_out = [np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),
                                          axis=0).filled(0.)]
-            var_list_out = [np.ma.median(np.ma.MaskedArray(var_stack, mask=bpm_stack),
-                                         axis=0).filled(0.)]
-            var_list_out += [np.ma.median(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),
-                                          axis=0).filled(0.)]
+            # First calculate the error in the sum
+            var_list_out = [np.ma.sum(np.ma.MaskedArray(var_stack, mask=bpm_stack),
+                                      axis=0).filled(0.)]
+            var_list_out += [np.ma.sum(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),
+                                       axis=0).filled(0.)]
+            # Convert to standard error in the median (pi/2 factor relates standard variance
+            # in mean (sum(variance_i)/n^2) to standard variance in median)
+            var_list_out[0][gpm] *= np.pi/2/nstack[gpm]**2
+            var_list_out[1][gpm] *= np.pi/2/nstack[gpm]**2
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.

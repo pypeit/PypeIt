@@ -937,8 +937,7 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
 
             # Explore science frame
             for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat',
-                                   'use_illumflat'],
-                                  ['bias', 'dark', 'pixelflat', 'illumflat']):
+                                   'use_illumflat'], ['bias', 'dark', 'pixelflat', 'illumflat']):
                 if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
