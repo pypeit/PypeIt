@@ -235,7 +235,7 @@ class RawImage:
 
     def build_rn2img(self, units='e-', digitization=False):
         """
-        Generate the model detector variance image (:attr:`rn2img`).
+        Generate the model readnoise variance image (:attr:`rn2img`).
 
         This is primarily a wrapper for :func:`~pypeit.core.procimg.rn2_frame`.
 
@@ -283,7 +283,7 @@ class RawImage:
                noise from the image; see
                :func:`~pypeit.core.procimg.subtract_pattern`.
 
-            #. :func:`build_rn2img`: Construct the detector variance image,
+            #. :func:`build_rn2img`: Construct the readnoise variance image,
                which includes readnoise and digitization error.  If any of the
                amplifiers on the detector do not have a measured readnoise or if
                explicitly requested using the ``empirical_rn`` parameter, the
@@ -526,11 +526,13 @@ class RawImage:
         """
         Field flatten the processed image.
 
-        This method calculates a slit-illumination correction and a spectral
-        illumination correction, as well as the pixel-to-pixel correction, and
-        multiplicatively removes them from the current image.  If available, the
-        calculation is propagated to the variance image; however, no uncertainty
-        in the flat-field corrections are included.
+        This method uses the results of the flat-field modeling code (see
+        :class:`~pypeit.flatfield.FlatField`) and any measured spatial shift due
+        to flexure to construct slit-illumination, spectral response, and
+        pixel-to-pixel response corrections, and multiplicatively removes them
+        from the current image.  If available, the calculation is propagated to
+        the variance image; however, no uncertainty in the flat-field
+        corrections are included.
 
         .. warning::
 
