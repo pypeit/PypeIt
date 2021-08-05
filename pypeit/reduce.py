@@ -37,20 +37,21 @@ class Reduce:
     a Science or Standard star exposure
 
     Args:
-        sciImg (pypeit.images.scienceimage.ScienceImage):
-        spectrograph (pypeit.spectrograph.Spectrograph):
-        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
-        caliBrate (:class:`pypeit.calibrations.Calibrations`):
-        objtype (str):
+        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Image to reduce.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+        caliBrate (:class:`~pypeit.calibrations.Calibrations`):
+        objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        det (int, optional):
-           Detector indice
-        setup (str, optional):
+        det (:obj:`int`, optional):
+           Detector index
+        setup (:obj:`str`, optional):
            Used for naming
-        maskslits (ndarray, optional):
+        maskslits (`numpy.ndarray`_, optional):
           Specifies masked out slits
           True = Masked
-        show (bool, optional):
+        show (:obj:`bool`, optional):
            Show plots along the way?
 
     Attributes:
@@ -282,7 +283,7 @@ class Reduce:
                 plate_scale = self.get_platescale(sobj)
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
-                inmask = (self.sciImg.fullmask == 0) & thismask
+                inmask = self.sciImg.boolean_mask(invert=True) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
                                                inmask, self.waveimg,
@@ -293,6 +294,8 @@ class Reduce:
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
             self.ivarmodel = np.copy(self.sciImg.ivar)
+            # TODO: fullmask is (or at least should be) an integer bit mask.  Is
+            # this assignment correct?
             self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
@@ -490,6 +493,8 @@ class Reduce:
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)
             # Set to the initial mask in case no objects were found
+            # TODO: fullmask is (or at least should be) an integer bit mask.  Is
+            # this assignment correct?
             self.outmask = self.sciImg.fullmask
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
@@ -586,7 +591,9 @@ class Reduce:
             skymask = skymask_pos
 
         if show:
-            self.show('image', image=image*(self.sciImg.fullmask == 0), chname='objfind',sobjs=sobjs_obj_single, slits=True)
+            indx = self.sciImg.boolean_mask(invert=True).astype(float)
+            self.show('image', image=image*indx, chname='objfind',sobjs=sobjs_obj_single,
+                      slits=True)
 
         # For nobj we take only the positive objects
         return sobjs_obj_single, nobj_single, skymask
@@ -649,7 +656,7 @@ class Reduce:
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
             thismask = self.slitmask == slit_spat
-            inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
+            inmask = self.sciImg.boolean_mask(invert=True) & thismask & skymask_now
             # All masked?
             if not np.any(inmask):
                 msgs.warn("No pixels for fitting sky.  If you are using mask_by_boxcar=True, your radius may be too large.")
@@ -932,13 +939,16 @@ class Reduce:
             mask_in = None
             bitmask_in = None
 
+        img_gpm = self.sciImg.boolean_mask(invert=True)
+
         if attr == 'global':
             # global sky subtraction
-            if self.sciImg.image is not None and self.global_sky is not None and self.sciImg.fullmask is not None:
+            if self.sciImg.image is not None and self.global_sky is not None \
+                    and self.sciImg.fullmask is not None:
                 # sky subtracted image
-                image = (self.sciImg.image - self.global_sky)*(self.sciImg.fullmask == 0)
-                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.fullmask == 0], sigma_lower=5.0,
-                                                       sigma_upper=5.0)
+                image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
+                mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
+                                                             sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
@@ -947,11 +957,12 @@ class Reduce:
                                               #, cuts=(cut_min, cut_max))
         elif attr == 'local':
             # local sky subtraction
-            if self.sciImg.image is not None and self.skymodel is not None and self.sciImg.fullmask is not None:
+            if self.sciImg.image is not None and self.skymodel is not None \
+                    and self.sciImg.fullmask is not None:
                 # sky subtracted image
-                image = (self.sciImg.image - self.skymodel)*(self.sciImg.fullmask == 0)
-                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.fullmask == 0], sigma_lower=5.0,
-                                                       sigma_upper=5.0)
+                image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
+                mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
+                                                             sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
@@ -964,7 +975,7 @@ class Reduce:
                     and self.objmodel is not None and self.ivarmodel is not None \
                     and self.sciImg.fullmask is not None:
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
-                image *= (self.sciImg.fullmask == 0)
+                image *= img_gpm.astype(float)
                 ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -976,7 +987,7 @@ class Reduce:
                     and self.sciImg.fullmask is not None:
                 # full model residual map
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-                image *= (self.sciImg.fullmask == 0)
+                image *= img_gpm.astype(float)
                 ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -1089,7 +1100,7 @@ class MultiSlitReduce(Reduce):
             qa_title ="Finding objects on slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
-            inmask = (self.sciImg.fullmask == 0) & thismask
+            inmask = self.sciImg.boolean_mask(invert=True) & thismask
             # Find objects
             specobj_dict = {'SLITID': slit_spat,
                             'DET': self.det, 'OBJTYPE': self.objtype,
@@ -1135,8 +1146,8 @@ class MultiSlitReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.sciImg.fullmask == 0), chname = 'objfind',
-                      sobjs=sobjs, slits=True)
+            indx = self.sciImg.boolean_mask(invert=True).astype(float)
+            self.show('image', image=image*indx, chname='objfind', sobjs=sobjs, slits=True)
 
         # Return
         return sobjs, len(sobjs), skymask
@@ -1189,9 +1200,11 @@ class MultiSlitReduce(Reduce):
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
+        # TODO: fullmask is (or at least should be) an integer bit mask.  Is
+        # this assignment correct?
         self.outmask = np.copy(self.sciImg.fullmask)
         # Initialize to input mask in case no objects were found
-        self.extractmask = (self.sciImg.fullmask == 0)
+        self.extractmask = self.sciImg.boolean_mask(invert=True)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciImg.image)
         # Set initially to global sky in case no objects were found
@@ -1203,6 +1216,8 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
 
+        base_gpm = self.sciImg.boolean_mask(invert=True)
+
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1211,7 +1226,7 @@ class MultiSlitReduce(Reduce):
             if np.any(thisobj):
                 thismask = self.slitmask == slit_spat   # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                ingpm = (self.sciImg.fullmask == 0) & thismask
+                ingpm = base_gpm & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
@@ -1233,7 +1248,7 @@ class MultiSlitReduce(Reduce):
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = (self.sciImg.fullmask == 0) & (self.extractmask == False)
+        iextract = base_gpm & np.logical_not(self.extractmask)
         self.outmask[iextract] = self.sciImg.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
 
         # Step
@@ -1331,7 +1346,7 @@ class EchelleReduce(Reduce):
         skymask = np.zeros_like(image, dtype=bool)
 
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        inmask = self.sciImg.fullmask == 0
+        inmask = self.sciImg.boolean_mask(invert=True)
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
@@ -1364,7 +1379,8 @@ class EchelleReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.sciImg.fullmask == 0), chname='ech_objfind',sobjs=sobjs_ech, slits=False)
+            indx = self.sciImg.boolean_mask(invert=True).astype(float)
+            self.show('image', image=image*indx, chname='ech_objfind',sobjs=sobjs_ech, slits=False)
 
         return sobjs_ech, len(sobjs_ech), skymask
 
@@ -1485,12 +1501,11 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Correct the relative illumination of the science frame
         msgs.info("Correcting science frame for relative illumination")
         self.scaleimg *= scaleImg.copy()
-        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleImg.copy(),
-                                        bpm=self.sciImg.fullmask,
-                                        varframe=utils.inverse(self.sciImg.ivar.copy()))
-        self.sciImg.image = sciImg.copy()
+        self.sciImg.image, _bpm, varImg = flat.flatfield(self.sciImg.image, scaleImg,
+                                                         varframe=utils.inverse(self.sciImg.ivar))
+        if np.any(_bpm):
+            self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
-        return
 
     def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
         """ Calculate the residual spatial illumination profile using the sky regions.
@@ -1511,7 +1526,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Setup some helpful parameters
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
-        gpm = (self.sciImg.fullmask == 0)
+        gpm = self.sciImg.boolean_mask(invert=True)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
         spatScaleImg = np.ones_like(self.sciImg.image)
         # For each slit, grab the spatial coordinates and a spline
@@ -1605,7 +1620,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        gpm = (self.sciImg.fullmask == 0)
+        gpm = self.sciImg.boolean_mask(invert=True)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
@@ -1622,7 +1637,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         self.global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
-        inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
+        inmask = (self.sciImg.boolean_mask(invert=True) & thismask & skymask_now).astype(np.bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
         wavemin = self.waveimg[self.waveimg != 0.0].min()
@@ -1754,3 +1769,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
             plt.show()
 
         return self.global_sky
+
+
+

@@ -58,6 +58,7 @@ clean:
 apirst:
 	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/deprecated/* ../pypeit/version.py
 	python3 ./scripts/build_dependency_rst.py
+	python3 ./scripts/build_imgproc_defaults.py
 	python3 ./scripts/build_par_rst.py
 	python3 ./scripts/build_specobj_rst.py
 	python3 ./scripts/build_calib_images_rst.py

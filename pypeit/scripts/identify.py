@@ -93,8 +93,9 @@ class Identify(scriptbase.ScriptBase):
                         if os.path.exists(solnname) and args.solution else None
 
         # Load the MasterFrame (if it exists and is desired)?
+        # TODO: Why is the msarc.fullmask being passed as the Master BPM here?
         wavecal = BuildWaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
-                            master_key=mkey, msbpm=msarc.fullmask)
+                                 master_key=mkey, msbpm=msarc.boolean_mask()) #fullmask)
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window

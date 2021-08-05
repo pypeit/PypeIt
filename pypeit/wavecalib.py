@@ -338,9 +338,9 @@ class BuildWaveCalib:
 
         # Optional parameters
         self.bpm = msbpm
-        if self.bpm is None:
-            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
-                self.bpm = msarc.bpm
+        if self.bpm is None and msarc is not None:
+            # msarc can be None for load;  will remove this for DataContainer
+            self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det

@@ -185,7 +185,6 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Decorate according to the type of calibration, primarily as needed for
     # handling MasterFrames.  WARNING: Any internals in pypeitImage are lost
     # here.
-    # TODO: This list didn't include 'pinhole' or 'sky'
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'dark':
@@ -198,13 +197,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'align':
         finalImage = AlignImage.from_pypeitimage(pypeitImage)
-#    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
     else:
         finalImage = pypeitImage
-#    else:
-#        msgs.error(f"Unknown frame type: {frame_par['frametype']}")
-#        finalImage = None
-#        embed(header=utils.embed_header())
 
     # TODO: Can we move all this copying into the from_pypeitimage function,
     # except for the list of files?

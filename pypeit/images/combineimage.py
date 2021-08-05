@@ -179,9 +179,10 @@ class CombineImage:
             # to process_one and ignore the saturation when the mask is actually
             # built, rather than untoggling the bit here?
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag='SATURATION')
+                indx = pypeitImage.boolean_mask(flag='SATURATION')
                 pypeitImage.fullmask[indx] \
                         = pypeitImage.bitmask.turn_off(pypeitImage.fullmask[indx], 'SATURATION')
+            # TODO: Come back to this.
             mask_stack[kk] = pypeitImage.fullmask
 
         # Check that the lamps being combined are all the same:

@@ -37,11 +37,11 @@ def test_rn2_frame():
     rn = np.array([2.5, 3.5])
     gain = np.array([1.2, 1.5])
 
-    rnvar = procimg.rn2_frame(datasec, gain, rn, digitization=False)
+    rnvar = procimg.rn2_frame(datasec, rn, digitization=False)
     assert rnvar.shape == datasec.shape, 'Shape mismatch'
     assert np.array_equal(np.unique(rnvar), rn**2), 'Bad RN variance calculation'
 
-    rnvar = procimg.rn2_frame(datasec, gain, rn, units='ADU', digitization=False)
+    rnvar = procimg.rn2_frame(datasec, rn, units='ADU', gain=gain, digitization=False)
     assert np.allclose(np.unique(rnvar), (rn/gain)**2), 'Bad RN variance calculation'
 
 
@@ -79,6 +79,44 @@ def test_trim():
     assert _datasec.shape == (10,7), 'Trimming error'
     assert np.array_equal(datasec[datasec > 0], _datasec.flat), 'Values changed'
 
+
+def test_var_model():
+    # Bogus image
+    datasec = np.ones((10,10), dtype=int)
+    datasec[5:] = 2
+
+    rn = np.array([2.5, 3.5])
+
+    rnvar = procimg.rn2_frame(datasec, rn)
+
+    assert np.array_equal(rnvar, procimg.variance_model(rnvar)), \
+        'Variance model with only rnvar is just rnvar'
+
+    counts = np.full(rnvar.shape, 10., dtype=float)
+    assert np.array_equal(rnvar, procimg.variance_model(rnvar, counts=counts)), \
+        'Inclusion of shot-noise should default to False'
+    assert np.array_equal(rnvar, procimg.variance_model(rnvar, darkcurr=10.)), \
+        'Inclusion of shot-noise should default to False'
+
+    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True) > rnvar), \
+        'Shot noise should increase the variance'
+    assert np.all(procimg.variance_model(rnvar, counts=counts, darkcurr=10.,
+                                         shot_noise=True) > rnvar), \
+        'Shot noise should increase the variance'
+    assert np.array_equal(
+                procimg.variance_model(rnvar, counts=counts, darkcurr=10., shot_noise=True),
+                procimg.variance_model(rnvar, counts=counts, darkcurr=5., exptime=2.,
+                                       shot_noise=True)), \
+        'Dark current should be equivalent'
+    assert np.all(procimg.variance_model(rnvar, proc_var=10.) > rnvar), \
+        'Processing variance should increase the total variance'
+
+    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True, count_scale=0.5) <
+                  procimg.variance_model(rnvar, counts=counts, shot_noise=True)), \
+        'Scaling should have decreased the noise.'
+
+    assert np.all(procimg.variance_model(rnvar, counts=counts, noise_floor=0.1) > rnvar), \
+        'Noise floor should have increased the variance.'
 
 
 

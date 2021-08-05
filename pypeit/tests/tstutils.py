@@ -222,7 +222,7 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
         #                          MasterFrame.construct_file_name('Flat', master_key))
         flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
         flatImages = flatfield.FlatImages.from_file(flat_file)
-        ret.append(flatImages.get_pixelflat())
+        ret.append(flatImages.pixelflat_norm)
 
     # Return
     return ret

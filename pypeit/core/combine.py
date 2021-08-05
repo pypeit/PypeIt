@@ -152,11 +152,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
                        'and propagated to the arrays to be stacked.')
         if sigrej is None:
             # NOTE: If these are changed, make sure to update the doc-string!
-            if nimgs <= 2:
-                # TODO: Why is this here?  It will never be executed because of
-                # the outermost if statement.
-                sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
-            elif nimgs == 3:
+            if nimgs == 3:
                 sigrej = 1.1
             elif nimgs == 4:
                 sigrej = 1.3

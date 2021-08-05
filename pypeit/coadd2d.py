@@ -460,7 +460,9 @@ class CoAdd2D:
         redux.reduce_bpm = reduce_bpm
 
         if show:
-            redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
+            indx = sciImage.boolean_mask(invert=True).astype(float)
+            redux.show('image', image=pseudo_dict['imgminsky']*indx, chname='imgminsky',
+                       slits=True, clear=True)
 
         # TODO:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects

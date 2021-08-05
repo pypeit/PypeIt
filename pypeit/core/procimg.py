@@ -266,23 +266,28 @@ def gain_frame(amp_img, gain):
     return gain_img
 
 
-def rn2_frame(datasec_img, gain, ronoise, units='e-', digitization=True):
+def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     r"""
     Construct a readnoise variance image.
 
-    Provided detector readnoise and gain for each detector amplifier, this
-    calculates the combination of the readnoise and digitization (or
+    Provided the detector readnoise and gain for each amplifier, this constructs
+    an image with the combination of the readnoise and digitization (or
     quantization) noise expected for a single detector readout.  Digitization
-    noise is a fixed :math:`\sqrt{1/12}` ADU [1]_ [2]_, which is typically much
-    smaller than the readnoise, unless the gain is very large.  And, depending
-    on how it was measured, the digitization noise may be incorporated in the
-    documented readnoise of the given instrument.  To exclude the digitization
-    noise from the calculation, set ``digitization=False``.
+    noise is a fixed :math:`\sqrt{1/12}` ADU [1]_ [2]_, derived as the second
+    moment of a uniform distribution between values of -1/2 to 1/2 (i.e., the
+    variance associated with converting a number of electrons into an ADU
+    integer quantized by the gain).  The digitization noise is typically much
+    smaller than the readnoise, unless the gain is very large, and, depending on
+    how it was measured, the digitization noise is most often incorporated in
+    the documented readnoise of the given instrument.  To include the
+    digitization noise in the variance, you must provide ``gain`` and set
+    ``digitization=True``.
 
     The variance calculation in electrons is :math:`V = {\rm RN}^2 +
-    \gamma^2/12`, where RN is the readnoise and :math:`\gamma` is the gain in
-    e-/ADU.  If the requested units are ADU, the returned variance is
-    :math:`V/\gamma^2`.
+    \gamma^2/12`, when including the digitization noise, and simply :math:`V =
+    {\rm RN}^2` otherwise; where RN is the readnoise and :math:`\gamma` is the
+    gain in e-/ADU.  In the rare case one would need the units in ADU, the
+    returned variance is :math:`V/\gamma^2`.
     
     .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
     .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_
@@ -294,17 +299,18 @@ def rn2_frame(datasec_img, gain, ronoise, units='e-', digitization=True):
             are ignored.  Amplifier numbers are expected sequential and match
             the number of readnoise and gain values provided.  The shape of this
             image dictates the shape of the output readnoise variance image.
-        gain (:obj:`float`, array-like):
-            The value of the gain for each amplifier in e-/ADU.  If
-            ``digitization`` is False, this is ignored.
         ronoise (:obj:`float`, array-like):
             The value of the readnoise for each amplifier in electrons (e-).  If
             there is only one amplifier, this can be provided as a single float.
         units (:obj:`str`, optional):
             Units for the output variance.  Options are ``'e-'`` for variance in
             square electrons (counts) or ``'ADU'`` for square ADU.
+        gain (:obj:`float`, array-like, optional):
+            The value of the gain for each amplifier in e-/ADU.  If
+            ``digitization`` is False, this is ignored.
         digitization (:obj:`bool`, optional):
-            Include digitization error in the calculation.
+            Include digitization error in the calculation.  If True, ``gain``
+            *must* be provided.
 
     Returns:
         `numpy.ndarray`_: The image variance resulting from reading the detector
@@ -314,6 +320,8 @@ def rn2_frame(datasec_img, gain, ronoise, units='e-', digitization=True):
     # Check units
     if units not in ['e-', 'ADU']:
         msgs.error(f"Unknown units: {units}.  Must be 'e-' or 'ADU'.")
+    if gain is None and (digitization or units == 'ADU'):
+        msgs.error('If including digitization error or return units in ADU, must provide gain.')
 
     # Determine the number of amplifiers from the datasec image
     _datasec_img = datasec_img.astype(int)
@@ -911,69 +919,133 @@ def trim_frame(frame, mask):
     return frame[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]
 
 
-def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None, exptime=None,
-                   skyframe=None, objframe=None, adderr=0.01, rnoise=None):
-    """
-    Calculate the variance image including detector noise.
+def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=None,
+                   count_scale=None, noise_floor=None, shot_noise=False):
+    r"""
+    Calculate the expected variance in an image.
+
+    The full variance model, :math:`V`, is:
+
+    .. math::
+
+        V = s^2 * \left[ | C/s + D t_{\rm exp} - \sqrt(2 V_{\rm rn}) | +
+                V_{\rm rn} + V_{\rm proc} \right] + (\epsilon\ C)^2
+
+    where
+
+        - :math:`C` is the scaled number of (source+sky) counts, where the
+          scaling is based on relative throughput measurements from the
+          flat-field frames (see ``counts``),
+        - :math:`s` is the scale factor (e.g., inverse of the flat-field
+          correction; see ``count_scale``),
+        - :math:`D` is the dark current in electrons per second (see ``darkcurr``),
+        - :math:`t_{\rm exp}` is the effective exposure time (see ``exptime``),
+        - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
+          read-noise squared; see ``rn_var``),
+        - :math:`V_{\rm proc}` is added variance from image processing (e.g.,
+          bias subtraction; see ``proc_var``), and
+        - :math:`\epsilon` is an added error term that imposes a maximum
+          signal-to-noise on the observed counts (see ``noise_floor``).
+
+    The term within the absolute value brackets (:math:`C/s + D t_{\rm exp} -
+    \sqrt(2 V_{\rm rn})`) is the referred to as the "shot noise" term (see
+    ``shot_noise``) and sets the Poisson count variance adjusted for the
+    Gaussian approximation of a Poisson distribution throughout the rest of the
+    code base (*need a reference for this*).  The adjustment to the nominal
+    Poisson variance is particularly important at low count levels.
+
+    .. note::
+
+        If :math:`s` (``count_scale``) is provided, the variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
 
     Args:
-        datasec_img (`numpy.ndarray`_):
-            Image that identifies which amplifier (1-indexed) was used
-            to read each pixel.  Anything less than 1 is ignored.
-        sciframe (`numpy.ndarray`_):
-            Science frame with counts in electrons.
-        gain (:obj:`float`, array-like):
-            Gain for each amplifier
-        ronoise (:obj:`float`, array-like):
-            Read-noise for each amplifier
-        darkcurr (:obj:`float`, optional):
+        rn_var (`numpy.ndarray`_):
+            A 2D array with the read-noise variance from the instrument
+            detector.  This should include digitization noise and any difference
+            in the readnoise across the detector due to the use of multiple
+            amplifiers.
+        counts (`numpy.ndarray`_, optional):
+            A 2D array with the number of source-plus-sky counts, possibly
+            rescaled by a relative throughput.  Because this is used to
+            calculate (part of) the Poisson statistics for the electon counts
+            and the noise floor, this *must* be provided if ``noise_floor`` is
+            not None or ``shot_noise`` is True.  Shape must match ``rn_var``.
+        darkcurr (:obj:`float`, `numpy.ndarray`_, optional):
             Dark current in electrons per second if the exposure time is
-            provided, otherwise in electrons.  If None, set to 0.
+            provided, otherwise in electrons.  If None, set to 0.  If a single
+            float, assumed to be constant across the full image.  If an array,
+            the shape must match ``rn_var``.
         exptime (:obj:`float`, optional):
             Exposure time in seconds.  If None, darkcurrent *must* be
             in electrons.
-        skyframe (`numpy.ndarray`_, optional):
-            Sky image.
-        objframe (`numpy.ndarray`_, optional):
-            Model of object counts
-        adderr (:obj:`float`, optional):
-            Error floor. The quantity adderr**2*sciframe**2 is added in
-            qudarature to the variance to ensure that the S/N is never >
-            1/adderr, effectively setting a floor on the noise or a
-            ceiling on the S/N.
-        rnoise (:obj:`numpy.ndarray`, optional):
-            Read noise image.  If not provided, it will be generated
+        proc_var (:obj:`float`, `numpy.ndarray`_, optional):
+            Additional variance terms to include that are due to the image
+            processing steps (e.g., bias subtraction).  If None, set to 0.  If a
+            single float, assumed to be constant across the full image.  If an
+            array, the shape must match ``rn_var``.
+        count_scale (:obj:`float`, `numpy.ndarray`_, optional):
+            A scale factor that *has already been applied* to the provided
+            counts.  For example, if the image has been flat-field corrected,
+            this is the inverse of the flat-field counts.  If None, set to 1.
+            If a single float, assumed to be constant across the full image.  If
+            an array, the shape must match ``rn_var``.  The variance will be 0
+            wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
+        noise_floor (:obj:`float`, optional):
+            A fraction of the counts to add to the variance, which has the
+            effect of ensuring that the S/N is never greater than
+            ``1/noise_floor``.  If None, no noise floor is added.  If not None,
+            ``counts`` *must* be provided.
+        shot_noise (:obj:`bool`, optional):
+            Include the shot noise term in the calculation.  If True, ``counts``
+            *must* be provided.
 
     Returns:
-        `numpy.ndarray`_: Variance image
+        `numpy.ndarray`_: Variance image computed via the equation above with
+        the same shape as ``counts``.
     """
+    # Check input
+    if noise_floor is not None and noise_floor > 0. and counts is None:
+        msgs.error('To impose a noise floor, must provide counts.')
+    if shot_noise and counts is None:
+        msgs.error('To include shot noise, must provide counts.')
+    if counts is not None and counts.shape != rn_var.shape:
+        msgs.error('Counts image and readnoise variance have different shape.')
+    if count_scale is not None and isinstance(count_scale, np.ndarray) \
+            and count_scale.shape != rn_var.shape:
+        msgs.error('Count scale and readnoise variance have different shape.')
+    if proc_var is not None and isinstance(proc_var, np.ndarray) \
+            and proc_var.shape != rn_var.shape:
+        msgs.error('Processing variance and readnoise variance have different shape.')
+    if darkcurr is not None and isinstance(darkcurr, np.ndarray) \
+            and darkcurr.shape != rn_var.shape:
+        msgs.error('Dark image and readnoise variance have different shape.')
 
-    # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
-    # The effective read noise (variance image)
-    if rnoise is None:
-        rnoise = rn2_frame(datasec_img, gain, ronoise)
-
-    # No sky frame provided
-    if skyframe is None:
-        _darkcurr = 0 if darkcurr is None else darkcurr
-        if exptime is not None:
-            _darkcurr *= exptime #/3600.
-        var = np.abs(sciframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise + _darkcurr
-        var = var + adderr**2*(np.abs(sciframe))**2
-        return var
-
-    # TODO: There's some complicated logic here.  Why is objframe
-    # needed?  Can't a users just use objframe in place of sciframe and
-    # get the same behavior?  Why is darkcurr (what was dnoise) used
-    # with sciframe and not objframe?
-
-    # ToDO JFH: shouldn't dark current be added here as well??
-    _objframe = np.zeros_like(skyframe) if objframe is None else objframe
-    var = np.abs(skyframe + _objframe - np.sqrt(2.0)*np.sqrt(rnoise)) + rnoise
-    var = var + adderr ** 2 * (np.abs(sciframe)) ** 2
-    embed(header='this appears to be broken!')
-    return
-
-
+    # Build the variance
+    var = np.zeros(rn_var.shape, dtype=float) if counts is None or not shot_noise \
+            else counts.copy()
+    if count_scale is not None:
+        _count_scale = count_scale.copy() if isinstance(count_scale, np.ndarray) \
+                        else np.full(var.shape, count_scale, dtype=float)
+        # TODO: Should this instead be np.logical_not(np.absolute(count_scale) > 0)?
+        indx = count_scale > 0.
+        _count_scale[np.logical_not(indx)] = 0.
+        if counts is not None:
+            # Convert from scaled counts back to actual counts
+            var[indx] /= _count_scale[indx]
+    if shot_noise:
+        if darkcurr is not None:
+            var += darkcurr if exptime is None else darkcurr * exptime
+        var = np.absolute(var - np.sqrt(2*rn_var))
+    var += rn_var
+    if proc_var is not None:
+        var += proc_var
+    if count_scale is not None:
+        # Propagate the scaling to the variance
+        # NOTE: This means the variance will be 0 where count_scale <= 0.
+        var *= _count_scale**2
+    if noise_floor is not None and noise_floor > 0.:
+        var += (noise_floor * counts)**2
+    return var
 
 

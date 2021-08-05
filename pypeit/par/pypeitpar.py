@@ -208,7 +208,7 @@ class ProcessImagesPar(ParSet):
                  comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
-                 shot_noise=None, noise_floor=None,
+                 empirical_rn=None, shot_noise=None, noise_floor=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  use_pattern=None, spat_flexure_correct=None):
 
@@ -274,12 +274,17 @@ class ProcessImagesPar(ParSet):
                                'sinusoidal along one direction, with a frequency that is ' \
                                'constant across the detector.'
 
+        defaults['empirical_rn'] = False
+        dtypes['empirical_rn'] = bool
+        descr['empirical_rn'] = 'If True, use the standard deviation in the overscan region to ' \
+                                'measure an empirical readnoise to use in the noise model.'
+
         defaults['shot_noise'] = True
         dtypes['shot_noise'] = bool
         descr['shot_noise'] = 'Use the bias- and dark-subtracted image to calculate and include ' \
                               'electron count shot noise in the image processing error budget'
 
-        defaults['noise_floor'] = 0.01
+        defaults['noise_floor'] = 0.0
         dtypes['noise_floor'] = float
         descr['noise_floor'] = 'Impose a noise floor by adding the provided fraction of the ' \
                                'bias- and dark-subtracted electron counts to the error budget.  ' \
@@ -297,7 +302,7 @@ class ProcessImagesPar(ParSet):
         descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination ' \
                                  'profile of each slit.'
 
-        defaults['use_specillum'] = False
+        defaults['use_specillum'] = True
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
@@ -395,9 +400,10 @@ class ProcessImagesPar(ParSet):
         k = np.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
-                   'use_illumflat', 'use_specillum', 'shot_noise', 'noise_floor', 'use_pixelflat',
-                   'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr', 'replace', 'lamaxiter',
-                   'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
+                   'use_pixelflat', 'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
+                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
+                   'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3743,19 +3749,20 @@ class CalibrationsPar(ParSet):
 
         # Calibration Frames
         defaults['biasframe'] = FrameGroupPar(frametype='bias',
-                                              process=ProcessImagesPar(apply_gain=False,
-                                                                       combine='median',
-                                                                       use_biasimage=False,
+                                              process=ProcessImagesPar(use_biasimage=False,
+                                                                       shot_noise=False,
                                                                        use_pixelflat=False,
-                                                                       use_illumflat=False))
+                                                                       use_illumflat=False,
+                                                                       use_specillum=False,
+                                                                       combine='median'))
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
-                                              process=ProcessImagesPar(use_biasimage=False,
-                                                                       use_overscan=False,
-                                                                       use_pixelflat = False,
-                                                                       use_illumflat = False))
+                                              process=ProcessImagesPar(use_pixelflat=False,
+                                                                       use_illumflat=False,
+                                                                       use_specillum=False,
+                                                                       mask_cr=True))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
@@ -3763,14 +3770,16 @@ class CalibrationsPar(ParSet):
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
                                                    process=ProcessImagesPar(satpix='nothing',
                                                                             use_pixelflat=False,
-                                                                            use_illumflat=False))
+                                                                            use_illumflat=False,
+                                                                            use_specillum=False))
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the pixel flat'
 
         defaults['illumflatframe'] = FrameGroupPar(frametype='illumflat',
                                                    process=ProcessImagesPar(satpix='nothing',
                                                                             use_pixelflat=False,
-                                                                            use_illumflat=False))
+                                                                            use_illumflat=False,
+                                                                            use_specillum=False))
         dtypes['illumflatframe'] = [ ParSet, dict ]
         descr['illumflatframe'] = 'The frames and combination rules for the illumination flat'
 
@@ -3783,7 +3792,8 @@ class CalibrationsPar(ParSet):
                     # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                                                         cr_sigrej=-1,
                                                                         use_pixelflat=False,
-                                                                        use_illumflat=False))
+                                                                        use_illumflat=False,
+                                                                        use_specillum=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
@@ -3791,7 +3801,8 @@ class CalibrationsPar(ParSet):
                     # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                              process=ProcessImagesPar(cr_sigrej=-1,
                                                                       use_pixelflat=False,
-                                                                      use_illumflat=False))
+                                                                      use_illumflat=False,
+                                                                      use_specillum=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
@@ -3799,27 +3810,31 @@ class CalibrationsPar(ParSet):
                     # TODO: I don't think setting cr_sigrej to -1 does anything ...
                                               process=ProcessImagesPar(cr_sigrej=-1,
                                                                        use_pixelflat=False,
-                                                                       use_illumflat=False))
+                                                                       use_illumflat=False,
+                                                                       use_specillum=False))
         dtypes['tiltframe'] = [ ParSet, dict ]
         descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
         defaults['traceframe'] = FrameGroupPar(frametype='trace',
                                                # Note that CR masking is found to be too problematic!!
                                                process=ProcessImagesPar(use_pixelflat=False,
-                                                                        use_illumflat=False))
+                                                                        use_illumflat=False,
+                                                                        use_specillum=False))
 
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
 
         defaults['standardframe'] = FrameGroupPar(frametype='standard',
-                                                  process=ProcessImagesPar(mask_cr=True))
+                                                  process=ProcessImagesPar(noise_floor=0.01,
+                                                                           mask_cr=True))
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
 
         defaults['skyframe'] = FrameGroupPar(frametype='sky',
-                                                  process=ProcessImagesPar(mask_cr=True))
+                                                  process=ProcessImagesPar(noise_floor=0.01,
+                                                                           mask_cr=True))
         dtypes['skyframe'] = [ ParSet, dict ]
         descr['skyframe'] = 'The frames and combination rules for the sky background ' \
                                  'observations'
@@ -3983,7 +3998,8 @@ class PypeItPar(ParSet):
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
         defaults['scienceframe'] = FrameGroupPar(frametype='science',
-                                                 process=ProcessImagesPar(mask_cr=True))
+                                                 process=ProcessImagesPar(noise_floor=0.01,
+                                                                          mask_cr=True))
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
@@ -4308,18 +4324,30 @@ class PypeItPar(ParSet):
 
     def reset_all_processimages_par(self, **kwargs):
         """
-        Set all of the ProcessImagesPar objects to have the input setting
+        Change image processing parameter for *all* frame types.
 
-        e.g.
-
-        par.reset_all_processimages_par(use_illumflat=False)
+        This function iteratively changes the value of all image processing
+        parameters for all frame types in the :class:`CalibrationsPar`, as well
+        as the science frames.
 
         Args:
             **kwargs:
+                The list of keywords and values to change for all image
+                processing parameters.
+
+        Examples:
+            To turn off the slit-illumination correction for all frames:
+
+            >>> from pypeit.spectrographs import load_spectrograph
+            >>> spec = load_spectrograph('shane_kast_blue')
+            >>> par = spec.default_pypeit_par()
+            >>> par.reset_all_processimages_par(use_illumflat=False)
+
         """
         # Calibrations
         for _key in self['calibrations'].keys():
-            if isinstance(self['calibrations'][_key], ParSet) and 'process' in self['calibrations'][_key].keys():
+            if isinstance(self['calibrations'][_key], ParSet) \
+                    and 'process' in self['calibrations'][_key].keys():
                 for key,value in kwargs.items():
                     self['calibrations'][_key]['process'][key] = value
         # Science frame

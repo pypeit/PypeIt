@@ -453,12 +453,13 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
-# TODO: Why is illum_flat needed as a parameter?  Calling functions can call
-# flatfield(sciframe, flatframe*illum_flat).
 #def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, snframe=None, varframe=None):
-def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, varframe=None):
+def flatfield(sciframe, flatframe, varframe=None):
     r"""
     Field flatten the input image.
+
+    This is a simple scaling of the provided science frame by the inverse of the
+    flat frame.
 
     Args:
         sciframe (`numpy.ndarray`_):
@@ -466,70 +467,33 @@ def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, varframe=None):
         flatframe (`numpy.ndarray`_):
             The flat-field image to use for the correction.  Shape must match
             ``sciframe``.
-        bpm (`numpy.ndarray`_, optional):
-            An integer array with bad-pixels set to 1 and good pixels set to 0.
-            If provided, the array is altered and pixels where 
-            ``sciframe/flatframe`` is :math:`\leq 0' are flagged as bad (``bpm``
-            is set to 1).  If provided, shape must match ``sciframe``.
-            Importantly, this does *not* have any impact on the flat-field
-            correction itself; i.e., the correction is applied regardless of the
-            value of ``bpm``.
-        illum_flat (`numpy.ndarray`_, optional):
-            If provided and any of the values are :math:`\neq 1`, this image is
-            multiplied by ``flatframe`` to construct the actual flat-field
-            correction image.  Shape must match ``sciframe``.
         varframe (`numpy.ndarray`_, optional):
             The variance in the science frame (``sciframe``).  If provided, the
             flat-fielding operation is propagated to the variance, and the
             result is returned.  Shape must match ``sciframe``.
 
     Returns:
-        `numpy.ndarray`_, :obj:`tuple`: If no variance is provided, this
-        returned object is just the field-flattened image.  Otherwise, both the
-        field-flattened image and its variance image are returned.
+        :obj:`tuple`: A tuple of two or three `numpy.ndarray`_ objects.  The
+        first two are the rescaled science frame and a boolean bad-pixel mask
+        indicating where the flat frame was not positive.  If a variance image
+        is provided, the third object is the propagated variance in the rescaled
+        science frame.
     """
-#    if (varframe is not None) & (snframe is not None):
-#        msgs.error("Cannot set both varframe and snframe")
     if flatframe.shape != sciframe.shape:
         msgs.error('Shape of flat frame does not match science frame.')
-    if bpm is not None and bpm.shape != sciframe.shape:
-        msgs.error('Shape of bad-pixel mask does not match science frame.')
-    if illum_flat is not None and illum_flat.shape != sciframe.shape:
-        msgs.error('Shape of illumination flat does not match science frame.')
     if varframe is not None and varframe.shape != sciframe.shape:
         msgs.error('Shape of variance frame does not match science frame.')
 
-    # Fold in the slit profile
-    final_flat = flatframe.copy()
-    if illum_flat is not None:
-        if np.any(illum_flat != 1.0):
-            msgs.info('Applying illumination flat')
-            final_flat *= illum_flat  # Previous code was modifying flatframe!
-
     # New image
     retframe = np.zeros_like(sciframe)
-#    w = np.where(final_flat > 0.0)
-    # TODO: use utils.inverse() instead?
-    indx = final_flat > 0.0
-    retframe[indx] = sciframe[indx]/final_flat[indx]
-    if bpm is not None and np.sum(indx) != final_flat.size:
-        bpm[np.logical_not(indx)] = 1
+    gpm = flatframe > 0.
+    retframe[gpm] = sciframe[gpm]/final_flat[gpm]
     if varframe is None:
-        return retframe
+        return retframe, np.logical_not(gpm)
 
     # Propagate the variance
-    # This is risky -- Be sure your flat is well behaved!!
     retvar = np.zeros_like(sciframe)
-    retvar[indx] = varframe[indx]/final_flat[indx]**2
-    return retframe, retvar
-
-#    # Error image
-#    if snframe is None:
-#        return retframe
-#    else:
-#        errframe = np.zeros_like(sciframe)
-#        wnz = np.where(snframe>0.0)
-#        errframe[wnz] = retframe[wnz]/snframe[wnz]
-#        return retframe, errframe
+    retvar[gpm] = varframe[gpm]/final_flat[gpm]**2
+    return retframe, np.logical_not(gpm), retvar
 
 
