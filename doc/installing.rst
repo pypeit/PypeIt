@@ -99,7 +99,7 @@ provide a yaml file that can be used to setup a conda environment called
 ``pypeit`` that contains all of the required dependencies.  To use this:
 
     #. Download `environment.yml
-       <https://github.com/pypeit/PypeIt/blob/master/environment.yml>`__.
+       <https://github.com/pypeit/PypeIt/blob/release/environment.yml>`__.
 
     #. Create the conda environment:
 
