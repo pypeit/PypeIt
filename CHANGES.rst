@@ -8,6 +8,7 @@
 - Add `pypeit_install_telluric` and `pypeit_install_ql_masters` scripts.  The
   latter creates a symlink to the directory with the QL masters that will be
   used if the QL_MASTERS environmental variable does not exist.
+- Improve SOAR Goodman fluxing
 
 1.4.2 (06 Jul 2021)
 -------------------
