@@ -13,6 +13,7 @@ Version History
 =========   ================   =========== ===========
 1.0         Debora Pelliccia   25 Jan 2021  1.3.1dev
 1.1         Debora Pelliccia   02 Apr 2021  1.3.4dev
+1.2         Debora Pelliccia   28 Jul 2021  1.4.3dev
 =========   ================   =========== ===========
 
 ----
@@ -28,35 +29,67 @@ Procedure
 ---------
 
 RA, Dec and object name assignment is primarily performed by
-:func:`pypeit.slittrace.SlitTraceSet.assign_maskinfo`. This function, first, reads in the slitmask
-design information stored in the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see
-:ref:`deimos_slitmask_ids_report` for a description on how the slitmask design matching is performed,
-and :ref:`master_slits` for a description of the provided information and for a way to visualize them).
+:func:`pypeit.slittrace.assign_addobjs_alldets`.
 
-Then, :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` goes through all the slits in a
-selected detector and for each detected object checks if the measured distance of the object from the
-left edge of the slit is within a certain tolerance (see `Application`_ for details on how to control the value of
-this parameter) of the distance expected from the slitmask design (differences between the expected and
-the measured slit length are taken into account).
-If the answer is yes, the ``RA``, ``DEC`` and ``MASKDEF_OBJNAME`` of the detected object are updated
-with the coordinates and name of the targeted object. If the answer is no, the detected object is
-considered a serendipitous object. Using the coordinates of the slit center available from the slitmask
-design and the distance in pixels (converted then in arcsec) between the traced object and the center
-of the slit, the coordinates of the serendipitous object are estimates and recorded in  ``RA``
-and ``DEC`` while ``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``MASKDEF_EXTRACT`` attribute
+First, ``Pypeit``, using :func:`pypeit.slittrace.get_maskdef_objpos_offset_alldets`,
+computes for every detectors that the user wants to reduce the offset of the observed
+slitmask from the position expected by the design file (see :ref:`deimos_slitmask_ids_report`
+for a description on how the slitmask design matching is performed), and stores it in
+the :class:`~pypeit.slittrace.SlitTraceSet` datamodel (see :ref:`master_slits` for a
+description of the provided information and for a way to visualize them). There are three
+different options that the user can choose to compute the offset: using objects with high
+significance detections, using only one bright object in a selected slit or using alignment stars.
+Or, alternatively, the user can input a known offset in pixels (see `Application`_).
+
+Then, :func:`pypeit.slittrace.average_maskdef_offset` determines an average slitmask offset, which is
+used by :func:`pypeit.slittrace.assign_addobjs_alldets` to assign RA, Dec and object name to detected
+objects and to force extract objects that were not detected (for the latter see
+:ref:`deimos_add_missing_obj_report`).
+
+The function :func:`~pypeit.slittrace.assign_addobjs_alldets`, for each detector, goes through
+all the slits and checks if the measured distance of the detected objects from the left edge
+of the slit (corrected for the offset computed in the previous step) is within a certain tolerance
+(see `Application`_ for details on how to control the value of this parameter) of the distance
+expected from the slitmask design (differences between the expected and the measured slit length
+are taken into account). Correcting for the slitmask offset allows ``PypeIt`` to deal also with
+dithered observations.
+If the measured distance is within the set tolerance, the ``RA``, ``DEC`` and ``MASKDEF_OBJNAME``
+of the detected object are updated with the coordinates and name of the targeted object.
+If the measured distance is not within the tolerance, the detected object is considered a
+serendipitous object.
+Using the coordinates of the slit center available from the slitmask design and the distance in pixels
+(converted then in arcsec) between the traced object and the center of the slit, the coordinates
+of the serendipitous object are estimates and recorded in  ``RA`` and ``DEC`` while
+``MASKDEF_OBJNAME`` is set to "SERENDIP". For both cases, the ``MASKDEF_EXTRACT`` attribute
 is set to **False** (see :ref:`deimos_add_missing_obj_report`).
 
 
 Application
 -----------
 
-To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the parameters described in
-the *Application* section of :ref:`deimos_slitmask_ids_report` must be set. Moreover, the **assign_obj** flag in
-:ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.  This is the default for DEIMOS,
-except when the *LongMirr* or the *LVM* mask is used. One other keyword controls this procedure and it is **obj_toler**.
-This keyword sets the tolerance in arcsec for the matching process between
-the measured coordinates of the extracted spectrum and the expected coordinates of the targeted object.
-The default value is **obj_toler = 5**.
+To perform the RA, Dec and object name assignment to DEIMOS extracted spectra, the parameters
+described in the *Application* section of :ref:`deimos_slitmask_ids_report` must be set.
+Moreover, the **assign_obj** flag in :ref:`pypeit_par:SlitMaskPar Keywords` must be **True**.
+This is the default for DEIMOS, except when the *LongMirr* or the *LVM* mask is used.
+Five other parameters control this procedure. Four are for the slitmask offset determination
+and one is for the RA, Dec and object name assignment. They are the following.
+
+- **nsig_thrshd**: objects detected above this significance threshold are used to
+  compute the slitmask offset. This is the default behaviour unless **slitmask_offset**,
+  **bright_maskdef_id** or **use_alignbox** is set. Default value is **nsig_thrshd=50**.
+- **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` in the DEIMOS slitmask design)
+  of a slit containing a bright object that will be used to compute the slitmask offset.
+  This parameter is optional (default value is **bright_maskdef_id=None**) and is ignored
+  if **slitmask_offset** is provided.
+- **use_alignbox**: flag to use stars in alignment boxes to compute the slitmask offset.
+  If this is set to True PypeIt will NOT compute the offset using **nsig_thrshd** or
+  **bright_maskdef_id**. The default is **use_alignbox=False**.
+- **slitmask_offset**: user-provided slitmask offset (pixels) from the position expected
+  by the slitmask design. This is optional (default value is **slitmask_offset=None**),
+  and if set PypeIt will NOT compute the offset, i.e., the above parameters will be ignored.
+- **obj_toler**: sets the tolerance in arcsec for the matching process between the measured
+  coordinates of the extracted spectrum and the expected coordinates of the targeted object.
+  The default value is **obj_toler = 1**.
 
 
 Access
