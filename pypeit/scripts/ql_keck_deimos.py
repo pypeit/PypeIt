@@ -65,10 +65,10 @@ def process_calibs(pargs, script_Utils):
 
         # Run me via the script
         redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
-        run_pargs = run_pypeit.parse_args([calib_pypeit_file,
+        run_pargs = run_pypeit.RunPypeIt.parse_args([calib_pypeit_file,
                                            '-r={}'.format(redux_path),
                                            '-c'])
-        run_pypeit.main(run_pargs)
+        run_pypeit.RunPypeIt.main(run_pargs)
 
 
 def get_science_setup(pargs, script_Utils):
