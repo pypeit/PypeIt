@@ -28,13 +28,15 @@ Slits
 Somewhat too frequently when using the longslit,
 the "3" slits are not all identified in the bluest detector.
 
-To mitigate this, we recommend adding to this to your PypeIt file::
+To mitigate this, we recommend adding to this to your PypeIt file:
+
+.. code-block:: ini
 
     [calibrations]
-      [[slitedges]]
-        det_min_spec_length=0.1
-        fit_min_spec_length=0.1
-        edge_thresh=3.
+        [[slitedges]]
+            det_min_spec_length=0.1
+            fit_min_spec_length=0.1
+            edge_thresh=3.
 
 One can also do a manual check with:
 pypeit_trace_edges -f my_pypeit_file.pypeit --debug --show
@@ -45,9 +47,12 @@ No valid traces, this happens for some long-slit data where the slit edges are, 
 TypeError: unsupported format string passed to NoneType.__format__
 
 The solution is adding this to PypeIt file:
-[calibrations]
-    [[slitedges]]
-	bound_detector = True
+
+.. code-block:: ini
+
+    [calibrations]
+        [[slitedges]]
+	        bound_detector = True
 
 If bound_detector is True, the code will artificially add left and right edges that bound the detector
 
