@@ -288,7 +288,7 @@ Key                      Type               Options                            D
 ``saturated_slits``      str                ``crash``, ``mask``, ``continue``  ``crash``    Behavior when a slit is encountered with a large fraction of saturated pixels in the flat-field.  The options are: 'crash' - Raise an error and halt the data reduction; 'mask' - Mask the slit, meaning no science data will be extracted from the slit; 'continue' - ignore the flat-field correction, but continue with the reduction.
 ``slit_illum_pad``       int, float         ..                                 5.0          The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.                                                                                                                                                                                                          
 ``slit_illum_ref_idx``   int                ..                                 0            The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). Thisparameter is only used if ``slit_illum_relative = True``.                                                                                                                                                   
-``slit_illum_relative``  bool               ..                                 False        Generate an image of the relative spectral illuminationfor a multi-slit setup.                                                                                                                                                                                                                                                           
+``slit_illum_relative``  bool               ..                                 False        Generate an image of the relative spectral illuminationfor a multi-slit setup.  If you set ``use_slitillum = True`` for any of the frames that use the flat-field model, this *must* be set to True.                                                                                                                                     
 ``slit_trim``            int, float, tuple  ..                                 3.0          The number of pixels to trim each side of the slit when selecting pixels to use for fitting the spectral response function.  Single values are used for both slit edges; a two-tuple can be used to trim the left and right sides differently.                                                                                           
 ``spat_samp``            int, float         ..                                 5.0          Spatial sampling for slit illumination function. This is the width of the median filter in pixels used to determine the slit illumination function, and thus sets the minimum scale on which the illumination function will have features.                                                                                               
 ``spec_samp_coarse``     int, float         ..                                 50.0         bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals. This should be a large number unless you are trying to fit a sky flat with lots of narrow spectral features.                                                                                                                
@@ -776,7 +776,7 @@ Key                       Type        Options                                   
 ``use_overscan``          bool        ..                                                                     True            Subtract off the overscan.  Detector *must* have one or code will crash.                                                                                                                                                                   
 ``use_pattern``           bool        ..                                                                     False           Subtract off a detector pattern. This pattern is assumed to be sinusoidal along one direction, with a frequency that is constant across the detector.                                                                                      
 ``use_pixelflat``         bool        ..                                                                     True            Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.                                                                                                                                                    
-``use_specillum``         bool        ..                                                                     True            Use the relative spectral illumination profiles to correct the spectral illumination profile of each slit. This is primarily used for IFUs.                                                                                                
+``use_specillum``         bool        ..                                                                     False           Use the relative spectral illumination profiles to correct the spectral illumination profile of each slit. This is primarily used for IFUs.  To use this, you must set ``slit_illum_relative=True`` in the ``flatfield`` parameter set!    
 ========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
 
 
@@ -910,7 +910,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
@@ -919,7 +918,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
@@ -928,7 +926,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -936,7 +933,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
@@ -945,7 +941,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
           [[[process]]]
@@ -960,14 +955,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -975,7 +968,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1032,7 +1024,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -1041,7 +1032,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
@@ -1050,7 +1040,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -1058,7 +1047,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -1066,7 +1054,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -1080,14 +1067,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -1095,7 +1080,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1152,7 +1136,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -1161,7 +1144,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 50, None
           [[[process]]]
@@ -1170,7 +1152,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           exprng = 50, None
           [[[process]]]
@@ -1179,7 +1160,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -1187,7 +1167,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -1201,14 +1180,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -1216,7 +1193,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1279,50 +1255,42 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1363,50 +1331,42 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1447,50 +1407,42 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1531,50 +1483,42 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1620,7 +1564,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
@@ -1628,7 +1571,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -1636,7 +1578,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -1644,7 +1585,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 30
           [[[process]]]
@@ -1653,7 +1593,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -1667,7 +1606,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -1675,7 +1613,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -1683,7 +1620,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1743,7 +1679,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
@@ -1751,7 +1686,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               clip = False
@@ -1759,14 +1693,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
@@ -1774,7 +1706,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
           [[[process]]]
@@ -1786,20 +1717,17 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1838,14 +1766,12 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               clip = False
@@ -1853,7 +1779,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               clip = False
@@ -1861,7 +1786,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
@@ -1870,7 +1794,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -1881,20 +1804,17 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -1944,49 +1864,41 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2028,7 +1940,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
               use_pattern = True
       [[darkframe]]
           exprng = 0.01, None
@@ -2036,20 +1947,17 @@ Alterations to the default parameters are::
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
               use_pattern = True
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 30
           [[[process]]]
@@ -2057,7 +1965,6 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -2066,7 +1973,6 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9
       [[traceframe]]
@@ -2074,13 +1980,11 @@ Alterations to the default parameters are::
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
               use_pattern = True
       [[skyframe]]
           [[[process]]]
@@ -2107,6 +2011,7 @@ Alterations to the default parameters are::
           objlim = 1.5
           use_biasimage = False
           noise_floor = 0.01
+          use_specillum = True
           use_pattern = True
           spat_flexure_correct = True
   [reduce]
@@ -2133,33 +2038,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -2168,19 +2068,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2230,33 +2127,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -2265,19 +2157,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2327,33 +2216,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -2362,19 +2246,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2430,33 +2311,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -2465,19 +2341,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2533,7 +2406,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -2542,7 +2414,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
@@ -2551,7 +2422,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -2559,7 +2429,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2567,7 +2436,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -2580,14 +2448,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2595,7 +2461,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2653,7 +2518,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 60, None
           [[[process]]]
@@ -2662,7 +2526,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
@@ -2671,7 +2534,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
@@ -2680,7 +2542,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2688,7 +2549,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -2702,14 +2562,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2717,7 +2575,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2786,7 +2643,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -2795,7 +2651,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
@@ -2804,7 +2659,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -2812,7 +2666,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2820,7 +2673,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -2834,14 +2686,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2849,7 +2699,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -2908,7 +2757,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
@@ -2916,7 +2764,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -2924,7 +2771,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -2932,7 +2778,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2940,7 +2785,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -2954,14 +2798,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -2969,7 +2811,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3021,7 +2862,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
@@ -3029,7 +2869,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -3037,7 +2876,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -3045,7 +2883,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3053,7 +2890,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -3067,14 +2903,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3082,7 +2916,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3137,33 +2970,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -3172,19 +3000,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3229,33 +3054,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -3264,19 +3084,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3323,33 +3140,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -3358,19 +3170,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3415,33 +3224,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -3450,19 +3254,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3509,32 +3310,27 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_illumflat = False
@@ -3544,18 +3340,15 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3607,7 +3400,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -3616,7 +3408,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
@@ -3625,7 +3416,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -3633,7 +3423,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3641,7 +3430,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -3655,14 +3443,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3670,7 +3456,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3740,7 +3525,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -3749,7 +3533,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
@@ -3758,7 +3541,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -3766,7 +3548,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3774,7 +3555,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -3788,14 +3568,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -3803,7 +3581,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3862,51 +3639,43 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -3958,33 +3727,28 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -3993,18 +3757,15 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4041,7 +3802,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -4049,7 +3809,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
@@ -4057,21 +3816,18 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -4082,20 +3838,17 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4150,7 +3903,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 300, None
           [[[process]]]
@@ -4158,7 +3910,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 10, None
           [[[process]]]
@@ -4166,14 +3917,12 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = None, 100
           [[[process]]]
@@ -4181,7 +3930,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -4192,14 +3940,12 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = None, 100
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           exprng = 30, None
           [[[process]]]
@@ -4207,7 +3953,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4255,7 +4000,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 30, None
           [[[process]]]
@@ -4264,7 +4008,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 60, None
           [[[process]]]
@@ -4273,7 +4016,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           exprng = 60, None
           [[[process]]]
@@ -4282,7 +4024,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -4290,7 +4031,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -4304,14 +4044,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -4319,7 +4057,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4387,7 +4124,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
@@ -4395,21 +4131,18 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
@@ -4417,7 +4150,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
           [[[process]]]
@@ -4429,20 +4161,17 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4482,49 +4211,41 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4573,34 +4294,29 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -4609,18 +4325,15 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4628,17 +4341,19 @@ Alterations to the default parameters are::
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
+              combine = median
               mask_cr = True
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template
-          lamps = FeI, FeII, ArI, ArII
+          lamps = FeI, ArI, ArII
       [[slitedges]]
           fit_min_spec_length = 0.55
           sync_predict = nearest
   [scienceframe]
       exprng = 90, None
       [[process]]
+          combine = median
           mask_cr = True
           noise_floor = 0.01
   [sensfunc]
@@ -4661,34 +4376,29 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -4697,18 +4407,15 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4716,6 +4423,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
+              combine = median
               mask_cr = True
               noise_floor = 0.01
       [[wavelengths]]
@@ -4726,6 +4434,7 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 90, None
       [[process]]
+          combine = median
           mask_cr = True
           sigclip = 4.0
           objlim = 1.5
@@ -4751,7 +4460,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 0, None
           [[[process]]]
@@ -4760,7 +4468,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
@@ -4769,7 +4476,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
@@ -4778,7 +4484,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -4786,7 +4491,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -4800,14 +4504,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -4815,7 +4517,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4884,34 +4585,29 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -4920,19 +4616,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -4979,34 +4672,29 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -5015,19 +4703,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5068,34 +4753,29 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           exprng = 0, None
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -5104,19 +4784,16 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5154,14 +4831,12 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 30
           [[[process]]]
@@ -5169,21 +4844,18 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -5194,20 +4866,17 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5247,32 +4916,27 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
       [[alignframe]]
@@ -5281,18 +4945,15 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5322,35 +4983,30 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               overscan_method = median
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               overscan_method = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               overscan_method = median
@@ -5361,20 +5017,17 @@ Alterations to the default parameters are::
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               overscan_method = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               overscan_method = median
@@ -5419,7 +5072,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
@@ -5428,7 +5080,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
@@ -5437,7 +5088,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               mask_cr = True
@@ -5445,7 +5095,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5454,7 +5103,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -5467,7 +5115,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
@@ -5475,7 +5122,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5484,7 +5130,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5551,7 +5196,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
@@ -5559,7 +5203,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -5567,7 +5210,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
@@ -5575,7 +5217,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5584,7 +5225,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               use_biasimage = False
@@ -5598,7 +5238,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
@@ -5606,7 +5245,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
@@ -5615,7 +5253,6 @@ Alterations to the default parameters are::
               use_darkimage = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5697,13 +5334,11 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               mask_cr = True
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
@@ -5711,39 +5346,33 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -5787,7 +5416,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           [[[process]]]
               overscan_method = median
@@ -5795,7 +5423,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
@@ -5803,7 +5430,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
@@ -5811,7 +5437,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               overscan_method = median
@@ -5819,7 +5444,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           [[[process]]]
               overscan_method = median
@@ -5834,14 +5458,12 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               overscan_method = median
@@ -5849,7 +5471,6 @@ Alterations to the default parameters are::
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               overscan_method = median
@@ -5925,7 +5546,6 @@ Alterations to the default parameters are::
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
@@ -5933,7 +5553,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
@@ -5941,14 +5560,12 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
@@ -5956,7 +5573,6 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
           [[[process]]]
@@ -5968,20 +5584,17 @@ Alterations to the default parameters are::
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
@@ -6023,65 +5636,69 @@ Alterations to the default parameters are::
           [[[process]]]
               combine = median
               use_biasimage = False
+              use_overscan = False
               shot_noise = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
               mask_cr = True
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
               cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[tiltframe]]
           [[[process]]]
               cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[pinholeframe]]
           exprng = 999999, None
+          [[[process]]]
+              use_overscan = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
               cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[traceframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
-              use_specillum = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              use_overscan = False
               noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
+              use_overscan = False
               noise_floor = 0.01
       [[wavelengths]]
           method = full_template

@@ -28,7 +28,6 @@ from pypeit.core import fitting
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
-from IPython import embed
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
                     min_frac_use = 0.05):

@@ -101,6 +101,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
 
 
         # TODO We need to implement dark subtrction for the arcframe and tiltframe. Currently the pypeit file won't let me do this.
+        # TODO: I don't think cr_sigrej does anything !
         par['calibrations']['arcframe']['process']['cr_sigrej'] = 20.0
         #par['calibrations']['arcframe']['process']['combine'] = 'median'
         par['calibrations']['arcframe']['process']['mask_cr'] = True
@@ -123,6 +124,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
         par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
         par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.9

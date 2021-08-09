@@ -160,16 +160,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
         # JFH Is this correct?
         # Processing steps
-        turn_off = dict(use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        # Turn off the overscan
-        #for ftype in par['calibrations'].keys():
-        #    try:
-        #        par['calibrations'][ftype]['process']['overscan'] = 'none'
-        #    except (TypeError, KeyError):
-        #        pass
-        par['scienceframe']['process']['use_overscan'] = False
+        par.reset_all_processimages_par(use_overscan=False)
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
@@ -316,12 +307,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Turn off the overscan
-        for ftype in par['calibrations'].keys():
-            try:
-                par['calibrations'][ftype]['process']['overscan'] = 'none'
-            except (TypeError, KeyError):
-                pass
-        par['scienceframe']['process']['use_overscan'] = False
+        par.reset_all_processimages_par(use_overscan=False)
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method

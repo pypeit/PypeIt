@@ -89,7 +89,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] =  3
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
@@ -260,9 +261,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Return the expected spatial position of each echelle order.
         """
-        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
-                                   0.70260714, 0.86335914])
-        return ord_spat_pos
+        return np.array([0.22773035, 0.40613574, 0.56009658, 0.70260714, 0.86335914])
 
     @property
     def orders(self):

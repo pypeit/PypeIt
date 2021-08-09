@@ -29,7 +29,7 @@ the following components:
 
 .. math::
 
-    p = O + B + (C/s + D\ t_{\rm exp}) / \gamma
+    p = O + B + (C + D\ t_{\rm exp}) / \gamma
 
 where:
 
@@ -37,19 +37,25 @@ where:
       regions,
     - :math:`B` is a longer-term pixel-by-pixel bias estimate (in ADU) using
       bias images,
-    - the quantity :math:`C/s` is the number of electron counts excited by
+    - the quantity :math:`C=c/s` is the number of electron counts excited by
       photons hitting the detector,
     - :math:`1/s` is an efficiency factor (one of many) that accounts for relative
-      throughput factors that can be measured from flat-field frames,
-    - :math:`D` is a number of electron counts excited per second by thermal
-      energy,
+      throughput factors (see below) that can be measured from flat-field frames,
+    - :math:`D` is the rate at which the detector generates thermal electrons (in e-/s),
     - :math:`t_{\rm exp}` is the exposure time in seconds, and
     - :math:`\gamma` is the amplifier gain in e- per ADU.
 
-The goal of the basic image processing is to solve for :math:`C` in a set of
-science and calibration frames using a set of frames that isolate the detector
-bias, dark current, and relative throughput (initially via the pixel-flat
-frames).
+By "relative throughput," we mean the aggregate of relative (to, say, the center
+of the field) telescope+instrument+detector efficiency factors that can be
+measured from flat-field images, like pixel-to-pixel differences in quantum
+efficiency, vignetting, and the wavelength-dependent grating efficiency.  The
+goal of the basic image processing is to solve for :math:`c` in a set of science
+and calibration frames using a set of frames that isolate the detector bias,
+dark current, and relative throughput, to find:
+
+.. math::
+
+    c = s\ \left[ \gamma (p - O - B) - D\ t{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -57,23 +63,23 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm abs}(C/s + D t_{\rm exp} - \sqrt{2 V_{\rm rn}} ) +
-            V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 C^2
+    V = s^2\ \left[ {\rm abs}(C + D t_{\rm exp} - \sqrt{2 V_{\rm rn}} ) +
+            V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 c^2
 
 where
 
     - :math:`V_{\rm rn}` is the detector readnoise variance (i.e., read-noise
       squared),
-    - :math:`V_{\rm proc}` is added variance from image processing (e.g., bias
-      subtraction), and
+    - :math:`V_{\rm proc}` is added variance from image processing (i.e., this
+      term in includes uncertainty from the bias subtraction, etc.), and
     - :math:`\epsilon` is an added error term that imposes a maximum
       signal-to-noise on the scaled counts.
 
-The term within the absolute value brackets (:math:`C/s + D t_{\rm exp} -
-\sqrt{2 V_{\rm rn}}`) is referred to as the "shot noise" term and sets the
-Poisson count variance adjusted for the Gaussian approximation of a Poisson
-distribution throughout the rest of the code base (*need a reference for this*).
-The adjustment to the nominal Poisson variance is particularly important at low
+The term within the absolute value brackets (:math:`C + D t_{\rm exp} - \sqrt{2
+V_{\rm rn}}`) is referred to as the "shot noise" term and sets the Poisson count
+variance adjusted for the Gaussian approximation of a Poisson distribution
+throughout the rest of the code base (*need a reference for this*).  The
+adjustment to the nominal Poisson variance is particularly important at low
 count levels.
 
 .. _proc_algorithm:

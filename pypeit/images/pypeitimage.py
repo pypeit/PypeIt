@@ -71,7 +71,8 @@ class PypeItImage(datamodel.DataContainer):
                  # TODO: Use BUNIT instead?  This has a specific meaning in the
                  # FITS standard, so I'm not sure.
                  'units': dict(otype=str, descr='(Unscaled) Pixel units (e- or ADU)'),
-                 'exptime': dict(otype=float, descr='Effective exposure time (s)'),
+                 # TODO: Consider forcing exptime to be a float.
+                 'exptime': dict(otype=(int, float), descr='Effective exposure time (s)'),
                  'noise_floor': dict(otype=float, descr='Noise floor included in variance'),
                  'shot_noise': dict(otype=bool, descr='Shot-noise included in variance'),
                  'spat_flexure': dict(otype=float,

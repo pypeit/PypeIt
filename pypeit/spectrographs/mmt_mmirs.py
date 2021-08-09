@@ -164,6 +164,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # dark
+        # TODO: This is now the default.
         par['calibrations']['darkframe']['process']['apply_gain'] = True
 
         # cosmic ray rejection

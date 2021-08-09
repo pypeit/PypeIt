@@ -195,12 +195,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Subtract the detector pattern from certain frames
         par['calibrations']['biasframe']['process']['use_pattern'] = True
         par['calibrations']['darkframe']['process']['use_pattern'] = True
+        # TODO: Why is this False and the rest True?
         par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
 
         # Make sure the overscan is subtracted from the dark
+        # TODO: This is now the default.  use_biasimage also defaults to true
+        # for darks.  Should that be changed for KCWI?
         par['calibrations']['darkframe']['process']['use_overscan'] = True
 
         # Set the slit edge parameters

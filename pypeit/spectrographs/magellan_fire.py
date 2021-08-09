@@ -179,7 +179,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'

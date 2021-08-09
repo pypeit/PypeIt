@@ -12,7 +12,7 @@ Parameter                 Default    ``bias``   ``dark``   ``trace``  ``arc``   
 ``spat_flexure_correct``  ``False``                                                                                                                                     
 ``use_pixelflat``         ``True``   ``False``  ``False``  ``False``  ``False``  ``False``  ``False``  ``False``      ``False``                                         
 ``use_illumflat``         ``True``   ``False``  ``False``  ``False``  ``False``  ``False``  ``False``  ``False``      ``False``                                         
-``use_specillum``         ``True``   ``False``  ``False``  ``False``  ``False``  ``False``  ``False``  ``False``      ``False``                                         
+``use_specillum``         ``False``                                                                                                                                     
 ``shot_noise``            ``True``   ``False``                                                                                                                          
 ``noise_floor``           ``0.0``                                                                                                    ``0.01``  ``0.01``      ``0.01``   
 ``mask_cr``               ``False``             ``True``                                                                             ``True``  ``True``      ``True``   

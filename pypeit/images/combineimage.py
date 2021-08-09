@@ -33,7 +33,7 @@ class CombineImage:
             The 1-indexed detector number to process.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
-        files (array-like):
+        files (:obj:`str`, array-like):
             A set of one or more images to process and combine.
 
     Attributes:
@@ -138,8 +138,11 @@ class CombineImage:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
                        '"weightmean" or "median".')
 
-        # Instantiate the bitmask
-        bitmask = imagebitmask.ImageBitMask()
+        # If not provided, generate the bpm for this spectrograph and detector.
+        # Regardless of the file used, this must result in the same bpm, so we
+        # just use the first one.
+        if bpm is None:
+            bpm = self.spectrograph.bpm(self.files[0], self.det)
 
         # Loop on the files
         for kk, ifile in enumerate(self.files):
@@ -158,7 +161,7 @@ class CombineImage:
                 ivar_stack= np.ones(shape, dtype=float)
                 rn2img_stack = np.zeros(shape, dtype=float)
                 crmask_stack = np.zeros(shape, dtype=bool)
-                mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
+                mask_stack = np.zeros(shape, dtype=pypeitImage.fullmask.dtype)
                 lampstat = [None]*self.nfiles
 
             # Save the lamp status
@@ -179,9 +182,7 @@ class CombineImage:
             # to process_one and ignore the saturation when the mask is actually
             # built, rather than untoggling the bit here?
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.boolean_mask(flag='SATURATION')
-                pypeitImage.fullmask[indx] \
-                        = pypeitImage.bitmask.turn_off(pypeitImage.fullmask[indx], 'SATURATION')
+                pypeitImage.update_mask('SATURATION', action='turn_off')
             # TODO: Come back to this.
             mask_stack[kk] = pypeitImage.fullmask
 
@@ -217,7 +218,8 @@ class CombineImage:
             gpm = nstack > 0
             img_list_out = [np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),
                                          axis=0).filled(0.)]
-            # First calculate the error in the sum
+            # First calculate the error in the sum.  The variance is set to 0
+            # for pixels masked in all images.
             var_list_out = [np.ma.sum(np.ma.MaskedArray(var_stack, mask=bpm_stack),
                                       axis=0).filled(0.)]
             var_list_out += [np.ma.sum(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),
@@ -234,15 +236,12 @@ class CombineImage:
         # Build the last one
         final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
                                                     ivar=utils.inverse(var_list_out[0]),
-                            # TODO: Why is this `pypeitImage.bpm` and not
-                            # `np.logical_not(gpm)`?
-                                                    bpm=pypeitImage.bpm,
-                                                    rn2img=var_list_out[1],
+                                                    bpm=bpm, rn2img=var_list_out[1],
                             # TODO: The mask can be set for a bunch of reasons.
                             # Why identify all of the masked pixels as cosmic rays?
                                                     crmask=np.logical_not(gpm),
                                                     detector=pypeitImage.detector,
-                                                    PYP_SPEC=pypeitImage.PYP_SPEC)
+                                                    PYP_SPEC=self.spectrograph.name)
         # Internals
         final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
         final_pypeitImage.process_steps = pypeitImage.process_steps

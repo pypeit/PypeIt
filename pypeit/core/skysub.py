@@ -805,6 +805,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance.
                 if model_noise:
+                    # TODO: This can now be:
+                    # procimg.variance_model(rn2_img.flat[isub], counts=sky_bmodel+obj_bmodel,
+                    #                        darkcurr=darkcurr, exptime=exptime, proc_var=proc_var,
+                    #                        count_scale=count_scale, noise_floor=adderr,
+                    #                        shot_noise=True)
                     var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
                     var = var + adderr**2*(np.abs(sky_bmodel + obj_bmodel))**2
                     modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))

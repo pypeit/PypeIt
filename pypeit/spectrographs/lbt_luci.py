@@ -330,7 +330,8 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure
@@ -442,7 +443,8 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure

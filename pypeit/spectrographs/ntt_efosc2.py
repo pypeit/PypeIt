@@ -243,8 +243,9 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'Gr#5':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
             # Fringes are affecting this Grism significantly, skip flat fielding
-            par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_pixelflat'] = False
+            par['scienceframe']['process']['use_illumflat'] = False
+            par['scienceframe']['process']['use_specillum'] = False
 
         return par
 

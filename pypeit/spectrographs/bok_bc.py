@@ -171,9 +171,12 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # Turn off illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        # TODO: Note this comment doesn't match up with what's actually done...
+        # Require dark images to be subtracted from the flat images used for
+        # tracing, pixelflats, and illumflats
         par['calibrations']['traceframe']['process']['use_darkimage'] = False
         par['calibrations']['pixelflatframe']['process']['use_darkimage'] = False
         par['calibrations']['illumflatframe']['process']['use_darkimage'] = False

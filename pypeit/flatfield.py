@@ -384,7 +384,8 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib, spat_illum_only=False):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib,
+                 spat_illum_only=False):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -1431,3 +1432,6 @@ def merge(init_cls, merge_cls):
         dd[key] = namespace['val']
     # Construct the merged class
     return FlatImages(**dd)
+
+
+

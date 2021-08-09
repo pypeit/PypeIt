@@ -302,11 +302,12 @@ class ProcessImagesPar(ParSet):
         descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination ' \
                                  'profile of each slit.'
 
-        defaults['use_specillum'] = True
+        defaults['use_specillum'] = False
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct ' \
                                  'the spectral illumination profile of each slit. This is ' \
-                                 'primarily used for IFUs.'
+                                 'primarily used for IFUs.  To use this, you must set ' \
+                                 '``slit_illum_relative=True`` in the ``flatfield`` parameter set!'
 
         # Flexure
         defaults['spat_flexure_correct'] = False
@@ -627,9 +628,11 @@ class FlatFieldPar(ParSet):
                                   'edges.'
 
         defaults['slit_illum_relative'] = False
-        dtypes['slit_illum_relative'] = [bool]
+        dtypes['slit_illum_relative'] = bool
         descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination' \
-                                       'for a multi-slit setup.'
+                                       'for a multi-slit setup.  If you set ``use_slitillum = ' \
+                                       'True`` for any of the frames that use the flat-field ' \
+                                       'model, this *must* be set to True.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int

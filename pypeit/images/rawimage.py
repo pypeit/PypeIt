@@ -6,7 +6,11 @@
 
 import inspect
 from copy import deepcopy
+
+from IPython import embed
+
 import numpy as np
+
 from astropy import stats
 
 from pypeit import msgs
@@ -16,8 +20,6 @@ from pypeit.core import flexure
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
-
-from IPython import embed
 
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
 # we need both hdu and headarr?
@@ -111,8 +113,8 @@ class RawImage:
         # Attributes
         self.par = None
         self.ivar = None
-        self.var = None
         self.rn2img = None
+        self.proc_var = None
         self.spat_flexure_shift = None
         self.cnt_scale = None
         self._bpm = None
@@ -180,10 +182,9 @@ class RawImage:
             # Already applied
             msgs.warn('Gain was already applied.')
             return
-        gain = procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
-        self.image *= gain
-        # NOTE: In ``process``, ``apply_gain`` is called in
-        # first, meaning that all the variance arrays should be None.
+        self.image *= procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
+        # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
+        # the variance arrays should be None.
         self.steps[step] = True
 
     def build_ivar(self):
@@ -409,11 +410,6 @@ class RawImage:
         self.rn2img = self.build_rn2img()
         self.proc_var = np.zeros(self.rn2img.shape, dtype=float)
 
-#        self.var = self.rn2img.copy()
-#        # TODO: ivar is *not* tracked throughout processing.  It's only computed
-#        # at the end of the function!
-#        self.ivar = None
-
         #   - Subtract the overscan.  Uncertainty from the overscan subtraction
         #     is added to the variance.
         if self.par['use_overscan']:
@@ -451,7 +447,7 @@ class RawImage:
             self.subtract_dark(dark)
 
         # TODO: We should be performing the cosmic-ray detection/masking here,
-        # *before* flat-fielding.
+        # *before* flat-fielding, right?.
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
@@ -476,14 +472,14 @@ class RawImage:
         # NOTE: To reconstruct the variance model, you need rn2img, image,
         # detector, exptime, proc_var, cnt_scale, noise_floor, and shot_noise.
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                              proc_var=self.proc_var, img_scale=self.cnt_scale,
-                                              bpm=self.bpm, detector=self.detector,
-                                              spat_flexure=self.spat_flexure_shift,
-                                              PYP_SPEC=self.spectrograph.name,
-                                              units='e-' if self.par['apply_gain'] else 'ADU',
-                                              exptime=self.exptime,
-                                              noise_floor=self.par['noise_floor'],
-                                              shot_noise=self.par['shot_noise'])
+                                            proc_var=self.proc_var, img_scale=self.cnt_scale,
+                                            bpm=self.bpm, detector=self.detector,
+                                            spat_flexure=self.spat_flexure_shift,
+                                            PYP_SPEC=self.spectrograph.name,
+                                            units='e-' if self.par['apply_gain'] else 'ADU',
+                                            exptime=self.exptime,
+                                            noise_floor=self.par['noise_floor'],
+                                            shot_noise=self.par['shot_noise'])
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
@@ -717,7 +713,7 @@ class RawImage:
                                         method=self.par['overscan_method'],
                                         params=self.par['overscan_par'], var=self.rn2img)
         # Parse the returned value
-        if self.var is None:
+        if self.rn2img is None:
             self.image = ret
         else:
             self.image, _var = ret

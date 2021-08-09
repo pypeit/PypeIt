@@ -106,7 +106,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
-        # No ovescan region!
+        # No overscan region!
         turn_off = dict(use_overscan=False)
         par.reset_all_processimages_par(**turn_off)
 

@@ -487,13 +487,13 @@ def flatfield(sciframe, flatframe, varframe=None):
     # New image
     retframe = np.zeros_like(sciframe)
     gpm = flatframe > 0.
-    retframe[gpm] = sciframe[gpm]/final_flat[gpm]
+    retframe[gpm] = sciframe[gpm]/flatframe[gpm]
     if varframe is None:
         return retframe, np.logical_not(gpm)
 
     # Propagate the variance
     retvar = np.zeros_like(sciframe)
-    retvar[gpm] = varframe[gpm]/final_flat[gpm]**2
+    retvar[gpm] = varframe[gpm]/flatframe[gpm]**2
     return retframe, np.logical_not(gpm), retvar
 
 
