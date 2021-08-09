@@ -32,13 +32,13 @@
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /data/Projects/Python/PypeIt/doc)
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
       -d OUTPUT_PATH, --output_path OUTPUT_PATH
                             Path to top-level output directory. (default:
-                            /Users/westfall/Work/packages/pypeit/doc)
+                            /data/Projects/Python/PypeIt/doc)
       -o, --overwrite       Overwrite any existing files/directories (default:
                             False)
       -c CFG_SPLIT, --cfg_split CFG_SPLIT
