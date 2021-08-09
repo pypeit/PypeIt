@@ -68,3 +68,10 @@ def main(pargs):
             print("================ DET {:02d} ======================".format(det))
             spec2Dobj = allspec2D[det]
             print_slits(spec2Dobj.slits)
+
+def entry_point():
+    main(parse_args())
+
+
+if __name__ == '__main__':
+    entry_point()

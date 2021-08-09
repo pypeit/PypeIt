@@ -6,8 +6,6 @@ which do not have sufficient calibs
 .. include:: ../include/links.rst
 """
 
-from pypeit import defs
-from pypeit.scripts.utils import Utilities
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs import available_spectrographs
 

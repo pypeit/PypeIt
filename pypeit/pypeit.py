@@ -502,8 +502,8 @@ class PypeIt(object):
         # objfind
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
+            '''
             embed(header='505 -- deal with this merge!!')
-            # Instantiate Calibrations class
             self.caliBrate = calibrations.Calibrations.get_instance(
                 self.fitstbl, self.par['calibrations'], self.spectrograph,
                 self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
@@ -512,6 +512,7 @@ class PypeIt(object):
             # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            '''
             # run calibration
             self.caliBrate = self.calib_one(frames, self.det)
             if not self.caliBrate.success:
@@ -668,8 +669,12 @@ class PypeIt(object):
         # Instantiate Calibrations class
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
-            self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-            show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            self.calibrations_path, qadir=self.qa_path, 
+            reuse_masters=self.reuse_masters,
+            show=self.show, 
+            user_slits=slittrace.merge_user_slit(
+                self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
+            #slitspat_num=self.par['rdx']['slitspatnum'])
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
         caliBrate.run_the_steps()

@@ -4,7 +4,7 @@ from pypeit.scripts import scriptbase
 
 # The import of all the script modules here is what enables the dynamic
 # compiling of all the available scripts below
-from pypeit.scripts import chk_2dslits
+from pypeit.scripts import parse_slits
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
