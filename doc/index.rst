@@ -32,11 +32,17 @@
 .. |github| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
    :target: https://github.com/pypeit/PypeIt
 
+.. |pypeit_logo| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
+   :target: https://github.com/pypeit/PypeIt
 
 PypeIt |stars| |watch|
 ======================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
+
+.. raw:: html
+
+    <img src="_static/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
 
 **Version**: |version|
 
