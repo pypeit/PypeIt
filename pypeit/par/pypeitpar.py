@@ -497,7 +497,8 @@ class FlatFieldPar(ParSet):
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
-                 slit_illum_relative=None):
+                 slit_illum_relative=None, slit_illum_ref_idx=None,
+                 pixelflat_min_wave=None, pixelflat_max_wave=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -522,6 +523,7 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
+        # Pixel flat parameter keys
         defaults['pixelflat_file'] = None
         dtypes['pixelflat_file'] = str
         descr['pixelflat_file'] = 'Filename of the image to use for pixel-level field flattening'
@@ -542,6 +544,16 @@ class FlatFieldPar(ParSet):
                              'filter in pixels used to determine the slit illumination function, and thus sets the ' \
                              'minimum scale on which the illumination function will have features.'
 
+        defaults['pixelflat_min_wave'] = None
+        dtypes['pixelflat_min_wave'] = [int, float]
+        descr['pixelflat_min_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths below this value.'
+
+        defaults['pixelflat_max_wave'] = None
+        dtypes['pixelflat_max_wave'] = [int, float]
+        descr['pixelflat_max_wave'] = 'All values of the normalized pixel flat are set to 1 for wavelengths above this value.'
+
+
+        # Slits
         defaults['tweak_slits'] = True
         dtypes['tweak_slits'] = bool
         descr['tweak_slits'] = 'Use the illumination flat field to tweak the slit edges. ' \
@@ -614,6 +626,12 @@ class FlatFieldPar(ParSet):
                                    'extracted from the slit; \'continue\' - ignore the ' \
                                    'flat-field correction, but continue with the reduction.'
 
+        defaults['slit_illum_ref_idx'] = 0
+        dtypes['slit_illum_ref_idx'] = int
+        descr['slit_illum_ref_idx'] = 'The index of a reference slit (0-indexed) used for estimating ' \
+                                      'the relative spectral sensitivity (or the relative blaze). This' \
+                                      'parameter is only used if ``slit_illum_relative = True``.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -629,9 +647,10 @@ class FlatFieldPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
-                   'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
+                   'spat_samp', 'pixelflat_min_wave', 'pixelflat_max_wave',
+                   'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
-                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits']
+                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits', 'slit_illum_ref_idx']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -692,7 +711,8 @@ class FlexurePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
+    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
+                 multi_min_SN=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -725,6 +745,11 @@ class FlexurePar(ParSet):
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
+        # The following are all for MultiDet flexure
+        defaults['multi_min_SN'] = 1
+        dtypes['multi_min_SN'] = [int, float]
+        descr['multi_min_SN'] = 'Minimum S/N for analyzing sky spectrum for flexure'
+
         # Instantiate the parameter set
         super(FlexurePar, self).__init__(list(pars.keys()),
                                          values=list(pars.values()),
@@ -736,8 +761,10 @@ class FlexurePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
+
         k = np.array([*cfg.keys()])
-        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
+                   'multi_min_SN']
 #                   'spat_frametypes']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -899,7 +926,7 @@ class Coadd1DPar(ParSet):
         defaults['wave_method'] = 'linear'
         dtypes['wave_method'] = str
         descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
-                               "the wavelength is coadd1d.get_wave_grid. The options are:" \
+                               "the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are:" \
                                " "\
                                "'iref' -- Use the first wavelength array" \
                                "'velocity' -- Grid is uniform in velocity" \
@@ -1291,7 +1318,7 @@ class FluxCalibratePar(ParSet):
 
         defaults['extinct_correct'] = None
         dtypes['extinct_correct'] = bool
-        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UV algorithm is used ' \
+        descr['extinct_correct'] = 'The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used ' \
                                    '(which does not correct for telluric absorption) than an atmospheric extinction model ' \
                                    'is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then ' \
                                    'no extinction correction is applied since the atmosphere is modeled directly. To follow these' \
@@ -1346,6 +1373,7 @@ class SensFuncPar(ParSet):
 
         # Initialize the other used specifications for this parameter set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
@@ -1377,6 +1405,7 @@ class SensFuncPar(ParSet):
 
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
+        options['algorithm'] = SensFuncPar.valid_algorithms()
         descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
                              " (1) UVIS = Should be used for data with lambda < 7000A." \
                              "No detailed model of telluric absorption but corrects for atmospheric extinction." \
@@ -1421,9 +1450,10 @@ class SensFuncPar(ParSet):
         super(SensFuncPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
                                           defaults=list(defaults.values()),
+                                          options=list(options.values()),
                                           dtypes=list(dtypes.values()),
                                           descr=list(descr.values()))
-        self.validate()
+#        self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
@@ -1441,13 +1471,12 @@ class SensFuncPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    def validate(self):
+    @staticmethod
+    def valid_algorithms():
         """
-        Check the parameters are valid for the provided method.
+        Return the valid sensitivity algorithms.
         """
-        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
-            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
-        # JFH add other checks?
+        return ['UVIS', 'IR']
 
 
 class SensfuncUVISPar(ParSet):
@@ -1577,8 +1606,9 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None,
-                 slitmask_offset=None, extract_missing_objs=None):
+    def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
+                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
+                 use_alignbox=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1594,19 +1624,40 @@ class SlitMaskPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['obj_toler'] = 5.
+        defaults['obj_toler'] = 1.
         dtypes['obj_toler'] = float
-        descr['obj_toler'] = 'Tolerance (arcsec) to match source to targeted object'
+        descr['obj_toler'] = 'If slitmask design information is provided, and slit matching is performed ' \
+                             '(``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides ' \
+                             'the desired tolerance (arcsec) to match sources to targeted objects'
 
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool
         descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
 
-        defaults['slitmask_offset'] = 0.
+        defaults['use_alignbox'] = False
+        dtypes['use_alignbox'] = bool
+        descr['use_alignbox'] = 'Use stars in alignment boxes to compute the slitmask offset. ' \
+                                'If this is set to ``True`` PypeIt will NOT compute ' \
+                                'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+
+        defaults['nsig_thrshd'] = 50.
+        dtypes['nsig_thrshd'] = [int, float]
+        descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
+                               'be used to compute the slitmask offset. This is the default behaviour unless ' \
+                               '``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
+
+        defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
-        descr['slitmask_offset'] = 'Median offset in pixels of the slitmask from expected position. ' \
-                                   'This parameter is only used during the forced extraction of ' \
-                                   'undetected objects.'
+        descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
+                                   'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
+                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+
+        defaults['bright_maskdef_id'] = None
+        dtypes['bright_maskdef_id'] = int
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
+                                     'slit containing a bright object that will be used to compute the ' \
+                                     'slitmask offset. This parameter is optional and is ignored ' \
+                                     'if ``slitmask_offset`` is provided.'
 
         defaults['extract_missing_objs'] = False
         dtypes['extract_missing_objs'] = bool
@@ -1626,7 +1677,8 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'slitmask_offset', 'extract_missing_objs']
+        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset',
+                   'bright_maskdef_id', 'extract_missing_objs', 'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4604,8 +4656,8 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT', 'P200', 'BOK', 'GTC']
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 
+                'KPNO', 'NOT', 'P200', 'BOK', 'GTC', 'SOAR', 'NTT', 'LDT']
 
     def validate(self):
         pass
@@ -4631,6 +4683,7 @@ class TelescopePar(ParSet):
     def eff_aperture(self):
         return np.pi*self['diameter']**2/4.0 if self['eff_aperture'] is None else self['eff_aperture']
 
+
 class Collate1DPar(ParSet):
     """
     A parameter set holding the arguments for collating, coadding, and archving 1d spectra.
@@ -4638,7 +4691,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, slit_exclude_flags=[]):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4675,11 +4728,16 @@ class Collate1DPar(ParSet):
         descr['archive_root'] = "The path where files and metadata will be archived."
 
         # What slit flags to exclude
-        defaults['slit_exclude_flags'] = []
-        dtypes['slit_exclude_flags'] = [list, str]
-        descr['slit_exclude_flags'] = "A list of slit flags that should be excluded."
+        defaults['exclude_slit_trace_bm'] = []
+        dtypes['exclude_slit_trace_bm'] = [list, str]
+        descr['exclude_slit_trace_bm'] = "A list of slit trace bitmask bits that should be excluded."
 
         # What slit flags to exclude
+        defaults['exclude_serendip'] = False
+        dtypes['exclude_serendip'] = bool
+        descr['exclude_serendip'] = "Whether to exclude SERENDIP objects from collating."
+
+        # How to match objects
         defaults['match_using'] = 'ra/dec'
         options['match_using'] = [ 'pixel', 'ra/dec']
         dtypes['match_using'] = str
@@ -4696,7 +4754,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'slit_exclude_flags']
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4712,4 +4770,3 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
-

@@ -450,7 +450,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
                 inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
-                maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
+                prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
                 show_profile=False):
 
     """
@@ -517,7 +517,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
     totmask = inmask & (ivar > 0.0) & thismask
 
-    if maskwidth is None: 3.0*(np.max(thisfwhm) + 1.0)
     if prof_nsigma is not None:
         no_deriv = True
 
@@ -542,7 +541,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     # This adds an error floor to the fluxivar_sm, preventing too much rejection at high-S/N (i.e. standard stars)
     # TODO implement the ivar_cap function here in utils.
     sn_cap = 100.0
-    fluxivar_sm = utils.clip_ivar(flux_sm,fluxivar_sm0, sn_cap)
+    fluxivar_sm = utils.clip_ivar(flux_sm, fluxivar_sm0, sn_cap)
     indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
@@ -1288,6 +1287,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
+    # In some cases flux_spec can be totally masked and the result of sigma_clipped_stats is "masked"
+    # and that would crush in the following lines
+    # TODO investigate and fix this bug
+    if flux_mean is np.ma.core.MaskedConstant():
+        msgs.info('No objects found')
+        # Instantiate a null specobj
+        return specobjs.SpecObjs(), thismask[thismask]
 
     ##   New CODE
     # 1st iteration
@@ -2242,10 +2248,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 = tracepca.pca_trace_object(sobjs_final[indx_obj_id].TRACE_SPAT.T,
                                             order=coeff_npoly, npca=npca,
                                             pca_explained_var=pca_explained_var,
-                                        trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0),
+                                            trace_wgt=np.fmax(sobjs_final[indx_obj_id].ech_snr, 1.0)**2,
                                             debug=show_pca)
 
         # Trial and error shows weighting by S/N instead of S/N^2 performs better
+        # JXP -- Updated to now be S/N**2, i.e. inverse variance, with fitting fit
 
         # Perform iterative flux weighted centroiding using new PCA predictions
         xinit_fweight = pca_fits[:,:,iobj].copy()

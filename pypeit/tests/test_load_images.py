@@ -165,6 +165,33 @@ def test_load_bok():
     except:
         pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
 
+@dev_suite_required
+def test_load_efosc2():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/ntt_efosc2/gr6',
+                         'EFOSC.2020-02-12T02:03:38.359.fits')
+    try:
+        data_img = grab_img('ntt_efosc2', ifile)
+    except:
+        pytest.fail('NTT/EFOSC2 test data section failed: {0}'.format(ifile))
+
+@dev_suite_required
+def test_load_goodman():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/soar_goodman_red/M2',
+                         '0320_FRB210320_host_05-04-2021.fits.fz')
+    try:
+        data_img = grab_img('soar_goodman_red', ifile)
+    except:
+        pytest.fail('Bok BC test data section failed: {0}'.format(ifile))
+
+@dev_suite_required
+def test_load_deveny():
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/ldt_deveny/DV2',
+                         '20210522.0001.fits')
+    try:
+        data_img = grab_img('ldt_deveny', ifile)
+    except:
+        pytest.fail('LDT DeVeny test data section failed: {0}'.format(ifile))
+
 '''
 @dev_suite_required
 def test_load_fire():

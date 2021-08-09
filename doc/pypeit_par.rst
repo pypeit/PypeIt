@@ -282,9 +282,12 @@ Key                      Type               Options                            D
 ``illum_rej``            int, float         ..                                 5.0          The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.                                                                                                                                                                       
 ``method``               str                ``bspline``, ``skip``              ``bspline``  Method used to flat field the data; use skip to skip flat-fielding.  Options are: None, bspline, skip                                                                                                                                                                                                                                    
 ``pixelflat_file``       str                ..                                 ..           Filename of the image to use for pixel-level field flattening                                                                                                                                                                                                                                                                            
+``pixelflat_max_wave``   int, float         ..                                 ..           All values of the normalized pixel flat are set to 1 for wavelengths above this value.                                                                                                                                                                                                                                                   
+``pixelflat_min_wave``   int, float         ..                                 ..           All values of the normalized pixel flat are set to 1 for wavelengths below this value.                                                                                                                                                                                                                                                   
 ``rej_sticky``           bool               ..                                 False        Propagate the rejected pixels through the stages of the flat-field fitting (i.e, from the spectral fit, to the spatial fit, and finally to the 2D residual fit).  If False, pixels rejected in each stage are included in each subsequent stage.                                                                                         
 ``saturated_slits``      str                ``crash``, ``mask``, ``continue``  ``crash``    Behavior when a slit is encountered with a large fraction of saturated pixels in the flat-field.  The options are: 'crash' - Raise an error and halt the data reduction; 'mask' - Mask the slit, meaning no science data will be extracted from the slit; 'continue' - ignore the flat-field correction, but continue with the reduction.
 ``slit_illum_pad``       int, float         ..                                 5.0          The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.                                                                                                                                                                                                          
+``slit_illum_ref_idx``   int                ..                                 0            The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). Thisparameter is only used if ``slit_illum_relative = True``.                                                                                                                                                   
 ``slit_illum_relative``  bool               ..                                 False        Generate an image of the relative spectral illuminationfor a multi-slit setup.                                                                                                                                                                                                                                                           
 ``slit_trim``            int, float, tuple  ..                                 3.0          The number of pixels to trim each side of the slit when selecting pixels to use for fitting the spectral response function.  Single values are used for both slit edges; a two-tuple can be used to trim the left and right sides differently.                                                                                           
 ``spat_samp``            int, float         ..                                 5.0          Spatial sampling for slit illumination function. This is the width of the median filter in pixels used to determine the slit illumination function, and thus sets the minimum scale on which the illumination function will have features.                                                                                               
@@ -442,34 +445,34 @@ Coadd1DPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.Coadd1DPar`
 
-====================  ==========  =======  ==========  ======================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                           
-====================  ==========  =======  ==========  ======================================================================================================================================================================================================================================================================================================================================================================================================
-``coaddfile``         str         ..       ..          Output filename                                                                                                                                                                                                                                                                                                                                                                                       
-``ex_value``          str         ..       ``OPT``     The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'                                                                                                                                                                                                                                                                                                                        
-``filter``            str         ..       ``none``    Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none                                                                                                                                                                                                                                                                                                                    
-``filter_mag``        float       ..       ..          Magnitude of the source in the given filter                                                                                                                                                                                                                                                                                                                                                           
-``filter_mask``       str, list   ..       ..          List of wavelength regions to mask when doing the scaling (ie. occasional junk pixels).Colon and comma separateed, e.g.   5552:5559,6010:6030                                                                                                                                                                                                                                                         
-``flux_value``        bool        ..       True        If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False, it will coadd the counts.                                                                                                                                                                                                                                                                    
-``lower``             int, float  ..       3.0         Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.                                                                                                                                                                                                                                                                                                         
-``mag_type``          str         ..       ``AB``      Magnitude type.  AB is the only option currently allowed                                                                                                                                                                                                                                                                                                                                              
-``maxiter_reject``    int         ..       5           maximum number of iterations for stacking and rejection. The code stops iterating either when the output mask does not change betweeen successive iterations or when maxiter_reject is reached.                                                                                                                                                                                                       
-``maxiter_scale``     int         ..       5           Maximum number of iterations performed for rescaling spectra.                                                                                                                                                                                                                                                                                                                                         
-``maxrej``            int         ..       ..          Coadding performs iterative rejection by comparing each exposure to a preliminary stack of all the exposures. If this parameter is set then it will not reject more than maxrej pixels per iteration of this rejection. The default is None, which means no maximum on rejected pixels.                                                                                                               
-``nbest``             int         ..       ..          Number of orders to use for estimating the per exposure weights. Default is None, which will just use one fourth of the total number of orders. This is only used for Echelle                                                                                                                                                                                                                         
-``nmaskedge``         int         ..       2           Number of edge pixels to mask. This should be removed/fixed.                                                                                                                                                                                                                                                                                                                                          
-``ref_percentile``    int, float  ..       70.0        Percentile used for selecting the minimum SNR cut from a reference spectrum used to robustly determine the median ratio between spectra. This parameter is used by coadd1d.robust_median_ratio as part of the automatic rescaling procedure. Pixels above this percentile cut are deemed the "good" pixels and are used to compute the ratio of two spectra.  This must be a number between 0 and 100.
-``scale_method``      str         ..       ``auto``    Method used to rescale the spectra prior to coadding. The options are: 'auto' -- Determine the scaling method automatically based on the S/N ratio which works well'poly' -- Polynomial rescaling.'median' -- Median rescaling'none' -- Do not rescale.'hand' -- Pass in hand scaling factors. This option is not well tested.                                                                        
-``sensfuncfile``      str         ..       ..          File containing sensitivity function which is a requirement for echelle coadds. This is only used for Echelle                                                                                                                                                                                                                                                                                         
-``sigrej_scale``      int, float  ..       3.0         Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.                                                                                                                                                                                                                                                                                                                 
-``sn_clip``           int, float  ..       30.0        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ at a level greater than the formal S/N due to systematics.                                                                                                                                                            
-``sn_min_medscale``   int, float  ..       0.5         For scale method set to 'auto', this sets the minimum SNR for which median scaling is attempted                                                                                                                                                                                                                                                                                                       
-``sn_min_polyscale``  int, float  ..       2.0         For scale method set to 'auto', this sets the minimum SNR for which polynomial scaling is attempted.                                                                                                                                                                                                                                                                                                  
-``sn_smooth_npix``    int, float  ..       ..          Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If set to None (default), the code will determine the effective number of good pixels per spectrum in the stack that is being co-added and use 10% of this neff.                                                                                                                              
-``spec_samp_fact``    float       ..       1.0         Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels.                                                                                                                                                             
-``upper``             int, float  ..       3.0         Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.                                                                                                                                                                                                                                                                                                         
-``wave_method``       str         ..       ``linear``  Method used to construct wavelength grid for coadding spectra. The routine that creates the wavelength is coadd1d.get_wave_grid. The options are: 'iref' -- Use the first wavelength array'velocity' -- Grid is uniform in velocity'log10' -- Grid is uniform in log10(wave).This is the same as velocity.'linear' -- Grid is uniform in lamba.'concatenate' -- Meld the input wavelength arrays      
-====================  ==========  =======  ==========  ======================================================================================================================================================================================================================================================================================================================================================================================================
+====================  ==========  =======  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                                  
+====================  ==========  =======  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================
+``coaddfile``         str         ..       ..          Output filename                                                                                                                                                                                                                                                                                                                                                                                                              
+``ex_value``          str         ..       ``OPT``     The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'                                                                                                                                                                                                                                                                                                                                               
+``filter``            str         ..       ``none``    Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none                                                                                                                                                                                                                                                                                                                                           
+``filter_mag``        float       ..       ..          Magnitude of the source in the given filter                                                                                                                                                                                                                                                                                                                                                                                  
+``filter_mask``       str, list   ..       ..          List of wavelength regions to mask when doing the scaling (ie. occasional junk pixels).Colon and comma separateed, e.g.   5552:5559,6010:6030                                                                                                                                                                                                                                                                                
+``flux_value``        bool        ..       True        If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False, it will coadd the counts.                                                                                                                                                                                                                                                                                           
+``lower``             int, float  ..       3.0         Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.                                                                                                                                                                                                                                                                                                                                
+``mag_type``          str         ..       ``AB``      Magnitude type.  AB is the only option currently allowed                                                                                                                                                                                                                                                                                                                                                                     
+``maxiter_reject``    int         ..       5           maximum number of iterations for stacking and rejection. The code stops iterating either when the output mask does not change betweeen successive iterations or when maxiter_reject is reached.                                                                                                                                                                                                                              
+``maxiter_scale``     int         ..       5           Maximum number of iterations performed for rescaling spectra.                                                                                                                                                                                                                                                                                                                                                                
+``maxrej``            int         ..       ..          Coadding performs iterative rejection by comparing each exposure to a preliminary stack of all the exposures. If this parameter is set then it will not reject more than maxrej pixels per iteration of this rejection. The default is None, which means no maximum on rejected pixels.                                                                                                                                      
+``nbest``             int         ..       ..          Number of orders to use for estimating the per exposure weights. Default is None, which will just use one fourth of the total number of orders. This is only used for Echelle                                                                                                                                                                                                                                                
+``nmaskedge``         int         ..       2           Number of edge pixels to mask. This should be removed/fixed.                                                                                                                                                                                                                                                                                                                                                                 
+``ref_percentile``    int, float  ..       70.0        Percentile used for selecting the minimum SNR cut from a reference spectrum used to robustly determine the median ratio between spectra. This parameter is used by coadd1d.robust_median_ratio as part of the automatic rescaling procedure. Pixels above this percentile cut are deemed the "good" pixels and are used to compute the ratio of two spectra.  This must be a number between 0 and 100.                       
+``scale_method``      str         ..       ``auto``    Method used to rescale the spectra prior to coadding. The options are: 'auto' -- Determine the scaling method automatically based on the S/N ratio which works well'poly' -- Polynomial rescaling.'median' -- Median rescaling'none' -- Do not rescale.'hand' -- Pass in hand scaling factors. This option is not well tested.                                                                                               
+``sensfuncfile``      str         ..       ..          File containing sensitivity function which is a requirement for echelle coadds. This is only used for Echelle                                                                                                                                                                                                                                                                                                                
+``sigrej_scale``      int, float  ..       3.0         Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.                                                                                                                                                                                                                                                                                                                                        
+``sn_clip``           int, float  ..       30.0        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ at a level greater than the formal S/N due to systematics.                                                                                                                                                                                   
+``sn_min_medscale``   int, float  ..       0.5         For scale method set to 'auto', this sets the minimum SNR for which median scaling is attempted                                                                                                                                                                                                                                                                                                                              
+``sn_min_polyscale``  int, float  ..       2.0         For scale method set to 'auto', this sets the minimum SNR for which polynomial scaling is attempted.                                                                                                                                                                                                                                                                                                                         
+``sn_smooth_npix``    int, float  ..       ..          Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If set to None (default), the code will determine the effective number of good pixels per spectrum in the stack that is being co-added and use 10% of this neff.                                                                                                                                                     
+``spec_samp_fact``    float       ..       1.0         Make the wavelength grid  sampling finer (spec_samp_fact < 1.0) or coarser (spec_samp_fact > 1.0) by this sampling factor. This basically multiples the 'native' spectral pixels by spec_samp_fact, i.e. units spec_samp_fact are pixels.                                                                                                                                                                                    
+``upper``             int, float  ..       3.0         Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.                                                                                                                                                                                                                                                                                                                                
+``wave_method``       str         ..       ``linear``  Method used to construct wavelength grid for coadding spectra. The routine that creates the wavelength is :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`. The options are: 'iref' -- Use the first wavelength array'velocity' -- Grid is uniform in velocity'log10' -- Grid is uniform in log10(wave).This is the same as velocity.'linear' -- Grid is uniform in lamba.'concatenate' -- Meld the input wavelength arrays
+====================  ==========  =======  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -495,15 +498,16 @@ Collate1DPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.Collate1DPar`
 
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                   
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
-``archive_root``        str         ..       ..          The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                                                                           
-``dry_run``             bool        ..       False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                         
-``match_using``         str         ..       ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                           
-``slit_exclude_flags``  list, str   ..       []          A list of slit flags that should be excluded.                                                                                                                                                                                                                                                                                                                                                                 
-``tolerance``           str, float  ..       ``3.0``     The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
-======================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+Key                        Type        Options  Default     Description                                                                                                                                                                                                                                                                                                                                                                                                   
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
+``archive_root``           str         ..       ..          The path where files and metadata will be archived.                                                                                                                                                                                                                                                                                                                                                           
+``dry_run``                bool        ..       False       If set, the script will display the matching File and Object Ids but will not flux, coadd or archive.                                                                                                                                                                                                                                                                                                         
+``exclude_serendip``       bool        ..       False       Whether to exclude SERENDIP objects from collating.                                                                                                                                                                                                                                                                                                                                                           
+``exclude_slit_trace_bm``  list, str   ..       []          A list of slit trace bitmask bits that should be excluded.                                                                                                                                                                                                                                                                                                                                                    
+``match_using``            str         ..       ``ra/dec``  Determines how 1D spectra are matched as being the same object. Must be either 'pixel' or 'ra/dec'.                                                                                                                                                                                                                                                                                                           
+``tolerance``              str, float  ..       ``3.0``     The tolerance used when comparing the coordinates of objects. If two objects are within this distance from each other, they are considered the same object. If match_using is 'ra/dec' (the default) this is an angular distance. The defaults units are arcseconds but other units supported by astropy.coordinates.Angle can be used(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float.
+=========================  ==========  =======  ==========  ==============================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -516,6 +520,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 =================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
 Key                Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
 =================  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+``multi_min_SN``   int, float  ..                                 1                                                                               Minimum S/N for analyzing sky spectrum for flexure                                                                                                                                                                    
 ``spec_maxshift``  int, float  ..                                 20                                                                              Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
 ``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
 ``spectrum``       str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
@@ -529,12 +534,12 @@ FluxCalibratePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FluxCalibratePar`
 
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                  Type  Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``extinct_correct``  bool  ..       ..       The default behavior for atmospheric extinction corrections is that if UV algorithm is used (which does not correct for telluric absorption) than an atmospheric extinction model is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then no extinction correction is applied since the atmosphere is modeled directly. To follow thesedefaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this parameter is set, this overide this default behavior. In other words, it will force an extinction correctionif extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.
-``extrap_sens``      bool  ..       False    If False (default), the code will barf if one tries to use sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain can be extended. If True the code will blindly extrapolate.                                                                                                                                                                                                                                                                                                                                                                                                                     
-===================  ====  =======  =======  ===========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type  Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``extinct_correct``  bool  ..       ..       The default behavior for atmospheric extinction corrections is that if UVIS algorithm is used (which does not correct for telluric absorption) than an atmospheric extinction model is used to correct for extinction below 10000A, whereas if the IR algorithm is used, then no extinction correction is applied since the atmosphere is modeled directly. To follow thesedefaults based on the algorithm this parameter should be set to extinct_correct=None. If instead this parameter is set, this overide this default behavior. In other words, it will force an extinction correctionif extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.
+``extrap_sens``      bool  ..       False    If False (default), the code will barf if one tries to use sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain can be extended. If True the code will blindly extrapolate.                                                                                                                                                                                                                                                                                                                                                                                                                       
+===================  ====  =======  =======  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -706,9 +711,12 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
 Key                       Type        Options  Default  Description                                                                                                                                                                                                                                                                      
 ========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
 ``assign_obj``            bool        ..       False    If SlitMask object was generated, assign RA,DEC,name to detected objects                                                                                                                                                                                                         
+``bright_maskdef_id``     int         ..       ..       `maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a slit containing a bright object that will be used to compute the slitmask offset. This parameter is optional and is ignored if ``slitmask_offset`` is provided.                                     
 ``extract_missing_objs``  bool        ..       False    Force extraction of undetected objects at the location expected from the slitmask design. PypeIt will try to determine the FWHM from the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). If the FWHM cannot be determined, ``find_fwhm`` will be assumed.
-``obj_toler``             float       ..       5.0      Tolerance (arcsec) to match source to targeted object                                                                                                                                                                                                                            
-``slitmask_offset``       int, float  ..       0.0      Median offset in pixels of the slitmask from expected position. This parameter is only used during the forced extraction of undetected objects.                                                                                                                                  
+``nsig_thrshd``           int, float  ..       50.0     Objects detected above this significance threshold will be used to compute the slitmask offset. This is the default behaviour unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.                                                                      
+``obj_toler``             float       ..       1.0      If slitmask design information is provided, and slit matching is performed (``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides the desired tolerance (arcsec) to match sources to targeted objects                                                          
+``slitmask_offset``       int, float  ..       ..       User-provided slitmask offset (pixels) from the position expected by the slitmask design. This is optional, and if set PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                             
+``use_alignbox``          bool        ..       False    Use stars in alignment boxes to compute the slitmask offset. If this is set to ``True`` PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                                                            
 ========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
 
 
@@ -776,23 +784,23 @@ SensFuncPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.SensFuncPar`
 
-==================  =============================================  =======  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-Key                 Type                                           Options  Default                      Description                                                                                                                                                                                                                                                                                                                                                           
-==================  =============================================  =======  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
-``IR``              :class:`pypeit.par.pypeitpar.TelluricPar`      ..       `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                              
-``UVIS``            :class:`pypeit.par.pypeitpar.SensfuncUVISPar`  ..       `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                            
-``algorithm``       str                                            ..       ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with lambda < 7000A.No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with lambbda > 7000A.Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
-``extrap_blu``      float                                          ..       0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0-extrap_blu)*wave_min                                                                                                    
-``extrap_red``      float                                          ..       0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + extrap_red)*wave_max                                                                                                     
-``mask_abs_lines``  bool                                           ..       True                         Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit                                                                                                                                                                                                                                                                                           
-``multi_spec_det``  list                                           ..       ..                           List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS, GMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is)                                                                                                                                                                     
-``polyorder``       int, list                                      ..       5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                     
-``samp_fact``       float                                          ..       1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                  
-``star_dec``        float                                          ..       ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                   
-``star_mag``        float                                          ..       ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                   
-``star_ra``         float                                          ..       ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                    
-``star_type``       str                                            ..       ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                               
-==================  =============================================  =======  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+Key                 Type                                           Options           Default                      Description                                                                                                                                                                                                                                                                                                                                                           
+==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
+``IR``              :class:`pypeit.par.pypeitpar.TelluricPar`      ..                `TelluricPar Keywords`_      Parameters for the IR sensfunc algorithm                                                                                                                                                                                                                                                                                                                              
+``UVIS``            :class:`pypeit.par.pypeitpar.SensfuncUVISPar`  ..                `SensfuncUVISPar Keywords`_  Parameters for the UVIS sensfunc algorithm                                                                                                                                                                                                                                                                                                                            
+``algorithm``       str                                            ``UVIS``, ``IR``  ``UVIS``                     Specify the algorithm for computing the sensitivity function. The options are:  (1) UVIS = Should be used for data with lambda < 7000A.No detailed model of telluric absorption but corrects for atmospheric extinction. (2) IR = Should be used for data with lambbda > 7000A.Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
+``extrap_blu``      float                                          ..                0.1                          Fraction of minimum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the blue direction, i.e. if the standard star spectrumcuts off at wave_min, the sensfunc will be extrapolated to cover down to  (1.0-extrap_blu)*wave_min                                                                                                    
+``extrap_red``      float                                          ..                0.1                          Fraction of maximum wavelength coverage to grow the wavelength coverage of the sensitivitity function in the red direction, i.e. if the standard star spectrumcuts off at wave_max, the sensfunc will be extrapolated to cover up to  (1.0 + extrap_red)*wave_max                                                                                                     
+``mask_abs_lines``  bool                                           ..                True                         Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit                                                                                                                                                                                                                                                                                           
+``multi_spec_det``  list                                           ..                ..                           List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS, GMOS). It is assumed that there is *no* overlap in wavelength across detectors (might be ok if there is)                                                                                                                                                                     
+``polyorder``       int, list                                      ..                5                            Polynomial order for sensitivity function fitting                                                                                                                                                                                                                                                                                                                     
+``samp_fact``       float                                          ..                1.5                          sampling factor to make the wavelength grid for sensitivity function finer or coarser.  samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).                                                                                                                                                                                                  
+``star_dec``        float                                          ..                ..                           DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                   
+``star_mag``        float                                          ..                ..                           Magnitude of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                                   
+``star_ra``         float                                          ..                ..                           RA of the standard star. This will override values in the header, i.e. if they are wrong or absent                                                                                                                                                                                                                                                                    
+``star_type``       str                                            ..                ..                           Spectral type of the standard star (for near-IR mainly)                                                                                                                                                                                                                                                                                                               
+==================  =============================================  ================  ===========================  ======================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1753,6 +1761,7 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
+              clip = False
               cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
@@ -1803,6 +1812,8 @@ Alterations to the default parameters are::
           fit_order = 3
           minimum_slit_length_sci = 4.0
           minimum_slit_gap = 0.25
+      [[tilts]]
+          tracethresh = 10
   [scienceframe]
       [[process]]
           mask_cr = True
@@ -1964,6 +1975,7 @@ Alterations to the default parameters are::
           tweak_slits_thresh = 0.0
           tweak_slits_maxfrac = 0.0
           slit_illum_relative = True
+          slit_illum_ref_idx = 14
       [[slitedges]]
           fit_order = 4
   [scienceframe]
@@ -2063,6 +2075,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
   [scienceframe]
       exprng = 60, None
@@ -2150,6 +2163,7 @@ Alterations to the default parameters are::
           fit_order = 3
           fit_min_spec_length = 0.2
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
   [scienceframe]
       exprng = 60, None
@@ -2231,6 +2245,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
       [[tilts]]
           tracethresh = 25
@@ -2324,6 +2339,7 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 3
           sync_center = gap
+          minimum_slit_length = 4.0
           minimum_slit_length_sci = 6
       [[tilts]]
           tracethresh = 25
@@ -3230,6 +3246,95 @@ Alterations to the default parameters are::
   [flexure]
       spec_method = boxcar
 
+LDT deveny (``ldt_deveny``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = ldt_deveny
+  [calibrations]
+      bpm_usebias = True
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_illumflat = False
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+              use_illumflat = False
+      [[wavelengths]]
+          ech_fix_format = False
+          lamps = NeI, ArI, CdI, HgI
+          sigdetect = 10.0
+          fwhm_fromlines = True
+          rms_threshold = 0.5
+          n_first = 3
+          n_final = 5
+      [[slitedges]]
+          sync_predict = nearest
+          bound_detector = True
+          minimum_slit_length = 90.0
+      [[tilts]]
+          spat_order = 4
+          spec_order = 5
+  [scienceframe]
+      [[process]]
+          mask_cr = True
+          use_illumflat = False
+  [reduce]
+      [[findobj]]
+          sig_thresh = 5.0
+  [sensfunc]
+      polyorder = 7
+
 MAGELLAN FIRE (``magellan_fire``)
 ---------------------------------
 Alterations to the default parameters are::
@@ -4024,6 +4129,86 @@ Alterations to the default parameters are::
           mask_cr = True
           use_overscan = False
 
+NTT EFOSC2 (``ntt_efosc2``)
+---------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = ntt_efosc2
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+      [[standardframe]]
+          [[[process]]]
+              mask_cr = True
+      [[flatfield]]
+          tweak_slits_thresh = 0.9
+      [[wavelengths]]
+          method = full_template
+          lamps = HeI, ArI
+          sigdetect = 10.0
+          rms_threshold = 0.25
+      [[slitedges]]
+          edge_thresh = 75.0
+          sync_predict = nearest
+      [[tilts]]
+          tracethresh = 25.0
+  [scienceframe]
+      [[process]]
+          mask_cr = True
+  [reduce]
+      [[skysub]]
+          sky_sigrej = 5.0
+          global_sky_std = False
+          no_poly = True
+  [flexure]
+      spec_method = boxcar
+
 P200 DBSPb (``p200_dbsp_blue``)
 -------------------------------
 Alterations to the default parameters are::
@@ -4550,6 +4735,87 @@ Alterations to the default parameters are::
           mask_cr = True
   [flexure]
       spec_method = boxcar
+
+SOAR red (``soar_goodman_red``)
+-------------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = soar_goodman_red
+  [calibrations]
+      [[biasframe]]
+          [[[process]]]
+              apply_gain = False
+              combine = median
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          [[[process]]]
+              apply_gain = False
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          exprng = None, 30
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          [[[process]]]
+              use_biasimage = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              cr_sigrej = -1
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          [[[process]]]
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_biasimage = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+      [[standardframe]]
+          exprng = None, 120
+          [[[process]]]
+              mask_cr = True
+              use_biasimage = False
+      [[wavelengths]]
+          lamps = NeI, ArI, HgI
+          fwhm = 5.0
+          rms_threshold = 0.5
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          mask_cr = True
+          use_biasimage = False
 
 TNG DOLORES (``tng_dolores``)
 -----------------------------

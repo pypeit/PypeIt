@@ -20,6 +20,7 @@ from astropy import units
 
 from linetools import utils as ltu
 
+from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
@@ -29,6 +30,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
+from pypeit import msgs
 
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
@@ -763,26 +765,6 @@ def main(flg):
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
-    # P200 DBSP r
-    if flg & (2 ** 30):
-        # HeNeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
-        outroot = 'p200_dbsp_red_316_7500_d55.fits'
-        binspec = 1
-        slits = [221]
-        lcut = None # only matters if >1 slit
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
-    # P200 DBSP b
-    if flg & (2 ** 31):
-        # FeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
-        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
-        binspec = 1
-        slits = [231]
-        lcut = None
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
     # MMT/MMIRS
     if flg & (2**32):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
@@ -888,12 +870,6 @@ if __name__ == '__main__':
 
     # Keck KCWI
     #flg += 2**29
-
-    # P200 DBSP r
-    #flg += 2**30
-
-    # P200 DBSP b
-    #flg += 2**31
 
     # MMT MMIRS
     #flg += 2**32

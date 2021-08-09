@@ -52,6 +52,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # the data in the dev suite is unbinned.
         # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 6
+        # Remove slits that are too short
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
@@ -130,6 +132,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -194,6 +197,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return super().configuration_keys() + ['binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -957,6 +971,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '600/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_7500.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/10000':  # d680
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_10000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'

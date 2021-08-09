@@ -114,9 +114,12 @@ class WaveCalib(datamodel.DataContainer):
         # Return
         return _d
 
+    # TODO: Although I don't like doing it, kwargs is here to catch the
+    # extraneous keywords that can be passed to _parse from the base class but
+    # won't be used.
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+               hdu_prefix=None, **kwargs):
         """
         See datamodel.DataContainer for docs
 
@@ -370,8 +373,12 @@ class BuildWaveCalib:
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
+            ## We want to keep the 'BOXSLIT', which mask value is 2. But we don't want to keep 'BOXSLIT'
+            ## with other bad flag (for which the mask value would be > 2)
+            #self.wvc_bpm = mask > 2
             self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
+            #self.slitmask_science = self.slits.slit_img(initial=True, flexure=None, exclude_flag=['BOXSLIT'])
             self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape

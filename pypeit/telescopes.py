@@ -80,6 +80,14 @@ class VLTTelescopePar(TelescopePar):
 # VLT aperture from https://www.eso.org/observing/etc/doc/formulabook/node15.html
 # This seems unrealistic given that pi(8.2^2)/4 = 52.81
 
+class NTTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(NTTTelescopePar, self).__init__(name='NTT',
+                                              longitude=289.2700,
+                                              latitude=-29.2567,
+                                              elevation=2375,
+                                              diameter=3.58)
+
 class GeminiNTelescopePar(TelescopePar):
     def __init__(self):
         super(GeminiNTelescopePar, self).__init__(name='GEMINI-N',
@@ -90,10 +98,18 @@ class GeminiNTelescopePar(TelescopePar):
 class GeminiSTelescopePar(TelescopePar):
     def __init__(self):
         super(GeminiSTelescopePar, self).__init__(name='GEMINI-S',
-                                              longitude=70.8062,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
-                                              latitude=-30.1691,              # Latitude of the telescope
-                                              elevation=2200.0,               # Elevation of the telescope (in m)
+                                              longitude=70.7367,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.24075,              # Latitude of the telescope
+                                              elevation=2750.0,               # Elevation of the telescope (in m)
                                               diameter=8.1)
+
+class SOARTelescopePar(TelescopePar):
+    def __init__(self):
+        super(SOARTelescopePar, self).__init__(name='SOAR',
+                                              longitude=70.7336,              # Longitude of the telescope (NOTE: West should correspond to positive longitudes)
+                                              latitude=-30.2379,              # Latitude of the telescope
+                                              elevation=2713.0,               # Elevation of the telescope (in m)
+                                              diameter=4.1)                   # Ignores central obscuration
 
 class LBTTelescopePar(TelescopePar):
     def __init__(self):
@@ -143,3 +159,14 @@ class BokTelescopePar(TelescopePar):
                                               longitude=111.6004,
                                               latitude=31.9629,
                                               elevation=2071.1)
+
+class LDTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(LDTTelescopePar, self).__init__(name='LDT',
+                                              longitude=111.4223,
+                                              latitude=34.7443,
+                                              elevation=2361.0,
+                                              fratio=6.1,
+                                              diameter=4.3,
+                                              eff_aperture=49.5)
+

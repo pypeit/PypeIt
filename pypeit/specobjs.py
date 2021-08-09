@@ -6,6 +6,7 @@ Module for the SpecObjs and SpecObj classes
 """
 import os
 import re
+from typing import List
 
 import numpy as np
 
@@ -21,6 +22,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit import slittrace
+from pypeit import utils
 
 from IPython import embed
 
@@ -52,7 +54,7 @@ class SpecObjs:
     @classmethod
     def from_fitsfile(cls, fits_file, det=None, chk_version=True):
         """
-        Instantiate from a FITS file
+        Instantiate from a spec1d FITS file
 
         Also tag on the Header
 
@@ -96,6 +98,7 @@ class SpecObjs:
         # Return
         hdul.close()
         return slf
+
 
     def __init__(self, specobjs=None, header=None):
 
@@ -456,6 +459,30 @@ class SpecObjs:
         # Do it
         self.specobjs = self.specobjs[msk]
 
+    def ready_for_fluxing(self):
+        # Fluxing
+        required_header = ['EXPTIME', 'AIRMASS']  # These are sufficient to apply a sensitivity function
+        required_header += ['DISPNAME', 'PYP_SPEC', 'RA', 'DEC']  # These are to generate one
+        required_for_fluxing = ['_WAVE', '_COUNTS', '_IVAR']
+
+        chk = True
+        # Check header
+        for key in required_header:
+            chk &= key in self.header
+
+        for sobj in self.specobjs:
+            sub_box, sub_opt = True, True
+            if sobj is not None:
+                # Only need one of these but need them all
+                for item in required_for_fluxing:
+                    if hasattr(sobj, 'BOX'+item):
+                        sub_box &= True
+                    if hasattr(sobj, 'OPT'+item):
+                        sub_opt &= True
+                # chk
+                chk &= (sub_box or sub_opt)
+        return chk
+
     def copy(self):
         """
         Generate a copy of self
@@ -779,6 +806,49 @@ class SpecObjs:
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
+    def get_extraction_groups(self, model_full_slit=False) -> List[List[int]]:
+        """
+        Returns:
+            List[List[int]]: A list of extraction groups, each of which is a list of integer
+                object indices that should be extracted together by core.skysub.local_skysub_extract
+        """
+        nobj = len(self.specobjs)
+
+        if model_full_slit:
+            return [list(range(nobj))]
+
+        # initialize adjacency matrix
+        adj = np.full((nobj, nobj), dtype=bool, fill_value=False)
+        ## build adjacency matrix
+        # adj[i, j] is True iff objects i and j are touching each other
+        for i in range(nobj):
+            left_edge_i = self.specobjs[i].TRACE_SPAT - self.specobjs[i].maskwidth - 1
+            righ_edge_i = self.specobjs[i].TRACE_SPAT + self.specobjs[i].maskwidth + 1
+            for j in range(i + 1, nobj):
+                left_edge_j = self.specobjs[j].TRACE_SPAT - self.specobjs[j].maskwidth - 1
+                righ_edge_j = self.specobjs[j].TRACE_SPAT + self.specobjs[j].maskwidth + 1
+
+                touch = (left_edge_j < righ_edge_i) & (left_edge_i < righ_edge_j)
+
+                if touch.any():
+                    adj[i, j] = True
+                    adj[j, i] = True
+
+        ## Find all connected components in the graph of objects.
+        # One call to DFS will visit every object it can that is "connected" to
+        # the starting object by the touching relation.
+        visited = [False]*nobj
+        groups = []
+        while not all(visited):
+            # pick a starting unvisited vertex
+            v = visited.index(False)
+            group = []
+            # DFS starting at v. Afterwards, group contains every object that
+            # is "connected" to v by the touching relation.
+            utils.DFS(v, visited, group, adj)
+            groups.append(group)
+
+        return groups
 
 
 def lst_to_array(lst, mask=None):

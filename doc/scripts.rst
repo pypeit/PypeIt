@@ -2,12 +2,41 @@
 PypeIt scripts
 **************
 
-PypeIt is packaged with several scripts that should have
-been installed directly into your path (e.g. ~/anaconda/bin).
+``PypeIt`` is packaged with several scripts that should have been installed
+directly into your path (e.g. ``~/anaconda/bin``).
+
+**If you are developing a new script, see :ref:`new_script`.**
+
+Installation Scripts
+++++++++++++++++++++
+
+pypeit_install_telluric
+=======================
+
+After downloading the atmospheric model grids for use in fitting telluric
+absorption, this script "installs" the files by creating symlinks to them within
+the ``PypeIt`` code base.  See :ref:`data_installation`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_install_telluric.rst
+
+pypeit_install_ql_masters
+=========================
+
+After downloading the ``QL_MASTERS`` directory for use with the quick-look
+scripts, this script "installs" the files by creating a symlink to it within the
+``PypeIt`` code base.  See :ref:`data_installation`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_install_ql_masters.rst
+
 
 Pipeline Scripts
 ++++++++++++++++
-
 
 pypeit_chk_for_calibs
 =====================
@@ -32,6 +61,14 @@ to the screen::
     ------ -------- ---------------
          A False ALDc200205.fits
       None True
+
+
+pypeit_obslog
+=============
+
+The ``pypeit_obslog`` script allows you to see a simple listing of the data
+files in a given directory (or directories) and the metadata that ``PypeIt``
+will pull from their headers.  See :ref:`pypeit_obslog` for details.
 
 
 .. _pypeit-setup:
@@ -81,28 +118,6 @@ The script usage can be displayed by calling the script with the
 Calibration Scripts
 +++++++++++++++++++
 
-pypeit_arcid_plot
-=================
-
-Generate a PDF plot from a MasterFrame_WaveCalib.json file.
-This may be useful to ID lines in other data.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_arcid_plot.rst
-
-
-pypeit_lowrdx_pixflat
-=====================
-
-Convert a LowRedux pixel flat into a PypeIt ready file.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_lowrdx_pixflat.rst
-
 pypeit_chk_edges
 ================
 
@@ -126,6 +141,46 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_chk_flats.rst
+
+.. _pypeit_chk_2dslits:
+
+pypeit_chk_2dslits
+==================
+
+This script prints a simple summary of the state of the reduction
+for all of the slits in a given :doc:`out_spec2D` file.  
+Here is a standard call::
+
+    pypeit_chk_2dslits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
+
+And the output to screen will look like:
+
+.. code-block:: bash
+
+    ================ DET 04 ======================
+    SpatID  MaskID  Flags
+    0021    958445    None
+    0073    958470    None
+    0143    958434    None
+    0212    958458    None
+    0278    958410    None
+    0479    958400    None
+    1257    958466    None
+    1352    958392    BOXSLIT
+    1413    958396    None
+    1492    958403    None
+    1568    958457    None
+    1640    958405    None
+    1725    958435    None
+    1818    958422    None
+    1880    958390    BOXSLIT
+    1984    958393    BOXSLIT
+
+The MaskID will be populated only if the instrument includes
+mask design (e.g. Keck/DEIMOS).  The Flags column describes
+failure modes or reasons why the slit was not reduced.
+*None* is the preferred state for a science slit.
+
 
 pypeit_flux_setup
 =================

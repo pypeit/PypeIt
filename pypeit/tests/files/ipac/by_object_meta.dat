@@ -1,5 +1,7 @@
-|                                          filename|maskdef_objname|maskdef_id| det|      ra|    dec|dispname| decker|binning|    mjd|airmass|exptime|             source_id|guidfwhm|pjrogpi|semester|progid|
-|                                              char|           char|      char|long|  double| double|    char|   char|   char|   char|   char|   char|                  char|    char|   char|    char|  char|
-|                                                  |               |          |    |        |       |        |       |       |       |       |       |                      |        |       |        |      |
-|                                              null|           null|      null|null|    null|   null|    null|   null|   null|   null|   null|   null|                  null|    null|   null|    null|  null|
- spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits         object1       1001    1 201.1517 27.3246     830G Z6CL01B     1,1 58878.0     1.0  1200.0 DE.20100913.22358.fits     None    None     None   None 
+|  id|                                                file| name|
+|long|                                                char| char|
+|    |                                                    |     |
+|null|                                                null| null|
+    2 spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits part1 
+    2 spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits part2 
+    2 spec1d_b28-J1217p3905_KASTb_20150520T051801.470.fits part3 

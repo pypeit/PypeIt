@@ -181,6 +181,8 @@ class PypeItMetaData:
 
             # Add the directory and file name to the table
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
+            if not data['directory'][idx]:
+                data['directory'][idx] = '.'
 
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
@@ -465,7 +467,7 @@ class PypeItMetaData:
         return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
                                            self['target'][row].replace(" ", ""),
                                            self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
     def get_setup(self, row, det=None, config_only=False):

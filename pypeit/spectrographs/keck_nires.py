@@ -141,6 +141,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTR')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
 
     def configuration_keys(self):
         """
@@ -170,7 +171,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         pypeit_keys = super().pypeit_file_keys()
         # TODO: Why are these added here? See
         # pypeit.metadata.PypeItMetaData.set_pypeit_cols
-        pypeit_keys += ['calib', 'comb_id', 'bkg_id']
+        pypeit_keys += ['frameno', 'calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
