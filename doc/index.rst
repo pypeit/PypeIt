@@ -42,7 +42,7 @@ PypeIt |stars| |watch|
 
 .. raw:: html
 
-    <img src="_static/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
+    <img src="figures/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
 
 **Version**: |version|
 
