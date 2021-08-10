@@ -3,6 +3,7 @@
 import glob
 import os
 import datetime
+from astropy.io.fits import header
 from pkg_resources import resource_filename
 from collections import OrderedDict
 
@@ -287,10 +288,9 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
     # Restrict on the spectrograph?
     if restrict_on_instr:
         instr_dict = defs.instruments()
-        gdI = line_lists['Instr'] & (instr_dict[restrict_on_instr])
+        gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
         line_lists = line_lists[gdI]
         
-
     # Unknown
     if unknown:
         unkn_lines = load_unknown_list(lines)
