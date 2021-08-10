@@ -165,10 +165,10 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
 
     # Run me!
     redux_path = os.path.dirname(science_pypeit)  # Path to PypeIt file
-    run_pargs = run_pypeit.parse_args([science_pypeit,
+    run_pargs = run_pypeit.RunPypeIt.parse_args([science_pypeit,
                                    '-r={}'.format(redux_path),
                                    ])
-    run_pypeit.main(run_pargs)
+    run_pypeit.RunPypeIt.main(run_pargs)
 
 
 def parse_args(options=None, return_parser=False):
