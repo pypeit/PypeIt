@@ -231,7 +231,8 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     return line_list
 
 
-def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
+def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
+                    restrict_on_instr=None):
     """
     Loads a series of line list files
 
@@ -243,6 +244,8 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
         Skip missing line lists (mainly for building)
     NIST : bool, optional
         Load the full NIST linelists
+    restrict_on_instr : str, optional
+        Restrict according to the input spectrograph
 
     Returns
     -------
@@ -280,6 +283,13 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
     if len(lists) == 0:
         return None
     line_lists = vstack(lists, join_type='exact')
+
+    # Restrict on the spectrograph?
+    if restrict_on_instr:
+        instr_dict = defs.instruments()
+        gdI = line_lists['Instr'] & (instr_dict[restrict_on_instr])
+        line_lists = line_lists[gdI]
+        
 
     # Unknown
     if unknown:
