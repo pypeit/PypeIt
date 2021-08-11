@@ -614,7 +614,7 @@ class Spectrograph:
             print('{0}   {1}'.format(key.rjust(nk), card.rjust(nc)))
         print('')
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Read/Set the detector metadata.
 
@@ -659,7 +659,7 @@ class Spectrograph:
         hdu = io.fits_open(raw_file)
 
         # Grab the DetectorContainer
-        detector = self.get_detector_par(hdu, det)
+        detector = self.get_detector_par(det, hdu=hdu)
 
         # Raw image
         raw_img = hdu[detector['dataext']].data.astype(float)

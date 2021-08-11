@@ -53,32 +53,47 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # EarthLocation. KBW: Fine with me!
         self.location = EarthLocation.of_site('Keck Observatory')
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            KCWI.  The optional use of ``hdu`` is only viable for automatically
+            generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Some properties of the image
-        head0 = hdu[0].header
-        binning = self.compound_meta(self.get_headarr(hdu), "binning")
-        numamps = head0['NVIDINP']
-        specflip = True if head0['AMPID1'] == 2 else False
-        gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
-        ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
-        dsecarr = np.array(['']*numamps)
+        if hdu is None:
+            binning = '1,1'
+            specflip = True
+            numamps = None
+            gainarr = None
+            ronarr = None
+            dsecarr = None
+        else:
+            # Some properties of the image
+            head0 = hdu[0].header
+            binning = self.compound_meta(self.get_headarr(hdu), "binning")
+            numamps = head0['NVIDINP']
+            specflip = True if head0['AMPID1'] == 2 else False
+            gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
+            ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
+            dsecarr = np.array(['']*numamps)
 
-        for ii in range(numamps):
-            # Assign the gain for this amplifier
-            gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)]# * gainmul
+            for ii in range(numamps):
+                # Assign the gain for this amplifier
+                gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)]# * gainmul
 
         detector = dict(det             = det,
                         binning         = binning,
@@ -94,8 +109,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         numamplifiers   = numamps,
                         gain            = gainarr,
                         ronoise         = ronarr,
-                        datasec         = dsecarr.copy(),     # <-- This is provided in the header
-                        oscansec        = dsecarr.copy(),     # <-- This is provided in the header
+                        datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
+                        oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
                         )
         # Return
         return detector_container.DetectorContainer(**detector)
@@ -511,7 +526,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading KCWI file: {:s}".format(fil[0]))
         hdu = io.fits_open(fil[0])
-        detpar = self.get_detector_par(hdu, det if det is not None else 1)
+        detpar = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         head0 = hdu[0].header
         raw_img = hdu[detpar['dataext']].data.astype(float)
 

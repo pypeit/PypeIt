@@ -113,23 +113,41 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
     comment = 'Supported gratings: M1, M2 and 2x2 binning'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            SOAR/Goodman-Red.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        header = hdu[1].header
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '2,2'
+            gain = None
+            ronoise = None
+            datasec = None
+            oscansec = None
+        else:
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu[1].header), 'binning')
+            gain = np.atleast_1d(hdu[1].header['GAIN'])
+            ronoise = np.atleast_1d(hdu[1].header['RDNOISE'])
+            datasec = None
+            oscansec = None
 
         # Detector 1
         detector_dict = dict(
@@ -145,14 +163,19 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             nonlinear       = 1.0,
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(header['GAIN']),
-            ronoise         = np.atleast_1d(header['RDNOISE']),
+            gain            = gain,
+            ronoise         = ronoise,
+            datasec         = datasec,
+            oscansec        = oscansec
             )
+
+        if hdu is None:
+            return detector_container.DetectorContainer(**detector_dict)
         
         # Only tested for 2x2
         if binning == '2,2':
             # parse TRIMSEC
-            col0 = int(header['TRIMSEC'][1:].split(':')[0])
+            col0 = int(hdu[1].header['TRIMSEC'][1:].split(':')[0])
             dsec = f"[:,{col0*2}:]"  # rows, columns on the raw frame
             detector_dict['datasec'] = np.atleast_1d(dsec)
             # Overscan

@@ -66,7 +66,7 @@ def get_kastb_detector():
     """
     spectrograph = load_spectrograph('shane_kast_blue')
     hdul = fits.HDUList([])
-    return spectrograph.get_detector_par(hdul, 1)
+    return spectrograph.get_detector_par(1, hdu=hdul)
 
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):

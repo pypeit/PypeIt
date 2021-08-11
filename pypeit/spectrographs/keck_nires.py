@@ -26,7 +26,22 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRES only
+                has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
         # Detector 1
         detector_dict = dict(
             binning='1,1',
@@ -46,8 +61,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):

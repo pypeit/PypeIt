@@ -928,17 +928,19 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
 
     .. math::
 
-        V = s^2 * \left[ | C/s + D t_{\rm exp} - \sqrt(2 V_{\rm rn}) | +
-                V_{\rm rn} + V_{\rm proc} \right] + (\epsilon\ C)^2
+        V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} +
+                V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
-    where
+    where:
 
-        - :math:`C` is the scaled number of (source+sky) counts, where the
-          scaling is based on relative throughput measurements from the
-          flat-field frames (see ``counts``),
-        - :math:`s` is the scale factor (e.g., inverse of the flat-field
-          correction; see ``count_scale``),
-        - :math:`D` is the dark current in electrons per second (see ``darkcurr``),
+        - :math:`c=s\ C` are the rescaled counts, which when a scaling has been
+          applied (see ``count_scale``) is what should be provided as ``counts``,
+        - :math:`C` is the observed number of image counts (see ``counts`` and
+          ``count_scale``),
+        - :math:`s` is a scale factor derived from the (inverse of the)
+          flat-field frames (see ``count_scale``),
+        - :math:`D` is the dark current in electrons per second (see
+          ``darkcurr``),
         - :math:`t_{\rm exp}` is the effective exposure time (see ``exptime``),
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
           read-noise squared; see ``rn_var``),
@@ -947,12 +949,13 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         - :math:`\epsilon` is an added error term that imposes a maximum
           signal-to-noise on the observed counts (see ``noise_floor``).
 
-    The term within the absolute value brackets (:math:`C/s + D t_{\rm exp} -
-    \sqrt(2 V_{\rm rn})`) is the referred to as the "shot noise" term (see
-    ``shot_noise``) and sets the Poisson count variance adjusted for the
-    Gaussian approximation of a Poisson distribution throughout the rest of the
-    code base (*need a reference for this*).  The adjustment to the nominal
-    Poisson variance is particularly important at low count levels.
+    We emphasize that this is a *model* for the per-pixel image variance.  In
+    real data, the as-observed pixel values are used to estimate the Poisson
+    error in the observed counts.  Because of the variance in the image, this
+    systematically overestimates the variance toward low counts (:math:`\lesssim
+    2 \sigma_{\rm rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm
+    rn}` for :math:`C=0` (i.e., about 20% for a readnoise of 2 e-) and less than
+    10% for :math:`C=1`.
 
     .. note::
 
@@ -977,7 +980,7 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
             float, assumed to be constant across the full image.  If an array,
             the shape must match ``rn_var``.
         exptime (:obj:`float`, optional):
-            Exposure time in seconds.  If None, darkcurrent *must* be
+            Exposure time in seconds.  If None, dark current *must* be
             in electrons.
         proc_var (:obj:`float`, `numpy.ndarray`_, optional):
             Additional variance terms to include that are due to the image
@@ -997,7 +1000,8 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
             ``1/noise_floor``.  If None, no noise floor is added.  If not None,
             ``counts`` *must* be provided.
         shot_noise (:obj:`bool`, optional):
-            Include the shot noise term in the calculation.  If True, ``counts``
+            Include the shot noise terms, the photon counts from the sky and the
+            dark current, in the calculation.  If True, ``counts``
             *must* be provided.
 
     Returns:
@@ -1022,30 +1026,37 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         msgs.error('Dark image and readnoise variance have different shape.')
 
     # Build the variance
+    #   - First term is 0 if counts not provided or if shot noise shouldn't be
+    #     included, set to the clipped count values otherwise.
     var = np.zeros(rn_var.shape, dtype=float) if counts is None or not shot_noise \
-            else counts.copy()
+            else np.clip(counts, 0, None)
+    #   - Convert (revert) from scaled counts to observed counts
     if count_scale is not None:
+        # Check the input type
         _count_scale = count_scale.copy() if isinstance(count_scale, np.ndarray) \
                         else np.full(var.shape, count_scale, dtype=float)
         # TODO: Should this instead be np.logical_not(np.absolute(count_scale) > 0)?
         indx = count_scale > 0.
         _count_scale[np.logical_not(indx)] = 0.
         if counts is not None:
-            # Convert from scaled counts back to actual counts
+            # Convert (revert) from scaled counts to observed counts
             var[indx] /= _count_scale[indx]
-    if shot_noise:
-        if darkcurr is not None:
-            var += darkcurr if exptime is None else darkcurr * exptime
-        var = np.absolute(var - np.sqrt(2*rn_var))
+    #   - Add the dark current
+    if shot_noise and darkcurr is not None:
+        var += darkcurr if exptime is None else darkcurr * exptime
+    #   - Add the readnoise
     var += rn_var
+    #   - Add the processing noise
     if proc_var is not None:
         var += proc_var
+    #   - Propagate the scaling to the variance
     if count_scale is not None:
-        # Propagate the scaling to the variance
         # NOTE: This means the variance will be 0 where count_scale <= 0.
         var *= _count_scale**2
+    #   - Add the noise floor
     if noise_floor is not None and noise_floor > 0.:
         var += (noise_floor * counts)**2
+    # Done
     return var
 
 

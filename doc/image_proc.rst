@@ -55,7 +55,7 @@ dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ \gamma (p - O - B) - D\ t{\rm exp} \right]
+    c = s\ \left[ \gamma (p - O - B) - D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -63,8 +63,8 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm abs}(C + D t_{\rm exp} - \sqrt{2 V_{\rm rn}} ) +
-            V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 c^2
+    V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} +
+            V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
 where
 
@@ -75,12 +75,13 @@ where
     - :math:`\epsilon` is an added error term that imposes a maximum
       signal-to-noise on the scaled counts.
 
-The term within the absolute value brackets (:math:`C + D t_{\rm exp} - \sqrt{2
-V_{\rm rn}}`) is referred to as the "shot noise" term and sets the Poisson count
-variance adjusted for the Gaussian approximation of a Poisson distribution
-throughout the rest of the code base (*need a reference for this*).  The
-adjustment to the nominal Poisson variance is particularly important at low
-count levels.
+We emphasize that this is a *model* for the per-pixel image variance,
+particularly because we are using the as-observed pixel value to estimate the
+Poisson error in the observed counts.  This estimate systematically
+overestimates the variance toward low counts (:math:`\lesssim 2 \sigma_{\rm
+rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm rn}` for :math:`C=0`
+(i.e., about 20% for a readnoise of 2 e-) and less than 10% (for any readnoise)
+when :math:`C\geq1`.
 
 .. _proc_algorithm:
 
@@ -102,12 +103,12 @@ First, the image units are converted to electron counts using the gain (in
 e-/ADU) for each amplifier.  Even though :math:`O` and :math:`B` are in ADU in
 the equation for :math:`p` above, they can be measured in e- by applying the
 gain.  More importantly, how they are measured must be consistent across all
-images.  The ``apply_gain`` parameter defaults to true, and you should likely
-never need to change this.  However, if you do, **make sure you change it for
-all images you process**; i.e., you don't want to be bias subtracting an image
-in ADU (``apply_gain = False``) from an image in e- (``apply_gain = True``).
-The units of the processed images are saved to the image header as ``UNITS``,
-which can be either ``'e-'`` or ``'ADU'``.
+images.  The ``apply_gain`` parameter defaults to true, and you should rarely
+(if ever) want to change this.  However, if you do, **make sure you change it
+for all images you process**; i.e., you don't want to be bias subtracting an
+image in ADU (``apply_gain = False``) from an image in e- (``apply_gain =
+True``).  The units of the processed images are saved to the image header as
+``UNITS``, which can be either ``'e-'`` or ``'ADU'``.
 
 Pattern-Noise Subtraction
 -------------------------
@@ -119,14 +120,15 @@ in its bias.  :func:`~pypeit.images.rawimage.RawImage.subtract_pattern` models
 and subtracts this pattern from the data based on the overscan regions.  Unless
 you know such a pattern exists in your data, you should set the ``use_pattern``
 option to false (the default) for *all* frames.  Currently no error associated
-with this pattern subtraction is included in the image-processing error budget.
+with this pattern subtraction is included in the image-processing error budget
+(unless the readnoise is determined empirically; see below).
 
 Read and Digitization Noise
 ---------------------------
 
 Readnoise variance, :math:`V_{\rm rn}`, is calculated by
 :func:`~pypeit.core.procimg.rn2_frame`.  The calculation requires the detector
-read noise (RN in elections, e-) and, possibly, gain (:math:`\gamma` in e-/ADU)
+readnoise (RN in elections, e-) and, possibly, gain (:math:`\gamma` in e-/ADU)
 for each amplifier, which are provided for each amplifier by the
 :class:`~pypeit.images.detector_container.DetectorContainer` object defined for
 each detector in each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
@@ -178,11 +180,11 @@ wavelengths at large pixel coordinates --- and the spatial or cross-dispersion
 direction to be along the second axis --- with echelle orders running from the
 highest order at small pixel coordinates to the lowest order at large pixel
 coordinates.  That is, the shape of the images is always (roughly) the number of
-spectral pixels by the number of spatial pixels, often referred to in the
+spectral pixels by the number of spatial pixels, often referred to in our
 documentation as ``(nspec,nspat)``.  The operations required to flip/transpose
-the image arrays to match the ``PypeIt`` convention are dictated by parameters 
-:class:`~pypeit.images.detector_container.DetectorContainer` parameters and
-performed by
+the image arrays to match the ``PypeIt`` convention are dictated by
+instrument-specific :class:`~pypeit.images.detector_container.DetectorContainer`
+parameters and performed by
 :func:`~pypeit.spectrograph.spectrographs.Spectrograph.orient_image`.  Image
 orientation will be performed if the ``orient`` parameter is true.
 
@@ -210,6 +212,15 @@ the image-processing error budget.
 
 Dark Subtraction
 ----------------
+
+In addition to readnoise and gain, our instrument-specific
+:class:`~pypeit.images.detector_container.DetectorContainer` objects also
+provide the expected dark current; see :ref:`detectors`.  As of version X.X.X,
+this tabulated dark current (scaled by the frame exposure time) is *always*
+subtracted from the observed images.
+
+
+Subtraction of dark-current f
 
 If you have collected dark images and wish to subtract them from your science
 frames, include them in your :ref:`pypeit_file` and set ``use_darkimage`` to

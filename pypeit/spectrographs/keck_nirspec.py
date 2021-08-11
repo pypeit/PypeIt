@@ -22,15 +22,17 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
-                1-indexed detector number.
+                1-indexed detector number.  This is not used because NIRSPEC
+                only has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:

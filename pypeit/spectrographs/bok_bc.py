@@ -120,22 +120,25 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         return super().pypeit_file_keys() + ['slitwid']
 
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None \
+                    else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(

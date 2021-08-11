@@ -27,7 +27,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'See :doc:`gtc_osiris`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
@@ -35,18 +35,17 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         <http://www.gtc.iac.es/instruments/osiris/>`__.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
