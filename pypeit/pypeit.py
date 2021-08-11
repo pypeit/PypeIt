@@ -502,17 +502,6 @@ class PypeIt(object):
         # objfind
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
-            '''
-            embed(header='505 -- deal with this merge!!')
-            self.caliBrate = calibrations.Calibrations.get_instance(
-                self.fitstbl, self.par['calibrations'], self.spectrograph,
-                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                show=self.show,
-                user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
-            # These need to be separate to accomodate COADD2D
-            self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
-            self.caliBrate.run_the_steps()
-            '''
             # run calibration
             self.caliBrate = self.calib_one(frames, self.det)
             if not self.caliBrate.success:
@@ -528,8 +517,8 @@ class PypeIt(object):
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
-                                                                      std_outfile=std_outfile)
+            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(
+                frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
@@ -537,13 +526,14 @@ class PypeIt(object):
             sciImg_list.append(sciImg)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             platescale = np.array([ss.detector.platescale for ss in sciImg_list])
-            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                                                                      self.par['calibrations']['slitedges']['det_buffer'],
-                                                                      self.par['reduce']['slitmask'])
+            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale, 
+                self.par['calibrations']['slitedges']['det_buffer'], 
+                self.par['reduce']['slitmask'])
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0])
             # slitmask design matching and add undetected objects
