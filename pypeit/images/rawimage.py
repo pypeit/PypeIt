@@ -199,8 +199,8 @@ class RawImage:
         # TODO: This approach assumes that the dark-current provided/known for
         # each detector is more accurate and precise than using the counts in
         # the dark image itself (assuming one is available) to calculate the
-        # dark-current shot noise.  We could pass ``darkcurr=dark`` if ``dark``
-        # is available instead...
+        # dark-current shot noise.  Instead, we could pass an image of the dark
+        # current, if available.
         darkcurr = self.detector['darkcurr'] if self.detector['darkcurr'] > 0 else None
         var = procimg.variance_model(self.rn2img, counts=self.image,
                                      darkcurr=darkcurr, exptime=self.exptime,
@@ -438,8 +438,8 @@ class RawImage:
             # Bias frame.  Shape and orientation must match *processed* image,.
             # Uncertainty from the bias subtraction is added to the variance.
             self.subtract_bias(bias)
-            
-        #   - Subtract master dark.
+
+        #   - Subtract dark current
         if self.par['use_darkimage']:
             # Dark frame.  Shape and orientation must match *processed* image,
             # and the units *must* be in electrons/counts.  Uncertainty from the
@@ -650,17 +650,21 @@ class RawImage:
 
     # TODO: expscale is currently not a parameter that the user can control.
     # Should it be?
-    def subtract_dark(self, dark_image, expscale=True, force=False):
+    def subtract_dark(self, dark_image=None, expscale=True, force=False):
         """
-        Subtract a dark image.
+        Subtract a dark current.
 
-        The processing of the dark image should match the processing of the
-        image being processed.  For example, if this image has been bias
-        subtracted, so should be the dark image.
+        This method subtracts both the tabulated dark-current for the detector
+        and a dark image.  For this to be appropriate, the dark image (if provided) *must*
+        also have had the tabulated dark-current value subtracted from it.
 
-        If the ``dark_image`` object includes an inverse variance image and if
-        :attr:`var` is available, the uncertainty in the dark is propagated to
-        the dark-subtracted image.
+        Also, the processing of the dark image (if provided) should match the
+        processing of the image being processed.  For example, if this image has
+        been bias subtracted, so should be the dark image.
+
+        If the ``dark_image`` object includes an inverse variance estimate and
+        if :attr:`proc_var` is available, the uncertainty in the dark will be
+        propagated to the dark-subtracted image.
 
         .. warning::
 
@@ -672,14 +676,15 @@ class RawImage:
             turn it off.
 
         Args:
-            dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-                Dark image
+            dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                The dark image to subtract.  If None, only the tabulated
+                dark-current is subtracted from *all* pixels.
             expscale (:obj:`bool`, optional):
-                Scale the dark image by the ratio of the exposure times so that
-                the counts per second represented by the dark image are
-                appropriately subtracted from image being processed.
+                Scale the dark image (if provided) by the ratio of the exposure
+                times so that the counts per second represented by the dark
+                image are appropriately subtracted from image being processed.
             force (:obj:`bool`, optional):
-                Force the image to be subtracted, even if the step log
+                Force the dark to be subtracted, even if the step log
                 (:attr:`steps`) indicates that it already has been.
         """
         step = inspect.stack()[0][3]
@@ -687,11 +692,18 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already dark subtracted.')
             return
-        scale = self.exptime / dark_image.exptime if expscale else 1.
-        self.image -= scale * dark_image.image
-        # TODO: Also incorporate the mask?
-        if dark_image.ivar is not None and self.proc_var is not None:
-            self.proc_var += scale**2 * utils.inverse(dark_image.ivar)
+        # TODO: Is the dark-current amplifier dependent?
+        # Tabulated dark current is in e-/hour and exptime is in s, the 3600
+        # factor converts the dark current to e-/s.
+        dark_count = self.detector['darkcurr'] * self.exptime / 3600.
+        if dark_image is not None:
+            scale = self.exptime / dark_image.exptime if expscale else 1.
+            dark_count = scale * dark_image.image + dark_count
+            # TODO: Also incorporate the mask?
+            if dark_image.ivar is not None and self.proc_var is not None:
+                # Include the variance in the dark image
+                self.proc_var += scale**2 * utils.inverse(dark_image.ivar)
+        self.image -= dark_count
         self.steps[step] = True
 
     def subtract_overscan(self, force=False):

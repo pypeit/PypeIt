@@ -217,30 +217,39 @@ In addition to readnoise and gain, our instrument-specific
 :class:`~pypeit.images.detector_container.DetectorContainer` objects also
 provide the expected dark current; see :ref:`detectors`.  As of version X.X.X,
 this tabulated dark current (scaled by the frame exposure time) is *always*
-subtracted from the observed images.
+subtracted from the observed images (i.e., there is currently no parameter that
+will turn this off).  This is primarily due to how we account for dark current
+in our image variance model (see above); i.e., the :math:`D` term is assumed to
+be the same for all images taken with a given instrument.
 
-
-Subtraction of dark-current f
+Importantly, ``PypeIt`` also subtracts this tabulated dark-current value from
+any provided dark frames.  This means that dark frames, combined into the
+``MasterDark``, are used to correct for the 2D, pixel-to-pixel deviation in the
+measured dark current with respect to the tabulated value.  These deviations are
+expected to be small compared to the tabulated dark current value, and a warning
+is thrown if the median difference between the measured and tabulated dark
+current is larger than 50%.
 
 If you have collected dark images and wish to subtract them from your science
 frames, include them in your :ref:`pypeit_file` and set ``use_darkimage`` to
 true; see :func:`~pypeit.images.rawimage.RawImage.subtract_dark`.  Note that if
 you bias-subtract the science frames and you plan to also subtract a combined
 dark frame, make sure that you bias-subtract your dark frames!  ``PypeIt``
-automatically scales the master dark frame by the ratio of the exposure times to
-appropriately subtract the counts/s measured by the master dark frame.
+automatically scales the sum of the tabulated dark current and the
+``MasterDark`` by the ratio of the exposure times to appropriately subtract the
+counts/s measured by the master dark frame.
 
 .. note::
 
     Nominally, the exposure time for dark images should be identical to the
     frames they are applied to, meaning that the ratio of exposure times is
     unity.  Beware how the dark images are processed when this is not the case.
-    Specifically, scaling by the ratio of the exposure times assumes the process
-    dark frame **only includes dark counts**; i.e., the dark image cannot
-    include a bias offset.  When the exposure times are different, also note
-    that it is important from a noise perspective that the dark exposures always
-    be at least as long as your longest exposure time in the same calibration
-    group.  Calibration groups are discussed by :ref:`setup_doc`,
+    Specifically, scaling by the ratio of the exposure times assumes the
+    processed dark frame **only includes dark counts**; i.e., the dark image
+    cannot include a bias offset.  When the exposure times are different, also
+    note that it is important from a noise perspective that the dark exposures
+    always be at least as long as your longest exposure time in the same
+    calibration group.  Calibration groups are discussed by :ref:`setup_doc`,
     :ref:`a-b_differencing`, and :ref:`2d_combine`.
 
 Spatial Flexure Shift
@@ -278,9 +287,12 @@ throughout the processing steps.  The two final components are:
 
     #. For the on-sky observations (sky, standard, and science frames),
        ``PypeIt`` imposes a per-pixel noise floor by adding a fractional count
-       to the error-budget.  Specifically, the quantity :math:`(\epsilon\ C)^2`
+       to the error-budget.  Specifically, the quantity :math:`(\epsilon\ c)^2`
        (see the :ref:`overview`) is added to the variance image, where
-       :math:`\epsilon` is set by ``noise_floor``.  To remove this, set
+       :math:`\epsilon` is set by ``noise_floor`` and :math:`c` is the rescaled
+       (i.e., flat-field-corrected) counts.  In the limit where :math:`c` is
+       large, this yeilds a maximum signal-to-noise per pixel
+       (:math:`c/\sqrt{V}`) of ``1/noise_floor``.  To remove this, set
        ``noise_floor`` to 0.
 
 Cosmic Ray Identification and Masking
@@ -302,7 +314,7 @@ Workflow Flexibility
 The main parameters dictating the image processing workflow are provided in the
 table below.  The first column gives the parameter, ordered by their affect on
 the algorithm above, and the second column gives its default value, independent
-of the frame type.  The following columns give generic changes to those defaults
+of the frame type.  The subsequent columns give generic changes to those defaults
 made for each frame type; empty cells in these columns mean the parameter has
 the default value.  The frame type order is the order in which they're processed
 within the ``PypeIt`` workflow (modulo subtle differences between when the
@@ -318,12 +330,11 @@ the ``PypeIt`` convention.
 
     These are the instrument-independent parameter defaults.  Each
     :class:`~pypeit.spectrographs.spectrograph.Spectrograph` subclass can alter
-    these defaults as needed for the typical approach that should be take for
+    these defaults as needed for the typical approach that should be taken for
     data from that instrument, and users can make further alterations as needed
     for their specific data via the :doc:`pypeit_file`.  See :ref:`pypeitpar`.
 
 .. include:: include/imgproc_defaults_table.rst
-
 
 .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
 .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_

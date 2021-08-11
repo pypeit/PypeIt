@@ -928,7 +928,7 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
 
     .. math::
 
-        V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} +
+        V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} / 3600 +
                 V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
     where:
@@ -939,9 +939,10 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
           ``count_scale``),
         - :math:`s` is a scale factor derived from the (inverse of the)
           flat-field frames (see ``count_scale``),
-        - :math:`D` is the dark current in electrons per second (see
+        - :math:`D` is the dark current in electrons per **hour** (see
           ``darkcurr``),
-        - :math:`t_{\rm exp}` is the effective exposure time (see ``exptime``),
+        - :math:`t_{\rm exp}` is the effective exposure time in seconds (see
+          ``exptime``),
         - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
           read-noise squared; see ``rn_var``),
         - :math:`V_{\rm proc}` is added variance from image processing (e.g.,
@@ -975,10 +976,11 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
             and the noise floor, this *must* be provided if ``noise_floor`` is
             not None or ``shot_noise`` is True.  Shape must match ``rn_var``.
         darkcurr (:obj:`float`, `numpy.ndarray`_, optional):
-            Dark current in electrons per second if the exposure time is
-            provided, otherwise in electrons.  If None, set to 0.  If a single
-            float, assumed to be constant across the full image.  If an array,
-            the shape must match ``rn_var``.
+            Dark current in electrons per **hour** (as is the convention for the
+            :class:`~pypeit.images.detector_container.DetectorContainer` object)
+            if the exposure time is provided, otherwise in electrons.  If None,
+            set to 0.  If a single float, assumed to be constant across the full
+            image.  If an array, the shape must match ``rn_var``.
         exptime (:obj:`float`, optional):
             Exposure time in seconds.  If None, dark current *must* be
             in electrons.
@@ -1043,7 +1045,7 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
             var[indx] /= _count_scale[indx]
     #   - Add the dark current
     if shot_noise and darkcurr is not None:
-        var += darkcurr if exptime is None else darkcurr * exptime
+        var += darkcurr if exptime is None else darkcurr * exptime / 3600
     #   - Add the readnoise
     var += rn_var
     #   - Add the processing noise
