@@ -138,81 +138,97 @@ def test_add_reduce():
     
     assert verify_history(history, expected_history)
 
-def test_add_coadd1d():
+def test_add_coadd1d(monkeypatch):
     """Test adding coadd1d entries into history"""
 
-    # First test when the spec1d_files and objids 
-    # match length wise
-    spec1d_files = ['spec1d_file1.fits', 
-                    'spec1d_file1.fits', 
-                    'spec1d_file2.fits',
-                    'spec1d_file3.fits', 
-                    'spec1d_file3.fits', 
-                    'spec1d_file3.fits']
+    # Create a mock getheader to return the SEMESTER/PROGID header keywords add_coadd1d will look for
+    def mock_getheader(file, **kwargs):
+        if file == "spec1d_file1.fits":
+            return {"SEMESTER": "2021A",
+                    "PROGID":   "test_prog" }
+        else:
+            return dict()
 
-    objids = ['SPAT001-SLIT001-DET01',
-              'SPAT101-SLIT002-DET02',
-              'SPAT002-SLIT001-DET01',
-              'SPAT003-SLIT001-DET01',
-              'SPAT103-SLIT002-DET02',
-              'SPAT113-SLIT002-DET03']
+    with monkeypatch.context() as m:
+        monkeypatch.setattr(fits, "getheader", mock_getheader)
 
-    history = History()
-    history.add_coadd1d(spec1d_files, objids)
+        # First test when the spec1d_files and objids 
+        # match length wise
+        spec1d_files = ['spec1d_file1.fits', 
+                        'spec1d_file1.fits', 
+                        'spec1d_file2.fits',
+                        'spec1d_file3.fits', 
+                        'spec1d_file3.fits', 
+                        'spec1d_file3.fits']
 
-    expected_history = [' PypeIt Coadded 6 objects from 3 spec1d files',
-                        'File 0 "spec1d_file3.fits"',
-                        'File 1 "spec1d_file2.fits"',
-                        'File 2 "spec1d_file1.fits"',
-                        'Object ID SPAT001-SLIT001-DET01 from file 2',
-                        'Object ID SPAT101-SLIT002-DET02 from file 2',
-                        'Object ID SPAT002-SLIT001-DET01 from file 1',
-                        'Object ID SPAT003-SLIT001-DET01 from file 0',
-                        'Object ID SPAT103-SLIT002-DET02 from file 0',
-                        'Object ID SPAT113-SLIT002-DET03 from file 0' ]
+        objids = ['SPAT001-SLIT001-DET01',
+                  'SPAT101-SLIT002-DET02',
+                  'SPAT002-SLIT001-DET01',
+                  'SPAT003-SLIT001-DET01',
+                  'SPAT103-SLIT002-DET02',
+                  'SPAT113-SLIT002-DET03']
 
-    assert verify_history(history, expected_history)
+        history = History()
+        history.add_coadd1d(spec1d_files, objids)
 
-    # Now test when the # of object ids is shorter than the # of files
-    # (This shouldn't happen but I want to make sure History behaves in a sane manner)
-    short_objids = ['SPAT001-SLIT001-DET01',
-                    'SPAT101-SLIT002-DET02',                    'SPAT002-SLIT001-DET01',
-                    'SPAT003-SLIT001-DET01']
+        expected_history = [' PypeIt Coadded 6 objects from 3 spec1d files',
+                            'From "spec1d_file1.fits"',
+                            'Semester: 2021A Program ID: test_prog',
+                            'SPAT001-SLIT001-DET01',
+                            'SPAT101-SLIT002-DET02',
+                            'From "spec1d_file2.fits"',
+                            'SPAT002-SLIT001-DET01',                        
+                            'From "spec1d_file3.fits"',
+                            'SPAT003-SLIT001-DET01',
+                            'SPAT103-SLIT002-DET02',
+                            'SPAT113-SLIT002-DET03']
 
-    history = History()
-    history.add_coadd1d(spec1d_files, short_objids)
+        assert verify_history(history, expected_history)
 
-    # THe expected result is for the extra files to be ignored
-    expected_history = [' PypeIt Coadded 4 objects from 3 spec1d files',
-                        'File 0 "spec1d_file3.fits"',
-                        'File 1 "spec1d_file2.fits"',
-                        'File 2 "spec1d_file1.fits"',
-                        'Object ID SPAT001-SLIT001-DET01 from file 2',
-                        'Object ID SPAT101-SLIT002-DET02 from file 2',
-                        'Object ID SPAT002-SLIT001-DET01 from file 1',
-                        'Object ID SPAT003-SLIT001-DET01 from file 0']
+        # Now test when the # of object ids is shorter than the # of files
+        # (This shouldn't happen but I want to make sure History behaves in a sane manner)
+        short_objids = ['SPAT001-SLIT001-DET01',
+                        'SPAT101-SLIT002-DET02',
+                        'SPAT002-SLIT001-DET01',
+                        'SPAT003-SLIT001-DET01']
 
-    assert verify_history(history, expected_history)
+        history = History()
+        history.add_coadd1d(spec1d_files, short_objids)
 
-    # Now test with fewer spec1d files than objects
-    short_spec1d_files = ['spec1d_file1.fits', 
-                          'spec1d_file1.fits', 
-                          'spec1d_file2.fits',
-                          'spec1d_file3.fits', 
-                          'spec1d_file3.fits' ]
+        # THe expected result is for the extra files to be ignored
+        expected_history = [' PypeIt Coadded 4 objects from 3 spec1d files',
+                            'From "spec1d_file1.fits"',
+                            'Semester: 2021A Program ID: test_prog',
+                            'SPAT001-SLIT001-DET01',
+                            'SPAT101-SLIT002-DET02',
+                            'From "spec1d_file2.fits"',
+                            'SPAT002-SLIT001-DET01',
+                            'From "spec1d_file3.fits"',
+                            'SPAT003-SLIT001-DET01']
 
-    history = History()
-    history.add_coadd1d(short_spec1d_files, objids)
+        assert verify_history(history, expected_history)
 
-    # The expected result is to ignore the extra object ids
-    expected_history = [' PypeIt Coadded 5 objects from 3 spec1d files',
-                        'File 0 "spec1d_file3.fits"',
-                        'File 1 "spec1d_file2.fits"',
-                        'File 2 "spec1d_file1.fits"',
-                        'Object ID SPAT001-SLIT001-DET01 from file 2',
-                        'Object ID SPAT101-SLIT002-DET02 from file 2',
-                        'Object ID SPAT002-SLIT001-DET01 from file 1',
-                        'Object ID SPAT003-SLIT001-DET01 from file 0',
-                        'Object ID SPAT103-SLIT002-DET02 from file 0' ]
+        # Now test with fewer spec1d files than objects
+        short_spec1d_files = ['spec1d_file1.fits', 
+                            'spec1d_file1.fits', 
+                            'spec1d_file2.fits',
+                            'spec1d_file3.fits', 
+                            'spec1d_file3.fits' ]
 
-    assert verify_history(history, expected_history)
+        history = History()
+        history.add_coadd1d(short_spec1d_files, objids)
+
+        # The expected result is to ignore the extra object ids
+        expected_history = [' PypeIt Coadded 5 objects from 3 spec1d files',
+                            'From "spec1d_file1.fits"',
+                            'Semester: 2021A Program ID: test_prog',
+                            'SPAT001-SLIT001-DET01',
+                            'SPAT101-SLIT002-DET02',
+                            'From "spec1d_file2.fits"',
+                            'SPAT002-SLIT001-DET01',
+                            'From "spec1d_file3.fits"',
+                            'SPAT003-SLIT001-DET01',
+                            'SPAT103-SLIT002-DET02']
+
+
+        assert verify_history(history, expected_history)

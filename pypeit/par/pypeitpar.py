@@ -2253,7 +2253,7 @@ class WavelengthSolutionPar(ParSet):
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
-                 nsnippet=None):
+                 nsnippet=None, use_instr_flag=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2332,6 +2332,10 @@ class WavelengthSolutionPar(ParSet):
                          'None for no calibration.  ' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
+        defaults['use_instr_flag'] = False
+        dtypes['use_instr_flag'] = bool
+        descr['use_instr_flag'] = 'If True, restrict to lines matching the instrument.  WARNING: This '\
+            'is only implemented for shane_kast_red + HolyGrail.  Do not use it unless you really know what you are doing.'
 
         # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
         # name of the parameter is counts. Perhaps we should just change this to nonlinear_adu or something to avoid confusion.
@@ -2516,7 +2520,7 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet']
+                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4691,7 +4695,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4716,16 +4720,26 @@ class Collate1DPar(ParSet):
                              "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
 
 
-        # Root directory of archive
+        # Enables a dry_run in which no coadding is done
         defaults['dry_run'] = False
         dtypes['dry_run'] = bool
         descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
                            "but will not flux, coadd or archive."
 
+        # Directory for output files
+        defaults['outdir'] = os.getcwd()
+        dtypes['outdir'] = str
+        descr['outdir'] = "The path where all coadded output files and report files will be placed."
+
         # Root directory of archive
         defaults['archive_root'] = None
         dtypes['archive_root'] = str
         descr['archive_root'] = "The path where files and metadata will be archived."
+
+        # .pypeit file to archive.
+        defaults['pypeit_file'] = None
+        dtypes['pypeit_file'] = str
+        descr['pypeit_file'] = "A .pypeit file to place into the archive. Only used if archive_root is specified. Defaults to looking in the parent directory of the spec1d files."
 
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
@@ -4754,7 +4768,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip']
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
