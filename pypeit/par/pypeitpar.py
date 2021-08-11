@@ -4731,7 +4731,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4756,16 +4756,26 @@ class Collate1DPar(ParSet):
                              "(e.g. '0.003d' or '0h1m30s'). If match_using is 'pixel' this is a float."
 
 
-        # Root directory of archive
+        # Enables a dry_run in which no coadding is done
         defaults['dry_run'] = False
         dtypes['dry_run'] = bool
         descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
                            "but will not flux, coadd or archive."
 
+        # Directory for output files
+        defaults['outdir'] = os.getcwd()
+        dtypes['outdir'] = str
+        descr['outdir'] = "The path where all coadded output files and report files will be placed."
+
         # Root directory of archive
         defaults['archive_root'] = None
         dtypes['archive_root'] = str
         descr['archive_root'] = "The path where files and metadata will be archived."
+
+        # .pypeit file to archive.
+        defaults['pypeit_file'] = None
+        dtypes['pypeit_file'] = str
+        descr['pypeit_file'] = "A .pypeit file to place into the archive. Only used if archive_root is specified. Defaults to looking in the parent directory of the spec1d files."
 
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
@@ -4794,7 +4804,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip']
+        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

@@ -7,6 +7,7 @@ from IPython.terminal.embed import embed
 from pkg_resources import resource_filename
 
 import numpy as np
+import os
 
 from astropy.time import Time
 
@@ -203,6 +204,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par.reset_all_processimages_par(**turn_off_on)
 
         # Ignore PCA
+        par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Set pixel flat combination method
@@ -231,23 +233,10 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
-        # Extraction
-        #par['reduce']['skysub']['bspline_spacing'] = 0.8
-        #par['reduce']['skysub']['no_poly'] = True
-        #par['reduce']['skysub']['bspline_spacing'] = 0.6
-        #par['reduce']['skysub']['joint_fit'] = False
-        #par['reduce']['skysub']['global_sky_std']  = False
-#
-#        par['reduce']['extraction']['sn_gauss'] = 4.0
-#        par['reduce']['findobj']['sig_thresh'] = 5.0
-#        par['reduce']['skysub']['sky_sigrej'] = 5.0
-#        par['reduce']['findobj']['find_trim_edge'] = [5,5]
-
-        # Sensitivity function parameters
-        #par['sensfunc']['polyorder'] = 7
-
-        # Do not correct for flexure
-#        par['flexure']['spec_method'] = 'skip'
+        #par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
 
