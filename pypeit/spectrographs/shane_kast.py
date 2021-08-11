@@ -490,7 +490,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             # Add CdI
             par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI', 'CdI']
         else:
-            pass
+            par['calibrations']['wavelengths']['use_instr_flag'] = True
 
         # Return
         return par
@@ -605,6 +605,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['sigdetect'] = 5.
+        par['calibrations']['wavelengths']['use_instr_flag'] = True
 
         return par
 

@@ -441,7 +441,9 @@ class BuildWaveCalib:
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, 
+                                         nonlinear_counts=self.nonlinear_counts,
+                                         spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
             final_fit = {}
