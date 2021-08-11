@@ -439,12 +439,13 @@ class RawImage:
             # Uncertainty from the bias subtraction is added to the variance.
             self.subtract_bias(bias)
 
-        #   - Subtract dark current
-        if self.par['use_darkimage']:
-            # Dark frame.  Shape and orientation must match *processed* image,
-            # and the units *must* be in electrons/counts.  Uncertainty from the
-            # dark subtraction is added to the variance.
-            self.subtract_dark(dark)
+        #   - Subtract dark current.  The tabulated dark current is *always*
+        #     subtracted regardless of whether or not use_darkimage is true.  If
+        #     a dark frame is provided and subtracted, its shape and orientation
+        #     must match *processed* image, and the units *must* be in
+        #     electrons/counts.  If available, uncertainty from the dark
+        #     subtraction is added to the variance.
+        self.subtract_dark(dark_image=dark if self.par['use_darkimage'] else None)
 
         # TODO: We should be performing the cosmic-ray detection/masking here,
         # *before* flat-fielding, right?.
@@ -697,11 +698,20 @@ class RawImage:
         # factor converts the dark current to e-/s.
         dark_count = self.detector['darkcurr'] * self.exptime / 3600.
         if dark_image is not None:
+            # TODO: Include a warning when the scaling is "signficant"?
             scale = self.exptime / dark_image.exptime if expscale else 1.
-            dark_count = scale * dark_image.image + dark_count
-            # TODO: Also incorporate the mask?
+            # Warn the user if the counts in the dark image are significantly
+            # different from the tabulated value.  The 50% difference is not
+            # well justified but, for now, hard-coded.
+            med_dark = np.median(scale * dark_image.image)
+            if np.absolute(med_dark) > 0.5*dark_count:
+                msgs.warn(f'Dark-subtracted dark frame has significant signal remaining.  Median '
+                          f'count is {med_dark:.2f}; warning threshold = +/-{0.5*dark_count:.2f}.')
+            # NOTE: This converts dark_count from a scalar to an array
+            dark_count += scale * dark_image.image
             if dark_image.ivar is not None and self.proc_var is not None:
                 # Include the variance in the dark image
+                # TODO: Also incorporate the mask?
                 self.proc_var += scale**2 * utils.inverse(dark_image.ivar)
         self.image -= dark_count
         self.steps[step] = True
