@@ -735,7 +735,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
-                        if sobjs[iobj].OPT_MASK.any():
+                        # if sobjs[iobj].OPT_MASK.any():
+                        # if there is only one good pixel `extract.fit_profile` fails
+                        if np.where(sobjs[iobj].OPT_MASK == True)[0].size > 5:
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
                             wave = sobjs[iobj].OPT_WAVE
