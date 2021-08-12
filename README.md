@@ -94,7 +94,7 @@ the publication, please include the following acknowledgement
 
 `PypeIt` receives direct funding from the following sources:
 
-* NASA (ADAP-80nssc20k0441)
+* NASA (ADAP-A20-0412)
 * W.M. Keck Observatory
 * University of California Observatories
 
