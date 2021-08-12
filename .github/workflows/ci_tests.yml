@@ -75,7 +75,7 @@ jobs:
     # Some PypeIt users have to run under CentOS and have run into unique issues. GitHub Actions does not
     # provide CentOS as a runtime environment like it does Ubuntu. However, it can be used by running
     # it as a container within a provided Ubuntu environment.
-    name: CentOS ${{ matrix.centos_ver }}
+    name: CentOS ${{ matrix.centos_ver }} ${{ matrix.toxenv }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -102,13 +102,14 @@ jobs:
         bash ./miniconda.sh -b -p /conda
         /conda/bin/conda update -y --all
         /conda/bin/conda init
-        source /root/.bashrc
     - name: Install base dependencies
       run: |
+        source /root/.bashrc
         python -m pip install --upgrade pip tox
         python --version
     - name: Test with tox
       run: |
+        source /root/.bashrc
         tox -e ${{ matrix.toxenv }}
 
   codestyle:
