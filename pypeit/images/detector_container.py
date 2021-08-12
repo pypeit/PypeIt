@@ -65,7 +65,7 @@ class DetectorContainer(datamodel.DataContainer):
                                          'as being unphysical'),
                  'nonlinear': dict(otype=(int, float),
                                    descr='Percentage of detector range which is linear '
-                                         '(i.e. everything above nonlinear*saturation will '
+                                         '(i.e. everything above ``nonlinear*saturation`` will '
                                          'be flagged as saturated)'),
                  'numamplifiers': dict(otype=int, descr='Number of amplifiers'),
                  'gain': dict(otype=np.ndarray, atype=np.floating,
