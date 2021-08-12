@@ -90,6 +90,8 @@ jobs:
         yum update -y && yum install -y wget git gcc
     - name: Check out repository
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Install and configure miniconda
       run: |
         wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
