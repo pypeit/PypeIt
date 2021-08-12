@@ -72,7 +72,7 @@ jobs:
         tox -e ${{ matrix.toxenv }}
 
   centos:
-    # Some PypeIt users have to run under CentOS and run into unique issues. GitHub Actions does not
+    # Some PypeIt users have to run under CentOS and have run into unique issues. GitHub Actions does not
     # provide CentOS as a runtime environment like it does Ubuntu. However, it can be used by running
     # it as a container within a provided Ubuntu environment.
     name: CentOS ${{ matrix.centos_ver }}
