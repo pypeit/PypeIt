@@ -103,6 +103,9 @@ class DetectorContainer(datamodel.DataContainer):
 
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+        if self.darkcurr is None:
+            # Use of darkcurr in RawImage means that it cannot be None.
+            self.darkcurr = 0.
 
     def _bundle(self):
         """

@@ -919,6 +919,11 @@ def trim_frame(frame, mask):
     return frame[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]
 
 
+# TODO: Note that (now that we're not using the previous correction based on the
+# value of the read-noise variance), rn_var and proc_var are entirely
+# degenerate; i.e., you could just subsume one into the other and you get the
+# same answer.  So should we just do that (i.e., redefine the parameter to be
+# the sum of both)?
 def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=None,
                    count_scale=None, noise_floor=None, shot_noise=False):
     r"""

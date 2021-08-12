@@ -53,9 +53,12 @@ class PypeItImage(datamodel.DataContainer):
     version = '1.0.2'
     """Datamodel version number"""
 
-    datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Main data image'),
+    datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
-                              descr='Main data inverse variance image'),
+                              descr='Inverse variance image'),
+                 'nimg': dict(otype=np.ndarray, atype=np.integer,
+                              descr='If a combination of multiple images, this is the number of '
+                                    'images that contributed to each pixel'),
                  'rn2img': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Read noise squared image'),
                  'proc_var': dict(otype=np.ndarray, atype=np.floating,
@@ -113,10 +116,10 @@ class PypeItImage(datamodel.DataContainer):
     # This needs to contain all datamodel items.
     # TODO: Not really. You don't have to pass everything to the
     # super().__init__ call...
-    def __init__(self, image=None, ivar=None, rn2img=None, proc_var=None, img_scale=None, 
-                 bpm=None, crmask=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None, units=None, exptime=None, noise_floor=None, shot_noise=None,
-                 imgbitm=None):
+    def __init__(self, image=None, ivar=None, nimg=None, rn2img=None, proc_var=None,
+                 img_scale=None, bpm=None, crmask=None, fullmask=None, detector=None,
+                 spat_flexure=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None,
+                 shot_noise=None, imgbitm=None):
 
         # Setup the DataContainer. Dictionary elements include
         # everything but self in the instantiation call.

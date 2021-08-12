@@ -116,7 +116,7 @@ class RawImage:
         self.rn2img = None
         self.proc_var = None
         self.spat_flexure_shift = None
-        self.cnt_scale = None
+        self.img_scale = None
         self._bpm = None
 
         # All possible processing steps.  NOTE: These have to match the
@@ -204,7 +204,7 @@ class RawImage:
         darkcurr = self.detector['darkcurr'] if self.detector['darkcurr'] > 0 else None
         var = procimg.variance_model(self.rn2img, counts=self.image,
                                      darkcurr=darkcurr, exptime=self.exptime,
-                                     proc_var=self.proc_var, count_scale=self.cnt_scale,
+                                     proc_var=self.proc_var, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'],
                                      shot_noise=self.par['shot_noise'])
         return utils.inverse(var)
@@ -471,9 +471,9 @@ class RawImage:
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need rn2img, image,
-        # detector, exptime, proc_var, cnt_scale, noise_floor, and shot_noise.
+        # detector, exptime, proc_var, img_scale, noise_floor, and shot_noise.
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                            proc_var=self.proc_var, img_scale=self.cnt_scale,
+                                            proc_var=self.proc_var, img_scale=self.img_scale,
                                             bpm=self.bpm, detector=self.detector,
                                             spat_flexure=self.spat_flexure_shift,
                                             PYP_SPEC=self.spectrograph.name,
@@ -587,10 +587,10 @@ class RawImage:
         spec_illum = flatimages.pixelflat_spec_illum if self.par['use_specillum'] else 1.
 
         # Apply flat-field correction
-        # NOTE: Using flat.flatfield to effectively multiply image*cnt_scale is
+        # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
         # a bit overkill...
         total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
-        self.cnt_scale = utils.inverse(total_flat)
+        self.img_scale = utils.inverse(total_flat)
         self.image, flat_bpm = flat.flatfield(self.image, total_flat)
         self.steps[step] = True
         return flat_bpm
@@ -693,7 +693,8 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already dark subtracted.')
             return
-        # TODO: Is the dark-current amplifier dependent?
+        # TODO: Is the dark-current amplifier dependent?  Also, this usage means
+        # that darkcurr cannot be None.
         # Tabulated dark current is in e-/hour and exptime is in s, the 3600
         # factor converts the dark current to e-/s.
         dark_count = self.detector['darkcurr'] * self.exptime / 3600.

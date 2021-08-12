@@ -27,7 +27,8 @@ class ImageBitMask(BitMask):
                          IVAR0='Inverse variance is undefined',
                          IVAR_NAN='Inverse variance is NaN',
                          EXTRACT='Pixel masked during local skysub and extraction',
-                         BADSCALE='Bad image rescaling operation (e.g. flat value <= 0)')
+                         BADSCALE='Bad image rescaling operation (e.g. flat value <= 0)',
+                         STCKMASK='All pixels masked in image stack')
         super(ImageBitMask, self).__init__(list(mask_bits.keys()), descr=list(mask_bits.values()))
 
 

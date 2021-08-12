@@ -73,6 +73,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spat_vec = np.arange(nspat)
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    # TODO: This needs to be corrected for new noise model approach.
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     ispec, ispat = np.where(oprof > 0.0)
@@ -205,6 +206,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
         spec.trace_spec = spec_vec
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    # TODO: This needs to be corrected for new noise model approach.
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     # Fill in the boxcar extraction tags

@@ -12,6 +12,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit.core import combine
+from pypeit.core import procimg
 from pypeit.par import pypeitpar
 from pypeit import utils
 from pypeit.images import pypeitimage
@@ -63,24 +64,70 @@ class CombineImage:
     # doesn't do any weighting.  It's just a sigma-clipped mean.
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
             bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='weightmean'):
-        """
+        r"""
         Process and combine all images.
 
         All processing is performed by the
-        :class:`~pypeit.images.rawimage.RawImage` class, and images are combined
-        based on the ``combine_method``, where the options are:
+        :class:`~pypeit.images.rawimage.RawImage` class; see 
+        :func:`~pypeit.images.rawimage.RawImage.process`.
+
+        If there is only one file (see :attr:`files`), this simply processes the
+        file and returns the result.
+        
+        If there are multiple files, all the files are processed and the
+        processed images are combined based on the ``combine_method``, where the
+        options are:
 
             - 'weightmean': If ``sigma_clip`` is True, this is a sigma-clipped
-              mean; otherwise, this is a simple average.  The combination is
-              done using :func:`~pypeit.core.combine.weighted_combine`.
+              mean; otherwise, this is a simple average (i.e., uniform weights
+              are used).  The combination is done using
+              :func:`~pypeit.core.combine.weighted_combine`.
 
             - 'median': This is a simple masked median (using
               `numpy.ma.median`_).
 
-        Depending on the processing performed, this may also generate the
-        inverse variance, cosmic-ray mask, read-noise variance image, and
-        processing mask.
+        The errors in the image are also propagated through the stacking
+        procedure; however, this isn't a simple propagation of the inverse
+        variance arrays.  The image processing produces arrays with individual
+        components used to construct the variance model for an individual frame.
+        See :ref:`image_proc` and :func:`~pypeit.procimg.variance_model` for a
+        description of these arrays.  Briefly, the relevant arrays are the
+        readnoise variance (:math:`V_{\rm rn}`), the "processing" variance
+        (:math:`V_{\rm proc}`), and the image scaling (i.e., the flat-field
+        correction) (:math:`s`).  The variance calculation for the stacked image
+        directly propagates the error in these.  For example, the propagated
+        processing variance (modulo the masking) is:
 
+        .. math::
+
+            V_{\rm proc,stack} = \frac{\sum_i s_i^2 V_{{\rm
+            proc},i}}\frac{s_{\rm stack}^2}
+
+        where :math:`s_{\rm stack}` is the combined image scaling array,
+        combined in the same way as the image data are combined.  This ensures
+        that the reconstruction of the uncertainty in the combined image
+        calculated using :func:`~pypeit.procimg.variance_model` accurately
+        includes, e.g., the processing uncertainty.
+
+        The uncertainty in the combined image, however, recalculates the
+        variance model, using the combined image (which should have less noise)
+        to set the Poisson statistics.  The same parameters used when processing
+        the individual frames are applied to the combined frame; see
+        :func:`~pypeit.images.rawimage.RawImage.build_ivar`.  This calculation
+        is then the equivalent of when the observed counts are replaced by the
+        model object and sky counts during sky subtraction and spectral
+        extraction.
+
+        Bitmasks from individual frames in the stack are *not* propagated to the
+        combined image, except to indicate when a pixel was masked for all
+        images in the stack (cf., ``ignore_saturation``).  Additionally, the
+        instrument-specific bad-pixel mask, see the
+        :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm` method for
+        each instrument subclass, saturated-pixel mask, and other default mask
+        bits (e.g., NaN and non-positive inverse variance values) are all
+        propagated to the combined-image mask; see
+        :func:`~pypeit.images.pypeitimage.PypeItImage.build_mask`.
+        
         .. warning::
 
             All image processing of the data in :attr:`files` *must* result
@@ -158,33 +205,46 @@ class CombineImage:
                 # Allocate arrays to collect data for each frame
                 shape = (self.nfiles,) + pypeitImage.shape
                 img_stack = np.zeros(shape, dtype=float)
-                ivar_stack= np.ones(shape, dtype=float)
+                scl_stack = np.ones(shape, dtype=float)
+#                ivar_stack= np.ones(shape, dtype=float)
                 rn2img_stack = np.zeros(shape, dtype=float)
-                crmask_stack = np.zeros(shape, dtype=bool)
-                mask_stack = np.zeros(shape, dtype=pypeitImage.fullmask.dtype)
+                procv_stack = np.zeros(shape, dtype=float)
+#                crmask_stack = np.zeros(shape, dtype=bool)
+                gpm_stack = np.zeros(shape, dtype=bool)
                 lampstat = [None]*self.nfiles
+                darkcurr = np.zeros(self.nfiles, dtype=float)
+                exptime = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
-            # Process
+            # Save the dark current and exposure time
+            darkcurr[kk] = pypeitImage.detector['darkcurr']
+            exptime[kk] = pypeitImage.exptime
+            # Processed image
             img_stack[kk] = pypeitImage.image
-            # Construct raw variance image and turn into inverse variance
-            if pypeitImage.ivar is not None:
-                ivar_stack[kk] = pypeitImage.ivar
-            # Mask cosmic rays
-            if pypeitImage.crmask is not None:
-                crmask_stack[kk] = pypeitImage.crmask
+#            # Construct raw variance image and turn into inverse variance
+#            if pypeitImage.ivar is not None:
+#                ivar_stack[kk] = pypeitImage.ivar
+#            # Mask cosmic rays
+#            if pypeitImage.crmask is not None:
+#                crmask_stack[kk] = pypeitImage.crmask
+            # Get the count scaling
+            if pypeitImage.img_scale is not None:
+                scl_stack[kk] = pypeitImage.img_scale
             # Read noise squared image
             if pypeitImage.rn2img is not None:
-                rn2img_stack[kk] = pypeitImage.rn2img
+                rn2img_stack[kk] = pypeitImage.rn2img * scl_stack[kk]**2
+            # Processing variance image
+            if pypeitImage.proc_var is not None:
+                procv_stack[kk] = pypeitImage.proc_var * scl_stack[kk]**2
             # Final mask for this image
             # TODO: This seems kludgy to me. Why not just pass ignore_saturation
             # to process_one and ignore the saturation when the mask is actually
             # built, rather than untoggling the bit here?
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
                 pypeitImage.update_mask('SATURATION', action='turn_off')
-            # TODO: Come back to this.
-            mask_stack[kk] = pypeitImage.fullmask
+            # Get a simple boolean good-pixel mask for all the unmasked pixels
+            gpm_stack[kk] = pypeitImage.boolean_mask(invert=True)
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -202,55 +262,92 @@ class CombineImage:
                       + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
             print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
 
+        # Do a similar check for darkcurr 
+        if np.any(np.absolute(np.diff(darkcurr)) > 0):
+            msgs.warn('Dark current is not consistent for all images being combined!  '
+                      f'Using the value for frame {self.files[-1]}.')
+        # TODO: Use the last one because the detector from the last file is also
+        # the one passed to the PypeItImage object constructed for the combined
+        # image.
+        comb_dark = darkcurr[-1]
+
+        # ... and exptime
+        if np.any(np.absolute(np.diff(exptime)) > 0):
+            # TODO: This should likely throw an error instead!
+            msgs.warn('Exposure time is not consistent for all images being combined!  '
+                      'Using the average.')
+            comb_texp = np.mean(exptime)
+        else:
+            comb_texp = exptime[0]
+
         # Coadd them
-        var_stack = utils.inverse(ivar_stack)
         if combine_method == 'weightmean':
             weights = np.ones(self.nfiles, dtype=float)/self.nfiles
-            img_list = [img_stack]
-            var_list = [var_stack, rn2img_stack]
-            img_list_out, var_list_out, gpm, nused \
-                    = combine.weighted_combine(weights, img_list, var_list, mask_stack==0,
-                                               sigma_clip=sigma_clip, sigma_clip_stack=img_stack,
+            img_list_out, var_list_out, gpm, nstack \
+                    = combine.weighted_combine(weights,
+                                               [img_stack, scl_stack],  # images to stack
+                                               [rn2img_stack, procv_stack], # variances to stack
+                                               gpm_stack, sigma_clip=sigma_clip,
+                                               sigma_clip_stack=img_stack,  # clipping based on img
                                                sigrej=sigrej, maxiters=maxiters)
+            comb_img, comb_scl = img_list_out
+            comb_rn2, comb_procv = var_list_out
+            comb_rn2[gpm] /= comb_scl[gpm]**2
+            comb_procv[gpm] /= comb_scl[gpm]**2
         elif combine_method == 'median':
-            bpm_stack = mask_stack > 0
-            nstack = np.sum(np.logical_not(bpm_stack).astype(int), axis=0)
+            bpm_stack = np.logical_not(gpm_stack)
+            nstack = np.sum(gpm_stack, axis=0)
             gpm = nstack > 0
-            img_list_out = [np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),
-                                         axis=0).filled(0.)]
+            comb_img = np.ma.median(np.ma.MaskedArray(img_stack, mask=bpm_stack),axis=0).filled(0.)
+            # TODO: I'm not sure if this is right.  Maybe we should just take
+            # the masked average scale instead?
+            comb_scl = np.ma.median(np.ma.MaskedArray(scl_stack, mask=bpm_stack),axis=0).filled(0.)
             # First calculate the error in the sum.  The variance is set to 0
             # for pixels masked in all images.
-            var_list_out = [np.ma.sum(np.ma.MaskedArray(var_stack, mask=bpm_stack),
-                                      axis=0).filled(0.)]
-            var_list_out += [np.ma.sum(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),
-                                       axis=0).filled(0.)]
+            comb_rn2 = np.ma.sum(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),axis=0).filled(0.)
+            comb_procv = np.ma.sum(np.ma.MaskedArray(procv_stack, mask=bpm_stack),axis=0).filled(0.)
             # Convert to standard error in the median (pi/2 factor relates standard variance
             # in mean (sum(variance_i)/n^2) to standard variance in median)
-            var_list_out[0][gpm] *= np.pi/2/nstack[gpm]**2
-            var_list_out[1][gpm] *= np.pi/2/nstack[gpm]**2
+            comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
+            comb_procv[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'weightmean'.")
 
-        # Build the last one
-        final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
-                                                    ivar=utils.inverse(var_list_out[0]),
-                                                    bpm=bpm, rn2img=var_list_out[1],
-                            # TODO: The mask can be set for a bunch of reasons.
-                            # Why identify all of the masked pixels as cosmic rays?
-                                                    crmask=np.logical_not(gpm),
-                                                    detector=pypeitImage.detector,
-                                                    PYP_SPEC=self.spectrograph.name)
-        # Internals
-        final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
-        final_pypeitImage.process_steps = pypeitImage.process_steps
+        # Recompute the inverse variance using the combined image
+        comb_var = procimg.variance_model(comb_rn2, counts=comb_img, darkcurr=comb_dark,
+                                          exptime=exptime, proc_var=comb_procv,
+                                          count_scale=comb_scl,
+                                          noise_floor=self.par['noise_floor'],
+                                          shot_noise=self.par['shot_noise'])
 
+        # Build the combined image
+        comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
+                                       rn2img=comb_rn2, proc_var=comb_procv, img_scale=comb_scl,
+                                       # NOTE: The detector is needed here so
+                                       # that we can get the dark current later.
+                                       bpm=bpm, detector=pypeitImage.detector,
+                                       PYP_SPEC=self.spectrograph.name,
+                                       units='e-' if self.par['apply_gain'] else 'ADU',
+                                       exptime=self.exptime, noise_floor=self.par['noise_floor'],
+                                       shot_noise=self.par['shot_noise'])
+
+        # Internals
+        # TODO: Do we need these two?
+        comb.rawheadlist = pypeitImage.rawheadlist
+        comb.process_steps = pypeitImage.process_steps
+
+        # Build the base level mask
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
                                                               apply_gain=self.par['apply_gain'])
-        final_pypeitImage.build_mask(saturation=nonlinear_counts)
+        comb.build_mask(saturation=nonlinear_counts)
+
+        # Flag all pixels with no contributions from any of the stacked images.
+        comb.update_mask('STCKMASK', indx=np.logical_not(gpm))
+
         # Return
-        return final_pypeitImage
+        return comb
 
     @property
     def nfiles(self):

@@ -175,16 +175,15 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
     # Do it
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark,
-                                   flatimages=flatimages,
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
                                    sigma_clip=frame_par['process']['clip'],
                                    sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
                                    ignore_saturation=ignore_saturation, slits=slits,
                                    combine_method=frame_par['process']['combine'])
 
     # Decorate according to the type of calibration, primarily as needed for
-    # handling MasterFrames.  WARNING: Any internals in pypeitImage are lost
-    # here.
+    # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by
+    # the _init_internals method) in pypeitImage are lost here.
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'dark':
