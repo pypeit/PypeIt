@@ -286,7 +286,7 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
     line_lists = vstack(lists, join_type='exact')
 
     # Restrict on the spectrograph?
-    if restrict_on_instr:
+    if restrict_on_instr is not None:
         instr_dict = defs.instruments()
         gdI = (line_lists['Instr'] & instr_dict[restrict_on_instr]) > 0
         line_lists = line_lists[gdI]
