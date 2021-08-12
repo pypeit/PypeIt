@@ -84,6 +84,18 @@ the publication, please include the following acknowledgement
 
 ----
 
+Funding
++++++++
+
+``PypeIt`` receives direct funding from the following sources:
+
+  * NASA (ADAP-XXXX)
+  * W.M. Keck Observatory
+  * University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
+
 What this version provides
 ++++++++++++++++++++++++++
 
