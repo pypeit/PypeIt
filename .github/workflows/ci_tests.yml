@@ -104,10 +104,10 @@ jobs:
         /conda/bin/conda init
     - name: Install base dependencies
       run: |
-        source /root/.bashrc && python -m pip install --upgrade pip tox && python --version
+        source ~/.bashrc && python -m pip install --upgrade pip tox && python --version
     - name: Test with tox
       run: |
-        source /root/.bashrc && tox -e ${{ matrix.toxenv }}
+        source ~/.bashrc && tox -e ${{ matrix.toxenv }}
 
   codestyle:
     runs-on: ubuntu-latest
