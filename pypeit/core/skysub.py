@@ -568,9 +568,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         Make an interactive plot to the screen to indicate how the
         breakpoints are being chosen.
     force_gauss : bool, default = False
-        If True, a Gaussian profile will always be assumed for the
-        optimal extraction using the FWHM determined from object finding (or provided by the user) for the spatial
-        profile. 
+        If True, a Gaussian profile will always be assumed for the optimal
+        extraction using the FWHM determined from object finding (or provided by
+        the user) for the spatial profile. 
     sn_gauss : int or float, default = 4.0
         The signal to noise threshold above which optimal extraction
         with non-parametric b-spline fits to the objects spatial
@@ -775,7 +775,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
-                        if sobjs[iobj].OPT_MASK.any():
+                        # if there is only one good pixel `extract.fit_profile` fails
+                        if np.sum(sobjs[iobj].OPT_MASK) > extract_good_frac * nspec:
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
                             wave = sobjs[iobj].OPT_WAVE

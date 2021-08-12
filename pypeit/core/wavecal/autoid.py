@@ -1431,8 +1431,9 @@ class HolyGrail:
                 self._line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
                 self._unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
             else:
+                restrict = spectrograph if self._par['use_instr_flag'] else None
                 self._line_lists = waveio.load_line_lists(
-                    self._lines, restrict_on_instr=spectrograph)
+                    self._lines, restrict_on_instr=restrict)
                 self._unknwns = waveio.load_unknown_list(self._lines)
 
         if self._use_unknowns:
