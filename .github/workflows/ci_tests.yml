@@ -89,7 +89,7 @@ jobs:
       run: |
         yum update -y && yum install -y wget git gcc
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v1
       with:
         fetch-depth: 0
     - name: Install and configure miniconda
