@@ -317,7 +317,7 @@ class CombineImage:
 
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_rn2, counts=comb_img, darkcurr=comb_dark,
-                                          exptime=exptime, proc_var=comb_procv,
+                                          exptime=comb_texp, proc_var=comb_procv,
                                           count_scale=comb_scl,
                                           noise_floor=self.par['noise_floor'],
                                           shot_noise=self.par['shot_noise'])
@@ -330,7 +330,7 @@ class CombineImage:
                                        bpm=bpm, detector=pypeitImage.detector,
                                        PYP_SPEC=self.spectrograph.name,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
-                                       exptime=self.exptime, noise_floor=self.par['noise_floor'],
+                                       exptime=comb_texp, noise_floor=self.par['noise_floor'],
                                        shot_noise=self.par['shot_noise'])
 
         # Internals

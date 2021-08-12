@@ -1266,7 +1266,7 @@ class MultiSlitReduce(Reduce):
                                                   darkcurr=self.sciImg.detector['darkcurr'],
                                                   exptime=self.sciImg.exptime,
                                                   proc_var=self.sciImg.proc_var,
-                                                  count_scale=self.sciImg.count_scale,
+                                                  count_scale=self.sciImg.img_scale,
                                                   adderr=self.sciImg.noise_floor)
 
         # Set the bit for pixels which were masked by the extraction.
@@ -1477,7 +1477,7 @@ class EchelleReduce(Reduce):
                                                   darkcurr=self.sciImg.detector['darkcurr'],
                                                   exptime=self.sciImg.exptime,
                                                   proc_var=self.sciImg.proc_var,
-                                                  count_scale=self.sciImg.count_scale,
+                                                  count_scale=self.sciImg.img_scale,
                                                   adderr=self.sciImg.noise_floor)
         # Step
         self.steps.append(inspect.stack()[0][3])

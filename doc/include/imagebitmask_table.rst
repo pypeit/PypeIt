@@ -11,4 +11,5 @@ IVAR0       6           64             Inverse variance is undefined
 IVAR_NAN    7           128            Inverse variance is NaN                             
 EXTRACT     8           256            Pixel masked during local skysub and extraction     
 BADSCALE    9           512            Bad image rescaling operation (e.g. flat value <= 0)
+STCKMASK    10          1024           All pixels masked in image stack                    
 ==========  ==========  =============  ====================================================

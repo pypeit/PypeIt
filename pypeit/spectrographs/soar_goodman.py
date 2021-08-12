@@ -144,7 +144,7 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
             oscansec = None
         else:
             # TODO: Could this be detector dependent??
-            binning = self.get_meta_value(self.get_headarr(hdu[1].header), 'binning')
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[1].header['GAIN'])
             ronoise = np.atleast_1d(hdu[1].header['RDNOISE'])
             datasec = None
