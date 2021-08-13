@@ -741,7 +741,8 @@ class Spectrograph:
             kk += 1
         return "_".join(lampstat)
 
-    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
+    def get_meta_value(self, inp, meta_key, required=False, 
+                       ignore_bad_header=False,
                        usr_row=None, no_fussing=False):
         """
         Return meta data from a given file (or its array of headers).
@@ -763,6 +764,7 @@ class Spectrograph:
                 True, the incorrect type is ignored. It is recommended that
                 this be False unless you know for sure that ``PypeIt`` can
                 proceed appropriately.
+                Note: This bool trumps ``required``
             usr_row (`astropy.table.Table`_, optional):
                 A single row table with the user-supplied frametype. This is
                 used to determine if the metadata value is required for each
@@ -797,19 +799,22 @@ class Spectrograph:
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
         value = None
-        if self.meta[meta_key]['card'] is None:
-            if 'default' in self.meta[meta_key].keys():
-                value = self.meta[meta_key]['default']
-            elif 'compound' in self.meta[meta_key].keys():
-                value = self.compound_meta(headarr, meta_key)
+        try:
+            if self.meta[meta_key]['card'] is None:
+                if 'default' in self.meta[meta_key].keys():
+                    value = self.meta[meta_key]['default']
+                elif 'compound' in self.meta[meta_key].keys():
+                    value = self.compound_meta(headarr, meta_key)
+                else:
+                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
             else:
-                msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
-        else:
-            # Grab from the header, if we can
-            try:
+                # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
-            except (KeyError, TypeError):
-                value = None
+        except (KeyError, TypeError) as e:
+            if ignore_bad_header or (not required):
+                msgs.warn("Bad Header, but we'll try to continue on..") 
+            elif required:
+                raise e
 
         # Return now?
         if no_fussing:
