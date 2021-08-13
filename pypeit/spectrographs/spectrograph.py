@@ -813,7 +813,7 @@ class Spectrograph:
         except (KeyError, TypeError) as e:
             if ignore_bad_header or (not required):
                 msgs.warn("Bad Header, but we'll try to continue on..") 
-            elif required:
+            else:
                 raise e
 
         # Return now?
