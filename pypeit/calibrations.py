@@ -204,11 +204,10 @@ class Calibrations:
         return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame,
                                                     det=self.det)
 
-    # TODO: What does "The internal dict is left unmodified." mean?
     def set_config(self, frame, det, par=None):
         """
         Specify the parameters of the Calibrations class and reset all
-        the internals to None. The internal dict is left unmodified.
+        the internals to None.
 
         Args:
             frame (:obj:`int`):

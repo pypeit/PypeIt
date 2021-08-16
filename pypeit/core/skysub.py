@@ -858,10 +858,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                                                  proc_var=_proc_var, count_scale=_count_scale,
                                                  noise_floor=adderr, shot_noise=True)
                     modelivar.flat[isub] = utils.inverse(var)
-#                    var = np.abs(sky_bmodel + obj_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
-#                    var = var + adderr**2*(np.abs(sky_bmodel + obj_bmodel))**2
-#                    modelivar.flat[isub] = (var > 0.0) / (var + (var == 0.0))
-                    #varnoobj.flat[isub] = var_no
                 # Now do some masking based on this round of model fits
                 chi2 = (img_minsky.flat[isub] - obj_bmodel) ** 2 * modelivar.flat[isub]
                 igood = (skymask.flat[isub]) & (chi2 <= chi2_sigrej ** 2)

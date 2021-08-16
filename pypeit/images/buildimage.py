@@ -199,7 +199,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     else:
         finalImage = pypeitImage
 
-    # TODO: Can we move all this copying into the from_pypeitimage function,
+    # TODO: Attempt to move all this copying into the from_pypeitimage function,
     # except for the list of files?
 
     # Internals

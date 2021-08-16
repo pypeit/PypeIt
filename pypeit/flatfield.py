@@ -235,17 +235,6 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
                 return self.illumflat_spat_bsplines
 
-    # TODO: Why are these 3 functions necessary?  I've removed them and edited
-    # the few places they were used, but can put them back, if necessary.
-#    def get_pixelflat(self):
-#        return self.pixelflat_norm
-
-#    def get_spec_illum(self):
-#        return self.pixelflat_spec_illum
-
-#    def get_flat_model(self):
-#        return self.pixelflat_model
-
     def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
         """
 

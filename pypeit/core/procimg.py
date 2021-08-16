@@ -920,7 +920,7 @@ def trim_frame(frame, mask):
 
 
 # TODO: Note that (now that we're not using the previous correction based on the
-# value of the read-noise variance), rn_var and proc_var are entirely
+# value of the read-noise variance) rn_var and proc_var are entirely
 # degenerate; i.e., you could just subsume one into the other and you get the
 # same answer.  So should we just do that (i.e., redefine the parameter to be
 # the sum of both)?
@@ -1036,7 +1036,7 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
     #   - First term is 0 if counts not provided or if shot noise shouldn't be
     #     included, set to the clipped count values otherwise.
     var = np.zeros(rn_var.shape, dtype=float) if counts is None or not shot_noise \
-            else np.clip(counts, 0, None)
+            else np.clip(counts, 0., None)
     #   - Convert (revert) from scaled counts to observed counts
     if count_scale is not None:
         # Check the input type
@@ -1061,8 +1061,8 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         # NOTE: This means the variance will be 0 where count_scale <= 0.
         var *= _count_scale**2
     #   - Add the noise floor
-    if noise_floor is not None and noise_floor > 0.:
-        var += (noise_floor * counts)**2
+    if counts is not None and noise_floor is not None and noise_floor > 0.:
+        var += (noise_floor * np.clip(counts, 0., None)**2
     # Done
     return var
 

@@ -68,8 +68,8 @@ full variance model, :math:`V`, is:
 
 where
 
-    - :math:`V_{\rm rn}` is the detector readnoise variance (i.e., read-noise
-      squared),
+    - :math:`V_{\rm rn}` is the detector readnoise variance (i.e., read-noise in
+      e- squared),
     - :math:`V_{\rm proc}` is added variance from image processing (i.e., this
       term in includes uncertainty from the bias subtraction, etc.), and
     - :math:`\epsilon` is an added error term that imposes a maximum
@@ -81,7 +81,8 @@ Poisson error in the observed counts.  This estimate systematically
 overestimates the variance toward low counts (:math:`\lesssim 2 \sigma_{\rm
 rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm rn}` for :math:`C=0`
 (i.e., about 20% for a readnoise of 2 e-) and less than 10% (for any readnoise)
-when :math:`C\geq1`.
+when :math:`C\geq1`.  The model variance is typically updated during the
+sky-subtraction and object-extraction procedures.
 
 .. _proc_algorithm:
 
@@ -141,15 +142,15 @@ explicitly requested by setting the ``empirical_rn`` parameter to true.
 
 By default, the readnoise variance image does *not* include digitization noise.
 Digitization noise is driven by the conversion from counts to ADU via the gain
-and the quantization to an integer.  One can be derive the digitization noise by
+and the quantization to an integer.  One can derive the digitization noise by
 taking the second moment of a uniform distribution from -1/2 to 1/2 to find
 :math:`\sqrt{1/12}` ADU [1]_ [2]_, which is typically negligible (i.e., when the
 gain is on the same order as the readnoise).  And, in most cases, digitization
 noise will have been included in the estimate of the readnoise.  For this
 reason, digitization noise is *not* explicitly included in the ``PypeIt``
-variance model, and its inclusion cannot be turned on using a pypeit parameter.
-If you need to add digitization noise for your instrument, please `Submit an
-issue`_.
+variance model, and its inclusion cannot be turned on using a ``PypeIt``
+parameter.  If you need to add digitization noise for your instrument, please
+`Submit an issue`_.
 
 Overscan Subtraction
 --------------------
@@ -160,9 +161,10 @@ region of the detector; see
 subtraction uses this region of the image to subtract a per-frame bias level;
 see :func:`~pypeit.core.procimg.subtract_overscan`.  Set the ``use_overscan``
 parameter to false if you do not want to use the overscan in this way or, more
-importantly, your instrument detector does not include an overscan region.
-Uncertainty in the overscan subtraction is propagated to the image-processing
-error budget. 
+importantly, your instrument detector does not include an overscan region;
+supported instruments with no overscan regions should have
+``use_overscan=False`` as the default.  Uncertainty in the overscan subtraction
+is propagated to the image-processing error budget. 
 
 Trimming & Re-orientation
 -------------------------

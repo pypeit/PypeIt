@@ -182,7 +182,14 @@ class RawImage:
             # Already applied
             msgs.warn('Gain was already applied.')
             return
-        self.image *= procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
+
+        # Behavior needs to be different if the image has been trimmed or not
+        gain = procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
+        # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
+        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape:
+            # Image is raw, so need to include overscan sections
+            gain += procimg.gain_frame(self.oscansec_img, np.atleast_1d(self.detector['gain']))
+        self.image *= gain
         # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
         # the variance arrays should be None.
         self.steps[step] = True
@@ -374,9 +381,6 @@ class RawImage:
             self._bpm = bpm
 
         # Check the input
-        # TODO: This may be too strict for how the code is used.  I.e., given
-        # the default parameter values, this may cause unnecessary faults that
-        # weren't being tripped before.  Change these to warnings?
         if self.par['use_biasimage'] and bias is None:
             msgs.error('No bias available for bias subtraction!')
         if self.par['use_darkimage'] and dark is None:
@@ -390,7 +394,7 @@ class RawImage:
         #   - Convert from ADU to electron counts.
         if self.par['apply_gain']:
             self.apply_gain()
-            
+
         # Apply additive corrections.  The order matters and is fixed.
         #
         #   - Subtract any fixed pattern defined for the instrument.  NOTE: This

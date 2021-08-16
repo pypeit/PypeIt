@@ -50,7 +50,7 @@ class PypeItImage(datamodel.DataContainer):
             Master key, only for Master frames
 
     """
-    version = '1.0.2'
+    version = '1.1.0'
     """Datamodel version number"""
 
     datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),
