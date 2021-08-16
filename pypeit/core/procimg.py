@@ -1062,7 +1062,7 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         var *= _count_scale**2
     #   - Add the noise floor
     if counts is not None and noise_floor is not None and noise_floor > 0.:
-        var += (noise_floor * np.clip(counts, 0., None)**2
+        var += (noise_floor * np.clip(counts, 0., None))**2
     # Done
     return var
 
