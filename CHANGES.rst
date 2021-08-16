@@ -1,4 +1,28 @@
 
+1.5.0 (11 Aug 2021)
+-------------------
+
+- Doc updates, including reorganization of the installation doc, fluxing and
+  telluric docs, and automatic construction of the package dependencies.
+- Add new pixelflat_min_wave parameter below which the mspixelflat is set to 1.
+- Add `pypeit_install_telluric` and `pypeit_install_ql_masters` scripts.  The
+  latter creates a symlink to the directory with the QL masters that will be
+  used if the QL_MASTERS environmental variable does not exist.
+- Improved `edgetrace.maskdesign_matching` to always return syncronized traces.
+- Pypeit can now deal with dithered observations (only for DEIMOS for now), by
+  finding the offset of the observed slitmask from the expected position in the design file.
+- There are three options the user can use to find the slitmask offset: bright objects,
+  selected slit, or alignment boxes.
+- Pypeit run object finding for the alignment boxes but it does not extract them.
+- `reduce.run` is now split in two methods: `run_objfind` and `run_extraction`.
+- There are now 2 loops over the detectors in `pypeit.reduce_exposure`: the first
+  one runs calibrations and object finding for all the detectors and the second one
+  runs the extraction. In between the two loops, the slitmask offset is computed.
+- A script (`get_telescope_offset`) to determine the telescope pointing offsets is
+  added to `pypeit/spectrographs/keck_deimos.py`
+- Improve SOAR Goodman fluxing
+
+
 1.4.2 (06 Jul 2021)
 -------------------
 

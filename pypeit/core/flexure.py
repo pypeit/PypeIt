@@ -1036,12 +1036,12 @@ class MultiSlitFlexure(DataContainer):
                 all_sky=all_sky[5:-15]
 
                 # REMOVE CRAZY 500-SIGMA VALUES
-                cmask = (all_flux > np.percentile(all_flux,0.1)) & (all_flux < np.percentile(all_flux,99.9))
+                cmask = (all_sky > np.percentile(all_sky,0.1)) & (all_sky < np.percentile(all_sky,99.9))
 
-                m=np.median(all_flux[cmask])
-                s=np.std(all_flux[cmask])
-                mm = (all_flux > 500.*s + m) | (all_flux < m-50.*s)
-                all_flux[mm] = m
+                m=np.median(all_sky[cmask])
+                s=np.std(all_sky[cmask])
+                mm = (all_sky > 500.*s + m) | (all_sky < m-50.*s)
+                all_sky[mm] = m
                 all_ivar[mm] = 1e6
                 if (np.sum(mm) > 10):
                     msgs.warn('Removing more than 10 pixels of data')

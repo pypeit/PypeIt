@@ -56,7 +56,7 @@ class SensFunc(datamodel.DataContainer):
         debug (:obj:`bool`, optional):
             Run in debug mode, sending diagnostic information to the screen.
     """
-    version = '1.0.0'
+    version = '1.0.1'
     """Datamodel version."""
 
     # TODO: Add this if we want to set the output float type for the np.ndarray
@@ -82,7 +82,8 @@ class SensFunc(datamodel.DataContainer):
                  'zeropoint': dict(otype=np.ndarray, atype=float,
                                    descr='Sensitivity function zeropoints'),
                  'throughput': dict(otype=np.ndarray, atype=float,
-                                    descr='Spectrograph throughput measurements')}
+                                    descr='Spectrograph throughput measurements'),
+                 'algorithm': dict(otype=str, descr='Algorithm used for the sensitivity calculation.')}
 #                                    ,
 #                 'wave_splice': dict(otype=np.ndarray, atype=float,
 #                                     descr='Spliced-together wavelength vector'),
@@ -93,7 +94,7 @@ class SensFunc(datamodel.DataContainer):
 #                                                 'measurements')}
     """DataContainer datamodel."""
 
-    algorithm = None
+    _algorithm = None
     """Algorithm used for the sensitivity calculation."""
 
     @staticmethod
@@ -169,6 +170,9 @@ class SensFunc(datamodel.DataContainer):
         # Get the algorithm parameters
         self.par = self.spectrograph.default_pypeit_par()['sensfunc'] if par is None else par
         # TODO: Check the type of the parameter object?
+
+        # Set the algorithm in the datamodel
+        self.algorithm = self.__class__._algorithm
 
         # QA and throughput plot filenames
         self.qafile = sensfile.replace('.fits', '') + '_QA.pdf'
@@ -292,9 +296,6 @@ class SensFunc(datamodel.DataContainer):
                         or isinstance(self[key], table.Table):
                     continue
                 _d[key] = self[key]
-            # Add the algorithm if it has been defined
-            if self.algorithm is not None:
-                _d['algorithm'] = self.algorithm
 
         return d
 
@@ -711,7 +712,7 @@ class IRSensFunc(SensFunc):
             Run in debug mode.
     """
 
-    algorithm = 'IR'
+    _algorithm = 'IR'
     """Algorithm used for the sensitivity calculation."""
 
     def compute_zeropoint(self):
@@ -834,7 +835,7 @@ class UVISSensFunc(SensFunc):
             Run in debug mode.
     """
 
-    algorithm = 'UVIS'
+    _algorithm = 'UVIS'
     """Algorithm used for the sensitivity calculation."""
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):

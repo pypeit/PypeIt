@@ -139,7 +139,7 @@ What this version provides
   * Global and local :doc:`skysub`
   * Optimal (and boxcar) :doc:`extraction`
   * :doc:`A-B_differencing`
-  * Slitmask metadata slurping including RA/DEC (Keck/DEIMOS only)
+  * Slitmask metadata slurping including RA/DEC (:doc:`deimos` only)
 
 * Documentation
 
@@ -151,6 +151,7 @@ What this version provides
   * :doc:`fluxing`
   * :doc:`manual`
   * :doc:`telluric`
+  * :doc:`2d_combine`
   * :doc:`coadd1d`
   * :doc:`coadd2d`
 
@@ -208,6 +209,7 @@ or have a feature request, please `submit an issue
    pypeit_file
    running
    quicklook
+   2d_combine
    object_finding
    skysub
    extraction
@@ -232,6 +234,7 @@ or have a feature request, please `submit an issue
    A-B_differencing
    fluxing
    coadd1d
+   telluric
    coadd2d
    coadd3d
    collate1d

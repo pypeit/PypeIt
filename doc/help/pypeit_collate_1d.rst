@@ -1,10 +1,11 @@
 .. code-block:: console
 
     $ pypeit_collate_1d -h
-    usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES [SPEC1D_FILES ...]]]
-                             [--par_outfile PAR_OUTFILE] [--tolerance TOLERANCE]
-                             [--match MATCH] [--dry_run] [--archive_dir ARCHIVE_DIR]
-                             [--exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]]
+    usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES ...]]
+                             [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
+                             [--tolerance TOLERANCE] [--match MATCH] [--dry_run]
+                             [--archive_dir ARCHIVE_DIR] [--pypeit_file PYPEIT_FILE]
+                             [--exclude_slit_bm [EXCLUDE_SLIT_BM ...]]
                              [--exclude_serendip]
                              [input_file]
     
@@ -18,7 +19,9 @@
                              
                             [collate1d]
                               tolerance             <tolerance>
+                              outdir                <directory to place output files>
                               archive_root          <directory for archive files>
+                              pypeit_file           <A pypeit file to include with archived files>
                               exclude_slit_trace_bm <slit types to exclude>
                               exclude_serendip      If set serendipitous objects are skipped.
                               match_using           Whether to match using "pixel" or
@@ -33,11 +36,13 @@
     
     optional arguments:
       -h, --help            show this help message and exit
-      --spec1d_files [SPEC1D_FILES [SPEC1D_FILES ...]]
+      --spec1d_files [SPEC1D_FILES ...]
                             One or more spec1d files to flux/coadd/archive. Can
                             contain wildcards
       --par_outfile PAR_OUTFILE
                             Output to save the parameters
+      --outdir OUTDIR       The path where all coadded output files and report files
+                            will be placed. Defaults to the current directory.
       --tolerance TOLERANCE
                             The tolerance used when comparing the coordinates of
                             objects. If two objects are within this distance from
@@ -53,7 +58,11 @@
                             Object Ids but will not flux, coadd or archive.
       --archive_dir ARCHIVE_DIR
                             The path where files and metadata will be archived.
-      --exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]
+      --pypeit_file PYPEIT_FILE
+                            A .pypeit file to place into the archive. Only used if
+                            archive_root is specified. Defaults to looking in the
+                            parent directory of the spec1d files.
+      --exclude_slit_bm [EXCLUDE_SLIT_BM ...]
                             A list of slit trace bitmask bits that should be
                             excluded.
       --exclude_serendip    Whether to exclude SERENDIP objects from collating.
