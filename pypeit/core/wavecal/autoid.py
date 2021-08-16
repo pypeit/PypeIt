@@ -1360,6 +1360,8 @@ class HolyGrail:
         If True, arc lines that are known to be present in the spectra,
         but have not been attributed to an element+ion, will be included
         in the fit.
+    spectrograph : str, optional
+        Spectrograph name
 
     Returns
     -------
@@ -1373,8 +1375,10 @@ class HolyGrail:
 
     """
 
-    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
-                 binw=None, bind=None, nstore=1, use_unknowns=True, nonlinear_counts=None):
+    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, 
+                 outroot=None, debug = False, verbose=False,
+                 binw=None, bind=None, nstore=1, use_unknowns=True, 
+                 nonlinear_counts=None, spectrograph=None):
 
         # Set some default parameters
         self._spec = spec
@@ -1426,7 +1430,9 @@ class HolyGrail:
                 self._line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
                 self._unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
             else:
-                self._line_lists = waveio.load_line_lists(self._lines)
+                restrict = spectrograph if self._par['use_instr_flag'] else None
+                self._line_lists = waveio.load_line_lists(
+                    self._lines, restrict_on_instr=restrict)
                 self._unknwns = waveio.load_unknown_list(self._lines)
 
         if self._use_unknowns:

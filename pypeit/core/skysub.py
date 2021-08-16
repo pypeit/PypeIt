@@ -474,7 +474,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                          thismask, slit_left, slit_righ, sobjs, ingpm=None,
                          spat_pix=None, adderr=0.01, bsp=0.6, trim_edg=(3,3),
-                         std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
+                         std=False, prof_nsigma=None, niter=4, extract_good_frac=0.005, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
                          show_resids=False, use_2dmodel_mask=True, no_local_sky=False):
     """Perform local sky subtraction and  extraction
@@ -535,6 +535,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             exponential at large distances from the trace.
         niter: int, default = 4
             Number of iterations for successive profile fitting and local sky-subtraction
+        extract_good_frac: float, default = 0.005
+            Minimum fraction of pixels along the spectral direction with good optimal extraction
         box_rad: int or float, default = 7
             Boxcar radius in *pixels* used for boxcar extraction.
         sigrej:
@@ -735,7 +737,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
-                        if sobjs[iobj].OPT_MASK.any():
+                        # if there is only one good pixel `extract.fit_profile` fails
+                        if np.sum(sobjs[iobj].OPT_MASK) > extract_good_frac * nspec:
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
                             wave = sobjs[iobj].OPT_WAVE

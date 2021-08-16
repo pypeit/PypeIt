@@ -22,6 +22,8 @@
   added to `pypeit/spectrographs/keck_deimos.py`
 - Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
 slit dependent lists.
+- Improve SOAR Goodman fluxing
+
 
 
 1.4.2 (06 Jul 2021)

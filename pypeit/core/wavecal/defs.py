@@ -21,10 +21,12 @@ def instruments():
     instr_dict['LRISr'] = 2**0
     instr_dict['LRISb'] = 2**1
     instr_dict['Kastb'] = 2**2
-    instr_dict['Kastr'] = 2**3
+    instr_dict['shane_kast_red'] = 2**3
+    instr_dict['shane_kast_red_ret'] = 2**3
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
+    instr_dict['DBSP'] = 2**7
     #
     return instr_dict
 
@@ -106,7 +108,6 @@ def lines():
     line_dict['FeI'] = 2**21
     line_dict['FeII'] = 2**22
     line_dict['UNKNWN'] = 2**23
-
     #
     return line_dict
 
