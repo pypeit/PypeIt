@@ -4,6 +4,7 @@
 .. include:: ../include/links.rst
 """
 
+import os
 import inspect
 from copy import deepcopy
 
@@ -433,9 +434,24 @@ class RawImage:
             
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
-            msgs.error(f'Bad-pixel mask has incorrect shape: found {self.bpm.shape}, expected '
-                       f'{self.image.shape}.  The shape must match a trimmed and oriented '
-                       'PypeIt-processed image.')
+            # The BPM is the wrong shape.  Assume this is because the
+            # calibrations were taken with a different binning than the science
+            # data, and assume this is because a BPM was provided as an
+            # argument.  First erase the "protected" attribute, then access it
+            # again using the @property method, which will recreated it based on
+            # the expected shape for this frame.
+            bpm_shape = self.bpm.shape                  # Save the current shape for the warning
+            self._bpm = None                            # This erases the current bpm attribute
+            if self.bpm.shape != self.image.shape:      # This recreates it
+                # This should only happen because of a coding error, not a user error
+                msgs.error(f'CODING ERROR: From-scratch BPM has incorrect shape!')
+            # If the above was successful, the code can continue, but first warn
+            # the user that the code ignored the provided bpm.
+            msgs.warn(f'Bad-pixel mask has incorrect shape: found {bpm_shape}, expected '
+                      f'{self.image.shape}.  Assuming this is because different binning used for '
+                      'various frames.  Recreating BPM specifically for this frame '
+                      f'({os.path.basename(self.filename)}) and assuming the difference in the '
+                      'binning will be handled later in the code.')
             
         #   - Subtract master bias
         if self.par['use_biasimage']:
@@ -477,14 +493,14 @@ class RawImage:
         # NOTE: To reconstruct the variance model, you need rn2img, image,
         # detector, exptime, proc_var, img_scale, noise_floor, and shot_noise.
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                            proc_var=self.proc_var, img_scale=self.img_scale,
-                                            bpm=self.bpm, detector=self.detector,
-                                            spat_flexure=self.spat_flexure_shift,
-                                            PYP_SPEC=self.spectrograph.name,
-                                            units='e-' if self.par['apply_gain'] else 'ADU',
-                                            exptime=self.exptime,
-                                            noise_floor=self.par['noise_floor'],
-                                            shot_noise=self.par['shot_noise'])
+                                              proc_var=self.proc_var, img_scale=self.img_scale,
+                                              bpm=self.bpm, detector=self.detector,
+                                              spat_flexure=self.spat_flexure_shift,
+                                              PYP_SPEC=self.spectrograph.name,
+                                              units='e-' if self.par['apply_gain'] else 'ADU',
+                                              exptime=self.exptime,
+                                              noise_floor=self.par['noise_floor'],
+                                              shot_noise=self.par['shot_noise'])
         pypeitImage.rawheadlist = self.headarr
         pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 

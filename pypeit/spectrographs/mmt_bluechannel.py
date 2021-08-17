@@ -62,7 +62,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
             darkcurr = hdu[0].header['DARKCUR']
-            datasec = np.atleast_1d(hdu[0].header['DATASEC']),
+            datasec = np.atleast_1d(hdu[0].header['DATASEC'])
             oscansec = np.atleast_1d(hdu[0].header['BIASSEC'])
 
         # Detector 1
