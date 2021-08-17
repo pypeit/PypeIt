@@ -117,10 +117,11 @@ class Reduce:
         Returns:
             :class:`pypeit.reduce.Reduce`:
         """
-        return next(c for c in cls.__subclasses__()
+        return next(c for c in utils.all_subclasses(Reduce)
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
-            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, find_negative=find_negative, det=det,
-            std_redux=std_redux, show=show,binning=binning, setup=setup, basename=basename)
+                            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
+                            find_negative=find_negative, det=det, std_redux=std_redux, show=show,
+                            binning=binning, setup=setup, basename=basename)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
