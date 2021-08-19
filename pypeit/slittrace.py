@@ -16,7 +16,7 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
 from skimage import transform as tf
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, interp1d
 
 from pypeit import msgs
 from pypeit import datamodel
@@ -464,6 +464,11 @@ class SlitTraceSet(datamodel.DataContainer):
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        # Debugging...
+        # embed()
+        # left, right, _ = self.select_edges(initial=initial)
+        # trace_cen = 0.5 * (left + right)
+        # slit_idx=0; spatid = self.spat_id[0]
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
@@ -476,11 +481,24 @@ class SlitTraceSet(datamodel.DataContainer):
             ydst = tilt_spl((ysrc, xsrc))
             dst = np.column_stack((xdst, ydst))
             msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-            tform = tf.estimate_transform("polynomial", src, dst, order=3)
+            tform = tf.estimate_transform("polynomial", src, dst, order=1)
+            msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
+            tfinv = tf.estimate_transform("polynomial", dst, src, order=1)
+            # Calculate the slitlength at a given tilt value
+            xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
+            xyrr = tfinv(np.column_stack((np.ones(nspec), np.linspace(0.0, 1.0, nspec))))
+            slitlen = np.sqrt((xyll[:, 0]-xyrr[:, 0])**2 + (xyll[:, 1]-xyrr[:, 1])**2)
+            slen_spl = interp1d(np.linspace(0.0, 1.0, nspec), slitlen, kind='linear',
+                                bounds_error=False, fill_value="extrapolate")
+            slitlength = slen_spl(tilts[onslit_init])
             # Now perform the transform
             pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
             pixdst = tform(pixsrc)
             evalpos = (pixdst[:, 0] - 0.5)*slitlength
+            # tst = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
+            # if np.max(np.abs(evalpos-tst))>2:
+            #     msgs.warn("BIG DEVIATION!")
+            #     embed()
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
             slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
