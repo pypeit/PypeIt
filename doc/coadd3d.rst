@@ -1,3 +1,8 @@
+
+.. include:: include/links.rst
+
+.. _coadd3d:
+
 ================
 Coadd 3D Spectra
 ================
