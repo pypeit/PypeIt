@@ -415,7 +415,8 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
-    def get_radec_image(self, wcs, alignments, tilts, locations, initial=True, flexure=None):
+    def get_radec_image(self, wcs, alignments, tilts, locations,
+                        astrometric=True, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
 
         Parameters
@@ -435,6 +436,8 @@ class SlitTraceSet(datamodel.DataContainer):
             value that was passed to get_wcs() to generate the WCS that
             is passed into this function as an argument.
         initial : bool
+            Perform astrometric correction using alignment frame?
+        initial : bool
             Select the initial slit edges?
         flexure : float, optional
             If provided, offset each slit by this amount.
@@ -449,14 +452,18 @@ class SlitTraceSet(datamodel.DataContainer):
                 the slits. The third array has a shape of (nslits, 2).
         """
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
-        if type(locations) is list:
-            locations = np.array(locations)
-        elif type(locations) is not np.ndarray:
-            msgs.error("locations must be a 1D list or 1D numpy array")
-        nspec, nloc, nslit = alignments.traces.shape
+        if not astrometric:
+            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+            trace_cen = 0.5 * (left + right)
+        else:
+            if type(locations) is list:
+                locations = np.array(locations)
+            elif type(locations) is not np.ndarray:
+                msgs.error("locations must be a 1D list or 1D numpy array")
+            nspec, nloc, nslit = alignments.traces.shape
 
-        # Generate a spline of the waveimg for interpolation
-        tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
+            # Generate a spline of the waveimg for interpolation
+            tilt_spl = RegularGridInterpolator((np.arange(tilts.shape[0]), np.arange(tilts.shape[1])), tilts*(nspec-1), method='linear')
 
         # Initialise the output
         raimg = np.zeros((self.nspec, self.nspat))
@@ -472,29 +479,32 @@ class SlitTraceSet(datamodel.DataContainer):
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
-            # Calculate the source locations (pixel space)
-            xsrc = alignments.traces[:, :, slit_idx].flatten()
-            ysrc = np.arange(nspec).repeat(nloc).flatten()
-            src = np.column_stack((xsrc, ysrc))
-            # Calculate the destinations (slit space)
-            xdst = locations[np.newaxis, :].repeat(nspec, axis=0).flatten()
-            ydst = tilt_spl((ysrc, xsrc))
-            dst = np.column_stack((xdst, ydst))
-            msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-            tform = tf.estimate_transform("polynomial", src, dst, order=1)
-            msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-            tfinv = tf.estimate_transform("polynomial", dst, src, order=1)
-            # Calculate the slitlength at a given tilt value
-            xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
-            xyrr = tfinv(np.column_stack((np.ones(nspec), np.linspace(0.0, 1.0, nspec))))
-            slitlen = np.sqrt((xyll[:, 0]-xyrr[:, 0])**2 + (xyll[:, 1]-xyrr[:, 1])**2)
-            slen_spl = interp1d(np.linspace(0.0, 1.0, nspec), slitlen, kind='linear',
-                                bounds_error=False, fill_value="extrapolate")
-            slitlength = slen_spl(tilts[onslit_init])
-            # Now perform the transform
-            pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
-            pixdst = tform(pixsrc)
-            evalpos = (pixdst[:, 0] - 0.5)*slitlength
+            if astrometric:
+                evalpos = (pixdst[:, 0] - 0.5) * slitlength
+                # Calculate the source locations (pixel space)
+                xsrc = alignments.traces[:, :, slit_idx].flatten()
+                ysrc = np.arange(nspec).repeat(nloc).flatten()
+                src = np.column_stack((xsrc, ysrc))
+                # Calculate the destinations (slit space)
+                xdst = locations[np.newaxis, :].repeat(nspec, axis=0).flatten()
+                ydst = tilt_spl((ysrc, xsrc))
+                dst = np.column_stack((xdst, ydst))
+                msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
+                tform = tf.estimate_transform("polynomial", src, dst, order=1)
+                msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
+                tfinv = tf.estimate_transform("polynomial", dst, src, order=1)
+                # Calculate the slitlength at a given tilt value
+                xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
+                xyrr = tfinv(np.column_stack((np.ones(nspec), np.linspace(0.0, 1.0, nspec))))
+                slitlen = np.sqrt((xyll[:, 0]-xyrr[:, 0])**2 + (xyll[:, 1]-xyrr[:, 1])**2)
+                slen_spl = interp1d(np.linspace(0.0, 1.0, nspec), slitlen, kind='linear',
+                                    bounds_error=False, fill_value="extrapolate")
+                slitlength = slen_spl(tilts[onslit_init])
+                # Now perform the transform
+                pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
+                pixdst = tform(pixsrc)
+            else:
+                evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
             # tst = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
             # if np.max(np.abs(evalpos-tst))>2:
             #     msgs.warn("BIG DEVIATION!")
@@ -502,7 +512,10 @@ class SlitTraceSet(datamodel.DataContainer):
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
             slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
-            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
+            if astrometric:
+                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, tilts[onslit_init]*(nspec-1), 0)
+            else:
+                world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
