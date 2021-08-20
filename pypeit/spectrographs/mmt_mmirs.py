@@ -112,7 +112,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(0.95),
             ronoise         = np.atleast_1d(3.14),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -365,7 +365,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         if (head1['FILTER']=='zJ') and (head1['DISPERSE']=='HK'):
             array = array[:int(998/ybin),:]
         rawdatasec_img = np.ones_like(array,dtype='int')
-        oscansec_img = np.ones_like(array,dtype='int')
+        # NOTE: If there is no overscan, must be set to 0s
+        oscansec_img = np.zeros_like(array,dtype='int')
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]

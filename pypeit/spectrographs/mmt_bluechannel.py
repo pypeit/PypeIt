@@ -85,6 +85,8 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             gain            = gain, #np.atleast_1d(header['GAIN']),
             ronoise         = ronoise, #np.atleast_1d(header['RDNOISE']),
             # note that the header entries use the binned sizes
+# TODO: These aren't needed because the read_rawimage sets these directly,
+# right?
             datasec         = datasec, #np.atleast_1d(header['DATASEC']),
             oscansec        = oscansec #np.atleast_1d(header['BIASSEC'])
         )

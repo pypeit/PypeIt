@@ -89,7 +89,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             gain            = np.atleast_1d(4.44),
             ronoise         = np.atleast_1d(5.0), #8 CDS read
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]'),
+            oscansec        = None,
             )
         return detector_container.DetectorContainer(**detector_dict)
 

@@ -54,7 +54,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(5.8),
             ronoise         = np.atleast_1d(23.),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 

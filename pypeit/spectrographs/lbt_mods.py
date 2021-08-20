@@ -277,8 +277,9 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([2.38,2.50,2.46,2.81]),
             ronoise         = np.atleast_1d([3.78,4.04,4.74,4.14]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -439,8 +440,9 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
             ronoise         = np.atleast_1d([3.41,2.93,2.92,2.76]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -594,8 +596,9 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([1.70,1.67,1.66,1.66]),
             ronoise         = np.atleast_1d([2.95,2.65,2.78,2.87]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -754,8 +757,9 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
             ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 

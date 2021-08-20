@@ -59,7 +59,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(5.0),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
+            oscansec        = None, #np.atleast_1d('[980:1024,:]')  # Is this a hack??
             )
         return detector_container.DetectorContainer(**detector_dict)
 

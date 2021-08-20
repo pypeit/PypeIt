@@ -104,7 +104,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None #np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 

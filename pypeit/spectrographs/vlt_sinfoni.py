@@ -59,7 +59,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(2.42),
             ronoise         = np.atleast_1d(7.0),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
         )
         return detector_container.DetectorContainer(**detector_dict)
 

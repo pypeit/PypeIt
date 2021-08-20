@@ -59,8 +59,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(13.5),
             ronoise         = np.atleast_1d(7.0),
-            datasec         = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]',
-            oscansec        = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]'
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = None,
         )
         return detector_container.DetectorContainer(**detector_dict)
 

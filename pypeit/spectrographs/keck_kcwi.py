@@ -76,11 +76,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         if hdu is None:
             binning = '1,1'
-            specflip = True
+            specflip = None
             numamps = None
             gainarr = None
             ronarr = None
-            dsecarr = None
+#            dsecarr = None
         else:
             # Some properties of the image
             head0 = hdu[0].header
@@ -89,7 +89,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             specflip = True if head0['AMPID1'] == 2 else False
             gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
-            dsecarr = np.array(['']*numamps)
+#            dsecarr = np.array(['']*numamps)
 
             for ii in range(numamps):
                 # Assign the gain for this amplifier
@@ -109,8 +109,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         numamplifiers   = numamps,
                         gain            = gainarr,
                         ronoise         = ronarr,
-                        datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
-                        oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
+# TODO: These are never used because the image reader sets these up using the
+# file headers data.
+#                        datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
+#                        oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
                         )
         # Return
         return detector_container.DetectorContainer(**detector)
