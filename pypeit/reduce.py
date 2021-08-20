@@ -1111,6 +1111,7 @@ class MultiSlitReduce(Reduce):
                     extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
+                                det=self.det,
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
