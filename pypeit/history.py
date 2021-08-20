@@ -8,6 +8,7 @@ Module for managing the history of PypeIt output files.
 import os.path
 
 from astropy.time import Time
+from astropy.io import fits
 from pypeit.core.framematch import FrameTypeBitMask
 
 class History:
@@ -46,7 +47,7 @@ class History:
             HISTORY Subtracted background from frames:                                      
             HISTORY "S20161108S0088.fits.gz"                                                
             HISTORY "S20161108S0089.fits.gz"                                                
-            HISTORY Callibration frames:                                                    
+            HISTORY Calibration frames:                                                    
             HISTORY arc,science,tilt "S20161108S0069.fits.gz"                               
             HISTORY arc,science,tilt "S20161108S0070.fits.gz"                               
             HISTORY arc,science,tilt "S20161108S0071.fits.gz"                               
@@ -79,7 +80,7 @@ class History:
 
         calib_frames = metadata[metadata.find_frames(calibration_types, calib_id)]
         if len(calib_frames) > 0:
-            self.append('Callibration frames:', add_date=False)
+            self.append('Calibration frames:', add_date=False)
 
             for frame in calib_frames:
                 self.append(f'{frame["frametype"]} "{frame["filename"]}"', add_date=False)
@@ -89,8 +90,7 @@ class History:
         Add history entries for 1D coadding.
         
         The history shows what files and objects were used for coadding.
-        To save characters the unique files are listed first and then the
-        objects are listed. For example::
+        For example::
             
             HISTORY 2021-01-23T02:12 PypeIt Coadded 4 objects from 3 spec1d files           
             HISTORY File 0 "spec1d_DE.20170425.53065-dra11_DEIMOS_2017Apr25T144418.240.fits"  
@@ -106,15 +106,24 @@ class History:
             objids (:obj:`list`): List of the PypeIt object ids used in coadding.
         """
 
-        combined_file_obj = zip(spec1d_files, objids)
-        unique_files = list(set(spec1d_files))
-        history_list = [(unique_files.index(x), y) for x, y in combined_file_obj]
-        self.append(f'PypeIt Coadded {len(history_list)} objects from {len(unique_files)} spec1d files')
-        for i in range(len(unique_files)):
-            self.append(f'File {i} "{os.path.basename(unique_files[i])}"', add_date=False)
+        combined_files_objids = list(zip(spec1d_files, objids))
+        self.append(f'PypeIt Coadded {len(combined_files_objids)} objects from {len(set(spec1d_files))} spec1d files')
 
-        for file_index, objid in history_list:
-            self.append(f'Object ID {objid} from file {file_index}', add_date=False)
+        current_spec1d = ""
+        for (spec1d, objid) in combined_files_objids:
+            if spec1d != current_spec1d:
+                current_spec1d = spec1d
+
+                self.append(f'From "{os.path.basename(spec1d)}"', add_date=False)
+                header = fits.getheader(spec1d)
+                additional_info = None
+                if 'SEMESTER' in header:
+                    additional_info = f"Semester: {header['SEMESTER']}"
+                if 'PROGID' in header:
+                    additional_info += f" Program ID: {header['PROGID']}"
+                if additional_info is not None:
+                    self.append(additional_info, add_date=False)
+            self.append(objid, add_date=False)
 
 
     def append(self, history, add_date=True):
