@@ -1080,7 +1080,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             return skymask
 
 
-def objfind(image, thismask, slit_left, slit_righ, det=None, inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
+def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
             boxcar_rad_skymask=None, cont_sig_thresh=2.0,
@@ -1569,16 +1569,9 @@ def objfind(image, thismask, slit_left, slit_righ, det=None, inmask=None, fwhm=3
     if hand_extract_dict is not None:
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
-        # Determine which hand apertures are on detector in question
-        current_det = hand_extract_det==det
-        hand_extract_spec = hand_extract_spec[current_det]
-        hand_extract_spat = hand_extract_spat[current_det]
-        hand_extract_det  = hand_extract_det[current_det]
-        hand_extract_fwhm = hand_extract_fwhm[current_det]
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
-                                                  np.rint(hand_extract_spat).astype(int)])
-                                & np.array(hand_extract_det==det))[0]
+                                                  np.rint(hand_extract_spat).astype(int)]))
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]

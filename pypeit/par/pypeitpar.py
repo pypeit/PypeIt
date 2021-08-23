@@ -2075,7 +2075,7 @@ class ManualExtractionPar(ParSet):
                 if len(p2) != len(p3):
                     raise ValueError("Each of these lists need the same length")
 
-    def dict_for_objfind(self):
+    def dict_for_objfind(self,det):
         """
         Parse the rather klunky parameters into a dict
 
@@ -2087,11 +2087,11 @@ class ManualExtractionPar(ParSet):
             return None
         if isinstance(self.data['det'], list):
             spat_spec = self.data['spat_spec']
-            det = [int(obj) for obj in self.data['det']]
+            obj_det = [int(obj) for obj in self.data['det']]
             fwhm = [float(obj) for obj in self.data['fwhm']]
         else:
             spat_spec = [self.data['spat_spec']]
-            det = [self.data['det']]
+            obj_det = [self.data['det']]
             fwhm = [self.data['fwhm']]
         # Deal with spat_spec
         spats, specs = [], []
@@ -2099,9 +2099,13 @@ class ManualExtractionPar(ParSet):
             ps = ispat_spec.split(':')
             spats.append(float(ps[0]))
             specs.append(float(ps[1]))
+        # Mask objs not in current detector
+        mask = np.array(obj_det)==det
+        if np.sum(mask)==0:
+            return None
         # dict and return
-        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
-                    hand_extract_det=det, hand_extract_fwhm=fwhm)
+        return dict(hand_extract_spec=np.array(specs)[mask], hand_extract_spat=np.array(spats)[mask],
+                    hand_extract_det=np.array(obj_det)[mask], hand_extract_fwhm=np.array(fwhm)[mask])
 
 
 class ReduxPar(ParSet):

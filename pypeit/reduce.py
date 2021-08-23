@@ -366,7 +366,7 @@ class Reduce:
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind(self.det))
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -380,7 +380,7 @@ class Reduce:
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind(self.det))
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
@@ -1111,7 +1111,6 @@ class MultiSlitReduce(Reduce):
                     extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
-                                det=self.det,
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,

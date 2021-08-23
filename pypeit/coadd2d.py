@@ -471,7 +471,7 @@ class CoAdd2D:
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
             sciImage.image, show_peaks=show_peaks,
-            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind(self.det))
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
