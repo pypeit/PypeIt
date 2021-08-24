@@ -7,6 +7,34 @@ directly into your path (e.g. ``~/anaconda/bin``).
 
 **If you are developing a new script, see :ref:`new_script`.**
 
+Installation Scripts
+++++++++++++++++++++
+
+pypeit_install_telluric
+=======================
+
+After downloading the atmospheric model grids for use in fitting telluric
+absorption, this script "installs" the files by creating symlinks to them within
+the ``PypeIt`` code base.  See :ref:`data_installation`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_install_telluric.rst
+
+pypeit_install_ql_masters
+=========================
+
+After downloading the ``QL_MASTERS`` directory for use with the quick-look
+scripts, this script "installs" the files by creating a symlink to it within the
+``PypeIt`` code base.  See :ref:`data_installation`.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_install_ql_masters.rst
+
+
 Pipeline Scripts
 ++++++++++++++++
 
