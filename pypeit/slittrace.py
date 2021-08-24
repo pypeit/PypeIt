@@ -471,8 +471,8 @@ class SlitTraceSet(datamodel.DataContainer):
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
-        # Debugging...
-        # embed()
+        # Debugging when astrometric=True
+        #embed()
         # left, right, _ = self.select_edges(initial=initial)
         # trace_cen = 0.5 * (left + right)
         # slit_idx=0; spatid = self.spat_id[0]
@@ -480,18 +480,21 @@ class SlitTraceSet(datamodel.DataContainer):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             if astrometric:
-                evalpos = (pixdst[:, 0] - 0.5) * slitlength
+                # Calculate the typical pixel difference in the spatial direction
+                medpixdiff = np.median(np.diff(alignments.traces[:, :, slit_idx], axis=1))
+                nspecpix = np.int(np.ceil(nspec / medpixdiff))
+                specpix = np.round(np.linspace(0.0, nspec-1, nspecpix)).astype(np.int)
                 # Calculate the source locations (pixel space)
-                xsrc = alignments.traces[:, :, slit_idx].flatten()
-                ysrc = np.arange(nspec).repeat(nloc).flatten()
+                xsrc = alignments.traces[specpix, :, slit_idx].flatten()
+                ysrc = specpix.repeat(nloc).flatten()
                 src = np.column_stack((xsrc, ysrc))
                 # Calculate the destinations (slit space)
-                xdst = locations[np.newaxis, :].repeat(nspec, axis=0).flatten()
+                xdst = locations[np.newaxis, :].repeat(nspecpix, axis=0).flatten()
                 ydst = tilt_spl((ysrc, xsrc))
                 dst = np.column_stack((xdst, ydst))
                 msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
                 tform = tf.estimate_transform("polynomial", src, dst, order=1)
-                msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
+                # msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
                 tfinv = tf.estimate_transform("polynomial", dst, src, order=1)
                 # Calculate the slitlength at a given tilt value
                 xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
@@ -503,12 +506,13 @@ class SlitTraceSet(datamodel.DataContainer):
                 # Now perform the transform
                 pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
                 pixdst = tform(pixsrc)
+                evalpos = (pixdst[:, 0] - 0.5) * slitlength
+                # tst = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
+                # if np.max(np.abs(evalpos-tst))>2:
+                #     msgs.warn("BIG DEVIATION!")
+                #     embed()
             else:
                 evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
-            # tst = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
-            # if np.max(np.abs(evalpos-tst))>2:
-            #     msgs.warn("BIG DEVIATION!")
-            #     embed()
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
             slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
