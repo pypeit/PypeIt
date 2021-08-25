@@ -265,7 +265,7 @@ class FlatImages(datamodel.DataContainer):
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
-            if slits.mask[slit_idx] != 0:
+            if (slits.mask[slit_idx] != 0) or (spat_bsplines[slit_idx].breakpoints is None):
                 continue
             # Skip those without a bspline
             # DO it
