@@ -75,12 +75,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
-            binning = '1,1'
-            specflip = True
-            numamps = None
-            gainarr = None
-            ronarr = None
-            dsecarr = None
+            msgs.error("A required keyword argument (hdu) was not supplied")
         else:
             # Some properties of the image
             head0 = hdu[0].header
@@ -109,8 +104,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         numamplifiers   = numamps,
                         gain            = gainarr,
                         ronoise         = ronarr,
-                        datasec         = dsecarr, #.copy(),     # <-- This is provided in the header
-                        oscansec        = dsecarr, #.copy(),     # <-- This is provided in the header
+                        datasec         = dsecarr.copy(),     # <-- This is provided in the header
+                        oscansec        = dsecarr.copy(),     # <-- This is provided in the header
                         )
         # Return
         return detector_container.DetectorContainer(**detector)

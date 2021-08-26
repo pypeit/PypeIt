@@ -114,8 +114,6 @@ True``).  The units of the processed images are saved to the image header as
 Pattern-Noise Subtraction
 -------------------------
 
-.. Ryan, please check this.
-
 Some instruments, specifically Keck KCWI, are known to have a sinusoidal pattern
 in its bias.  :func:`~pypeit.images.rawimage.RawImage.subtract_pattern` models
 and subtracts this pattern from the data based on the overscan regions.  Unless
