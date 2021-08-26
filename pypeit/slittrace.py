@@ -15,14 +15,16 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
-from skimage import transform as tf
 from scipy.interpolate import RegularGridInterpolator, interp1d
+try:
+    from skimage import transform as skimageTransform
+except ImportError:
+    skimageTransform = None
 
 from pypeit import msgs
 from pypeit import datamodel
 from pypeit import specobj
 from pypeit.bitmask import BitMask
-from pypeit.spectrographs import slitmask
 
 
 class SlitTraceBitMask(BitMask):
@@ -435,7 +437,7 @@ class SlitTraceSet(datamodel.DataContainer):
             This is the slit length in pixels, and it should be the same
             value that was passed to get_wcs() to generate the WCS that
             is passed into this function as an argument.
-        initial : bool
+        astrometric : bool
             Perform astrometric correction using alignment frame?
         initial : bool
             Select the initial slit edges?
@@ -452,6 +454,11 @@ class SlitTraceSet(datamodel.DataContainer):
                 the slits. The third array has a shape of (nslits, 2).
         """
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
+        # Check if the user has skimage installed
+        if skimageTransform is None:
+            msgs.warn("scikit-image is not installed - astrometric correction not implemented")
+            astrometric = False
+        # Prepare the parameters
         if not astrometric:
             left, right, _ = self.select_edges(initial=initial, flexure=flexure)
             trace_cen = 0.5 * (left + right)
@@ -471,11 +478,6 @@ class SlitTraceSet(datamodel.DataContainer):
         minmax = np.zeros((self.nslits, 2))
         # Get the slit information
         slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
-        # Debugging when astrometric=True
-        #embed()
-        # left, right, _ = self.select_edges(initial=initial)
-        # trace_cen = 0.5 * (left + right)
-        # slit_idx=0; spatid = self.spat_id[0]
         for slit_idx, spatid in enumerate(self.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
@@ -493,9 +495,9 @@ class SlitTraceSet(datamodel.DataContainer):
                 ydst = tilt_spl((ysrc, xsrc))
                 dst = np.column_stack((xdst, ydst))
                 msgs.info("Calculating astrometric transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-                tform = tf.estimate_transform("polynomial", src, dst, order=1)
+                tform = skimageTransform.estimate_transform("polynomial", src, dst, order=1)
                 # msgs.info("Calculating inverse transform of slit {0:d}/{1:d}".format(slit_idx+1, nslit))
-                tfinv = tf.estimate_transform("polynomial", dst, src, order=1)
+                tfinv = skimageTransform.estimate_transform("polynomial", dst, src, order=1)
                 # Calculate the slitlength at a given tilt value
                 xyll = tfinv(np.column_stack((np.zeros(nspec), np.linspace(0.0, 1.0, nspec))))
                 xyrr = tfinv(np.column_stack((np.ones(nspec), np.linspace(0.0, 1.0, nspec))))
@@ -507,10 +509,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 pixsrc = np.column_stack((onslit_init[1], onslit_init[0]))
                 pixdst = tform(pixsrc)
                 evalpos = (pixdst[:, 0] - 0.5) * slitlength
-                # tst = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
-                # if np.max(np.abs(evalpos-tst))>2:
-                #     msgs.warn("BIG DEVIATION!")
-                #     embed()
             else:
                 evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
             minmax[:, 0] = np.min(evalpos)

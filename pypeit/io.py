@@ -14,8 +14,6 @@ import gzip
 import shutil
 from packaging import version
 
-from IPython import embed
-
 import numpy
 
 from configobj import ConfigObj
@@ -36,6 +34,17 @@ import time
 
 
 def get_time_string(codetime):
+    """
+    Utility function that takes the codetime and
+    converts this to a human readable String.
+
+    Args:
+        codetime (`float`):
+            Code execution time in seconds (usually the difference of two time.time() calls)
+
+    Returns:
+        `str`: A string indicating the total execution time
+    """
     if codetime < 60.0:
         retstr = 'Execution time: {0:.2f}s'.format(codetime)
     elif codetime / 60.0 < 60.0:

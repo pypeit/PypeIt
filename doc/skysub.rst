@@ -109,7 +109,7 @@ the regions in the same format as above for the "user_regions".
 
 If you're happy with the sky regions, press the
 "Continue (and save changes)" button. If you do not wish to save
-the sky regions, press the "Continue (and don't save changes)".
+the sky regions, press the "Continue (and don't save changes)" button.
 The menu bar at the top of the screen will prompt you if you
 wish to save these sky regions (click on either YES or NO).
 If you chose to save the regions file, the regions will be

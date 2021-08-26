@@ -93,6 +93,21 @@ as follows::
         flux_calibrate = True
 
 
+Astrometric correction
+======================
+
+If you would like to perform an astrometric correction, you
+need to install scikit-image (version > 0.17). The default
+option is to perform the astrometric correction, is a Master
+Alignment frame has been computed. To disable the astrometric
+correction, set the following keyword argument in your coadd3d
+file::
+
+    [reduce]
+      [[cube]]
+        astrometric = False
+
+
 Spatial alignment with different setups
 =======================================
 
