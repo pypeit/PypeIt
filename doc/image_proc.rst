@@ -118,9 +118,13 @@ Some instruments, specifically Keck KCWI, are known to have a sinusoidal pattern
 in its bias.  :func:`~pypeit.images.rawimage.RawImage.subtract_pattern` models
 and subtracts this pattern from the data based on the overscan regions.  Unless
 you know such a pattern exists in your data, you should set the ``use_pattern``
-option to false (the default) for *all* frames.  Currently no error associated
-with this pattern subtraction is included in the image-processing error budget
-(unless the readnoise is determined empirically; see below).
+option to false (the default) for *all* frames.
+
+Currently no error associated with this pattern subtraction is included in the
+image-processing error budget; however, if the readnoise is determined
+empirically, the error in the pattern noise subtraction will effectively be
+included in the read-noise estimate.  It's worth considering using the empirical
+readnoise calculation if you're applying the pattern subtraction.
 
 Read and Digitization Noise
 ---------------------------
@@ -298,11 +302,14 @@ throughout the processing steps.  The two final components are:
 Cosmic Ray Identification and Masking
 -------------------------------------
 
-.. TODO: SHOULDN'T THIS BE DONE **BEFORE** FLAT-FIELDING?
+.. TODO: SHOULDN'T THIS BE DONE **BEFORE** FLAT-FIELDING?  Is there a
+   reference/description of what's done to remove the false positives?
 
-``PypeIt`` uses the L.A. Cosmic Ray rejection algorithm [3]_ to identify and
-mask cosmic rays, if the ``mask_cr`` parameter is true.  The most relevant
-parameters in the algorithm are editable via the :ref:`pypeit_file`; see
+``PypeIt`` will identify and mask cosmic rays, if the ``mask_cr`` parameter is
+true.  ``PypeIt`` uses a combination of the L.A. Cosmic Ray rejection algorithm
+[3]_ and some follow-up filtering to identify and remove false positives.  The
+most relevant parameters in the algorithm are editable via the
+:ref:`pypeit_file`; see
 :func:`~pypeit.images.pypeitimage.PypeItImage.build_crmask` and
 :func:`~pypeit.core.procimg.lacosmic`.
 

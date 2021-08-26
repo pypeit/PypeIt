@@ -461,8 +461,8 @@ class CoAdd2D:
         redux.reduce_bpm = reduce_bpm
 
         if show:
-            indx = sciImage.boolean_mask(invert=True).astype(float)
-            redux.show('image', image=pseudo_dict['imgminsky']*indx, chname='imgminsky',
+            gpm = sciImage.boolean_mask(invert=True).astype(float)
+            redux.show('image', image=pseudo_dict['imgminsky']*gpm, chname='imgminsky',
                        slits=True, clear=True)
 
         # TODO:

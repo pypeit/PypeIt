@@ -84,17 +84,16 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 #            msgs.error("A required keyword argument (hdu) was not supplied")
         else:
             # Some properties of the image
-            head0 = hdu[0].header
             binning = self.compound_meta(self.get_headarr(hdu), "binning")
-            numamps = head0['NVIDINP']
-            specflip = True if head0['AMPID1'] == 2 else False
-            gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
+            numamps = hdu[0].header['NVIDINP']
+            specflip = True if hdu[0].header['AMPID1'] == 2 else False
+            gainmul, gainarr = hdu[0].header['GAINMUL'], np.zeros(numamps)
             ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
 #            dsecarr = np.array(['']*numamps)
 
             for ii in range(numamps):
                 # Assign the gain for this amplifier
-                gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)]# * gainmul
+                gainarr[ii] = hdu[0].header["GAIN{0:1d}".format(ii + 1)]# * gainmul
 
         detector = dict(det             = det,
                         binning         = binning,
@@ -213,18 +212,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Subtract the detector pattern from certain frames
+        # Subtract the detector pattern from certain frames.
+        # NOTE: The pattern subtraction is time-consuming, meaning we don't
+        # perform it (by default) for the high S/N pixel flat images but we do
+        # for everything else.
         par['calibrations']['biasframe']['process']['use_pattern'] = True
         par['calibrations']['darkframe']['process']['use_pattern'] = True
-        # TODO: Why is this False and the rest True?
         par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
 
         # Make sure the overscan is subtracted from the dark
-        # TODO: This is now the default.  use_biasimage also defaults to true
-        # for darks.  Should that be changed for KCWI?
         par['calibrations']['darkframe']['process']['use_overscan'] = True
 
         # Set the slit edge parameters

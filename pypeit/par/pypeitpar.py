@@ -204,7 +204,9 @@ class ProcessImagesPar(ParSet):
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
                  mask_cr=None, clip=None,
-                 cr_sigrej=None, n_lohi=None, replace=None, lamaxiter=None, grow=None,
+                 #cr_sigrej=None, 
+                 n_lohi=None, #replace=None,
+                 lamaxiter=None, grow=None,
                  comb_sigrej=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
@@ -315,7 +317,7 @@ class ProcessImagesPar(ParSet):
         descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
 
 
-        defaults['combine'] = 'weightmean'
+        defaults['combine'] = 'mean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
         dtypes['combine'] = str
         descr['combine'] = 'Method used to combine multiple frames.  Options are: {0}'.format(
@@ -323,7 +325,7 @@ class ProcessImagesPar(ParSet):
 
         defaults['clip'] = True
         dtypes['clip'] = bool
-        descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=weightmean'
+        descr['clip'] = 'Perform sigma clipping when combining.  Only used with combine=mean'
 
         defaults['comb_sigrej'] = None
         dtypes['comb_sigrej'] = float
@@ -341,21 +343,22 @@ class ProcessImagesPar(ParSet):
         dtypes['mask_cr'] = bool
         descr['mask_cr'] = 'Identify CRs and mask them'
 
-        # TODO: Is this ever used?
-        defaults['cr_sigrej'] = 20.0
-        dtypes['cr_sigrej'] = [int, float]
-        descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
+#        # TODO: I don't think this is currently used; ``sigclip`` is used instead.
+#        defaults['cr_sigrej'] = 20.0
+#        dtypes['cr_sigrej'] = [int, float]
+#        descr['cr_sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
 
         defaults['n_lohi'] = [0, 0]
         dtypes['n_lohi'] = list
         descr['n_lohi'] = 'Number of pixels to reject at the lowest and highest ends of the ' \
                           'distribution; i.e., n_lohi = low, high.  Use None for no limit.'
 
-        defaults['replace'] = 'maxnonsat'
-        options['replace'] = ProcessImagesPar.valid_rejection_replacements()
-        dtypes['replace'] = str
-        descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
-                           'Options are: {0}'.format(', '.join(options['replace']))
+        # TODO: I don't think this is currently used
+#        defaults['replace'] = 'maxnonsat'
+#        options['replace'] = ProcessImagesPar.valid_rejection_replacements()
+#        dtypes['replace'] = str
+#        descr['replace'] = 'If all pixels are rejected, replace them using this method.  ' \
+#                           'Options are: {0}'.format(', '.join(options['replace']))
 
         defaults['lamaxiter'] = 1
         dtypes['lamaxiter'] = int
@@ -402,8 +405,10 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient', 'use_biasimage', 'use_pattern', 'use_overscan',
                    'overscan_method', 'overscan_par', 'use_darkimage', 'spat_flexure_correct',
                    'use_illumflat', 'use_specillum', 'empirical_rn', 'shot_noise', 'noise_floor',
-                   'use_pixelflat', 'combine', 'satpix', 'cr_sigrej', 'n_lohi', 'mask_cr',
-                   'replace', 'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
+                   'use_pixelflat', 'combine', 'satpix', #'cr_sigrej',
+                   'n_lohi', 'mask_cr',
+                   #'replace',
+                   'lamaxiter', 'grow', 'clip', 'comb_sigrej', 'rmcompact', 'sigclip',
                    'sigfrac', 'objlim']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -427,7 +432,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid methods for combining frames.
         """
-        return ['median', 'weightmean' ]
+        return ['median', 'mean' ]
 
     @staticmethod
     def valid_saturation_handling():
@@ -436,12 +441,12 @@ class ProcessImagesPar(ParSet):
         """
         return [ 'reject', 'force', 'nothing' ]
 
-    @staticmethod
-    def valid_rejection_replacements():
-        """
-        Return the valid replacement methods for rejected pixels.
-        """
-        return [ 'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat' ]
+#    @staticmethod
+#    def valid_rejection_replacements():
+#        """
+#        Return the valid replacement methods for rejected pixels.
+#        """
+#        return [ 'min', 'max', 'mean', 'median', 'weightmean', 'maxnonsat' ]
 
     def validate(self):
         """
@@ -492,7 +497,7 @@ class ProcessImagesPar(ParSet):
         hdr['COMBNLH'] = (','.join([ '{0}'.format(n) for n in self.data['n_lohi']]),
                                 'N low and high pixels rejected when combining')
         hdr['COMBSRJ'] = (self.data['comb_sigrej'], 'Sigma rejection when combining')
-        hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
+#        hdr['COMBREPL'] = (self.data['replace'], 'Method used to replace pixels when combining')
         hdr['LACMAXI'] = ('{0}'.format(self.data['lamaxiter']), 'Max iterations for LA cosmic')
         hdr['LACGRW'] = ('{0:.1f}'.format(self.data['grow']), 'Growth radius for LA cosmic')
         hdr['LACRMC'] = (str(self.data['rmcompact']), 'Compact objects removed by LA cosmic')
@@ -513,8 +518,8 @@ class ProcessImagesPar(ParSet):
                    combine=hdr['COMBMETH'], satpix=hdr['COMBSATP'],
                    n_lohi=[int(p) for p in hdr['COMBNLH'].split(',')],
                    comb_sigrej=float(hdr['COMBSRJ']),
-                   replace=hdr['COMBREPL'],
-                   cr_sigrej=eval(hdr['LASIGR']),
+#                   replace=hdr['COMBREPL'],
+#                   cr_sigrej=eval(hdr['LASIGR']),
                    lamaxiter=int(hdr['LACMAXI']), grow=float(hdr['LACGRW']),
                    rmcompact=eval(hdr['LACRMC']), sigclip=float(hdr['LACSIGC']),
                    sigfrac=float(hdr['LACSIGF']), objlim=float(hdr['LACOBJL']))
@@ -3800,8 +3805,6 @@ class CalibrationsPar(ParSet):
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
                                                process=ProcessImagesPar(satpix='nothing',
-                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
-                                                                        cr_sigrej=-1,
                                                                         use_pixelflat=False,
                                                                         use_illumflat=False,
                                                                         use_specillum=False))
@@ -3809,18 +3812,14 @@ class CalibrationsPar(ParSet):
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
-                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
-                                             process=ProcessImagesPar(cr_sigrej=-1,
-                                                                      use_pixelflat=False,
+                                             process=ProcessImagesPar(use_pixelflat=False,
                                                                       use_illumflat=False,
                                                                       use_specillum=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
-                    # TODO: I don't think setting cr_sigrej to -1 does anything ...
-                                              process=ProcessImagesPar(cr_sigrej=-1,
-                                                                       use_pixelflat=False,
+                                              process=ProcessImagesPar(use_pixelflat=False,
                                                                        use_illumflat=False,
                                                                        use_specillum=False))
         dtypes['tiltframe'] = [ ParSet, dict ]

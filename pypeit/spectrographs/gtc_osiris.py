@@ -117,7 +117,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip']=False
-        par['calibrations']['arcframe']['process']['combine']='weightmean' #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['arcframe']['process']['combine']='mean' #Multiple arcs with different lamps, so can't median combine
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 

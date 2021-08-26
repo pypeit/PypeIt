@@ -101,18 +101,18 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
 
-        # TODO We need to implement dark subtrction for the arcframe and tiltframe. Currently the pypeit file won't let me do this.
-        # TODO: I don't think cr_sigrej does anything !
-        par['calibrations']['arcframe']['process']['cr_sigrej'] = 20.0
+        # TODO: We need to implement dark subtraction for the arcframe and
+        # tiltframe. Currently the pypeit file won't let me do this.
+        par['calibrations']['arcframe']['process']['sigclip'] = 20.0
         #par['calibrations']['arcframe']['process']['combine'] = 'median'
         par['calibrations']['arcframe']['process']['mask_cr'] = True
 
 
-        par['calibrations']['tiltframe']['process']['cr_sigrej'] = 20.0
+        par['calibrations']['tiltframe']['process']['sigclip'] = 20.0
         #par['calibrations']['tiltframe']['process']['combine'] = 'median'
         par['calibrations']['tiltframe']['process']['mask_cr'] = True
 
-        par['calibrations']['skyframe']['process']['cr_sigrej'] = 20.0
+        par['calibrations']['skyframe']['process']['sigclip'] = 20.0
         #par['calibrations']['skyframe']['process']['combine'] = 'median'
         par['calibrations']['skyframe']['process']['mask_cr'] = True
 

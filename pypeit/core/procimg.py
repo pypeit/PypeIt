@@ -151,8 +151,11 @@ def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5
         crmask = np.logical_or(crmask, finalsel)
 
         msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
-        if ncrp == 0: break
-    # Additional algorithms (not traditionally implemented by LA cosmic) to remove some false positives.
+        if ncrp == 0:
+            break
+
+    # Additional algorithms (not traditionally implemented by LA cosmic) to
+    # remove some false positives.
     msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
     filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')

@@ -231,6 +231,8 @@ class RawImage:
 
             This function edits :attr:`ronoise` in place.
         """
+        if self.oscansec_img.shape != self.image.shape:
+            msgs.error('Must estimate readnoise before trimming the image.')
         for amp in range(len(self.ronoise)):
             if self.ronoise[amp] > 0 and not self.par['empirical_rn']:
                 # Skip if the readnoise is defined and the empirical readnoise
@@ -238,7 +240,8 @@ class RawImage:
                 continue
             if not np.any(self.oscansec_img==amp+1):
                 msgs.error(f'Cannot estimate readnoise for amplifier {amp+1}; no overscan region!')
-            biaspix = self.rawimage[self.oscansec_img==amp+1] * self.detector['gain'][amp]
+            gain = 1. if self.steps['apply_gain'] else self.detector['gain'][amp]
+            biaspix = self.image[self.oscansec_img==amp+1] * gain
             self.ronoise[amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
             msgs.info(f'Estimated readnoise of amplifier {amp+1} = {self.ronoise[amp]:.3f} e-')
 
@@ -778,6 +781,14 @@ class RawImage:
             msgs.warn("Image was already pattern subtracted!")
             return
 
+        # The image must have an overscan region for this to work.
+        if not np.any(self.oscansec_img > 0):
+            msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
+
+        # The image cannot have already been trimmed
+        if self.oscansec_img.shape != self.image.shape:
+            msgs.error('Must estimate readnoise before trimming the image.')
+
         # Grab the frequency, if it exists in the header.  For some instruments,
         # PYPEITFRQ is added to the header in get_rawimage() in the spectrograph
         # file.  See keck_kcwi.py for an example.
@@ -792,18 +803,9 @@ class RawImage:
                 frequency = None
         except KeyError:
             frequency = None
-        # Generate a new image with the pattern removed
-        # TODO: Why does this overwrite the raw image?  Is it so that the
-        # readnoise estimation doesn't include the sine pattern?  Does the new
-        # order of forcing the calculation of the readnoise directly after
-        # subtracting the pattern get around this?
-        # TODO: Since subtract_pattern effectively must happen first, does it
-        # make sense to pass self.rawimage instead of self.image?
-        # TODO: Is there an error estimate in the pattern subtraction that we
-        # can propagate to the error budget?
-        self.rawimage = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img,
-                                                 frequency=frequency)
-        self.image = self.rawimage.copy()
+        # Subtract the pattern and overwrite the current image
+        self.image = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img,
+                                              frequency=frequency)
         self.steps[step] = True
 
     def trim(self, force=False):

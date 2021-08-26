@@ -60,10 +60,8 @@ class CombineImage:
         if self.nfiles == 0:
             msgs.error('CombineImage requires a list of files to instantiate')
 
-    # TODO: calling the combination method "weightmean" is confusing because it
-    # doesn't do any weighting.  It's just a sigma-clipped mean.
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='weightmean'):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean'):
         r"""
         Process and combine all images.
 
@@ -78,10 +76,9 @@ class CombineImage:
         processed images are combined based on the ``combine_method``, where the
         options are:
 
-            - 'weightmean': If ``sigma_clip`` is True, this is a sigma-clipped
-              mean; otherwise, this is a simple average (i.e., uniform weights
-              are used).  The combination is done using
-              :func:`~pypeit.core.combine.weighted_combine`.
+            - 'mean': If ``sigma_clip`` is True, this is a sigma-clipped mean;
+              otherwise, this is a simple average.  The combination is done
+              using :func:`~pypeit.core.combine.weighted_combine`.
 
             - 'median': This is a simple masked median (using
               `numpy.ma.median`_).
@@ -146,20 +143,20 @@ class CombineImage:
                 for certain images (e.g. flat calibrations) can have unintended
                 consequences.
             sigma_clip (:obj:`bool`, optional):
-                When ``combine_method='weightmean'``, perform a sigma-clip the
-                data; see :func:`~pypeit.core.combine.weighted_combine`.
+                When ``combine_method='mean'``, perform a sigma-clip the data;
+                see :func:`~pypeit.core.combine.weighted_combine`.
             bpm (`numpy.ndarray`_, optional):
                 Bad pixel mask; passed directly to
                 :func:`~pypeit.images.rawimage.RawImage.process` for all images.
             sigrej (:obj:`float`, optional):
-                When ``combine_method='weightmean'``, this sets the
-                sigma-rejection thresholds used when sigma-clipping the image
-                combination.  Ignored if ``sigma_clip`` is False.  If None and
-                ``sigma_clip`` is True, the thresholds are determined
-                automatically based on the number of images provided; see
+                When ``combine_method='mean'``, this sets the sigma-rejection
+                thresholds used when sigma-clipping the image combination.
+                Ignored if ``sigma_clip`` is False.  If None and ``sigma_clip``
+                is True, the thresholds are determined automatically based on
+                the number of images provided; see
                 :func:`~pypeit.core.combine.weighted_combine``.
             maxiters (:obj:`int`, optional):
-                When ``combine_method='weightmean'``) and sigma-clipping
+                When ``combine_method='mean'``) and sigma-clipping
                 (``sigma_clip`` is True), this sets the maximum number of
                 rejection iterations.  If None, rejection iterations continue
                 until no more data are rejected; see
@@ -171,7 +168,7 @@ class CombineImage:
                 Dark-current image; passed directly to
                 :func:`~pypeit.images.rawimage.RawImage.process` for all images.
             combine_method (str):
-                Method used to combine images.  Must be ``'weightmean'`` or
+                Method used to combine images.  Must be ``'mean'`` or
                 ``'median'``; see above.
 
         Returns:
@@ -181,9 +178,9 @@ class CombineImage:
         # Check the input (i.e., bomb out *before* it does any processing)
         if self.nfiles == 0:
             msgs.error('Object contains no files to process!')
-        if self.nfiles > 1 and combine_method not in ['weightmean', 'median']:
+        if self.nfiles > 1 and combine_method not in ['mean', 'median']:
             msgs.error(f'Unknown image combination method, {combine_method}.  Must be '
-                       '"weightmean" or "median".')
+                       '"mean" or "median".')
 
         # If not provided, generate the bpm for this spectrograph and detector.
         # Regardless of the file used, this must result in the same bpm, so we
@@ -281,7 +278,7 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # Coadd them
-        if combine_method == 'weightmean':
+        if combine_method == 'mean':
             weights = np.ones(self.nfiles, dtype=float)/self.nfiles
             img_list_out, var_list_out, gpm, nstack \
                     = combine.weighted_combine(weights,
@@ -313,7 +310,7 @@ class CombineImage:
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
-            msgs.error("Bad choice for combine.  Allowed options are 'median', 'weightmean'.")
+            msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
         # Recompute the inverse variance using the combined image
         comb_var = procimg.variance_model(comb_rn2, counts=comb_img, darkcurr=comb_dark,
