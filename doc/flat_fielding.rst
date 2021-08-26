@@ -1,6 +1,4 @@
 
-.. This needs to be updated to include use_specillum, right?
-
 .. _flat_fielding:
 
 =============
@@ -31,7 +29,8 @@ There are two primary components to flat-fielding in PypeIt:
 
 The first accounts for pixel-to-pixel variations in the detector
 while the latter corrects for spatial variations along each slit
-and at its edges.
+and at its edges. There is also a routine to correct for the
+relative spectral illumination of multiple slits.
 
 Application
 -----------
@@ -112,6 +111,30 @@ is not the default, you may turn this on with::
 
 Of course, you will need to provide one or more images
 labeled as *illumflat* :doc:`frametype` in your :doc:`pypeit_file`.
+See below for further details.
+
+Apply Spectral Illumination Correction
+--------------------------------------
+
+Spectral illumination corrections are not applied by default.
+The main usage case at the moment is for correcting the relative
+spectral sensitivity of different slits/slices for IFU data. If
+you would like to calculate the relative spectral sensitivity,
+you can do so with this keyword argument::
+
+    [calibrations]
+        [[flatfield]]
+            slit_illum_relative = True
+
+To apply this correction to science frames, you need to make sure
+the following keyword argument is set as well::
+
+    [scienceframe]
+        [[process]]
+            use_specillum = True
+
+You will need to provide one or more images labeled as *pixelflat*
+:doc:`frametype` in your :doc:`pypeit_file`.
 See below for further details.
 
 Generating the Flat Field Images

@@ -75,12 +75,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
-            binning = '1,1'
+            binning = '2,2'
             specflip = None
             numamps = None
             gainarr = None
             ronarr = None
 #            dsecarr = None
+#            msgs.error("A required keyword argument (hdu) was not supplied")
         else:
             # Some properties of the image
             head0 = hdu[0].header
