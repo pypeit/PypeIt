@@ -198,6 +198,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
                 continue
             self.meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
+        # Add in the dome lamp
+        self.meta['lampstat{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card='FLSPECTR')
+        self.meta['lampshst{:02d}'.format(len(lamp_names) + 1)] = dict(ext=0, card=None, default=1)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -252,14 +255,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # Set the number of alignments in the align frames
-        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
+        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this - is this accurate enough?
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = True  # correct for spatial flexure
+        par['scienceframe']['process']['spat_flexure_correct'] = False  # don't correct for spatial flexure - varying spatial illumination profile could throw this correction off. Also, there's no way to do astrometric correction if we can't correct for spatial flexure of the contbars frames
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
 
@@ -379,19 +382,23 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             exposures in ``fitstbl`` that are ``ftype`` type frames.
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # hatch=1,0=open,closed
         if ftype == 'science':
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '1')  #hatch=1,0=open,closed
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '1')
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
-        if ftype in ['pixelflat', 'illumflat', 'trace']:
-            # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '6')
+        if ftype in ['pixelflat']:
+            # Use internal lamp
+            return good_exp & self.lamps(fitstbl, 'cont') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '6')
+        if ftype in ['illumflat', 'trace']:
+            # Use dome flats
+            return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '1') & (fitstbl['idname'] == '0')
         if ftype in ['dark']:
             # Dark frames
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
         if ftype in ['align']:
             # Alignment frames
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '4')
+            return good_exp & self.lamps(fitstbl, 'cont') & (fitstbl['hatch'] == '0') & ((fitstbl['idname'] == '4')|(fitstbl['idname'] == '2'))
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == '0')
         if ftype in ['pinhole']:
@@ -422,12 +429,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            lampstat = np.array([(fitstbl[k] == '0') | (fitstbl[k] == 'None')
+            lampstat = np.array([(fitstbl[k] == '0') | (fitstbl[k] == 'None') | (fitstbl[k] == 'off')
                                     for k in fitstbl.keys() if 'lampstat' in k])
-            lampshst = np.array([(fitstbl[k] == '0') | (fitstbl[k] == 'None')
-                                    for k in fitstbl.keys() if 'lampshst' in k])
-            return np.all(lampstat, axis=0)  # Lamp has to be off
+            # lampshst = np.array([(fitstbl[k] == '0') | (fitstbl[k] == 'None')
+            #                         for k in fitstbl.keys() if 'lampshst' in k])
             # return np.all(lampstat | lampshst, axis=0)  # i.e. either the shutter is closed or the lamp is off
+            return np.all(lampstat, axis=0)  # Lamp has to be off
         if status == 'arcs':
             # Check if any arc lamps are on (FeAr | ThAr)
             arc_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
@@ -441,10 +448,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             dome_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()
                                        if k in dome_lamps])
             return np.any(lamp_stat & lamp_shst & dome_lamp_stat, axis=0)  # i.e. lamp on and shutter open
+        if status in ['cont']:
+            # Check if any internal lamps are on (Continuum) - Ignore lampstat03 (Aux) - not sure what this is used for
+            cont_lamp_stat = ['lampstat{0:02d}'.format(4)]
+            lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
+                                  if k in cont_lamp_stat])
+            # Make sure arcs are off - it seems even with the shutter closed, the arcs
+            arc_lamps = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
+            arc_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()
+                                      if k in arc_lamps])
+            lamp_stat = lamp_stat & arc_lamp_stat
+            return np.any(lamp_stat, axis=0)  # i.e. lamp on
         if status in ['dome_noarc', 'dome']:
             # Check if any dome lamps are on (Continuum) - Ignore lampstat03 (Aux) - not sure what this is used for
-            dome_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(4, 5)]
-            lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
+            dome_lamp_stat = ['lampstat{0:02d}'.format(5)]
+            lamp_stat = np.array([fitstbl[k] == 'on' for k in fitstbl.keys()
                                   if k in dome_lamp_stat])
             if status == 'dome_noarc':
                 # Make sure arcs are off - it seems even with the shutter closed, the arcs
@@ -555,7 +573,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
                 # Convert the data section from a string to a slice
                 # TODO :: RJC - I think something has changed here... and the BPM is flipped (or not flipped) for different amp modes.
-                # TODO :: RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an arguement
+                # TODO :: RJC - Note, KCWI records binned sections, so there's no need to pass binning in as an argument
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2)#, binning=binning)
                 # Flip the datasec

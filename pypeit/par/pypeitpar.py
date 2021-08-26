@@ -863,7 +863,7 @@ class AlignPar(ParSet):
         dtypes['locations'] = [list, np.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
-        defaults['trace_npoly'] = 8
+        defaults['trace_npoly'] = 4
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
 
@@ -1189,7 +1189,7 @@ class CubePar(ParSet):
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
                  standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None):
+                 spatial_delta=None, wave_delta=None, astrometric=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1293,6 +1293,10 @@ class CubePar(ParSet):
         descr['wave_delta'] = 'The wavelength step to use when generating the WCS (in Angstroms).' \
                                 'If None, the default is set by the wavelength solution.'
 
+        defaults['astrometric'] = True
+        dtypes['astrometric'] = bool
+        descr['astrometric'] = 'If true, an astrometric correction will be applied using the alignment frames.'
+
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
                                       values=list(pars.values()),
@@ -1309,7 +1313,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine']
+                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
