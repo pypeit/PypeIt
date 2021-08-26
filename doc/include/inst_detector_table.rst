@@ -27,7 +27,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ...                           6    0         False     False     1         1.177                       2.469                   4.28      -1.0e+10  65535.0       0.9500     0.1185    
 ...                           7    0         False     False     1         1.201                       2.518                   3.33      -1.0e+10  65535.0       0.9500     0.1185    
 ...                           8    0         False     False     1         1.23                        2.58                    3.69      -1.0e+10  65535.0       0.9500     0.1185    
-``keck_kcwi``                 1    0         True      False     ``None``  ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.1457    
+``keck_kcwi``                 1    0         None      False     ``None``  ``None``                    ``None``                0.0       -1.0e+10  65535.0       0.9500     0.1457    
 ``keck_lris_blue``            1    0         False     False     2         1.55, 1.56                  3.9, 4.2                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ...                           2    0         False     False     2         1.63, 1.7                   3.6, 3.6                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ``keck_lris_blue_orig``       1    0         True      False     2         1.55, 1.56                  3.9, 4.2                0.0       -1.0e+10  65535.0       0.8600     0.1350    
