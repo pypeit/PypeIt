@@ -420,6 +420,7 @@ class SlitTraceSet(datamodel.DataContainer):
     def get_radec_image(self, wcs, alignments, tilts, locations,
                         astrometric=True, initial=True, flexure=None):
         """Generate an RA and DEC image for every pixel in the frame
+        NOTE: This function is currently only used for IFU reductions.
 
         Parameters
         ----------
@@ -455,7 +456,7 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         msgs.work("Spatial flexure is not currently implemented for the astrometric alignment")
         # Check if the user has skimage installed
-        if skimageTransform is None:
+        if skimageTransform is None or alignments is None:
             msgs.warn("scikit-image is not installed - astrometric correction not implemented")
             astrometric = False
         # Prepare the parameters

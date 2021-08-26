@@ -639,16 +639,23 @@ def coadd_cube(files, parset, overwrite=False):
             dspat = max(pxscl, slscl)
 
         # Loading the alignments frame for these data
+        astrometric = cubepar['astrometric']
         msgs.info("Loading alignments")
         hdr = fits.open(fil)[0].header
         alignfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], alignframe.Alignments.master_type,
                                                               hdr['TRACMKEY'], alignframe.Alignments.master_file_format)
-        alignments = alignframe.Alignments.from_file(alignfile)
+        alignments = None
+        if os.path.exists(alignfile) and cubepar['astrometric']:
+            alignments = alignframe.Alignments.from_file(alignfile)
+        else:
+            msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
+            msgs.warn("Astrometric correction will not be performed")
+            astrometric = False
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments, spec2DObj.tilts, locations,
-                                                      initial=True, flexure=flexure)
+                                                      astrometric=astrometric, initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:

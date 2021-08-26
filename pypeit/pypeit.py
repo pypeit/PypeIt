@@ -23,7 +23,7 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
-from pypeit import io
+from pypeit import utils
 from pypeit.history import History
 
 from configobj import ConfigObj
@@ -921,7 +921,7 @@ class PypeIt(object):
         Print the elapsed time
         """
         # Capture the end time and print it to user
-        msgs.info(io.get_time_string(time.time()-self.tstart))
+        msgs.info(utils.get_time_string(time.time()-self.tstart))
 
     # TODO: Move this to fitstbl?
     def show_science(self):

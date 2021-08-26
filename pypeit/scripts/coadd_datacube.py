@@ -9,6 +9,7 @@ import time
 from pypeit import msgs
 from pypeit import par
 from pypeit import io
+from pypeit import utils
 from pypeit.core.datacube import coadd_cube
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
@@ -47,4 +48,4 @@ class CoAddDataCube(scriptbase.ScriptBase):
         # Coadd the files
         tstart = time.time()
         coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
-        msgs.info(io.get_time_string(time.time()-tstart))
+        msgs.info(utils.get_time_string(time.time()-tstart))
