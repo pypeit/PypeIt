@@ -973,10 +973,11 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
 
     Args:
         rn_var (`numpy.ndarray`_):
-            A 2D array with the read-noise variance from the instrument
-            detector.  This should include digitization noise and any difference
-            in the readnoise across the detector due to the use of multiple
-            amplifiers.
+            A 2D array with the readnoise variance (i.e., readnoise squared)
+            from the instrument detector; see :func:`rn2_frame`.  This should
+            include digitization noise and any difference in the readnoise
+            across the detector due to the use of multiple amplifiers.
+            Readnoise should be in e-, meaning this is in elections squared.
         counts (`numpy.ndarray`_, optional):
             A 2D array with the number of source-plus-sky counts, possibly
             rescaled by a relative throughput.  Because this is used to
