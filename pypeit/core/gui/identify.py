@@ -34,6 +34,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'f' : "Fit the wavelength solution",
                    'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
                    'h' : "Reset ghost parameters",
+                   'i' : "Include an undetected line to the detected line list (a fit will be performed near the cursor position)"
                    'l' : "Load saved line IDs from file (waveids.ascii in local directory)",
                    'm' : "Select a line",
                    'r' : "Refit a line",
@@ -880,6 +881,9 @@ class Identify(object):
         elif key == 'f':
             self.fitsol_fit()
             self.replot()
+        elif key == 'i':
+            self.add_new_detection()
+            self.replot()
         elif key == 'l':
             self.load_IDs()
         elif key == 'm':
@@ -1025,6 +1029,15 @@ class Identify(object):
         else:
             msgs.bug("Cannot predict wavelength value - no fit has been performed")
             return None
+
+    def add_new_detection(self):
+        """
+        Perform a local Gaussian fit to the pixels near the mouse cursor.
+        If the fit is accetable, a new line will be added to the detections
+        provided that the line is not too close to another line already in
+        the detections list.
+        """
+
 
     def fitsol_fit(self):
         """Perform a fit to the line identifications
