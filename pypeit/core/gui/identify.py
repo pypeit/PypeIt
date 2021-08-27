@@ -34,7 +34,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'f' : "Fit the wavelength solution",
                    'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
                    'h' : "Reset ghost parameters",
-                   'i' : "Include an undetected line to the detected line list (a fit will be performed near the cursor position)"
+                   'i' : "Include an undetected line to the detected line list (a fit will be performed near the cursor position)",
                    'l' : "Load saved line IDs from file (waveids.ascii in local directory)",
                    'm' : "Select a line",
                    'r' : "Refit a line",
@@ -1037,6 +1037,12 @@ class Identify(object):
         provided that the line is not too close to another line already in
         the detections list.
         """
+        # new_detn =
+        # detns = np.append(self._detns, new_detn)
+        # self._detns = detns
+        # self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
+        # self._lineids = np.zeros(self._detns.size, dtype=np.float)
+        # self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
 
 
     def fitsol_fit(self):
