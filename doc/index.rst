@@ -94,7 +94,7 @@ What this version provides
   * Magellan/Fire
   * MDM/OSMOS
   * Keck/DEIMOS (600ZD, 830G, 1200G, 1200B, 900ZD)
-  * Keck/KCWI (BM, BH2)
+  * Keck/KCWI
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES

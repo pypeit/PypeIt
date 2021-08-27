@@ -276,19 +276,20 @@ class Reduce:
             self.sobjs = self.sobjs_obj.copy()
             # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
-            # Quick loop over the objects
-            for iobj in range(self.sobjs.nobj):
-                sobj = self.sobjs[iobj]
-                plate_scale = self.get_platescale(sobj)
-                # True  = Good, False = Bad for inmask
-                thismask = self.slitmask == sobj.SLITID  # pixels for this slit
-                inmask = (self.sciImg.fullmask == 0) & thismask
-                # Do it
-                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.waveimg,
-                                               global_sky, self.sciImg.rn2img,
-                                               self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
-                                               sobj)
+            if not self.par['reduce']['extraction']['skip_boxcar']:
+                # Quick loop over the objects
+                for iobj in range(self.sobjs.nobj):
+                    sobj = self.sobjs[iobj]
+                    plate_scale = self.get_platescale(sobj)
+                    # True  = Good, False = Bad for inmask
+                    thismask = self.slitmask == sobj.SLITID  # pixels for this slit
+                    inmask = (self.sciImg.fullmask == 0) & thismask
+                    # Do it
+                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
+                                                   inmask, self.waveimg,
+                                                   global_sky, self.sciImg.rn2img,
+                                                   self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
+                                                   sobj)
 
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)

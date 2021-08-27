@@ -115,7 +115,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * MMT/Blue Channel (300 tested)
 * MDM/OSMOS
 * Keck/DEIMOS (600ZD, 830G, 1200G)
-* Keck/KCWI (BM, BH2)
+* Keck/KCWI
 * Keck/LRIS
 * Keck/MOSFIRE  (J and Y gratings tested)
 * Keck/NIRES
