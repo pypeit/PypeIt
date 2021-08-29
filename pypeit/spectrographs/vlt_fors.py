@@ -326,6 +326,8 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
             par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
             par['calibrations']['wavelengths']['method'] = 'holy-grail'
+            # Since we are using the sky to fit the wavelengths don't correct for flexure
+            par['flexure']['spec_method'] = 'skip'
 
         if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'

@@ -868,10 +868,14 @@ class Spectrograph:
                             if ftype in self.meta[meta_key]['required_ftypes']:
                                 kerror = True
                     # Bomb out?
+                    # TODO Bombing out is not acceptable as we have discussed.
                     if kerror:
                         # TODO: Do we want this embed here?
-                        embed(header=utils.embed_header())
-                        msgs.error('Required meta "{0}" did not load!'.format(meta_key)
+                        # TODO: JFH The logic in this routine is convoluted and impossible to follow.
+                        # It is currenlty crashing because flat field images do not have the RA header card.
+                        #
+                        #embed(header=utils.embed_header())
+                        msgs.warn('Required meta "{0}" did not load!'.format(meta_key)
                                    + 'You may have a corrupt header.')
                 else:
                     msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
