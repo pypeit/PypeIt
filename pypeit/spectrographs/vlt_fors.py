@@ -228,7 +228,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
 
-        # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
+        # These numbers are from the ESO FORS2 user manual at: 0
+        # http://www.eso.org/sci/facilities/paranal/instruments/fors/doc/VLT-MAN-ESO-13100-1543_P01.1.pdf
+        # They are for the MIT CCD (which is the default detector) for the high-gain, 100 khZ readout mode used for
+        # spectroscpy. The other readout modes are not yet implemented. The E2V detector is not yet supported!!
+
+        # CHIP1
         detector_dict1 = dict(
             binning         = binning,
             det             = 1,
@@ -237,7 +242,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 2.1,
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
@@ -245,10 +250,10 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             gain            = np.atleast_1d(0.70),
             ronoise         = np.atleast_1d(2.9), # High gain
             datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
-            oscansec        = np.atleast_1d('[2062:,:]'),
-            #suffix          = '_Thor',
+            #oscansec=np.atleast_1d('[2062:,:]'),
+            oscansec=np.atleast_1d('[1:10,:]'), # Overscan has artifacts so use pre-scan
         )
-        # Detector 2 (Belenos)
+        # CHIP2
         detector_dict2 = dict(
             binning         = binning,
             det             = 1,  # ESO writes these to separate FITS images!!
@@ -257,18 +262,18 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             specflip        = False,
             spatflip        = False,
             platescale      = 0.126,  # average between order 11 & 30, see manual
-            darkcurr        = 0.0,
+            darkcurr        = 1.4,
             saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
             nonlinear       = 0.80,
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.70),
-            ronoise         = np.atleast_1d(3.0),  # High gain
-            datasec         = np.atleast_1d('[20:,0:2048]'),
-            oscansec        = np.atleast_1d('[4:20,4:2044]'),
-            #suffix          = '_Belenos'
+            ronoise         = np.atleast_1d(3.15),  # High gain
+            datasec=np.atleast_1d('[11:2059,:]'),
+            oscansec=np.atleast_1d('[2062:,:]'), # Pre-scan has artifacts, so use overscan
+            #datasec=np.atleast_1d('[20:,0:2048]'),
+            #oscansec=np.atleast_1d('[4:20,4:2044]'),
         )
-
         # Finish
         if chip == 'CHIP1':
             return detector_container.DetectorContainer(**detector_dict1)
