@@ -307,9 +307,13 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
+        from IPython import embed
+        embed()
         if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
