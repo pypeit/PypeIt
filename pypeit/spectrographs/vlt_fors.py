@@ -3,6 +3,7 @@ Module for VLT FORS (1 and 2)
 
 .. include:: ../include/links.rst
 """
+import os
 import glob
 from pkg_resources import resource_filename
 
@@ -64,6 +65,15 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_Paranal_NIR_9800_25000_R25000.fits')
+
+
 
         return par
 
@@ -307,20 +317,19 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         #self.set_detector(detector)
         # Wavelengths
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        from IPython import embed
-        embed()
         if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
-        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
-            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_600z':
+            par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
+            par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
-        if 'lSlit' in self.get_meta_value(scifile, 'decker'):
+        if 'lSlit' in self.get_meta_value(scifile, 'decker') or 'LSS' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
 
         return par
 
