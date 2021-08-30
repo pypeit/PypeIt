@@ -623,9 +623,9 @@ def general_spec_reader(specfile, ret_flam=False):
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
             counts_ivar = np.reshape(counts_ivar[:,idx],(npix,1))
             counts_gpm = np.reshape(counts_gpm[:,idx],(npix,1))
-        bonus[‘ECH_ORDER’]  = sobjs.ECH_ORDER if sobjs.ECH_ORDER is None else (sobjs.ECH_ORDER).astype(int)
-        bonus[‘ECH_ORDERINDX’]  = sobjs.ECH_ORDERINDX if sobjs.ECH_ORDERINDX is None else (sobjs.ECH_ORDERINDX).astype(int)
-        bonus[‘ECH_SNR’]  = sobjs.ECH_SNR if sobjs.ECH_SNR is None else (sobjs.ECH_SNR).astype(int)
+        bonus['ECH_ORDER']  = sobjs.ECH_ORDER if sobjs.ECH_ORDER is None else (sobjs.ECH_ORDER).astype(int)
+        bonus['ECH_ORDERINDX']  = sobjs.ECH_ORDERINDX if sobjs.ECH_ORDERINDX is None else (sobjs.ECH_ORDERINDX).astype(int)
+        bonus['ECH_SNR']  = sobjs.ECH_SNR if sobjs.ECH_SNR is None else (sobjs.ECH_SNR).astype(int)
         bonus['NORDERS'] = wave.shape[1]
         try:
             spectrograph = load_spectrograph(head['INSTRUME'])
