@@ -275,7 +275,6 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         platescale = spectrograph.get_detector_par(1)['platescale']
         # Parse the offset information out of the headers. TODO in the future
         # get this out of fitstable
-        embed()
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
         if len(np.unique(dither_pattern)) > 1:
             msgs.error('Script only supported for a single type of dither pattern.')
