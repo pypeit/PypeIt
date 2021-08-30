@@ -152,9 +152,9 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits))
     spec2DObj_A.process_steps = sciImg.process_steps
-    all_spec2d = spec2dobj.AllSpec2DObj()
-    all_spec2d['meta']['ir_redux'] = True
-    all_spec2d[det] = spec2DObj_A
+    #all_spec2d = spec2dobj.AllSpec2DObj()
+    #all_spec2d['meta']['ir_redux'] = True
+    #all_spec2d[det] = spec2DObj_A
 
     # Construct the Spec2DObj with the negative image
     spec2DObj_B = spec2dobj.Spec2DObj(det=det,

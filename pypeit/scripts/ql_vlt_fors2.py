@@ -8,6 +8,7 @@ Script for quick-look reductions of Keck MOSFIRE observations.
 import os
 import copy
 from glob import glob
+import time
 
 from pkg_resources import resource_filename
 
@@ -69,7 +70,7 @@ def config_lines(args):
     return cfg_lines
 
 
-def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
+def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None):
     """
     Peform 2d extraction for a set of files at the same unique A-B offset location.
 
@@ -105,26 +106,20 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
 
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(
-        spectrograph, det, parset['scienceframe'], list(A_files), bpm=caliBrate.msbpm, slits=caliBrate.slits,
-        ignore_saturation=False)
+        spectrograph, det, parset['scienceframe'], list(files),  bias=caliBrate.msbias,
+        bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
-    # Background Image?
-    sciImg = sciImg.sub(
-        buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm,
-                                       slits=caliBrate.slits, ignore_saturation=False),
-        parset['scienceframe']['process'])
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
-                                       det=det)
+    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
 
     # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
     #     std_trace=std_trace, return_negative=True, show_peaks=show)
 
     global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
     skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
-        global_sky, sobjs_obj, skymask, return_negative=True)
+        global_sky, sobjs_obj, skymask)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -137,7 +132,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     spec_flex_table['sci_spec_flexure'] = redux.slitshift
 
     # Construct the Spec2DObj with the positive image
-    spec2DObj_A = spec2dobj.Spec2DObj(det=det,
+    spec2DObj = spec2dobj.Spec2DObj(det=det,
                                       sciimg=sciImg.image,
                                       ivarraw=sciImg.ivar,
                                       skymodel=skymodel,
@@ -153,29 +148,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
                                       slits=copy.deepcopy(caliBrate.slits))
-    spec2DObj_A.process_steps = sciImg.process_steps
-    all_spec2d = spec2dobj.AllSpec2DObj()
-    all_spec2d['meta']['ir_redux'] = True
-    all_spec2d[det] = spec2DObj_A
-
-    # Construct the Spec2DObj with the negative image
-    spec2DObj_B = spec2dobj.Spec2DObj(det=det,
-                                      sciimg=-sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=-skymodel,
-                                      objmodel=-objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      sci_spec_flexure=spec_flex_table,
-                                      vel_corr=None,
-                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
-    return spec2DObj_A, spec2DObj_B
+    spec2DObj.process_steps = sciImg.process_steps
+    return spec2DObj
 
 
 class QLVLTFORS2(scriptbase.ScriptBase):
@@ -227,7 +201,7 @@ class QLVLTFORS2(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-
+        tstart = time.time()
         # Parse the files sort by MJD
         files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
         nfiles = len(files)
@@ -262,6 +236,9 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         fors2_grism = spectrograph.get_meta_value(files[0], 'dispname')
         fors2_masters = os.path.join(master_dir, 'FORS2_MASTERS', fors2_grism)
 
+
+        bias_masterframe_name = \
+            utils.find_single_file(os.path.join(fors2_masters, "MasterBias*"))
         slit_masterframe_name \
             = utils.find_single_file(os.path.join(fors2_masters, "MasterSlits*"))
         tilts_masterframe_name \
@@ -272,10 +249,11 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         sensfunc_masterframe_name = utils.find_single_file(os.path.join(fors2_masters, 'sens_*'))
 
         # TODO make and impelement sensfunc
-        if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
+        if (bias_masterframe_name is None or not os.path.isfile(bias_masterframe_name)) or \
+                (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
                 (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
-                (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)): # or \
-                #(sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
+                (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)):
+            # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
 
@@ -285,30 +263,22 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         platescale = det_container['platescale']*binspatial
         # Parse the offset information out of the headers.
         _, _, offset_arcsec = spectrograph.parse_dither_pattern(files)
-        if len(np.unique(dither_pattern)) > 1:
-            msgs.error('Script only supported for a single type of dither pattern.')
-        A_files = files[dither_id == 'A']
-        B_files = files[dither_id == 'B']
-        nA = len(A_files)
-        nB = len(B_files)
 
         # Print out a report on the offsets
         msg_string = msgs.newline()  + '*******************************************************'
         msg_string += msgs.newline() + ' Summary of offsets for target {:s}:                   '
         msg_string += msgs.newline() + '*******************************************************'
-        msg_string += msgs.newline() + 'filename     Position         arcsec    pixels    '
+        msg_string += msgs.newline() + '           filename                arcsec   pixels    '
         msg_string += msgs.newline() + '----------------------------------------------------'
         for iexp, file in enumerate(files):
-            msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                os.path.basename(file), dither_id[iexp], offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
+            msg_string += msgs.newline() + '    {:s}    {:6.2f}    {:6.2f}'.format(
+                os.path.basename(file), offset_arcsec[iexp], offset_arcsec[iexp] / platescale)
         msg_string += msgs.newline() + '********************************************************'
         msgs.info(msg_string)
 
-        # offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
-
         ## Read in the master frames that we need
         ##
-        det = 1  # MOSFIRE has a single detector
+        det = 1  # Currently CHIP1 is supported
         if std_spec1d_file is not None:
             # Get the standard trace if need be
             sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
@@ -322,9 +292,11 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         else:
             std_trace = None
 
+        # Read in the bias
+        msbias = buildimage.BiasImage.from_file(bias_masterframe_name)
         # Read in the msbpm
         sdet = get_dnum(det, prefix=False)
-        msbpm = spectrograph.bpm(A_files[0], det)
+        msbpm = spectrograph.bpm(files[0], det)
         # Read in the slits
         slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
         # Reset the bitmask
@@ -340,17 +312,17 @@ class QLVLTFORS2(scriptbase.ScriptBase):
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
-        caliBrate.slits = slits
+        caliBrate.msbias = msbias
         caliBrate.msbpm = msbpm
+        caliBrate.slits = slits
         caliBrate.wavetilts = tilts_obj
         caliBrate.wv_calib = wv_calib
 
-        # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
-        # uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
-        uniq_throws, uni_indx = np.unique(np.abs(offset_arcsec), return_inverse=True)
-        # uniq_throws = uniq values of the dither throw
-        # uni_indx = indices into the uniq_throws array needed to reconstruct the original array
-        nuniq = uniq_throws.size
+        # Find the unique offsets. This is a bit of a kludge, i.e. we are considering offsets within
+        # 0.1 arcsec of each other to be the same throw, but I should like to be able to specify a tolerance here,
+        # but then I need a version of unique that accepts a tolerance
+        uniq_offsets, uni_indx = np.unique(np.around(offset_arcsec), return_inverse=True)
+        nuniq = uniq_offsets.size
         spec2d_list = []
         offset_ref = offset_arcsec[0]
         offsets_dith_pix = []
@@ -364,43 +336,22 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         # on what was actually reduced.
 
         for iuniq in range(nuniq):
-            A_ind = (uni_indx == iuniq) & (dither_id == 'A')
-            B_ind = (uni_indx == iuniq) & (dither_id == 'B')
-            A_files_uni = files[A_ind]
-            A_dither_id_uni = dither_id[A_ind]
-            B_dither_id_uni = dither_id[B_ind]
-            B_files_uni = files[B_ind]
-            A_offset = offset_arcsec[A_ind]
-            B_offset = offset_arcsec[B_ind]
-            throw = np.abs(A_offset[0])
-            msgs.info('Reducing A-B pairs for throw = {:}'.format(throw))
-            if (len(A_files_uni) > 0) & (len(B_files_uni) > 0):
-                spec2DObj_A, spec2DObj_B = run_pair(A_files_uni, B_files_uni, caliBrate,
-                                                    spectrograph, det, parset, show=args.show,
-                                                    std_trace=std_trace)
-                spec2d_list += [spec2DObj_A, spec2DObj_B]
-                offsets_dith_pix += [(np.mean(A_offset) - offset_ref) / platescale,
-                                     (np.mean(B_offset) - offset_ref) / platescale]
-            else:
-                msgs.warn('Skpping files that do not have an A-B match with the same throw:')
-                for iexp in range(len(A_files_uni)):
-                    msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(A_files_uni[iexp]), A_dither_id_uni[iexp],
-                        A_offset[iexp], A_offset[iexp] / platescale)
-                for iexp in range(len(B_files_uni)):
-                    msg_string += msgs.newline() + '    {:s}    {:s}   {:6.2f}    {:6.2f}'.format(
-                        os.path.basename(B_files_uni[iexp]), B_dither_id_uni[iexp],
-                        B_offset[iexp], B_offset[iexp] / platescale)
+            indx = uni_indx == iuniq
+            files_uni = files[indx]
+            offsets = offset_arcsec[indx]
+            msgs.info('Reducing images for offset = {:}'.format(offsets[0]))
+            spec2DObj = run(files_uni, caliBrate, spectrograph, det, parset, show=args.show, std_trace=std_trace)
+            spec2d_list += [spec2DObj]
+            offsets_dith_pix += [np.mean(offsets)/platescale]
 
         offsets_dith_pix = np.array(offsets_dith_pix)
-        # else:
-        #    msgs.error('Unrecognized mode')
 
         if args.offset is not None:
             offsets_pixels = np.array([0.0, args.offset])
             msgs.info('Using user specified offsets instead: {:5.2f}'.format(args.offset))
         else:
             offsets_pixels = offsets_dith_pix
+
 
         # Instantiate Coadd2d
         coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
@@ -496,6 +447,9 @@ class QLVLTFORS2(scriptbase.ScriptBase):
             hdul = fits.HDUList([hdu, hdu_resid, hdu_wave])
             msgs.info('Writing sky subtracted image to {:s}'.format(outfile))
             hdul.writeto(outfile, overwrite=True)
+
+        msgs.info(utils.get_time_string(time.time()-tstart))
+
 
         if args.embed:
             embed()

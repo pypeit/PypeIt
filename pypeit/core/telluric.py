@@ -772,7 +772,6 @@ def init_sensfunc_model(obj_params, iord, wave, counts_per_ang, ivar, gpm, tellm
         title = 'Zeropoint Initialization Guess for order/det={:d}'.format(iord + 1)  # +1 to account 0-index starting
         flux_calib.zeropoint_qa_plot(wave, zeropoint_data, zeropoint_data_gpm, zeropoint_fit,
                                     zeropoint_fit_gpm, title=title, show=True)  
-
     return obj_dict, bounds_obj
 
 
