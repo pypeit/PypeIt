@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import spec2dobj
+from pypeit import spec2dobj, alignframe
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
@@ -383,8 +383,6 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspa
     whitelight_Imgs = np.zeros((numra, numdec, numfiles))
     whitelight_ivar = np.zeros((numra, numdec, numfiles))
     trim = 3
-    #from IPython import embed
-    #embed()
     for ff in range(numfiles):
         msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
         ww = (all_idx == ff)
@@ -599,10 +597,12 @@ def coadd_cube(files, parset, overwrite=False):
     wave_ref = None
     whitelight_img = None  # This is the whitelight image based on all input spec2d frames
     weights = np.ones(numfiles)  # Weights to use when combining cubes
+    locations = parset['calibrations']['alignment']['locations']
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
         detector = spec2DObj.detector
+        flexure = None  #spec2DObj.sci_spat_flexure
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -622,7 +622,7 @@ def coadd_cube(files, parset, overwrite=False):
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
         msgs.info("Constructing slit image")
-        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
+        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
 
         # Grab the WCS of this frame
@@ -638,13 +638,24 @@ def coadd_cube(files, parset, overwrite=False):
         elif max(pxscl, slscl) > dspat:
             dspat = max(pxscl, slscl)
 
+        # Loading the alignments frame for these data
+        astrometric = cubepar['astrometric']
+        msgs.info("Loading alignments")
+        hdr = fits.open(fil)[0].header
+        alignfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], alignframe.Alignments.master_type,
+                                                              hdr['TRACMKEY'], alignframe.Alignments.master_file_format)
+        alignments = None
+        if os.path.exists(alignfile) and cubepar['astrometric']:
+            alignments = alignframe.Alignments.from_file(alignfile)
+        else:
+            msgs.warn("Could not find Master Alignment frame:"+msgs.newline()+alignfile)
+            msgs.warn("Astrometric correction will not be performed")
+            astrometric = False
+
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, initial=True, flexure=spec2DObj.sci_spat_flexure)
-
-        # Apply astrometric correction - maybe do this in get_radec_image?
-        msgs.warn("Astrometric correction is not yet implemented")
-        # Need to load alignment frames and make small corrections to the RA and DEC
+        raimg, decimg, minmax = slits.get_radec_image(frame_wcs, alignments, spec2DObj.tilts, locations,
+                                                      astrometric=astrometric, initial=True, flexure=flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
