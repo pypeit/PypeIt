@@ -15,7 +15,9 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-
+from astropy.coordinates import SkyCoord
+from astropy import units
+from astropy.io import fits
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
@@ -352,3 +354,53 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         return ['dispname', 'dispangle', 'decker', 'detector']
 
 
+    def parse_dither_pattern(self, file_list, ext=None):
+        """
+        Parse headers from a file list to determine the dither pattern.
+
+        Parameters
+        ----------
+        file_list (list of strings):
+            List of files for which dither pattern is desired
+        ext (int, optional):
+            Extension containing the relevant header for these files. Default=None. If None, code uses
+            self.primary_hdrext
+
+        Returns
+        -------
+        dither_pattern, dither_id, offset_arcsec
+
+        dither_pattern (str `numpy.ndarray`_):
+            Array of dither pattern names
+        dither_id (str `numpy.ndarray`_):
+            Array of dither pattern IDs
+        offset_arc (float `numpy.ndarray`_):
+            Array of dither pattern offsets
+        """
+        nfiles = len(file_list)
+        offset_arcsec = np.zeros(nfiles)
+        dither_pattern = None
+        dither_id = None
+        for ifile, file in enumerate(file_list):
+            hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            try:
+                ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
+                                    self.get_meta_value(headarr, 'dec', no_fussing=True))
+            except:
+                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
+                ra, dec = 0.0, 0.0
+            if ifile == 0:
+                coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
+                offset_arcsec[ifile] = 0.0
+                posang_ref = (hdr['HIERARCH ESO INS SLIT POSANG']*units.deg).to('radian').value
+                # Unit vector pointing in direction of slit PA
+                u_hat_ref_ra, u_hat_ref_dec = np.sin(posang_ref), np.cos(posang_ref)
+            else:
+                coord_this = SkyCoord(ra*units.deg, dec*units.deg)
+                dra, ddec = coord_ref.spherical_offsets_to(coord_this)
+                from IPython import embed
+                embed()
+
+#            dither_id.append(hdr['FRAMEID'])
+#            offset_arcsec[ifile] = hdr['YOFFSET']
+        return np.array(dither_pattern), np.array(dither_id), np.array(offset_arcsec)

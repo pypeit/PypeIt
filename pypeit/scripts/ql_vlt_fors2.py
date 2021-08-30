@@ -34,7 +34,7 @@ from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.parse import get_dnum
+from pypeit.core.parse import get_dnum, parse_binning
 from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
@@ -44,7 +44,7 @@ from pypeit.scripts import scriptbase
 def config_lines(args):
     # Config the run
     cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format('keck_mosfire')]
+    cfg_lines += ['    spectrograph = {0}'.format('vlt_fors2')]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
@@ -227,16 +227,19 @@ class QLVLTFORS2(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
-        # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph('vlt_fors2')
-        spectrograph_def_par = spectrograph.default_pypeit_par()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                              merge_with=config_lines(args))
-        science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
 
         # Parse the files sort by MJD
         files = np.array([os.path.join(args.full_rawpath, file) for file in args.files])
         nfiles = len(files)
+
+        # Read in the spectrograph, config the parset
+        spectrograph = load_spectrograph('vlt_fors2')
+        #spectrograph_def_par = spectrograph.default_pypeit_par()
+        spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
+        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
+                                              merge_with=config_lines(args))
+        science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
+
         target = spectrograph.get_meta_value(files[0], 'target')
         mjds = np.zeros(nfiles)
         for ifile, file in enumerate(files):
@@ -245,8 +248,10 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         files = files[np.argsort(mjds)]
 
         # Calibration Master directory
-        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
-            if args.master_dir is None else args.master_dir
+        #TODO hardwired for now
+        master_dir ='./'
+        #master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+        #    if args.master_dir is None else args.master_dir
         if not os.path.isdir(master_dir):
             msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
                        'directory; download the data from the PypeIt dev-suite Google Drive and '
@@ -255,7 +260,7 @@ class QLVLTFORS2(scriptbase.ScriptBase):
 
         # Define some hard wired master files here to be later parsed out of the directory
         fors2_grism = spectrograph.get_meta_value(files[0], 'dispname')
-        fors2_masters = os.path.join(master_dir, 'MOSFIRE_MASTERS', fors2_grism)
+        fors2_masters = os.path.join(master_dir, 'FORS2_MASTERS', fors2_grism)
 
         slit_masterframe_name \
             = utils.find_single_file(os.path.join(fors2_masters, "MasterSlits*"))
@@ -266,18 +271,19 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         std_spec1d_file = utils.find_single_file(os.path.join(fors2_masters, 'spec1d_*'))
         sensfunc_masterframe_name = utils.find_single_file(os.path.join(fors2_masters, 'sens_*'))
 
+        # TODO make and impelement sensfunc
         if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
                 (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
-                (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)) or \
-                (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)):
+                (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)): # or \
+                #(sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
 
         # We need the platescale
-        platescale = spectrograph.get_detector_par(1)['platescale']
-        # Parse the offset information out of the headers. TODO in the future
-        # get this out of fitstable
-        embed()
+        det_container = spectrograph.get_detector_par(1, hdu=fits.open(files[0]))
+        binspectral, binspatial = parse_binning(det_container['binning'])
+        platescale = det_container['platescale']*binspatial
+        # Parse the offset information out of the headers.
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
         if len(np.unique(dither_pattern)) > 1:
             msgs.error('Script only supported for a single type of dither pattern.')
