@@ -2087,11 +2087,11 @@ class ManualExtractionPar(ParSet):
             return None
         if isinstance(self.data['det'], list):
             spat_spec = self.data['spat_spec']
-            obj_det = [int(obj) for obj in self.data['det']]
+            det_list = [int(obj) for obj in self.data['det']]
             fwhm = [float(obj) for obj in self.data['fwhm']]
         else:
             spat_spec = [self.data['spat_spec']]
-            obj_det = [self.data['det']]
+            det_list = [self.data['det']]
             fwhm = [self.data['fwhm']]
         # Deal with spat_spec
         spats, specs = [], []
@@ -2099,13 +2099,17 @@ class ManualExtractionPar(ParSet):
             ps = ispat_spec.split(':')
             spats.append(float(ps[0]))
             specs.append(float(ps[1]))
-        # Mask objs not in current detector
-        mask = np.array(obj_det)==det
-        if np.sum(mask)==0:
-            return None
-        # dict and return
-        return dict(hand_extract_spec=np.array(specs)[mask], hand_extract_spat=np.array(spats)[mask],
-                    hand_extract_det=np.array(obj_det)[mask], hand_extract_fwhm=np.array(fwhm)[mask])
+        #Remove any objs that are not in current detector
+        for i,obj_det in enumerate(reversed(det_list)):
+            if obj_det != det:
+                ind = -(i+1)
+                det_list.pop(ind)
+                specs.pop(ind)
+                spats.pop(ind)
+                fwhm.pop(ind)
+
+        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
+                    hand_extract_det=det_list, hand_extract_fwhm=fwhm)
 
 
 class ReduxPar(ParSet):
