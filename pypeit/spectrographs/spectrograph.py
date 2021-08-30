@@ -38,6 +38,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
+from astropy.io.fits import Header
 from IPython import embed
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -752,8 +753,9 @@ class Spectrograph:
         Return meta data from a given file (or its array of headers).
 
         Args:
-            inp (:obj:`str`, :obj:`list`):
-                Input filename or list of `astropy.io.fits.Header`_ objects.
+            inp (:obj:`str`, :obj:`astropy.io.fits.Header`_, :obj:`list`):
+                Input filename, an `astropy.io.fits.Header`_ object, or a list of
+                 `astropy.io.fits.Header`_ objects
             meta_key (:obj:`str`, :obj:`list`):
                 A (list of) strings with the keywords to read from the file
                 header(s).
@@ -783,7 +785,15 @@ class Spectrograph:
         """
         #if meta_key == 'ra':
         #    embed()
-        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
+        if isinstance(inp, str):
+            headarr = self.get_headarr(inp)
+        elif isinstance(inp, list):
+            headarr = inp
+        elif isinstance(inp, Header):
+            headarr = [inp]
+        else:
+            msgs.error('Unrecognized type for input')
+
         # Loop?
         if isinstance(meta_key, list):
             return [self.get_meta_value(headarr, key, required=required) for key in meta_key]

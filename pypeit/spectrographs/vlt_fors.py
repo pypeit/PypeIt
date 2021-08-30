@@ -13,6 +13,7 @@ from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
 from pypeit.core import framematch
+from pypeit.core import meta
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from astropy.coordinates import SkyCoord
@@ -393,13 +394,18 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             if ifile == 0:
                 coord_ref = SkyCoord(ra*units.deg, dec*units.deg)
                 offset_arcsec[ifile] = 0.0
+                # ESOs position angle appears to be 360-POSANG where POSANG is the angle between the coordinate pair
                 posang_ref = (hdr['HIERARCH ESO INS SLIT POSANG']*units.deg).to('radian').value
                 # Unit vector pointing in direction of slit PA
                 u_hat_ref_ra, u_hat_ref_dec = np.sin(posang_ref), np.cos(posang_ref)
             else:
+                posang_this = coord_ref.position_angle(coord_this).to('deg')
                 coord_this = SkyCoord(ra*units.deg, dec*units.deg)
                 dra, ddec = coord_ref.spherical_offsets_to(coord_this)
+                u_hat_this_ra  = dra.value/np.sqrt(np.square(dra.value) + np.square(ddec.value))
+                u_hat_this_dec = ddec.value/np.sqrt(np.square(dra.value) + np.square(ddec.value))
 
+                embed()
 
 #            dither_id.append(hdr['FRAMEID'])
 #            offset_arcsec[ifile] = hdr['YOFFSET']
