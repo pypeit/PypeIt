@@ -782,7 +782,6 @@ class Spectrograph:
             object: Value recovered for (each) keyword.
         """
         headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
-
         # Loop?
         if isinstance(meta_key, list):
             return [self.get_meta_value(headarr, key, required=required) for key in meta_key]

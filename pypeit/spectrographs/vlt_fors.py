@@ -18,6 +18,7 @@ from pypeit.images import detector_container
 from astropy.coordinates import SkyCoord
 from astropy import units
 from astropy.io import fits
+from IPython import embed
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """
@@ -383,9 +384,10 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         dither_id = None
         for ifile, file in enumerate(file_list):
             hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
+            embed()
             try:
                 ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
-                                    self.get_meta_value(headarr, 'dec', no_fussing=True))
+                                    self.get_meta_value(hdr, 'dec', no_fussing=True))
             except:
                 msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC. Check that this does not cause problems with the offsets')
                 ra, dec = 0.0, 0.0
@@ -399,7 +401,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
                 coord_this = SkyCoord(ra*units.deg, dec*units.deg)
                 dra, ddec = coord_ref.spherical_offsets_to(coord_this)
                 from IPython import embed
-                embed()
+
 
 #            dither_id.append(hdr['FRAMEID'])
 #            offset_arcsec[ifile] = hdr['YOFFSET']
