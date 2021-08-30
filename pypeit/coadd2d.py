@@ -221,22 +221,23 @@ class CoAdd2D:
         return rms_sn, weights.T
 
 
-    def coadd(self, only_slits=None, interp_dspat=True):
+    def coadd(self, only_slits=None, interp_dspat=True, toler=5.0):
         """
-        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
-        This method calls loops over slits/orders and performs the 2d-coadd by
-        calling coadd.compute.coadd2d, which 'rectifies' images by coadding them
-        about the reference_trace_stack.
+        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs. This method calls loops over
+        slits/orders and performs the 2d-coadd by calling coadd.compute.coadd2d, which 'rectifies' images by
+        coadding them about the reference_trace_stack.
+
 
         Parameters
         ----------
-        only_slits : list, optional
-           List of slits to operate on. Not currently supported, i.e. the code
-           can currently only stack everything because the slit/reduction
-           bitmask checking is not yet implemented. Default = None
-        interp_dspat : bool, optional
-           Interpolate in the spatial coordinate image to faciliate running
-           through core.extract.local_skysub_extract.  Default=True
+        only_slits (list, optional):
+           List of slits to operate on. Not currently supported, i.e. the code can currently only stack everything
+           because the slit/reduction bitmask checking is not yet implemented. Default = None
+        interp_dspat (bool, optional):
+           Interpolate in the spatial coordinate image to faciliate running through core.extract.local_skysub_extract.
+           Default=True
+        toler (float, optional):
+            Tolerance for slit spatial pixel values used for slit identification. Default = 5
 
         Returns
         -------
@@ -264,7 +265,8 @@ class CoAdd2D:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
                                                          objid=self.objid_bri)
-            thismask_stack = self.stack_dict['slitmask_stack'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
+            thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= toler
+
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -471,7 +473,7 @@ class CoAdd2D:
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
             sciImage.image, show_peaks=show_peaks,
-            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind(self.det))
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -833,12 +835,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
     # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
     # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
     # reference objects into the same frame without first rebinning them onto the same grid.
-    def compute_offsets(self):
+    def compute_offsets(self, toler=5.0):
 
         objid_bri, slitidx_bri, spatid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'],
                                                                     self.spat_ids)
         msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(spatid_bri,np.mean(snr_bar_bri)))
-        thismask_stack = self.stack_dict['slitmask_stack'] == spatid_bri
+        thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - spatid_bri) <= toler
         trace_stack_bri = np.zeros((self.nspec, self.nexp))
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
         for iexp in range(self.nexp):
@@ -903,7 +905,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         return objid_bri, spatid_bri, snr_bar_bri, offsets
 
-    def get_brightest_obj(self, specobjs_list, spat_ids):
+    def get_brightest_obj(self, specobjs_list, spat_ids, toler=5.0):
 
         """
         Utility routine to find the brightest object in each exposure given a specobjs_list for MultiSlit reductions.
@@ -912,6 +914,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
             specobjs_list: list
                List of SpecObjs objects.
             spat_ids (`numpy.ndarray`_):
+
+            toler (float, optional):
+                Tolerance for slit spatial pixel values used for slit identification. Default = 5
 
         Returns:
             tuple: Returns the following:
@@ -934,7 +939,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
             for islit, spat_id in enumerate(spat_ids):
-                ithis = sobjs.SLITID == spat_id
+                ithis = np.abs(sobjs.SLITID - spat_id) <= toler
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
@@ -962,7 +967,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                        'ratio on the same slit of every exposure')
 
         self.snr_report(snr_bar, slitid=slitid)
-
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is

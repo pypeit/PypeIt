@@ -50,6 +50,8 @@
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
 - GMOS doc updates
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
 
 
 1.4.1 (11 Jun 2021)

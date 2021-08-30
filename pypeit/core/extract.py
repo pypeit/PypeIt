@@ -1114,6 +1114,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
+        det:  int, default = None
+            Dectector number of slit to be extracted.
         inmask: float ndarray, default = None
             Input mask image.
         spec_min_max: tuple of float or int, (2), default=None.
@@ -1570,7 +1572,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
-                                                  np.rint(hand_extract_spat).astype(int)]))[0]
+                                                  np.rint(hand_extract_spat).astype(int)]))
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]

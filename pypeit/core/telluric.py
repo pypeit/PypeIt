@@ -564,9 +564,9 @@ def unpack_orders(sobjs, ret_flam=False):
     # Read in the spec1d file
     norders = len(sobjs) # ToDO: This is incorrect if you have more than one object in the sobjs
     if ret_flam:
-        nspec = sobjs[0].optimal['FLAM'].size
+        nspec = sobjs[0].OPT_FLAM.size
     else:
-        nspec = sobjs[0].optimal['COUNTS'].size
+        nspec = sobjs[0].OPT_COUNTS.size
     # Allocate arrays and unpack spectrum
     wave = np.zeros((nspec, norders))
     #wave_mask = np.zeros((nspec, norders),dtype=bool)
@@ -574,15 +574,15 @@ def unpack_orders(sobjs, ret_flam=False):
     flam_ivar = np.zeros((nspec, norders))
     flam_mask = np.zeros((nspec, norders),dtype=bool)
     for iord in range(norders):
-        wave[:,iord] = sobjs[iord].optimal['WAVE']
+        wave[:, iord] = sobjs[iord].OPT_WAVE
         #wave_mask[:,iord] = sobjs[iord].optimal['WAVE'] > 0.0
-        flam_mask[:,iord] = sobjs[iord].optimal['MASK']
+        flam_mask[:, iord] = sobjs[iord].OPT_MASK
         if ret_flam:
-            flam[:,iord] = sobjs[iord].optimal['FLAM']
-            flam_ivar[:,iord] = sobjs[iord].optimal['FLAM_IVAR']
+            flam[:, iord] = sobjs[iord].OPT_FLAM
+            flam_ivar[:, iord] = sobjs[iord].OPT_FLAM_IVAR
         else:
-            flam[:,iord] = sobjs[iord].optimal['COUNTS']
-            flam_ivar[:,iord] = sobjs[iord].optimal['COUNTS_IVAR']
+            flam[:, iord] = sobjs[iord].OPT_COUNTS
+            flam_ivar[:,iord] = sobjs[iord].OPT_COUNTS_IVAR
 
     return wave, flam, flam_ivar, flam_mask
 
@@ -623,9 +623,14 @@ def general_spec_reader(specfile, ret_flam=False):
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
             counts_ivar = np.reshape(counts_ivar[:,idx],(npix,1))
             counts_gpm = np.reshape(counts_gpm[:,idx],(npix,1))
-        bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)
-        bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
-        bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
+        try:
+            bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)
+            bonus['ECH_ORDERINDX'] = (sobjs.ECH_ORDERINDX).astype(int)
+            bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
+        except:
+            bonus['ECH_ORDER'] = sobjs.ECH_ORDER
+            bonus['ECH_ORDERINDX'] = sobjs.ECH_ORDERINDX
+            bonus['ECH_SNR'] = sobjs.ech_snr
         bonus['NORDERS'] = wave.shape[1]
         try:
             spectrograph = load_spectrograph(head['INSTRUME'])
