@@ -275,6 +275,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         platescale = spectrograph.get_detector_par(1)['platescale']
         # Parse the offset information out of the headers. TODO in the future
         # get this out of fitstable
+        embed()
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
         if len(np.unique(dither_pattern)) > 1:
             msgs.error('Script only supported for a single type of dither pattern.')
@@ -468,8 +469,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
                                                       waveimg=pseudo_dict['waveimg'],
                                                       cuts=cuts_resid)
 
-            display.show_slits(viewer, ch_skyresids, slit_left, slit_righ,
-                               slit_ids=slits.slitord_id[0])
+            display.show_slits(viewer, ch_skyresids, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
             shell = viewer.shell()
             out = shell.start_global_plugin('WCSMatch')
             out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel',

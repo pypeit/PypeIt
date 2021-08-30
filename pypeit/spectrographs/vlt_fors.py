@@ -384,7 +384,6 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         dither_id = None
         for ifile, file in enumerate(file_list):
             hdr = fits.getheader(file, self.primary_hdrext if ext is None else ext)
-            embed()
             try:
                 ra, dec = meta.convert_radec(self.get_meta_value(hdr, 'ra', no_fussing=True),
                                     self.get_meta_value(hdr, 'dec', no_fussing=True))
@@ -400,7 +399,6 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
             else:
                 coord_this = SkyCoord(ra*units.deg, dec*units.deg)
                 dra, ddec = coord_ref.spherical_offsets_to(coord_this)
-                from IPython import embed
 
 
 #            dither_id.append(hdr['FRAMEID'])

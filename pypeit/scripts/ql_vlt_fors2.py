@@ -284,7 +284,7 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         binspectral, binspatial = parse_binning(det_container['binning'])
         platescale = det_container['platescale']*binspatial
         # Parse the offset information out of the headers.
-        dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
+        _, _, offset_arcsec = spectrograph.parse_dither_pattern(files)
         if len(np.unique(dither_pattern)) > 1:
             msgs.error('Script only supported for a single type of dither pattern.')
         A_files = files[dither_id == 'A']
@@ -293,10 +293,8 @@ class QLVLTFORS2(scriptbase.ScriptBase):
         nB = len(B_files)
 
         # Print out a report on the offsets
-        msg_string = msgs.newline() + '*******************************************************'
-        msg_string += msgs.newline() + ' Summary of offsets for target {:s} with dither pattern:   {:s}'.format(target,
-                                                                                                                dither_pattern[
-                                                                                                                    0])
+        msg_string = msgs.newline()  + '*******************************************************'
+        msg_string += msgs.newline() + ' Summary of offsets for target {:s}:                   '
         msg_string += msgs.newline() + '*******************************************************'
         msg_string += msgs.newline() + 'filename     Position         arcsec    pixels    '
         msg_string += msgs.newline() + '----------------------------------------------------'

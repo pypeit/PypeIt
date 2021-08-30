@@ -781,6 +781,8 @@ class Spectrograph:
         Returns:
             object: Value recovered for (each) keyword.
         """
+        #if meta_key == 'ra':
+        #    embed()
         headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
         # Loop?
         if isinstance(meta_key, list):
