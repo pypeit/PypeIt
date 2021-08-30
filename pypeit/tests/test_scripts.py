@@ -3,6 +3,7 @@ Module to run tests on scripts
 """
 import os
 import shutil
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -182,14 +183,36 @@ def test_chk_edges():
 
 
 @cooked_required
-def test_view_fits():
-    """ Only test the list option
+def test_view_fits_list():
+    """ Test the list option
     """
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = scripts.view_fits.ViewFits.parse_args([spec_file, '--list', 'shane_kast_blue'])
-    # TODO: Should this test be calling the main function?
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', spec_file, '--list'])
+    scripts.view_fits.ViewFits.main(pargs)
+
+
+@cooked_required
+def test_view_fits_proc_fail():
+    """ Test that it fails when trying to proc an output pypeit image
+    """
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', spec_file, '--proc'])
+    with pytest.raises(PypeItError):
+        scripts.view_fits.ViewFits.main(pargs)
+
+
+@dev_suite_required
+def test_view_fits_proc():
+    """ Test that it works on a raw image
+    """
+    spec_file = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'shane_kast_blue' \
+                    / '830_3460_d46' / 'b100.fits.gz'
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', str(spec_file), '--proc'])
+    scripts.view_fits.ViewFits.main(pargs)
 
 
 @cooked_required
