@@ -609,7 +609,7 @@ def general_spec_reader(specfile, ret_flam=False):
 
     # Place holder routine that provides a generic spectrum reader
     bonus = {}
-    try:
+    try: #TODO JFH Please fix this try except issue. Can we determine datatype from file header?
         # Read in the standard spec1d file produced by Pypeit
         #sobjs, head = load.load_specobjs(specfile)
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
@@ -623,14 +623,9 @@ def general_spec_reader(specfile, ret_flam=False):
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
             counts_ivar = np.reshape(counts_ivar[:,idx],(npix,1))
             counts_gpm = np.reshape(counts_gpm[:,idx],(npix,1))
-        try:
-            bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)
-            bonus['ECH_ORDERINDX'] = (sobjs.ECH_ORDERINDX).astype(int)
-            bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
-        except:
-            bonus['ECH_ORDER'] = sobjs.ECH_ORDER
-            bonus['ECH_ORDERINDX'] = sobjs.ECH_ORDERINDX
-            bonus['ECH_SNR'] = sobjs.ech_snr
+        bonus[‘ECH_ORDER’]  = sobjs.ECH_ORDER if sobjs.ECH_ORDER is None else (sobjs.ECH_ORDER).astype(int)
+        bonus[‘ECH_ORDERINDX’]  = sobjs.ECH_ORDERINDX if sobjs.ECH_ORDERINDX is None else (sobjs.ECH_ORDERINDX).astype(int)
+        bonus[‘ECH_SNR’]  = sobjs.ECH_SNR if sobjs.ECH_SNR is None else (sobjs.ECH_SNR).astype(int)
         bonus['NORDERS'] = wave.shape[1]
         try:
             spectrograph = load_spectrograph(head['INSTRUME'])
