@@ -74,7 +74,7 @@ class ViewFits(scriptbase.ScriptBase):
                 par['process']['use_darkimage'] = False
                 par['process']['use_biasimage'] = False
                 par['process']['mask_cr'] = False
-                par['process']['cr_sigrej'] = -1
+                #par['process']['cr_sigrej'] = -1
 
                 img = buildimage.buildimage_fromlist(spectrograph, int(args.det), par,
                                                      [args.file]).image

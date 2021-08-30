@@ -21,7 +21,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg
 from pypeit.images import buildimage
 from pypeit.core.moment import moment1d
 
@@ -1681,7 +1681,7 @@ class IFUReduce(MultiSlitReduce):
 
         # Iterate to use a model variance image
         numiter = 4
-        model_ivar = self.sciImg.ivar.copy()
+        model_ivar = self.sciImg.ivar
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
             self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
@@ -1692,9 +1692,23 @@ class IFUReduce(MultiSlitReduce):
                                                              pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
-            var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
-            var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
-            model_ivar = utils.inverse(var)
+            # Choose the highest counts out of sky and object
+            counts = self.global_sky + np.clip(self.sciImg.image-self.global_sky, 0, None)
+            proc_var = self.sciImg.proc_var
+            count_scale = self.sciImg.img_scale
+            darkcurr = self.sciImg.detector['darkcurr']
+            exptime = self.sciImg.exptime
+            _proc_var = None if proc_var is None else proc_var[thismask]
+            _count_scale = None if count_scale is None else count_scale[thismask]
+            # NOTE: darkcurr must be a float for the call below to work.
+            var = procimg.variance_model(self.sciImg.rn2img[thismask], counts=counts[thismask],
+                                         darkcurr=darkcurr, exptime=exptime,
+                                         proc_var=_proc_var, count_scale=_count_scale,
+                                         noise_floor=adderr, shot_noise=True)
+            model_ivar[thismask] = utils.inverse(var)
+            # var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
+            # var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
+            # model_ivar = utils.inverse(var)
             # Redo the relative spectral illumination correction with the improved sky model
             if self.par['scienceframe']['process']['use_specillum']:
                 self.illum_profile_spectral(self.global_sky, skymask=skymask)
