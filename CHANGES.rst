@@ -1,4 +1,10 @@
 
+
+1.5.1.dev
+---------
+
+- Modifications to reduce header crashes
+
 1.5.0 (11 Aug 2021)
 -------------------
 
@@ -21,7 +27,6 @@
 - A script (`get_telescope_offset`) to determine the telescope pointing offsets is
   added to `pypeit/spectrographs/keck_deimos.py`
 - Improve SOAR Goodman fluxing
-- Modifications to reduce header crashes
 
 
 1.4.2 (06 Jul 2021)
