@@ -154,6 +154,7 @@ What this version provides
   * :doc:`2d_combine`
   * :doc:`coadd1d`
   * :doc:`coadd2d`
+  * :doc:`known_failure_modes`
 
 * Scripts and Tools for Inspection
 

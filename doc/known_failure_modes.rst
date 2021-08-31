@@ -3,15 +3,15 @@
 
 .. _known_failure_modes:
 
-===================
-Known Failure Modes
-===================
+=============
+Failure Modes
+=============
 
 Overview
 ========
 
-This doc attempts to capture common failure modes of
-PypeIt and mitigations.  These are intended to be 
+This doc attempts to capture known failure modes of
+PypeIt and potential mitigations.  These are intended to be 
 distinct from common user error.
 
 .. bad-headers:
