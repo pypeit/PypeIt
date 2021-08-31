@@ -154,7 +154,6 @@ What this version provides
   * :doc:`2d_combine`
   * :doc:`coadd1d`
   * :doc:`coadd2d`
-  * :doc:`known_failure_modes`
 
 * Scripts and Tools for Inspection
 
@@ -197,6 +196,7 @@ or have a feature request, please `submit an issue
    installing
    cookbook
    step-by-step
+   known_failure_modes
 
 ----
 
