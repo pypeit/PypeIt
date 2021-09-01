@@ -822,7 +822,6 @@ class Spectrograph:
             if ignore_bad_header or (not required):
                 msgs.warn("Bad Header, but we'll try to continue on..") 
             else:
-                embed(header='817 of spectro')
                 raise e
 
         # Return now?
