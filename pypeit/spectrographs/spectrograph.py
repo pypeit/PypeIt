@@ -756,6 +756,7 @@ class Spectrograph:
             required (:obj:`bool`, optional):
                 The metadata is required and must be available. If it is not,
                 the method will raise an exception.
+                This can and is over-ruled by information in the meta dict
             ignore_bad_header (:obj:`bool`, optional):
                 ``PypeIt`` expects certain metadata values to have specific
                 datatypes. If the keyword finds the appropriate data but it
@@ -792,6 +793,13 @@ class Spectrograph:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
 
+        # Is this meta required for this frame type (Spectrograph specific)
+        if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+            required = False
+            for ftype in self.meta[meta_key]['required_ftypes']:
+                if ftype in usr_row['frametype']:
+                    required = True
+
         # Check if this meta key is required
         if 'required' in self.meta[meta_key].keys():
             required = self.meta[meta_key]['required']
@@ -814,6 +822,7 @@ class Spectrograph:
             if ignore_bad_header or (not required):
                 msgs.warn("Bad Header, but we'll try to continue on..") 
             else:
+                embed(header='817 of spectro')
                 raise e
 
         # Return now?
