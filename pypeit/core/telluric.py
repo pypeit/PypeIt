@@ -584,7 +584,7 @@ def unpack_orders(sobjs, ret_flam=False):
             flam[:, iord] = sobjs[iord].OPT_COUNTS
             flam_ivar[:,iord] = sobjs[iord].OPT_COUNTS_IVAR
 
-    return wave, flam, flam_ivar, flam_mask
+    return wave.squeeze(), flam.squeeze(), flam_ivar.squeeze(), flam_mask.squeeze()
 
 
 # TODO: This function needs to be revisited.  Better yet, it would useful to
