@@ -54,10 +54,15 @@ class QLKeckNIRES(scriptbase.ScriptBase):
         ps.fitstbl['bkg_id'] = [2,1]
 
         # Calibrations
-        master_dir = os.path.join(os.getenv('QL_MASTERS'),'NIRES_MASTERS')
-        if master_dir is None:
-            msgs.error('You need to set an Environmental variable QL_MASTERS that points at the '
-                       'Master Calibs')
+        default_master_dir = os.getenv('QL_MASTERS')
+        master_dir = resource_filename('pypeit', 'data/QL_MASTERS') \
+                        if default_master_dir is None else default_master_dir
+        master_dir = os.path.join(master_dir, 'NIRES_MASTERS')
+        if not os.path.isdir(master_dir):
+            msgs.error(f'{master_dir} does not exist!  You must install the QL_MASTERS '
+                       'directory; download the data from the PypeIt dev-suite Google Drive and '
+                       'either define a QL_MASTERS environmental variable or use the '
+                       'pypeit_install_ql_masters script.')
 
         # Config the run
         cfg_lines = ['[rdx]']

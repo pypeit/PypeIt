@@ -7,6 +7,7 @@ This module contains code for collating multiple 1d spectra source object.
 """
 
 import copy
+import os.path
 
 import numpy as np
 from astropy.time import Time
@@ -38,6 +39,7 @@ class SourceObject:
             spectra should be compared using the sky coordinates in RA and DEC.
             'pixel' means the spectra should be compared by the spatial pixel
             coordinates in the image.
+        path (str): The path to place a coadded file. Defaults to the current directory.
 
     Attributes:
         spec_obj_list (list of :obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -47,7 +49,7 @@ class SourceObject:
         spec1d_header_list: (list of :obj:`astropy.io.fits.Header`):
             The headers of the spec1d files in the group
     """
-    def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type):
+    def __init__(self, spec1d_obj, spec1d_header, spec1d_file, spectrograph, match_type, path=""):
         self.spec_obj_list = [spec1d_obj]
         self.spec1d_file_list = [spec1d_file]
         self.spec1d_header_list = [spec1d_header]
@@ -62,10 +64,10 @@ class SourceObject:
         else:
             self.coord = spec1d_obj['SPAT_PIXPOS']
 
-        self.coaddfile = self.build_coadd_file_name()
+        self.coaddfile = os.path.join(path, self.build_coadd_file_name())
 
     @classmethod
-    def build_source_objects(cls, spec1d_files, match_type):
+    def build_source_objects(cls, spec1d_files, match_type, path=""):
         """Build a list of SourceObjects from a list of spec1d files. There will be one SourceObject per
         SpecObj in the resulting list (i.e. no combining or collating is done by this method).
 
@@ -73,6 +75,8 @@ class SourceObject:
             spec1d_files (list of str): List of spec1d filenames
             match_type (str):           What type of matching the SourceObjects will be configured for.
                                         Must be either 'ra/dec' or 'pixel'
+            path (str):                 The path where the coadded file should be placed. Defaults to 
+                                        the current directory.
 
         Returns: 
             list of :obj:`SourceObject`: A list of uncollated SourceObjects with one SpecObj per SourceObject.
@@ -82,7 +86,7 @@ class SourceObject:
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
             spectrograph = load_spectrograph(sobjs.header['PYP_SPEC'])
             for sobj in sobjs:
-                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type))
+                result.append(SourceObject(sobj, sobjs.header, spec1d_file, spectrograph, match_type, path))
     
         return result
 

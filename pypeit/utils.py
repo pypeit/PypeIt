@@ -31,6 +31,32 @@ from pypeit.core import pydl
 from pypeit import msgs
 
 
+def get_time_string(codetime):
+    """
+    Utility function that takes the codetime and
+    converts this to a human readable String.
+
+    Args:
+        codetime (`float`):
+            Code execution time in seconds (usually the difference of two time.time() calls)
+
+    Returns:
+        `str`: A string indicating the total execution time
+    """
+    if codetime < 60.0:
+        retstr = 'Execution time: {0:.2f}s'.format(codetime)
+    elif codetime / 60.0 < 60.0:
+        mns = int(codetime / 60.0)
+        scs = codetime - 60.0 * mns
+        retstr = 'Execution time: {0:d}m {1:.2f}s'.format(mns, scs)
+    else:
+        hrs = int(codetime / 3600.0)
+        mns = int(60.0 * (codetime / 3600.0 - hrs))
+        scs = codetime - 60.0 * mns - 3600.0 * hrs
+        retstr = 'Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs)
+    return retstr
+
+
 def all_subclasses(cls):
     """
     Collect all the subclasses of the provided class.
@@ -108,7 +134,7 @@ def to_string(data, use_repr=True, verbatim=False):
     return data.__repr__() if use_repr else str(data)
 
 
-def string_table(tbl, delimeter='print'):
+def string_table(tbl, delimeter='print', has_header=True):
     """
     Provided the array of data, format it with equally spaced columns
     and add a header (first row) and contents delimeter.
@@ -117,31 +143,45 @@ def string_table(tbl, delimeter='print'):
         tbl (`numpy.ndarray`_):
             Array of string representations of the data to print.
         delimeter (:obj:`str`, optional):
-            Delimeter between first table row, which should contain
-            the column headings, and the column data. Use ``'print'``
-            for a simple line of hyphens, anything else results in an
-            ``rst`` style table formatting.
+            If the first row in the table containts the column headers (see
+            ``has_header``), this sets the delimeter between first table row and
+            the column data. Use ``'print'`` for a simple line of hyphens,
+            anything else results in an ``rst`` style table formatting.
+        has_header (:obj:`bool`, optional):
+            The first row in ``tbl`` contains the column headers.
 
     Returns:
         :obj:`str`: Single long string with the data table.
     """
     nrows, ncols = tbl.shape
     col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-    row_string = ['']*(nrows+1) if delimeter == 'print' else ['']*(nrows+3)
-    start = 2 if delimeter == 'print' else 3
+
+    _nrows = nrows
+    start = 1
+    if delimeter != 'print':
+        _nrows += 2
+        start += 1
+    if has_header:
+        _nrows += 1
+        start += 1
+
+    row_string = ['']*_nrows
+
     for i in range(start,nrows+start-1):
         row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
     if delimeter == 'print':
         # Heading row
         row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
         # Delimiter
-        row_string[1] = '-'*len(row_string[0])
+        if has_header:
+            row_string[1] = '-'*len(row_string[0])
         return '\n'.join(row_string)+'\n'
 
     # For an rst table
     row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
     row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
-    row_string[2] = row_string[0]
+    if has_header:
+        row_string[2] = row_string[0]
     row_string[-1] = row_string[0]
     return '\n'.join(row_string)+'\n'
 

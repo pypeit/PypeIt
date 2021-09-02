@@ -14,8 +14,6 @@ import gzip
 import shutil
 from packaging import version
 
-from IPython import embed
-
 import numpy
 
 from configobj import ConfigObj
@@ -33,6 +31,7 @@ import astropy
 import sklearn
 import pypeit
 import time
+
 
 # TODO -- Move this module to core/
 
@@ -828,6 +827,56 @@ def fits_open(filename, **kwargs):
         msgs.warn('Error opening {0}: {1}'.format(filename, str(e))
                    + '\nTrying again, assuming the error was a header problem.')
         return fits.open(filename, ignore_missing_end=True, **kwargs)
+
+
+def create_symlink(filename, symlink_dir, relative_symlink=False, overwrite=False, quiet=False):
+    """
+    Create a symlink to the input file in the provided directory.
+
+    .. warning::
+
+        If the directory provided by ``symlink_dir`` does not already exist,
+        this function will create it.
+
+    Args:
+        filename (:obj:`str`):
+            The name of the file to symlink.  The name of the symlink is
+            identical to this file name.
+        symlink_dir (:obj:`str`):
+            The directory for the symlink.  If the directory does not already
+            exist, it will be created.
+        relative_symlink (:obj:`bool`, optional):
+            If True, the path to the file is relative to the directory with the
+            symlink.
+        overwrite (:obj:`bool`, optional):
+            Overwrite any existing symlink of the same name.
+        quiet (:obj:`bool`, optional):
+            Suppress output to stdout.
+    """
+    # Check if the file already exists
+    _symlink_dir = os.path.abspath(symlink_dir)
+    olink_dest = os.path.join(_symlink_dir, os.path.basename(filename))
+    if os.path.isfile(olink_dest) or os.path.islink(olink_dest):
+        if overwrite:
+            warnings.warn(f'Symlink will be overwritten: {olink_dest}.')
+            os.remove(olink_dest)
+        else:
+            warnings.warn(f'Symlink already exists: {olink_dest}.')
+            return
+
+    # Make sure the symlink directory exists
+    if not os.path.isdir(_symlink_dir):
+        os.makedirs(_symlink_dir)
+
+    # Set the relative path for the symlink, if requested
+    _filename = os.path.abspath(filename)
+    olink_src = os.path.relpath(_filename, start=os.path.dirname(olink_dest)) \
+                    if relative_symlink else _filename
+    if not quiet:
+        print(f'Creating symlink: {olink_dest}\nLinked to file/dir: {_filename}')
+
+    # Create the symlink
+    os.symlink(olink_src, olink_dest)
 
 
 

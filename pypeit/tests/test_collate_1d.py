@@ -5,7 +5,7 @@ Module to run tests on collate_1d code.
 import pytest
 from collections import namedtuple
 import os, os.path
-import filecmp
+import re
 
 from astropy.coordinates import Angle, SkyCoord
 import numpy as np
@@ -15,7 +15,7 @@ from pypeit import specobjs
 from pypeit.spec2dobj import AllSpec2DObj
 from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.archive import ArchiveDir
-from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_by_id, get_object_based_metadata
+from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_exclude, exclude_source_objects, extract_id, get_metadata_reduced, get_metadata_coadded, get_report_metadata, find_archvie_files_from_spec1d
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
@@ -49,7 +49,7 @@ class MockSpecObj:
 
 
 def mock_header(file):
-    if file == 'spec1d_file1':
+    if os.path.basename(file) == 'spec1d_file1':
         return {'MJD': '58878.0',
                 'PYP_SPEC': 'keck_deimos',
                 'DISPNAME': '830G',
@@ -57,7 +57,9 @@ def mock_header(file):
                 'BINNING': '1,1',
                 'AIRMASS': '1.0',
                 'EXPTIME': '1200.0',
-                'FILENAME': 'DE.20100913.22358'}
+                'FILENAME': 'DE.20100913.22358',
+                'SEMESTER': '2019B',
+                'PROGID':   'TEST1'}
     else:
         # Return a different decker to make sure it's properly ignored
         return {'MJD': '58879.0',
@@ -342,14 +344,14 @@ def test_exclude_source_objects(monkeypatch):
     par = pypeitpar.PypeItPar()
     par['collate1d']['exclude_serendip'] = True
  
-    filtered_list = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
+    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, {'3003': 'Test Exclude`'}, par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT5334_SLIT4934_DET02', 'SPAT1233_SLIT1235_DET07']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1', 'spec1d_file1']
 
     par['collate1d']['exclude_serendip'] = False
     par['coadd1d']['ex_value'] = 'BOX'
 
-    filtered_list = exclude_source_objects(uncollated_list, dict(), par)
+    filtered_list, excluded_msgs = exclude_source_objects(uncollated_list, dict(), par)
     assert [so.spec_obj_list[0].NAME for so in filtered_list] == ['SPAT1234_SLIT1234_DET01', 'SPAT1233_SLIT1235_DET07', 'SPAT6250_SLIT6235_DET03', 'SPAT6256_SLIT6245_DET05', 'SPAT6934_SLIT6245_DET05']
     assert [so.spec1d_file_list[0] for so in filtered_list] == ['spec1d_file1', 'spec1d_file1', 'spec1d_file2', 'spec1d_file2', 'spec1d_file2' ]
 
@@ -387,22 +389,30 @@ def test_extract_id():
     assert extract_id(mock_header_with_short_non_koa_filename) == 'short.fits'
     assert extract_id(mock_header_with_long_non_koa_filename) == 'file_name_longer_than_17.fits'
 
-def test_get_metadata_by_id(monkeypatch):
+def test_get_metadata_reduced(monkeypatch):
 
     monkeypatch.setattr(fits, "getheader", mock_header)
-    (metadata_rows, file_info, filename) = get_metadata_by_id(['DISPNAME', 'TESTKEY'], 'spec1d_file1')
+    mock_files = (os.path.join('Science', 'spec1d_file1'), os.path.join('Science', 'spec1d_file1.txt'),  os.path.join('Science', 'spec2d_file1.fits'),'test.pypeit')
+    dest_files = (os.path.join('2019B_TEST1', 'spec1d_file1'), os.path.join('2019B_TEST1', 'spec1d_file1.txt'), os.path.join('2019B_TEST1', 'spec2d_file1.fits'), os.path.join('2019B_TEST1', 'test.pypeit'))
+    (metadata_rows, files_to_copy) = get_metadata_reduced(['DISPNAME', 'TESTKEY'], mock_files)
     header = mock_header('spec1d_file1')
     assert len(metadata_rows) == 1
-    assert metadata_rows[0] == [header['FILENAME'] + ".fits", 'spec1d_file1', '830G', None]
-    assert file_info == 'spec1d_file1'
-    assert filename == 'spec1d_file1'    
+    assert len(metadata_rows[0]) == 7
+    assert metadata_rows[0] == [header['FILENAME'] + ".fits", dest_files[0], dest_files[1], dest_files[2], dest_files[3], '830G', None]
+
+    # Convert the iterable files_to_copy to a list
+    files_to_copy = list(files_to_copy)
+    assert files_to_copy[0] == (mock_files[0],   dest_files[0])
+    assert files_to_copy[1] == (mock_files[1],   dest_files[1])
+    assert files_to_copy[2] == (mock_files[2],   dest_files[2])
+    assert files_to_copy[3] == (mock_files[3],   dest_files[3])
 
     spectrograph = load_spectrograph('keck_deimos')
-    source_object = SourceObject(mock_specobjs(file_info).specobjs[0], header, file_info, spectrograph, 'ra/dec')
+    source_object = SourceObject(mock_specobjs("spec1d_file1").specobjs[0], header, "spec1d_file1", spectrograph, 'ra/dec')
 
-    assert (None, None, None) == get_metadata_by_id(['DISPNAME', 'TESTKEY'], source_object)
+    assert (None, None) == get_metadata_reduced(['DISPNAME', 'TESTKEY'], source_object)
 
-def test_get_object_based_metadata(monkeypatch):
+def test_get_coadded_metadata(monkeypatch):
 
     spectrograph = load_spectrograph('keck_deimos')
     filenames = ['spec1d_file1', 'spec1d_file2']
@@ -422,6 +432,10 @@ def test_get_object_based_metadata(monkeypatch):
                                  spectrograph, 
                                  'ra/dec')
     source_object.coaddfile = "/user/test/coaddfile.fits"
+
+    # The coadded file's mock header doesn't have PROGID and SEMESTER, so it will be in the
+    # archive's base directory
+    dest_file = os.path.basename(source_object.coaddfile)
     for object in file1_objects[1:]:
         source_object.spec_obj_list.append(specobjs_file1.specobjs[object])
         source_object.spec1d_file_list.append(filenames[0])
@@ -432,18 +446,119 @@ def test_get_object_based_metadata(monkeypatch):
         source_object.spec1d_file_list.append(filenames[1])
         source_object.spec1d_header_list.append(header_file2)
 
-    (metadata_rows, file_info, filename) = get_object_based_metadata(['DISPNAME','MJD', 'GUIDFHWM'],
-                                                                     ['MASKDEF_OBJNAME', 'NAME'],
-                                                                     source_object)
+    monkeypatch.setattr(fits, "getheader", mock_header)
+
+    (metadata_rows, files_to_copy) = get_metadata_coadded(['DISPNAME','MJD', 'GUIDFHWM'],
+                                                          ['MASKDEF_OBJNAME', 'NAME'],
+                                                          source_object)
 
     assert len(metadata_rows) == 4
-    assert metadata_rows[0] == ['coaddfile.fits', 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', '830G', '58878.0', None]
-    assert metadata_rows[1] == ['coaddfile.fits', 'object3', 'SPAT3236_SLIT3245_DET05', 'DE.20100913.22358.fits', '830G', '58878.0', None]
-    assert metadata_rows[2] == ['coaddfile.fits', 'object3', 'SPAT3234_SLIT3236_DET03', 'DE.20100914.12358.fits', '830G', '58879.0', None]
-    assert metadata_rows[3] == ['coaddfile.fits', 'object3', 'SPAT3237_SLIT3246_DET05', 'DE.20100914.12358.fits', '830G', '58879.0', None]
-    assert file_info == source_object.coaddfile
-    assert filename == source_object.coaddfile
+    # The spec1d_file2's header doesn't have the semester and prog id, so it's path will be the root directory
+    # of the archive
+    assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'DE.20100913.22358.fits', os.path.join('2019B_TEST1', 'spec1d_file1'), '830G', '58878.0', None]
+    assert metadata_rows[1] == [dest_file, 'object3', 'SPAT3236_SLIT3245_DET05', 'DE.20100913.22358.fits', os.path.join('2019B_TEST1', 'spec1d_file1'), '830G', '58878.0', None]
+    assert metadata_rows[2] == [dest_file, 'object3', 'SPAT3234_SLIT3236_DET03', 'DE.20100914.12358.fits', 'spec1d_file2', '830G', '58879.0', None]
+    assert metadata_rows[3] == [dest_file, 'object3', 'SPAT3237_SLIT3246_DET05', 'DE.20100914.12358.fits', 'spec1d_file2', '830G', '58879.0', None]
+    assert files_to_copy[0][0] == source_object.coaddfile
+    assert files_to_copy[0][1] == dest_file
     
-    assert (None, None, None) ==  get_object_based_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
-                                                            ['MASKDEF_OBJNAME', 'NAME'],
-                                                            "afilename")
+    assert (None, None) ==  get_metadata_coadded(['DISPNAME', 'MJD', 'GUIDFHWM'],
+                                                 ['MASKDEF_OBJNAME', 'NAME'],
+                                                 "afilename")
+
+def test_get_report_metadata(monkeypatch):
+
+    spectrograph = load_spectrograph('keck_deimos')
+    filenames = ['spec1d_file1', 'spec1d_file2']
+    specobjs_file1 = mock_specobjs(filenames[0])
+    specobjs_file2 = mock_specobjs(filenames[1])
+    header_file1 = mock_header(filenames[0])
+    header_file2 = mock_header(filenames[1])
+    file1_objects = [3,  # 'SPAT3233_SLIT3235_DET03'
+                     5,] # 'SPAT3236_SLIT3245_DET05'
+                     
+    file2_objects = [0,  # 'SPAT3234_SLIT3236_DET03'
+                     4,] # 'SPAT3237_SLIT3246_DET05'
+    
+    source_object = SourceObject(specobjs_file1.specobjs[file1_objects[0]], 
+                                 header_file1, 
+                                 filenames[0], 
+                                 spectrograph, 
+                                 'ra/dec')
+    source_object.coaddfile = "/user/test/coaddfile.fits"
+    dest_file = os.path.basename(source_object.coaddfile)
+    for object in file1_objects[1:]:
+        source_object.spec_obj_list.append(specobjs_file1.specobjs[object])
+        source_object.spec1d_file_list.append(filenames[0])
+        source_object.spec1d_header_list.append(header_file1)
+
+    for object in file2_objects:
+        source_object.spec_obj_list.append(specobjs_file2.specobjs[object])
+        source_object.spec1d_file_list.append(filenames[1])
+        source_object.spec1d_header_list.append(header_file2)
+
+    monkeypatch.setattr(fits, "getheader", mock_header)
+
+    (metadata_rows, files_to_copy) = get_report_metadata(['DISPNAME','MJD', 'GUIDFHWM'],
+                                                         ['MASKDEF_OBJNAME', 'NAME'],
+                                                         source_object)
+
+    assert len(metadata_rows) == 4
+    assert metadata_rows[0] == [dest_file, 'object3', 'SPAT3233_SLIT3235_DET03', 'spec1d_file1', '830G', '58878.0', None]
+    assert metadata_rows[1] == [dest_file, 'object3', 'SPAT3236_SLIT3245_DET05', 'spec1d_file1', '830G', '58878.0', None]
+    assert metadata_rows[2] == [dest_file, 'object3', 'SPAT3234_SLIT3236_DET03', 'spec1d_file2', '830G', '58879.0', None]
+    assert metadata_rows[3] == [dest_file, 'object3', 'SPAT3237_SLIT3246_DET05', 'spec1d_file2', '830G', '58879.0', None]
+    assert files_to_copy is None
+    
+    assert (None, None) ==  get_report_metadata(['DISPNAME', 'MJD', 'GUIDFHWM'],
+                                                ['MASKDEF_OBJNAME', 'NAME'],
+                                                "afilename")
+
+def test_find_archive_files_from_spec1d(tmp_path):
+
+    # Write dummy files to avoid dependency on Cooked
+    spec1d_names = [str(tmp_path / 'Science' / 'spec1d_test-name.1.fits'), str(tmp_path / 'Science' / 'spec1d_test-name.2.fits')]
+    related_files = [str(tmp_path / 'test1.pypeit'), str(tmp_path / 'test2.pypeit'), str(tmp_path / 'pypeit' / 'test3.pypeit'), str(tmp_path / 'Science' / 'spec1d_test-name.1.txt')]
+
+    for file in spec1d_names + related_files:
+        os.makedirs(os.path.dirname(file), exist_ok=True)
+        with open(file, "w") as f:
+            print("Dummy fits file", file=f)
+    
+    mock_par = {'collate1d': {"pypeit_file": None}}
+    # This will raise an exception because of too many .pypeit files
+    # find one txt file and give a warning message about one missing file. It should
+    # also find the one pypeit file
+    with pytest.raises(PypeItError, match = "found more than one file."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+
+    # Remove the extra .pypeit file, This will work but will give a warning about the missing
+    # .txt file
+    os.unlink(related_files[1])
+    (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+    assert len(text_files) == 2
+    assert text_files[0] == related_files[3]
+    assert text_files[1] == None
+    assert len(pypeit_files) == 2
+    assert pypeit_files[0] == related_files[0]
+    assert pypeit_files[1] == related_files[0]
+    assert len(missing_msgs) == 1
+    assert missing_msgs[0] == f"Could not archive matching text file for {spec1d_names[1]}, file not found."
+
+    # Remove the remaining the pypeit file, which should raise an exception
+    os.unlink(related_files[0])
+    with pytest.raises(PypeItError, match = f"Could not archive matching .pypeit file for {re.escape(spec1d_names[0])}, file not found."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+
+    # Specify a custom location for the pypeit file
+    mock_par = {'collate1d': {"pypeit_file": related_files[2]}}
+    (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+    assert len(pypeit_files) == 2
+    assert pypeit_files[0] == related_files[2]
+    assert pypeit_files[1] == related_files[2]
+
+    # Remove the custom .pypeit file, which should raise an exception
+    os.unlink(related_files[2])
+    with pytest.raises(PypeItError, match = f"Could not archive passed in .pypeit file {re.escape(related_files[2])}, file not found."):
+        (text_files, pypeit_files, missing_msgs) = find_archvie_files_from_spec1d(mock_par, spec1d_names)
+

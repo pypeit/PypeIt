@@ -52,6 +52,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # the data in the dev suite is unbinned.
         # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 6
+        # Remove slits that are too short
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
