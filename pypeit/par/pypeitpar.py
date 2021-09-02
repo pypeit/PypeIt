@@ -2100,9 +2100,11 @@ class ManualExtractionPar(ParSet):
             spats.append(float(ps[0]))
             specs.append(float(ps[1]))
         #Remove any objs that are not in current detector
-        for i,obj_det in enumerate(reversed(det_list)):
-            if obj_det != det:
-                ind = -(i+1)
+        ind=0
+        while ind < len(det_list):
+            if det_list[ind] == det:
+                ind += 1
+            else:
                 det_list.pop(ind)
                 specs.pop(ind)
                 spats.pop(ind)
