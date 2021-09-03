@@ -9,7 +9,7 @@
     PypeIt.
     
     positional arguments:
-      file                  Spectral file
+      file                  spec1d Spectral file
       skyfile               Archived PypeIt sky file (e.g. paranal_sky.fits)
     
     optional arguments:
