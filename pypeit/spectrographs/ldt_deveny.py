@@ -232,13 +232,16 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #   possibly due to the Wynne type E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
-    
+
         # Reduction and Extraction Parameters
-        par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: [10.0]
-        
+        par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
+
+        # Flexure correction parameters
+        par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
+
         # Sensitivity function parameters
         par['sensfunc']['polyorder'] = 7  # Default: 5
-        
+
         return par
 
     def configuration_keys(self):

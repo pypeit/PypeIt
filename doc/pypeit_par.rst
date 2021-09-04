@@ -3283,7 +3283,6 @@ Alterations to the default parameters are::
               noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
-          ech_fix_format = False
           lamps = NeI, ArI, CdI, HgI
           sigdetect = 10.0
           fwhm_fromlines = True
@@ -3305,6 +3304,8 @@ Alterations to the default parameters are::
   [reduce]
       [[findobj]]
           sig_thresh = 5.0
+  [flexure]
+      spec_method = boxcar
   [sensfunc]
       polyorder = 7
 
