@@ -392,7 +392,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
     Args:
         rawframe (`numpy.ndarray`_):
-            Frame from which to subtract overscan
+            Frame from which to subtract overscan.  Must be 2d.
         datasec_img (`numpy.ndarray`_):
             An array the same shape as ``rawframe`` that identifies the pixels
             associated with the data on each amplifier; 0 for no data, 1 for
@@ -410,26 +410,35 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):
-            Variance in the raw frame.  If None, ignored.  If provided, an
-            estimate of the error in the overscan correction is included and an
-            updated variance image is returned.  The estimated error is the
-            standard error in the median for the pixels included in the overscan
-            correction.  This estimate is also used for the ``'savgol'`` method
-            as an upper limit.
+            Variance in the raw frame.  If provided, must have the same shape as
+            ``rawframe`` and used to estimate the error in the overscan
+            subtraction.  The estimated error is the standard error in the
+            median for the pixels included in the overscan correction.  This
+            estimate is also used for the ``'savgol'`` method as an upper limit.
+            If None, no variance in the overscan subtraction is calculated, and
+            the 2nd object in the returned tuple is None.
 
     Returns:
-        `numpy.ndarray`_, :obj:`tuple`: The input frame with the overscan region
-        subtracted.  If ``var`` is provided, the returned object is a tuple with
-        an estimate of the propagated variance in the overscan-subtracted image
-        as the second item.
+        :obj:`tuple`: The input frame with the overscan region subtracted and an
+        estimate of the variance in the overscan subtraction; both have the same
+        shape as the input ``rawframe``.  If ``var`` is no provided, the 2nd
+        returned object is None.
     """
     # Check input
     if method.lower() not in ['polynomial', 'savgol', 'median']:
         msgs.error(f'Unrecognized overscan subtraction method: {method}')
+    if rawframe.ndim != 2:
+        msgs.error('Input raw frame must be 2D.')
+    if datasec_img.shape != rawframe.shape:
+        msgs.error('Datasec image must have the same shape as the raw frame.')
+    if oscansec_img.shape != rawframe.shape:
+        msgs.error('Overscan section image must have the same shape as the raw frame.')
+    if var is not None and var.shape != rawframe.shape:
+        msgs.error('Variance image must have the same shape as the raw frame.')
 
     # Copy the data so that the subtraction is not done in place
     no_overscan = rawframe.copy()
-    _var = None if var is None else var.copy()
+    _var = None if var is None else np.zeros(var.shape, dtype=float)
 
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
@@ -471,15 +480,15 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             # Subtract scalar and continue
             no_overscan[data_slice] -= osfit
             if var is not None:
-                _var[data_slice] += osvar
+                _var[data_slice] = osvar
             continue
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
         if var is not None:
-            _var[data_slice] += (osvar[:,None] if compress_axis == 1 else osvar[None,:])
+            _var[data_slice] = (osvar[:,None] if compress_axis == 1 else osvar[None,:])
 
-    return no_overscan if var is None else (no_overscan, _var)
+    return no_overscan, _var
 
 
 def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1, debug=False):

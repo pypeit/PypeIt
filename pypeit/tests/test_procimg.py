@@ -60,14 +60,14 @@ def test_sub_overscan():
     raw[oscan == 1] = 9.
     raw[oscan == 2] = 19.
 
-    raw_sub = procimg.subtract_overscan(raw, datasec, oscan, method='median')
+    raw_sub, _ = procimg.subtract_overscan(raw, datasec, oscan, method='median')
     assert np.array_equal(raw_sub[datasec > 0], np.ones(np.sum(datasec > 0), dtype=float)), \
             'Bad overscan subtraction'
 
     var = np.ones((10,10), dtype=float)
     raw_sub, var_sub = procimg.subtract_overscan(raw, datasec, oscan, method='median', var=var)
     assert np.array_equal(var_sub[datasec > 0],
-                          np.ones(np.sum(datasec > 0), dtype=float) + np.pi/2/15), \
+                          np.full(np.sum(datasec > 0), np.pi/2/15, dtype=float)), \
             'Bad variance calculation'
 
 def test_trim():

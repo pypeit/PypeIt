@@ -754,17 +754,18 @@ class RawImage:
             # Already overscan subtracted
             msgs.warn("Image was already overscan subtracted!")
             return
-        # Subtract the overscan
-        ret = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
-                                        method=self.par['overscan_method'],
-                                        params=self.par['overscan_par'], var=self.rn2img)
+        # Subtract the overscan.  var is the variance in the overscan
+        # subtraction
+        self.image, var = procimg.subtract_overscan(self.image, self.datasec_img,
+                                                    self.oscansec_img,
+                                                    method=self.par['overscan_method'],
+                                                    params=self.par['overscan_par'],
+                                                    var=self.rn2img)
         # Parse the returned value
-        if self.rn2img is None:
-            self.image = ret
-        else:
-            self.image, _var = ret
-            # This is the variance added by this processing step
-            self.proc_var += (_var - self.rn2img)
+        if self.rn2img is not None:
+            # Include the variance in the overscan subtraction in the
+            # "processing variance"
+            self.proc_var += var
         self.steps[step] = True
 
     def subtract_pattern(self):
