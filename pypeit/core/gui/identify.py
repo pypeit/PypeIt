@@ -34,7 +34,10 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'f' : "Fit the wavelength solution",
                    'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
                    'h' : "Reset ghost parameters",
-                   'i' : "Include an undetected line to the detected line list (a fit will be performed near the cursor position)",
+                   'i' : "Include an undetected line to the detected line list\n" +
+                         "         First select fitting pixels (LMB drag = add, RMB drag = remove)\n" +
+                         "         Then press 'i' to perform a fit." +
+                         "         NOTE: ghost solution must be turned off to select fit regions.",
                    'l' : "Load saved line IDs from file (waveids.ascii in local directory)",
                    'm' : "Select a line",
                    'r' : "Refit a line",
@@ -1037,13 +1040,41 @@ class Identify(object):
         provided that the line is not too close to another line already in
         the detections list.
         """
-        # new_detn =
-        # detns = np.append(self._detns, new_detn)
-        # self._detns = detns
-        # self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
-        # self._lineids = np.zeros(self._detns.size, dtype=np.float)
-        # self._lineflg = np.zeros(self._detns.size, dtype=np.int)  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
-
+        # Define the minimum distance between lines (in pixels)
+        mindist = 4
+        # Get the selected regions
+        ww = np.where(self._fitregions == 1)
+        xfit = self.specx.copy()[ww]
+        yfit = self.specdata.copy()[ww]
+        from scipy.optimize import curve_fit
+        # Make sure there are enough pixels for the fit
+        npix = len(xfit)
+        if npix <= 3:
+            return
+        # Some starting parameters
+        ampl = np.max(yfit)
+        mean = sum(xfit * yfit) / sum(yfit)
+        sigma = sum(yfit * (xfit - mean) ** 2) / sum(yfit)
+        # Perform a gaussian fit
+        gaus = lambda x, a, x0, sigma: a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
+        popt, pcov = curve_fit(gaus, xfit, yfit, p0=[ampl, mean, sigma])
+        print(ampl, mean, sigma, popt[1])
+        # Get the new detection
+        new_detn = popt[1]
+        # Check that the detection doesn't already exist
+        cls_line = np.min(np.abs(self._detns - new_detn))
+        if cls_line > mindist:
+            detns = np.append(self._detns, new_detn)
+            arsrt = np.argsort(detns)
+            self._detns = detns[arsrt]
+            self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
+            self._lineids = np.append(self._lineids, 0)[arsrt]
+            self._lineflg = np.append(self._lineflg, 0)[arsrt]  # Flags: 0=no ID, 1=user ID, 2=auto ID, 3=flag reject
+        else:
+            self.update_infobox("New detection is <{0:d} pixels of a detection - ignoring".format(mindist))
+        # Reset the fit regions
+        self._fitregions = np.zeros_like(self._fitregions)
+        return
 
     def fitsol_fit(self):
         """Perform a fit to the line identifications
@@ -1182,6 +1213,7 @@ class Identify(object):
             self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
         else:
             self.update_infobox(message="Could not find line IDs: {0:s}".format(fname), yesno=False)
+        self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
 
     def save_IDs(self, fname='waveid.ascii'):
         """Save the current IDs
