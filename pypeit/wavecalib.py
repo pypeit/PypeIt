@@ -160,8 +160,6 @@ class WaveCalib(datamodel.DataContainer):
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
                 parsed_hdus += ihdu.name
         # Check
-        print(spat_ids)
-        print(_d['spat_ids'].tolist())
         if spat_ids != _d['spat_ids'].tolist():
             msgs.error("Bad parsing of WaveCalib")
         # Finish
