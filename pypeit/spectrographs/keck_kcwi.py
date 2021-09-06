@@ -130,6 +130,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
+        elif self.get_meta_value(headarr, 'dispname') == 'BL':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
