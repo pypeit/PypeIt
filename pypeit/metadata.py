@@ -644,7 +644,8 @@ class PypeItMetaData:
 
         # Configuration identifiers are iterations through the
         # upper-case letters: A, B, C, etc.
-        cfg_iter = string.ascii_uppercase
+        double_alphabet = [str_i + str_j for str_i in string.ascii_uppercase for str_j in string.ascii_uppercase]
+        cfg_iter = list(string.ascii_uppercase) + double_alphabet
         cfg_indx = 0
 
         # TODO: Placeholder: Allow an empty set of configuration keys
