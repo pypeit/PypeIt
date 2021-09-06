@@ -57,7 +57,7 @@ class Identify(object):
     """
 
     def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
-                 slit=0, spatid='0', wv_calib=None, pxtoler=None):
+                 slit=0, spatid='0', wv_calib=None, pxtoler=None, specname=""):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -651,7 +651,7 @@ class Identify(object):
                 wvcalib = copy.deepcopy(final_fit)
         return wvcalib
 
-    def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
+    def store_solution(self, final_fit, binspec, rmstol=0.15,
                        force_save=False, wvcalib=None):
         """Check if the user wants to store this solution in the reid arxiv
 
@@ -660,8 +660,6 @@ class Identify(object):
 
         final_fit : dict
             Dict of wavelength calibration solutions (see self.get_results())
-        master_dir : str
-            Master directory -- NOT USED
         binspec : int
             Spectral binning
         rmstol : float
@@ -706,14 +704,30 @@ class Identify(object):
                 #          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
                 #          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
                 #
+                outfname = "wvcalib.fits"
                 if wvcalib is not None:
-                    wvcalib.to_file('wvcalib.fits')
+                    wvcalib.to_file(outfname, overwrite=True)
                     msgs.info("\nA WaveCalib container was written to wvcalib.fits")
-                msgs.info("\nPlease consider sending your solution to the PypeIt team!" + msgs.newline())
+                print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
+                print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template")
+                print("You will need the following information:")
+                print("  (1) spectral binning = {0:d}".format(binspec))
+                print("  (2) slit spat_id = {0:s}".format(self._spatid))
+                print("  (3) the {0:s} file".format(outfname))
+                print("\n\nPlease consider sending your solution to the PypeIt team!\n")
         else:
-            print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
-            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
-            ans = ''
+            print("\nFinal fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
+            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance\n")
+            if ans != 'y':
+                # If we make it here, the user has not chosen to save the IDs, and the rms tol was bad
+                ans = ''
+                if not force_save:
+                    while ans != 'y' and ans != 'n':
+                        ans = input("A solution has not been saved - would you like to write the IDs to disk? (y/n): ")
+                else:
+                    ans = 'y'
+                if ans == 'y':
+                    self.save_IDs()
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -1108,7 +1122,7 @@ class Identify(object):
                     n_final=self._fitdict["polyorder"],
                     sigrej_first=self.par['sigrej_first'],
                     sigrej_final=self.par['sigrej_final'])
-                final_fit.spat_id = self._slit
+                final_fit.spat_id = int(self._spatid)
 
                 # Update the fitdict
                 #for key in final_fit:
@@ -1210,10 +1224,10 @@ class Identify(object):
             self._lineids = data['wavelength'].data
             self._lineflg = data['flag'].data
             msgs.info("Loaded line IDs:" + msgs.newline() + fname)
-            self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
         else:
-            self.update_infobox(message="Could not find line IDs: {0:s}".format(fname), yesno=False)
+            msgs.info("Could not find line IDs:" + msgs.newline()+fname)
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
+        self.replot()
 
     def save_IDs(self, fname='waveid.ascii'):
         """Save the current IDs
