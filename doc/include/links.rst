@@ -92,6 +92,7 @@
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
 .. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
+.. _scikit-image: https://scikit-image.org/
 
 .. ginga
 

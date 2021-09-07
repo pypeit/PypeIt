@@ -18,7 +18,7 @@ def data_path(filename):
 
 
 def test_initialization():
-    """ Load input PYPIT file
+    """ Load input PypeIt file
     """
     # Generate a PYPIT file
     pypit_file = data_path('test.pypeit')
