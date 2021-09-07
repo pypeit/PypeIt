@@ -2,6 +2,7 @@
 Module to run tests on scripts
 """
 import os
+from pkg_resources import resource_filename
 import shutil
 
 import numpy as np
@@ -326,6 +327,17 @@ def test_obslog():
 
     # Clean up
     shutil.rmtree(setupdir)
+
+@dev_suite_required
+def test_compare_sky():
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                              'sky_kastb_600.fits')
+
+    # Running in `test` mode
+    pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])
+    scripts.compare_sky.CompareSky.main(pargs)
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):

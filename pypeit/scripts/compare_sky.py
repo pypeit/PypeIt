@@ -24,6 +24,8 @@ class CompareSky(scriptbase.ScriptBase):
                             help='Show Optimal? Default is boxcar')
         parser.add_argument('--scale_user', default=1., type=float,
                             help='Scale user spectrum by a factor')
+        parser.add_argument('--test', default=False, action='store_true',
+                            help='Load files but do not show plot')
         return parser
 
     # Script to run XSpec from the command line or ipython
@@ -41,7 +43,7 @@ class CompareSky(scriptbase.ScriptBase):
         sky_path = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec')
 
         # Extension
-        exten = args.exten if hasattr(args, 'exten') and args.exten is not None else 1
+        exten = args.exten if args.exten is not None else 1
 
         # Read spec keywords
         ikwargs = {}
@@ -67,6 +69,7 @@ class CompareSky(scriptbase.ScriptBase):
         plt.plot(arx_sky.wavelength, arx_sky.flux, 'b-', label='archive')
         legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
                             handletextpad=0.3, fontsize='small', numpoints=1)
-        plt.show()
+        if not args.test:
+            plt.show()
 
 
