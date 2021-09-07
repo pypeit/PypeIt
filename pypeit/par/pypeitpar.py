@@ -2075,7 +2075,7 @@ class ManualExtractionPar(ParSet):
                 if len(p2) != len(p3):
                     raise ValueError("Each of these lists need the same length")
 
-    def dict_for_objfind(self,det):
+    def dict_for_objfind(self,this_det):
         """
         Parse the rather klunky parameters into a dict
 
@@ -2088,11 +2088,11 @@ class ManualExtractionPar(ParSet):
         if isinstance(self.data['det'], list):
             spat_spec = self.data['spat_spec']
             det_list = [int(obj) for obj in self.data['det']]
-            fwhm = [float(obj) for obj in self.data['fwhm']]
+            fwhm_list = [float(obj) for obj in self.data['fwhm']]
         else:
             spat_spec = [self.data['spat_spec']]
             det_list = [self.data['det']]
-            fwhm = [self.data['fwhm']]
+            fwhm_list = [self.data['fwhm']]
         # Deal with spat_spec
         spats, specs = [], []
         for ispat_spec in spat_spec:
@@ -2100,18 +2100,18 @@ class ManualExtractionPar(ParSet):
             spats.append(float(ps[0]))
             specs.append(float(ps[1]))
         #Remove any objs that are not in current detector
-        ind=0
-        while ind < len(det_list):
-            if det_list[ind] == det:
-                ind += 1
-            else:
-                det_list.pop(ind)
-                specs.pop(ind)
-                spats.pop(ind)
-                fwhm.pop(ind)
-
-        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
-                    hand_extract_det=det_list, hand_extract_fwhm=fwhm)
+        det_hold = []
+        spec_hold = []
+        spat_hold = []
+        fwhm_hold = []
+        for det,spec,spat,fwhm in zip(det_list,specs,spats,fwhm_list):
+            if det == this_det:
+                det_hold.append(det)
+                spec_hold.append(spec)
+                spat_hold.append(spat)
+                fwhm_hold.append(fwhm)
+        return dict(hand_extract_spec=spec_hold, hand_extract_spat=spat_hold,
+                    hand_extract_det=det_hold, hand_extract_fwhm=fwhm_hold)
 
 
 class ReduxPar(ParSet):
