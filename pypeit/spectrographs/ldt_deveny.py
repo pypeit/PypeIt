@@ -184,7 +184,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return headarr[0]['FILTREAR'].split()[0].upper()
 
         else:
-            msgs.error("Not ready for this compound meta for LDT/DeVeny")
+            msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     @classmethod
     def default_pypeit_par(cls):
@@ -298,7 +298,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole','align']:
             # Don't types pinhole or align frames
             return np.zeros(len(fitstbl), dtype=bool)
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        msgs.warn(f"Cannot determine if frames are of type {ftype}")
         return np.zeros(len(fitstbl), dtype=bool)
 
     def pypeit_file_keys(self):
