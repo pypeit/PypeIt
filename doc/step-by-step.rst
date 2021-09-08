@@ -108,7 +108,11 @@ It looks like this::
     data end
 
 
-In this example, all of the frametypes were accurately assigned
+For some instruments (especially Kast), it is common for 
+frametypes to be incorrectly assigned owing to limited
+or erroneous headers.
+
+In this example, however, all of the frametypes were accurately assigned
 in the :doc:`pypeit_file`,
 so there are no edits to be made.
 

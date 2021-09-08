@@ -1,6 +1,12 @@
 
-1.4.3dev
---------
+
+1.5.1.dev
+---------
+
+- Modifications to reduce header crashes
+
+1.5.0 (11 Aug 2021)
+-------------------
 
 - Doc updates, including reorganization of the installation doc, fluxing and
   telluric docs, and automatic construction of the package dependencies.

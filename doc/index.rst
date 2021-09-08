@@ -32,11 +32,17 @@
 .. |github| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
    :target: https://github.com/pypeit/PypeIt
 
+.. |pypeit_logo| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
+   :target: https://github.com/pypeit/PypeIt
 
 PypeIt |stars| |watch|
 ======================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
+
+.. raw:: html
+
+    <img src="_static/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
 
 **Version**: |version|
 
@@ -77,6 +83,18 @@ the publication, please include the following acknowledgement
     \citep{pypeit:joss_pub, pypeit:zenodo}.
 
 ----
+
+Funding
++++++++
+
+``PypeIt`` receives direct funding from the following sources:
+
+  * NASA (ADAP-A20-0412)
+  * W.M. Keck Observatory
+  * University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
 
 What this version provides
 ++++++++++++++++++++++++++
@@ -178,6 +196,7 @@ or have a feature request, please `submit an issue
    installing
    cookbook
    step-by-step
+   known_failure_modes
 
 ----
 

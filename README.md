@@ -90,6 +90,17 @@ the publication, please include the following acknowledgement
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
+# Funding
+
+`PypeIt` receives direct funding from the following sources:
+
+* NASA (ADAP-A20-0412)
+* W.M. Keck Observatory
+* University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
+
 # Contribute
 
 We encourage anyone to help us develop the `PypeIt` code base to better
