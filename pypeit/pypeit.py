@@ -23,7 +23,7 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
-from pypeit import io
+from pypeit import utils
 from pypeit.history import History
 
 from configobj import ConfigObj
@@ -921,19 +921,7 @@ class PypeIt(object):
         Print the elapsed time
         """
         # Capture the end time and print it to user
-        tend = time.time()
-        codetime = tend-self.tstart
-        if codetime < 60.0:
-            msgs.info('Execution time: {0:.2f}s'.format(codetime))
-        elif codetime/60.0 < 60.0:
-            mns = int(codetime/60.0)
-            scs = codetime - 60.0*mns
-            msgs.info('Execution time: {0:d}m {1:.2f}s'.format(mns, scs))
-        else:
-            hrs = int(codetime/3600.0)
-            mns = int(60.0*(codetime/3600.0 - hrs))
-            scs = codetime - 60.0*mns - 3600.0*hrs
-            msgs.info('Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+        msgs.info(utils.get_time_string(time.time()-self.tstart))
 
     # TODO: Move this to fitstbl?
     def show_science(self):
