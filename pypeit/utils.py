@@ -31,6 +31,32 @@ from pypeit.core import pydl
 from pypeit import msgs
 
 
+def get_time_string(codetime):
+    """
+    Utility function that takes the codetime and
+    converts this to a human readable String.
+
+    Args:
+        codetime (`float`):
+            Code execution time in seconds (usually the difference of two time.time() calls)
+
+    Returns:
+        `str`: A string indicating the total execution time
+    """
+    if codetime < 60.0:
+        retstr = 'Execution time: {0:.2f}s'.format(codetime)
+    elif codetime / 60.0 < 60.0:
+        mns = int(codetime / 60.0)
+        scs = codetime - 60.0 * mns
+        retstr = 'Execution time: {0:d}m {1:.2f}s'.format(mns, scs)
+    else:
+        hrs = int(codetime / 3600.0)
+        mns = int(60.0 * (codetime / 3600.0 - hrs))
+        scs = codetime - 60.0 * mns - 3600.0 * hrs
+        retstr = 'Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs)
+    return retstr
+
+
 def all_subclasses(cls):
     """
     Collect all the subclasses of the provided class.
