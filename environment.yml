@@ -3,21 +3,21 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.7
-  - pyyaml>=5.1
-  - requests>=2.23
-  - packaging>=19.0
-  - numpy>=1.18
-  - scipy>=1.4
-  - scikit-learn>=0.20
-  - astropy>=4.0
+  - pyyaml>=5.4
+  - requests>=2.26
+  - packaging>=21.0
+  - numpy>=1.21
+  - scipy>=1.7
+  - scikit-learn>=0.24
+  - astropy>=4.3
   - setuptools>=46.4
-  - matplotlib>=3.1
+  - matplotlib>=3.4
   - configobj>=5.0.6
-  - ipython>=7.2
+  - ipython>=7.27
   - extension-helpers>=0.1
-  - ginga>=3.0
-  - qtpy>=1.9
-  - pytest>=3.0.7
+  - ginga>=3.2
+  - qtpy>=1.11
+  - pytest>=6.2
   - bottleneck
   - pip
   - linetools>=0.3dev2231
