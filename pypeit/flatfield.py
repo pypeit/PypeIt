@@ -265,7 +265,7 @@ class FlatImages(datamodel.DataContainer):
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
-            if (slits.mask[slit_idx] != 0) or (spat_bsplines[slit_idx].breakpoints is None):
+            if (slits.mask[slit_idx] != 0):
                 continue
             # Skip those without a bspline
             # DO it
@@ -689,6 +689,10 @@ class FlatField(object):
             # Is this a good slit??
             if self.slits.mask[slit_idx] != 0:
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
+                # We want to run objfind to the 'BOXSLIT', which has bpm=2,
+                # so we don't give it the 'BADFLATCALIB' flag
+                if self.slits.mask[slit_idx] > 2:
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
             msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
