@@ -40,7 +40,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        self.meta['ra'] = dict(ext=0, card='RA', 
+            required_ftypes=['science', 'standard'])  # Need to convert to : separated
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['binning'] = dict(card=None, compound=True)
@@ -54,8 +55,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
         # Dithering -- Not required for redux
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
-            required=False,  # This header card is *not* always present in science/standard frames
-            required_ftypes=['science', 'standard'])
+            required=False)  # This header card is *not* always present in science/standard frames
 
     def compound_meta(self, headarr, meta_key):
         """

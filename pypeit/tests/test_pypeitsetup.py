@@ -30,6 +30,16 @@ def get_files():
     assert len(files) > 0
     return files
 
+def get_lrisr_files():
+    # Check for files
+    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 
+                             'RAW_DATA/keck_lris_red/long_600_7500_d560/LR')
+    files = glob.glob(file_root+'*')
+    assert len(files) > 0
+    return files
+
+
+@dev_suite_required
 
 @dev_suite_required
 def test_init():
@@ -97,32 +107,6 @@ def test_type():
     setupc.get_frame_types(flag_unknown=True)
     assert np.sum(setupc.fitstbl.find_frames('science')) == 2
 
-#def test_match_ABBA():
-#    if skip_test:
-#        assert True
-#        return
-#    # Check for files
-#    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Keck_NIRSPEC/NIRSPEC-1/NS')
-#    files = glob.glob(file_root+'*')
-#    assert len(files) > 0
-#    # Settings
-#    settings_argflag, settings_spect = settings_kludge('keck_nirspec')
-#    settings_spect['bias']['number'] = 0
-#    settings_spect['standard']['number'] = 0
-#    # Init
-#    setupc = pypeitsetup.PypeItSetup(settings_argflag, settings_spect)
-#    # fitstbl
-#    _ = setupc.build_fitstbl(files)
-#
-#    # Type
-#    _ = setupc.type_data()
-#
-#    # Match to science
-#    fitstbl = setupc.match_to_science()
-#    fitstbl = setupc.match_ABBA()
-#
-#    assert fitstbl['AB_frame'][-1] == 'NS.20160414.55235.fits.gz'
-
 @dev_suite_required
 def test_run():
     # Check for files
@@ -139,7 +123,6 @@ def test_run():
     # Cleanup
     os.remove(data_path('shane_kast_blue.calib'))
 
-# TODO: I'm not sure this test is useful...
 @dev_suite_required
 def test_run_calcheck():
     # Check for files
@@ -167,4 +150,22 @@ def test_run_setup():
     # Cleanup
     os.remove(data_path('shane_kast_blue.sorted'))
 
+
+@dev_suite_required
+def test_run_on_bad_headers():
+    files = get_lrisr_files()
+    # Init
+    setupc = pypeitsetup.PypeItSetup(files, 
+                                     spectrograph_name='keck_lris_red', 
+                                     path=data_path(''))
+    # Run
+    par, spectrograph, fitstbl = setupc.run(setup_only=True, 
+                                            sort_dir=data_path(''))
+    # Test
+    assert par is None
+    assert setupc.fitstbl['ra'][-1] is None
+    assert len(setupc.fitstbl) == 23
+
+    # Cleanup
+    os.remove(data_path('keck_lris_red.sorted'))
 

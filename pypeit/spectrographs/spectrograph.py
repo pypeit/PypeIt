@@ -746,7 +746,8 @@ class Spectrograph:
             kk += 1
         return "_".join(lampstat)
 
-    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
+    def get_meta_value(self, inp, meta_key, required=False, 
+                       ignore_bad_header=False,
                        usr_row=None, no_fussing=False):
         """
         Return meta data from a given file (or its array of headers).
@@ -760,6 +761,7 @@ class Spectrograph:
             required (:obj:`bool`, optional):
                 The metadata is required and must be available. If it is not,
                 the method will raise an exception.
+                This can and is over-ruled by information in the meta dict
             ignore_bad_header (:obj:`bool`, optional):
                 ``PypeIt`` expects certain metadata values to have specific
                 datatypes. If the keyword finds the appropriate data but it
@@ -768,6 +770,7 @@ class Spectrograph:
                 True, the incorrect type is ignored. It is recommended that
                 this be False unless you know for sure that ``PypeIt`` can
                 proceed appropriately.
+                Note: This bool trumps ``required``
             usr_row (`astropy.table.Table`_, optional):
                 A single row table with the user-supplied frametype. This is
                 used to determine if the metadata value is required for each
@@ -795,6 +798,13 @@ class Spectrograph:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
 
+        # Is this meta required for this frame type (Spectrograph specific)
+        if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+            required = False
+            for ftype in self.meta[meta_key]['required_ftypes']:
+                if ftype in usr_row['frametype']:
+                    required = True
+
         # Check if this meta key is required
         if 'required' in self.meta[meta_key].keys():
             required = self.meta[meta_key]['required']
@@ -802,19 +812,22 @@ class Spectrograph:
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
         value = None
-        if self.meta[meta_key]['card'] is None:
-            if 'default' in self.meta[meta_key].keys():
-                value = self.meta[meta_key]['default']
-            elif 'compound' in self.meta[meta_key].keys():
-                value = self.compound_meta(headarr, meta_key)
+        try:
+            if self.meta[meta_key]['card'] is None:
+                if 'default' in self.meta[meta_key].keys():
+                    value = self.meta[meta_key]['default']
+                elif 'compound' in self.meta[meta_key].keys():
+                    value = self.compound_meta(headarr, meta_key)
+                else:
+                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
             else:
-                msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
-        else:
-            # Grab from the header, if we can
-            try:
+                # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
-            except (KeyError, TypeError):
-                value = None
+        except (KeyError, TypeError) as e:
+            if ignore_bad_header or (not required):
+                msgs.warn("Bad Header, but we'll try to continue on..") 
+            else:
+                raise e
 
         # Return now?
         if no_fussing:
