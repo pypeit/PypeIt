@@ -15,6 +15,7 @@ import numpy as np
 from astropy import stats
 
 from pypeit import msgs
+from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
@@ -75,6 +76,9 @@ class RawImage:
         proc_var (`numpy.ndarray`_):
             The sum of the variance components added by the image processing;
             i.e., the error in the overscan subtraction, bias subtraction, etc.
+        base_var (`numpy.ndarray`_):
+            The base-level variance in the processed image.  See
+            :func:`~pypeit.core.procimg.base_variance`.
         var (`numpy.ndarray`_):
             The aggregate variance in the processed image.  This is the primary
             array used during :func:`process` to track uncertainties;
@@ -116,6 +120,7 @@ class RawImage:
         self.ivar = None
         self.rn2img = None
         self.proc_var = None
+        self.base_var = None
         self.spat_flexure_shift = None
         self.img_scale = None
         self._bpm = None
@@ -209,10 +214,12 @@ class RawImage:
         # the dark image itself (assuming one is available) to calculate the
         # dark-current shot noise.  Instead, we could pass an image of the dark
         # current, if available.
-        darkcurr = self.detector['darkcurr'] if self.detector['darkcurr'] > 0 else None
-        var = procimg.variance_model(self.rn2img, counts=self.image,
-                                     darkcurr=darkcurr, exptime=self.exptime,
-                                     proc_var=self.proc_var, count_scale=self.img_scale,
+        npix = np.prod(parse.parse_binning(self.detector.binning))
+        darkcurr = npix*self.detector['darkcurr'] \
+                    if self.detector['darkcurr'] > 0 and self.par['shot_noise'] else None
+        self.base_var = procimg.base_variance(self.rn2img, darkcurr=darkcurr, exptime=self.exptime,
+                                              proc_var=self.proc_var, count_scale=self.img_scale)
+        var = procimg.variance_model(self.base_var, counts=self.image, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'],
                                      shot_noise=self.par['shot_noise'])
         return utils.inverse(var)
@@ -493,10 +500,10 @@ class RawImage:
         self.ivar = self.build_ivar()
 
         # Generate a PypeItImage.
-        # NOTE: To reconstruct the variance model, you need rn2img, image,
-        # detector, exptime, proc_var, img_scale, noise_floor, and shot_noise.
+        # NOTE: To reconstruct the variance model, you need base_var, image,
+        # img_scale, noise_floor, and shot_noise.
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                              proc_var=self.proc_var, img_scale=self.img_scale,
+                                              base_var=self.base_var, img_scale=self.img_scale,
                                               bpm=self.bpm, detector=self.detector,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,

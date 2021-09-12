@@ -471,14 +471,14 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
     return fullbkpt
 
-def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, thismask,
-                         slit_left, slit_righ, sobjs, ingpm=None, spat_pix=None, adderr=0.01,
-                         bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
+def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, slit_left,
+                         slit_righ, sobjs, ingpm=None, spat_pix=None, adderr=0.01, bsp=0.6,
+                         trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
                          extract_good_frac=0.005, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                          model_noise=True, show_profile=False, show_resids=False,
-                         use_2dmodel_mask=True, no_local_sky=False, darkcurr=None, exptime=None,
-                         proc_var=None, count_scale=None):
+                         use_2dmodel_mask=True, no_local_sky=False, base_var=None,
+                         count_scale=None):
     r"""
     Perform local sky subtraction and  extraction
 
@@ -496,9 +496,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         2-d wavelength map
     global_sky : ndarray (nspec, nspat)
         Global sky model produced by global_skysub
-    rn2_img: `numpy.ndarray`, float, (nspec,nspat)
-        Image with the read noise squared per pixel.  This is one of the
-        components needed to construct the model variance; see ``model_noise``.
     thismask : numpy boolean array, shape (nspec, nspat)
         Specifies pixels in the slit in question
     slit_left : ndarray of shape (nspec, 1) or (nspec)
@@ -590,7 +587,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     model_noise : bool, default = True
         If True, construct and iteratively update a model inverse variance image
         using :func:`~pypeit.core.procimg.variance_model`.  Construction of the
-        model variance *requires* ``rn2_img``, and will use the provided values
+        model variance *requires* ``base_var``, and will use the provided values
         or defaults for the remaining 
         :func:`~pypeit.core.procimg.variance_model` parameters.  If False, a
         variance model will not be created and instead the input sciivar will
@@ -615,31 +612,19 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     no_local_sky : bool, optional
         If True, do not fit local sky model, only object profile and extract optimally
         The objimage will be all zeros.
-    darkcurr : :obj:`float`, `numpy.ndarray`_, optional
-        Dark current in electrons per **hour** (as is the convention for the
-        :class:`~pypeit.images.detector_container.DetectorContainer` object) if
-        the exposure time is provided, otherwise in electrons.  If None, set to
-        0.  If a single float, assumed to be constant across the full image.  If
-        an array, the shape must match ``rn2_img``.  This is one of the
-        components needed to construct the model variance; see ``model_noise``.
-    exptime : :obj:`float`, optional
-        Exposure time in seconds.  If None, dark current *must* be in electrons.
-        This is one of the components needed to construct the model variance;
-        see ``model_noise``.
-    proc_var : :obj:`float`, `numpy.ndarray`_, optional
-        Additional variance terms to include that are due to the image
-        processing steps (e.g., bias subtraction).  If None, set to 0.  If a
-        single float, assumed to be constant across the full image.  If an
-        array, the shape must match ``rn2_img``.  This is one of the components
-        needed to construct the model variance; see ``model_noise``.
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
-        A scale factor that *has already been applied* to the provided science
-        image.  For example, if the image has been flat-field corrected, this is
-        the inverse of the flat-field counts.  If None, set to 1.  If a single
-        float, assumed to be constant across the full image.  If an array, the
-        shape must match ``rn2_img``.  The variance will be 0 wherever :math:`s
-        \leq 0`, modulo the provided ``adderr``.  This is one of the components
-        needed to construct the model variance; see ``model_noise``.
+        A scale factor, :math:`s`, that *has already been applied* to the
+        provided science image.  For example, if the image has been flat-field
+        corrected, this is the inverse of the flat-field counts.  If None, set
+        to 1.  If a single float, assumed to be constant across the full image.
+        If an array, the shape must match ``base_var``.  The variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
+        of the components needed to construct the model variance; see
+        ``model_noise``.
 
     Returns
     -------
@@ -652,6 +637,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     outmask : `numpy.ndarray`_
         Model maske where ``thismask`` is true.
     """
+    # Check input
+    if model_noise and base_var is None:
+        msgs.error('Must provide base_var to iteratively update and improve the noise model.')
+    if base_var is not None and base_var.shape != sciimg.shape:
+        msgs.error('Base variance array does not match science image array shape.')
+
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
 
     # TODO -- This should be using the SlitTraceSet method
@@ -760,8 +751,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg,
-                                           skyimage, rn2_img, box_rad, sobjs[iobj])
+                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage, box_rad,
+                                           sobjs[iobj], base_var=base_var, count_scale=count_scale,
+                                           noise_floor=adderr)
                     flux = sobjs[iobj].BOX_COUNTS
                     fluxivar = sobjs[iobj].BOX_COUNTS_IVAR * sobjs[iobj].BOX_MASK
                     wave = sobjs[iobj].BOX_WAVE
@@ -771,12 +763,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                     trace = sobjs[iobj].TRACE_SPAT[:, None]
                     objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
                     # Boxcar
-                    extract.extract_boxcar(sciimg, modelivar, (outmask & objmask),
-                                                   waveimg, skyimage, rn2_img, box_rad,
-                                                   sobjs[iobj])
+                    extract.extract_boxcar(sciimg, modelivar, (outmask & objmask), waveimg,
+                                           skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                           count_scale=count_scale, noise_floor=adderr)
                     # Optimal
-                    extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, thismask,
-                                            last_profile, box_rad, sobjs[iobj])
+                    extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg,
+                                            skyimage, thismask, last_profile, box_rad, sobjs[iobj],
+                                            base_var=base_var, count_scale=count_scale,
+                                            noise_floor=adderr)
                     # If the extraction is bad do not update
                     if sobjs[iobj].OPT_MASK is not None:
                         # if there is only one good pixel `extract.fit_profile` fails
@@ -842,7 +836,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 skyimage.flat[isub] = sky_bmodel
                 objimage.flat[isub] = obj_bmodel
                 img_minsky.flat[isub] = sciimg.flat[isub] - sky_bmodel
-                #var_no = np.abs(sky_bmodel - np.sqrt(2.0) * np.sqrt(rn2_img.flat[isub])) + rn2_img.flat[isub]
                 igood1 = skymask.flat[isub]
                 #  update the outmask for only those pixels that were fit. This prevents masking of slit edges in outmask
                 outmask.flat[isub[igood1]] = outmask_opt[igood1]
@@ -850,13 +843,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
                 #  eqn. below is not valid. However, co-adds already have the model noise propagated correctly in sciivar,
                 #  so no need to re-model the variance.
                 if model_noise:
-                    _proc_var = None if proc_var is None else proc_var.flat[isub]
+                    _base_var = None if base_var is None else base_var.flat[isub]
                     _count_scale = None if count_scale is None else count_scale.flat[isub]
                     # NOTE: darkcurr must be a float for the call below to work.
-                    var = procimg.variance_model(rn2_img.flat[isub], counts=sky_bmodel+obj_bmodel,
-                                                 darkcurr=darkcurr, exptime=exptime,
-                                                 proc_var=_proc_var, count_scale=_count_scale,
-                                                 noise_floor=adderr, shot_noise=True)
+                    var = procimg.variance_model(_base_var, counts=sky_bmodel+obj_bmodel,
+                                                 count_scale=_count_scale, noise_floor=adderr,
+                                                 shot_noise=True)
                     modelivar.flat[isub] = utils.inverse(var)
                 # Now do some masking based on this round of model fits
                 chi2 = (img_minsky.flat[isub] - obj_bmodel) ** 2 * modelivar.flat[isub]
@@ -905,11 +897,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
-            extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask), waveimg, skyimage, rn2_img, thismask, this_profile,
-                            box_rad, sobjs[iobj])
+            extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
+                                    waveimg, skyimage, thismask, this_profile, box_rad, sobjs[iobj],
+                                    base_var=base_var, count_scale=count_scale,
+                                    noise_floor=adderr)
             # Boxcar
             extract.extract_boxcar(sciimg, modelivar*thismask, (outmask_extract & objmask),
-                                           waveimg, skyimage, rn2_img, box_rad, sobjs[iobj])
+                                   waveimg, skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                   count_scale=count_scale, noise_floor=adderr)
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
 
@@ -956,14 +951,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     return skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask]
 
 
-def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, rn2img,
-                             left, right, slitmask, sobjs, order_vec, spat_pix=None,
-                             fit_fwhm=False, min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False,
-                             prof_nsigma=None, niter=4, box_rad_order=7, sigrej=3.5,
-                             bkpts_optimal=True, force_gauss=False, sn_gauss=4.0,
-                             model_full_slit=False, model_noise=True, debug_bkpts=False,
-                             show_profile=False, show_resids=False, show_fwhm=False,
-                             adderr=0.01, darkcurr=None, exptime=None, proc_var=None,
+def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, left, right,
+                             slitmask, sobjs, order_vec, spat_pix=None, fit_fwhm=False,
+                             min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
+                             niter=4, box_rad_order=7, sigrej=3.5, bkpts_optimal=True,
+                             force_gauss=False, sn_gauss=4.0, model_full_slit=False,
+                             model_noise=True, debug_bkpts=False, show_profile=False,
+                             show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
                              count_scale=None):
     """
     Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -978,7 +972,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     tilts:
     waveimg:
     global_sky:
-    rn2img:
     left : `numpy.ndarray`_
         Spatial-pixel coordinates for the left edges of each
         order.
@@ -1012,7 +1005,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     model_noise : bool, default = True
         If True, construct and iteratively update a model inverse variance image
         using :func:`~pypeit.core.procimg.variance_model`.  Construction of the
-        model variance *requires* ``rn2_img``, and will use the provided values
+        model variance *requires* ``base_var``, and will use the provided values
         or defaults for the remaining 
         :func:`~pypeit.core.procimg.variance_model` parameters.  If False, a
         variance model will not be created and instead the input sciivar will
@@ -1037,37 +1030,24 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         needed to construct the model variance (this is the same as
         ``noise_floor`` in :func:`~pypeit.core.procimg.variance_model`); see
         ``model_noise``.
-    darkcurr : :obj:`float`, `numpy.ndarray`_, optional
-        Dark current in electrons per **hour** (as is the convention for the
-        :class:`~pypeit.images.detector_container.DetectorContainer` object) if
-        the exposure time is provided, otherwise in electrons.  If None, set to
-        0.  If a single float, assumed to be constant across the full image.  If
-        an array, the shape must match ``rn2_img``.  This is one of the
-        components needed to construct the model variance; see ``model_noise``.
-    exptime : :obj:`float`, optional
-        Exposure time in seconds.  If None, dark current *must* be in electrons.
-        This is one of the components needed to construct the model variance;
-        see ``model_noise``.
-    proc_var : :obj:`float`, `numpy.ndarray`_, optional
-        Additional variance terms to include that are due to the image
-        processing steps (e.g., bias subtraction).  If None, set to 0.  If a
-        single float, assumed to be constant across the full image.  If an
-        array, the shape must match ``rn2_img``.  This is one of the components
-        needed to construct the model variance; see ``model_noise``.
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data, set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
     count_scale : :obj:`float`, `numpy.ndarray`_, optional
         A scale factor that *has already been applied* to the provided science
         image.  For example, if the image has been flat-field corrected, this is
         the inverse of the flat-field counts.  If None, set to 1.  If a single
         float, assumed to be constant across the full image.  If an array, the
-        shape must match ``rn2_img``.  The variance will be 0 wherever :math:`s
-        \leq 0`, modulo the provided ``adderr``.  This is one of the components
-        needed to construct the model variance; see ``model_noise``.
+        shape must match ``base_var``.  The variance will be 0 wherever this
+        array is not positive, modulo the provided ``adderr``.  This is one of
+        the components needed to construct the model variance; see
+        ``model_noise``.
 
     Returns:
         skymodel, objmodel, ivarmodel, outmask, sobjs
 
     """
-
     bitmask = imagebitmask.ImageBitMask()
 
     # Allocate the images that are needed
@@ -1193,8 +1173,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
         inmask = (fullmask == 0) & thismask
         # Local sky subtraction and extraction
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] \
-                = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2img,
-                                       thismask, left[:,iord], right[:,iord], sobjs[thisobj],
+                = local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask,
+                                       left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
                                        box_rad=box_rad_order[iord], sigrej=sigrej,
@@ -1202,8 +1182,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                                        sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
                                        show_resids=show_resids, show_profile=show_profile,
-                                       adderr=adderr, darkcurr=darkcurr, exptime=exptime,
-                                       proc_var=proc_var, count_scale=count_scale)
+                                       adderr=adderr, base_var=base_var, count_scale=count_scale)
 
         # update the FWHM fitting vector for the brighest object
         indx = (sobjs.ECH_OBJID == uni_objid[ibright]) & (sobjs.ECH_ORDERINDX == iord)

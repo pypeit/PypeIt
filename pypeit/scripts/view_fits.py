@@ -68,7 +68,8 @@ class ViewFits(scriptbase.ScriptBase):
             img = hdu[args.exten].data
         else:
             spectrograph = util.load_spectrograph(args.spectrograph)
-            bad_read_message = 'Unable to construct image.  In this use case, the code expects ' \
+            bad_read_message = 'Unable to construct image due to a read or image processing ' \
+                               'error.  Use case interpreted from command-line inputs requires ' \
                                'a raw image, not an output image product from pypeit.  To show ' \
                                'a pypeit output image, specify the extension using --exten.  ' \
                                'Use --list to show the extension names.'
@@ -80,14 +81,16 @@ class ViewFits(scriptbase.ScriptBase):
                 try:
                     img = buildimage.buildimage_fromlist(spectrograph, int(args.det), par,
                                                         [args.file]).image
-                except:
-                    msgs.error(bad_read_message)
+                except Exception as e:
+                    msgs.error(bad_read_message 
+                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
             else:
                 det = None if args.det == 'mosaic' else int(args.det)
                 try:
                     img = spectrograph.get_rawimage(args.file, det)[1]
-                except:
-                    msgs.error(bad_read_message)
+                except Exception as e:
+                    msgs.error(bad_read_message 
+                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
 
         display.connect_to_ginga(raise_err=True, allow_new=True)
         display.show_image(img,chname=args.chname)

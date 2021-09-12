@@ -89,27 +89,26 @@ def test_var_model():
 
     rnvar = procimg.rn2_frame(datasec, rn)
 
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar)), \
+    assert np.array_equal(rnvar, procimg.base_variance(rnvar)), \
         'Variance model with only rnvar is just rnvar'
 
     counts = np.full(rnvar.shape, 10., dtype=float)
 
     assert np.array_equal(rnvar, procimg.variance_model(rnvar, counts=counts)), \
         'Inclusion of shot-noise should default to False'
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar, darkcurr=10.)), \
-        'Inclusion of shot-noise should default to False'
+
+    base = procimg.base_variance(rnvar, darkcurr=10.)
+    base_t = procimg.base_variance(rnvar, darkcurr=5., exptime=2.*3600)
 
     assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True) > rnvar), \
         'Shot noise should increase the variance'
-    assert np.all(procimg.variance_model(rnvar, counts=counts, darkcurr=10.,
-                                         shot_noise=True) > rnvar), \
+    assert np.all(procimg.variance_model(base, counts=counts, shot_noise=True) > base), \
         'Shot noise should increase the variance'
     assert np.array_equal(
-                procimg.variance_model(rnvar, counts=counts, darkcurr=10., shot_noise=True),
-                procimg.variance_model(rnvar, counts=counts, darkcurr=5., exptime=2.*3600,
-                                       shot_noise=True)), \
+                procimg.variance_model(base, counts=counts, shot_noise=True),
+                procimg.variance_model(base_t, counts=counts, shot_noise=True)), \
         'Dark current should be equivalent'
-    assert np.all(procimg.variance_model(rnvar, proc_var=10.) > rnvar), \
+    assert np.all(procimg.base_variance(rnvar, proc_var=10.) > rnvar), \
         'Processing variance should increase the total variance'
 
     assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True, count_scale=0.5) <

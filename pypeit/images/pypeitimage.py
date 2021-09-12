@@ -61,8 +61,8 @@ class PypeItImage(datamodel.DataContainer):
                                     'images that contributed to each pixel'),
                  'rn2img': dict(otype=np.ndarray, atype=np.floating,
                                 descr='Read noise squared image'),
-                 'proc_var': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='Additive variance from image processing'),
+                 'base_var': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Base-level image variance, excluding count shot-noise'),
                  'img_scale': dict(otype=np.ndarray, atype=np.floating,
                                    descr='Image count scaling applied (e.g., 1/flat-field)'),
                  'bpm': dict(otype=np.ndarray, atype=np.integer, descr='Bad pixel mask'),
@@ -116,7 +116,7 @@ class PypeItImage(datamodel.DataContainer):
     # This needs to contain all datamodel items.
     # TODO: Not really. You don't have to pass everything to the
     # super().__init__ call...
-    def __init__(self, image=None, ivar=None, nimg=None, rn2img=None, proc_var=None,
+    def __init__(self, image=None, ivar=None, nimg=None, rn2img=None, base_var=None,
                  img_scale=None, bpm=None, crmask=None, fullmask=None, detector=None,
                  spat_flexure=None, PYP_SPEC=None, units=None, exptime=None, noise_floor=None,
                  shot_noise=None, imgbitm=None):
@@ -230,7 +230,7 @@ class PypeItImage(datamodel.DataContainer):
         of :class:`~pypeit.images.pypeitimage.PypeItImage` called ``img``, any
         pixel with ``img.fullmask == 0`` is valid, otherwise the pixel has been
         masked.  To determine why a given pixel has been masked (see
-        also :func:`~pypeit.images.pypeitimage.PypeItImage.boolean_mask`):
+        also :func:`~pypeit.images.pypeitimage.PypeItImage.select_flag`):
 
         .. code-block:: python
 
@@ -240,8 +240,8 @@ class PypeItImage(datamodel.DataContainer):
 
         .. code-block:: python
 
-            has_cr = img.boolean_mask(flag='CR')
-            is_saturated = img.boolean_mask(flag='SATURATION')
+            has_cr = img.select_flag(flag='CR')
+            is_saturated = img.select_flag(flag='SATURATION')
 
         Args:
             saturation (:obj:`float`, optional):
@@ -341,9 +341,24 @@ class PypeItImage(datamodel.DataContainer):
         """
         self.fullmask = np.zeros(self.image.shape, dtype=self.bitmask.minimum_dtype(asuint=True))
 
-    def boolean_mask(self, flag=None, invert=False):
+    def select_flag(self, flag=None, invert=False):
         """
-        Return a boolean mask based on the bits flagged in :attr:`fullmask`.
+        Return a boolean array that selects pixels masked with the specified
+        bits in :attr:`fullmask`.
+
+        For example, to create a bad-pixel mask based on which pixels have
+        cosmic-ray detections, run:
+
+        .. code-block:: python
+
+            cr_bpm = self.select_flag(flag='CR')
+
+        Or, to create a good-pixel mask for all pixels that are not flagged for
+        any reason, run:
+
+        .. code-block:: python
+
+            gpm = self.select_flag(invert=True)
 
         Args:
             flag (:obj:`str`, array-like, optional):
@@ -351,8 +366,9 @@ class PypeItImage(datamodel.DataContainer):
                 None, pixels flagged for any reason are returned as True.
             invert (:obj:`bool`, optional):
                 If False, the return mask is True for masked pixels, False for
-                good pixel (i.e., a bad-pixel mask).  If True, invert the sense
-                of the mask (i.e., True for good pixels, False for bad pixels).
+                good pixels (i.e., a bad-pixel mask).  If True, invert the sense
+                of the mask (i.e., create a good-pixel mask, True for good
+                pixels, False for bad pixels).
     
         Returns:
             `numpy.ndarray`_: Boolean array where pixels with the selected bits
@@ -383,7 +399,7 @@ class PypeItImage(datamodel.DataContainer):
         newimg = self.image - other.image
 
         # Mask time
-        outmask_comb = self.boolean_mask(invert=True) & other.boolean_mask(invert=True)
+        outmask_comb = self.select_flag(invert=True) & other.select_flag(invert=True)
 
         # Variance
         if self.ivar is not None:

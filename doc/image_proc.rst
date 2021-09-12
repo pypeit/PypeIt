@@ -29,7 +29,7 @@ the following components:
 
 .. math::
 
-    p = O + B + (C + D\ t_{\rm exp}) / \gamma
+    p = O + B + (C + N_{\rm bin}\ D\ t_{\rm exp}) / \gamma
 
 where:
 
@@ -43,6 +43,7 @@ where:
       throughput factors (see below) that can be measured from flat-field frames,
     - :math:`D` is the dark-current, i.e., the rate at which the detector
       generates thermal electrons, in e-/pixel/s,
+    - :math:`N_{\rm bin}` is the number of pixels in a binned pixel,
     - :math:`t_{\rm exp}` is the exposure time in seconds, and
     - :math:`\gamma` is the amplifier gain in e- per ADU.
 
@@ -56,7 +57,7 @@ dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ \gamma (p - O - B) - D\ t_{\rm exp} \right]
+    c = s\ \left[ \gamma (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -64,7 +65,7 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} +
+    V = s^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
             V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
 where

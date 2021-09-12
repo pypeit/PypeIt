@@ -205,7 +205,7 @@ class CombineImage:
                 scl_stack = np.ones(shape, dtype=float)
 #                ivar_stack= np.ones(shape, dtype=float)
                 rn2img_stack = np.zeros(shape, dtype=float)
-                procv_stack = np.zeros(shape, dtype=float)
+                basev_stack = np.zeros(shape, dtype=float)
 #                crmask_stack = np.zeros(shape, dtype=bool)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 lampstat = [None]*self.nfiles
@@ -232,8 +232,8 @@ class CombineImage:
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk] = pypeitImage.rn2img * scl_stack[kk]**2
             # Processing variance image
-            if pypeitImage.proc_var is not None:
-                procv_stack[kk] = pypeitImage.proc_var * scl_stack[kk]**2
+            if pypeitImage.base_var is not None:
+                basev_stack[kk] = pypeitImage.base_var * scl_stack[kk]**2
             # Final mask for this image
             # TODO: This seems kludgy to me. Why not just pass ignore_saturation
             # to process_one and ignore the saturation when the mask is actually
@@ -241,7 +241,7 @@ class CombineImage:
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
                 pypeitImage.update_mask('SATURATION', action='turn_off')
             # Get a simple boolean good-pixel mask for all the unmasked pixels
-            gpm_stack[kk] = pypeitImage.boolean_mask(invert=True)
+            gpm_stack[kk] = pypeitImage.select_flag(invert=True)
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -283,14 +283,14 @@ class CombineImage:
             img_list_out, var_list_out, gpm, nstack \
                     = combine.weighted_combine(weights,
                                                [img_stack, scl_stack],  # images to stack
-                                               [rn2img_stack, procv_stack], # variances to stack
+                                               [rn2img_stack, basev_stack], # variances to stack
                                                gpm_stack, sigma_clip=sigma_clip,
                                                sigma_clip_stack=img_stack,  # clipping based on img
                                                sigrej=sigrej, maxiters=maxiters)
             comb_img, comb_scl = img_list_out
-            comb_rn2, comb_procv = var_list_out
+            comb_rn2, comb_basev = var_list_out
             comb_rn2[gpm] /= comb_scl[gpm]**2
-            comb_procv[gpm] /= comb_scl[gpm]**2
+            comb_basev[gpm] /= comb_scl[gpm]**2
         elif combine_method == 'median':
             bpm_stack = np.logical_not(gpm_stack)
             nstack = np.sum(gpm_stack, axis=0)
@@ -302,26 +302,24 @@ class CombineImage:
             # First calculate the error in the sum.  The variance is set to 0
             # for pixels masked in all images.
             comb_rn2 = np.ma.sum(np.ma.MaskedArray(rn2img_stack, mask=bpm_stack),axis=0).filled(0.)
-            comb_procv = np.ma.sum(np.ma.MaskedArray(procv_stack, mask=bpm_stack),axis=0).filled(0.)
+            comb_basev = np.ma.sum(np.ma.MaskedArray(basev_stack, mask=bpm_stack),axis=0).filled(0.)
             # Convert to standard error in the median (pi/2 factor relates standard variance
             # in mean (sum(variance_i)/n^2) to standard variance in median)
             comb_rn2[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
-            comb_procv[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
+            comb_basev[gpm] *= np.pi/2/nstack[gpm]**2/comb_scl[gpm]**2
         else:
             # NOTE: Given the check at the beginning of the function, the code
             # should *never* make it here.
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
         # Recompute the inverse variance using the combined image
-        comb_var = procimg.variance_model(comb_rn2, counts=comb_img, darkcurr=comb_dark,
-                                          exptime=comb_texp, proc_var=comb_procv,
-                                          count_scale=comb_scl,
+        comb_var = procimg.variance_model(comb_basev, counts=comb_img, count_scale=comb_scl,
                                           noise_floor=self.par['noise_floor'],
                                           shot_noise=self.par['shot_noise'])
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
-                                       rn2img=comb_rn2, proc_var=comb_procv, img_scale=comb_scl,
+                                       rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
                                        bpm=bpm, detector=pypeitImage.detector,

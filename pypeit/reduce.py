@@ -287,19 +287,19 @@ class Reduce:
                 plate_scale = self.get_platescale(sobj)
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
-                inmask = self.sciImg.boolean_mask(invert=True) & thismask
+                inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
-                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.waveimg,
-                                               global_sky, self.sciImg.rn2img,
-                                               self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
-                                               sobj)
+                box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
+                                       global_sky, box_rad, sobj, base_var=self.sciImg.base_var,
+                                       count_scale=self.sciImg.img_scale,
+                                       noise_floor=self.sciImg.noise_floor)
 
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
             self.ivarmodel = np.copy(self.sciImg.ivar)
-            # TODO: fullmask is (or at least should be) an integer bit mask.  Is
-            # this assignment correct?
+            # NOTE: fullmask is a bit mask, make sure it's treated as such, not
+            # a boolean (e.g., bad pixel) mask.
             self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
@@ -497,8 +497,8 @@ class Reduce:
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)
             # Set to the initial mask in case no objects were found
-            # TODO: fullmask is (or at least should be) an integer bit mask.  Is
-            # this assignment correct?
+            # NOTE: fullmask is a bit mask, make sure it's treated as such, not
+            # a boolean (e.g., bad pixel) mask.
             self.outmask = self.sciImg.fullmask
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
@@ -595,9 +595,9 @@ class Reduce:
             skymask = skymask_pos
 
         if show:
-            indx = self.sciImg.boolean_mask(invert=True).astype(float)
-            self.show('image', image=image*indx, chname='objfind',sobjs=sobjs_obj_single,
-                      slits=True)
+            gpm = self.sciImg.select_flag(invert=True)
+            self.show('image', image=image*gpm.astype(float), chname='objfind',
+                      sobjs=sobjs_obj_single, slits=True)
 
         # For nobj we take only the positive objects
         return sobjs_obj_single, nobj_single, skymask
@@ -660,7 +660,7 @@ class Reduce:
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
             thismask = self.slitmask == slit_spat
-            inmask = self.sciImg.boolean_mask(invert=True) & thismask & skymask_now
+            inmask = self.sciImg.select_flag(invert=True) & thismask & skymask_now
             # All masked?
             if not np.any(inmask):
                 msgs.warn("No pixels for fitting sky.  If you are using mask_by_boxcar=True, your radius may be too large.")
@@ -701,14 +701,10 @@ class Reduce:
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
         """
-        Dummy method for locak skysubtraction and extraction.
+        Dummy method for local sky-subtraction and extraction.
 
         Overloaded by class specific skysub and extraction.
-
-        Returns:
-
         """
-
         return None, None, None, None, None
 
     # TODO This method only used for IFUs, so it should be present in the IFU subclass not here.
@@ -942,7 +938,7 @@ class Reduce:
             mask_in = None
             bitmask_in = None
 
-        img_gpm = self.sciImg.boolean_mask(invert=True)
+        img_gpm = self.sciImg.select_flag(invert=True)
 
         if attr == 'global':
             # global sky subtraction
@@ -1103,7 +1099,7 @@ class MultiSlitReduce(Reduce):
             qa_title ="Finding objects on slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
-            inmask = self.sciImg.boolean_mask(invert=True) & thismask
+            inmask = self.sciImg.select_flag(invert=True) & thismask
             # Find objects
             specobj_dict = {'SLITID': slit_spat,
                             'DET': self.det, 'OBJTYPE': self.objtype,
@@ -1149,8 +1145,9 @@ class MultiSlitReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            indx = self.sciImg.boolean_mask(invert=True).astype(float)
-            self.show('image', image=image*indx, chname='objfind', sobjs=sobjs, slits=True)
+            gpm = self.sciImg.select_flag(invert=True)
+            self.show('image', image=image*gpm.astype(float), chname='objfind', sobjs=sobjs,
+                      slits=True)
 
         # Return
         return sobjs, len(sobjs), skymask
@@ -1203,11 +1200,11 @@ class MultiSlitReduce(Reduce):
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
-        # TODO: fullmask is (or at least should be) an integer bit mask.  Is
-        # this assignment correct?
+        # NOTE: fullmask is a bit mask, make sure it's treated as such, not a
+        # boolean (e.g., bad pixel) mask.
         self.outmask = np.copy(self.sciImg.fullmask)
         # Initialize to input mask in case no objects were found
-        self.extractmask = self.sciImg.boolean_mask(invert=True)
+        self.extractmask = self.sciImg.select_flag(invert=True)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciImg.image)
         # Set initially to global sky in case no objects were found
@@ -1219,7 +1216,7 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
 
-        base_gpm = self.sciImg.boolean_mask(invert=True)
+        base_gpm = self.sciImg.select_flag(invert=True)
 
         if not self.sciImg.shot_noise:
             # TODO: Is this useful?
@@ -1252,8 +1249,7 @@ class MultiSlitReduce(Reduce):
                 self.extractmask[thismask] \
                     = skysub.local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.tilts, self.waveimg, self.global_sky,
-                                                  self.sciImg.rn2img, thismask,
-                                                  self.slits_left[:,slit_idx],
+                                                  thismask, self.slits_left[:,slit_idx],
                                                   self.slits_right[:, slit_idx],
                                                   self.sobjs[thisobj], ingpm=ingpm,
                                                   spat_pix=spat_pix,
@@ -1264,9 +1260,7 @@ class MultiSlitReduce(Reduce):
                                                   show_profile=show_profile,
                                                   use_2dmodel_mask=use_2dmodel_mask,
                                                   no_local_sky=no_local_sky,
-                                                  darkcurr=self.sciImg.detector['darkcurr'],
-                                                  exptime=self.sciImg.exptime,
-                                                  proc_var=self.sciImg.proc_var,
+                                                  base_var=self.sciImg.base_var,
                                                   count_scale=self.sciImg.img_scale,
                                                   adderr=self.sciImg.noise_floor)
 
@@ -1371,7 +1365,7 @@ class EchelleReduce(Reduce):
         skymask = np.zeros_like(image, dtype=bool)
 
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        inmask = self.sciImg.boolean_mask(invert=True)
+        inmask = self.sciImg.select_flag(invert=True)
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
@@ -1404,8 +1398,9 @@ class EchelleReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            indx = self.sciImg.boolean_mask(invert=True).astype(float)
-            self.show('image', image=image*indx, chname='ech_objfind',sobjs=sobjs_ech, slits=False)
+            gpm = self.sciImg.select_flag(invert=True)
+            self.show('image', image=image*gpm.astype(float), chname='ech_objfind',
+                      sobjs=sobjs_ech, slits=False)
 
         return sobjs_ech, len(sobjs_ech), skymask
 
@@ -1464,20 +1459,18 @@ class EchelleReduce(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveimg,
-                                                  self.global_sky, self.sciImg.rn2img,
-                                                  self.slits_left, self.slits_right,
-                                                  self.slitmask, sobjs, self.order_vec,
-                                                  spat_pix=spat_pix, std=self.std_redux,
-                                                  fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=bsp,
+                                                  self.global_sky, self.slits_left,
+                                                  self.slits_right, self.slitmask, sobjs,
+                                                  self.order_vec, spat_pix=spat_pix,
+                                                  std=self.std_redux, fit_fwhm=fit_fwhm,
+                                                  min_snr=min_snr, bsp=bsp,
                                                   box_rad_order=box_rad_order, sigrej=sigrej,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,
                                                   show_profile=show_profile,
                                                   show_resids=show_resids, show_fwhm=show_fwhm,
-                                                  darkcurr=self.sciImg.detector['darkcurr'],
-                                                  exptime=self.sciImg.exptime,
-                                                  proc_var=self.sciImg.proc_var,
+                                                  base_var=self.sciImg.base_var,
                                                   count_scale=self.sciImg.img_scale,
                                                   adderr=self.sciImg.noise_floor)
         # Step
@@ -1553,7 +1546,7 @@ class IFUReduce(MultiSlitReduce):
         # Setup some helpful parameters
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
-        gpm = self.sciImg.boolean_mask(invert=True)
+        gpm = self.sciImg.select_flag(invert=True)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
         spatScaleImg = np.ones_like(self.sciImg.image)
         # For each slit, grab the spatial coordinates and a spline
@@ -1647,7 +1640,7 @@ class IFUReduce(MultiSlitReduce):
         """
         trim = self.par['calibrations']['flatfield']['slit_trim']
         ref_idx = self.par['calibrations']['flatfield']['slit_illum_ref_idx']
-        gpm = self.sciImg.boolean_mask(invert=True)
+        gpm = self.sciImg.select_flag(invert=True)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
                                                     slit_illum_ref_idx=ref_idx, model=global_sky, gpmask=gpm,
                                                     skymask=skymask, trim=trim, flexure=self.spat_flexure_shift)
@@ -1664,7 +1657,7 @@ class IFUReduce(MultiSlitReduce):
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
         self.global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
-        inmask = (self.sciImg.boolean_mask(invert=True) & thismask & skymask_now).astype(np.bool)
+        inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(np.bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
         # the tilts frame, but conserves wavelength position in each slit)
         wavemin = self.waveimg[self.waveimg != 0.0].min()
@@ -1694,17 +1687,10 @@ class IFUReduce(MultiSlitReduce):
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
             counts = self.global_sky + np.clip(self.sciImg.image-self.global_sky, 0, None)
-            proc_var = self.sciImg.proc_var
-            count_scale = self.sciImg.img_scale
-            darkcurr = self.sciImg.detector['darkcurr']
-            exptime = self.sciImg.exptime
-            _proc_var = None if proc_var is None else proc_var[thismask]
-            _count_scale = None if count_scale is None else count_scale[thismask]
+            _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
-            var = procimg.variance_model(self.sciImg.rn2img[thismask], counts=counts[thismask],
-                                         darkcurr=darkcurr, exptime=exptime,
-                                         proc_var=_proc_var, count_scale=_count_scale,
-                                         noise_floor=adderr, shot_noise=True)
+            var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
+                                         count_scale=_scale, noise_floor=adderr, shot_noise=True)
             model_ivar[thismask] = utils.inverse(var)
             # var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
             # var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
