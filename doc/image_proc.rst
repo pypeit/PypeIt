@@ -24,12 +24,12 @@ Overview
 
 We provide a very general approach to image processing with hooks to toggle each
 step, as appropriate for different frame types and/or different instruments.
-Generally, we treat pixel values, :math:`p`, in an observed frame as containing
+Generally, we treat pixel values, :math:`p`, in an astronimcal image (in units of ADU) as containing
 the following components:
 
 .. math::
 
-    p = O + B + (C + N_{\rm bin}\ D\ t_{\rm exp}) / \gamma
+    p = O + B + (C + N_{\rm bin}\ D\ t_{\rm exp}) / g
 
 where:
 
@@ -45,19 +45,21 @@ where:
       generates thermal electrons, in e-/pixel/s,
     - :math:`N_{\rm bin}` is the number of pixels in a binned pixel,
     - :math:`t_{\rm exp}` is the exposure time in seconds, and
-    - :math:`\gamma` is the amplifier gain in e- per ADU.
+    - :math:`g` is the amplifier gain in e- per ADU.
 
 By "relative throughput," we mean the aggregate of relative (to, say, the center
 of the field) telescope+instrument+detector efficiency factors that can be
-measured from flat-field images, like pixel-to-pixel differences in quantum
-efficiency, vignetting, and the wavelength-dependent grating efficiency.  The
+measured from flat-field images (see :ref:_flat_fielding), like pixel-to-pixel differences in quantum
+efficiency (known as the pixelflat), spatial variations in slit illumination
+as a result of vignetting or instrument optics (known as the illumflat),
+and variations in slit illumination in the spectral direction (known as specillumflat).  The
 goal of the basic image processing is to solve for :math:`c` in a set of science
 and calibration frames using a set of frames that isolate the detector bias,
 dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ \gamma (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
+    c = s\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -83,7 +85,9 @@ Poisson error in the observed counts.  This estimate systematically
 overestimates the variance toward low counts (:math:`\lesssim 2 \sigma_{\rm
 rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm rn}` for :math:`C=0`
 (i.e., about 20% for a readnoise of 2 e-) and less than 10% (for any readnoise)
-when :math:`C\geq1`.  The model variance is typically updated during the
+when :math:`C\geq1`.  The reason for this bias is that one is trying to estimate the
+variance of a Poisson process from a noisy realization of the true underlying count
+rate. To mitigate this bias, the variance model is typically updated during the
 sky-subtraction and object-extraction procedures.
 
 .. _proc_algorithm:
@@ -133,7 +137,7 @@ Read and Digitization Noise
 
 Readnoise variance, :math:`V_{\rm rn}`, is calculated by
 :func:`~pypeit.core.procimg.rn2_frame`.  The calculation requires the detector
-readnoise (RN in elections, e-) and, possibly, gain (:math:`\gamma` in e-/ADU)
+readnoise (RN in elections, e-) and, possibly, gain (:math:`g` in e-/ADU)
 for each amplifier, which are provided for each amplifier by the
 :class:`~pypeit.images.detector_container.DetectorContainer` object defined for
 each detector in each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
