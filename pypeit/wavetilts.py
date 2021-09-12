@@ -215,9 +215,8 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
         # self.tilt_bpm = np.invert(mask == 0)
-        # We want to keep the 'BOXSLIT', for which mask value is 2. But we don't want to keep 'BOXSLIT'
-        # with other bad flag (for which the mask value would be > 2)
-        self.tilt_bpm = mask > 2
+        # we consider good slits 'BOXSLIT' (bpm=2), bad wavecalib (bpm=8) and the combination of the 2 (bpm=10)
+        self.tilt_bpm = (mask != 0) & (mask != 2) & (mask != 8) & (mask != 10)
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
         # TODO -- Discuss further with JFH
@@ -591,6 +590,8 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
+                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             #msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.slits.nslits-1))
             msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx, self.slits.nslits))

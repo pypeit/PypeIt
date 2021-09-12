@@ -687,12 +687,16 @@ class FlatField(object):
         # Model each slit independently
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
-            if self.slits.mask[slit_idx] != 0:
+            if self.flatpar['pixelflat_min_wave'] is not None or self.flatpar['pixelflat_max_wave'] is not None:
+                # In this case we consider good 'BOXSLIT' (bpm=2)
+                good_bpms = [0, 2]
+            else:
+                # In this case we consider good 'BOXSLIT' (bpm=2), bad wavecalib (bpm=8)
+                # and the combination of the 2 (bpm=10)
+                good_bpms = [0, 2, 8, 10]
+            if self.slits.mask[slit_idx] not in good_bpms:
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
-                # We want to run objfind to the 'BOXSLIT', which has bpm=2,
-                # so we don't give it the 'BADFLATCALIB' flag
-                if self.slits.mask[slit_idx] > 2:
-                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
             msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
