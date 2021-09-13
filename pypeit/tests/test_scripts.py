@@ -335,8 +335,13 @@ def test_compare_sky():
     sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
                                               'sky_kastb_600.fits')
 
-    # Running in `test` mode
+    # Running in `test` mode for boxcar extraction
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])
+    scripts.compare_sky.CompareSky.main(pargs)
+
+    # Running in `test` mode for optimal extraction
+    pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test',
+                                                       '--optimal'])
     scripts.compare_sky.CompareSky.main(pargs)
 
 @cooked_required
