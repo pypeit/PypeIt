@@ -273,9 +273,16 @@ class RawImage:
         if not np.all(self.ronoise > 0):
             # TODO: Consider just calling estimate_readnoise here...
             msgs.error('Some readnoise values <=0; first call estimate_readnoise.')
+
         # Compute and return the readnoise variance image 
-        return procimg.rn2_frame(self.datasec_img, self.ronoise, units=units,
-                                 gain=self.detector['gain'], digitization=digitization)
+        rn2 = procimg.rn2_frame(self.datasec_img, self.ronoise, units=units,
+                                gain=self.detector['gain'], digitization=digitization)
+        # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
+        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape:
+            # Image is raw, so need to include overscan sections
+            rn2 += procimg.rn2_frame(self.oscansec_img, self.ronoise, units=units,
+                                     gain=self.detector['gain'], digitization=digitization)
+        return rn2
 
     def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, debug=False,
                 dark=None):
@@ -442,7 +449,7 @@ class RawImage:
         #     proc_var, var, and datasec_img.
         if self.par['orient']:
             self.orient()
-            
+
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
             # The BPM is the wrong shape.  Assume this is because the

@@ -4,6 +4,8 @@ Requires files in Development suite and an Environmental variable
 """
 import os
 
+from IPython import embed
+
 import pytest
 import glob
 import numpy as np
