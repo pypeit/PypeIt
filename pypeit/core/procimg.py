@@ -329,6 +329,10 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     # Determine the number of amplifiers from the datasec image
     _datasec_img = datasec_img.astype(int)
     numamplifiers = np.amax(_datasec_img)
+    if numamplifiers == 0:
+        msgs.error('Amplifier identification image (datasec_img) does not have any values larger '
+                   'than 0!  The image should indicate the 1-indexed integer of the amplifier '
+                   'used to read each pixel.')
 
     # Check the number of RN values
     _ronoise = np.atleast_1d(ronoise) if isinstance(ronoise, (list, np.ndarray)) \

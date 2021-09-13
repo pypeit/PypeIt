@@ -194,6 +194,9 @@ class RawImage:
         # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
         if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape:
             # Image is raw, so need to include overscan sections
+            # TODO: This only works assuming that there is *no* overlap between
+            # oscansec_img and datasec_img.  There shouldn't be, but the code
+            # doesn't check this...
             gain += procimg.gain_frame(self.oscansec_img, np.atleast_1d(self.detector['gain']))
         self.image *= gain
         # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
@@ -278,8 +281,12 @@ class RawImage:
         rn2 = procimg.rn2_frame(self.datasec_img, self.ronoise, units=units,
                                 gain=self.detector['gain'], digitization=digitization)
         # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
-        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape:
+        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape \
+                and np.any(self.oscansec_img > 0):
             # Image is raw, so need to include overscan sections
+            # TODO: This only works assuming that there is *no* overlap between
+            # oscansec_img and datasec_img.  There shouldn't be, but the code
+            # doesn't check this...
             rn2 += procimg.rn2_frame(self.oscansec_img, self.ronoise, units=units,
                                      gain=self.detector['gain'], digitization=digitization)
         return rn2
