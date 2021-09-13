@@ -619,7 +619,7 @@ def general_spec_reader(specfile, ret_flam=False):
         wave, counts, counts_ivar, counts_gpm = unpack_orders(sobjs, ret_flam=ret_flam)
         # Made a change to the if statement to account for unpack_orders now squeezing returned arrays
         #if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1)
-        if (head['PYPELINE'] !='Echelle') and (len(wave.shape)>1):
+        if (head['PYPELINE'] !='Echelle') and (wave.ndim>1):
             idx = flux_calib.find_standard(sobjs)
             npix = head['NPIX']
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
@@ -628,7 +628,7 @@ def general_spec_reader(specfile, ret_flam=False):
         bonus['ECH_ORDER']  = sobjs.ECH_ORDER if sobjs.ECH_ORDER[0] is None else (sobjs.ECH_ORDER).astype(int)
         bonus['ECH_ORDERINDX']  = sobjs.ECH_ORDERINDX if sobjs.ECH_ORDERINDX[0] is None else (sobjs.ECH_ORDERINDX).astype(int)
         bonus['ECH_SNR']  = sobjs.ech_snr if sobjs.ech_snr[0] is None else (sobjs.ech_snr).astype(int)
-        bonus['NORDERS'] = 1 if len(wave.shape) is 1 else wave.shape[1] # Again accounting for unpack_orders squeeze
+        bonus['NORDERS'] = 1 if wave.ndim == 1 else wave.shape[1] # Again accounting for unpack_orders squeeze
         try:
             spectrograph = load_spectrograph(head['INSTRUME'])
         except:
