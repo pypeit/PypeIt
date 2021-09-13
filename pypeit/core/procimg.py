@@ -973,13 +973,22 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
 
     .. math::
 
-        V = s {\rm max}(0,c) + V_{\rm base} + \epsilon^2 {\rm max}(0, c)^2
+        V = s {\rm max}(0,c) + V_{\rm base} + \epsilon^2 {\rm max}(0, c)^2.
 
-    .. note::
+    .. warning::
 
-        If :math:`s` (``count_scale``) is provided, the variance will be 0
-        wherever :math:`s \leq 0`.
+        - If :math:`s` (``count_scale``) is provided, the variance will be 0
+          wherever :math:`s \leq 0`.
 
+        - Note that dark current is typically given in electrons per second *per
+          pixel*.  If on-chip binning was used for the detector readout, each
+          binned pixel will have accummulated the expected dark-current (in
+          e-/s/pixel) multiplied by the number of binned pixels.  Beware the
+          units of ``darkcurr``, both in that it is dark-current per *hour* and
+          that it is the dark-current expected in the *binned* pixel.  For
+          example, see the calling function
+          :func:`pypeit.images.rawimage.RawImage.build_ivar`.
+        
     Args:
         rn_var (`numpy.ndarray`_):
             A 2D array with the readnoise variance (i.e., readnoise squared)
@@ -990,9 +999,12 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
         darkcurr (:obj:`float`, `numpy.ndarray`_, optional):
             Dark current in electrons per **hour** (as is the convention for the
             :class:`~pypeit.images.detector_container.DetectorContainer` object)
-            if the exposure time is provided, otherwise in electrons.  If None,
-            set to 0.  If a single float, assumed to be constant across the full
-            image.  If an array, the shape must match ``rn_var``.
+            if the exposure time is provided, otherwise in electrons.  Note that
+            this is the dark-current in each read pixel, meaning you likely need
+            to multiply the quoted detector dark-current by the number of pixels
+            in a bin (e.g., 4 for 2x2 binning) for binned data.  If None, set to
+            0.  If a single float, assumed to be constant across the full image.
+            If an array, the shape must match ``rn_var``.
         exptime (:obj:`float`, optional):
             Exposure time in seconds.  If None, dark current *must* be
             in electrons.

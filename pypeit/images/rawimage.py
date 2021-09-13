@@ -204,7 +204,8 @@ class RawImage:
         """
         Generate the inverse variance in the image.
 
-        This is a simple wrapper for :func:`~pypeit.core.procimg.variance_model`.
+        This is a simple wrapper for :func:`~pypeit.core.procimg.base_variance`
+        and :func:`~pypeit.core.procimg.variance_model`.
 
         Returns:
             `numpy.ndarray`_: The inverse variance in the image.

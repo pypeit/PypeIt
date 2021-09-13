@@ -325,7 +325,7 @@ Workflow Flexibility
 ====================
 
 The main parameters dictating the image processing workflow are provided in the
-table below.  The first column gives the parameter, ordered by their affect on
+table below.  The first column gives the parameter, ordered by their effect on
 the algorithm above, and the second column gives its default value, independent
 of the frame type.  The subsequent columns give generic changes to those defaults
 made for each frame type; empty cells in these columns mean the parameter has
@@ -348,6 +348,24 @@ the ``PypeIt`` convention.
     for their specific data via the :doc:`pypeit_file`.  See :ref:`pypeitpar`.
 
 .. include:: include/imgproc_defaults_table.rst
+
+.. warning::
+
+    The basic image processing workflow is largely independent for each frame
+    type.  In particular, there's no intelligent automated checking in place for
+    how master frames are processed and whether it is correct to apply those
+    masters to other frames.  For example, if you overscan subtract your bias
+    frames, you should also overscan subtract all other frames before performing
+    bias subtraction, and vice versa.  When altering the processing workflow, it
+    is up to the user to make sure that the processing of images is appropriate
+    across all frame types.
+
+Masking
+=======
+
+``PypeIt`` uses bitmasks to flag pixels for various reasons.  See
+:ref:`out_masks` for a description of these masks and how to use/parse them.
+
 
 .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
 .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_
