@@ -58,7 +58,7 @@ class DetectorContainer(datamodel.DataContainer):
                  'platescale': dict(otype=(int, float),
                                     descr='arcsec per pixel in the spatial dimension for an '
                                           'unbinned pixel'),
-                 'darkcurr': dict(otype=(int, float), descr='Dark current (e-/hour)'),
+                 'darkcurr': dict(otype=(int, float), descr='Dark current (e-/pixel/hour)'),
                  'saturation': dict(otype=(int, float), descr='The detector saturation level'),
                  'mincounts': dict(otype=(int, float),
                                    descr='Counts in a pixel below this value will be ignored '
