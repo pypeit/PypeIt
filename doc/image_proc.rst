@@ -225,12 +225,15 @@ Dark Subtraction
 
 In addition to readnoise and gain, our instrument-specific
 :class:`~pypeit.images.detector_container.DetectorContainer` objects also
-provide the expected dark current; see :ref:`detectors`.  As of version X.X.X,
-this tabulated dark current (scaled by the frame exposure time) is *always*
-subtracted from the observed images (i.e., there is currently no parameter that
-will turn this off).  This is primarily due to how we account for dark current
-in our image variance model (see above); i.e., the :math:`D` term is assumed to
-be the same for all images taken with a given instrument.
+provide the expected dark current; see :ref:`detectors`.  The tabulated dark
+current must be in elections per pixel per hour; note that "per pixel" means per
+*unbinned* pixel; dark current in a binned pixel is :math:`N_{\rm bin}` higher
+than in an unbinned pixel.  As of version 1.6.0, this tabulated dark current
+(scaled by the frame exposure time and the binning) is *always* subtracted from
+the observed images (i.e., there is currently no parameter that will turn this
+off).  This is primarily due to how we account for dark current in our image
+variance model (see above); i.e., the :math:`D` term is assumed to be the same
+for all images taken with a given instrument.
 
 Importantly, ``PypeIt`` also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the

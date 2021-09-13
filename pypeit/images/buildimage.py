@@ -58,7 +58,7 @@ class BiasImage(pypeitimage.PypeItImage):
     version = pypeitimage.PypeItImage.version
 
     # Output to disk
-    output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
+    output_to_disk = ('BIAS_IMAGE', 'BIAS_IVAR', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
     master_file_format = 'fits'
@@ -72,7 +72,7 @@ class DarkImage(pypeitimage.PypeItImage):
     version = pypeitimage.PypeItImage.version
 
     # Output to disk
-    output_to_disk = ('DARK_IMAGE', 'DARK_DETECTOR')
+    output_to_disk = ('DARK_IMAGE', 'DARK_IVAR', 'DARK_DETECTOR')
     hdu_prefix = 'DARK_'
     master_type = 'Dark'
     master_file_format = 'fits'

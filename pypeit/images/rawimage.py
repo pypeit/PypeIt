@@ -684,11 +684,12 @@ class RawImage:
     # Should it be?
     def subtract_dark(self, dark_image=None, expscale=True, force=False):
         """
-        Subtract a dark current.
+        Subtract detector dark current.
 
         This method subtracts both the tabulated dark-current for the detector
-        and a dark image.  For this to be appropriate, the dark image (if provided) *must*
-        also have had the tabulated dark-current value subtracted from it.
+        and a dark image.  For this to be appropriate, the dark image (if
+        provided) *must* also have had the tabulated dark-current value
+        subtracted from it.
 
         Also, the processing of the dark image (if provided) should match the
         processing of the image being processed.  For example, if this image has
@@ -726,9 +727,10 @@ class RawImage:
             return
         # TODO: Is the dark-current amplifier dependent?  Also, this usage means
         # that darkcurr cannot be None.
-        # Tabulated dark current is in e-/hour and exptime is in s, the 3600
-        # factor converts the dark current to e-/s.
-        dark_count = self.detector['darkcurr'] * self.exptime / 3600.
+        # Tabulated dark current is in e-/pixel/hour and exptime is in s, the
+        # 3600 factor converts the dark current to e-/pixel/s.
+        npix = np.prod(parse.parse_binning(self.detector.binning))
+        dark_count = npix*self.detector['darkcurr'] * self.exptime / 3600.
         if dark_image is not None:
             # TODO: Include a warning when the scaling is "signficant"?
             scale = self.exptime / dark_image.exptime if expscale else 1.

@@ -71,18 +71,13 @@ def test_io(kast_blue_bias_files):
                                             kast_blue_bias_files)
     # Save as a master frame
     master_filename = masterframe.construct_file_name(msbias, master_key, master_dir=master_dir)
-    msbias.to_master_file(master_filename)#master_dir, master_key,  # Naming
-                               #shane_kast_blue.spectrograph,  # Header
-                               #steps=msbias.process_steps,
-                               #raw_files=kast_blue_bias_files)
+    msbias.to_master_file(master_filename)
 
     assert os.path.isfile(outfile), 'Error writing MasterBias'
     # Load master frame
     biasImage = buildimage.BiasImage.from_file(outfile)
-    assert np.array_equal(biasImage.image, msbias.image)
-    # Instantiate from master frame
-    #bias_frame2 = biasframe.BiasFrame.from_master_file(bias_frame.master_file_path)
-    #assert np.array_equal(pypeitImage.image, bias_frame2.pypeitImage.image)
+    assert np.array_equal(biasImage.image, msbias.image), 'Image changed'
+    assert np.array_equal(biasImage.ivar, msbias.ivar), 'Inverse-variance changed'
     # Clean up
     os.remove(outfile)
 
