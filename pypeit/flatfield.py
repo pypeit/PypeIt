@@ -687,15 +687,16 @@ class FlatField(object):
         # Model each slit independently
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
-            if self.flatpar['pixelflat_min_wave'] is not None or self.flatpar['pixelflat_max_wave'] is not None:
-                # In this case we consider good 'BOXSLIT' (bpm=2)
-                good_bpms = [0, 2]
-            else:
-                # In this case we consider good 'BOXSLIT' (bpm=2), bad wavecalib (bpm=8)
-                # and the combination of the 2 (bpm=10)
-                good_bpms = [0, 2, 8, 10]
-            if self.slits.mask[slit_idx] not in good_bpms:
+            if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['SHORTSLIT', 'USERIGNORE', 'BADTILTCALIB']):
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+            elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BOXSLIT']):
+                msgs.info('Skipping alignment slit: {}'.format(slit_spat))
+                continue
+            elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BADWVCALIB']) and \
+                    (self.flatpar['pixelflat_min_wave'] is not None or self.flatpar['pixelflat_max_wave'] is not None):
+                msgs.info('Skipping slit with bad wavecalib: {}'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
