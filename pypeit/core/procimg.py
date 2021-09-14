@@ -1147,8 +1147,8 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None, shot_n
             Include the shot noise terms, the sky + object counts from the sky
             and the dark current, in the calculation.  If True, ``counts``
             *must* be provided.  Note that to truly exclude all shot-noise
-            *terms, the dark current should not have been included in the
-            *calculation of :math:`V_{\rm base}`; see :func:`base_variance`.
+            terms, the dark current should not have been included in the
+            calculation of :math:`V_{\rm base}`; see :func:`base_variance`.
 
     Returns:
         `numpy.ndarray`_: Variance image computed via the equation above with

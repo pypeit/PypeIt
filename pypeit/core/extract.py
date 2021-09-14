@@ -82,7 +82,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_ra
         wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
         of the components needed to construct the model variance; see
         ``model_noise``.
-    noise_floor (:obj:`float`, optional):
+    noise_floor : :obj:`float`, optional
         A fraction of the counts to add to the variance, which has the effect of
         ensuring that the S/N is never greater than ``1/noise_floor``; see
         :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
@@ -241,7 +241,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_v
         wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
         of the components needed to construct the model variance; see
         ``model_noise``.
-    noise_floor (:obj:`float`, optional):
+    noise_floor : :obj:`float`, optional
         A fraction of the counts to add to the variance, which has the effect of
         ensuring that the S/N is never greater than ``1/noise_floor``; see
         :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
