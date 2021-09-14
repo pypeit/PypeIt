@@ -35,6 +35,7 @@ def get_lrisr_files():
     file_root = os.path.join(os.getenv('PYPEIT_DEV'), 
                              'RAW_DATA/keck_lris_red/long_600_7500_d560/LR')
     files = glob.glob(file_root+'*')
+    files.sort()
     assert len(files) > 0
     return files
 
@@ -162,9 +163,11 @@ def test_run_on_bad_headers():
     par, spectrograph, fitstbl = setupc.run(setup_only=True, 
                                             sort_dir=data_path(''))
     # Test
+    idx = np.where(setupc.fitstbl['filename'] == 'LR.20160216.05709.fits.gz')[0]
     assert par is None
-    assert setupc.fitstbl['ra'][-1] is None
+    assert setupc.fitstbl['ra'][idx][0] is None
     assert len(setupc.fitstbl) == 23
+
 
     # Cleanup
     os.remove(data_path('keck_lris_red.sorted'))
