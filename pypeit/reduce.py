@@ -466,25 +466,16 @@ class Reduce:
         self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?
-        if self.nobj > 0:
+        if self.nobj > 0 and not self.par['reduce']['extraction']['skip_extraction']:
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
                 self.spec_flexure_correct(mode='global')
 
-            if self.par['reduce']['extraction']['skip_extraction']:
-                self.skymodel = self.initial_sky
-                self.objmodel = np.zeros_like(self.sciImg.image)
-                # Set to sciivar. Could create a model but what is the point?
-                self.ivarmodel = np.copy(self.sciImg.ivar)
-                # Set to the initial mask in case no objects were found
-                self.outmask = self.sciImg.fullmask
-                # empty specobjs object from object finding
-                self.sobjs = self.sobjs_obj
-            else:
-                # Extract + Return
-                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                    = self.extract(self.global_sky, self.sobjs_obj)
+            # Extract + Return
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
+                = self.extract(self.global_sky, self.sobjs_obj)
+
             if self.find_negative:
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
