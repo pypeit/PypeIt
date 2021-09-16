@@ -246,8 +246,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_darkimage'] = False
 
         # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
-        par['reduce']['extraction']['skip_boxcar'] = True  # Because extraction occurs before the DAR correction, don't to boxcar
-        par['reduce']['extraction']['skip_optimal'] = True  # Because extraction occurs before the DAR correction, don't to optimal
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True

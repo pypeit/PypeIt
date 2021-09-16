@@ -276,20 +276,19 @@ class Reduce:
             self.sobjs = self.sobjs_obj.copy()
             # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
-            if not self.par['reduce']['extraction']['skip_boxcar']:
-                # Quick loop over the objects
-                for iobj in range(self.sobjs.nobj):
-                    sobj = self.sobjs[iobj]
-                    plate_scale = self.get_platescale(sobj)
-                    # True  = Good, False = Bad for inmask
-                    thismask = self.slitmask == sobj.SLITID  # pixels for this slit
-                    inmask = (self.sciImg.fullmask == 0) & thismask
-                    # Do it
-                    extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                                   inmask, self.waveimg,
-                                                   global_sky, self.sciImg.rn2img,
-                                                   self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
-                                                   sobj)
+            # Quick loop over the objects
+            for iobj in range(self.sobjs.nobj):
+                sobj = self.sobjs[iobj]
+                plate_scale = self.get_platescale(sobj)
+                # True  = Good, False = Bad for inmask
+                thismask = self.slitmask == sobj.SLITID  # pixels for this slit
+                inmask = (self.sciImg.fullmask == 0) & thismask
+                # Do it
+                extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
+                                               inmask, self.waveimg,
+                                               global_sky, self.sciImg.rn2img,
+                                               self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
+                                               sobj)
 
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -473,9 +472,19 @@ class Reduce:
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
                 self.spec_flexure_correct(mode='global')
 
-            # Extract + Return
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky, self.sobjs_obj)
+            if self.par['reduce']['extraction']['skip_extraction']:
+                self.skymodel = self.initial_sky
+                self.objmodel = np.zeros_like(self.sciImg.image)
+                # Set to sciivar. Could create a model but what is the point?
+                self.ivarmodel = np.copy(self.sciImg.ivar)
+                # Set to the initial mask in case no objects were found
+                self.outmask = self.sciImg.fullmask
+                # empty specobjs object from object finding
+                self.sobjs = self.sobjs_obj
+            else:
+                # Extract + Return
+                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
+                    = self.extract(self.global_sky, self.sobjs_obj)
             if self.find_negative:
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
