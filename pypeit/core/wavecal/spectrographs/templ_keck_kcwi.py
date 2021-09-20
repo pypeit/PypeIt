@@ -1,4 +1,4 @@
-""" Generate the wavelength templates for Shane Kast"""
+""" Generate the wavelength templates for Keck KCWI"""
 import os
 
 from pypeit.core.wavecal import templates
