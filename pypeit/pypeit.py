@@ -805,9 +805,22 @@ class PypeIt(object):
                                                 det=det, binning=self.binning,
                                                 basename=self.basename)
 
-        skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-            global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
-            obstime=self.obstime)
+        if not self.par['reduce']['extraction']['skip_extraction']:
+            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
+                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+                obstime=self.obstime)
+        else:
+            # Prepare some masks and the tilts
+            self.redux.prepare_extraction()
+            # Since the extraction was not performed, fill the arrays with the best available information
+            skymodel = self.redux.initial_sky
+            objmodel = np.zeros_like(self.redux.sciImg.image)
+            ivarmodel = np.copy(self.redux.sciImg.ivar)
+            outmask = self.redux.sciImg.fullmask
+            scaleImg = self.redux.scaleimg
+            waveImg = self.redux.waveimg
+            tilts = self.redux.tilts
+            sobjs = []
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS
