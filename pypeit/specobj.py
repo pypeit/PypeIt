@@ -219,7 +219,7 @@ class SpecObj(datamodel.DataContainer):
                               ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
         # Mask
-        slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
+        slf[mode+'_MASK'] = slf[mode+'_COUNTS'] > 0.
         return slf
 
     def _init_internals(self):
