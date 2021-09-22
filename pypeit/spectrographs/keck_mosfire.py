@@ -13,11 +13,15 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import framematch
+from pypeit.core import framematch, meta
 from pypeit import utils
+from pypeit import io
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from scipy import special
+from pypeit.spectrographs.slitmask import SlitMask
+
+from pypeit.utils import index_of_x_eq_y
 
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
@@ -430,4 +434,96 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return wave, counts, counts_ivar, gpm
         else:
             return wave_in, counts_in, counts_ivar_in, gpm_in
+
+    def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        # Open the file
+        hdu = io.fits_open(filename)
+
+        # load slitmask info
+        targs = hdu['Target_List'].data
+        ssl = hdu['Science_Slit_List'].data
+        msl = hdu['Mechanical_Slit_List'].data
+
+        # some needed cleanup
+        # TODO make it more concise
+        ssl = ssl[ssl['Slit_Number'] != ' ']
+        msl = msl[msl['Slit_Number'] != ' ']
+
+        # ELIMINATE POSITION B of the long2pos slit
+        # (position B is the initial position used only for alignment)
+        ssl = ssl[ssl['Target_Name'] != 'posB']
+        msl = msl[msl['Target_in_Slit'] != 'posB']
+        targs = targs[(targs['Target_Name'] !='posB') & (targs['Target_Name'] != 'posBalign')]
+
+        # Book keeping: Count and check that the # of objects in the SSL matches that of the MSL
+        # and if we recover the total number of CSUs
+        CSUnumslits = 46
+        numslits = np.zeros(len(ssl))
+        for i in range(len(ssl)):
+            slit = ssl[i]
+            numslits[i] = np.where(slit['Target_Name'] == msl['Target_in_Slit'])[0].size
+
+        if (numslits.sum() != CSUnumslits) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) and ('long2pos' not in self.get_meta_value(filename, 'decker')):
+            msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
+                       'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
+
+        # Find the index to map the objects in the Science Slit List and the Target list
+        indx = index_of_x_eq_y(targs['Target_Name'], ssl['Target_Name'])
+        targs_mtch = targs[indx]
+        obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
+        obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
+        obj_ra, obj_dec = meta.convert_radec(obj_ra, obj_dec)
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([np.array(ssl['Slit_Number'], dtype=int),
+                           [None]*ssl['Slit_Number'].size,   # no object ID
+                           obj_ra,
+                           obj_dec,
+                           np.array(ssl['Target_Name']),
+                           np.array(targs_mtch['Magnitude'], dtype=float),
+                           [None]*ssl['Slit_Number'].size,       # no magnitude band
+                           np.array(ssl['Target_to_center_of_slit_distance'], dtype=float),
+                           np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)]).T  # this last 2 need to change into top bot dist
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = hdu[0].header['SKYPA0']
+        if posx_pa < 0.:
+            posx_pa += 360.
+
+        slit_ra = ssl['Slit_RA_Hours']+' '+ssl['Slit_RA_Minutes']+' '+ssl['Slit_RA_Seconds']
+        slit_dec = ssl['Slit_Dec_Degrees']+' '+ssl['Slit_Dec_Minutes']+' '+ssl['Slit_Dec_Seconds']
+        slit_ra, slit_dec = meta.convert_radec(slit_ra, slit_dec)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size)]).T.reshape(-1,4,2),  # mosfire maskdef has not slit corners
+                                 slitid=np.array(ssl['Slit_Number'], dtype=int),
+                                 align=None,   # no align stars
+                                 science=np.ones(ssl['Slit_Number'].size, dtype=bool),
+                                 onsky=np.array([slit_ra,
+                                                 slit_dec,
+                                                 np.array(ssl['Slit_length'], dtype=float),
+                                                 np.array(ssl['Slit_width'], dtype=float),
+                                                 np.array([hdu[0].header['SKYPA0']]*ssl['Slit_Number'].size)]).T,
+                                 objects=objects,
+                                 posx_pa=posx_pa)
+        return self.slitmask
 
