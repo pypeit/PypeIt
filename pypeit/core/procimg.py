@@ -1058,7 +1058,7 @@ def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scal
     return var
 
 
-def variance_model(base, counts=None, count_scale=None, noise_floor=None, shot_noise=False):
+def variance_model(base, counts=None, count_scale=None, noise_floor=None):
     r"""
     Calculate the expected variance in an image.
 
@@ -1124,10 +1124,9 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None, shot_n
         counts (`numpy.ndarray`_, optional):
             A 2D array with the number of source-plus-sky counts, possibly
             rescaled by a relative throughput; see :math:`c` in the equations
-            above.  Because this is used to calculate (part of) the Poisson
-            statistics for the electon counts and the noise floor, this *must*
-            be provided if ``noise_floor`` is not None or ``shot_noise`` is
-            True.  Shape must match ``base``.
+            above.  Because this is used to calculate the noise floor, this
+            *must* be provided if ``noise_floor`` is not None.  Shape must match
+            ``base``.
         count_scale (:obj:`float`, `numpy.ndarray`_, optional):
             A scale factor that *has already been applied* to the provided
             counts; see :math:`s` in the equations above.  For example, if the
@@ -1143,22 +1142,14 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None, shot_n
             ``1/noise_floor``; see :math:`epsilon` in the equations above.  If
             None, no noise floor is added.  If not None, ``counts`` *must* be
             provided.
-        shot_noise (:obj:`bool`, optional):
-            Include the shot noise terms, the sky + object counts from the sky
-            and the dark current, in the calculation.  If True, ``counts``
-            *must* be provided.  Note that to truly exclude all shot-noise
-            terms, the dark current should not have been included in the
-            calculation of :math:`V_{\rm base}`; see :func:`base_variance`.
 
     Returns:
         `numpy.ndarray`_: Variance image computed via the equation above with
-        the same shape as ``counts``.
+        the same shape as ``base``.
     """
     # Check input
     if noise_floor is not None and noise_floor > 0. and counts is None:
         msgs.error('To impose a noise floor, must provide counts.')
-    if shot_noise and counts is None:
-        msgs.error('To include shot noise, must provide counts.')
     if counts is not None and counts.shape != base.shape:
         msgs.error('Counts image and base-level variance have different shape.')
     if count_scale is not None and isinstance(count_scale, np.ndarray) \
@@ -1166,17 +1157,17 @@ def variance_model(base, counts=None, count_scale=None, noise_floor=None, shot_n
         msgs.error('Count scale and base-level variance have different shape.')
 
     # Clip the counts
-    _counts = np.clip(counts, 0, None)
+    _counts = None if counts is None else np.clip(counts, 0, None)
 
     # Build the variance
     #   - Start with the base-level variance
     var = base.copy()
     #   - Add the sky + object counts
-    if shot_noise:
+    if counts is not None:
         var += _counts if count_scale is None else count_scale * _counts
-    #   - Add the noise floor
-    if counts is not None and noise_floor is not None and noise_floor > 0.:
-        var += (noise_floor * _counts)**2
+        #   - Add the noise floor
+        if noise_floor is not None and noise_floor > 0.:
+            var += (noise_floor * _counts)**2
     # Done
     return var
 

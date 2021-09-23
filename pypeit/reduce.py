@@ -1218,10 +1218,6 @@ class MultiSlitReduce(Reduce):
 
         base_gpm = self.sciImg.select_flag(invert=True)
 
-        if not self.sciImg.shot_noise:
-            # TODO: Is this useful?
-            msgs.warn('Inclusion of shot noise should be true for science images!')
-
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -1690,7 +1686,7 @@ class IFUReduce(MultiSlitReduce):
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
-                                         count_scale=_scale, noise_floor=adderr, shot_noise=True)
+                                         count_scale=_scale, noise_floor=adderr)
             model_ivar[thismask] = utils.inverse(var)
             # var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img
             # var = var + adderr ** 2 * (np.abs(self.global_sky)) ** 2
