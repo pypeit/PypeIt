@@ -184,7 +184,7 @@ class Spectrograph:
                 * (np.mean(gain) if datasec_img is None
                    else procimg.gain_frame(datasec_img, gain.tolist()))
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -196,6 +196,8 @@ class Spectrograph:
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
+            pypeit_file (:obj:`str`):
+                Name of the pypeit file to read
 
         Returns:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
