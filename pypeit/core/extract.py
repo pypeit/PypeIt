@@ -99,8 +99,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_ra
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \
                 else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
-                                            noise_floor=noise_floor, shot_noise=True)
-#    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+                                            noise_floor=noise_floor)
 
     ispec, ispat = np.where(oprof > 0.0)
 
@@ -260,8 +259,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_v
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \
                 else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
-                                            noise_floor=noise_floor, shot_noise=True)
-#    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+                                            noise_floor=noise_floor)
 
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
