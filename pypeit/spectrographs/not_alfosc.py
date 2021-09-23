@@ -216,7 +216,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -234,7 +234,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':

@@ -318,7 +318,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -335,7 +335,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         if self.get_meta_value(scifile, 'dispname') == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -477,7 +477,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.
@@ -638,7 +638,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -655,7 +655,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
         if self.get_meta_value(scifile, 'dispname') == 'G670L':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods2r_red.fits'
@@ -794,7 +794,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
         specific instrument configurations.

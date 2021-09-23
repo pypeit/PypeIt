@@ -76,7 +76,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [60, None]
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -93,7 +93,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
@@ -574,7 +574,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -592,7 +592,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
@@ -930,7 +930,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -948,7 +948,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Lacosmic CR settings
         #   Grab the defaults for LRISr

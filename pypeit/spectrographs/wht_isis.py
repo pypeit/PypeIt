@@ -194,7 +194,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -212,7 +212,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R1200B':
@@ -344,7 +344,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -362,7 +362,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R1200R':

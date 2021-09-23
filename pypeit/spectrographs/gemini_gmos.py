@@ -155,7 +155,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -172,7 +172,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         headarr = self.get_headarr(scifile)
 
@@ -514,7 +514,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
 
         return bpm_img
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -532,7 +532,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
@@ -633,7 +633,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -651,7 +651,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
@@ -672,7 +672,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
     comment = 'Same as gemini_gmos_north_ham when used in nod-and-shuffle mode; ' \
               'see :doc:`gemini_gmos`'
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -689,7 +689,7 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
         # Slurp the NOD&Shuffle
         headarr = self.get_headarr(scifile)
         self.nod_shuffle_pix = headarr[0]['NODPIX']
@@ -779,7 +779,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         # Return
         return detector_container.DetectorContainer(**detectors[det-1])
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -796,7 +796,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         if self.get_meta_value(scifile, 'dispname')[0:4] == 'R400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_e2v.fits'

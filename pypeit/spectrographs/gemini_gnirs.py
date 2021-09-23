@@ -110,7 +110,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                                'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -127,7 +127,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # TODO This is a hack for now until we figure out how to set dispname
         # and other meta information in the spectrograph class itself

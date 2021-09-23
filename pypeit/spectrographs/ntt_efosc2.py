@@ -217,7 +217,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def config_specific_par(self, scifile, inp_par=None):
+    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -235,7 +235,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par)
+        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'Gr#6':
