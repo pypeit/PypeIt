@@ -1682,7 +1682,7 @@ class IFUReduce(MultiSlitReduce):
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
-            counts = self.global_sky + np.clip(self.sciImg.image-self.global_sky, 0, None)
+            counts = self.global_sky# + np.clip(self.sciImg.image-self.global_sky, 0, None)
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
