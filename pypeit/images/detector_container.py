@@ -58,14 +58,14 @@ class DetectorContainer(datamodel.DataContainer):
                  'platescale': dict(otype=(int, float),
                                     descr='arcsec per pixel in the spatial dimension for an '
                                           'unbinned pixel'),
-                 'darkcurr': dict(otype=(int, float), descr='Dark current (e-/hour)'),
+                 'darkcurr': dict(otype=(int, float), descr='Dark current (e-/pixel/hour)'),
                  'saturation': dict(otype=(int, float), descr='The detector saturation level'),
                  'mincounts': dict(otype=(int, float),
                                    descr='Counts in a pixel below this value will be ignored '
                                          'as being unphysical'),
                  'nonlinear': dict(otype=(int, float),
                                    descr='Percentage of detector range which is linear '
-                                         '(i.e. everything above nonlinear*saturation will '
+                                         '(i.e. everything above ``nonlinear*saturation`` will '
                                          'be flagged as saturated)'),
                  'numamplifiers': dict(otype=int, descr='Number of amplifiers'),
                  'gain': dict(otype=np.ndarray, atype=np.floating,
@@ -103,6 +103,9 @@ class DetectorContainer(datamodel.DataContainer):
 
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+        if self.darkcurr is None:
+            # Use of darkcurr in RawImage means that it cannot be None.
+            self.darkcurr = 0.
 
     def _bundle(self):
         """
