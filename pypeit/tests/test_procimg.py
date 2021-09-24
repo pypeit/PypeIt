@@ -94,25 +94,25 @@ def test_var_model():
 
     counts = np.full(rnvar.shape, 10., dtype=float)
 
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar, counts=counts)), \
-        'Inclusion of shot-noise should default to False'
+    assert np.array_equal(rnvar, procimg.variance_model(rnvar)), \
+        'Variance model should just return input if no optional parameters are provided.'
 
     base = procimg.base_variance(rnvar, darkcurr=10.)
     base_t = procimg.base_variance(rnvar, darkcurr=5., exptime=2.*3600)
 
-    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True) > rnvar), \
+    assert np.all(procimg.variance_model(rnvar, counts=counts) > rnvar), \
         'Shot noise should increase the variance'
-    assert np.all(procimg.variance_model(base, counts=counts, shot_noise=True) > base), \
+    assert np.all(procimg.variance_model(base, counts=counts) > base), \
         'Shot noise should increase the variance'
     assert np.array_equal(
-                procimg.variance_model(base, counts=counts, shot_noise=True),
-                procimg.variance_model(base_t, counts=counts, shot_noise=True)), \
+                procimg.variance_model(base, counts=counts),
+                procimg.variance_model(base_t, counts=counts)), \
         'Dark current should be equivalent'
     assert np.all(procimg.base_variance(rnvar, proc_var=10.) > rnvar), \
         'Processing variance should increase the total variance'
 
-    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True, count_scale=0.5) <
-                  procimg.variance_model(rnvar, counts=counts, shot_noise=True)), \
+    assert np.all(procimg.variance_model(rnvar, counts=counts, count_scale=0.5) <
+                  procimg.variance_model(rnvar, counts=counts)), \
         'Scaling should have decreased the noise.'
 
     assert np.all(procimg.variance_model(rnvar, counts=counts, noise_floor=0.1) > rnvar), \

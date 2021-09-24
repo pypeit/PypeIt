@@ -313,9 +313,10 @@ class CombineImage:
             msgs.error("Bad choice for combine.  Allowed options are 'median', 'mean'.")
 
         # Recompute the inverse variance using the combined image
-        comb_var = procimg.variance_model(comb_basev, counts=comb_img, count_scale=comb_scl,
-                                          noise_floor=self.par['noise_floor'],
-                                          shot_noise=self.par['shot_noise'])
+        comb_var = procimg.variance_model(comb_basev,
+                                          counts=comb_img if self.par['shot_noise'] else None,
+                                          count_scale=comb_scl,
+                                          noise_floor=self.par['noise_floor'])
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,

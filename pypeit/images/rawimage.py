@@ -223,9 +223,10 @@ class RawImage:
                     if self.detector['darkcurr'] > 0 and self.par['shot_noise'] else None
         self.base_var = procimg.base_variance(self.rn2img, darkcurr=darkcurr, exptime=self.exptime,
                                               proc_var=self.proc_var, count_scale=self.img_scale)
-        var = procimg.variance_model(self.base_var, counts=self.image, count_scale=self.img_scale,
-                                     noise_floor=self.par['noise_floor'],
-                                     shot_noise=self.par['shot_noise'])
+        var = procimg.variance_model(self.base_var,
+                                     counts=self.image if self.par['shot_noise'] else None,
+                                     count_scale=self.img_scale,
+                                     noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
 
     def estimate_readnoise(self):

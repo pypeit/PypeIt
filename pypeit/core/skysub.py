@@ -847,8 +847,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     _count_scale = None if count_scale is None else count_scale.flat[isub]
                     # NOTE: darkcurr must be a float for the call below to work.
                     var = procimg.variance_model(_base_var, counts=sky_bmodel+obj_bmodel,
-                                                 count_scale=_count_scale, noise_floor=adderr,
-                                                 shot_noise=True)
+                                                 count_scale=_count_scale, noise_floor=adderr)
                     modelivar.flat[isub] = utils.inverse(var)
                 # Now do some masking based on this round of model fits
                 chi2 = (img_minsky.flat[isub] - obj_bmodel) ** 2 * modelivar.flat[isub]
