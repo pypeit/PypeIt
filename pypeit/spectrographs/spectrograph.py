@@ -484,6 +484,17 @@ class Spectrograph:
         msgs.error('This spectrograph does not support the use of mask design. '
                    'Set `use_maskdesign=False`')
 
+    def get_maskdef_slitedges(self, ccdnum, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception. This may be because ``use_maskdesign``
+        has been set to True for a spectrograph that does not support it.
+        """
+        msgs.error('This spectrograph does not support the use of mask design. '
+                   'Set `use_maskdesign=False`')
+
     def configuration_keys(self):
         """
         Return the metadata keys that define a unique instrument

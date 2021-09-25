@@ -756,7 +756,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return np.array(tel_off)
 
-
     def get_slitmask(self, filename):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
@@ -1117,6 +1116,144 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
+
+    def get_maskdef_slitedges(self, ccdnum, filename=None, debug=None):
+        """
+         Provides the slit edges positions predicted by the slitmask design using
+         the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+        ccdnum (:obj:`int`):
+            Detector number
+        filename (:obj:`str`, optional):
+            The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+            Default is None, i.e., to use previously instantiated attributes.
+        debug (:obj:`bool`, optional):
+            Run in debug mode
+        Returns:
+
+        """
+        # Re-initiate slitmask and amap and bmap
+        if filename is not None:
+            # Reset the slitmask
+            self.get_slitmask(filename)
+            # Reset the grating
+            self.get_grating(filename)
+            # Load pre- and post-grating maps
+            self.get_amapbmap(filename)
+
+        if self.amap is None and self.bmap is None:
+            msgs.error('Must select amap and bmap; provide a file or use get_amapbmap()')
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        # Match left and right edges separately
+        # Sort slits in mm from the slit-mask design
+        sortindx = np.argsort(self.slitmask.center[:, 0])
+
+        # Left (bottom) and right (top) traces in pixels from optical model (image plane and detector)
+        # bottom
+        omodel_bcoo = self.mask_to_pixel_coordinates(x=self.slitmask.bottom[:, 0], y=self.slitmask.bottom[:, 1])
+        bedge_img, ccd_b, bedge_pix = omodel_bcoo[0], omodel_bcoo[2], omodel_bcoo[3]
+
+        # top
+        omodel_tcoo = self.mask_to_pixel_coordinates(x=self.slitmask.top[:, 0], y=self.slitmask.top[:, 1])
+        tedge_img, ccd_t, tedge_pix = omodel_tcoo[0], omodel_tcoo[2], omodel_tcoo[3]
+
+        # Per each slit we take the median value of the traces over the wavelength direction. These medians will be used
+        # for the cross-correlation with the traces found in the images.
+        omodel_bspat = np.zeros(self.slitmask.nslits)
+        omodel_tspat = np.zeros(self.slitmask.nslits)
+
+        for i in range(omodel_bspat.size):
+            # We "flag" the left and right traces predicted by the optical model that are outside of the
+            # current detector, by giving a value of -1.
+            # bottom
+            omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] < 10 else \
+                              np.median(bedge_pix[i, ccd_b[i, :] == ccdnum])
+            # top
+            omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] < 10 else \
+                              np.median(tedge_pix[i, ccd_t[i, :] == ccdnum])
+
+            # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
+            # is determined using the pixel position from the image plane.
+            whgood = np.where(tedge_img[i, :] > -1e4)[0]
+            npt_img = whgood.shape[0] // 2
+            # This is hard-coded for DEIMOS, since it refers to the detectors configuration
+            whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
+            if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
+                omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
+            if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
+                omodel_tspat[i] = omodel_bspat[i] + np.median((tedge_img - bedge_img)[i, whgood])
+
+            # If the `omodel_bspat` is greater than `omodel_tspat` we switch the order
+            if omodel_bspat[i] > omodel_tspat[i]:
+                invert_order = omodel_bspat[i]
+                omodel_bspat[i] = omodel_tspat[i]
+                omodel_tspat[i] = invert_order
+
+        # If there are overlapping slits, i.e., omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1],
+        # move the overlapping edges to be adjacent instead
+        for i in range(sortindx.size -1):
+            if omodel_tspat[sortindx][i] != -1 and omodel_bspat[sortindx][i+1] != -1 and \
+                    omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1]:
+                diff = omodel_tspat[sortindx][i] - omodel_bspat[sortindx][i+1]
+                omodel_tspat[sortindx[i]] -= diff/2.
+                omodel_bspat[sortindx[i+1]] += diff/2. + 0.1
+                # # Re-check If the `omodel_bspat` is greater than `omodel_tspat` and switch the order.
+                # # It may happens if 3 slits are overlapping (true story!)
+                # if omodel_bspat[sortindx[i]] > omodel_tspat[sortindx[i]]:
+                #     invert_order = omodel_bspat[sortindx[i]]
+                #     omodel_bspat[sortindx[i]] = omodel_tspat[sortindx[i]]
+                #     omodel_tspat[sortindx[i]] = invert_order
+
+        # This print a QA table with info on the slits (sorted from left to right) that fall in the current detector.
+        # The only info provided here is `slitid`, which is called `dSlitId` in the DEIMOS design file. I had to remove
+        # `slitindex` because not always matches `SlitName` from the DEIMOS design file.
+        if not debug:
+            num = 0
+            msgs.info('Expected slits on current detector')
+            msgs.info('*' * 18)
+            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'dSlitId'))
+            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 9))
+            for i in range(sortindx.shape[0]):
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
+                    msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                    num += 1
+            msgs.info('*' * 18)
+
+        # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
+        # the IDL-based pipeline.
+        if debug:
+            num = 0
+            msgs.info('Expected slits on current detector')
+            msgs.info('*' * 92)
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^16s}'.format('N.',
+                                                                                             'dSlitId', 'slitLen(mm)',
+                                                                                             'slitWid(mm)',
+                                                                                             'spat_cen(mm)',
+                                                                                             'omodel_bottom(pix)',
+                                                                                             'omodel_top(pix)'))
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format('-' * 4, '-' * 9, '-' * 11,
+                                                                                             '-' * 11, '-' * 13,
+                                                                                             '-' * 18, '-' * 15))
+            for i in range(sortindx.size):
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
+                    msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f} {4:^14.3f}    {5:^16.2f} {6:^14.2f}'
+                              .format(num, self.slitmask.slitid[sortindx][i],
+                                         self.slitmask.length[sortindx][i],
+                                         self.slitmask.width[sortindx][i],
+                                         self.slitmask.center[:, 0][sortindx][i],
+                                         omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
+                    num += 1
+            msgs.info('*' * 92)
+
+        return omodel_bspat, omodel_tspat, sortindx, self.slitmask
 
     def spec1d_match_spectra(self, sobjs):
         """Match up slits in a SpecObjs file
