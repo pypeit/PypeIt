@@ -54,8 +54,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         if hdu is None:
             binning = '1,1'
-            gain = None
-            ronoise = None
+            gain = 1.52                 # Hardcoded in the header
+            ronoise = 4.9               # Hardcoded in the header
         else:
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
@@ -75,8 +75,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             nonlinear       = 0.97,     # Linear to ~97% of saturation
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = gain, #np.atleast_1d(header['GAIN']),
-            ronoise         = ronoise, #np.atleast_1d(header['RDNOISE']),
+            gain            = gain,     # See above
+            ronoise         = ronoise,  # See above
             # Data & Overscan Sections -- Edge tracing can handle slit edges
             #  These values are hardwired here because they are also hardwired in
             #  the current CCD controller software.  The user cannot easily change
