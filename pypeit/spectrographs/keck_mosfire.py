@@ -476,7 +476,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             slit = ssl[i]
             numslits[i] = np.where(slit['Target_Name'] == msl['Target_in_Slit'])[0].size
 
-        if (numslits.sum() != CSUnumslits) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) and ('long2pos' not in self.get_meta_value(filename, 'decker')):
+        if (numslits.sum() != CSUnumslits) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
+                and ('long2pos' not in self.get_meta_value(filename, 'decker')):
             msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
 
@@ -486,16 +487,20 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
         obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
         obj_ra, obj_dec = meta.convert_radec(obj_ra, obj_dec)
+        slit_centers = np.array(ssl['Slit_length'], dtype=float)/2.
+        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        topdist = np.round(slit_centers + np.array(ssl['Target_to_center_of_slit_distance'], dtype=float), 3)
+        botdist = np.round(slit_centers - np.array(ssl['Target_to_center_of_slit_distance'], dtype=float), 3)
         #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
         objects = np.array([np.array(ssl['Slit_Number'], dtype=int),
-                           [None]*ssl['Slit_Number'].size,   # no object ID
+                           np.zeros(ssl['Slit_Number'].size, dtype=int),   # no object ID
                            obj_ra,
                            obj_dec,
                            np.array(ssl['Target_Name']),
                            np.array(targs_mtch['Magnitude'], dtype=float),
-                           [None]*ssl['Slit_Number'].size,       # no magnitude band
-                           np.array(ssl['Target_to_center_of_slit_distance'], dtype=float),
-                           np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)]).T  # this last 2 need to change into top bot dist
+                           ['None']*ssl['Slit_Number'].size,       # no magnitude band
+                           topdist,
+                           botdist]).T
 
         # PA corresponding to positive x on detector (spatial)
         posx_pa = hdu[0].header['SKYPA0']
@@ -507,14 +512,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         slit_ra, slit_dec = meta.convert_radec(slit_ra, slit_dec)
 
         # Instantiate the slit mask object and return it
-        self.slitmask = SlitMask(np.array([np.zeros(ssl['Slit_Number'].size),
+        self.slitmask = SlitMask(np.array([np.zeros(ssl['Slit_Number'].size),   # mosfire maskdef has not slit corners
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size),
-                                           np.zeros(ssl['Slit_Number'].size)]).T.reshape(-1,4,2),  # mosfire maskdef has not slit corners
+                                           np.zeros(ssl['Slit_Number'].size)]).T.reshape(-1,4,2),
                                  slitid=np.array(ssl['Slit_Number'], dtype=int),
                                  align=None,   # no align stars
                                  science=np.ones(ssl['Slit_Number'].size, dtype=bool),
@@ -526,4 +531,87 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                  objects=objects,
                                  posx_pa=posx_pa)
         return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+         Provides the slit edges positions predicted by the slitmask design using
+         the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+        ccdnum (:obj:`int`):
+            Detector number
+        filename (:obj:`str`, optional):
+            The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+            Default is None, i.e., to use previously instantiated attributes.
+        debug (:obj:`bool`, optional):
+            Run in debug mode
+        Returns:
+            Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+
+        """
+        # Re-initiate slitmask and amap and bmap
+        if filename is not None:
+            # Reset the slitmask
+            self.get_slitmask(filename)
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        # Hard-Coded for MOSFIRE
+        platescale = 0.1798
+        slit_gap = round(0.96/platescale)
+
+        # build an array of values containing the bottom (right) edge of the slits
+        # starting edge
+        edge = 2034
+        bot_edges = np.array([edge], dtype=np.int)
+        for i in range(self.slitmask.nslits - 1):
+            # target is the slit number
+            edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)
+            bot_edges = np.append(bot_edges, np.round(edge))
+
+        # build an array of values containing the top (left) edge of the slits
+        top_edges = bot_edges - np.round(self.slitmask.onsky[:,2]/platescale)
+
+        # Sort slits from left to right
+        sortindx = np.argsort(self.slitmask.slitid[::-1])
+
+        # This print a QA table with info on the slits sorted from left to right.
+        if not debug:
+            num = 0
+            msgs.info('Expected slits')
+            msgs.info('*' * 18)
+            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
+            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
+            for i in range(sortindx.shape[0]):
+                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                num += 1
+            msgs.info('*' * 18)
+
+        # If instead we run this method in debug mode, we print more info
+        if debug:
+            num = 0
+            msgs.info('Expected slits')
+            msgs.info('*' * 92)
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
+                                                                                    'slitLen(arcsec)',
+                                                                                    'slitWid(arcsec)',
+                                                                                    'top_edges(pix)',
+                                                                                    'bot_edges(pix)'))
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
+                                                                                    '-' * 11, '-' * 18, '-' * 15))
+            for i in range(sortindx.size):
+                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
+                            self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
+                            self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
+                num += 1
+            msgs.info('*' * 92)
+
+        return top_edges, bot_edges, sortindx, self.slitmask
 

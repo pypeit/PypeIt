@@ -725,7 +725,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             Both raw frames and spec2d files can be used.
 
         Returns:
-            tel_off (:obj:`list`) : List of telescope offsets (in arcsec) w.r.t. the first frame
+            `numpy.ndarray`_: List of telescope offsets (in arcsec) w.r.t. the first frame
 
         """
         # file (can be a raw or a spec2d)
@@ -1117,7 +1117,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Use the detector map to convert to the detector coordinates
         return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
-    def get_maskdef_slitedges(self, ccdnum, filename=None, debug=None):
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
         """
          Provides the slit edges positions predicted by the slitmask design using
          the mask coordinates already converted from mm to pixels by the method
@@ -1135,6 +1135,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         debug (:obj:`bool`, optional):
             Run in debug mode
         Returns:
+            Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
 
         """
         # Re-initiate slitmask and amap and bmap
@@ -1151,6 +1154,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         if self.slitmask is None:
             msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        if ccdnum is None:
+            msgs.error('A detector number must be provided')
 
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design

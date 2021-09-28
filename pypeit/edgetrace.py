@@ -4075,17 +4075,16 @@ class EdgeTraceSet(DataContainer):
 
         Use of this method requires:
             - a PCA decomposition is available,
-            - :attr:`spectrograph` has a viable `get_slitmask` method
-              to read slit mask design data. This data can be pulled
+            - :attr:`spectrograph` has a viable `get_maskdef_slitedges` method
+              to read edge trace locations predicted by the slitmask design. This data can be pulled
               from one of the files used to construct the trace image.
-            - :attr:`spectrograph` has a viable `get_grating` method
-              which provides the grating info to recover the optical model.
-            - :attr:`spectrograph` has a viable `get_amapbmap` method
-              which provides pre- and post-grating maps of the detector
-              used convert the mask design data from mm to pixels.
 
-        The method use a collection of scripts in pypeit.core.slitdesign_matching
+        The method uses a collection of scripts in pypeit.core.slitdesign_matching
         which are taken from DEEP2 IDL-based pipeline for DEIMOS data.
+
+        NOTE this method was first written to deal with edge traces predicted by DEIMOS optical model, but
+        subsequently adapted to be used with other spectrographs that don't use optical models.
+
 
 
         Args:
@@ -4109,7 +4108,7 @@ class EdgeTraceSet(DataContainer):
         self.maskfile = self.traceimg.files[0]
 
         omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
-            self.spectrograph.get_maskdef_slitedges(self.traceimg.detector.det, filename=self.maskfile, debug=debug)
+            self.spectrograph.get_maskdef_slitedges(ccdnum=self.traceimg.detector.det, filename=self.maskfile, debug=debug)
 
         # reference row
         bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
