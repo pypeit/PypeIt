@@ -9,7 +9,6 @@ from astropy.time import Time
 
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit import io
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
@@ -65,10 +64,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,        # 
+            dataext         = 0,        #
             specaxis        = 1,        # Native spectrum is along the x-axis
             specflip        = True,     # DeVeny CCD has blue at the right
-            spatflip        = False,    # 
+            spatflip        = False,    #
             platescale      = 0.34,     # Arcsec / pixel
             darkcurr        = 4.5,      # Electrons per hour
             saturation      = 65535.,   # 16-bit ADC
@@ -95,7 +94,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         with the instrument-specific header cards using :attr:`meta`.
         """
         self.meta = {}
-        
+
         # Required (core)
         self.meta['ra'] = dict(ext=0, card='RA')
         self.meta['dec'] = dict(ext=0, card='DEC')
@@ -114,7 +113,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
-        
+
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -131,38 +130,29 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            """
-            Binning in lois headers is space-separated rather than comma-separated.
-            """
+            # Binning in lois headers is space-separated rather than comma-separated.
             binspec, binspatial = headarr[0]['CCDSUM'].split()
             binning = parse.binning2string(binspec, binspatial)
             return binning
-        
-        elif meta_key == 'mjd':
-            """
-            Use astropy to convert 'DATE-OBS' into a mjd.
-            """
+
+        if meta_key == 'mjd':
+            # Use astropy to convert 'DATE-OBS' into a mjd.
             ttime = Time(headarr[0]['DATE-OBS'], format='isot')
             return ttime.mjd
-        
-        elif meta_key == 'lampstat01':
-            """
-            The spectral comparison lamps turned on are listed in `LAMPCAL`, but
-            if no lamps are on, then this string is blank.  Return either the
-            populated `LAMPCAL` string, or 'off' to ensure a positive entry for
-            `lampstat01`.
-            """
+
+        if meta_key == 'lampstat01':
+            # The spectral comparison lamps turned on are listed in `LAMPCAL`, but
+            #  if no lamps are on, then this string is blank.  Return either the
+            #  populated `LAMPCAL` string, or 'off' to ensure a positive entry for
+            #  `lampstat01`.
             lampcal = headarr[0]['LAMPCAL'].strip()
             if lampcal == '':
                 return 'off'
-            else:
-                return lampcal
-        
-        elif meta_key == 'dispname':
-            """
-            Convert older FITS keyword GRATING (gpmm/blaze) into the newer
-            Grating ID names (DVx) for easier identification of disperser.
-            """
+            return lampcal
+
+        if meta_key == 'dispname':
+            # Convert older FITS keyword GRATING (gpmm/blaze) into the newer
+            #  Grating ID names (DVx) for easier identification of disperser.
             gratings = {"150/5000":"DV1", "300/4000":"DV2", "300/6750":"DV3",
                         "400/8500":"DV4", "500/5500":"DV5", "600/4900":"DV6",
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
@@ -171,26 +161,21 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                 raise ValueError(f"Grating value {headarr[0]['GRATING']} not recognized.")
             return f"{gratings[headarr[0]['GRATING']]} ({headarr[0]['GRATING']})"
 
-        elif meta_key == 'decker':
-            """
-            Provide a stub for future inclusion of a decker on LDT/DeVeny.
-            """
+        if meta_key == 'decker':
+            # Provide a stub for future inclusion of a decker on LDT/DeVeny.
             return headarr[0]['DECKER'] if 'DECKER' in headarr[0].keys() else 'None'
 
-        elif meta_key == 'filter1':
-            """
-            Remove the parenthetical knob position to leave just the filter name
-            """
+        if meta_key == 'filter1':
+            # Remove the parenthetical knob position to leave just the filter name
             return headarr[0]['FILTREAR'].split()[0].upper()
 
-        else:
-            msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
+        msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     @classmethod
     def default_pypeit_par(cls):
         """
         Return the default parameters to use for this instrument.
-        
+
         Returns:
             :class:`~pypeit.par.pypeitpar.PypeItPar`: Parameters required by
             all of ``PypeIt`` methods.
@@ -228,7 +213,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
 
-        # For the tilts, our lines are not as well-behaved as others', 
+        # For the tilts, our lines are not as well-behaved as others',
         #   possibly due to the Wynne type E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
@@ -281,10 +266,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'bias':
-            return (fitstbl['idname'] == 'BIAS')
+            return fitstbl['idname'] == 'BIAS'
         if ftype in ['arc', 'tilt']:
             # FOCUS frames should have frametype None, Bias is bias regardless of lamp status
-            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & (fitstbl['idname'] != 'BIAS')
+            return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & \
+                   (fitstbl['idname'] != 'BIAS')
         if ftype in ['trace', 'pixelflat']:
             return good_exp & (fitstbl['idname'] == 'DOME FLAT') & (fitstbl['lampstat01'] == 'off')
         if ftype in ['illumflat','sky']:
@@ -331,7 +317,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
-    
+
         # Set parameters based on grating used:
         grating = self.get_meta_value(scifile, 'dispname')
         if grating == 'DV1 (150/5000)':
@@ -366,6 +352,3 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             pass
 
         return par
-
-
-
