@@ -268,6 +268,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             # Lower edge_thresh works better
             par['calibrations']['slitedges']['edge_thresh'] = 10.
+            # needed for better slitmask design matching
+            par['calibrations']['flatfield']['tweak_slits'] = False
             # Assign RA, DEC, OBJNAME to detected objects
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects

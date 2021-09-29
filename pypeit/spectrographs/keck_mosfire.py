@@ -130,6 +130,39 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+
+        # Turn on the use of mask design
+        par['calibrations']['slitedges']['use_maskdesign'] = True
+        # Assign RA, DEC, OBJNAME to detected objects
+        par['reduce']['slitmask']['assign_obj'] = True
+        # force extraction of undetected objects
+        par['reduce']['slitmask']['extract_missing_objs'] = True
+        # needed for better slitmask design matching
+        par['calibrations']['flatfield']['tweak_slits'] = False
+
+        # Return
+        return par
+
     def init_meta(self):
         """
         Define how metadata are derived from the spectrograph files.
@@ -527,7 +560,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                                  slit_dec,
                                                  np.array(ssl['Slit_length'], dtype=float),
                                                  np.array(ssl['Slit_width'], dtype=float),
-                                                 np.array([hdu[0].header['SKYPA0']]*ssl['Slit_Number'].size)]).T,
+                                                 np.array([round(hdu[0].header['SKYPA0'],2)]*ssl['Slit_Number'].size)]).T,
                                  objects=objects,
                                  posx_pa=posx_pa)
         return self.slitmask

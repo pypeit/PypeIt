@@ -840,7 +840,7 @@ class SlitTraceSet(datamodel.DataContainer):
         for islit in np.where(gd_slit)[0]:
             # Check for assigned obj
             if len(cut_sobjs) > 0:
-                target_obj_in_slit = (cut_sobjs.MASKDEF_ID == self.maskdef_id[islit]) & \
+                target_obj_in_slit = (cut_sobjs.MASKDEF_ID == self.maskdef_id[islit]) & (cut_sobjs.OBJID > 0) &\
                                      (cut_sobjs.MASKDEF_OBJNAME != 'SERENDIP')
                 if np.any(target_obj_in_slit):
                     continue
@@ -995,7 +995,7 @@ class SlitTraceSet(datamodel.DataContainer):
         uni_maskid = np.unique(cut_sobjs.MASKDEF_ID[cut_sobjs.MASKDEF_ID!=-99])
         for maskid in uni_maskid:
             # Index for SpecObjs on this slit
-            idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
+            idx = np.where((cut_sobjs.MASKDEF_ID == maskid) & (cut_sobjs.OBJID > 0))[0]  # use only positive objs
             # Index for slitmask
             sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
             # Within TOLER?
@@ -1206,7 +1206,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if use_alignbox:
             align_offs = []
             for align_id in align_maskdef_ids:
-                sidx = np.where(cut_sobjs.MASKDEF_ID == align_id)[0]
+                sidx = np.where((cut_sobjs.MASKDEF_ID == align_id) & (cut_sobjs.OBJID > 0))[0]  # use only positive objs
                 if sidx.size > 0:
                     # Parse the peak fluxes
                     peak_flux = cut_sobjs[sidx].smash_peakflux
@@ -1232,7 +1232,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # this detector and use it to compute the offset
         if bright_maskdefid is not None:
             if bright_maskdefid in obj_maskdef_id:
-                sidx = np.where(cut_sobjs.MASKDEF_ID == bright_maskdefid)[0]
+                sidx = np.where((cut_sobjs.MASKDEF_ID == bright_maskdefid) & (cut_sobjs.OBJID > 0))[0]  # use pos objs
                 if sidx.size == 0:
                     self.maskdef_offset = 0.0
                     msgs.info('Object in slit {} not detected. Slitmask offset '
@@ -1254,7 +1254,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Determine offsets using only detections with the highest significance
         # objects added in manual extraction have smash_nsig = None
-        nonone = cut_sobjs.smash_nsig != None
+        nonone = (cut_sobjs.smash_nsig != None) & (cut_sobjs.OBJID > 0)   # use only positive objs
         if len(cut_sobjs[nonone]) > 0:
             highsig_measured = measured[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
             highsig_expected = expected[nonone][cut_sobjs[nonone].smash_nsig > nsig_thrshd]
@@ -1434,8 +1434,8 @@ def average_maskdef_offset(calib_slits, platescale):
                       'Especially for dithered observations!')
             msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
         else:
-            # define which are the blue and red detectors. This is hard coded for DEIMOS but no other
-            # instrument should ever get to this point.
+            # define which are the blue and red detectors. This is hard coded for DEIMOS. However it works
+            # perfectly fine also with MOSFIRE (although the nomenclature "red and blue dets" does not apply).
             # TODO find a way to make this not DEIMOS specific
             blue_dets = np.array([1, 2, 3, 4])
             red_dets = np.array([5, 6, 7, 8])
