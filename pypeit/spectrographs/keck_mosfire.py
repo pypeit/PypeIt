@@ -152,13 +152,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Turn on the use of mask design
-        par['calibrations']['slitedges']['use_maskdesign'] = True
-        # Assign RA, DEC, OBJNAME to detected objects
-        par['reduce']['slitmask']['assign_obj'] = True
-        # force extraction of undetected objects
-        par['reduce']['slitmask']['extract_missing_objs'] = True
-        # needed for better slitmask design matching
-        par['calibrations']['flatfield']['tweak_slits'] = False
+        if ('LONGSLIT' not in self.get_meta_value(headarr, 'decker')) and (
+                'long2pos' not in self.get_meta_value(headarr, 'decker')):
+            par['calibrations']['slitedges']['use_maskdesign'] = True
+            # Assign RA, DEC, OBJNAME to detected objects
+            par['reduce']['slitmask']['assign_obj'] = True
+            # force extraction of undetected objects
+            par['reduce']['slitmask']['extract_missing_objs'] = True
+            # needed for better slitmask design matching
+            par['calibrations']['flatfield']['tweak_slits'] = False
 
         # Return
         return par
@@ -473,6 +475,11 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
 
+        This can be used for multi-object slitmask, but it it's not good
+        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
+        binTable where the slitmask data are stored.
+
+
         Args:
             filename (:obj:`str`):
                 Name of the file to read.
@@ -489,17 +496,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         targs = hdu['Target_List'].data
         ssl = hdu['Science_Slit_List'].data
         msl = hdu['Mechanical_Slit_List'].data
-
         # some needed cleanup
-        # TODO make it more concise
         ssl = ssl[ssl['Slit_Number'] != ' ']
         msl = msl[msl['Slit_Number'] != ' ']
-
-        # ELIMINATE POSITION B of the long2pos slit
-        # (position B is the initial position used only for alignment)
-        ssl = ssl[ssl['Target_Name'] != 'posB']
-        msl = msl[msl['Target_in_Slit'] != 'posB']
-        targs = targs[(targs['Target_Name'] !='posB') & (targs['Target_Name'] != 'posBalign')]
 
         # Book keeping: Count and check that the # of objects in the SSL matches that of the MSL
         # and if we recover the total number of CSUs
@@ -554,8 +553,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                            np.zeros(ssl['Slit_Number'].size),
                                            np.zeros(ssl['Slit_Number'].size)]).T.reshape(-1,4,2),
                                  slitid=np.array(ssl['Slit_Number'], dtype=int),
-                                 align=None,   # no align stars
-                                 science=np.ones(ssl['Slit_Number'].size, dtype=bool),
+                                 align=ssl['Target_Name'] == 'posB',
+                                 science=ssl['Target_Name'] != 'posB',
                                  onsky=np.array([slit_ra,
                                                  slit_dec,
                                                  np.array(ssl['Slit_length'], dtype=float),
