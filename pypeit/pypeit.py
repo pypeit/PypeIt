@@ -310,7 +310,6 @@ class PypeIt(object):
 
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
-            embed()
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             if self.par['calibrations']['wavelengths']['use_header_lamps']:
