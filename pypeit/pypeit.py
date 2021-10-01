@@ -113,7 +113,7 @@ class PypeIt(object):
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file, pypeit_file=pypeit_file).to_config()
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
 
         #   - Build the full set, merging with any user-provided
         #     parameters
@@ -267,6 +267,8 @@ class PypeIt(object):
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             grp_frames = frame_indx[in_grp]
+            if self.par['calibrations']['wavelengths']['use_header_lamps']:
+                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
 
             # Find the detectors to reduce
             detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
@@ -308,9 +310,11 @@ class PypeIt(object):
 
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
-
+            embed()
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
+            if self.par['calibrations']['wavelengths']['use_header_lamps']:
+                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
 
             # Find the indices of the standard frames in this calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
@@ -338,6 +342,8 @@ class PypeIt(object):
         for i in range(self.fitstbl.n_calib_groups):
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
+            if self.par['calibrations']['wavelengths']['use_header_lamps']:
+                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]

@@ -34,7 +34,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
 from pypeit.utils import index_of_x_eq_y
-from pypeit.par.util import parse_pypeit_file
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
@@ -224,7 +223,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                                'TelFit_MaunaKea_3100_26100_R20000.fits')
         return par
 
-    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -241,7 +240,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
 
@@ -293,15 +292,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
-        # Set lamps from header. This will override the values above if True otherwise the values above will be used
-        if pypeit_file is not None:
-            _, data_files, _, usrdata, _ = parse_pypeit_file(pypeit_file, file_check=False)
-            arc_files = []
-            for idx, row in enumerate(usrdata):
-                if 'arc' in row['frametype']:
-                    arc_files.append(data_files[idx])
-            if len(arc_files) > 0:
-                par['calibrations']['wavelengths']['lamps'] = self.get_lamps(arc_files)
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['use_header_lamps'] = True
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -725,23 +717,23 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
-    def get_lamps(self, file_list):
+    def get_lamps(self, fitstbl):
         """
-        For a list of arc frames extract the information on the arc lamps used
+        Extract the list of arc lamps used from header
 
         Args:
-            file_list (:obj:`list`): List of arc frames (including the path)
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more frames.
 
         Returns:
             lamps (:obj:`list`) : List used arc lamps
 
         """
-        # file
-        file_list = np.atleast_1d(file_list)
         # read and save the arc lamp in each frame
         lamp_list = np.array([])
-        for file in file_list:
-            lamp_list = np.append(lamp_list, self.get_meta_value(file, 'lampstat01').split(' '))
+        for col in fitstbl:
+            if 'arc' in col['frametype']:
+                lamp_list = np.append(lamp_list, col['lampstat01'].split(' '))
         # make it in Pypeit format
         lamp_list = [lamp + 'I' for lamp in np.unique(lamp_list)]
 

@@ -184,7 +184,7 @@ class Spectrograph:
                 * (np.mean(gain) if datasec_img is None
                    else procimg.gain_frame(datasec_img, gain.tolist()))
 
-    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -196,8 +196,6 @@ class Spectrograph:
             inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
                 Parameter set used for the full run of PypeIt.  If None,
                 use :func:`default_pypeit_par`.
-            pypeit_file (:obj:`str`):
-                Name of the pypeit file to read
 
         Returns:
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
@@ -466,6 +464,17 @@ class Spectrograph:
             bpm_img = self.bpm_frombias(msbias, det, bpm_img)
 
         return bpm_img
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception.
+        """
+        msgs.error('This spectrograph does not support the use of lamps list from header. '
+                   'Set `use_header_lamps=False`')
+
 
     def get_slitmask(self, filename):
         """

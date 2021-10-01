@@ -100,7 +100,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Return
         return detector_container.DetectorContainer(**detector)
 
-    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -117,7 +117,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
             adjusted for configuration specific parameter values.
         """
-        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         headarr = self.get_headarr(scifile)
 

@@ -248,7 +248,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         return {'standard': 'dispname','bias': None, 'dark': None}
 
 
-    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -266,7 +266,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
 
         if self.get_meta_value(scifile, 'idname') == 'OsirisMOS':
             par['reduce']['findobj']['find_trim_edge'] = [1,1]

@@ -299,7 +299,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         return super().pypeit_file_keys() + ['slitwid','lampstat01']
 
-    def config_specific_par(self, scifile, inp_par=None, pypeit_file=None):
+    def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the ``PypeIt`` parameters to hard-wired values used for
         specific instrument configurations.
@@ -317,7 +317,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         # Start with instrument wide
-        par = super().config_specific_par(scifile, inp_par=inp_par, pypeit_file=pypeit_file)
+        par = super().config_specific_par(scifile, inp_par=inp_par)
     
         # Set parameters based on grating used:
         grating = self.get_meta_value(scifile, 'dispname')
