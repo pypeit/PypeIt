@@ -5,6 +5,7 @@ Main driver class for PypeIt run
 .. include:: ../include/links.rst
 
 """
+from posixpath import basename
 import time
 import os
 import copy
@@ -251,14 +252,13 @@ class PypeIt:
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self):
+    def calib_all(self, run=True):
         """
         Create calibrations for all setups
 
         This will not crash if not all of the standard set of files are not provided
-
-
         """
+        calib_dict = {}
 
         self.tstart = time.time()
 
@@ -282,7 +282,34 @@ class PypeIt:
                 # Do it
                 # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                self.caliBrate.run_the_steps()
+                # Allow skipping the run (e.g. parse_calib_id.py script)
+                if run:
+                    self.caliBrate.run_the_steps()
+
+                from pypeit import masterframe
+                import json
+                key = self.caliBrate.master_key_dict['frame']
+                calib_dict[key] = {}
+                for step in self.caliBrate.steps:
+                    print(f"step: {step}")
+                    if step in ['bpm', 'slits', 'tiltimg', 
+                                'wv_calib', 'tilts', 'flats']:
+                        continue
+                    # Prep
+                    raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
+                    masterframe_name = masterframe.construct_file_name(
+                        buildimage.frame_dict[step],
+                        self.caliBrate.master_key_dict[step], 
+                        master_dir=self.caliBrate.master_dir)
+
+                    # Add to dict
+                    if len(raw_files) > 0:
+                        calib_dict[key][step] = {}
+                        calib_dict[key][step]['master_key'] = self.caliBrate.master_key_dict[step]
+                        calib_dict[key][step]['master_name'] = os.path.basename(masterframe_name)
+                        calib_dict[key][step]['raw_files'] = [os.path.basename(ifile) for ifile in raw_files]
+            print(json.dumps(calib_dict, sort_keys=True, indent=4))
+            embed(header=utils.embed_header())
 
         # Finish
         self.print_end_time()

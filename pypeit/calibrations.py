@@ -233,7 +233,7 @@ class Calibrations:
 
         # Initialize the master key dict for this science/standard frame
         self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
-        # Initialize the master dict for input, output
+
 
     def get_arc(self):
         """

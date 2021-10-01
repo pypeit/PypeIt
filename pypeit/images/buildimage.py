@@ -184,24 +184,13 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Decorate according to the type of calibration, primarily as needed for
     # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by
     # the _init_internals method) in pypeitImage are lost here.
-    if frame_par['frametype'] == 'bias':
-        finalImage = BiasImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] == 'dark':
-        finalImage = DarkImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] == 'arc':
-        finalImage = ArcImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] == 'tilt':
-        finalImage = TiltImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] == 'trace':
-        finalImage = TraceImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] == 'align':
-        finalImage = AlignImage.from_pypeitimage(pypeitImage)
+    if frame_par['frametype'] in frame_dict.keys():
+        finalImage = frame_dict[frame_par['frametype']].from_pypeitimage(pypeitImage)
     else:
         finalImage = pypeitImage
 
     # TODO: Attempt to move all this copying into the from_pypeitimage function,
     # except for the list of files?
-
     # Internals
     finalImage.process_steps = pypeitImage.process_steps
     finalImage.files = file_list
@@ -211,3 +200,13 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Return
     return finalImage
 
+
+# Convert frame type into an Image
+frame_dict = dict(
+    bias=BiasImage,
+    dark=DarkImage,
+    arc=ArcImage,
+    tilt=TiltImage,
+    tilts=TiltImage,
+    trace=TraceImage,
+    align=AlignImage)
