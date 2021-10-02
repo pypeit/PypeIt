@@ -395,32 +395,8 @@ class Reduce:
 
         return self.global_sky, self.sobjs_obj, self.skymask
 
-    def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
-        """
-        Primary code flow for PypeIt reductions
-
-        *NOT* used by COADD2D
-
-        Args:
-            global_sky (`numpy.ndarray`_):
-                Initial global sky model
-            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
-                List of objects found during `run_objfind`
-            skymask (`numpy.ndarray`_):
-               Boolean image indicating which pixels are useful for global sky subtraction
-            ra (float, optional):
-                Required if helio-centric correction is to be applied
-            dec (float, optional):
-                Required if helio-centric correction is to be applied
-            obstime (:obj:`astropy.time.Time`, optional):
-                Required if helio-centric correction is to be applied
-
-        Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
-               tilts (`numpy.ndarray`_).
-               See main doc string for description
-
+    def prepare_extraction(self):
+        """ Prepare the masks and wavelength image for extraction.
         """
         # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
         self.reduce_bpm = (self.slits.mask > 0) & \
@@ -449,6 +425,36 @@ class Reduce:
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
+    def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
+        """
+        Primary code flow for PypeIt reductions
+
+        *NOT* used by COADD2D
+
+        Args:
+            global_sky (`numpy.ndarray`_):
+                Initial global sky model
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                List of objects found during `run_objfind`
+            skymask (`numpy.ndarray`_):
+               Boolean image indicating which pixels are useful for global sky subtraction
+            ra (float, optional):
+                Required if helio-centric correction is to be applied
+            dec (float, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+
+        Returns:
+            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
+               tilts (`numpy.ndarray`_).
+               See main doc string for description
+
+        """
+        # Start by preparing some masks and the wavelength image, ready for extraction
+        self.prepare_extraction()
+
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask, usersky = self.load_skyregions(skymask)
 
@@ -466,7 +472,7 @@ class Reduce:
         self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?
-        if self.nobj > 0 and not self.par['reduce']['extraction']['skip_extraction']:
+        if self.nobj > 0:
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:

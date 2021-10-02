@@ -63,13 +63,14 @@ you should also rename this file to match the current formatting:
 
     `mv wvcalib.fits TELESCOPE_INSTRUMENT_GRATING_WAVECEN.fits`
 
-Now, open the :func:`pypeit.core.wavecal.templates` file, and edit the `main` function at the bottom
-of this file. There are many flags already set for different instruments. If your instrument is already
-there, please use the same flag for longevity. If not, create a new flag following the same style as the
-other examples. The key information you will need is the spectral binning and the slit spatid.
+Now, open the :func:`pypeit.core.wavecal.spectrographs/templ_TELESCOPE_INSTRUMENT.py` file,
+and either add a new setup if yours doesn't already exist, or edit a setup if you want to add your solution
+to a pre-existing setup (this is only usually warranted if you are extending the wavelength coverage of
+a previous setup). The key information you will need is the spectral binning and the slit spatid.
 Both of these numbers are printed on the command line when you complete the fitting with the
 :ref:`wave_calib:pypeit_identify` utility.
-Once this is setup, simply cd into the same directory as the `templates.py` file and run `python templates.py`.
+Once this is setup, simply cd into the same directory as the `templ_TELESCOPE_INSTRUMENT.py` file and run
+`python templates.py`.
 This will automatically put your solution into the reid_arxiv. Add all of these files to git, and submit a
 PR for both PypeIt and the PypeIt Development Suite.
 
