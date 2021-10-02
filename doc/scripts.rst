@@ -80,8 +80,6 @@ pypeit_setup
 
 This setups files for data reduction.  See :doc:`setup` for details
 
-.. _run-pypeit:
-
 run_pypeit
 ==========
 

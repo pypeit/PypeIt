@@ -26,17 +26,18 @@ from pypeit import utils
 from pypeit import datamodel
 from pypeit.images import detector_container
 
-naming_model = {}
-for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
-    naming_model[skey.lower()] = skey
 
 def det_hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
 
+
 class SpecObj(datamodel.DataContainer):
-    """Class to handle object spectra from a single exposure
-    One generates one of these Objects for each spectrum in the exposure. They are instantiated by the object
-    finding routine, and then all spectral extraction information for the object are assigned as attributes
+    """
+    Class to handle object spectra from a single exposure.
+
+    One generates one of these Objects for each spectrum in the exposure. They
+    are instantiated by the object finding routine, and then all spectral
+    extraction information for the object are assigned as attributes
 
     Args:
         pypeline (str): Name of the PypeIt pypeline method
@@ -88,8 +89,8 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Mask for optimally extracted flux. True=good'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
-                 'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float,
-                                       descr='Optimally extracted RN squared (counts)'),
+                 'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
+                                            descr='Optimally extracted detector noise (counts)'),
                  'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
                                       descr='Fraction of pixels in the object profile subimage '
                                             'used for this extraction'),
@@ -120,8 +121,8 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
-                 'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float,
-                                       descr='Boxcar extracted RN squared (counts)'),
+                 'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
+                                            descr='Boxcar extracted detector noise (counts)'),
                  'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
                                       descr='Fraction of pixels in the object profile subimage '
                                             'used for this extraction'),
@@ -356,6 +357,10 @@ class SpecObj(datamodel.DataContainer):
             str:
 
         """
+        naming_model = {}
+        for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
+            naming_model[skey.lower()] = skey
+
         if 'Echelle' in self.PYPELINE:
             # ObjID
             name = naming_model['obj']
@@ -605,7 +610,6 @@ class SpecObj(datamodel.DataContainer):
                 passed = False
         #
         return passed
-                
 
     def __repr__(self):
         """ Over-ride print representation
@@ -631,5 +635,6 @@ class SpecObj(datamodel.DataContainer):
         for key in rdict.keys():
             if rdict[key] is not False:
                 repr += '{}: {}\n'.format(key, rdict[key])
-        repr = repr + '>'
-        return repr
+        return repr + '>'
+
+

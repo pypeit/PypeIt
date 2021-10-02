@@ -114,7 +114,7 @@ def test_flatimages():
 #    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
 #    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
 #    hdul = fits.HDUList([])
-#    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
+#    rawflatimg.detector = spectrograph.get_detector_par(1, hdu=hdul)
 #    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
 #                                    wavetilts=waveTilts, slits=edges.get_slits())
 #

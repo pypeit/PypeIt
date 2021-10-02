@@ -1,4 +1,8 @@
+
 import os
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit.images import buildimage
@@ -159,10 +163,12 @@ def test_overlapped_slits():
 
     # Run edge trace
     edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, debug=False,
-                         show_stages=False,qa_path=None)
+                         show_stages=False, qa_path=None)
 
     slits = edges.get_slits()
     # Check that the total number of expected slits and the number of alignment slits are correct.
     assert len(slits.maskdef_designtab['SLITID'].data) == 22, 'wrong number of slits for this detector'
     assert np.sum(slits.maskdef_designtab['ALIGN'].data) == 3, 'wrong number of alignment slits'
     # These number have been verified by visual inspection.
+
+

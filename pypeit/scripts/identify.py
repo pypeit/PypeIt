@@ -92,9 +92,10 @@ class Identify(scriptbase.ScriptBase):
         wv_calib = waveio.load_wavelength_calibration(solnname) \
                         if os.path.exists(solnname) and args.solution else None
 
-        # Load the MasterFrame (if it exists and is desired)?
+        # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
+        # set to any flagged pixel in MasterArc.
         wavecal = BuildWaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
-                            master_key=mkey, msbpm=msarc.fullmask)
+                                 master_key=mkey, msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window

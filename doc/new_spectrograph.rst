@@ -1,4 +1,8 @@
 
+.. Where do we specify the pypeit image orientation convention, etc?  I want to
+   specify somewhere that the exposure time needs to be in seconds.  Do we
+   something like a "PypeIt Conventions" doc?
+
 .. _new_spec:
 
 ****************
