@@ -75,8 +75,9 @@ to select the ``PyQT5`` QT bindings or
 
 to select ``PySide2``; see :ref:`interactive`.
 
-If you are generating datacubes (and performing an astrometric correction), you will also need the `scikit-image`_ package. It can be installed by
-including it in the optional dependencies, e.g.:
+If you are generating datacubes (and performing an astrometric correction), you
+will also need the `scikit-image`_ package. It can be installed by including it
+in the optional dependencies, e.g.:
 
 .. code-block:: console
 

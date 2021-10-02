@@ -223,25 +223,26 @@ class CoAdd2D:
 
     def coadd(self, only_slits=None, interp_dspat=True):
         """
-        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs. This method calls loops over
-        slits/orders and performs the 2d-coadd by calling coadd.compute.coadd2d, which 'rectifies' images by
-        coadding them about the reference_trace_stack.
-
+        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
+        This method calls loops over slits/orders and performs the 2d-coadd by
+        calling coadd.compute.coadd2d, which 'rectifies' images by coadding them
+        about the reference_trace_stack.
 
         Parameters
         ----------
-        only_slits (list, optional):
-           List of slits to operate on. Not currently supported, i.e. the code can currently only stack everything
-           because the slit/reduction bitmask checking is not yet implemented. Default = None
-        interp_dspat (bool, optional):
-           Interpolate in the spatial coordinate image to faciliate running through core.extract.local_skysub_extract.
-           Default=True
+        only_slits : list, optional
+           List of slits to operate on. Not currently supported, i.e. the code
+           can currently only stack everything because the slit/reduction
+           bitmask checking is not yet implemented. Default = None
+        interp_dspat : bool, optional
+           Interpolate in the spatial coordinate image to faciliate running
+           through core.extract.local_skysub_extract.  Default=True
 
         Returns
         -------
-           coadd_list (list):
-               List of dictionaries, one for each slit, containing the 2d stack.
-               # TODO Make this a PypeIt object, with data model yada-yada.
+        coadd_list : list
+            List of dictionaries, one for each slit, containing the 2d stack.
+            # TODO Make this a PypeIt object, with data model yada-yada.
 
         """
 
@@ -460,7 +461,9 @@ class CoAdd2D:
         redux.reduce_bpm = reduce_bpm
 
         if show:
-            redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
+            gpm = sciImage.select_flag(invert=True)
+            redux.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
+                       chname='imgminsky', slits=True, clear=True)
 
         # TODO:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
@@ -472,9 +475,10 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs = redux.local_skysub_extract(
-            global_sky_pseudo, sobjs_obj, spat_pix=pseudo_dict['spat_img'], model_noise=False,
-            show_profile=show, show=show)
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs \
+                = redux.local_skysub_extract(global_sky_pseudo, sobjs_obj,
+                                             spat_pix=pseudo_dict['spat_img'], model_noise=False,
+                                             show_profile=show, show=show)
 
         if self.find_negative:
             sobjs.purge_neg()

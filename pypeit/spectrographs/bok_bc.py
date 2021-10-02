@@ -120,22 +120,25 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         return super().pypeit_file_keys() + ['slitwid']
 
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None \
+                    else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -171,9 +174,12 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         par = super().default_pypeit_par()
 
         # Turn off illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        # TODO: Note this comment doesn't match up with what's actually done...
+        # Require dark images to be subtracted from the flat images used for
+        # tracing, pixelflats, and illumflats
         par['calibrations']['traceframe']['process']['use_darkimage'] = False
         par['calibrations']['pixelflatframe']['process']['use_darkimage'] = False
         par['calibrations']['illumflatframe']['process']['use_darkimage'] = False
