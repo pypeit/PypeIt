@@ -31,18 +31,18 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
+def arc_fit_qa(waveFit_all, slitindex, outfile=None, ids_only=False, titles=None,
                log=True):
     """
     QA for Arc spectrum
 
     Args:
-        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
+        waveFit_all (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`): Wavelength solutions for all the slits
+        slitindex(`numpy.ndarray`_): Index of good slits
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
-        ids_only (bool, optional):
-        title (:obj:`str`, optional):
-        log (:obj:`bool`, optional):
-            If True, use log scaling for the spectrum
+        ids_only (bool, optional): Plot only the arc spectrum with the identified lines
+        titles (`numpy.ndarray`_, optional): Title to print for each slit
+        log (:obj:`bool`, optional): If True, use log scaling for the spectrum
 
     Returns:
 
@@ -50,137 +50,144 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
 
-    arc_spec = waveFit['spec']
+    with PdfPages(outfile) as pdf:
+        for idx in slitindex:
+            waveFit = waveFit_all[idx]
+            title = titles[idx]
+            arc_spec = waveFit['spec']
 
-    # Begin
-    plt.close('all')
-    if ids_only:
-        nrows, ncols = 1,1
-        figsize =(11,8.5)
-        idfont = 'small'
-    else:
-        nrows, ncols = 2,2
-        if outfile is None:
-            figsize = (16,8)
-            idfont = 'small'
-        else:
-            figsize = (8,4)
-            idfont = 'xx-small'
-    fig = plt.figure(figsize=figsize)
-    gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
+            # Begin
+            plt.close('all')
+            if ids_only:
+                nrows, ncols = 1,1
+                figsize =(11,8.5)
+                idfont = 'small'
+            else:
+                nrows, ncols = 2,2
+                if outfile is None:
+                    figsize = (16,8)
+                    idfont = 'small'
+                else:
+                    figsize = (8,4)
+                    idfont = 'xx-small'
+            fig = plt.figure(figsize=figsize)
+            gs = gridspec.GridSpec(nrows,ncols)#, figure = fig)
 
 
-    # Simple spectrum plot
-    ax_spec = plt.subplot(gs[:,0])
-    ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
-    ymin, ymax = np.min(arc_spec), np.max(arc_spec)
-    if log:
-        ymax *= 4
-        ymin = max(1., ymin)
-    ysep = ymax*0.03
-    yscl = (1.2, 1.5, 1.7)
+            # Simple spectrum plot
+            ax_spec = plt.subplot(gs[:,0])
+            ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
+            ymin, ymax = np.min(arc_spec), np.max(arc_spec)
+            if log:
+                ymax *= 4
+                ymin = max(1., ymin)
+            ysep = ymax*0.03
+            yscl = (1.2, 1.5, 1.7)
 
-    # Label all found lines
-    for kk, x in enumerate(waveFit.tcent):
-        ind_left = np.fmax(int(x)-2, 0)
-        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
-        yline = np.max(arc_spec[ind_left:ind_righ])
-        # Tick mark
-        if log:
-            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], '-', color='gray')
-        else:
-            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
+            # Label all found lines
+            for kk, x in enumerate(waveFit.tcent):
+                ind_left = np.fmax(int(x)-2, 0)
+                ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+                yline = np.max(arc_spec[ind_left:ind_righ])
+                # Tick mark
+                if log:
+                    ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], '-', color='gray')
+                else:
+                    ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], '-', color='gray')
 
-    # Label the ID'd lines
-    for kk, x in enumerate(waveFit.pixel_fit):
-        ind_left = np.fmax(int(x)-2, 0)
-        ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
-        yline = np.max(arc_spec[ind_left:ind_righ])
-        # Tick mark
-        if log:
-            ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], 'g-')
-        else:
-            ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
-        # label
-        if log:
-            ypos = yline*yscl[2]
-        else:
-            ypos = yline+ysep*1.3
-        ax_spec.text(x, ypos, '{:s} {:g}'.format(waveFit.ions[kk],
-                                                          waveFit.wave_fit[kk]),
-                     ha='center', va='bottom',size=idfont,
-                     rotation=90., color='green')
+            # Label the ID'd lines
+            for kk, x in enumerate(waveFit.pixel_fit):
+                ind_left = np.fmax(int(x)-2, 0)
+                ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
+                yline = np.max(arc_spec[ind_left:ind_righ])
+                # Tick mark
+                if log:
+                    ax_spec.plot([x,x], [yline*yscl[0], yline*yscl[1]], 'g-')
+                else:
+                    ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
+                # label
+                if log:
+                    ypos = yline*yscl[2]
+                else:
+                    ypos = yline+ysep*1.3
+                ax_spec.text(x, ypos, '{:s} {:g}'.format(waveFit.ions[kk],
+                                                                  waveFit.wave_fit[kk]),
+                             ha='center', va='bottom',size=idfont,
+                             rotation=90., color='green')
 
-    # Axes
-    ax_spec.set_xlim(0., len(arc_spec))
-    if not log:
-        ax_spec.set_ylim(1.05*ymin, ymax*1.2)
-    else:
-        ax_spec.set_ylim(ymin, ymax)
-    ax_spec.set_xlabel('Pixel')
-    ax_spec.set_ylabel('Flux')
-    if log:
-        ax_spec.set_yscale('log')
+            # Axes
+            ax_spec.set_xlim(0., len(arc_spec))
+            if not log:
+                ax_spec.set_ylim(1.05*ymin, ymax*1.2)
+            else:
+                ax_spec.set_ylim(ymin, ymax)
+            ax_spec.set_xlabel('Pixel')
+            ax_spec.set_ylabel('Flux')
+            if log:
+                ax_spec.set_yscale('log')
 
-    # Title
-    if title is not None:
-        ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
-                     size='x-large', ha='left')#, bbox={'facecolor':'white'})
-    if ids_only:
-        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-        if outfile is None:
-            plt.show()
-        else:
-            plt.savefig(outfile, dpi=800)
-        plt.close()
-        return
+            # Title
+            if title is not None:
+                ax_spec.text(0.04, 0.93, title, transform=ax_spec.transAxes,
+                             size='x-large', ha='left')#, bbox={'facecolor':'white'})
+            if ids_only:
+                plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+                if outfile is None:
+                    plt.show()
+                else:
+                    # plt.savefig(outfile, dpi=800)
+                    pdf.savefig()
+                plt.close()
+                return
 
-    # Arc Fit
-    ax_fit = plt.subplot(gs[0, 1])
-    # Points
-    ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
-    # Rejections?
-    gpm = waveFit.pypeitfit.bool_gpm
-    bpm = np.logical_not(gpm)
-    if np.any(bpm):
-        xrej = waveFit.pixel_fit[bpm]
-        yrej = waveFit.wave_fit[bpm]
-        ax_fit.scatter(xrej, yrej, marker='o', edgecolor='gray', facecolor='none')
-    # Solution
-    xval = np.arange(len(arc_spec))
-    ax_fit.plot(xval, waveFit.wave_soln, 'r-')
-    xmin, xmax = 0., len(arc_spec)
-    ax_fit.set_xlim(xmin, xmax)
-    ymin,ymax = np.min(waveFit.wave_soln)*.95,  np.max(waveFit.wave_soln)*1.05
-    ax_fit.set_ylim((ymin, ymax))
-    ax_fit.set_ylabel('Wavelength')
-    ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+            # Arc Fit
+            ax_fit = plt.subplot(gs[0, 1])
+            # Points
+            ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
+            # Rejections?
+            gpm = waveFit.pypeitfit.bool_gpm
+            bpm = np.logical_not(gpm)
+            if np.any(bpm):
+                xrej = waveFit.pixel_fit[bpm]
+                yrej = waveFit.wave_fit[bpm]
+                ax_fit.scatter(xrej, yrej, marker='o', edgecolor='gray', facecolor='none')
+            # Solution
+            xval = np.arange(len(arc_spec))
+            ax_fit.plot(xval, waveFit.wave_soln, 'r-')
+            xmin, xmax = 0., len(arc_spec)
+            ax_fit.set_xlim(xmin, xmax)
+            ymin,ymax = np.min(waveFit.wave_soln)*.95,  np.max(waveFit.wave_soln)*1.05
+            ax_fit.set_ylim((ymin, ymax))
+            ax_fit.set_ylabel('Wavelength')
+            ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
 
-    # Stats
-    wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    rms = np.sqrt(np.sum((waveFit.wave_fit[gpm]-wave_soln_fit[gpm])**2)/len(waveFit.pixel_fit[gpm])) # Ang
-    dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
-    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
-    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
-    # Arc Residuals
-    ax_res = plt.subplot(gs[1,1])
-    res = waveFit.wave_fit-wave_soln_fit
-    ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/dwv_pix, marker='x')
-    ax_res.plot([xmin,xmax], [0.,0], 'k--')
-    ax_res.set_xlim(xmin, xmax)
-    ax_res.set_xlabel('Pixel')
-    ax_res.set_ylabel('Residuals (Pix)')
+            # Stats
+            wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+            # DP: Adjusted rms here because sometimes does not exactly matches the value that we record in
+            # sobj.WAVE_RMS, which is self.caliBrate.wv_calib.wv_fits[iwv].rms
+            #rms = np.sqrt(np.sum((waveFit.wave_fit[gpm]-wave_soln_fit[gpm])**2)/len(waveFit.pixel_fit[gpm])) # Ang
+            #dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
+            ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small')
+            ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small')
+            # Arc Residuals
+            ax_res = plt.subplot(gs[1,1])
+            res = waveFit.wave_fit-wave_soln_fit
+            ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
+            ax_res.plot([xmin,xmax], [0.,0], 'k--')
+            ax_res.set_xlim(xmin, xmax)
+            ax_res.set_xlabel('Pixel')
+            ax_res.set_ylabel('Residuals (Pix)')
 
-    # Finish
-    plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
-    if outfile is None:
-        plt.show()
-    else:
-        plt.savefig(outfile, dpi=400)
-    plt.close('all')
+            # Finish
+            plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+            if outfile is None:
+                plt.show()
+            else:
+                # plt.savefig(outfile, dpi=400)
+                pdf.savefig()
+            plt.close('all')
 
     plt.rcdefaults()
-
 
     return
 
