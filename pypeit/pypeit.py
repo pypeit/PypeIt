@@ -7,8 +7,14 @@ Main driver class for PypeIt run
 """
 import time
 import os
-import numpy as np
 import copy
+
+from IPython import embed
+
+import numpy as np
+
+from configobj import ConfigObj
+
 from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time
@@ -25,15 +31,12 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
 from pypeit import utils
 from pypeit.history import History
-
-from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 
-from IPython import embed
 
-class PypeIt(object):
+class PypeIt:
     """
     This class runs the primary calibration and extraction in PypeIt
 
@@ -74,8 +77,6 @@ class PypeIt(object):
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-#    __metaclass__ = ABCMeta
-
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
@@ -270,7 +271,7 @@ class PypeIt(object):
 
             # Find the detectors to reduce
             detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                            ndet=self.spectrograph.ndet)
+                                                ndet=self.spectrograph.ndet)
             # Loop on Detectors
             for self.det in detectors:
                 # Instantiate Calibrations class
@@ -279,6 +280,7 @@ class PypeIt(object):
                     self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
                     show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
                 # Do it
+                # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
                 self.caliBrate.run_the_steps()
 
@@ -387,18 +389,23 @@ class PypeIt(object):
 
         Args:
             detnum (:obj:`int`, :obj:`list`, optional):
-                One or more detectors to reduce.  If None, return the
-                full list for the provided number of detectors (`ndet`).
+                One or more detectors to reduce.  If None, return the full list
+                for the provided number of detectors (``ndet``).  Should be None
+                if ``slitspatnum`` is provided.
             ndet (:obj:`int`, optional):
                 The number of detectors for this instrument.  Only used
-                if `detnum is None`.
+                if ``detnum`` is None.
+            slitspatnum (:obj:`str`, optional):
+                A standard format string used to identify a slit by its detector
+                number and spatial pixel.  Should be None if ``detnum`` is
+                provided.
 
         Returns:
-            list:  List of detectors to be reduced
-
+            :obj:`list`: List of detectors to be reduced.
         """
         if detnum is not None and slitspatnum is not None:
-            msgs.error("You cannot specify both detnum and slitspatnum.  Too painful for over-writing SpecObjs")
+            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
+                       'over-writing SpecObjs.')
         if detnum is None and slitspatnum is None:
             return np.arange(1, ndet+1).tolist()
         elif detnum is not None:
@@ -406,6 +413,7 @@ class PypeIt(object):
         else:
             return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
+    # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure

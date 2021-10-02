@@ -337,10 +337,10 @@ class Spectrograph:
         if self.raw_is_transposed(detector_par):
             image = image.T
         # Flip spectral axis?
-        if detector_par['specflip'] is True:
+        if detector_par['specflip']:
             image = np.flip(image, axis=0)
         # Flip spatial axis?
-        if detector_par['spatflip'] is True:
+        if detector_par['spatflip']:
             image = np.flip(image, axis=1)
         return image
 
@@ -356,6 +356,9 @@ class Spectrograph:
         shape (``filename``) *must* be provided. In the latter, the file is
         read, trimmed, and re-oriented to get the output shape. If both
         ``shape`` and ``filename`` are provided, ``shape`` is ignored.
+
+        This is the generic function provided in the base class meaning that all
+        pixels are returned as being valid/unmasked.
 
         Args:
             filename (:obj:`str`):
@@ -373,12 +376,17 @@ class Spectrograph:
                 ``filename`` is None, but ignored otherwise.
 
         Returns:
-            `numpy.ndarray`_: An integer array with a masked value set to 1
-            and an unmasked value set to 0. The shape of the returned image
-            should be that of the ``PypeIt`` processed image. This is the
-            generic method for the base class, meaning that all pixels are
-            returned as unmasked (0s).
+            `numpy.ndarray`_: An integer array with a masked value set to 1 and
+            an unmasked value set to 0. The shape of the returned image should
+            be that of a trimmed and oriented ``PypeIt`` processed image. This
+            function specifically is the generic method for the base class,
+            meaning that all pixels are returned as unmasked (0s).
         """
+        # TODO: I think shape should take precedence over filename, not the
+        # other way around.  I.e., if we know the shape we want going in, why
+        # are we still defaulting to reading, trimming, and re-orienting an
+        # input image just to figure out that shape?
+
         # Load the raw frame
         if filename is None:
             _shape = shape
@@ -458,12 +466,8 @@ class Spectrograph:
         """
         # Generate an empty BPM first
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-
         # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            bpm_img = self.bpm_frombias(msbias, det, bpm_img)
-
-        return bpm_img
+        return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
 
     def get_slitmask(self, filename):
         """
@@ -610,7 +614,7 @@ class Spectrograph:
             print('{0}   {1}'.format(key.rjust(nk), card.rjust(nc)))
         print('')
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Read/Set the detector metadata.
 
@@ -641,7 +645,7 @@ class Spectrograph:
         hdu : `astropy.io.fits.HDUList`_
             Opened fits file
         exptime : :obj:`float`
-            Exposure time read from the file header
+            Exposure time *in seconds*.
         rawdatasec_img : `numpy.ndarray`_
             Data (Science) section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
@@ -655,7 +659,7 @@ class Spectrograph:
         hdu = io.fits_open(raw_file)
 
         # Grab the DetectorContainer
-        detector = self.get_detector_par(hdu, det)
+        detector = self.get_detector_par(det, hdu=hdu)
 
         # Raw image
         raw_img = hdu[detector['dataext']].data.astype(float)
@@ -671,7 +675,8 @@ class Spectrograph:
         # Extras
         headarr = self.get_headarr(hdu)
 
-        # Exposure time (used by ProcessRawImage)
+        # Exposure time (used by RawImage)
+        # NOTE: This *must* be (converted to) seconds.
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # Rawdatasec, oscansec images

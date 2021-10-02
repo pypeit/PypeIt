@@ -118,22 +118,36 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            NOT/EFOSC2.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if hdu is None:
+            binning = '1,1'
+            datasec = None
+            oscansec = None
+        else:
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            datasec = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'datasec'))
+            oscansec = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'oscansec'))
         
         # Manual: https://www.eso.org/sci/facilities/lasilla/instruments/efosc/doc/manual/EFOSC2manual_v4.2.pdf
         # Instrument paper: http://articles.adsabs.harvard.edu/pdf/1984Msngr..38....9B
@@ -152,8 +166,8 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.91), # See fits header ['HIERARCH ESO DET OUT1 GAIN']
             ronoise         = np.atleast_1d(10.0), # manual page 108
-            datasec         = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'datasec')),
-            oscansec         = np.atleast_1d(self.get_meta_value(self.get_headarr(hdu), 'oscansec')),
+            datasec         = datasec,
+            oscansec         = oscansec,
             #suffix          = '_Thor',
         )
         return detector_container.DetectorContainer(**detector_dict)
@@ -243,8 +257,9 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'Gr#5':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ntt_efosc2_Gr5.fits'
             # Fringes are affecting this Grism significantly, skip flat fielding
-            par['scienceframe']['process']['use_illumflat'] = False
             par['scienceframe']['process']['use_pixelflat'] = False
+            par['scienceframe']['process']['use_illumflat'] = False
+            par['scienceframe']['process']['use_specillum'] = False
 
         return par
 
