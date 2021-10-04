@@ -237,8 +237,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
+            # Allow for dome or internal
+            good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
+            good_internal = self.lamps(fitstbl, 'halogen') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
+            return good_exp & (good_dome + good_internal)
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -271,17 +274,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             # Check if all are off
             return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
                                         for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
+        elif status == 'arcs':
             # Check if any arc lamps are on
             arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
+        elif status == 'dome':
             # Check if any dome lamps are on
             # Warning 9, 10 are FEARGON and DEUTERI
             dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
+        elif status == 'halogen':
+            return fitstbl['lampstat12'] == 'on'
+        else:
+            msgs.error(f"Bad status option! {status}")
+
         raise ValueError('No implementation for status = {0}'.format(status))
 
     def get_rawimage(self, raw_file, det):
@@ -830,7 +838,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     name = 'keck_lris_red'
     camera = 'LRISr'
     supported = True
-    comment = 'Red camera; see :doc:`lris`'
+    comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -1108,6 +1116,79 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             bpm_img[:,-10:] = 1
 
         return bpm_img
+
+
+
+class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
+    """
+    Child to handle the original LRISr detector (pre 01 JUL 2009)
+    """
+    ndet = 1
+    name = 'keck_lris_red_mark4'
+    camera = 'LRISr'
+    supported = True
+    comment = 'New Mark4 detector, circa Spring 2021'
+
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Binning
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning=binning,
+            det=1,
+            dataext=1,
+            specaxis=0,
+            specflip=False,  
+            spatflip=False,
+            platescale=0.135,
+            darkcurr=0.0,
+            saturation=65535.,
+            nonlinear=0.76,
+            mincounts=-1e10,
+            numamplifiers=2,  # These are defaults but can modify below
+            gain=np.atleast_1d([1.71, 1.61]),
+            ronoise=np.atleast_1d([4.42, 4.41]),
+        )
+
+        if hdu is None:
+            return detector
+
+        # Deal with number of amps
+        namps = hdu[0].header['NUMAMPS']
+        # The website does not give values for single amp per detector so we take the mean
+        #   of the values provided
+        if namps == 2: 
+            pass
+        elif namps == 4:
+            msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
+            msgs.warn("CONFIRM THE FOLLOWING!!")
+            detector_dict1['gain'] = np.atleast_1d([1.71, 1.68, 1.61, 1.72])
+            detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24, 4.41, 4.68])
+            embed(header='1173 of keck_lris')
+        else:
+            msgs.error("Did not see this namps coming..")
+
+        # Instantiate
+        detector = detector_container.DetectorContainer(**detector_dict1)
+
+        # Return
+        return detector
 
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
