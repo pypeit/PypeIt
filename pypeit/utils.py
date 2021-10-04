@@ -10,6 +10,8 @@ import inspect
 import pickle
 import warnings
 import itertools
+from glob import glob
+from typing import List
 
 from IPython import embed
 
@@ -27,6 +29,55 @@ from astropy import stats
 
 from pypeit.core import pydl
 from pypeit import msgs
+
+
+def get_time_string(codetime):
+    """
+    Utility function that takes the codetime and
+    converts this to a human readable String.
+
+    Args:
+        codetime (`float`):
+            Code execution time in seconds (usually the difference of two time.time() calls)
+
+    Returns:
+        `str`: A string indicating the total execution time
+    """
+    if codetime < 60.0:
+        retstr = 'Execution time: {0:.2f}s'.format(codetime)
+    elif codetime / 60.0 < 60.0:
+        mns = int(codetime / 60.0)
+        scs = codetime - 60.0 * mns
+        retstr = 'Execution time: {0:d}m {1:.2f}s'.format(mns, scs)
+    else:
+        hrs = int(codetime / 3600.0)
+        mns = int(60.0 * (codetime / 3600.0 - hrs))
+        scs = codetime - 60.0 * mns - 3600.0 * hrs
+        retstr = 'Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs)
+    return retstr
+
+
+def all_subclasses(cls):
+    """
+    Collect all the subclasses of the provided class.
+
+    The search follows the inheritance to the highest-level class.  Intermediate
+    base classes are included in the returned set, but not the base class itself.
+
+    Thanks to:
+    https://stackoverflow.com/questions/3862310/how-to-find-all-the-subclasses-of-a-class-given-its-name
+
+    Args:
+        cls (object):
+            The base class
+
+    Returns:
+        :obj:`set`: The unique set of derived classes, including any
+        intermediate base classes in the inheritance thread.
+    """
+    return set(cls.__subclasses__()).union(
+            [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
 
 def embed_header():
     """
@@ -48,6 +99,7 @@ def embed_header():
     """
     info = inspect.getframeinfo(inspect.stack()[1][0])
     return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
+
 
 # Pulled from `pypeit.par.ParSet`. Maybe move these to
 # doc/scripts/util.py?
@@ -82,7 +134,7 @@ def to_string(data, use_repr=True, verbatim=False):
     return data.__repr__() if use_repr else str(data)
 
 
-def string_table(tbl, delimeter='print'):
+def string_table(tbl, delimeter='print', has_header=True):
     """
     Provided the array of data, format it with equally spaced columns
     and add a header (first row) and contents delimeter.
@@ -91,76 +143,102 @@ def string_table(tbl, delimeter='print'):
         tbl (`numpy.ndarray`_):
             Array of string representations of the data to print.
         delimeter (:obj:`str`, optional):
-            Delimeter between first table row, which should contain
-            the column headings, and the column data. Use ``'print'``
-            for a simple line of hyphens, anything else results in an
-            ``rst`` style table formatting.
+            If the first row in the table containts the column headers (see
+            ``has_header``), this sets the delimeter between first table row and
+            the column data. Use ``'print'`` for a simple line of hyphens,
+            anything else results in an ``rst`` style table formatting.
+        has_header (:obj:`bool`, optional):
+            The first row in ``tbl`` contains the column headers.
 
     Returns:
         :obj:`str`: Single long string with the data table.
     """
     nrows, ncols = tbl.shape
     col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
-    row_string = ['']*(nrows+1) if delimeter == 'print' else ['']*(nrows+3)
-    start = 2 if delimeter == 'print' else 3
+
+    _nrows = nrows
+    start = 1
+    if delimeter != 'print':
+        _nrows += 2
+        start += 1
+    if has_header:
+        _nrows += 1
+        start += 1
+
+    row_string = ['']*_nrows
+
     for i in range(start,nrows+start-1):
         row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
     if delimeter == 'print':
         # Heading row
         row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
         # Delimiter
-        row_string[1] = '-'*len(row_string[0])
+        if has_header:
+            row_string[1] = '-'*len(row_string[0])
         return '\n'.join(row_string)+'\n'
 
     # For an rst table
     row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
     row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
-    row_string[2] = row_string[0]
+    if has_header:
+        row_string[2] = row_string[0]
     row_string[-1] = row_string[0]
     return '\n'.join(row_string)+'\n'
 
 
-def spec_atleast_2d(wave, flux, ivar, mask):
+def spec_atleast_2d(wave, flux, ivar, gpm, copy=False):
     """
-    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+    Force spectral arrays to be 2D.
 
+    Input and output spectra are ordered along columns; i.e., the flux vector
+    for the first spectrum is in ``flux[:,0]``.
+    
     Args:
         wave (`numpy.ndarray`_):
-            Wavelength array
+            Wavelength array. Must be 1D if the other arrays are 1D. If 1D
+            and the other arrays are 2D, the wavelength vector is assumed to
+            be the same for all spectra.
         flux (`numpy.ndarray`_):
-            Flux array
+            Flux array.  Can be 1D or 2D.
         ivar (`numpy.ndarray`_):
-            Inverse variance array
-        mask (`numpy.ndarray`_, bool):
-            Good pixel mask True=Good.
+            Inverse variance array for the flux.  Shape must match ``flux``.
+        gpm (`numpy.ndarray`_):
+            Good pixel mask (i.e., True=Good). Shape must match ``flux``.
+        copy (:obj:`bool`, optional):
+            If the flux, inverse variance, and gpm arrays are already 2D on
+            input, the function just returns the input arrays. This flag
+            forces the returned arrays to be copies instead.
 
     Returns:
-        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+        :obj:`tuple`: Returns 6 objects. The first four are the reshaped
+        wavelength, flux, inverse variance, and gpm arrays. The next two
+        give the length of each spectrum and the total number of spectra;
+        i.e., the last two elements are identical to the shape of the
+        returned flux array.
 
-            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
-            with nspec, and norders = total number of orders, detectors, or exposures
-
-
+    Raises:
+        PypeItError:
+            Raised if the shape of the input objects are not appropriately
+            matched.
     """
-    # Repackage the data into arrays of shape (nspec, norders)
-    if flux.ndim == 1:
-        nspec = flux.size
-        norders = 1
-        wave_arr = wave.reshape(nspec, 1)
-        flux_arr = flux.reshape(nspec, 1)
-        ivar_arr = ivar.reshape(nspec, 1)
-        mask_arr = mask.reshape(nspec, 1)
-    else:
-        nspec, norders = flux.shape
-        if wave.ndim == 1:
-            wave_arr = np.tile(wave, (norders, 1)).T
-        else:
-            wave_arr = wave
-        flux_arr = flux
-        ivar_arr = ivar
-        mask_arr = mask
+    # Check the input
+    if wave.shape[0] != flux.shape[0] or ivar.shape != flux.shape or gpm.shape != flux.shape \
+            or wave.ndim == 2 and wave.shape != flux.shape:
+        msgs.error('Input spectral arrays have mismatching shapes.')
 
-    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+    if flux.ndim == 1:
+        # Input flux is 1D
+        # NOTE: These reshape calls return copies of the arrays
+        return wave.reshape(-1, 1), flux.reshape(-1, 1), ivar.reshape(-1, 1), \
+                    gpm.reshape(-1, 1), flux.size, 1
+
+    # Input is 2D
+    nspec, norders = flux.shape
+    _wave = np.tile(wave, (norders, 1)).T if wave.ndim == 1 else (wave.copy() if copy else wave)
+    _flux = flux.copy() if copy else flux
+    _ivar = ivar.copy() if copy else ivar
+    _gpm = gpm.copy() if copy else gpm
+    return _wave, _flux, _ivar, _gpm, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
@@ -609,45 +687,50 @@ def cross_correlate(x, y, maxlag):
     return lags, T.dot(px)
 
 
-
-def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
+def clip_ivar(flux, ivar, sn_clip, gpm=None, verbose=False):
     """
+    Add an error floor the the inverse variance array.
 
-    This adds an error floor to the ivar, preventing too much rejection
-    at high-S/N (i.e. standard stars, bright objects)
+    This is primarily to prevent too much rejection at high-S/N (i.e.
+    standard stars, bright objects).
 
     Args:
-        flux (ndarray):
-            flux array
-        ivar (ndarray):
-            ivar array
-        sn_clip (float):
-            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
-            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
-            level greater than the formal S/N due to systematics.
-
-        mask (ndarray, bool): mask array, True=good
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        sn_clip (:obj:`float`):
+            This sets the small erorr that is added to the input ``ivar``
+            such that the output inverse variance will never give S/N greater
+            than ``sn_clip``. This prevents overly aggressive rejection in
+            high S/N spectra, which nevertheless differ at a level greater
+            than the formal S/N due to systematics. If None, the input
+            inverse variance array is simply returned.
+        gpm (`numpy.ndarray`_, optional):
+            Good-pixel mask for the input fluxes.
+        verbose (:obj:`bool`, optional):
+            Write status messages to the terminal.
 
     Returns:
-         ndarray: new ivar array
+         `numpy.ndarray`_: The new inverse variance matrix that yields a S/N
+         upper limit.
     """
     if sn_clip is None:
         return ivar
-    else:
-        if mask is None:
-            mask = (ivar > 0.0)
-        adderr = 1.0/sn_clip
-        gmask = (ivar > 0) & mask
-        ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
-        ivar_out = np.minimum(ivar, ivar_cap)
-        if verbose:
-            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
-        return ivar_out
+
+    if verbose:
+        msgs.info('Inflating errors to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+
+    _gpm = ivar > 0.
+    if gpm is not None:
+        _gpm &= gpm
+    adderr = 1.0/sn_clip
+    ivar_cap = _gpm/(1.0/(ivar + np.logical_not(_gpm)) + adderr**2*(np.abs(flux))**2)
+    return np.minimum(ivar, ivar_cap)
 
 
 def inverse(array):
     """
-
     Calculate and return the inverse of the input array, enforcing
     positivity and setting values <= 0 to zero.  The input array should
     be a quantity expected to always be positive, like a variance or an
@@ -658,11 +741,11 @@ def inverse(array):
     is returned.
 
     Args:
-        a (np.ndarray):
+        array (`numpy.ndarray`_):
+            Array to invert
 
     Returns:
-        np.ndarray:
-
+        `numpy.ndarray`_: Result of controlled ``1/array`` calculation.
     """
     return (array > 0.0)/(np.abs(array) + (array == 0.0))
 
@@ -787,12 +870,7 @@ def polyval2d(x, y, m):
     return z
 
 
-
-
-
-
-
-
+'''
 def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
                    function="polynomial", initialmask=None, forceimask=False,
                    minx=None, maxx=None, guesses=None, bspline_par=None, verbose=True):
@@ -866,6 +944,7 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
         wfit = None
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
+'''
 
 
 def subsample(frame):
@@ -1021,6 +1100,7 @@ def load_pickle(fname):
     msgs.info('Loading file: {0:s}'.format(fname))
     with open(fname, 'rb') as f:
         return pickle.load(f)
+
 
 ##
 ##This code was originally published by the following individuals for use with
@@ -1273,3 +1353,51 @@ def is_float(s):
         return False
 
     return True
+
+def find_single_file(file_pattern):
+    """Find a single file matching a wildcard pattern.
+
+    Args:
+        file_pattern (str): A filename pattern, see the python 'glob' module.
+
+    Returns:
+        str: A file name, or None if no filename was found. This will give a warning
+             if multiple files are found and return the first one.
+    """
+
+    files = glob(file_pattern)
+    if len(files) == 1:
+        return files[0]
+    elif len(files) == 0:
+        return None
+    else:
+        msgs.warn(f'Found multiple files matching {file_pattern}; using the first one.')
+        return files[0]
+
+def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
+    """
+    Depth-First Search of graph given by matrix `adj` starting from `v`.
+    Updates `visited` and `group`.
+
+    Args:
+        v (int): initial vertex
+        visited (List[bool]): List keeping track of which vertices have been
+            visited at any point in traversing the graph. `visited[i]` is True
+            iff vertix `i` has been visited before.
+        group (List[int]): List keeping track of which vertices have been
+            visited in THIS CALL of DFS. After DFS returns, `group` contains
+            all members of the connected component containing v. `i in group`
+            is True iff vertex `i` has been visited in THIS CALL of DFS.
+        adj (np.ndarray): Adjacency matrix description of the graph. `adj[i,j]`
+            is True iff there is a vertex between `i` and `j`.
+    """
+    stack = []
+    stack.append(v)
+    while stack:
+        u = stack.pop()
+        if not visited[u]:
+            visited[u] = True
+            group.append(u)
+            neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
+            for neighbor in neighbors:
+                stack.append(neighbor)

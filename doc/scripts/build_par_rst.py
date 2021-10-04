@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 Dynamically build the rst documentation of the pypeit parameters.
 """

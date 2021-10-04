@@ -214,7 +214,7 @@ class PypeItSetup:
         if not os.path.isdir(output_path):
             os.makedirs(output_path)
         # Set the output file name
-        date = str(datetime.date.today().strftime('%Y-%b-%d'))
+        date = str(datetime.date.today().strftime('%Y-%m-%d'))
         pypeit_file = os.path.join(output_path, '{0}_{1}.pypeit'.format(spectrograph, date))
         msgs.info('A vanilla pypeit file will be written to: {0}'.format(pypeit_file))
         
@@ -279,7 +279,8 @@ class PypeItSetup:
             :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, files=self.file_list,
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, 
+                                      files=self.file_list,
                                       usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
@@ -315,8 +316,10 @@ class PypeItSetup:
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
-    def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
-            clean_config=True, groupings=True, obslog=False, write_files=True):
+    def run(self, setup_only=False, calibration_check=False, 
+            sort_dir=None, write_bkg_pairs=False,
+            clean_config=True, groupings=True, obslog=False, 
+            write_files=True):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -346,6 +349,7 @@ class PypeItSetup:
                 success of the setup and how to proceed, and provides
                 warnings (instead of errors) for issues that may
                 cause the reduction itself to fail.
+                If True, this also allows for bad headers.
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are
                 appropriately setup and exist on disk. ``PypeIt`` is

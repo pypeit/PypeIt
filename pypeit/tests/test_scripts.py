@@ -2,7 +2,9 @@
 Module to run tests on scripts
 """
 import os
+from pkg_resources import resource_filename
 import shutil
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -14,9 +16,7 @@ matplotlib.use('agg')  # For Travis
 #import warnings
 #warnings.simplefilter('error', FutureWarning)
 
-from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, chk_wavecalib
-from pypeit.scripts import identify, obslog, collate_1d
+from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
@@ -49,11 +49,11 @@ def test_quicklook():
     # Raw path
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_blue',
                          'long_600_4000_d560')
-    ql_mos.main(ql_mos.parse_args(['keck_lris_blue', droot, 'b150910_2033.fits.gz',
-                                   'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
-                                   '--user_pixflat={0}'.format(
-                                    os.path.join(calib_dir,
-                                        'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    pixflat = os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz')
+    scripts.ql_mos.QLMOS.main(
+            scripts.ql_mos.QLMOS.parse_args(['keck_lris_blue', droot, 'b150910_2033.fits.gz',
+                                             'b150910_2051.fits.gz', 'b150910_2070.fits.gz',
+                                             '--det=2', f'--user_pixflat={pixflat}']))
     
     # Cleanup
     os.chdir(cdir)
@@ -75,7 +75,8 @@ def test_trace_edges():
     # Perform the setup
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
-    setup.main(setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all']))
+    scripts.setup.Setup.main(scripts.setup.Setup.parse_args(['-r', droot, '-s', 'shane_kast_blue',
+                                                             '-c', 'all']))
 
     # Generate the Masters folder
     os.mkdir(masterdir)
@@ -84,7 +85,8 @@ def test_trace_edges():
     pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
 
     # Run the tracing
-    trace_edges.main(trace_edges.parse_args(['-f', pypeit_file]))
+    scripts.trace_edges.TraceEdges.main(
+            scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
     trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
@@ -126,7 +128,8 @@ def test_trace_add_rm():
                                           configs=['all'])[0]
 
     # Run the tracing
-    trace_edges.main(trace_edges.parse_args(['-f', pypeit_file]))
+    scripts.trace_edges.TraceEdges.main(
+            scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
     trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
@@ -143,28 +146,28 @@ def test_trace_add_rm():
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Just list
-    pargs = show_1dspec.parse_args([spec_file, '--list'])
-    show_1dspec.main(pargs)
+    pargs = scripts.show_1dspec.Show1DSpec.parse_args([spec_file, '--list'])
+    scripts.show_1dspec.Show1DSpec.main(pargs)
 
 
 @cooked_required
 def test_show_2dspec():
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
     spec2d_file = os.path.join(droot, 'Science',
-                             'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                             'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     # Save
     cdir = os.getcwd()
     os.chdir(droot)
     # List
-    pargs = show_2dspec.parse_args([spec2d_file, '--list'])
-    show_2dspec.main(pargs)
+    pargs = scripts.show_2dspec.Show2DSpec.parse_args([spec2d_file, '--list'])
+    scripts.show_2dspec.Show2DSpec.main(pargs)
     # Show
-    pargs = show_2dspec.parse_args([spec2d_file])
-    show_2dspec.main(pargs)
+    pargs = scripts.show_2dspec.Show2DSpec.parse_args([spec2d_file])
+    scripts.show_2dspec.Show2DSpec.main(pargs)
     # Go back
     os.chdir(cdir)
 
@@ -176,18 +179,41 @@ def test_chk_edges():
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     #
-    pargs = chk_edges.parse_args([mstrace_root])
-    chk_edges.main(pargs)
+    pargs = scripts.chk_edges.ChkEdges.parse_args([mstrace_root])
+    scripts.chk_edges.ChkEdges.main(pargs)
 
 
 @cooked_required
-def test_view_fits():
-    """ Only test the list option
+def test_view_fits_list():
+    """ Test the list option
     """
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                            'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    pargs = view_fits.parse_args([spec_file, '--list', 'shane_kast_blue'])
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', spec_file, '--list'])
+    scripts.view_fits.ViewFits.main(pargs)
+
+
+@cooked_required
+def test_view_fits_proc_fail():
+    """ Test that it fails when trying to proc an output pypeit image
+    """
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', spec_file, '--proc'])
+    with pytest.raises(PypeItError):
+        scripts.view_fits.ViewFits.main(pargs)
+
+
+@dev_suite_required
+def test_view_fits_proc():
+    """ Test that it works on a raw image
+    """
+    spec_file = Path(os.getenv('PYPEIT_DEV')).resolve() / 'RAW_DATA' / 'shane_kast_blue' \
+                    / '830_3460_d46' / 'b100.fits.gz'
+    pargs = scripts.view_fits.ViewFits.parse_args(['shane_kast_blue', str(spec_file), '--proc'])
+    scripts.view_fits.ViewFits.main(pargs)
 
 
 @cooked_required
@@ -197,8 +223,8 @@ def test_chk_flat():
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     #
-    pargs = chk_flats.parse_args([mstrace_root])
-    chk_flats.main(pargs)
+    pargs = scripts.chk_flats.ChkFlats.parse_args([mstrace_root])
+    scripts.chk_flats.ChkFlats.main(pargs)
 
 
 @cooked_required
@@ -206,8 +232,8 @@ def test_chk_wavecalib():
     ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                                 'MasterWaveCalib_A_1_01.fits')
     #
-    pargs = chk_wavecalib.parse_args([ms_root])
-    chk_wavecalib.main(pargs)
+    pargs = scripts.chk_wavecalib.ChkWaveCalib.parse_args([ms_root])
+    scripts.chk_wavecalib.ChkWaveCalib.main(pargs)
 
 
 def test_coadd1d_1():
@@ -223,7 +249,9 @@ def test_coadd1d_1():
         os.remove(coadd_ofile)
 
     coadd_ifile = data_path('shane_kast_blue.coadd1d')
-    coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
+    scripts.coadd_1dspec.CoAdd1DSpec.main(
+            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, '--test_spec_path',
+                                                         data_path('')]))
 
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
@@ -248,7 +276,9 @@ def test_coadd1d_2():
         os.remove(coadd_ofile)
 
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
-    coadd_1dspec.main(coadd_1dspec.parse_args([coadd_ifile, '--test_spec_path', data_path('')]))
+    scripts.coadd_1dspec.CoAdd1DSpec.main(
+            scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, '--test_spec_path',
+                                                         data_path('')]))
 
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
@@ -267,8 +297,8 @@ def test_identify():
     slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                             'MasterSlits_A_1_01.fits.gz')
     # Just list
-    pargs = identify.parse_args([arc_file, slits_file, '--test'])
-    arcfitter = identify.main(pargs)
+    pargs = scripts.identify.Identify.parse_args([arc_file, slits_file, '--test'])
+    arcfitter = scripts.identify.Identify.main(pargs)
 
     # Load line list
     arcfitter.load_IDs(fname=data_path('waveid_tests.ascii'))
@@ -289,12 +319,12 @@ def test_identify():
 
     waveCalib = wavecalib.WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                               arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                              spat_ids=np.atleast_1d(arcfitter._slit),
+                              spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                               PYP_SPEC='shane_kast_blue',
                               )
 
     # If you touch the following line, you probably need to update the call in scripts/identify.py
-    arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
+    arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
     tmp = wavecalib.WaveCalib.from_file('wvcalib.fits')
@@ -315,112 +345,228 @@ def test_obslog():
 
     # Perform the setup
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
-    obslog.main(obslog.parse_args(['shane_kast_blue', '-r', droot, '-f', obslogfile,
-                                   '-d', setupdir]))
+    scripts.obslog.ObsLog.main(scripts.obslog.ObsLog.parse_args(['shane_kast_blue', '-r', droot,
+                                                                 '-f', obslogfile, '-d', setupdir]))
 
     # Clean up
     shutil.rmtree(setupdir)
 
+@dev_suite_required
+def test_compare_sky():
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                             'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
+                                              'sky_kastb_600.fits')
+
+    # Running in `test` mode for boxcar extraction
+    pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])
+    scripts.compare_sky.CompareSky.main(pargs)
+
+    # Running in `test` mode for optimal extraction
+    pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test',
+                                                       '--optimal'])
+    scripts.compare_sky.CompareSky.main(pargs)
+
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):
-    args = ['--dry_run', '--archive_dir', '/archive', '--match', 'ra/dec', '--exclude_slit', 'BOXSLIT']
+
+    # Build up arguments for testing command line parsing
+    args = ['--dry_run', '--archive_dir', '/archive', '--outdir', '/outdir2', '--pypeit_file', 'file.pypeit', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
     alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358*')
-    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_2010Sep13T061231.334.fits')
+    expanded_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    expanded_alt_spec1d = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
+    spec1d_args = ['--spec1d_files', expanded_spec1d]
+
+    # Create config files for testing config file parsing
     config_file_full = str(tmp_path / "test_collate1d_full.collate1d")
 
     with open(config_file_full, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
+        print("outdir = /outdir", file=f)
+        print("pypeit_file = otherfile.pypeit", file=f)
         print("archive_root = /foo/bar", file=f)
         print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
-        print("slit_exclude_flags = BADREDUCE", file=f)
-        print('spec1d read', file=f)
+        print("exclude_slit_trace_bm = BADREDUCE", file=f)
+        print("exclude_serendip = False", file=f)
+        print("spec1d read", file=f)
         print(alt_spec1d, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
 
     config_file_spec1d = str(tmp_path / "test_collate1d_spec1d_only.collate1d")
     with open(config_file_spec1d, "w") as f:
         print("[collate1d]", file=f)
-        print('spec1d read', file=f)
+        print("spec1d read", file=f)
         print(spec1d_file, file=f)
-        print('spec1d end', file=f)
+        print("spec1d end", file=f)
 
-    # Args only, nospec1d files should raise an exception
-    with pytest.raises(PypeItError):
-        parsed_args = collate_1d.parse_args(args + tol_args)
-        (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    config_file_coadd1d = str(tmp_path / "test_collate1d_spec1d_only.coadd1d")
+    with open(config_file_coadd1d, "w") as f:
+        print("[coadd1d]", file=f)
+        print("ex_value = BOX", file=f)
+
+    # Args only, nospec1d files should exit with an errror
+    with pytest.raises(SystemExit):
+        parsed_args = scripts.collate_1d.Collate1D.parse_args(args + tol_args)
+        params, spectrograph, expanded_spec1d_files \
+                = scripts.collate_1d.build_parameters(parsed_args)
 
     # Everything passed via command line
-    parsed_args = collate_1d.parse_args(args + tol_args + spec1d_args)
-    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    parsed_args = scripts.collate_1d.Collate1D.parse_args(args + tol_args + spec1d_args)
+    params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is True
     assert params['collate1d']['archive_root'] == '/archive'
+    assert params['collate1d']['outdir'] == '/outdir2'
+    assert params['collate1d']['pypeit_file'] == 'file.pypeit'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['tolerance'] == '0.03d'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
+    assert params['coadd1d']['ex_value'] == 'OPT'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
     # Full config file, should work
-    parsed_args = collate_1d.parse_args([config_file_full])
-    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    parsed_args = scripts.collate_1d.Collate1D.parse_args([config_file_full])
+    params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is False
     assert params['collate1d']['archive_root'] == '/foo/bar'
+    assert params['collate1d']['outdir'] == '/outdir'
+    assert params['collate1d']['pypeit_file'] == 'otherfile.pypeit'
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
-    assert params['collate1d']['slit_exclude_flags'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
+    assert params['collate1d']['exclude_serendip'] is False
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'keck_deimos'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_alt_spec1d
 
     # Test that a full command line overrides a config file
-    parsed_args = collate_1d.parse_args(args + spec1d_args + tol_args + [config_file_full])
-    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    parsed_args = scripts.collate_1d.Collate1D.parse_args(args + spec1d_args + tol_args
+                                                          + [config_file_full])
+    params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is True
     assert params['collate1d']['archive_root'] == '/archive'
+    assert params['collate1d']['outdir'] == '/outdir2'
+    assert params['collate1d']['pypeit_file'] == 'file.pypeit'
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
-    assert params['collate1d']['slit_exclude_flags'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
+    assert params['collate1d']['exclude_serendip'] is True
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
     # Test that a config file with spec1d files. Test that default tolerance and match_using is used
-    parsed_args = collate_1d.parse_args([config_file_spec1d])
-    (params, spectrograph, expanded_spec1d_files) = collate_1d.build_parameters(parsed_args)
+    # Also test using an external coadd1d file with the same name
+    parsed_args = scripts.collate_1d.Collate1D.parse_args([config_file_spec1d])
+    params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['tolerance'] == 3.0
     assert params['collate1d']['match_using'] == 'ra/dec'
+    assert params['coadd1d']['ex_value'] == 'BOX'
     assert spectrograph.name == 'shane_kast_blue'
     assert len(expanded_spec1d_files) == 1 and expanded_spec1d_files[0] == expanded_spec1d
 
-    # Test main, also test that --par_outfile works
+    # Mocks for testing main
     class MockCoadd:
         def run(*args, **kwargs):
             pass
 
-        def save(*args, **kwargs):
-            pass
+        def save(self, file):
+            if os.path.basename(file) == "J232856.20-030325.90_DEIMOS_20100913.fits":
+                raise ValueError("test exception")
+
     def mock_get_instance(*args, **kwargs):
         return MockCoadd()
 
+    def mock_get_subdir(*args, **kwargs):
+        return "subdir"
+
     with monkeypatch.context() as m:
         monkeypatch.setattr(coadd1d.CoAdd1D, "get_instance", mock_get_instance)
+        monkeypatch.setattr(scripts.collate_1d, "get_archive_subdir", mock_get_subdir)
 
         os.chdir(tmp_path)
         par_file = str(tmp_path / 'collate1d.par')
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'pixel', '--tolerance', '3', config_file_spec1d])
-        assert collate_1d.main(parsed_args) == 0
+        
+        # For testing archiving, create a fake pypeit output directory structure
+        # in temp space.
+        temp_spec1d_dir = tmp_path / 'Science'
+        temp_spec1d_dir.mkdir()
+        # Copy spec1d and spec2d
+        shutil.copy2(expanded_spec1d, temp_spec1d_dir)
+        temp_spec1d = os.path.join(temp_spec1d_dir, os.path.basename(expanded_spec1d))
+
+        spec2d_file = expanded_spec1d.replace("spec1d", "spec2d")
+        shutil.copy2(spec2d_file, temp_spec1d_dir)
+        temp_spec2d = os.path.join(temp_spec1d_dir, os.path.basename(spec2d_file))
+
+        # Create fake text files for archiving, and a fake coadd output. We copy the
+        # the spec1d over to the fake output file because the archiving code reads
+        # the header of the coadd output
+
+        temp_spec1d_text = temp_spec1d.replace(".fits", ".txt")
+        temp_pypeit_file = str(tmp_path / "temp.pypeit")
+        with open(temp_spec1d.replace(".fits", ".txt"), "w") as f:
+            print("test data", file=f)
+        shutil.copy2(temp_spec1d_text, temp_pypeit_file)
+
+        temp_coadd_output = str(tmp_path / "SPAT0176-SLIT0175-DET01_KASTb_20150520.fits")
+        shutil.copy2(temp_spec1d, temp_coadd_output)
+
+        # Test:
+        # * main
+        # * creation of collate1d.par
+        # * parsing of pixel tolerance
+        # * detection of spec2d files and excluding by slit bitmask
+        # * archiving of spec1ds, spec2ds, .txt files, and pypeit files
+
+        archive_dir = tmp_path / 'archive'
+
+        parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file, '--match',
+                                                               'pixel', '--tolerance', '3',
+                                                               '--spec1d_files', temp_spec1d,
+                                                               '--exclude_slit_bm', 'BADREDUCE', 
+                                                               '--archive_dir', str(archive_dir)])
+        assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         assert os.path.exists(par_file)
+
+        archive_dest_dir = archive_dir / "subdir"
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_coadd_output))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec1d))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec2d))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_spec1d_text))
+        assert os.path.exists(archive_dest_dir / os.path.basename(temp_pypeit_file))
+
         # Remove par_file to avoid a warning
         os.unlink(par_file)
         
-        # Test default units of arcsec for tolerance, and that a spec2d file isn't needed
-        # if exclude_slit_flags is empty
-        parsed_args = collate_1d.parse_args(['--par_outfile', par_file, '--match', 'ra/dec', '--tolerance', '3', '--spec1d_files', alt_spec1d])
-        assert collate_1d.main(parsed_args) == 0
+        # Test:
+        # * default units of arcsec for tolerance when match is ra/dec
+        # * that a spec2d file isn't needed if exclude_slit_flags is empty.
+        # * test exception handling when one file fails
+        # The 240 arsec tolerance is to ensure there's only two outputs, one of which the mock 
+        # coadd object will fail
+        parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file,
+                                                               '--match', 'ra/dec', '--tolerance',
+                                                               '240', '--spec1d_files',
+                                                               expanded_alt_spec1d])                                                            
+        assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
+
+        # Remove par_file to avoid a warning
+        os.unlink(par_file)
+
+        # Test parsing of units in ra/dec tolerance
+        parsed_args = scripts.collate_1d.Collate1D.parse_args(['--par_outfile', par_file,
+                                                               '--match', 'ra/dec', '--tolerance', '3d',
+                                                               '--spec1d_files', expanded_alt_spec1d])
+        assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
+        
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

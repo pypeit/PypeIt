@@ -12,6 +12,7 @@ Subpackages
    pypeit.display
    pypeit.images
    pypeit.par
+   pypeit.scripts
    pypeit.spectrographs
 
 Submodules
@@ -21,6 +22,7 @@ Submodules
    :maxdepth: 4
 
    pypeit.alignframe
+   pypeit.archive
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
@@ -35,6 +37,7 @@ Submodules
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
+   pypeit.onespec
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs

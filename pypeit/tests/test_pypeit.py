@@ -18,7 +18,7 @@ def data_path(filename):
 
 
 def test_initialization():
-    """ Load input PYPIT file
+    """ Load input PypeIt file
     """
     # Generate a PYPIT file
     pypit_file = data_path('test.pypeit')
@@ -30,7 +30,7 @@ def test_initialization():
 
     # Test
     assert spectrograph.name == 'shane_kast_blue'
-    assert len(fitstbl) == 2
+    assert len(fitstbl) == 8
 
     # Clean-up
     os.remove(data_path('test.calib'))

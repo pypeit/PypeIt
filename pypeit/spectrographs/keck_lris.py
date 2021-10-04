@@ -53,6 +53,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # the data in the dev suite is unbinned.
         # JXP -- Increased to 6 arcsec.  I don't know how 2 (or 1!) could have worked.
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 6
+        # Remove slits that are too short
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
         # Set the default exposure time ranges for the frame typing
@@ -131,6 +133,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['frameno'] = dict(ext=0, card='FRAMENO')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -195,6 +198,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             object.
         """
         return super().configuration_keys() + ['binning']
+
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard ``PypeIt`` file.
+
+        Returns:
+            :obj:`list`: The list of keywords in the relevant
+            :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
+            :ref:`pypeit_file`.
+        """
+        return super().pypeit_file_keys() + ['frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -417,9 +431,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        #return self.get_detector_par(hdu, det if det is not None else 1), \
-        #        array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
-        return self.get_detector_par(hdu, det if det is not None else 1), \
+        return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
     def subheader_for_spec(self, row_fitstbl, raw_header, extra_header_cards=None,
@@ -469,15 +481,16 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
     supported = True
     comment = 'Blue camera; see :doc:`lris`'
     
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -485,7 +498,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent?
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -517,11 +530,17 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         detector_dicts = [detector_dict1, detector_dict2]
         detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
+        if hdu is None:
+            return detector
+
+        # TODO: I don't know how to handle the hack below for the auto-generated
+        # detector table...
+
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
+        if namps == 2 or (namps==4 and len(hdu)==3):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             detector.gain = np.atleast_1d(np.mean(detector.gain))
             detector.ronoise = np.atleast_1d(np.mean(detector.ronoise))
@@ -687,6 +706,25 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
             if 'lampstat' in key:
                 self.meta.pop(key)
 
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        detpar = super().get_detector_par(det, hdu=hdu)
+        detpar['specflip'] = True
+        return detpar
+
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces
@@ -744,10 +782,10 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
             msgs.error("Should not be here in keck_lris!")
 
         # Detector
-        detector_par = self.get_detector_par(hdul, det-1)
+        detector_par = self.get_detector_par(det-1, hdu=hdul)
 
-        # Flip the spectral axis
-        detector_par['specflip'] = True
+#        # Flip the spectral axis
+#        detector_par['specflip'] = True
 
         # Return
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
@@ -794,22 +832,24 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     supported = True
     comment = 'Red camera; see :doc:`lris`'
     
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -837,44 +877,48 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             ronoise=np.atleast_1d([4.54, 4.62])
         ))
 
-        # Allow for post COVID detector issues
-        t2020_1 = time.Time("2020-06-30", format='isot')  # First run
-        t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
-        # Allow for the new detector upgrade
-        t2021_upgrade = time.Time("2021-04-15", format='isot') 
-        date = time.Time(hdu[0].header['MJD'], format='mjd')
+        if hdu is not None:
+            # Allow for post COVID detector issues
+            t2020_1 = time.Time("2020-06-30", format='isot')  # First run
+            t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
+            # Allow for the new detector upgrade
+            t2021_upgrade = time.Time("2021-04-15", format='isot') 
+            date = time.Time(hdu[0].header['MJD'], format='mjd')
 
-        if date < t2020_1:
-            pass
-        elif date < t2020_2: # This is for the June 30 2020 run
-            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
-            detector_dict1['gain'] = np.atleast_1d([37.6])
-            detector_dict2['gain'] = np.atleast_1d([1.26])
-            detector_dict1['ronoise'] = np.atleast_1d([99.])
-            detector_dict2['ronoise'] = np.atleast_1d([5.2])
-        elif date > t2021_upgrade: #Implicitly assumes 2 amps and the ampmode is HSPLIT,VUP
-            msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
-            detector_dict1['gain'] = np.atleast_1d([1.71, 1.68])
-            detector_dict2['gain'] = np.atleast_1d([1.61, 1.72])
-            detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24])
-            detector_dict2['ronoise'] = np.atleast_1d([4.41, 4.68])
+            if date < t2020_1:
+                pass
+            elif date < t2020_2: # This is for the June 30 2020 run
+                msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
+                detector_dict1['gain'] = np.atleast_1d([37.6])
+                detector_dict2['gain'] = np.atleast_1d([1.26])
+                detector_dict1['ronoise'] = np.atleast_1d([99.])
+                detector_dict2['ronoise'] = np.atleast_1d([5.2])
+            elif date > t2021_upgrade: #Implicitly assumes 2 amps and the ampmode is HSPLIT,VUP
+                msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
+                detector_dict1['gain'] = np.atleast_1d([1.71, 1.68])
+                detector_dict2['gain'] = np.atleast_1d([1.61, 1.72])
+                detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24])
+                detector_dict2['ronoise'] = np.atleast_1d([4.41, 4.68])
 
-        else: # This is the 2020 July 29 run
-            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
-            detector_dict1['gain'] = np.atleast_1d([1.45])
-            detector_dict2['gain'] = np.atleast_1d([1.25])
-            detector_dict1['ronoise'] = np.atleast_1d([4.47])
-            detector_dict2['ronoise'] = np.atleast_1d([4.75])
+            else: # This is the 2020 July 29 run
+                msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
+                detector_dict1['gain'] = np.atleast_1d([1.45])
+                detector_dict2['gain'] = np.atleast_1d([1.25])
+                detector_dict1['ronoise'] = np.atleast_1d([4.47])
+                detector_dict2['ronoise'] = np.atleast_1d([4.75])
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
         detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
+        if hdu is None:
+            return detector
+
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
+        if namps == 2 or (namps==4 and len(hdu)==3):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             # Long silt mode
             # TODO: Change AMPPSIZE to whatever is on the new FITS files for data after the upgrade.
@@ -972,6 +1016,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '600/7500':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_7500.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/10000':  # d680
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_10000.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'
@@ -1089,22 +1136,24 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
 
         return par
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -1127,7 +1176,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         detector = detector_container.DetectorContainer(**detector_dict1)
 
         # Deal with number of amps
-        if hdu[0].header['NUMAMPS'] != 2:
+        if hdu is not None and hdu[0].header['NUMAMPS'] != 2:
             msgs.error("Did not see this namps coming..")
 
         # Return
@@ -1183,7 +1232,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         # Image info
         image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
         # Detector
-        detector_par = self.get_detector_par(hdul, det)
+        detector_par = self.get_detector_par(det, hdu=hdul)
         # Return
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
 

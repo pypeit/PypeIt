@@ -1,4 +1,8 @@
+
 import os
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit.images import buildimage
@@ -102,7 +106,7 @@ def test_add_missing_slits():
     # Check the values of the traces that will be removed
     # Two traces NOT from the same slit
     assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 458, 'wrong left trace position'
-    assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1686, 'wrong right trace position'
+    assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, 'wrong right trace position'
     # Two traces from the same slit
     assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 496, 'wrong left trace position'
     assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, 'wrong right trace position'
@@ -159,10 +163,12 @@ def test_overlapped_slits():
 
     # Run edge trace
     edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, debug=False,
-                         show_stages=False,qa_path=None)
+                         show_stages=False, qa_path=None)
 
     slits = edges.get_slits()
     # Check that the total number of expected slits and the number of alignment slits are correct.
     assert len(slits.maskdef_designtab['SLITID'].data) == 22, 'wrong number of slits for this detector'
     assert np.sum(slits.maskdef_designtab['ALIGN'].data) == 3, 'wrong number of alignment slits'
     # These number have been verified by visual inspection.
+
+

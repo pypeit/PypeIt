@@ -19,6 +19,7 @@ from pypeit import slittrace
 from pypeit import reduce
 from pypeit.images import pypeitimage
 from pypeit.core import extract
+from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import parse
 from pypeit import calibrations
@@ -222,25 +223,26 @@ class CoAdd2D:
 
     def coadd(self, only_slits=None, interp_dspat=True):
         """
-        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs. This method calls loops over
-        slits/orders and performs the 2d-coadd by calling coadd.compute.coadd2d, which 'rectifies' images by
-        coadding them about the reference_trace_stack.
-
+        Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
+        This method calls loops over slits/orders and performs the 2d-coadd by
+        calling coadd.compute.coadd2d, which 'rectifies' images by coadding them
+        about the reference_trace_stack.
 
         Parameters
         ----------
-        only_slits (list, optional):
-           List of slits to operate on. Not currently supported, i.e. the code can currently only stack everything
-           because the slit/reduction bitmask checking is not yet implemented. Default = None
-        interp_dspat (bool, optional):
-           Interpolate in the spatial coordinate image to faciliate running through core.extract.local_skysub_extract.
-           Default=True
+        only_slits : list, optional
+           List of slits to operate on. Not currently supported, i.e. the code
+           can currently only stack everything because the slit/reduction
+           bitmask checking is not yet implemented. Default = None
+        interp_dspat : bool, optional
+           Interpolate in the spatial coordinate image to faciliate running
+           through core.extract.local_skysub_extract.  Default=True
 
         Returns
         -------
-           coadd_list (list):
-               List of dictionaries, one for each slit, containing the 2d stack.
-               # TODO Make this a PypeIt object, with data model yada-yada.
+        coadd_list : list
+            List of dictionaries, one for each slit, containing the 2d stack.
+            # TODO Make this a PypeIt object, with data model yada-yada.
 
         """
 
@@ -459,7 +461,9 @@ class CoAdd2D:
         redux.reduce_bpm = reduce_bpm
 
         if show:
-            redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
+            gpm = sciImage.select_flag(invert=True)
+            redux.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
+                       chname='imgminsky', slits=True, clear=True)
 
         # TODO:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
@@ -471,9 +475,10 @@ class CoAdd2D:
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
-        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs = redux.local_skysub_extract(
-            global_sky_pseudo, sobjs_obj, spat_pix=pseudo_dict['spat_img'], model_noise=False,
-            show_profile=show, show=show)
+        skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs \
+                = redux.local_skysub_extract(global_sky_pseudo, sobjs_obj,
+                                             spat_pix=pseudo_dict['spat_img'], model_noise=False,
+                                             show_profile=show, show=show)
 
         if self.find_negative:
             sobjs.purge_neg()
@@ -568,12 +573,14 @@ class CoAdd2D:
 
     def get_wave_grid(self, **kwargs_wave):
         """
-        Routine to create a wavelength grid for 2d coadds using all of the wavelengths of the extracted objects. Calls
-        coadd1d.get_wave_grid.
+        Routine to create a wavelength grid for 2d coadds using all of the
+        wavelengths of the extracted objects. Calls
+        :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Args:
             **kwargs_wave (dict):
-                Optional argumments for coadd1d.get_wve_grid function
+                Optional argumments for
+                :func:`~pypeit.core.wavecal.wvutils.get_wave_grid`.
 
         Returns:
             tuple: Returns the following:
@@ -628,8 +635,9 @@ class CoAdd2D:
                     gpm[:, indx] = spec.OPT_MASK
                     indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, spec_samp_fact=self.spec_samp_fact,
-                                                              **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
+                                                                spec_samp_fact=self.spec_samp_fact,
+                                                                **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
 
     def load_coadd2d_stacks(self, spec2d):

@@ -4,6 +4,7 @@ Odds and ends in support of tests
 import os
 import copy
 import pytest
+from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -25,13 +26,20 @@ from pypeit import masterframe
 # pytest @decorators setting the tests to perform
 
 # Tests require the PypeIt dev-suite
-dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
+dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None
+                                        or not os.path.isdir(os.getenv('PYPEIT_DEV')),
                                         reason='test requires dev suite')
 
 # Tests require the Cooked data
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
                             reason='no dev-suite cooked directory')
+
+# Tests require the Telluric file (Mauna Kea)
+tell_test_grid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids',
+                              'TelFit_MaunaKea_3100_26100_R20000.fits')
+telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
+                                       reason='no Mauna Kea telluric file')
 
 # Tests require the bspline c extension
 try:
@@ -58,7 +66,7 @@ def get_kastb_detector():
     """
     spectrograph = load_spectrograph('shane_kast_blue')
     hdul = fits.HDUList([])
-    return spectrograph.get_detector_par(hdul, 1)
+    return spectrograph.get_detector_par(1, hdu=hdul)
 
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
@@ -214,7 +222,7 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
         #                          MasterFrame.construct_file_name('Flat', master_key))
         flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
         flatImages = flatfield.FlatImages.from_file(flat_file)
-        ret.append(flatImages.get_pixelflat())
+        ret.append(flatImages.pixelflat_norm)
 
     # Return
     return ret

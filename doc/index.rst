@@ -32,11 +32,17 @@
 .. |github| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
    :target: https://github.com/pypeit/PypeIt
 
+.. |pypeit_logo| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
+   :target: https://github.com/pypeit/PypeIt
 
 PypeIt |stars| |watch|
 ======================
 
 |pypi| |DOI_latest| |arxiv| |astropy|
+
+.. raw:: html
+
+    <img src="_static/PypeIt_color_white_txt_black_background.png" onerror="this.src='_static/astropy_banner_96.png'; this.onerror=null;" width="485"/>
 
 **Version**: |version|
 
@@ -78,6 +84,18 @@ the publication, please include the following acknowledgement
 
 ----
 
+Funding
++++++++
+
+``PypeIt`` receives direct funding from the following sources:
+
+  * NASA (ADAP-A20-0412)
+  * W.M. Keck Observatory
+  * University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
+
 What this version provides
 ++++++++++++++++++++++++++
 
@@ -94,7 +112,7 @@ What this version provides
   * Magellan/Fire
   * MDM/OSMOS
   * Keck/DEIMOS (600ZD, 830G, 1200G, 1200B, 900ZD)
-  * Keck/KCWI (BM, BH2)
+  * Keck/KCWI
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES
@@ -102,9 +120,11 @@ What this version provides
   * LBT/Luci-I
   * LBT/Luci-II
   * LBT/MODS
+  * LDT/DeVeny
   * MDM/OSMOS
   * MMT/MMIRS
   * MMT/binospec
+  * MMT/bluechannel
   * NOT/ALFOSC
   * P200/DBSP
   * P200/TripleSpec
@@ -119,7 +139,7 @@ What this version provides
   * Global and local :doc:`skysub`
   * Optimal (and boxcar) :doc:`extraction`
   * :doc:`A-B_differencing`
-  * Slitmask metadata slurping including RA/DEC (Keck/DEIMOS only)
+  * Slitmask metadata slurping including RA/DEC (:doc:`deimos` only)
 
 * Documentation
 
@@ -131,6 +151,7 @@ What this version provides
   * :doc:`fluxing`
   * :doc:`manual`
   * :doc:`telluric`
+  * :doc:`2d_combine`
   * :doc:`coadd1d`
   * :doc:`coadd2d`
 
@@ -175,6 +196,7 @@ or have a feature request, please `submit an issue
    installing
    cookbook
    step-by-step
+   known_failure_modes
 
 ----
 
@@ -188,6 +210,7 @@ or have a feature request, please `submit an issue
    pypeit_file
    running
    quicklook
+   2d_combine
    object_finding
    skysub
    extraction
@@ -199,6 +222,7 @@ or have a feature request, please `submit an issue
    :caption: Standard outputs
    :maxdepth: 1
 
+   image_proc
    calibrations
    outputs
    qa
@@ -212,6 +236,7 @@ or have a feature request, please `submit an issue
    A-B_differencing
    fluxing
    coadd1d
+   telluric
    coadd2d
    coadd3d
    collate1d

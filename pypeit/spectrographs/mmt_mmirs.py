@@ -80,15 +80,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return ttime.mjd
         msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -111,7 +112,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(0.95),
             ronoise         = np.atleast_1d(3.14),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -164,6 +165,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # dark
+        # TODO: This is now the default.
         par['calibrations']['darkframe']['process']['apply_gain'] = True
 
         # cosmic ray rejection
@@ -340,7 +342,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         hdu = io.fits_open(fil[0])
         head1 = fits.getheader(fil[0],1)
 
-        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
+        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']
@@ -363,7 +365,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         if (head1['FILTER']=='zJ') and (head1['DISPERSE']=='HK'):
             array = array[:int(998/ybin),:]
         rawdatasec_img = np.ones_like(array,dtype='int')
-        oscansec_img = np.ones_like(array,dtype='int')
+        # NOTE: If there is no overscan, must be set to 0s
+        oscansec_img = np.zeros_like(array,dtype='int')
 
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]

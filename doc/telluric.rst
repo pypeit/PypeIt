@@ -5,10 +5,15 @@ Telluric correction
 Overview
 ========
 
-Telluric correction is done after the main run of PypeIt, :doc:`fluxing` and :doc:`coadd1d`.
-The algorithm for deriving the best telluric model is pretty similar with that used
-in the IR sensitivity function, which fits an user defined model and telluric
-to a giant telluric grid. Please see :doc:`fluxing` for more details.
+Telluric correction is done after the main run of PypeIt, :doc:`fluxing` and
+:doc:`coadd1d`.  The algorithm for deriving the best telluric model is pretty
+similar with that used in the IR sensitivity function, which fits an user
+defined model and telluric to a giant telluric grid. Please see :doc:`fluxing`
+for more details.
+
+Note that execution of ``pypeit_tellfit`` requires the atmospheric model grids
+to be installed on your system.  See the instructions for installing these
+:ref:`data_installation`.
 
 pypeit_tellfit
 ==============
@@ -24,9 +29,6 @@ The object model options are:
  - qso = for quasar or AGN.
  - star = for stellar object.
  - poly = can be used for any other object by solving polynomial model.
-
-You will need to grab the related pickle file of the Gaussian Mixture
-model at `this link <https://drive.google.com/open?id=1x5d2_L8pwLDmvvoFUCa-vIoluv3GpowA>`_
 
 tellfit file
 ------------
@@ -203,4 +205,6 @@ The final spectrum may be viewed with the *lt_xspec* script which loads the data
 and launches a GUI from the linetools package. e.g.::
 
     lt_xspec J1342_GNIRS_tellcorr.fits
+
+.. NEED TO DOCUMENT THE tellmodel FILE    
 

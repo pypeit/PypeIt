@@ -38,7 +38,6 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-
 from IPython import embed
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
@@ -338,10 +337,10 @@ class Spectrograph:
         if self.raw_is_transposed(detector_par):
             image = image.T
         # Flip spectral axis?
-        if detector_par['specflip'] is True:
+        if detector_par['specflip']:
             image = np.flip(image, axis=0)
         # Flip spatial axis?
-        if detector_par['spatflip'] is True:
+        if detector_par['spatflip']:
             image = np.flip(image, axis=1)
         return image
 
@@ -357,6 +356,9 @@ class Spectrograph:
         shape (``filename``) *must* be provided. In the latter, the file is
         read, trimmed, and re-oriented to get the output shape. If both
         ``shape`` and ``filename`` are provided, ``shape`` is ignored.
+
+        This is the generic function provided in the base class meaning that all
+        pixels are returned as being valid/unmasked.
 
         Args:
             filename (:obj:`str`):
@@ -374,12 +376,17 @@ class Spectrograph:
                 ``filename`` is None, but ignored otherwise.
 
         Returns:
-            `numpy.ndarray`_: An integer array with a masked value set to 1
-            and an unmasked value set to 0. The shape of the returned image
-            should be that of the ``PypeIt`` processed image. This is the
-            generic method for the base class, meaning that all pixels are
-            returned as unmasked (0s).
+            `numpy.ndarray`_: An integer array with a masked value set to 1 and
+            an unmasked value set to 0. The shape of the returned image should
+            be that of a trimmed and oriented ``PypeIt`` processed image. This
+            function specifically is the generic method for the base class,
+            meaning that all pixels are returned as unmasked (0s).
         """
+        # TODO: I think shape should take precedence over filename, not the
+        # other way around.  I.e., if we know the shape we want going in, why
+        # are we still defaulting to reading, trimming, and re-orienting an
+        # input image just to figure out that shape?
+
         # Load the raw frame
         if filename is None:
             _shape = shape
@@ -459,12 +466,8 @@ class Spectrograph:
         """
         # Generate an empty BPM first
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-
         # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            bpm_img = self.bpm_frombias(msbias, det, bpm_img)
-
-        return bpm_img
+        return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
 
     def get_slitmask(self, filename):
         """
@@ -611,7 +614,7 @@ class Spectrograph:
             print('{0}   {1}'.format(key.rjust(nk), card.rjust(nc)))
         print('')
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Read/Set the detector metadata.
 
@@ -642,7 +645,7 @@ class Spectrograph:
         hdu : `astropy.io.fits.HDUList`_
             Opened fits file
         exptime : :obj:`float`
-            Exposure time read from the file header
+            Exposure time *in seconds*.
         rawdatasec_img : `numpy.ndarray`_
             Data (Science) section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
@@ -656,7 +659,7 @@ class Spectrograph:
         hdu = io.fits_open(raw_file)
 
         # Grab the DetectorContainer
-        detector = self.get_detector_par(hdu, det)
+        detector = self.get_detector_par(det, hdu=hdu)
 
         # Raw image
         raw_img = hdu[detector['dataext']].data.astype(float)
@@ -672,7 +675,8 @@ class Spectrograph:
         # Extras
         headarr = self.get_headarr(hdu)
 
-        # Exposure time (used by ProcessRawImage)
+        # Exposure time (used by RawImage)
+        # NOTE: This *must* be (converted to) seconds.
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # Rawdatasec, oscansec images
@@ -742,7 +746,8 @@ class Spectrograph:
             kk += 1
         return "_".join(lampstat)
 
-    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
+    def get_meta_value(self, inp, meta_key, required=False, 
+                       ignore_bad_header=False,
                        usr_row=None, no_fussing=False):
         """
         Return meta data from a given file (or its array of headers).
@@ -756,6 +761,7 @@ class Spectrograph:
             required (:obj:`bool`, optional):
                 The metadata is required and must be available. If it is not,
                 the method will raise an exception.
+                This can and is over-ruled by information in the meta dict
             ignore_bad_header (:obj:`bool`, optional):
                 ``PypeIt`` expects certain metadata values to have specific
                 datatypes. If the keyword finds the appropriate data but it
@@ -764,6 +770,7 @@ class Spectrograph:
                 True, the incorrect type is ignored. It is recommended that
                 this be False unless you know for sure that ``PypeIt`` can
                 proceed appropriately.
+                Note: This bool trumps ``required``
             usr_row (`astropy.table.Table`_, optional):
                 A single row table with the user-supplied frametype. This is
                 used to determine if the metadata value is required for each
@@ -791,6 +798,13 @@ class Spectrograph:
                 msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
 
+        # Is this meta required for this frame type (Spectrograph specific)
+        if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
+            required = False
+            for ftype in self.meta[meta_key]['required_ftypes']:
+                if ftype in usr_row['frametype']:
+                    required = True
+
         # Check if this meta key is required
         if 'required' in self.meta[meta_key].keys():
             required = self.meta[meta_key]['required']
@@ -798,19 +812,22 @@ class Spectrograph:
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
         value = None
-        if self.meta[meta_key]['card'] is None:
-            if 'default' in self.meta[meta_key].keys():
-                value = self.meta[meta_key]['default']
-            elif 'compound' in self.meta[meta_key].keys():
-                value = self.compound_meta(headarr, meta_key)
+        try:
+            if self.meta[meta_key]['card'] is None:
+                if 'default' in self.meta[meta_key].keys():
+                    value = self.meta[meta_key]['default']
+                elif 'compound' in self.meta[meta_key].keys():
+                    value = self.compound_meta(headarr, meta_key)
+                else:
+                    msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
             else:
-                msgs.error("Failed to load spectrograph value for meta: {}".format(meta_key))
-        else:
-            # Grab from the header, if we can
-            try:
+                # Grab from the header, if we can
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
-            except (KeyError, TypeError):
-                value = None
+        except (KeyError, TypeError) as e:
+            if ignore_bad_header or (not required):
+                msgs.warn("Bad Header, but we'll try to continue on..") 
+            else:
+                raise e
 
         # Return now?
         if no_fussing:
@@ -1175,6 +1192,20 @@ class Spectrograph:
             except TypeError:
                 iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
             return self.spec_min_max[:, iorder]/binspectral
+    
+    def spec1d_match_spectra(sobjs):
+        """Match up slits in a SpecObjs.  Typically across
+        multiple detectors.  See the example in keck_deimos
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): 
+                Spec1D objects
+
+        Returns:
+            tuple: array of indices for the blue detector, 
+                array of indices for the red (matched to the blue)
+        """
+        msgs.error("You need to create this for your instrument..")
 
     # TODO: Shold this be a class method?
     def parse_dither_pattern(self, file_list, ext=None):

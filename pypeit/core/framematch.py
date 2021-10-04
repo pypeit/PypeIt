@@ -79,6 +79,25 @@ class FrameTypeBitMask(BitMask):
                 n = ['None']
             out += [','.join(n)] if join else [n]
         return out[0] if isinstance(type_bits, np.integer) else out
+
+
+def valid_frametype(frametype, quiet=False):
+    """
+    Confirm the provided frame type is known to ``PypeIt``.
+
+    Args:
+        frametype (:obj:`str`):
+            The frame type name.
+        quiet (:obj:`bool`, optional):
+            Suppress output
+
+    Returns:
+        :obj:`bool`: Flag that the frametype name is valid.
+    """
+    good_frametype = frametype in FrameTypeBitMask().keys()
+    if not quiet and not good_frametype:
+        msgs.warn(f'{frametype} is not a valid PypeIt frame type.')
+    return good_frametype
     
 
 def check_frame_exptime(exptime, exprng):

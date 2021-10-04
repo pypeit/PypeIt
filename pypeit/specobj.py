@@ -26,17 +26,18 @@ from pypeit import utils
 from pypeit import datamodel
 from pypeit.images import detector_container
 
-naming_model = {}
-for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
-    naming_model[skey.lower()] = skey
 
 def det_hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
 
+
 class SpecObj(datamodel.DataContainer):
-    """Class to handle object spectra from a single exposure
-    One generates one of these Objects for each spectrum in the exposure. They are instantiated by the object
-    finding routine, and then all spectral extraction information for the object are assigned as attributes
+    """
+    Class to handle object spectra from a single exposure.
+
+    One generates one of these Objects for each spectrum in the exposure. They
+    are instantiated by the object finding routine, and then all spectral
+    extraction information for the object are assigned as attributes
 
     Args:
         pypeline (str): Name of the PypeIt pypeline method
@@ -85,11 +86,11 @@ class SpecObj(datamodel.DataContainer):
                                           descr='Optimally extracted noise variance, sky+read '
                                                 'noise only (counts^2)'),
                  'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_,
-                                  descr='Mask for optimally extracted flux'),
+                                  descr='Mask for optimally extracted flux. True=good'),
                  'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Optimally extracted sky (counts)'),
-                 'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float,
-                                       descr='Optimally extracted RN squared (counts)'),
+                 'OPT_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
+                                            descr='Optimally extracted detector noise (counts)'),
                  'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
                                       descr='Fraction of pixels in the object profile subimage '
                                             'used for this extraction'),
@@ -117,11 +118,11 @@ class SpecObj(datamodel.DataContainer):
                                           descr='Boxcar extracted noise variance, sky+read noise '
                                                 'only (counts^2)'),
                  'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_,
-                                  descr='Mask for optimally extracted flux'),
+                                  descr='Mask for boxcar extracted flux. True=good'),
                  'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float,
                                         descr='Boxcar extracted sky (counts)'),
-                 'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float,
-                                       descr='Boxcar extracted RN squared (counts)'),
+                 'BOX_COUNTS_SIG_DET': dict(otype=np.ndarray, atype=float,
+                                            descr='Boxcar extracted detector noise (counts)'),
                  'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
                                       descr='Fraction of pixels in the object profile subimage '
                                             'used for this extraction'),
@@ -208,6 +209,20 @@ class SpecObj(datamodel.DataContainer):
         # Name
         self.set_name()
 
+    @classmethod
+    def from_arrays(cls, PYPE_LINE:str, wave:np.ndarray, 
+                    counts:np.ndarray, ivar:np.ndarray, mode='OPT', 
+                    DET=1, SLITID=0, **kwargs):
+        # Instantiate
+        slf = cls(PYPE_LINE, DET, SLITID=SLITID)
+        # Add in arrays
+        for item, attr in zip((wave, counts, ivar), 
+                              ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+            setattr(slf, mode+attr, item.astype(float))
+        # Mask
+        slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
+        return slf
+
     def _init_internals(self):
         # Object finding
         self.smash_peakflux = None
@@ -288,6 +303,38 @@ class SpecObj(datamodel.DataContainer):
         else:
             msgs.error("Bad PYPELINE")
 
+    @property
+    def mnx_wave(self):
+        """Return min, max wavelength of the spectrum
+        Uses OPT_WAVE if present and then BOX_WAVE
+
+        Returns:
+            tuple: min, max (float)
+        """
+        mnx = (0., 0.)
+        for pref in ['OPT', 'BOX']:
+            if self[pref+'_WAVE'] is not None:
+                mnx = self[pref+'_WAVE'].min(), self[pref+'_WAVE'].max() 
+            if mnx[0] != 0.:
+                break
+        return mnx
+
+    @property
+    def med_s2n(self):
+        """Return median S/N of the spectrum
+        Uses OPT_COUNTS if present and then BOX_COUNTS
+
+        Returns:
+            float
+        """
+        SN = 0.
+        for pref in ['OPT', 'BOX']:
+            if self[pref+'_COUNTS'] is not None:
+                SN = np.median(self[pref+'_COUNTS'] * np.sqrt(self[pref+'_COUNTS_IVAR']))
+            if SN != 0.:
+                break
+        return SN
+
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the
@@ -310,6 +357,10 @@ class SpecObj(datamodel.DataContainer):
             str:
 
         """
+        naming_model = {}
+        for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
+            naming_model[skey.lower()] = skey
+
         if 'Echelle' in self.PYPELINE:
             # ObjID
             name = naming_model['obj']
@@ -500,6 +551,7 @@ class SpecObj(datamodel.DataContainer):
 
     def to_arrays(self, extraction='OPT', fluxed=True):
         """
+        Convert spectrum into np.ndarray arrays
 
         Args:
             extraction (str): Extraction method to convert
@@ -558,7 +610,6 @@ class SpecObj(datamodel.DataContainer):
                 passed = False
         #
         return passed
-                
 
     def __repr__(self):
         """ Over-ride print representation
@@ -579,6 +630,11 @@ class SpecObj(datamodel.DataContainer):
                     rdict[attr] = True
             else:
                 rdict[attr] = False
-        repr += ' items={}'.format(rdict)
-        repr = repr + '>'
-        return repr
+        #repr += ' items={}'.format(rdict)
+        repr += ' items={'
+        for key in rdict.keys():
+            if rdict[key] is not False:
+                repr += '{}: {}\n'.format(key, rdict[key])
+        return repr + '>'
+
+

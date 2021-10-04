@@ -1,3 +1,6 @@
+
+.. _masters:
+
 =============
 Master Frames
 =============
@@ -24,6 +27,7 @@ Type              Format    Description
 MasterAlign       FITS      Alignment image (IFU)
 MasterArc         FITS      Processed arc spectral image
 MasterBias        FITS      Processed bias image
+MasterDark        FITS      Processed dark image
 MasterEdges       FITS      Several images describing the slit traces
 MasterFlat        FITS      Normalized flat field image
 MasterPinhole     FITS      Pinhole flat image

@@ -1,5 +1,8 @@
 .. include:: ../include/links.rst
 
+.. IF IT ISN'T ALREADY, WE SHOULD MOVE THESE DETAILS SOMEWHERE RELEVANT IN THE
+.. MAIN DOC PAGES.
+
 .. _fluxcalib:
 
 Flux Calibration

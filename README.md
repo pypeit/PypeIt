@@ -4,6 +4,8 @@
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/pypeit?label=conda%20downloads)](https://anaconda.org/conda-forge/pypeit)
 
 [![CI Tests](https://github.com/pypeit/PypeIt/workflows/CI%20Tests/badge.svg)](https://github.com/pypeit/PypeIt/actions?query=workflow%3A"CI+Tests")
+[![Coverage (release)](https://codecov.io/gh/PypeIt/pypeit/branch/release/graph/badge.svg)](https://codecov.io/gh/PypeIt/pypeit)
+[![Coverage (develop)](https://codecov.io/gh/PypeIt/pypeit/branch/develop/graph/badge.svg)](https://codecov.io/gh/PypeIt/pypeit)
 [![Documentation Status](https://readthedocs.org/projects/pypeit/badge/?version=latest)](https://pypeit.readthedocs.io/en/latest/?badge=latest)
 [![astropy](http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat)](http://www.astropy.org/)
 
@@ -88,6 +90,17 @@ the publication, please include the following acknowledgement
           adsnote = {Provided by the SAO/NASA Astrophysics Data System}
     }
 
+# Funding
+
+`PypeIt` receives direct funding from the following sources:
+
+* NASA (ADAP-A20-0412)
+* W.M. Keck Observatory
+* University of California Observatories
+
+We also rely on important in-kind contributions from individuals at
+Caltech, the Multiple Mirror Observatory, and elsewhere.
+
 # Contribute
 
 We encourage anyone to help us develop the `PypeIt` code base to better
@@ -113,13 +126,14 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * MMT/Blue Channel (300 tested)
 * MDM/OSMOS
 * Keck/DEIMOS (600ZD, 830G, 1200G)
-* Keck/KCWI (BM, BH2)
+* Keck/KCWI
 * Keck/LRIS
 * Keck/MOSFIRE  (J and Y gratings tested)
 * Keck/NIRES
 * Keck/NIRSPEC (low-dispersion)
 * LBT/Luci-I, Luci-II
 * LBT/MODS (beta)
+* LDT/DeVeny
 * Lick/APF (planned)
 * NOT/ALFOSC (grism4)
 * VLT/X-Shooter

@@ -4,7 +4,7 @@ Module for P200/DBSP specific methods.
 .. include:: ../include/links.rst
 """
 import os
-from typing import List
+from typing import List, Optional
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -15,6 +15,7 @@ from astropy import units as u
 from astropy.time import Time
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
@@ -183,22 +184,37 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             return parse.binning2string(binspec, binspatial)
         msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu: fits.HDUList, det: int):
+    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            P200/DBSPb.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '1,1'
+            datasec = None
+            oscansec = None
+        else:
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -215,16 +231,10 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # cross-check
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.72),
-            ronoise         = np.atleast_1d(2.5)
+            ronoise         = np.atleast_1d(2.5),
+            datasec         = datasec,
+            oscansec        = oscansec
             )
-        
-        header = hdu[0].header
-        datasec = header['TSEC1']
-        oscansec = header['BSEC1']
-
-        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
-        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
-
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -238,6 +248,9 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         """
         par = super().default_pypeit_par()
 
+        par['scienceframe']['process']['combine'] = 'median'
+        par['calibrations']['standardframe']['process']['combine'] = 'median'
+
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.55
@@ -250,7 +263,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
@@ -290,15 +303,12 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        disp = self.get_meta_value(scifile, 'dispname')
-        if disp == '600/4000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
-        else:
-            msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
+        grating = self.get_meta_value(scifile, 'dispname')
+        dichroic = self.get_meta_value(scifile, 'dichroic')
 
         angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
         slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+        lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 38.5 * 2*np.pi / 360. - angle
         order = 2. if lines_mm == 158. * u.mm else 1.
@@ -312,6 +322,52 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         resolving_power = cen_wv / dlam
 
         par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
+
+        cen_wv_AA = cen_wv.to(u.AA).value
+
+        high_res_reids = {
+            '1200/5000': {
+                'D55': {
+                    4700: 'p200_dbsp_blue_1200_5000_d55_4700.fits'
+                },
+                'D68': {
+                    6000: 'p200_dbsp_blue_1200_5000_d68_6000.fits'
+                }
+            }
+        }
+
+        if grating.split("/")[0] == "1200":
+            # high resolution grating!
+            # here we need to select the reid_arxiv that most closely matches the central wavelength
+            # and emit a warning if the difference is too great / the wavelength overlap is too small
+            try:
+                reids = high_res_reids[grating][dichroic]
+                cen_wvs = np.array(list(reids))
+                best_wv = cen_wvs[np.argmin(np.abs(cen_wvs - cen_wv_AA))]
+
+                # blue wavelength coverage with a 1200 lines/mm grating is about 1550 A
+                diff = np.abs(best_wv - cen_wv_AA)
+                if diff > 775:
+                    msgs.warn("Closest matching archived wavelength solutions"
+                        f"differs in central wavelength by {diff:4.0f} A. The"
+                        "wavelength solution may be unreliable. If wavelength"
+                        "calibration fails, try using the holy grail method by"
+                        "adding the following to your PypeIt file:\n"
+                        "[calibrations]\n"
+                        "\t[[wavelengths]]\n"
+                        "\t\tmethod = holy-grail")
+                par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
+            except KeyError:
+                msgs.error("Your grating " + grating + " needs a template spectrum for the blue arm of DBSP.")
+        else:
+            if grating == '600/4000' and dichroic == 'D55':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
+            elif grating == '600/4000' and dichroic == 'D68':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d68.fits'
+            elif grating == '300/3990' and dichroic == 'D55':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
+            else:
+                msgs.error("Your grating " + grating + ' needs a template spectrum for the blue arm of DBSP.')
         
         return par
 
@@ -351,22 +407,37 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu: fits.HDUList, det: int):
+    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            P200/DBSPr.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '1,1'
+            datasec = None
+            oscansec = None
+        else:
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -383,17 +454,10 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # check
             numamplifiers   = 1,
             gain            = np.atleast_1d(2.8),
-            ronoise         = np.atleast_1d(8.5)
+            ronoise         = np.atleast_1d(8.5),
+            datasec         = datasec,
+            oscansec        = oscansec
         )
-
-        header = hdu[0].header
-
-        datasec = header['TSEC1']
-        oscansec = header['BSEC1']
-
-        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
-        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
-
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -409,6 +473,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+
+        par['scienceframe']['process']['combine'] = 'median'
+        par['calibrations']['standardframe']['process']['combine'] = 'median'
 
         par['scienceframe']['process']['use_overscan'] = True
         par['scienceframe']['process']['sigclip'] = 4.0 # Tweaked downward from 4.5. 
@@ -461,16 +528,12 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         # Start with instrument wide
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
-        disp = self.get_meta_value(scifile, 'dispname')
-        if disp == '316/7500':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
-        else:
-            msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
-
+        grating = self.get_meta_value(scifile, 'dispname')
+        dichroic = self.get_meta_value(scifile, 'dichroic')
 
         angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
         slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+        lines_mm = float(grating.split('/')[0]) / u.mm
 
         theta_m = 35.0 * 2*np.pi / 360. - angle
         order = 1.
@@ -485,6 +548,85 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
+        cen_wv_AA = cen_wv.to(u.AA).value
+
+        high_res_reids = {
+            '1200/7100': {
+                'D68': {
+                    7600: 'p200_dbsp_red_1200_7100_d68.fits',
+                    8200: 'p200_dbsp_red_1200_7100_d68.fits'
+                }
+            },
+            '1200/9400': {
+                'D55': {
+                    8800: 'p200_dbsp_red_1200_9400_d55_8800.fits'
+                }
+            }
+        }
+
+        if grating.split("/")[0] == "1200":
+            # high resolution grating!
+            # here we need to select the reid_arxiv that most closely matches the central wavelength
+            # and emit a warning if the difference is too great / the wavelength overlap is too small
+            try:
+                reids = high_res_reids[grating][dichroic]
+                cen_wvs = np.array(list(reids))
+                best_wv = cen_wvs[np.argmin(np.abs(cen_wvs - cen_wv_AA))]
+
+                # red wavelength coverage with a 1200 lines/mm grating is about 1600 A
+                diff = np.abs(best_wv - cen_wv_AA)
+                if diff > 800:
+                    msgs.warn("Closest matching archived wavelength solutions"
+                        f"differs in central wavelength by {diff:4.0f} A. The"
+                        "wavelength solution may be unreliable. If wavelength"
+                        "calibration fails, try using the holy grail method by"
+                        "adding the following to your PypeIt file:\n"
+                        "[calibrations]\n"
+                        "\t[[wavelengths]]\n"
+                        "\t\tmethod = holy-grail")
+                par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
+            except KeyError:
+                msgs.error("Your grating " + grating + " needs a template spectrum for the red arm of DBSP.")
+        else:
+            if grating == '316/7500' and dichroic == 'D55':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
+            elif grating == '600/10000' and dichroic == 'D55':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
+            else:
+                msgs.error("Your grating " + grating + ' needs a template spectrum for the red arm of DBSP.')
+
         return par
 
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """
+        Override parent bpm function with BPM specific to P200 DBSPr.
 
+        Parameters
+        ----------
+        det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+
+        Returns
+        -------
+        bpix : ndarray
+          0 = ok; 1 = Mask
+
+        """
+        msgs.info("Custom bad pixel mask for DBSPr")
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        # Red CCD detector defect is present in data taken 2020-05-22
+        # and absent in data taken 2020-04-21
+        DEFECT_DATE = Time('2020-05-21')
+        # TODO: Model the growth of the detector defect with time.
+        # TODO: Get more precise date range for detector.
+        with io.fits_open(filename) as hdul:
+            if Time(hdul[0].header['UTSHUT']) > DEFECT_DATE:
+                spec_binning = int(self.get_meta_value([hdul[0].header], 'binning').split(',')[0])
+                bpm_img[464 // spec_binning : 723 // spec_binning, :] = 1
+
+        return bpm_img

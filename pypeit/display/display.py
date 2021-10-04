@@ -100,10 +100,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
             name of a fits image that can be read by `astropy.io.fits`.
         chname (:obj:`str`, optional):
             The name of the ginga channel to use.
-        waveimg (:obj:`str`, optional):
-            The name of a FITS image with the relevant WCS coordinates
-            in its header, mainly for wavelength array.  If None, no WCS
-            is used.
+        waveimg (:obj:`numpy.ndarray`, optional):
+            Wavelength image
         bitmask (:class:`pypeit.bitmask.BitMask`, optional):
             The object used to unpack the mask values.  If this is
             provided, mask must also be provided and the expectation is
@@ -407,7 +405,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                 xt, yt = yt, xt
                 xb, yb = yb, xb
             canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('blue'),
-                       fontsize=20.)
+                       fontsize=20., rot_deg=90.)
             #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
     # Plot rights. Points need to be int or float. Use of .tolist() on
@@ -438,12 +436,12 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             xt, yt = yt, xt
             xb, yb = yb, xb
         # Slit IDs
-        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
-                   fontsize=20.)
+        canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
+                   fontsize=20., rot_deg=90.)
         # maskdef_ids
         if _maskdef_ids is not None:
-            canvas.add(str('text'), xb, yb-100, str('{0}'.format(_maskdef_ids[i])), color=str('cyan'),
-                       fontsize=20.)
+            canvas.add(str('text'), xb, yb-250, str('{0}'.format(_maskdef_ids[i])),
+                       color=str('cyan'), fontsize=20., rot_deg=90.)
         # TODO -- Fix indices if you really want to show them
         #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
         #           fontsize=20.)

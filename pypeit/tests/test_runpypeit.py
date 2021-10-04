@@ -15,8 +15,8 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
-from pypeit.scripts import setup
-from pypeit.scripts import run_pypeit
+from pypeit.scripts.setup import Setup
+from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit import specobjs
 
@@ -67,9 +67,9 @@ def test_run_pypeit_calib_only():
             shutil.rmtree(outdir)
 
         # Run the setup
-        sargs = setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+        sargs = Setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
                                   '--output_path', outdir])
-        setup.main(sargs)
+        Setup.main(sargs)
 
         # Change to the configuration directory and set the pypeit file
         configdir = os.path.join(outdir, 'shane_kast_blue_A')
@@ -77,8 +77,8 @@ def test_run_pypeit_calib_only():
         assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
         # Perform the calib-only reduction
-        pargs = run_pypeit.parse_args([pyp_file, '-c', '-r', configdir])
-        run_pypeit.main(pargs)
+        pargs = RunPypeIt.parse_args([pyp_file, '-c', '-r', configdir])
+        RunPypeIt.main(pargs)
 
         # Test!
         for master_file in masters:
@@ -89,32 +89,23 @@ def test_run_pypeit_calib_only():
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
 
-@dev_suite_required
 def test_run_pypeit():
-    # Get the directories
-    rawdir = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'shane_kast_blue', '600_4310_d55')
-    assert os.path.isdir(rawdir), 'Incorrect raw directory'
 
     # Just get a few files
-    testrawdir = os.path.join(rawdir, 'TEST')
-    if os.path.isdir(testrawdir):
-        shutil.rmtree(testrawdir)
-    os.makedirs(testrawdir)
-    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
-              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
-    for f in files:
-        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
+    testrawdir = data_path('')
 
-    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
+    #outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
+    outdir = data_path('REDUX_OUT_TEST')
 
     # For previously failed tests
     if os.path.isdir(outdir):
         shutil.rmtree(outdir)
 
     # Run the setup
-    sargs = setup.parse_args(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+    sargs = Setup.parse_args(['-r', testrawdir+'b', '-s', 
+                              'shane_kast_blue', '-c all', '-o', 
                               '--output_path', outdir])
-    setup.main(sargs)
+    Setup.main(sargs)
 
     # Change to the configuration directory and set the pypeit file
     configdir = os.path.join(outdir, 'shane_kast_blue_A')
@@ -122,16 +113,16 @@ def test_run_pypeit():
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
     # Try to run with -m and -o
-    pargs = run_pypeit.parse_args([pyp_file, '-o', '-m', '-r', configdir])
-    run_pypeit.main(pargs)
+    pargs = RunPypeIt.parse_args([pyp_file, '-o', '-m', '-r', configdir])
+    RunPypeIt.main(pargs)
 
     # #########################################################
     # Test!!
     # Files exist
-    assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'))
+    assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits'))
 
     # spec1d
-    spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
     assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     
@@ -145,10 +136,10 @@ def test_run_pypeit():
     assert abs(specObjs[0].VEL_CORR - 0.9999261685542624) < 1.0E-10
 
     # Now re-use those master files
-    pargs = run_pypeit.parse_args([pyp_file, '-o', '-r', configdir])
-    run_pypeit.main(pargs)
+    pargs = RunPypeIt.parse_args([pyp_file, '-o', '-r', configdir])
+    RunPypeIt.main(pargs)
 
     # Clean-up
     shutil.rmtree(outdir)
-    shutil.rmtree(testrawdir)
+
 

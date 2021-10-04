@@ -127,7 +127,7 @@ def gen_timestamp():
     timestamp : str
       user_datetime
     """
-    tstamp = datetime.datetime.today().strftime('%Y-%b-%d-T%Hh%Mm%Ss')
+    tstamp = datetime.datetime.today().strftime('%Y-%m-%d-T%Hh%Mm%Ss')
     try:
         user = getpass.getuser()
     except ModuleNotFoundError:

@@ -235,9 +235,7 @@ class Spec2DObj(datamodel.DataContainer):
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
 
-# TODO: In python3, you don't have to subclass from object. All classes
-# do so automatically.
-class AllSpec2DObj(object):
+class AllSpec2DObj:
     """
     Simple object to hold Spec2DObj objects
     and perform I/O
@@ -367,7 +365,7 @@ class AllSpec2DObj(object):
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['PYP_SPEC'] = spectrograph.name
-        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%m-%d'))
 
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?

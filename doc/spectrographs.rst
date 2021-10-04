@@ -19,6 +19,9 @@ For instructions on how to add a new spectrograph see:
 
 .. include:: include/spectrographs_table.rst
 
+
+.. _spec_details:
+
 Instrument-specific Details
 ===========================
 
@@ -38,3 +41,5 @@ instrument-specific details for running ``PypeIt``.
    shane_kast
    xshooter
    gtc_osiris
+   ntt_efosc2
+   

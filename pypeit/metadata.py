@@ -93,7 +93,8 @@ class PypeItMetaData:
             The table with the relevant metadata for each fits file to
             use in the data reduction.
     """
-    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, strict=True):
+    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, 
+                 strict=True):
 
         if data is None and files is None:
             # Warn that table will be empty
@@ -109,7 +110,8 @@ class PypeItMetaData:
 
         # Build table
         self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, usrdata=usrdata))
+                                 else self._build(files, strict=strict, 
+                                                  usrdata=usrdata))
 
         # Merge with user data, if present
         if usrdata is not None:
@@ -181,15 +183,18 @@ class PypeItMetaData:
 
             # Add the directory and file name to the table
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
+            if not data['directory'][idx]:
+                data['directory'][idx] = '.'
 
             # Read the fits headers
             headarr = self.spectrograph.get_headarr(ifile, strict=strict)
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict,
-                                                         usr_row=usr_row, ignore_bad_header
-                                                            =self.par['rdx']['ignore_bad_headers'])
+                value = self.spectrograph.get_meta_value(headarr, meta_key, 
+                                                         required=strict,
+                                                         usr_row=usr_row, 
+                        ignore_bad_header = self.par['rdx']['ignore_bad_headers'])
                 if isinstance(value, str) and '#' in value:
                     value = value.replace('#', '')
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
@@ -465,7 +470,7 @@ class PypeItMetaData:
         return '{0}-{1}_{2}_{3}{4}'.format(self['filename'][row].split('.fits')[0],
                                            self['target'][row].replace(" ", ""),
                                            self.spectrograph.camera,
-                                           datetime.datetime.strftime(dtime, '%Y%b%dT'),
+                                           datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
@@ -642,7 +647,8 @@ class PypeItMetaData:
 
         # Configuration identifiers are iterations through the
         # upper-case letters: A, B, C, etc.
-        cfg_iter = string.ascii_uppercase
+        double_alphabet = [str_i + str_j for str_i in string.ascii_uppercase for str_j in string.ascii_uppercase]
+        cfg_iter = list(string.ascii_uppercase) + double_alphabet
         cfg_indx = 0
 
         # TODO: Placeholder: Allow an empty set of configuration keys

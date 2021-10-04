@@ -20,6 +20,7 @@ from astropy import units
 
 from linetools import utils as ltu
 
+from pypeit import msgs
 from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
@@ -29,6 +30,7 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wv_fitting
 from pypeit.core import fitting
+from pypeit import msgs
 
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
@@ -244,7 +246,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
 
     """
-    if 'json' in in_file:
+    if '.json' in in_file:
         wv_dict = ltu.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
@@ -260,7 +262,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
-    elif 'fits' in in_file:
+    elif '.fits' in in_file:
         wvcalib = wavecalib.WaveCalib.from_file(in_file)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
@@ -279,7 +281,6 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
 
     # Return
     return wv_vac, flux, pypeitFitting
-
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -435,6 +436,7 @@ def xidl_arcspec(xidl_file, slit):
         spec = spec[::-1]
     # Return
     return wv_vac.value, spec
+
 
 def main(flg):
 
@@ -745,44 +747,6 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
                        chk=True, subtract_conti=True)
 
-    # Keck KCWI
-    if flg & (2 ** 29):
-        # FeAr BH2
-        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200.json')
-        outroot = 'keck_kcwi_BH2_4200.fits'
-        binspec = 1
-        slits = [1015]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # FeAr BM
-        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
-        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
-        outroot = 'keck_kcwi_BM.fits'
-        binspec = 1
-        slits = [1026, 1021]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
-    # P200 DBSP r
-    if flg & (2 ** 30):
-        # HeNeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
-        outroot = 'p200_dbsp_red_316_7500_d55.fits'
-        binspec = 1
-        slits = [221]
-        lcut = None # only matters if >1 slit
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
-    # P200 DBSP b
-    if flg & (2 ** 31):
-        # FeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
-        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
-        binspec = 1
-        slits = [231]
-        lcut = None
-        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
     # MMT/MMIRS
     if flg & (2**32):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
@@ -885,15 +849,6 @@ if __name__ == '__main__':
 
     # MDM/OSMMOS
     #flg += 2**28
-
-    # Keck KCWI
-    #flg += 2**29
-
-    # P200 DBSP r
-    #flg += 2**30
-
-    # P200 DBSP b
-    #flg += 2**31
 
     # MMT MMIRS
     #flg += 2**32
