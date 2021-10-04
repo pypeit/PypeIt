@@ -292,9 +292,11 @@ class PypeIt:
                 calib_dict[key] = {}
                 for step in self.caliBrate.steps:
                     print(f"step: {step}")
-                    if step in ['bpm', 'slits', 'tiltimg', 
+                    if step in ['bpm', 'slits', 
                                 'wv_calib', 'tilts', 'flats']:
                         continue
+                    elif step == 'tiltimg':  # Annoying kludge
+                        step = 'tilt'
                     # Prep
                     raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
                     masterframe_name = masterframe.construct_file_name(
