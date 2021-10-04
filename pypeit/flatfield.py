@@ -235,15 +235,6 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
                 return self.illumflat_spat_bsplines
 
-    def get_pixelflat(self):
-        return self.pixelflat_norm
-
-    def get_spec_illum(self):
-        return self.pixelflat_spec_illum
-
-    def get_flat_model(self):
-        return self.pixelflat_model
-
     def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
         """
 
@@ -382,7 +373,8 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib, spat_illum_only=False):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib,
+                 spat_illum_only=False):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -687,8 +679,17 @@ class FlatField(object):
         # Model each slit independently
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
-            if self.slits.mask[slit_idx] != 0:
+            if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['SHORTSLIT', 'USERIGNORE', 'BADTILTCALIB']):
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                continue
+            elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BOXSLIT']):
+                msgs.info('Skipping alignment slit: {}'.format(slit_spat))
+                continue
+            elif self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag=['BADWVCALIB']) and \
+                    (self.flatpar['pixelflat_min_wave'] is not None or self.flatpar['pixelflat_max_wave'] is not None):
+                msgs.info('Skipping slit with bad wavecalib: {}'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
             msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
@@ -1205,11 +1206,10 @@ class FlatField(object):
             mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
 
         # Obtain relative spectral illumination
-        relscl_model = illum_profile_spectral(rawflat, waveimg, self.slits, slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
-                                              model=None, gpmask=gpm, skymask=None, trim=trim, flexure=flex)
-        # Invert
-        scale_model = 1 / (relscl_model + (relscl_model == 0))
-        return scale_model
+        return illum_profile_spectral(rawflat, waveimg, self.slits,
+                                      slit_illum_ref_idx=self.flatpar['slit_illum_ref_idx'],
+                                      model=None, gpmask=gpm, skymask=None, trim=trim,
+                                      flexure=flex)
 
 
 def show_flats(image_list, wcs_match=True, slits=None):
@@ -1430,3 +1430,6 @@ def merge(init_cls, merge_cls):
         dd[key] = namespace['val']
     # Construct the merged class
     return FlatImages(**dd)
+
+
+

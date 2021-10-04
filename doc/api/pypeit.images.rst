@@ -14,7 +14,6 @@ Submodules
    pypeit.images.pypeitimage
    pypeit.images.rawimage
    pypeit.images.sciencecube
-   pypeit.images.scienceimage
 
 Module contents
 ---------------

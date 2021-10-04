@@ -80,6 +80,13 @@ not provide RA/DEC for calibrations), you may specify which frametypes
 
         meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science'])
 
+You can also not require a particular bit of meta data for any frame by
+setting `required=False`, i.e.::
+
+        self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y', required=False)  
+
+Note that this overrules `required_ftypes`, i.e. don't use these together.
+
 For meta data that depends on more than one header card or has some
 other complexity, the `compound_meta()` method is used.  Here is
 an example from Keck/DEIMOS::
