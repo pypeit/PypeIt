@@ -1117,8 +1117,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return bpm_img
 
-
-
 class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     """
     Child to handle the original LRISr detector (pre 01 JUL 2009)
@@ -1152,35 +1150,34 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         detector_dict1 = dict(
             binning=binning,
             det=1,
-            dataext=1,
+            dataext=0,
             specaxis=0,
-            specflip=False,  
+            specflip=True,  
             spatflip=False,
-            platescale=0.135,
+            platescale=0.123,  # From the web page
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
             mincounts=-1e10,
             numamplifiers=2,  # These are defaults but can modify below
             gain=np.atleast_1d([1.71, 1.61]),
-            ronoise=np.atleast_1d([4.42, 4.41]),
+            ronoise=np.atleast_1d([3.64, 3.45]),
         )
 
         if hdu is None:
-            return detector
+            return detector_container.DetectorContainer(**detector_dict1)
 
         # Deal with number of amps
-        namps = hdu[0].header['NUMAMPS']
+        namps = hdu[0].header['NVIDINP']
+
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
         if namps == 2: 
             pass
         elif namps == 4:
-            msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
-            msgs.warn("CONFIRM THE FOLLOWING!!")
-            detector_dict1['gain'] = np.atleast_1d([1.71, 1.68, 1.61, 1.72])
-            detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24, 4.41, 4.68])
-            embed(header='1173 of keck_lris')
+            # From the web page on 2021-10-04 (L1, L2, L3, L4)
+            detector_dict1['gain'] = np.atleast_1d([1.71, 1.64, 1.61, 1.67])
+            detector_dict1['ronoise'] = np.atleast_1d([3.64, 3.45, 3.65, 3.52])
         else:
             msgs.error("Did not see this namps coming..")
 
@@ -1189,6 +1186,48 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
 
         # Return
         return detector
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Over-ride standard get_rawimage() for LRIS
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # Image info
+        hdul = fits.open(raw_file)
+        embed(header='1226 of keck_lris')
+        image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
+        # Detector
+        detector_par = self.get_detector_par(det, hdu=hdul)
+        # Return
+        return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
 
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
