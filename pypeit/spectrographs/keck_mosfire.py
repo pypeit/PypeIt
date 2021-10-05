@@ -70,6 +70,53 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         )
         return detector_container.DetectorContainer(**detector_dict)
 
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Over-ride standard get_rawimage() for MOSFIRE to deal
+        with long2pos slitmask
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+
+        detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img = super().get_rawimage(raw_file, det)
+
+        headarr = self.get_headarr(raw_file)
+
+        if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+            # Select only the 3 slits used for long2pos and neglect the others that are random
+            rawdatasec_img[:883, :] = 0
+            rawdatasec_img[1195:, :] = 0
+
+        # Return
+        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
     @classmethod
     def default_pypeit_par(cls):
         """
