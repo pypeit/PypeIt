@@ -503,9 +503,12 @@ class BuildWaveCalib:
         # QA
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
-            outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', out_dir=self.qa_path)
-            titles = np.array(['S' + slit for slit in self.slits.slitord_id.astype('str')])
-            autoid.arc_fit_qa(self.wv_calib.wv_fits, ok_mask_idx, titles=titles, outfile=outfile)
+            for slit_idx in ok_mask_idx:
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
+                                             out_dir=self.qa_path)
+                #
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
+                                  outfile=outfile)
 
 
         # Return
