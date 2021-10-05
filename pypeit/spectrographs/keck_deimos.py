@@ -730,14 +730,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             lamps (:obj:`list`) : List used arc lamps
 
         """
-        # read and save the arc lamp in each frame
-        lamp_list = np.array([])
-        for col in fitstbl:
-                lamp_list = np.append(lamp_list, col['lampstat01'].split(' '))
-        # make it in Pypeit format
-        lamp_list = [lamp + 'I' for lamp in np.unique(lamp_list)]
 
-        return lamp_list
+        return [f'{lamp}I' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
 
     def get_telescope_offset(self, file_list):
         """
