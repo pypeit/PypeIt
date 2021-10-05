@@ -724,7 +724,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         Args:
             fitstbl (`astropy.table.Table`_):
-                The table with the metadata for one or more frames.
+                The table with the metadata for one or more arc frames.
 
         Returns:
             lamps (:obj:`list`) : List used arc lamps
@@ -733,7 +733,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # read and save the arc lamp in each frame
         lamp_list = np.array([])
         for col in fitstbl:
-            if 'arc' in col['frametype']:
                 lamp_list = np.append(lamp_list, col['lampstat01'].split(' '))
         # make it in Pypeit format
         lamp_list = [lamp + 'I' for lamp in np.unique(lamp_list)]

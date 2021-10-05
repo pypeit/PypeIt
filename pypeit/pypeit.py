@@ -269,7 +269,9 @@ class PypeIt:
             in_grp = self.fitstbl.find_calib_group(i)
             grp_frames = frame_indx[in_grp]
             if self.par['calibrations']['wavelengths']['use_header_lamps']:
-                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
+                is_arc = self.fitstbl.find_frames('arc')
+                self.par['calibrations']['wavelengths']['lamps'] = \
+                    self.spectrograph.get_lamps(self.fitstbl[in_grp & is_arc])
 
             # Find the detectors to reduce
             detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
@@ -315,7 +317,9 @@ class PypeIt:
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             if self.par['calibrations']['wavelengths']['use_header_lamps']:
-                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
+                is_arc = self.fitstbl.find_frames('arc')
+                self.par['calibrations']['wavelengths']['lamps'] = \
+                    self.spectrograph.get_lamps(self.fitstbl[in_grp & is_arc])
 
             # Find the indices of the standard frames in this calibration group:
             grp_standards = frame_indx[is_standard & in_grp]
@@ -344,7 +348,9 @@ class PypeIt:
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             if self.par['calibrations']['wavelengths']['use_header_lamps']:
-                self.par['calibrations']['wavelengths']['lamps'] = self.spectrograph.get_lamps(self.fitstbl[in_grp])
+                is_arc = self.fitstbl.find_frames('arc')
+                self.par['calibrations']['wavelengths']['lamps'] = \
+                    self.spectrograph.get_lamps(self.fitstbl[in_grp & is_arc])
 
             # Find the indices of the science frames in this calibration group:
             grp_science = frame_indx[is_science & in_grp]
