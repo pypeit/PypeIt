@@ -3623,7 +3623,7 @@ class ExtractionPar(ParSet):
     """
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
-                 model_full_slit=None, manual=None, skip_optimal=None,
+                 model_full_slit=None, manual=None, skip_extraction=None, skip_optimal=None,
                  use_2dmodel_mask=None, use_user_fwhm=None):
 
         # Grab the parameter names and values from the function
@@ -3645,6 +3645,10 @@ class ExtractionPar(ParSet):
         defaults['boxcar_radius'] = 1.5
         dtypes['boxcar_radius'] = [int, float]
         descr['boxcar_radius'] = 'Boxcar radius in arcseconds used for boxcar extraction'
+
+        defaults['skip_extraction'] = False
+        dtypes['skip_extraction'] = bool
+        descr['skip_extraction'] = 'Do not perform an object extraction'
 
         defaults['skip_optimal'] = False
         dtypes['skip_optimal'] = bool
@@ -3698,7 +3702,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
+                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
