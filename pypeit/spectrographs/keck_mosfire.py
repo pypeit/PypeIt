@@ -209,7 +209,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # needed for better slitmask design matching
             par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+                # use dither info in the header to find objects
                 par['reduce']['slitmask']['use_dither_offset'] = True
+                # assume that the main target is always detected, i.e., skipping force extraction
+                par['reduce']['slitmask']['extract_missing_objs'] = False
 
 
         # Return
