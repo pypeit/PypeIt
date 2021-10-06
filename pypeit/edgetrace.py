@@ -4255,7 +4255,7 @@ class EdgeTraceSet(DataContainer):
                         # If close trace is "right" but it's too close to the new left trace,
                         # add the new trace after "right" one
                         if (self.traceid[indx] > 0) and \
-                                ((self.edge_fit[self.pca.reference_row, indx] - bot_edge_pred[needind_b][i]) < 5):
+                                ((self.edge_fit[reference_row, indx] - bot_edge_pred[needind_b][i]) < 5):
                             bot_edge_pred[needind_b[i]] = self.edge_fit[reference_row, indx] + 1
                     missing_left_traces = self.predict_traces(bot_edge_pred[needind_b][i], side=-1)
                     self.insert_traces(-1, missing_left_traces, mode='mask', nudge=False)

@@ -535,9 +535,16 @@ class PypeIt:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # get the dither offset if available
+            if self.par['reduce']['slitmask']['use_dither_offset']:
+                dither = self.spectrograph.parse_dither_pattern(
+                    ['{}/{}'.format(self.fitstbl['directory'][frames[0]], self.fitstbl['filename'][frames[0]])])
+                dither_off = dither[2][0] if dither is not None else None
+            else:
+                dither_off = None
             calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['calibrations']['slitedges']['det_buffer'],
-                                                                      self.par['reduce']['slitmask'])
+                                                                      self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0])
             # slitmask design matching and add undetected objects

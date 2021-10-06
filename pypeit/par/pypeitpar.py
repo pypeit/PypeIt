@@ -1653,7 +1653,7 @@ class SlitMaskPar(ParSet):
 
     """
     def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
-                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
+                 slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
                  use_alignbox=None):
 
         # Grab the parameter names and values from the function
@@ -1696,7 +1696,15 @@ class SlitMaskPar(ParSet):
         dtypes['slitmask_offset'] = [int, float]
         descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
                                    'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
-                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`.'
+
+        defaults['use_dither_offset'] = False
+        dtypes['use_dither_offset'] = bool
+        descr['use_dither_offset'] = 'Use the dither offset recorded in the header as the value ' \
+                                     'for `slitmask_offset`. This is optional, and if set PypeIt will ' \
+                                     'NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. ' \
+                                     'However, it is ignored if ``slitmask_offset`` is provided. ' \
+                                     'Currently only for Keck MOSFIRE reduction.'
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
@@ -1723,7 +1731,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset',
+        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
                    'bright_maskdef_id', 'extract_missing_objs', 'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])

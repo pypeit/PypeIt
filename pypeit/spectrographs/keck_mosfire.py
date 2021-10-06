@@ -200,8 +200,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Turn on the use of mask design
-        if ('LONGSLIT' not in self.get_meta_value(headarr, 'decker')) and (
-                'long2pos' not in self.get_meta_value(headarr, 'decker')):
+        if 'LONGSLIT' not in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # Assign RA, DEC, OBJNAME to detected objects
             par['reduce']['slitmask']['assign_obj'] = True
@@ -209,6 +208,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['extract_missing_objs'] = True
             # needed for better slitmask design matching
             par['calibrations']['flatfield']['tweak_slits'] = False
+            if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+                par['reduce']['slitmask']['use_dither_offset'] = True
+
 
         # Return
         return par
@@ -561,16 +563,29 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
 
+        targ_dist_center = np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)
+
+        slit_centers = np.array(ssl['Slit_length'], dtype=float) / 2.
+        # Some # adjustment for long2pos
+        if 'long2pos' in self.get_meta_value(filename, 'decker'):
+            slit_centers_wrong = np.array(ssl['Slit_length'], dtype=float) / 2.
+            # correct slit length
+            ssl['Slit_length'] = '22.970', '7.010', '22.970'
+            slit_centers = np.array(ssl['Slit_length'], dtype=float) / 2.
+            centers_diff = slit_centers - slit_centers_wrong
+            targ_dist_center[0] -= centers_diff[0]
+            targ_dist_center[2] += centers_diff[2]
+
+        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        topdist = np.round(slit_centers + targ_dist_center, 3)
+        botdist = np.round(slit_centers - targ_dist_center, 3)
+
         # Find the index to map the objects in the Science Slit List and the Target list
         indx = index_of_x_eq_y(targs['Target_Name'], ssl['Target_Name'])
         targs_mtch = targs[indx]
         obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
         obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
         obj_ra, obj_dec = meta.convert_radec(obj_ra, obj_dec)
-        slit_centers = np.array(ssl['Slit_length'], dtype=float)/2.
-        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
-        topdist = np.round(slit_centers + np.array(ssl['Target_to_center_of_slit_distance'], dtype=float), 3)
-        botdist = np.round(slit_centers - np.array(ssl['Target_to_center_of_slit_distance'], dtype=float), 3)
         #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
         objects = np.array([np.array(ssl['Slit_Number'], dtype=int),
                            np.zeros(ssl['Slit_Number'].size, dtype=int),   # no object ID
@@ -649,7 +664,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
-        edge = 2034
+        edge = 2034 if 'long2pos' not in self.get_meta_value(filename, 'decker') else 305
         bot_edges = np.array([edge], dtype=np.int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number

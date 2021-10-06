@@ -1126,7 +1126,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return
 
     def get_maskdef_offset(self, sobjs, slits_left, platescale, slitmask_off, bright_maskdefid,
-                           nsig_thrshd, use_alignbox):
+                           nsig_thrshd, use_alignbox, dither_off=None):
         """
         Determine the Slitmask offset (pixels) from position expected by the slitmask design
 
@@ -1139,6 +1139,7 @@ class SlitTraceSet(datamodel.DataContainer):
             nsig_thrshd (:obj:`float`): Objects detected above this sigma threshold will be use to
                                         compute the slitmask offset
             use_alignbox (:obj:`bool`): Flag that determines if the alignment boxes are used to measure the offset
+            dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
 
 
         """
@@ -1152,6 +1153,12 @@ class SlitTraceSet(datamodel.DataContainer):
             self.maskdef_offset = slitmask_off
             msgs.info('User-provided slitmask offset: {} pixels ({} arcsec)'.format(round(self.maskdef_offset, 2),
                                                                             round(self.maskdef_offset*platescale, 2)))
+            return
+        # If using the dither offeset recorde in the header, just save it and return
+        if dither_off is not None:
+            self.maskdef_offset = -dither_off
+            msgs.info('Slitmask offset from the dither pattern: {} pixels ({} arcsec)'.
+                      format(round(self.maskdef_offset/platescale, 2), round(self.maskdef_offset, 2)))
             return
 
         # Restrict to objects on this detector
@@ -1367,7 +1374,8 @@ def parse_slitspatnum(slitspatnum):
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
 
-def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par):
+def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par,
+                                      dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
@@ -1380,6 +1388,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
         platescale (:obj:`list`): List of platescale for every detector
         det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
+        dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
 
     Returns:
         List of `SlitTraceSet` with updated information on the traced slit edges
@@ -1401,7 +1410,8 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
                                               slitmask_par['slitmask_offset'],
                                               slitmask_par['bright_maskdef_id'],
                                               slitmask_par['nsig_thrshd'],
-                                              slitmask_par['use_alignbox'])
+                                              slitmask_par['use_alignbox'],
+                                              dither_off=dither_off)
 
     return calib_slits
 
