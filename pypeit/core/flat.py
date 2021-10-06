@@ -453,64 +453,47 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
+#def flatfield(sciframe, flatframe, bpm=None, illum_flat=None, snframe=None, varframe=None):
+def flatfield(sciframe, flatframe, varframe=None):
+    r"""
+    Field flatten the input image.
 
-# TODO: How much of the rest of this is used?
+    This is a simple scaling of the provided science frame by the inverse of the
+    flat frame.
 
-def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
-    """ Flat field the input image
+    Args:
+        sciframe (`numpy.ndarray`_):
+            The science frame to flat-field correct
+        flatframe (`numpy.ndarray`_):
+            The flat-field image to use for the correction.  Shape must match
+            ``sciframe``.
+        varframe (`numpy.ndarray`_, optional):
+            The variance in the science frame (``sciframe``).  If provided, the
+            flat-fielding operation is propagated to the variance, and the
+            result is returned.  Shape must match ``sciframe``.
 
-    .. todo::
-        - Is bpix required?
-
-    Parameters
-    ----------
-    sciframe : 2d image
-    flatframe : 2d image
-    illum_flat : 2d image, optional
-      slit profile image
-    snframe : 2d image, optional
-    det : int
-      Detector index
-    varframe : ndarray
-      variance image
-
-    Returns
-    -------
-    flat-field image
-    and updated sigma array if snframe is input
-    or updated variance array if varframe is input
-
+    Returns:
+        :obj:`tuple`: A tuple of two or three `numpy.ndarray`_ objects.  The
+        first two are the rescaled science frame and a boolean bad-pixel mask
+        indicating where the flat frame was not positive.  If a variance image
+        is provided, the third object is the propagated variance in the rescaled
+        science frame.
     """
-    if (varframe is not None) & (snframe is not None):
-        msgs.error("Cannot set both varframe and snframe")
-
-    # Fold in the slit profile
-    final_flat = flatframe.copy()
-    if illum_flat is not None:
-        if np.any(illum_flat != 1.0):
-            msgs.info('Applying illumination flat')
-            final_flat *= illum_flat  # Previous code was modifying flatframe!
+    if flatframe.shape != sciframe.shape:
+        msgs.error('Shape of flat frame does not match science frame.')
+    if varframe is not None and varframe.shape != sciframe.shape:
+        msgs.error('Shape of variance frame does not match science frame.')
 
     # New image
     retframe = np.zeros_like(sciframe)
-    w = np.where(final_flat > 0.0)
-    retframe[w] = sciframe[w]/final_flat[w]
-    if w[0].size != final_flat.size:
-        ww = np.where(final_flat <= 0.0)
-        bpix[ww] = 1.0
-    # Variance?
-    if varframe is not None:
-        # This is risky -- Be sure your flat is well behaved!!
-        retvar = np.zeros_like(sciframe)
-        retvar[w] = varframe[w]/final_flat[w]**2
-        return retframe, retvar
-    # Error image
-    if snframe is None:
-        return retframe
-    else:
-        errframe = np.zeros_like(sciframe)
-        wnz = np.where(snframe>0.0)
-        errframe[wnz] = retframe[wnz]/snframe[wnz]
-        return retframe, errframe
+    gpm = flatframe > 0.
+    retframe[gpm] = sciframe[gpm]/flatframe[gpm]
+    if varframe is None:
+        return retframe, np.logical_not(gpm)
+
+    # Propagate the variance
+    retvar = np.zeros_like(sciframe)
+    retvar[gpm] = varframe[gpm]/flatframe[gpm]**2
+    return retframe, np.logical_not(gpm), retvar
 
 

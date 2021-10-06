@@ -288,7 +288,7 @@ Key                      Type               Options                            D
 ``saturated_slits``      str                ``crash``, ``mask``, ``continue``  ``crash``    Behavior when a slit is encountered with a large fraction of saturated pixels in the flat-field.  The options are: 'crash' - Raise an error and halt the data reduction; 'mask' - Mask the slit, meaning no science data will be extracted from the slit; 'continue' - ignore the flat-field correction, but continue with the reduction.
 ``slit_illum_pad``       int, float         ..                                 5.0          The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.                                                                                                                                                                                                          
 ``slit_illum_ref_idx``   int                ..                                 0            The index of a reference slit (0-indexed) used for estimating the relative spectral sensitivity (or the relative blaze). Thisparameter is only used if ``slit_illum_relative = True``.                                                                                                                                                   
-``slit_illum_relative``  bool               ..                                 False        Generate an image of the relative spectral illuminationfor a multi-slit setup.                                                                                                                                                                                                                                                           
+``slit_illum_relative``  bool               ..                                 False        Generate an image of the relative spectral illuminationfor a multi-slit setup.  If you set ``use_slitillum = True`` for any of the frames that use the flat-field model, this *must* be set to True.                                                                                                                                     
 ``slit_trim``            int, float, tuple  ..                                 3.0          The number of pixels to trim each side of the slit when selecting pixels to use for fitting the spectral response function.  Single values are used for both slit edges; a two-tuple can be used to trim the left and right sides differently.                                                                                           
 ``spat_samp``            int, float         ..                                 5.0          Spatial sampling for slit illumination function. This is the width of the median filter in pixels used to determine the slit illumination function, and thus sets the minimum scale on which the illumination function will have features.                                                                                               
 ``spec_samp_coarse``     int, float         ..                                 50.0         bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals. This should be a large number unless you are trying to fit a sky flat with lots of narrow spectral features.                                                                                                                
@@ -748,37 +748,38 @@ ProcessImagesPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 
-========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
-Key                       Type        Options                                                                Default         Description                                                                                                                                                                                                                                
-========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
-``apply_gain``            bool        ..                                                                     True            Convert the ADUs to electrons using the detector gain                                                                                                                                                                                      
-``clip``                  bool        ..                                                                     True            Perform sigma clipping when combining.  Only used with combine=weightmean                                                                                                                                                                  
-``comb_sigrej``           float       ..                                                                     ..              Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                       
-``combine``               str         ``median``, ``weightmean``                                             ``weightmean``  Method used to combine multiple frames.  Options are: median, weightmean                                                                                                                                                                   
-``cr_sigrej``             int, float  ..                                                                     20.0            Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                             
-``grow``                  int, float  ..                                                                     1.5             Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
-``lamaxiter``             int         ..                                                                     1               Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
-``mask_cr``               bool        ..                                                                     False           Identify CRs and mask them                                                                                                                                                                                                                 
-``n_lohi``                list        ..                                                                     0, 0            Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                           
-``objlim``                int, float  ..                                                                     3.0             Object detection limit in LA cosmics routine                                                                                                                                                                                               
-``orient``                bool        ..                                                                     True            Orient the raw image into the PypeIt frame                                                                                                                                                                                                 
-``overscan_method``       str         ``polynomial``, ``savgol``, ``median``                                 ``savgol``      Method used to fit the overscan. Options are: polynomial, savgol, median                                                                                                                                                                   
-``overscan_par``          int, list   ..                                                                     5, 65           Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.
-``replace``               str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``   If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                    
-``rmcompact``             bool        ..                                                                     True            Remove compact detections in LA cosmics routine                                                                                                                                                                                            
-``satpix``                str         ``reject``, ``force``, ``nothing``                                     ``reject``      Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
-``sigclip``               int, float  ..                                                                     4.5             Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
-``sigfrac``               int, float  ..                                                                     0.3             Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
-``spat_flexure_correct``  bool        ..                                                                     False           Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                         
-``trim``                  bool        ..                                                                     True            Trim the image to the detector supplied region                                                                                                                                                                                             
-``use_biasimage``         bool        ..                                                                     True            Use a bias image.  If True, one or more must be supplied in the PypeIt file.                                                                                                                                                               
-``use_darkimage``         bool        ..                                                                     False           Subtract off a dark image.  If True, one or more darks must be provided.                                                                                                                                                                   
-``use_illumflat``         bool        ..                                                                     True            Use the illumination flat to correct for the illumination profile of each slit.                                                                                                                                                            
-``use_overscan``          bool        ..                                                                     True            Subtract off the overscan.  Detector *must* have one or code will crash.                                                                                                                                                                   
-``use_pattern``           bool        ..                                                                     False           Subtract off a detector pattern. This pattern is assumed to be sinusoidalalong one direction, with a frequency that is constant across the detector.                                                                                       
-``use_pixelflat``         bool        ..                                                                     True            Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.                                                                                                                                                    
-``use_specillum``         bool        ..                                                                     False           Use the relative spectral illumination profiles to correct the spectralillumination profile of each slit. This is primarily used for IFUs.                                                                                                 
-========================  ==========  =====================================================================  ==============  ===========================================================================================================================================================================================================================================
+========================  ==========  ======================================  ==========  ===========================================================================================================================================================================================================================================
+Key                       Type        Options                                 Default     Description                                                                                                                                                                                                                                
+========================  ==========  ======================================  ==========  ===========================================================================================================================================================================================================================================
+``apply_gain``            bool        ..                                      True        Convert the ADUs to electrons using the detector gain                                                                                                                                                                                      
+``clip``                  bool        ..                                      True        Perform sigma clipping when combining.  Only used with combine=mean                                                                                                                                                                        
+``comb_sigrej``           float       ..                                      ..          Sigma-clipping level for when clip=True; Use None for automatic limit (recommended).                                                                                                                                                       
+``combine``               str         ``median``, ``mean``                    ``mean``    Method used to combine multiple frames.  Options are: median, mean                                                                                                                                                                         
+``empirical_rn``          bool        ..                                      False       If True, use the standard deviation in the overscan region to measure an empirical readnoise to use in the noise model.                                                                                                                    
+``grow``                  int, float  ..                                      1.5         Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                     
+``lamaxiter``             int         ..                                      1           Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                       
+``mask_cr``               bool        ..                                      False       Identify CRs and mask them                                                                                                                                                                                                                 
+``n_lohi``                list        ..                                      0, 0        Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                           
+``noise_floor``           float       ..                                      0.0         Impose a noise floor by adding the provided fraction of the bias- and dark-subtracted electron counts to the error budget.  E.g., a value of 0.01 means that the S/N of the counts in the image will never be greater than 100.            
+``objlim``                int, float  ..                                      3.0         Object detection limit in LA cosmics routine                                                                                                                                                                                               
+``orient``                bool        ..                                      True        Orient the raw image into the PypeIt frame                                                                                                                                                                                                 
+``overscan_method``       str         ``polynomial``, ``savgol``, ``median``  ``savgol``  Method used to fit the overscan. Options are: polynomial, savgol, median                                                                                                                                                                   
+``overscan_par``          int, list   ..                                      5, 65       Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.
+``rmcompact``             bool        ..                                      True        Remove compact detections in LA cosmics routine                                                                                                                                                                                            
+``satpix``                str         ``reject``, ``force``, ``nothing``      ``reject``  Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                         
+``shot_noise``            bool        ..                                      True        Use the bias- and dark-subtracted image to calculate and include electron count shot noise in the image processing error budget                                                                                                            
+``sigclip``               int, float  ..                                      4.5         Sigma level for rejection in LA cosmics routine                                                                                                                                                                                            
+``sigfrac``               int, float  ..                                      0.3         Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                           
+``spat_flexure_correct``  bool        ..                                      False       Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                         
+``trim``                  bool        ..                                      True        Trim the image to the detector supplied region                                                                                                                                                                                             
+``use_biasimage``         bool        ..                                      True        Use a bias image.  If True, one or more must be supplied in the PypeIt file.                                                                                                                                                               
+``use_darkimage``         bool        ..                                      False       Subtract off a dark image.  If True, one or more darks must be provided.                                                                                                                                                                   
+``use_illumflat``         bool        ..                                      True        Use the illumination flat to correct for the illumination profile of each slit.                                                                                                                                                            
+``use_overscan``          bool        ..                                      True        Subtract off the overscan.  Detector *must* have one or code will crash.                                                                                                                                                                   
+``use_pattern``           bool        ..                                      False       Subtract off a detector pattern. This pattern is assumed to be sinusoidal along one direction, with a frequency that is constant across the detector.                                                                                      
+``use_pixelflat``         bool        ..                                      True        Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.                                                                                                                                                    
+``use_specillum``         bool        ..                                      False       Use the relative spectral illumination profiles to correct the spectral illumination profile of each slit. This is primarily used for IFUs.  To use this, you must set ``slit_illum_relative=True`` in the ``flatfield`` parameter set!    
+========================  ==========  ======================================  ==========  ===========================================================================================================================================================================================================================================
 
 
 ----
@@ -905,16 +906,16 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -922,14 +923,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -951,7 +950,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -974,6 +972,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 120
@@ -981,6 +980,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           lamps = NeI, ArI, ArII, HeI
@@ -996,6 +996,7 @@ Alterations to the default parameters are::
           objlim = 2.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -1016,16 +1017,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1033,14 +1034,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1060,7 +1059,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1083,6 +1081,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -1090,6 +1089,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           method = full_template
@@ -1110,6 +1110,7 @@ Alterations to the default parameters are::
           mask_cr = True
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -1125,16 +1126,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1142,7 +1143,6 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 50, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1150,7 +1150,6 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 50, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1170,7 +1169,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1193,6 +1191,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 30
@@ -1200,6 +1199,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           lamps = OH_NIRES
@@ -1220,6 +1220,7 @@ Alterations to the default parameters are::
           mask_cr = True
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -1242,26 +1243,22 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1273,7 +1270,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1288,9 +1284,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -1303,6 +1301,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1317,26 +1316,22 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1348,7 +1343,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1363,9 +1357,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -1378,6 +1374,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1392,26 +1389,22 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1423,7 +1416,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1438,9 +1430,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -1453,6 +1447,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1467,26 +1462,22 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1498,7 +1489,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1513,9 +1503,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -1529,6 +1521,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1546,29 +1539,27 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1589,7 +1580,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -1613,6 +1603,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 30
@@ -1620,6 +1611,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.9
@@ -1629,6 +1621,7 @@ Alterations to the default parameters are::
           mask_cr = True
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -1658,30 +1651,27 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
+              mask_cr = True
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               clip = False
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -1699,7 +1689,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -1718,11 +1707,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = XeI,HgI,NeI,ArI
@@ -1734,6 +1725,7 @@ Alterations to the default parameters are::
       [[process]]
           mask_cr = True
           use_overscan = False
+          noise_floor = 0.01
 
 KECK DEIMOS (``keck_deimos``)
 -----------------------------
@@ -1744,29 +1736,26 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               clip = False
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               clip = False
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1784,7 +1773,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -1803,10 +1791,12 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
           match_toler = 2.5
@@ -1824,6 +1814,7 @@ Alterations to the default parameters are::
           sigclip = 4.0
           objlim = 1.5
           use_biasimage = False
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1840,26 +1831,22 @@ Alterations to the default parameters are::
       [[biasframe]]
           useframe = bias
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1870,7 +1857,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1885,10 +1871,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 600
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           echelle = True
           ech_sigrej = 3.0
@@ -1904,6 +1892,7 @@ Alterations to the default parameters are::
           satpix = nothing
           mask_cr = True
           sigclip = 20.0
+          noise_floor = 0.01
 
 KECK KCWI (``keck_kcwi``)
 -------------------------
@@ -1915,28 +1904,25 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 0.01
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
               use_pattern = True
       [[darkframe]]
           exprng = 0.01, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
               use_pattern = True
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -1951,7 +1937,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[alignment]]
@@ -1970,9 +1955,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               use_pattern = True
       [[flatfield]]
           spec_samp_coarse = 20.0
@@ -1989,6 +1976,7 @@ Alterations to the default parameters are::
           sigclip = 4.0
           objlim = 1.5
           use_biasimage = False
+          noise_floor = 0.01
           use_specillum = True
           use_pattern = True
   [reduce]
@@ -2010,27 +1998,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2044,7 +2028,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2060,10 +2043,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 30
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               spat_flexure_correct = True
       [[wavelengths]]
           method = full_template
@@ -2084,6 +2069,7 @@ Alterations to the default parameters are::
       exprng = 60, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
           spat_flexure_correct = True
   [flexure]
       spec_method = boxcar
@@ -2098,27 +2084,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2132,7 +2114,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2148,10 +2129,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 30
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               spat_flexure_correct = True
       [[wavelengths]]
           method = full_template
@@ -2172,6 +2155,7 @@ Alterations to the default parameters are::
       exprng = 60, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
           spat_flexure_correct = True
   [flexure]
       spec_method = boxcar
@@ -2186,27 +2170,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2220,7 +2200,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2236,10 +2215,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 30
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               spat_flexure_correct = True
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
@@ -2263,6 +2244,7 @@ Alterations to the default parameters are::
           mask_cr = True
           sigclip = 5.0
           objlim = 5.0
+          noise_floor = 0.01
           spat_flexure_correct = True
   [reduce]
       [[skysub]]
@@ -2280,27 +2262,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2314,7 +2292,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2330,10 +2307,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 30
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               spat_flexure_correct = True
       [[wavelengths]]
           lamps = NeI, ArI, KrI, XeI, HgI
@@ -2357,6 +2336,7 @@ Alterations to the default parameters are::
           mask_cr = True
           sigclip = 5.0
           objlim = 5.0
+          noise_floor = 0.01
           spat_flexure_correct = True
   [reduce]
       [[skysub]]
@@ -2373,16 +2353,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2390,14 +2370,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2416,7 +2394,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2439,12 +2416,14 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 20
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = OH_NIRES
           fwhm = 5.0
@@ -2460,6 +2439,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -2482,16 +2462,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 60, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2499,7 +2479,6 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2507,7 +2486,6 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2527,7 +2505,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2550,6 +2527,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -2557,6 +2535,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           method = reidentify
@@ -2583,6 +2562,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[skysub]]
@@ -2604,16 +2584,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2621,14 +2601,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2648,7 +2626,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2671,6 +2648,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 20
@@ -2678,6 +2656,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.8
@@ -2696,6 +2675,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[skysub]]
@@ -2715,29 +2695,27 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2757,7 +2735,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2780,12 +2757,14 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           lamps = OH_NIRES
@@ -2801,6 +2780,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[skysub]]
@@ -2817,29 +2797,27 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2859,7 +2837,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -2882,12 +2859,14 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           lamps = OH_NIRES
@@ -2904,6 +2883,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[skysub]]
@@ -2923,27 +2903,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -2957,7 +2933,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2973,10 +2948,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = XeI, KrI, ArI, HgI
           sigdetect = 10.0
@@ -2993,6 +2970,7 @@ Alterations to the default parameters are::
       exprng = 200, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -3006,27 +2984,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3040,7 +3014,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3056,10 +3029,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
           fwhm = 10.0
@@ -3078,6 +3053,7 @@ Alterations to the default parameters are::
       exprng = 200, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -3091,27 +3067,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3125,7 +3097,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3141,10 +3112,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = XeI, KrI, ArI, HgI
           sigdetect = 10.0
@@ -3161,6 +3134,7 @@ Alterations to the default parameters are::
       exprng = 200, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -3174,27 +3148,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3208,7 +3178,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3224,10 +3193,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 200
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
           fwhm = 10.0
@@ -3246,6 +3217,7 @@ Alterations to the default parameters are::
       exprng = 200, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -3259,26 +3231,22 @@ Alterations to the default parameters are::
       bpm_usebias = True
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3293,7 +3261,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3308,10 +3275,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           ech_fix_format = False
@@ -3331,6 +3300,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -3347,16 +3317,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3364,14 +3334,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3391,7 +3359,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3414,6 +3381,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -3421,6 +3389,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           method = reidentify
@@ -3451,6 +3420,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[extraction]]
@@ -3469,16 +3439,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3486,14 +3456,12 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 1, 50
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3513,7 +3481,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3536,6 +3503,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -3543,6 +3511,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           method = full_template
@@ -3563,6 +3532,7 @@ Alterations to the default parameters are::
           mask_cr = True
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -3581,28 +3551,24 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3613,7 +3579,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3628,10 +3593,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 20
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -3654,6 +3621,7 @@ Alterations to the default parameters are::
           satpix = nothing
           mask_cr = True
           sigclip = 20.0
+          noise_floor = 0.01
   [reduce]
       [[findobj]]
           find_trim_edge = 4, 4
@@ -3668,27 +3636,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -3702,7 +3666,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -3717,10 +3680,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = ArI, XeI
@@ -3732,6 +3697,7 @@ Alterations to the default parameters are::
       exprng = 90, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
 
 MMT BINOSPEC (``mmt_binospec``)
 -------------------------------
@@ -3742,29 +3708,26 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = 20, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3780,7 +3743,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3799,11 +3761,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 100
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, ArII
           fwhm = 5.0
@@ -3821,6 +3785,7 @@ Alterations to the default parameters are::
           sigclip = 5.0
           objlim = 2.0
           use_biasimage = False
+          noise_floor = 0.01
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -3841,29 +3806,26 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 300, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
-              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = 10, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3880,7 +3842,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -3901,11 +3862,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 600
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = ArI, ArII, HeI, NeI
           fwhm = 5.0
@@ -3919,6 +3882,7 @@ Alterations to the default parameters are::
           sigclip = 5.0
           objlim = 2.0
           use_biasimage = False
+          noise_floor = 0.01
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -3935,15 +3899,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 30, None
           [[[process]]]
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3951,7 +3916,6 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 60, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3959,7 +3923,6 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 60, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -3979,7 +3942,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4002,6 +3964,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -4009,6 +3972,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           lamps = OH_NIRES
@@ -4034,6 +3998,7 @@ Alterations to the default parameters are::
           objlim = 2.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
   [reduce]
       [[findobj]]
           sig_thresh = 5.0
@@ -4055,29 +4020,26 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
+              mask_cr = True
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4095,7 +4057,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -4114,11 +4075,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = HeI, NeI
@@ -4131,6 +4094,7 @@ Alterations to the default parameters are::
       [[process]]
           mask_cr = True
           use_overscan = False
+          noise_floor = 0.01
 
 NTT EFOSC2 (``ntt_efosc2``)
 ---------------------------
@@ -4141,26 +4105,22 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4171,7 +4131,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4186,9 +4145,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[flatfield]]
           tweak_slits_thresh = 0.9
       [[wavelengths]]
@@ -4204,6 +4165,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [reduce]
       [[skysub]]
           sky_sigrej = 5.0
@@ -4223,28 +4185,24 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4258,7 +4216,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4273,11 +4230,13 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               combine = median
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = FeI, ArI, ArII
@@ -4289,6 +4248,7 @@ Alterations to the default parameters are::
       [[process]]
           combine = median
           mask_cr = True
+          noise_floor = 0.01
   [sensfunc]
       [[UVIS]]
           nresln = 5
@@ -4304,28 +4264,24 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4339,7 +4295,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4354,11 +4309,13 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               combine = median
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = ArI, ArII, NeI, HeI
@@ -4371,6 +4328,7 @@ Alterations to the default parameters are::
           mask_cr = True
           sigclip = 4.0
           objlim = 1.5
+          noise_floor = 0.01
   [sensfunc]
       [[UVIS]]
           polycorrect = False
@@ -4386,16 +4344,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 0, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4403,7 +4361,6 @@ Alterations to the default parameters are::
       [[arcframe]]
           exprng = 100, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4411,7 +4368,6 @@ Alterations to the default parameters are::
       [[tiltframe]]
           exprng = 100, None
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4431,7 +4387,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -4454,6 +4409,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           exprng = None, 60
@@ -4461,6 +4417,7 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
           method = reidentify
@@ -4487,6 +4444,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[skysub]]
@@ -4509,28 +4467,24 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4544,7 +4498,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4560,10 +4513,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 61
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = CdI, HgI, HeI
@@ -4581,6 +4536,7 @@ Alterations to the default parameters are::
       exprng = 61, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
       spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
@@ -4595,28 +4551,24 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4630,7 +4582,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4646,10 +4597,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 61
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
       [[slitedges]]
@@ -4659,6 +4612,7 @@ Alterations to the default parameters are::
       exprng = 61, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -4675,28 +4629,24 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 61
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4710,7 +4660,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4726,10 +4675,12 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           exprng = 1, 61
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
           rms_threshold = 0.2
@@ -4741,6 +4692,7 @@ Alterations to the default parameters are::
       exprng = 61, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -4753,27 +4705,25 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 30
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4789,7 +4739,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -4808,11 +4757,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[wavelengths]]
           lamps = NeI, ArI, HgI
           fwhm = 5.0
@@ -4825,6 +4776,7 @@ Alterations to the default parameters are::
       [[process]]
           mask_cr = True
           use_biasimage = False
+          noise_floor = 0.01
   [sensfunc]
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/atm_grids/TelFit_LasCampanas_3100_26100_R20000.fits
@@ -4839,27 +4791,23 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 0.1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4872,7 +4820,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4887,13 +4834,16 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
   [scienceframe]
       exprng = 1, None
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
 
 VLT FORS2 (``vlt_fors2``)
 -------------------------
@@ -4904,30 +4854,26 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
@@ -4943,7 +4889,6 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -4961,10 +4906,12 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               overscan_method = median
               mask_cr = True
+              noise_floor = 0.01
       [[flatfield]]
           tweak_slits_thresh = 0.9
       [[wavelengths]]
@@ -4980,6 +4927,7 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
   [flexure]
       spec_method = boxcar
 
@@ -4992,16 +4940,16 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 20, None
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5010,6 +4958,7 @@ Alterations to the default parameters are::
           exprng = 20, None
           [[[process]]]
               mask_cr = True
+              sigclip = 20.0
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5017,6 +4966,7 @@ Alterations to the default parameters are::
       [[tiltframe]]
           [[[process]]]
               mask_cr = True
+              sigclip = 20.0
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5036,7 +4986,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5059,14 +5008,17 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              sigclip = 20.0
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 20
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = OH_FIRE_Echelle
@@ -5087,6 +5039,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
   [reduce]
       [[findobj]]
           find_fwhm = 10
@@ -5113,29 +5066,27 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
+              mask_cr = True
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5156,7 +5107,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_overscan = False
               use_pixelflat = False
@@ -5181,12 +5131,14 @@ Alterations to the default parameters are::
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[standardframe]]
           [[[process]]]
               mask_cr = True
               use_biasimage = False
               use_overscan = False
+              noise_floor = 0.01
               use_illumflat = False
       [[flatfield]]
           tweak_slits_thresh = 0.9
@@ -5223,6 +5175,7 @@ Alterations to the default parameters are::
           sigclip = 20.0
           use_biasimage = False
           use_overscan = False
+          noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
@@ -5249,28 +5202,24 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
-              use_overscan = False
+              mask_cr = True
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -5282,7 +5231,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -5298,9 +5246,11 @@ Alterations to the default parameters are::
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+              noise_floor = 0.01
       [[wavelengths]]
           method = reidentify
           echelle = True
@@ -5319,6 +5269,7 @@ Alterations to the default parameters are::
       useframe = overscan
       [[process]]
           mask_cr = True
+          noise_floor = 0.01
 
 VLT XShooter_VIS (``vlt_xshooter_vis``)
 ---------------------------------------
@@ -5329,30 +5280,28 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
               combine = median
               use_biasimage = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           [[[process]]]
-              apply_gain = False
               overscan_method = median
+              mask_cr = True
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           [[[process]]]
               overscan_method = median
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
               overscan_method = median
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -5373,7 +5322,6 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan_method = median
               satpix = nothing
-              cr_sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -5395,6 +5343,7 @@ Alterations to the default parameters are::
               overscan_method = median
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
@@ -5402,6 +5351,7 @@ Alterations to the default parameters are::
               overscan_method = median
               mask_cr = True
               use_biasimage = False
+              noise_floor = 0.01
       [[flatfield]]
           tweak_slits_thresh = 0.9
       [[wavelengths]]
@@ -5429,6 +5379,7 @@ Alterations to the default parameters are::
       [[process]]
           overscan_method = median
           mask_cr = True
+          noise_floor = 0.01
   [reduce]
       [[findobj]]
           find_trim_edge = 3, 3
@@ -5456,30 +5407,27 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
               use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
+              mask_cr = True
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -5497,7 +5445,6 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
@@ -5516,11 +5463,13 @@ Alterations to the default parameters are::
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
               use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = NeI, ArI, ArII, CuI
@@ -5536,6 +5485,7 @@ Alterations to the default parameters are::
       [[process]]
           mask_cr = True
           use_overscan = False
+          noise_floor = 0.01
 
 WHT ISISr (``wht_isis_red``)
 ----------------------------
@@ -5548,60 +5498,69 @@ Alterations to the default parameters are::
       [[biasframe]]
           exprng = None, 1
           [[[process]]]
-              apply_gain = False
               combine = median
               use_biasimage = False
+              use_overscan = False
+              shot_noise = False
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
           exprng = 999999, None
           [[[process]]]
-              apply_gain = False
-              use_biasimage = False
+              mask_cr = True
               use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
           exprng = None, 120
           [[[process]]]
-              cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[tiltframe]]
           [[[process]]]
-              cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
               combine = median
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+          [[[process]]]
+              use_overscan = False
       [[alignframe]]
           [[[process]]]
               satpix = nothing
-              cr_sigrej = -1
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[illumflatframe]]
           [[[process]]]
               satpix = nothing
+              use_overscan = False
               use_pixelflat = False
               use_illumflat = False
       [[skyframe]]
           [[[process]]]
               mask_cr = True
+              use_overscan = False
+              noise_floor = 0.01
       [[standardframe]]
           exprng = None, 120
           [[[process]]]
               mask_cr = True
+              use_overscan = False
+              noise_floor = 0.01
       [[wavelengths]]
           method = full_template
           lamps = NeI, ArI, ArII, CuI
@@ -5615,4 +5574,5 @@ Alterations to the default parameters are::
       [[process]]
           mask_cr = True
           use_overscan = False
+          noise_floor = 0.01
 

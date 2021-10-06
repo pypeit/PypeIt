@@ -1,5 +1,3 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-# -*- coding: utf-8 -*-
 """
 Define a utility base class used to hold parameters.
 
@@ -19,7 +17,12 @@ from astropy.io import fits
 
 from pypeit.par import util
 
-class ParSet(object):
+
+# TODO: Include a "mutable" attribute that decides if a parameter can be
+# changed?
+
+
+class ParSet:
     """
     Generic base class to handle and manipulate a list of operational
     parameters.  A glorified dictionary that constrains and types its

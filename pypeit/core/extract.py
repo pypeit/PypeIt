@@ -25,45 +25,68 @@ from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
 from pypeit.core import fitting
+from pypeit.core import procimg
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
-from IPython import embed
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
-                    min_frac_use = 0.05):
+def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_radius,
+                    spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
-    """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
+    """
+    Calculate the spatial FWHM from an object profile. Utility routine for
+    fit_profile
 
-    Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
-    with the extraction parameters.
+    The specobj object is changed in place with the boxcar and optimal
+    dictionaries being filled with the extraction parameters.
 
-    Args:
-        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
-           Science frame
-        ivar (np.ndarray): float ndarray shape (nspec, nspat)
-           inverse variance of science frame. Can be a model or deduced from the image itself.
-        mask (np.ndarray): boolean ndarray
-           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-        waveimg  (np.ndarray):  float ndarray
-            Wavelength image. float 2-d array with shape (nspec, nspat)
-        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing our model of the sky
-        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
-            Image indicating which pixels are on the slit/order in question. True=Good.
-        oprof (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing the profile of the object that we are extracting
-        box_radius (float):
-            Size of boxcar window in floating point pixels in the spatial direction.
-        spec (:class:`pypeit.specobj.SpecObj`):
-             This is the container that holds object, trace,
-             and extraction information for the object in question. This routine operates one object at a time.
-        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
-               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-               object profile has been masked
-
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself.
+    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False
+    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Wavelength image.
+    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing our model of the sky
+    thismask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Image indicating which pixels are on the slit/order in question.
+        True=Good.
+    oprof : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing the profile of the object that we are extracting.
+    box_radius : :obj:`float`
+        Size of boxcar window in floating point pixels in the spatial direction.
+    spec : :class:`~pypeit.specobj.SpecObj`
+        This is the container that holds object, trace, and extraction
+        information for the object in question. This routine operates one object
+        at a time.  **This object is altered in place!**
+    min_frac_use : :obj:`float`, optional
+        If the sum of object profile across the spatial direction are less than
+        this value, the optimal extraction of this spectral pixel is masked
+        because the majority of the object profile has been masked.
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
+    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        A scale factor, :math:`s`, that *has already been applied* to the
+        provided science image.  For example, if the image has been flat-field
+        corrected, this is the inverse of the flat-field counts.  If None, set
+        to 1.  If a single float, assumed to be constant across the full image.
+        If an array, the shape must match ``base_var``.  The variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
+        of the components needed to construct the model variance; see
+        ``model_noise``.
+    noise_floor : :obj:`float`, optional
+        A fraction of the counts to add to the variance, which has the effect of
+        ensuring that the S/N is never greater than ``1/noise_floor``; see
+        :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
+        added.
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -74,14 +97,16 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spat_vec = np.arange(nspat)
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
-    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+    var_no = None if base_var is None \
+                else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
+                                            noise_floor=noise_floor)
 
     ispec, ispat = np.where(oprof > 0.0)
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-        return None
+        return
 
     mincol = np.min(ispat)
     maxcol = np.max(ispat) + 1
@@ -91,9 +116,9 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     thismask_sub = thismask[:, mincol:maxcol]
     wave_sub = waveimg[:,mincol:maxcol]
     ivar_sub = np.fmax(ivar[:,mincol:maxcol],0.0) # enforce positivity since these are used as weights
-    vno_sub = np.fmax(var_no[:,mincol:maxcol],0.0)
+    vno_sub = None if var_no is None else np.fmax(var_no[:,mincol:maxcol],0.0)
 
-    rn2_sub = rn2_img[:,mincol:maxcol]
+    base_sub = None if base_var is None else base_var[:,mincol:maxcol]
     img_sub = imgminsky[:,mincol:maxcol]
     sky_sub = skyimg[:,mincol:maxcol]
     oprof_sub = oprof[:,mincol:maxcol]
@@ -113,13 +138,21 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # are only weighting by the profile (ivar_sub=1) because
     # otherwise the result depends on the signal (bad).
     nivar_num = np.nansum(mask_sub*oprof_sub**2, axis=1) # Uses unit weights
-    nvar_opt = ivar_denom*((mask_sub*vno_sub*oprof_sub**2).sum(axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    nivar_opt = 1.0/(nvar_opt + (nvar_opt == 0.0))
+    if vno_sub is None:
+        nivar_opt = None
+    else:
+        nvar_opt = ivar_denom * np.nansum(mask_sub * vno_sub * oprof_sub**2, axis=1) \
+                            / (nivar_num**2 + (nivar_num**2 == 0.0))
+        nivar_opt = 1.0/(nvar_opt + (nvar_opt == 0.0))
     # Optimally extract sky and (read noise)**2 in a similar way
     sky_opt = ivar_denom*(np.nansum(mask_sub*sky_sub*oprof_sub**2, axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    rn2_opt = ivar_denom*(np.nansum(mask_sub*rn2_sub*oprof_sub**2, axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    rn_opt = np.sqrt(rn2_opt)
-    rn_opt[np.isnan(rn_opt)]=0.0
+    if base_var is None:
+        base_opt = None
+    else:
+        base_opt = ivar_denom * np.nansum(mask_sub * base_sub * oprof_sub**2, axis=1) \
+                        / (nivar_num**2 + (nivar_num**2 == 0.0))
+        base_opt = np.sqrt(base_opt)
+        base_opt[np.isnan(base_opt)]=0.0
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
     prof_norm = np.nansum(oprof_sub, axis=1)
@@ -162,38 +195,56 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
-    spec.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
+    spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
-    return
 
-
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_var=None,
+                   count_scale=None, noise_floor=None):
     """
     Perform boxcar extraction for a single SpecObj
 
     SpecObj is filled in place
 
-    Args:
-        sciimg (np.ndarray):
-            Science image
-        ivar (np.ndarray):
-            inverse variance of science frame. Can be a model or deduced from the image itself.
-        mask (np.ndarray):
-            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-        waveimg (np.ndarray):
-            Wavelength image. float 2-d array with shape (nspec, nspat)
-        skyimg (np.ndarray):
-            Image containing our model of the sky
-        rn2_img (np.ndarray):
-            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-        box_radius (float):
-            Size of boxcar window in floating point pixels in the spatial direction.
-        spec (:class:`pypeit.specobj.SpecObj`):
-            This is the container that holds object, trace,
-            and extraction information for the object in question.
-            This routine operates one object at a time.
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself.
+    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False
+    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Wavelength image.
+    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing our model of the sky
+    box_radius : :obj:`float`
+        Size of boxcar window in floating point pixels in the spatial direction.
+    spec : :class:`~pypeit.specobj.SpecObj`
+        This is the container that holds object, trace, and extraction
+        information for the object in question. This routine operates one object
+        at a time.  **This object is altered in place!**
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
+    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        A scale factor, :math:`s`, that *has already been applied* to the
+        provided science image.  For example, if the image has been flat-field
+        corrected, this is the inverse of the flat-field counts.  If None, set
+        to 1.  If a single float, assumed to be constant across the full image.
+        If an array, the shape must match ``base_var``.  The variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
+        of the components needed to construct the model variance; see
+        ``model_noise``.
+    noise_floor : :obj:`float`, optional
+        A fraction of the counts to add to the variance, which has the effect of
+        ensuring that the S/N is never greater than ``1/noise_floor``; see
+        :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
+        added.
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -206,7 +257,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
         spec.trace_spec = spec_vec
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
-    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+    var_no = None if base_var is None \
+                else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
+                                            noise_floor=noise_floor)
 
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
@@ -217,12 +270,16 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
                         row=spec.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
     var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    nvar_box = moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    nvar_box = None if var_no is None \
+                else moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     sky_box = moment1d(skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    rn2_box = moment1d(rn2_img*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    rn_posind = (rn2_box > 0.0)
-    rn_box = np.zeros(rn2_box.shape,dtype=float)
-    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
+    if base_var is None:
+        base_box = None
+    else:
+        _base_box = moment1d(base_var*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+        base_posind = (_base_box > 0.0)
+        base_box = np.zeros(_base_box.shape, dtype=float)
+        base_box[base_posind] = np.sqrt(_base_box[base_posind])
     pixtot = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
@@ -234,17 +291,17 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
         wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
-    nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
+    nivar_box = None if nvar_box is None else 1.0/(nvar_box + (nvar_box == 0.0))
 
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
     spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box
     spec.BOX_MASK = mask_box
     spec.BOX_COUNTS_SKY = sky_box
-    spec.BOX_COUNTS_RN = rn_box
+    spec.BOX_COUNTS_SIG_DET = base_box
     spec.BOX_RADIUS = box_radius
     # TODO - Confirm this should be float, not int
     spec.BOX_NPIX = pixtot-pixmsk

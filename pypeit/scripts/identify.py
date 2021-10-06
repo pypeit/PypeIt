@@ -92,9 +92,10 @@ class Identify(scriptbase.ScriptBase):
         wv_calib = waveio.load_wavelength_calibration(solnname) \
                         if os.path.exists(solnname) and args.solution else None
 
-        # Load the MasterFrame (if it exists and is desired)?
+        # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
+        # set to any flagged pixel in MasterArc.
         wavecal = BuildWaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
-                            master_key=mkey, msbpm=msarc.fullmask)
+                                 master_key=mkey, msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
@@ -113,12 +114,12 @@ class Identify(scriptbase.ScriptBase):
         if 'WaveFit' in arcfitter._fitdict.keys():
             waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                                   arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                                  spat_ids=np.atleast_1d(arcfitter._slit), PYP_SPEC=specname)
+                                  spat_ids=np.atleast_1d(int(arcfitter._spatid)), PYP_SPEC=specname)
         else:
             waveCalib = None
 
         # Ask the user if they wish to store the result in PypeIt calibrations
-        arcfitter.store_solution(final_fit, mdir, slits.binspec,
+        arcfitter.store_solution(final_fit, slits.binspec,
                                  wvcalib=waveCalib,
                                  rmstol=args.rmstol,
                                  force_save=args.force_save)

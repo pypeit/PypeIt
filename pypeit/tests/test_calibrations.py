@@ -145,7 +145,7 @@ def test_it_all(multi_caliBrate):
 
     multi_caliBrate.get_flats()
     flatImages = multi_caliBrate.get_flats()
-    assert flatImages.get_pixelflat().shape == (2048,350)
+    assert flatImages.pixelflat_norm.shape == (2048,350)
     assert flatImages.fit2illumflat(slits).shape == (2048,350)
 
     # Wave image
