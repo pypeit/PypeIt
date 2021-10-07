@@ -40,7 +40,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         self.meta = {}
         # Required (core)
-        self.meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        self.meta['ra'] = dict(ext=0, card='RA', 
+            required_ftypes=['science', 'standard'])  # Need to convert to : separated
         self.meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['binning'] = dict(card=None, compound=True)
@@ -54,8 +55,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         self.meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
         # Dithering -- Not required for redux
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
-            required=False,  # This header card is *not* always present in science/standard frames
-            required_ftypes=['science', 'standard'])
+            required=False)  # This header card is *not* always present in science/standard frames
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -167,15 +167,16 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     supported = True
     comment = 'See :doc:`xshooter`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -219,12 +220,15 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par = super().default_pypeit_par()
 
         # Turn off illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        # Require dark images to be subtracted from the flat images used for
+        # tracing, pixelflats, and illumflats
         par['calibrations']['traceframe']['process']['use_darkimage'] = True
         par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
         par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+        # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -555,22 +559,24 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     supported = True
     comment = 'See :doc:`xshooter`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -606,7 +612,8 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Adjustments to parameters for VIS
         turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median',
-                       use_darkimage=False, use_illumflat=False, use_pixelflat=False)
+                       use_darkimage=False, use_illumflat=False, use_pixelflat=False,
+                       use_specillum=False)
         par.reset_all_processimages_par(**turn_on)
 
         # X-SHOOTER arcs/tilts are also have different binning with bias
@@ -838,27 +845,29 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
     camera = 'XShooter_UVB'
     comment = 'See :doc:`xshooter`'
     
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
-            binning         =binning,
-            det             =1,
+            binning         = binning,
+            det             = 1,
             dataext         = 0,
             specaxis        = 0,
             specflip        = True,

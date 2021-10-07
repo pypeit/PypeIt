@@ -65,6 +65,7 @@ def test_run_setup():
 
 def test_setup_made_pypeit_file():
     """ Test the .pypeit file(s) made by pypeit_setup
+
     This test depends on the one above
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')

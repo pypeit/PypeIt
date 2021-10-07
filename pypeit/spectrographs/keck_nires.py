@@ -26,7 +26,22 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     pypeline = 'Echelle'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.  This is not used because NIRES only
+                has one detector!
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
         # Detector 1
         detector_dict = dict(
             binning='1,1',
@@ -44,10 +59,9 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(5.0),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
+            oscansec        = None, #np.atleast_1d('[980:1024,:]')  # Is this a hack??
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -89,7 +103,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] =  3
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
@@ -260,9 +275,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Return the expected spatial position of each echelle order.
         """
-        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658,
-                                   0.70260714, 0.86335914])
-        return ord_spat_pos
+        return np.array([0.22773035, 0.40613574, 0.56009658, 0.70260714, 0.86335914])
 
     @property
     def orders(self):

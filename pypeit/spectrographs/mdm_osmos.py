@@ -28,15 +28,16 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     supported = True
     comment = 'MDM OSMOS spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -44,7 +45,8 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         """
         # Detector 1
         detector_dict = dict(
-            binning         =self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning         = '1,1' if hdu is None 
+                                    else self.get_meta_value(self.get_headarr(hdu), 'binning'),
             det=1,
             dataext         = 0,
             specaxis        = 1,

@@ -75,12 +75,13 @@ to select the ``PyQT5`` QT bindings or
 
 to select ``PySide2``; see :ref:`interactive`.
 
-If you are using KWCI, you will also need the `shapely`_ package. It can be installed by
-including it in the optional dependencies, e.g.:
+If you are generating datacubes (and performing an astrometric correction), you
+will also need the `scikit-image`_ package. It can be installed by including it
+in the optional dependencies, e.g.:
 
 .. code-block:: console
 
-    pip install "pypeit[pyside2,shapely]"
+    pip install "pypeit[pyside2,scikit-image]"
 
 .. note::
 

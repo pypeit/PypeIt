@@ -141,6 +141,7 @@ class SkySubGUI(object):
         self._fita = None
 
         self.slits_left, self.slits_right, _ = slits.select_edges(initial=initial, flexure=flexure)
+        self.reset_regions()
 
         # Draw the spectrum
         self.canvas.draw()

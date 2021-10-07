@@ -5,10 +5,11 @@ from IFU instruments into a 3D cube with a defined WCS.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-
+import time
 from pypeit import msgs
 from pypeit import par
 from pypeit import io
+from pypeit import utils
 from pypeit.core.datacube import coadd_cube
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.scripts import scriptbase
@@ -45,4 +46,6 @@ class CoAddDataCube(scriptbase.ScriptBase):
                 parset['rdx']['detnum'] = int(args.det)
 
         # Coadd the files
+        tstart = time.time()
         coadd_cube(spec2d_files, parset, overwrite=args.overwrite)
+        msgs.info(utils.get_time_string(time.time()-tstart))

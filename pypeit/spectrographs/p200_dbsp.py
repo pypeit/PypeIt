@@ -4,7 +4,7 @@ Module for P200/DBSP specific methods.
 .. include:: ../include/links.rst
 """
 import os
-from typing import List
+from typing import List, Optional
 from pkg_resources import resource_filename
 
 import numpy as np
@@ -184,22 +184,37 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             return parse.binning2string(binspec, binspatial)
         msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu: fits.HDUList, det: int):
+    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            P200/DBSPb.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '1,1'
+            datasec = None
+            oscansec = None
+        else:
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -216,16 +231,10 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # cross-check
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.72),
-            ronoise         = np.atleast_1d(2.5)
+            ronoise         = np.atleast_1d(2.5),
+            datasec         = datasec,
+            oscansec        = oscansec
             )
-        
-        header = hdu[0].header
-        datasec = header['TSEC1']
-        oscansec = header['BSEC1']
-
-        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
-        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
-
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
@@ -398,22 +407,37 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu: fits.HDUList, det: int):
+    def get_detector_par(self, det: int, hdu: Optional[fits.HDUList] = None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            P200/DBSPr.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '1,1'
+            datasec = None
+            oscansec = None
+        else:
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            datasec = np.atleast_1d(flip_fits_slice(hdu[0].header['TSEC1']))
+            oscansec = np.atleast_1d(flip_fits_slice(hdu[0].header['BSEC1']))
 
         # Detector 1
         detector_dict = dict(
@@ -430,17 +454,10 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # check
             numamplifiers   = 1,
             gain            = np.atleast_1d(2.8),
-            ronoise         = np.atleast_1d(8.5)
+            ronoise         = np.atleast_1d(8.5),
+            datasec         = datasec,
+            oscansec        = oscansec
         )
-
-        header = hdu[0].header
-
-        datasec = header['TSEC1']
-        oscansec = header['BSEC1']
-
-        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
-        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
-
         return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod

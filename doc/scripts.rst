@@ -63,6 +63,8 @@ to the screen::
       None True
 
 
+.. _pypeit-obslog:
+
 pypeit_obslog
 =============
 
