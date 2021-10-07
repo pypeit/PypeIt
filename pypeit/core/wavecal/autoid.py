@@ -1398,18 +1398,11 @@ class HolyGrail:
 
         # Set the input parameters
         self._nonlinear_counts = nonlinear_counts
-        #self._sigdetect = self._par['sigdetect']
-        #self._lowest_nsig = self._par['lowest_nsig']
         # JFH I'm not convinced that the codea actually does anything except use the lowest nsig, but am not sure
-        #self._sigdetect = self._par['sigdetect']
-#        self._lowest_nsig = self._par['sigdetect']
-
-        #self._rms_threshold = self._par['rms_threshold']
         self._match_toler = self._par['match_toler']
         self._func = self._par['func']
         self._n_first= self._par['n_first']
         self._sigrej_first= self._par['sigrej_first']
-        #self._n_final= self._par['n_final']
         self._sigrej_final= self._par['sigrej_final']
 
         self._use_unknowns = use_unknowns
@@ -2498,6 +2491,27 @@ class HolyGrail:
         return patt_dict, final_dict
 
     def solve_patterns(self, slit, bestlist, tcent_ecent):
+        """
+
+        Args:
+            slit (int):
+               The ID of the slit
+            bestlist (list or ndarray):
+                A 5 element list, each containing a numpy.ndarray, with the following values required for each index:
+                    0: central wavelength of the pattern
+                    1: central dispersion of pattern
+                    2: sign of the pattern (note, sign = 1 [-1] if pixels correlate [anticorrelate] with wavelength
+                    3: index of the full list of patterns that were created from the detected arc lines
+                    4: index of the full list of patterns that were created from the line list.
+            tcent_ecent (list):
+                A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
+
+        Returns:
+        -------
+            patt_dict (dict):
+                Dictionary containing information about the best patterns.
+
+        """
 
         # Obtain a full list of indices that are consistent with the maximum value
         wcen, dcen, sign, dindex, lindex = bestlist[0], bestlist[1], bestlist[3], bestlist[4], bestlist[5]
