@@ -66,13 +66,11 @@ class ParseCalibID(scriptbase.ScriptBase):
         pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=1,
                                calib_only=True, show=False)
 
-        pypeIt.calib_all(run=False)
+        # Grab the info without running
+        calib_dict = pypeIt.calib_all(run=False)
         msgs.info('Data reduction complete')
-        # QA HTML
-        msgs.info('Generating QA HTML')
-        pypeIt.build_qa()
         msgs.close()
 
-        return 0
+        return calib_dict
 
 
