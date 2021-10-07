@@ -4100,10 +4100,6 @@ class EdgeTraceSet(DataContainer):
         if self.is_empty:
             msgs.error('No traces to match.')
 
-        # The PCA decomposition must have already been determined
-        if self.pcatype is None:
-            msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
-
         # `traceimg` must have knowledge of the flat frame that built it
         self.maskfile = self.traceimg.files[0]
 
