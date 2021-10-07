@@ -161,7 +161,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
 
@@ -240,12 +240,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='OBSMODE')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps
-        lamp_names = ['FLATSPEC']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # flat lamps on/off
+        self.meta['lampstat01'] = dict(ext=0, card='FLATSPEC')
+        # lamp_names = ['FLATSPEC']
+        # for kk,lamp_name in enumerate(lamp_names):
+        #     self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
 
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='PATTERN')
@@ -276,7 +279,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                     PWSTATA7 = int(headarr[0].get('PWSTATA7'))
                     PWSTATA8 = int(headarr[0].get('PWSTATA8'))
                     if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                        return 'object'
+                        if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                            return 'flatlamp'
+                        else:
+                            return 'object'
                     elif FLATSPEC == 1:
                         return 'flatlamp'
                     elif PWSTATA7 == 1 or PWSTATA8 == 1:
@@ -316,7 +322,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
 #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
 #        return pypeit_keys
-        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff', 'frameno']
+        return super().pypeit_file_keys() + [ 'lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -343,6 +349,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['bias', 'dark']:
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
+            return good_exp & (fitstbl['idname'] == 'flatlamp')
+        if ftype in ['illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
@@ -351,7 +359,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['idname'] == 'arclamp')
+            is_arc = fitstbl['idname'] == 'arclamp'
             is_obj = self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -378,13 +386,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
-                          axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
+            return fitstbl['lampstat01'] == '0'
+            # return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
+            #               axis=0)
+        # DP: this is not checking the lamp status of the arcs, but of the flats
+        # if status == 'arcs':
+        #     # Check if any arc lamps are on
+        #     arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
+        #     return np.any(np.array([ fitstbl[k] == '1' for k in fitstbl.keys()
+        #                                     if k in arc_lamp_stat]), axis=0)
         if status == 'dome':
             return fitstbl['lampstat01'] == '1'
 
