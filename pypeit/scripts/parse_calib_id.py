@@ -23,11 +23,9 @@ class ParseCalibID(scriptbase.ScriptBase):
         Print pypeit usage description.
         """
         import textwrap
-        import pypeit
         from pypeit.spectrographs import available_spectrographs
 
         spclist = ', '.join(available_spectrographs)
-        spcl = textwrap.wrap(spclist, width=70)
         descs = '##  '
         descs += 'The PypeIt Parse calib_id script'
         descs += '##  '
@@ -41,7 +39,6 @@ class ParseCalibID(scriptbase.ScriptBase):
                                     width=width, formatter=argparse.RawDescriptionHelpFormatter)
         parser.add_argument('pypeit_file', type=str,
                             help='PypeIt reduction file (must have .pypeit extension)')
-
     #    parser.add_argument('-c', '--cpus', default=False, action='store_true',
     #                         help='Number of CPUs for parallel processing')
 
@@ -51,8 +48,6 @@ class ParseCalibID(scriptbase.ScriptBase):
     def main(args):
 
         import os
-
-        import numpy as np
 
         from pypeit import pypeit
         from pypeit import msgs

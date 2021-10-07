@@ -87,12 +87,13 @@ def test_run_pypeit_calib_only():
             assert os.path.isfile(os.path.join(configdir, 'Masters', master_file)
                                   ), 'Master File {:s} missing!'.format(master_file)
 
-        # Now run parse_calib_id
-        pargs2 = ParseCalibID.parse_args([pyp_file])
-        calib_dict = ParseCalibID.main(pargs2)
-        assert isinstance(calib_dict, dict)
-        assert len(calib_dict) > 0
-        assert calib_dict['1']['A_1_01']['arc']['raw_files'][0] == 'b1.fits.gz'
+        # Now test parse_calib_id
+        if ss == 0:
+            pargs2 = ParseCalibID.parse_args([pyp_file])
+            calib_dict = ParseCalibID.main(pargs2)
+            assert isinstance(calib_dict, dict)
+            assert len(calib_dict) > 0
+            assert calib_dict['1']['A_1_01']['arc']['raw_files'][0] == 'b1.fits.gz'
 
         # Clean-up
         shutil.rmtree(outdir)
