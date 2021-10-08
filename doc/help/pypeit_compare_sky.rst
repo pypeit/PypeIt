@@ -19,3 +19,4 @@
       --scale_user SCALE_USER
                             Scale user spectrum by a factor (default: 1.0)
       --test                Load files but do not show plot (default: False)
+    
