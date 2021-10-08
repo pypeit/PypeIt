@@ -66,6 +66,26 @@ expected from the slitmask design. See `Additional Reading`_ .
 When the extraction of undetected object is performed, it may be occasionally necessary to set
 **no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords` to avoid a bad local sky subtraction.
 
+Wavelength Calibration
+----------------------
+``PypeIt`` is able (currently only for DEIMOS) to read from the header of the arc frames which
+lamps were ON during the observations and to set those to be the list of lamps to be used
+for the wavelength calibration. This functionality is switched on by setting **use_header_lamps**
+flag in :ref:`pypeit_par:WavelengthSolutionPar Keywords` to *True*. This is already set by default
+for DEIMOS.
+
+It may happen, occasionally, that some lamps are not recorded in the header even if they were ON
+during the observations. This could be the case if a specific script, called `calib_blue`
+(see https://www2.keck.hawaii.edu/inst/deimos/calib_blue.html), is used to take arc frames for
+blue observations. To resolve this, the user can just edit the PypeIt file to input the correct
+list of lamps in the following way::
+
+    [calibrations]
+      [[wavelengths]]
+            use_header_lamps = False
+            lamps = ArI, NeI, KrI, XeI, CdI, ZnI, HgI
+
+
 Flat Fielding
 -------------
 
