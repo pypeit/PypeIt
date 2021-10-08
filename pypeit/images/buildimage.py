@@ -184,8 +184,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     # Decorate according to the type of calibration, primarily as needed for
     # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by
     # the _init_internals method) in pypeitImage are lost here.
-    if frame_par['frametype'] in frame_dict.keys():
-        finalImage = frame_dict[frame_par['frametype']].from_pypeitimage(pypeitImage)
+    if frame_par['frametype'] in frame_image_classes.keys():
+        finalImage = frame_image_classes[frame_par['frametype']].from_pypeitimage(pypeitImage)
     else:
         finalImage = pypeitImage
 
@@ -202,7 +202,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
 
 
 # Convert frame type into an Image
-frame_dict = dict(
+frame_image_classes = dict(
     bias=BiasImage,
     dark=DarkImage,
     arc=ArcImage,

@@ -11,31 +11,10 @@ from pypeit.scripts import scriptbase
 class ParseCalibID(scriptbase.ScriptBase):
 
     @classmethod
-    def name(cls):
-        """
-        Return the name of the executable.
-        """
-        return 'run_pypeit'
-
-    @classmethod
-    def usage(cls):
-        """
-        Print pypeit usage description.
-        """
-        import textwrap
-        from pypeit.spectrographs import available_spectrographs
-
-        spclist = ', '.join(available_spectrographs)
-        descs = '##  '
-        descs += 'The PypeIt Parse calib_id script'
-        descs += '##  '
-        return descs
-
-    @classmethod
     def get_parser(cls, width=None):
         import argparse
 
-        parser = super().get_parser(description=cls.usage(),
+        parser = super().get_parser(description='Parse the pypeit file for the calib IDs',
                                     width=width, formatter=argparse.RawDescriptionHelpFormatter)
         parser.add_argument('pypeit_file', type=str,
                             help='PypeIt reduction file (must have .pypeit extension)')

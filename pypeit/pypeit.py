@@ -310,7 +310,7 @@ class PypeIt:
                     # Prep
                     raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
                     masterframe_name = masterframe.construct_file_name(
-                        buildimage.frame_dict[step],
+                        buildimage.frame_image_classes[step],
                         self.caliBrate.master_key_dict[step], 
                         master_dir=self.caliBrate.master_dir)
 
