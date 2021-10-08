@@ -92,7 +92,7 @@ is no star, in which case PypeIt uses the order boundaries as the crutch.
 Calib can be set to the frames that should be calibrated together and with which 
 calibration files. Typically an ABBA sequence would be calibrated as 0110 and the 
 next ABBA as 2332. Matching ABBA sets are marked in `comb_id` and for each A/B the 
-corresponding B/A is marked in `bkg_id`. See :ref:`_a-b_differencing` for 
+corresponding B/A is marked in `bkg_id`. See :doc:`A-B_differencing` for 
 further details.
 
 After this the gemini_gnirs_A.pypeit file will look like::
