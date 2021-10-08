@@ -1,19 +1,21 @@
-.. _gnirs:
+.. _nir-example:
 
-************
-Gemini GNIRS
-************
+***********
+NIR Example
+***********
 
 Overview
 ========
 
-This file summarizes several instrument specific
-settings that are related to the Gemini/GNIRS spectrograph.
+This file provides an example with 
+Gemini/GNIRS spectrograph on how best
+to run a NIR reduction and especially
+`calib_id`.
 
 PypeIt File
 ===========
 
-Here is some advice on how to setup your PypeIt file for GNIRS.
+Here is some advice on how to setup your PypeIt file. 
 
 To setup the pypeit file, pypeit_setup is run as::  
 
