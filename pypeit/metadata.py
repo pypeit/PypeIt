@@ -118,11 +118,14 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id'], [int, int])
+        self._impose_types(['comb_id', 'bkg_id', 'manual'], [int, int, str])
 
         # Initialize internal attributes
         self.configs = None
         self.calib_bitmask = None
+
+        # Initialize columns that the user might add
+        self.set_user_added_columns()
 
     def _impose_types(self, columns, types):
         """
@@ -1281,7 +1284,7 @@ class PypeItMetaData:
         unique integer.
 
         If the 'comb_id' or 'bkg_id' columns do not exist, they're set
-        to -1.
+        to -1.  
 
         Args:
             assign_objects (:obj:`bool`, optional):
@@ -1299,6 +1302,20 @@ class PypeItMetaData:
             sci_std_idx = np.where(np.any([self.find_frames('science'),
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
+
+    def set_user_added_columns(self):
+        """
+        Set columns that the user *might* add
+
+        .. note::
+            :attr:`table` is edited in place.
+
+        This function can be used to initialize columns
+        that the user might add
+
+        """
+        if 'manual' not in self.keys():
+            self['manual'] = ''
 
     def write_sorted(self, ofile, overwrite=True, ignore=None, 
                      write_bkg_pairs=False, write_manual=False):
@@ -1340,7 +1357,6 @@ class PypeItMetaData:
         # Grab output columns
         output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
                                            write_manual=write_manual)
-        embed(header='1343 of metadata')
 
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
