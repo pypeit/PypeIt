@@ -38,6 +38,8 @@ The script usage can be displayed by calling the script with the
 Pipeline Scripts
 ++++++++++++++++
 
+.. _pypeit-chk-for-calibs:
+
 pypeit_chk_for_calibs
 =====================
 

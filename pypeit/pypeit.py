@@ -36,6 +36,8 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 
+from linetools import utils as ltu
+
 
 class PypeIt:
     """
@@ -322,6 +324,10 @@ class PypeIt:
         # Print the results
         print(json.dumps(calib_dict, sort_keys=True, indent=4))
 
+        # Write
+        calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
+        ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
+        
         # Finish
         self.print_end_time()
 
