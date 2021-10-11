@@ -8,6 +8,7 @@ Main driver class for PypeIt run
 import time
 import os
 import copy
+import json
 
 from IPython import embed
 
@@ -17,8 +18,8 @@ from configobj import ConfigObj
 
 from astropy.io import fits
 from astropy.table import Table
-from astropy.time import Time
 
+from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -34,6 +35,8 @@ from pypeit.history import History
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+
+from linetools import utils as ltu
 
 
 class PypeIt:
@@ -251,20 +254,28 @@ class PypeIt:
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self):
+    def calib_all(self, run=True):
         """
         Create calibrations for all setups
 
         This will not crash if not all of the standard set of files are not provided
 
+        Args:
+            run (bool, optional): If False, only print the calib names and do
+            not actually run.  Only used with the pypeit_parse_calib_id script
 
+        Returns:
+            dict: A simple dict summarizing the calibration names
         """
+        calib_dict = {}
 
         self.tstart = time.time()
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
         for i in range(self.fitstbl.n_calib_groups):
+            # 1-indexed calib number
+            calib_grp = str(i+1)
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             grp_frames = frame_indx[in_grp]
@@ -272,6 +283,7 @@ class PypeIt:
             # Find the detectors to reduce
             detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
                                                 ndet=self.spectrograph.ndet)
+            calib_dict[calib_grp] = {}
             # Loop on Detectors
             for self.det in detectors:
                 # Instantiate Calibrations class
@@ -282,10 +294,45 @@ class PypeIt:
                 # Do it
                 # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                self.caliBrate.run_the_steps()
 
+                # Allow skipping the run (e.g. parse_calib_id.py script)
+                if run:
+                    self.caliBrate.run_the_steps()
+
+                key = self.caliBrate.master_key_dict['frame']
+                calib_dict[calib_grp][key] = {}
+                for step in self.caliBrate.steps:
+                    if step in ['bpm', 'slits', 
+                                'wv_calib', 'tilts', 'flats']:
+                        continue
+                    elif step == 'tiltimg':  # Annoying kludge
+                        step = 'tilt'
+                    # Prep
+                    raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
+                    masterframe_name = masterframe.construct_file_name(
+                        buildimage.frame_image_classes[step],
+                        self.caliBrate.master_key_dict[step], 
+                        master_dir=self.caliBrate.master_dir)
+
+                    # Add to dict
+                    if len(raw_files) > 0:
+                        calib_dict[calib_grp][key][step] = {}
+                        calib_dict[calib_grp][key][step]['master_key'] = self.caliBrate.master_key_dict[step]
+                        calib_dict[calib_grp][key][step]['master_name'] = os.path.basename(masterframe_name)
+                        calib_dict[calib_grp][key][step]['raw_files'] = [os.path.basename(ifile) for ifile in raw_files]
+
+        # Print the results
+        print(json.dumps(calib_dict, sort_keys=True, indent=4))
+
+        # Write
+        calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
+        ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
+        
         # Finish
         self.print_end_time()
+
+        # Return
+        return calib_dict
 
     def reduce_all(self):
         """
