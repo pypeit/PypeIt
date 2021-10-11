@@ -1,3 +1,7 @@
+1.6.1dev
+--------
+
+- Introduces pypeit_parse_calib_id script
 
 
 1.6.0 (1 Oct 2021)
