@@ -278,7 +278,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
@@ -288,13 +288,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '900ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         # Arc lamps list from header
-        par['calibrations']['wavelengths']['use_header_lamps'] = True
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

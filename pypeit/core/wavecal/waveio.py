@@ -239,7 +239,7 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
 
     Parameters
     ----------
-    lamps : list
+    lines : list
     unknown : bool, optional
     skip : bool, optional
         Skip missing line lists (mainly for building)
@@ -253,6 +253,7 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
     line_list : Table
 
     """
+    msgs.info("Arc lamps used: {}".format(', '.join(lines)))
     # All?
     if all:
         line_files = glob.glob(line_path+'*_lines.dat')

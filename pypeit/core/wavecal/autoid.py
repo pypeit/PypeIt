@@ -844,7 +844,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, nonlinear_counts=1e10):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
@@ -858,6 +858,8 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
     Args:
         spec: ndarray (nspec, nslit)
           Spectra to be calibrated
+        lamps : :obj:`list`
+            List of arc lamps to be used for wavelength calibration
         par: WavelengthSolutionPar ParSet
           Calibration parameters
         ok_mask: ndarray, bool
@@ -880,11 +882,11 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
 
     """
     # Load line lists
-    if 'ThAr' in par['lamps']:
-        line_lists_all = waveio.load_line_lists(par['lamps'])
+    if 'ThAr' in lamps:
+        line_lists_all = waveio.load_line_lists(lamps)
         line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
     else:
-        line_lists = waveio.load_line_lists(par['lamps'])
+        line_lists = waveio.load_line_lists(lamps)
 
     # Load template
     if template_dict is None:
@@ -1060,6 +1062,8 @@ class ArchiveReid:
         desired.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
         Spectrograph instance
+    lamps : :obj:`list`
+        List of arc lamps to be used for wavelength calibration
     par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
@@ -1106,7 +1110,7 @@ class ArchiveReid:
 
     """
     # TODO: Because we're passing orders directly, we no longer need spectrograph...
-    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all=False,
+    def __init__(self, spec, spectrograph, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
                  debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False,
                  orders=None, nonlinear_counts=1e10):
 
@@ -1143,7 +1147,7 @@ class ArchiveReid:
 
         self.par = par
         self.spectrograph = spectrograph
-        self.lamps = self.par['lamps']
+        self.lamps = lamps
         self.use_unknowns = use_unknowns
 
         # Mask info
@@ -1333,6 +1337,8 @@ class HolyGrail:
     ----------
     spec : ndarray
         2D array of arcline spectra (nspec,nslit)
+    lamps : :obj:`list`
+        List of arc lamps to be used for wavelength calibration
     par : ParSet or dict, default = default parset, optional
         This is the parset par['calibrations']['wavelengths']. A
         dictionary with the corresponding parameter names also works.
@@ -1373,15 +1379,15 @@ class HolyGrail:
 
     """
 
-    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, 
-                 outroot=None, debug = False, verbose=False,
+    def __init__(self, spec, lamps, par=None, ok_mask=None, islinelist=False,
+                 outroot=None, debug=False, verbose=False,
                  binw=None, bind=None, nstore=1, use_unknowns=True, 
                  nonlinear_counts=None, spectrograph=None):
 
         # Set some default parameters
         self._spec = spec
         self._par = pypeitpar.WavelengthSolutionPar() if par is None else par
-        self._lines = self._par['lamps']
+        self._lines = lamps
         self._npix, self._nslit = spec.shape
         self._nstore = nstore
         self._binw = binw

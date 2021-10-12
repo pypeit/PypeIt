@@ -714,9 +714,15 @@ class Calibrations:
             self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
         else:
+            # Determine lamp list to use for wavecalib
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl['calib'].data.astype(int) == self.calib_ID
+            is_arc = self.fitstbl.find_frames('arc')
+            lamps = self.spectrograph.get_lamps(self.fitstbl[in_grp & is_arc]) \
+                if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                                      self.par['wavelengths'], binspectral=binspec,
+                                                      self.par['wavelengths'], lamps, binspectral=binspec,
                                                       det=self.det,
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path, msbpm=self.msbpm)

@@ -2277,7 +2277,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 use_header_lamps=None, sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, fwhm_fromlines=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
@@ -2358,14 +2358,10 @@ class WavelengthSolutionPar(ParSet):
         #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
-                         'None for no calibration.  ' # \
+                         '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
+                         'recoded in the header of the arc frames (this is currently ' \
+                         'available only for Keck DEIMOS).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
-
-        defaults['use_header_lamps'] = False
-        dtypes['use_header_lamps'] = bool
-        descr['use_header_lamps'] = 'If True the list of arc lamps to be used for the wavelength ' \
-                                    'calibration is read from the header. If True the parameter ``lamps`` ' \
-                                    'will be overwritten.'
 
         defaults['use_instr_flag'] = False
         dtypes['use_instr_flag'] = bool
@@ -2551,7 +2547,7 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'use_header_lamps', 'sigdetect',
+                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',

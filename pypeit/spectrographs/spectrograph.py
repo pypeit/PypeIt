@@ -477,8 +477,7 @@ class Spectrograph:
         method raises an exception.
         """
         msgs.error('This spectrograph does not support the use of lamps list from header. '
-                   'Set `use_header_lamps=False`')
-
+                   'provide a list of lamps using the parameter `lamps` in WavelengthSolutionPar')
 
     def get_slitmask(self, filename):
         """
