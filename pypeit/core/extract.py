@@ -2386,3 +2386,113 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     return sobjs_final, skymask[allmask]
 
+
+from pypeit.par import pypeitpar
+class ManualExtractionPar(pypeitpar.ParSet):
+    """
+    A parameter set holding the arguments for how to perform the
+    manual extraction of a spectrum.
+
+    A list of these objects can be included in an instance of
+    :class:`ExtractObjectsPar` to perform a set of user-defined
+    extractions.
+
+    For an example of how to define a series of manual extractions in
+    the pypeit input file, see :ref:`pypeit_file`.
+
+    Args:
+        frame (:obj:`str`):
+            The name of the fits file for a manual extraction
+        spec = List of spectral positions to hand extract
+        spat = List of spatial positions to hand extract
+        det = List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
+             which will be used for all members of that list
+        fwhm = List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
+             be used for all members of that list'
+
+
+    """
+    def __init__(self, spat_spec=None, det=None, fwhm=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = pypeitpar.inspect.getargvalues(pypeitpar.inspect.currentframe())
+        pars = pypeitpar.OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        dtypes = pypeitpar.OrderedDict.fromkeys(pars.keys())
+        descr = pypeitpar.OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        dtypes['spat_spec'] = [list, str]
+        descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
+
+        dtypes['det'] = [list, int]
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
+
+        dtypes['fwhm'] = [list, float]
+        descr['fwhm'] = 'List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat'
+
+        # Instantiate the parameter set
+        super(ManualExtractionPar, self).__init__(list(pars.keys()),
+                                                  values=list(pars.values()),
+                                                  dtypes=list(dtypes.values()),
+                                                  descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = np.array([*cfg.keys()])
+        parkeys = ['spat_spec','det','fwhm']
+
+        badkeys = np.array([pk not in parkeys for pk in k])
+        if np.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
+                                k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        if self.data['spat_spec'] is not None:
+            p1 = self.data['spat_spec']
+            p2 = self.data['det']
+            p3 = self.data['fwhm']
+            if isinstance(p1, list):
+                if len(p1) != len(p2):
+                    raise ValueError("Each of these lists need the same length")
+                if len(p2) != len(p3):
+                    raise ValueError("Each of these lists need the same length")
+
+    def dict_for_objfind(self):
+        """
+        Parse the rather klunky parameters into a dict
+
+        Returns:
+            dict or None: To be passed (eventually) into reduce.find_objects()
+
+        """
+        if self.data['spat_spec'] is None:
+            return None
+        if isinstance(self.data['det'], list):
+            spat_spec = self.data['spat_spec']
+            det = [int(obj) for obj in self.data['det']]
+            fwhm = [float(obj) for obj in self.data['fwhm']]
+        else:
+            spat_spec = [self.data['spat_spec']]
+            det = [self.data['det']]
+            fwhm = [self.data['fwhm']]
+        # Deal with spat_spec
+        spats, specs = [], []
+        for ispat_spec in spat_spec:
+            ps = ispat_spec.split(':')
+            spats.append(float(ps[0]))
+            specs.append(float(ps[1]))
+        # dict and return
+        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
+                    hand_extract_det=det, hand_extract_fwhm=fwhm)
+
