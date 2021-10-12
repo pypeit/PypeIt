@@ -70,9 +70,8 @@ Wavelength Calibration
 ----------------------
 ``PypeIt`` is able (currently only for DEIMOS) to read from the header of the arc frames which
 lamps were ON during the observations and to set those to be the list of lamps to be used
-for the wavelength calibration. This functionality is switched on by setting **use_header_lamps**
-flag in :ref:`pypeit_par:WavelengthSolutionPar Keywords` to *True*. This is already set by default
-for DEIMOS.
+for the wavelength calibration. This functionality is switched on by setting ``lamps = use_header``
+in :ref:`pypeit_par:WavelengthSolutionPar Keywords`. This is already set by default for DEIMOS.
 
 It may happen, occasionally, that some lamps are not recorded in the header even if they were ON
 during the observations. This could be the case if a specific script, called `calib_blue`
@@ -82,7 +81,6 @@ list of lamps in the following way::
 
     [calibrations]
       [[wavelengths]]
-            use_header_lamps = False
             lamps = ArI, NeI, KrI, XeI, CdI, ZnI, HgI
 
 
