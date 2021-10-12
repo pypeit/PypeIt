@@ -53,6 +53,7 @@ class Reduce:
           True = Masked
         show (:obj:`bool`, optional):
            Show plots along the way?
+        manual (:class:`~pypeit.core.extract.ManualExtractionObj`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -96,7 +97,7 @@ class Reduce:
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, basename=None):
+                 binning=None, setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -121,11 +122,12 @@ class Reduce:
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
                             sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
                             find_negative=find_negative, det=det, std_redux=std_redux, show=show,
-                            binning=binning, setup=setup, basename=basename)
+                            binning=binning, setup=setup, basename=basename,
+                            manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, basename=None):
+                 binning=None, setup=None, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -137,6 +139,7 @@ class Reduce:
         self.caliBrate = caliBrate
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
+        self.manual = manual
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -373,7 +376,8 @@ class Reduce:
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+                              manual_extract_dict=(self.manual.dict_for_objfind() if self.manual is not None else None))
+                              #manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -387,7 +391,8 @@ class Reduce:
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+                                  manual_extract_dict=(self.manual.dict_for_objfind() if self.manual is not None else None))
+                                  #manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
 

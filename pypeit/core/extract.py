@@ -20,6 +20,7 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
 from pypeit import bspline
+from pypeit.par import pypeitpar
 from pypeit.display import display
 from pypeit.core import pydl
 from pypeit.core import pixels
@@ -2387,15 +2388,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     return sobjs_final, skymask[allmask]
 
 
-from pypeit.par import pypeitpar
-class ManualExtractionPar(pypeitpar.ParSet):
+class ManualExtractionObj(pypeitpar.ParSet):
     """
-    A parameter set holding the arguments for how to perform the
+    An object holding the arguments for how to perform the
     manual extraction of a spectrum.
 
-    A list of these objects can be included in an instance of
-    :class:`ExtractObjectsPar` to perform a set of user-defined
-    extractions.
+    A list of these objects is generated in pypeit.py
+    to perform a set of user-defined extractions.
 
     For an example of how to define a series of manual extractions in
     the pypeit input file, see :ref:`pypeit_file`.
@@ -2403,8 +2402,8 @@ class ManualExtractionPar(pypeitpar.ParSet):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spec = List of spectral positions to hand extract
-        spat = List of spatial positions to hand extract
+        spat_spec = List of spatial, spectral positions to hand extract
+            e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
         det = List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
              which will be used for all members of that list
         fwhm = List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
@@ -2412,7 +2411,35 @@ class ManualExtractionPar(pypeitpar.ParSet):
 
 
     """
-    def __init__(self, spat_spec=None, det=None, fwhm=None):
+    @classmethod
+    def by_fitstbl_input(cls, frame: str, inp: str):
+        """Generate the object from an entry in the fitstbl
+
+        Args:
+            frame (str): filename
+            inp (str): det:spat:spec:fwhm
+                1:1181.8:3820.6:3.
+
+        Returns:
+            ManualExtractionObj or None:
+        """
+        if len(inp.strip()) == 0:
+            return None
+
+        # Generate a dict
+        idict = dict(frame=frame, spat_spec=[], det=[], fwhm=[])
+        m_es = inp.split(',')
+        for m_e in m_es:
+            parse = m_e.split(':')
+            idict['det'] += [int(parse[0])]
+            idict['spat_spec'] += [f'{parse[1]}:{parse[2]}']
+            idict['fwhm'] += [float(parse[3])]
+
+        # Build me
+        return cls.from_dict(idict)
+
+
+    def __init__(self, frame=None, spat_spec=None, det=None, fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2426,6 +2453,9 @@ class ManualExtractionPar(pypeitpar.ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        dtypes['frame'] = str
+        descr['frame'] = 'The name of the fits file for a manual extraction'
+
         dtypes['spat_spec'] = [list, str]
         descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
 
@@ -2435,8 +2465,8 @@ class ManualExtractionPar(pypeitpar.ParSet):
         dtypes['fwhm'] = [list, float]
         descr['fwhm'] = 'List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat'
 
-        # Instantiate the parameter set
-        super(ManualExtractionPar, self).__init__(list(pars.keys()),
+        # Instantiate the object
+        super(ManualExtractionObj, self).__init__(list(pars.keys()),
                                                   values=list(pars.values()),
                                                   dtypes=list(dtypes.values()),
                                                   descr=list(descr.values()))
@@ -2445,11 +2475,11 @@ class ManualExtractionPar(pypeitpar.ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['spat_spec','det','fwhm']
+        parkeys = ['spat_spec','det','fwhm','frame']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
+            raise ValueError('{0} not recognized key(s) for ManualExtractionObj.'.format(
                                 k[badkeys]))
 
         kwargs = {}

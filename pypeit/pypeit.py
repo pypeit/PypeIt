@@ -26,6 +26,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
+from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -137,6 +138,14 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
+
+        # Populate things based on the fitstbl
+        # Manual Extraction
+        # TODO -- Should we add this to the fitstbl? e.g. to insure it is in sync
+        self.manual_list = [
+            extract.ManualExtractionObj.by_fitstbl_input(
+                row['filename'], row['manual']) for row in self.fitstbl]
+        
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -738,6 +747,9 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Deal with manual extraction
+        ifile0 = np.where(self.fitstbl['filename'] == os.path.basename(sci_files[0]))[0][0]
+
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
@@ -745,6 +757,7 @@ class PypeIt:
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                manual=self.manual_list[ifile0],
                                                 find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
