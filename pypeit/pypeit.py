@@ -38,7 +38,6 @@ from pypeit.metadata import PypeItMetaData
 
 from linetools import utils as ltu
 
-
 class PypeIt:
     """
     This class runs the primary calibration and extraction in PypeIt
@@ -325,9 +324,10 @@ class PypeIt:
         print(json.dumps(calib_dict, sort_keys=True, indent=4))
 
         # Write
+        msgs.info('Writing calib file')
         calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
         ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
-        
+
         # Finish
         self.print_end_time()
 
