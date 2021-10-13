@@ -50,8 +50,8 @@ def test_sensfuncuvis():
 def test_telluric():
     pypeitpar.TelluricPar()
 
-def test_manualextraction():
-    pypeitpar.ManualExtractionPar()
+#def test_manualextraction():
+#    pypeitpar.ManualExtractionPar()
 
 # TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
 # a circular import.
