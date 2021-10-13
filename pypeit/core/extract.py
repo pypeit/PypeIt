@@ -2427,19 +2427,20 @@ class ManualExtractionObj(pypeitpar.ParSet):
             return None
 
         # Generate a dict
-        idict = dict(frame=frame, spat_spec=[], det=[], fwhm=[])
+        idict = dict(frame=frame, spat=[], spec=[], det=[], fwhm=[])
         m_es = inp.split(',')
         for m_e in m_es:
             parse = m_e.split(':')
             idict['det'] += [int(parse[0])]
-            idict['spat_spec'] += [f'{parse[1]}:{parse[2]}']
+            idict['spat'] += [float(parse[1])]
+            idict['spec'] += [float(parse[2])]
             idict['fwhm'] += [float(parse[3])]
 
         # Build me
         return cls.from_dict(idict)
 
 
-    def __init__(self, frame=None, spat_spec=None, det=None, fwhm=None):
+    def __init__(self, frame=None, spat=None, spec=None, det=None, fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2456,13 +2457,16 @@ class ManualExtractionObj(pypeitpar.ParSet):
         dtypes['frame'] = str
         descr['frame'] = 'The name of the fits file for a manual extraction'
 
-        dtypes['spat_spec'] = [list, str]
-        descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
+        dtypes['spat'] = list # float
+        descr['spat'] = 'List of spatial positions to hand extract'
 
-        dtypes['det'] = [list, int]
+        dtypes['spec'] = list # float
+        descr['spec'] = 'List of spectral positions to hand extract'
+
+        dtypes['det'] = list  # int
         descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
-
-        dtypes['fwhm'] = [list, float]
+ 
+        dtypes['fwhm'] = list # float
         descr['fwhm'] = 'List of FWHM (in pixels) for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the object
@@ -2475,7 +2479,7 @@ class ManualExtractionObj(pypeitpar.ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['spat_spec','det','fwhm','frame']
+        parkeys = ['spat', 'spec','det','fwhm','frame']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2488,25 +2492,31 @@ class ManualExtractionObj(pypeitpar.ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        if self.data['spat_spec'] is not None:
-            p1 = self.data['spat_spec']
-            p2 = self.data['det']
-            p3 = self.data['fwhm']
+        if self.data['spat'] is not None:
+            p1 = self.data['spat']
+            p2 = self.data['spec']
+            p3 = self.data['det']
+            p4 = self.data['fwhm']
             if isinstance(p1, list):
                 if len(p1) != len(p2):
                     raise ValueError("Each of these lists need the same length")
                 if len(p2) != len(p3):
                     raise ValueError("Each of these lists need the same length")
 
-    def dict_for_objfind(self):
+    def dict_for_objfind(self, neg=False):
         """
-        Parse the rather klunky parameters into a dict
+        Repackage into a dict for the extraction code
+
+        Args:
+            neg (bool, optional):
+                Negative image
 
         Returns:
-            dict or None: To be passed (eventually) into reduce.find_objects()
+            dict: To be passed into reduce.find_objects()
 
         """
-        if self.data['spat_spec'] is None:
+        '''
+        if self.data['spat'] is None:
             return None
         if isinstance(self.data['det'], list):
             spat_spec = self.data['spat_spec']
@@ -2523,6 +2533,26 @@ class ManualExtractionObj(pypeitpar.ParSet):
             spats.append(float(ps[0]))
             specs.append(float(ps[1]))
         # dict and return
-        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
-                    hand_extract_det=det, hand_extract_fwhm=fwhm)
-
+        '''
+        manual_dict =  dict(hand_extract_spec=self.data['spec'], 
+                    hand_extract_spat=self.data['spat'],
+                    hand_extract_det=self.data['det'], 
+                    hand_extract_fwhm=self.data['fwhm'])
+        #
+        dets = np.atleast_1d(manual_dict['hand_extract_det'])
+        # Grab the ones we want
+        gd_det = dets > 0
+        if not neg:
+            gd_det = np.invert(gd_det)
+        # Any?
+        if not np.any(gd_det):
+            return manual_dict
+        # Fill
+        manual_extract_dict = {}
+        for key in manual_dict.keys():
+            sgn = 1
+            if key == 'hand_extract_det':
+                sgn = -1
+            manual_extract_dict[key] = sgn*np.atleast_1d(manual_dict[key])[gd_det]
+        # Return
+        return manual_extract_dict
