@@ -2402,11 +2402,13 @@ class ManualExtractionObj(pypeitpar.ParSet):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spat_spec = List of spatial, spectral positions to hand extract
+        spat (list): List of spatial, spectral positions to hand extract
             e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
-        det = List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
+        spec (list): List of spatial, spectral positions to hand extract
+            e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
+        det (list): List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer
              which will be used for all members of that list
-        fwhm = List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
+        fwhm (list): List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will
              be used for all members of that list'
 
 
