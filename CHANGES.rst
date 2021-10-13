@@ -2,6 +2,7 @@
 --------
 
 - Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
 
 
 1.6.0 (1 Oct 2021)
