@@ -1168,18 +1168,28 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             return detector_container.DetectorContainer(**detector_dict1)
 
         # Deal with number of amps
-        namps = hdu[0].header['NVIDINP']
+        head0 = hdu[0].header
+        detector_dict1['numamplifiers'] = head0['TAPLINES']
 
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2: 
+        if detector_dict1['numamplifiers'] == 2: 
             pass
-        elif namps == 4:
-            # From the web page on 2021-10-04 (L1, L2, L3, L4)
+        elif detector_dict1['numamplifiers'] == 4:
+            # From the web page on 2021-10-04 (L1, L2, U1, U2)
+            # TODO -- Make sure this is right -- See doc by SS
             detector_dict1['gain'] = np.atleast_1d([1.71, 1.64, 1.61, 1.67])
             detector_dict1['ronoise'] = np.atleast_1d([3.64, 3.45, 3.65, 3.52])
         else:
             msgs.error("Did not see this namps coming..")
+
+        detector_dict1['datasec'] = []
+        detector_dict1['oscansec'] = []
+        for iamp in range(detector_dict1['numamplifiers']):
+            detector_dict1['datasec'] += [head0[f'DSEC{iamp}']]
+            detector_dict1['oscansec'] += [head0[f'BSEC{iamp}']]
+        detector_dict1['datasec'] = np.array(detector_dict1['datasec'])
+        detector_dict1['oscansec'] = np.array(detector_dict1['oscansec'])
 
         # Instantiate
         detector = detector_container.DetectorContainer(**detector_dict1)
@@ -1220,15 +1230,8 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Image info
-        hdul = fits.open(raw_file)
-        embed(header='1226 of keck_lris')
-        image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
-        # Detector
-        detector_par = self.get_detector_par(det, hdu=hdul)
-        # Return
-        return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
-
+        # Note:  There is no way we know to super super super
+        return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """
