@@ -1186,8 +1186,12 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         detector_dict1['datasec'] = []
         detector_dict1['oscansec'] = []
         for iamp in range(detector_dict1['numamplifiers']):
-            detector_dict1['datasec'] += [head0[f'DSEC{iamp}']]
-            detector_dict1['oscansec'] += [head0[f'BSEC{iamp}']]
+            # These are column, row
+            dsecs = head0[f'DSEC{iamp}'].split(',')
+            bsecs = head0[f'BSEC{iamp}'].split(',')
+            # These are now row, column
+            detector_dict1['datasec'] += ['['+dsecs[1][:-1]+','+dsecs[0][1:]+']']
+            detector_dict1['oscansec'] += ['['+bsecs[1][:-1]+','+bsecs[0][1:]+']']
         detector_dict1['datasec'] = np.array(detector_dict1['datasec'])
         detector_dict1['oscansec'] = np.array(detector_dict1['oscansec'])
 
