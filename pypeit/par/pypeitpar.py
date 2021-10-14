@@ -3567,11 +3567,6 @@ class ExtractionPar(ParSet):
                                  'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
                                  'detected object, and uses ``find_fwhm`` as initial guess.'
 
-        #defaults['manual'] = ManualExtractionPar()
-        #dtypes['manual'] = [ ParSet, dict ]
-        #descr['manual'] = 'Parameters for manual extraction'
-
-
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3596,10 +3591,6 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-
-        # Keywords that are ParSets
-        #pk = 'manual'
-        #kwargs[pk] = ManualExtractionPar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 

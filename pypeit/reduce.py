@@ -53,7 +53,7 @@ class Reduce:
           True = Masked
         show (:obj:`bool`, optional):
            Show plots along the way?
-        manual (:class:`~pypeit.core.extract.ManualExtractionObj`, optional):
+        manual (:class:`~pypeit.datamodel.DataContainer`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -228,43 +228,6 @@ class Reduce:
         self.sciImg.update_mask_slitmask(self.slitmask)
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
-
-    '''
-    def parse_manual_dict(self, manual_dict, neg=False):
-        """
-        Parse the manual dict
-        This method is here mainly to deal with negative images
-
-        Args:
-            manual_dict (dict or None):
-            neg (bool, optional):
-                Negative image
-
-        Returns:
-            None or dict:  None if no matches; dict if there are for manual extraction
-
-        """
-        if manual_dict is None:
-            return None
-        #
-        dets = np.atleast_1d(manual_dict['hand_extract_det'])
-        # Grab the ones we want
-        gd_det = dets > 0
-        if not neg:
-            gd_det = np.invert(gd_det)
-        # Any?
-        if not np.any(gd_det):
-            return manual_dict
-        # Fill
-        manual_extract_dict = {}
-        for key in manual_dict.keys():
-            sgn = 1
-            if key == 'hand_extract_det':
-                sgn = -1
-            manual_extract_dict[key] = sgn*np.atleast_1d(manual_dict[key])[gd_det]
-        # Return
-        return manual_extract_dict
-    '''
 
     def extract(self, global_sky, sobjs_obj):
         """
