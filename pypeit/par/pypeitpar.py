@@ -2618,7 +2618,7 @@ class EdgeTracePar(ParSet):
     see :ref:`pypeitpar`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None, follow_span=None,
                  det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
                  max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
                  fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
@@ -2663,6 +2663,14 @@ class EdgeTracePar(ParSet):
         dtypes['edge_thresh'] = [int, float]
         descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
                                ' image.'
+
+        defaults['exclude_regions'] = None
+        dtypes['exclude_regions'] = [list, str]
+        descr['exclude_regions'] = 'User-defined regions to exclude from the slit tracing. To set this parameter, ' \
+                                   'the text should be a comma separated list of pixel ranges (in the x direction) ' \
+                                   'to be excluded and the detector number. For example, the following string ' \
+                                   '1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 ' \
+                                   'and between 300 and 400.'
 
         defaults['follow_span'] = 20
         dtypes['follow_span'] = int
@@ -3037,7 +3045,7 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'exclude_regions', 'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
                    'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',

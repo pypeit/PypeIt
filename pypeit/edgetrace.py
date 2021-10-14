@@ -981,6 +981,14 @@ class EdgeTraceSet(DataContainer):
         # TODO: Decide if mask should be passed to this or not,
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
+
+        # Only after the correction for the bad column, update the bmp with the
+        # regions to exclude from slit tracing
+        if self.par['exclude_regions'] is not None:
+            reg_start, reg_end = self._parse_exclude_regions()
+            for i in range(reg_start.size):
+                self.tracebpm[:, int(reg_start[i]):int(reg_end[i])] = True
+
         self.sobelsig, edge_img \
                 = trace.detect_slit_edges(_img, bpm=self.tracebpm,
                                           median_iterations=self.par['filt_iter'],
@@ -1060,6 +1068,29 @@ class EdgeTraceSet(DataContainer):
 
         # Restart the log
         self.log = [inspect.stack()[0][3]]
+
+    def _parse_exclude_regions(self):
+        """
+        Parse the `exclude_regions` parset.
+
+        Returns:
+            :obj:`tuple`: Returns two arrays with the starting
+            and ending pixels of the regions to exclude in this detector
+        """
+        if self.par['exclude_regions'] is None:
+            return
+        else:
+            # create the arrays with det, starting pixels and ending pixels
+            dets = np.zeros(len(self.par['exclude_regions']))
+            reg_start = np.zeros(len(self.par['exclude_regions']))
+            reg_end = np.zeros(len(self.par['exclude_regions']))
+            # fill them
+            for i, region in enumerate(self.par['exclude_regions']):
+                dets[i], reg_start[i], reg_end[i] = region.split(':')
+            # select the current detector
+            this_det = dets == self.spectrograph.ndet
+
+            return reg_start[this_det], reg_end[this_det]
 
     def _base_header(self, hdr=None):
         """

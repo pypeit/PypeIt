@@ -209,6 +209,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # needed for better slitmask design matching
             par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+                # exclude the random slits from slit tracing
+                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:880', '1:1190:2040']
                 # use dither info in the header to find objects
                 par['reduce']['slitmask']['use_dither_offset'] = True
                 # assume that the main target is always detected, i.e., skipping force extraction
@@ -677,7 +679,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
-        edge = 2034 if 'long2pos' not in self.get_meta_value(filename, 'decker') else 305
+        edge = 2034 if 'long2pos' not in self.get_meta_value(filename, 'decker') else 1188
         bot_edges = np.array([edge], dtype=np.int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
