@@ -4063,9 +4063,12 @@ class EdgeTraceSet(DataContainer):
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
         `det_buffer`.
         """
+        # find where sobelsig is not masked
+        sobelsig_nomask = np.where(self.sobelsig[int(self.nspec/2.), :] != 0)[0]
+
         self.insert_traces(np.array([-1,1]),
-                           np.array([np.full(self.nspec, self.par['det_buffer'], dtype='float'),
-                                     np.full(self.nspec, self.nspat-1-self.par['det_buffer'],
+                           np.array([np.full(self.nspec, sobelsig_nomask[0]+self.par['det_buffer'], dtype='float'),
+                                     np.full(self.nspec, sobelsig_nomask[-1]-self.par['det_buffer'],
                                              dtype='float')]).T)
 
     def fully_masked_traces(self, flag=None, exclude=None):

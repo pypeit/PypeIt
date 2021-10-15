@@ -70,53 +70,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         )
         return detector_container.DetectorContainer(**detector_dict)
 
-    # def get_rawimage(self, raw_file, det):
-    #     """
-    #     Read raw images and generate a few other bits and pieces
-    #     that are key for image processing.
-    #
-    #     Over-ride standard get_rawimage() for MOSFIRE to deal
-    #     with long2pos slitmask
-    #
-    #     Parameters
-    #     ----------
-    #     raw_file : :obj:`str`
-    #         File to read
-    #     det : :obj:`int`
-    #         1-indexed detector to read
-    #
-    #     Returns
-    #     -------
-    #     detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
-    #         Detector metadata parameters.
-    #     raw_img : `numpy.ndarray`_
-    #         Raw image for this detector.
-    #     hdu : `astropy.io.fits.HDUList`_
-    #         Opened fits file
-    #     exptime : :obj:`float`
-    #         Exposure time read from the file header
-    #     rawdatasec_img : `numpy.ndarray`_
-    #         Data (Science) section of the detector as provided by setting the
-    #         (1-indexed) number of the amplifier used to read each detector
-    #         pixel. Pixels unassociated with any amplifier are set to 0.
-    #     oscansec_img : `numpy.ndarray`_
-    #         Overscan section of the detector as provided by setting the
-    #         (1-indexed) number of the amplifier used to read each detector
-    #         pixel. Pixels unassociated with any amplifier are set to 0.
-    #     """
-    #
-    #     detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img = super().get_rawimage(raw_file, det)
-    #
-    #     headarr = self.get_headarr(raw_file)
-    #
-    #     if 'long2pos' in self.get_meta_value(headarr, 'decker'):
-    #         # Select only the 3 slits used for long2pos and neglect the others that are random
-    #         rawdatasec_img[:883, :] = 0
-    #         rawdatasec_img[1195:, :] = 0
-    #
-    #     # Return
-    #     return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
-
     @classmethod
     def default_pypeit_par(cls):
         """
@@ -199,6 +152,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
+            # turn PCA off
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+            if 'LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker'):
+                # find the spat pixel positions where the longslit starts and ends
+                pix_start, pix_end = find_longslit_pos(scifile)
+                # exclude the random slits outside the longslit from slit tracing
+                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
+                                                                       '1:{}:2040'.format(pix_end)]
+                par['calibrations']['slitedges']['det_buffer'] = 0
+                # artificially add left and right edges
+                par['calibrations']['slitedges']['bound_detector'] = True
+
         # Turn on the use of mask design
         if 'LONGSLIT' not in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['use_maskdesign'] = True
@@ -209,13 +175,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # needed for better slitmask design matching
             par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
-                # exclude the random slits from slit tracing
+                # exclude the random slits outside the long2pos from slit tracing
                 par['calibrations']['slitedges']['exclude_regions'] = ['1:0:880', '1:1190:2040']
                 # use dither info in the header to find objects
                 par['reduce']['slitmask']['use_dither_offset'] = True
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
-
 
         # Return
         return par
@@ -748,7 +713,7 @@ def find_longslit_pos(raw_file):
     # Hard-coded for MOSFIRE
     slit_gap = 0.96
     slit_length = CSUnum * 7.01/pixelscale + (CSUnum-1)*slit_gap/pixelscale
-    pix_start = hdu[0].header['CRPIX2'] - slit_length/2
-    pix_end = hdu[0].header['CRPIX2'] + slit_length/2
+    pix_start = hdu[0].header['CRPIX1'] - (slit_length/2. + 1)
+    pix_end = hdu[0].header['CRPIX1'] + (slit_length/2. + 1)
 
-    return int(pix_start), int(pix_end)
+    return int(round(pix_start)), int(round(pix_end))
