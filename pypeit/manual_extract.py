@@ -52,13 +52,10 @@ class ManualExtractionObj(datamodel.DataContainer):
                 1:1181.8:3820.6:3.
 
         Returns:
-            ManualExtractionObj or None:
+            ManualExtractionObj:
         """
-        if len(inp.strip()) == 0:
-            return None
-
         # Generate a dict
-        idict = dict(frame=frame, spat=[], spec=[], det=[], fwhm=[])
+        idict = dict(spat=[], spec=[], det=[], fwhm=[])
         m_es = inp.split(',')
         for m_e in m_es:
             parse = m_e.split(':')
@@ -68,7 +65,10 @@ class ManualExtractionObj(datamodel.DataContainer):
             idict['fwhm'] += [float(parse[3])]
 
         # Build me
-        return cls.from_dict(idict)
+        return cls(frame=frame, spat=np.array(idict['spat']), 
+                   spec=np.array(idict['spec']),
+                   fwhm=np.array(idict['fwhm']),
+                   det=np.array(idict['det']))
 
 
     def __init__(self, frame=None, spat=None, spec=None, det=None, fwhm=None):
@@ -104,10 +104,10 @@ class ManualExtractionObj(datamodel.DataContainer):
             dict: To be passed into reduce.find_objects()
 
         """
-        manual_dict =  dict(hand_extract_spec=self.data['spec'], 
-                    hand_extract_spat=self.data['spat'],
-                    hand_extract_det=self.data['det'], 
-                    hand_extract_fwhm=self.data['fwhm'])
+        manual_dict =  dict(hand_extract_spec=self.spec, 
+                    hand_extract_spat=self.spat,
+                    hand_extract_det=self.det, 
+                    hand_extract_fwhm=self.fwhm)
         #
         dets = np.atleast_1d(manual_dict['hand_extract_det'])
         # Grab the ones we want

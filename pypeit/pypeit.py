@@ -36,6 +36,7 @@ from pypeit.history import History
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+from pypeit.manual_extract import ManualExtractionObj
 
 from linetools import utils as ltu
 
@@ -141,12 +142,6 @@ class PypeIt:
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
 
-        # Populate things based on the fitstbl
-        # Manual Extraction
-        # TODO -- Should we add this to the fitstbl? e.g. to insure it is in sync
-        self.manual_list = [
-            extract.ManualExtractionObj.by_fitstbl_input(
-                row['filename'], row['manual']) for row in self.fitstbl]
         
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
@@ -795,7 +790,9 @@ class PypeIt:
                 ignore_saturation=False), frame_par['process'])
 
         # Deal with manual extraction
-        ifile0 = np.where(self.fitstbl['filename'] == os.path.basename(sci_files[0]))[0][0]
+        row = self.fitstbl[frames[0]]
+        manual_obj = ManualExtractionObj.by_fitstbl_input(
+            row['filename'], row['manual']) if len(row['manual'].strip()) > 0 else None
 
         # Instantiate Reduce object
         # Required for pypeline specific object
@@ -804,7 +801,7 @@ class PypeIt:
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
-                                                manual=self.manual_list[ifile0],
+                                                manual=manual_obj,
                                                 find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
