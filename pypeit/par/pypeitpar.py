@@ -1124,7 +1124,8 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None):
+    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None,
+                 manual=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1153,6 +1154,11 @@ class Coadd2DPar(ParSet):
         dtypes['weights'] = [str, list]
         descr['weights'] = 'Mode for the weights used to coadd images.  See coadd2d.py for all options.'
 
+        # Weights
+        defaults['manual'] = ''
+        dtypes['manual'] = str
+        descr['manual'] = 'Manual extraction parameters. det:spat:spec:fwhm. comma separated '
+
         # Instantiate the parameter set
         super(Coadd2DPar, self).__init__(list(pars.keys()),
                                                  values=list(pars.values()),
@@ -1164,7 +1170,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['offsets', 'weights', 'use_slits4wvgrid']
+        parkeys = ['offsets', 'weights', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

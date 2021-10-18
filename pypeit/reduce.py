@@ -342,8 +342,6 @@ class Reduce:
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
             )
-                              #manual_extract_dict=(self.manual.dict_for_objfind() if self.manual is not None else None))
-                              #manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -358,8 +356,6 @@ class Reduce:
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
                 )
-                                  #manual_extract_dict=(self.manual.dict_for_objfind() if self.manual is not None else None))
-                                  #manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
@@ -510,7 +506,8 @@ class Reduce:
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
-                     show_trace=False, show=False, #manual_extract_dict=None,
+                     show_trace=False, show=False, 
+                     manual_extract_dict=None,
                      debug=False):
         """
         Single pass at finding objects in the input image
@@ -532,7 +529,7 @@ class Reduce:
         show : :obj:`bool`, optional
             ???
         manual_extract_dict : :obj:`dict`, optional
-            ???
+            This is only used by 2D coadd
         debug : :obj:`bool`, optional
             ???
 
@@ -545,16 +542,16 @@ class Reduce:
         skymask : `numpy.ndarray`_
             Boolean sky mask
         """
-
         # Positive image
-        manual_dict= self.manual.dict_for_objfind(neg=False) if self.manual is not None else None
+        if manual_extract_dict is None:
+            manual_extract_dict= self.manual.dict_for_objfind(neg=False) if self.manual is not None else None
         #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_single, nobj_single, skymask_pos = \
             self.find_objects_pypeline(image,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace,
-                                       manual_extract_dict=manual_dict, debug=debug)
+                                       manual_extract_dict=manual_extract_dict, debug=debug)
 
         # For nobj we take only the positive objects
         if self.find_negative:
@@ -566,7 +563,7 @@ class Reduce:
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
                                            show_trace=show_trace,
-                                           manual_extract_dict=manual_dict,
+                                           manual_extract_dict=manual_extract_dict,
                                            debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
