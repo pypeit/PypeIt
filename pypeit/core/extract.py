@@ -20,7 +20,6 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
 from pypeit import bspline
-from pypeit.par import pypeitpar
 from pypeit.display import display
 from pypeit.core import pydl
 from pypeit.core import pixels

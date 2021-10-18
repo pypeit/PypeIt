@@ -53,7 +53,7 @@ class Reduce:
           True = Masked
         show (:obj:`bool`, optional):
            Show plots along the way?
-        manual (:class:`~pypeit.datamodel.DataContainer`, optional):
+        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):

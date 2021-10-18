@@ -84,8 +84,7 @@ class ManualExtractionObj(datamodel.DataContainer):
         A couple of quick checks..
 
         Raises:
-            ValueError: [description]
-            ValueError: [description]
+            ValueError: Raised if one of the arrays is not set or if they don't have the same length
         """
         if len(self.spec) != len(self.spat):
             raise ValueError("spec and spat not of the same length")
