@@ -366,7 +366,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         """
         if status == 'off':
             # Check if all are off
-            return fitstbl['lampstat01'] == '0'
+            return fitstbl['lampstat01'] == 'off'
             # return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
             #               axis=0)
         # DP: this is not checking the lamp status of the arcs, but of the flats
@@ -376,7 +376,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         #     return np.any(np.array([ fitstbl[k] == '1' for k in fitstbl.keys()
         #                                     if k in arc_lamp_stat]), axis=0)
         if status == 'dome':
-            return fitstbl['lampstat01'] == '1'
+            return fitstbl['lampstat01'] == 'on'
 
         raise ValueError('No implementation for status = {0}'.format(status))
 
