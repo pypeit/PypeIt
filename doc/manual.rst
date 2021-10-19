@@ -1,3 +1,5 @@
+.. _manual:
+
 =================
 Manual Extraction
 =================
@@ -18,8 +20,9 @@ Here is the standard recipe:
 1. Reduce the spectral image(s)
 2. Examine the spec2d images with :ref:`pypeit_show_2dspec`
 3. Record the spatial and spectral pixel where the trace should cross
-4. Modify the PypeIt file as described below
-5. :ref:`run-pypeit` again
+4. Note the detector and the approximate FWHM of the profile (in pixels)
+5. Modify the PypeIt file as described below
+6. :ref:`run-pypeit` again
 
 Tracing
 -------
@@ -35,20 +38,15 @@ of decreasing preference:
 Multi-Slit
 ----------
 
-If you are running in multi-slit mode, you will add the spatial-spectral
-pixel pair for each object to extract for each detector to the PypeIt file.
+If you are running in multi-slit mode, you will add the 
+spatial-spectral pixel pair for each object to extract 
+for each detector to the PypeIt file.
 
-Here is an example::
+This is to be added to the `manual` column of the 
+:ref:`data_block` of the :doc:`pypeit_file`.
+You can generate that column when running
+:ref:`pypeit_setup` or you can add it by-hand.
 
-    [reduce]
-      [[extraction]]
-        [[[manual]]]
-           spat_spec = 212.3:1200,742.3:1200
-           det = 1,2
-           fwhm = 3.,3.
-
-The above will lay down a new trace at spatial=212.3, spectral=1200
-pixel on detector 1 and use a FWHM of 3 pixels.
 
 
 Echelle
@@ -57,12 +55,21 @@ Echelle
 For echelle, you only have to specify the object location in a single
 order and the code will use its fractional position on all other orders.
 
-Here is an example from the DevSuite (VLT_manual)::
+Here are a few lines from the VLT/X-Shooter 
+example in the PypeIt DevSuite::
 
-    [reduce
-      [[extraction]]
-        [[[manual]]]
-           spat_spec = 1181.8:3820.6
-           det = 1
-           fwhm = 3.
+    |                           filename    |       frametype |          ra |         dec |        target | dispname |   decker | binning |             mjd | airmass | exptime | arm | manual |
+    | XSHOO.2019-08-21T07:55:35.020.fits.gz |         science | 21:57:38.97 | -80:21:31.3 |     FRB190711 |  default |   1.2x11 |     1,1 | 58716.330266429 |    1.94 |   350.0 | VIS | 1:1181.8:3820.6:3. |
+    | XSHOO.2019-08-21T08:04:15.565.fits.gz |         science | 21:57:38.97 | -80:21:31.3 |     FRB190711 |  default |   1.2x11 |     1,1 | 58716.336291257 |   1.956 |   350.0 | VIS | 1:1181.8:3820.6:3. |
 
+The above will lay down a new trace at spatial=1181.8, 
+spectral=3820.6 pixel on detector 1 and use a FWHM 
+of 3 pixels.  It will also force an extraction at
+the same relative position for each echelle order.
+
+Coadd2D
+-------
+
+When using the :ref:`pypeit-coadd-2dspec` script, you
+specify manual extraction in the parameter block.
+Here is the example for VLT/X-Shooter::

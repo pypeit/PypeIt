@@ -16,6 +16,8 @@ part of the data reduction process, although it can
 combine (without weighting) multiple exposures
 during reductions (See :ref:`2d_combine`).
 
+.. _pypeit-coadd-2dspec:
+
 pypeit_coadd_2dspec
 ===================
 
@@ -75,10 +77,11 @@ Here is an example for `keck_lris_blue`::
     spec2d end
 
 
-The opening block sets parameters for the reduction steps
+The opening block sets parameters for the reduction steps.
+See :ref:`pypeit_par:Coadd2DPar Keywords` for a list of the
+options specific to coadd2d including :doc:`manual`. 
 
 The data block provides a list of :doc:`out_spec2D` files.
-
 
 run
 ---

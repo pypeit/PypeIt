@@ -17,7 +17,6 @@ from pypeit import msgs
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import reduce
-from pypeit import manual_extract
 from pypeit.images import pypeitimage
 from pypeit.core import extract
 from pypeit.core.wavecal import wvutils
