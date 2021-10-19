@@ -155,7 +155,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
             # turn PCA off
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-            if 'LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker'):
+            # if 'x' in not in the maskname, the maskname does not include the number of CSU
+            # used for the longslit and the length of the longslit cannot be determined
+            if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
+                    ('x' in self.get_meta_value(headarr, 'decker')):
                 # find the spat pixel positions where the longslit starts and ends
                 pix_start, pix_end = find_longslit_pos(scifile)
                 # exclude the random slits outside the longslit from slit tracing
@@ -212,7 +215,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['filter1'] = dict(ext=0, card='FILTER')
         # Lamps
         # flat lamps on/off
-        self.meta['lampstat01'] = dict(ext=0, card='FLATSPEC')
+        self.meta['lampstat01'] = dict(card=None, compound=True)
         # lamp_names = ['FLATSPEC']
         # for kk,lamp_name in enumerate(lamp_names):
         #     self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
@@ -220,7 +223,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='PATTERN')
         self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
-        self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -247,7 +250,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                     PWSTATA8 = int(headarr[0].get('PWSTATA8'))
                     if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
                         if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
-                            return 'flatlamp'
+                            return 'flatlamp_off'
                         else:
                             return 'object'
                     elif FLATSPEC == 1:
@@ -256,6 +259,16 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                         return 'arclamp'
                 except:
                     return 'unknown'
+        if meta_key == 'lampstat01':
+            if headarr[0].get('FLATSPEC', None) is not None:
+                return 'on' if headarr[0].get('FLATSPEC')==1 else 'off'
+            else:
+                return headarr[0].get('FLSPECTR')
+        if meta_key == 'dithoff':
+            if headarr[0].get('YOFFSET', None) is not None:
+                return headarr[0].get('YOFFSET')
+            else:
+                return 0.0
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -316,7 +329,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['bias', 'dark']:
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & (fitstbl['idname'] == 'flatlamp')
+            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlamp_off'))
         if ftype in ['illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')
@@ -578,7 +591,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                            botdist]).T
 
         # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu[0].header['SKYPA0']
+        posx_pa = hdu[0].header['SKYPA2']
         if posx_pa < 0.:
             posx_pa += 360.
 
@@ -602,7 +615,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                                                  slit_dec,
                                                  np.array(ssl['Slit_length'], dtype=float),
                                                  np.array(ssl['Slit_width'], dtype=float),
-                                                 np.array([round(hdu[0].header['SKYPA0'],2)]*ssl['Slit_Number'].size)]).T,
+                                                 np.array([round(hdu[0].header['SKYPA3'],2)]*ssl['Slit_Number'].size)]).T,
                                  objects=objects,
                                  posx_pa=posx_pa)
         return self.slitmask
@@ -640,7 +653,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Hard-Coded for MOSFIRE
         platescale = 0.1798
-        slit_gap = round(0.96/platescale)
+        slit_gap = round(0.97/platescale)
 
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
@@ -650,9 +663,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # target is the slit number
             edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)
             bot_edges = np.append(bot_edges, np.round(edge))
+        if bot_edges[-1] < 0:
+            bot_edges[-1] = 1
 
         # build an array of values containing the top (left) edge of the slits
         top_edges = bot_edges - np.round(self.slitmask.onsky[:,2]/platescale)
+        if top_edges[-1] < 0:
+            top_edges[-1] = 1
 
         # Sort slits from left to right
         sortindx = np.argsort(self.slitmask.slitid[::-1])
@@ -705,15 +722,23 @@ def find_longslit_pos(raw_file):
         beginning and the end of the slit.
 
     """
-
+    # Read some values from header
     hdu = io.fits_open(raw_file)
     decker = hdu[0].header['MASKNAME']
     pixelscale = hdu[0].header['PSCALE']
-    CSUnum=int(decker.split("x")[0].split('-')[1])
+
     # Hard-coded for MOSFIRE
-    slit_gap = 0.96
-    slit_length = CSUnum * 7.01/pixelscale + (CSUnum-1)*slit_gap/pixelscale
-    pix_start = hdu[0].header['CRPIX1'] - (slit_length/2. + 1)
-    pix_end = hdu[0].header['CRPIX1'] + (slit_length/2. + 1)
+    slit_gap = 0.97/pixelscale  # pixels
+    CSUlength = 7.01/pixelscale  # pixels
+
+    # Number of CSU used to make this longslit is recorded in the MASKNAME
+    CSUnum = int(decker.split("x")[0].split('-')[1])
+    slit_length = CSUnum * CSUlength + (CSUnum-1)*slit_gap
+    if CSUnum % 2 == 0:
+        pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + (CSUlength+slit_gap)/2. + 1)
+        pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. - (CSUlength+slit_gap)/2. + 1)
+    else:
+        pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + 1)
+        pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. + 1)
 
     return int(round(pix_start)), int(round(pix_end))
