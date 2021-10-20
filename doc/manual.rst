@@ -24,6 +24,10 @@ Here is the standard recipe:
 5. Modify the PypeIt file as described below
 6. :ref:`run-pypeit` again
 
+Note for all cases below, if you are combining multiple
+files (i.e. using `comb_id`) then the entry for the
+first file will be used for the combination.
+
 Tracing
 -------
 
@@ -46,7 +50,6 @@ This is to be added to the `manual` column of the
 :ref:`data_block` of the :doc:`pypeit_file`.
 You can generate that column when running
 :ref:`pypeit_setup` or you can add it by-hand.
-
 
 
 Echelle
@@ -73,3 +76,5 @@ Coadd2D
 When using the :ref:`pypeit-coadd-2dspec` script, you
 specify manual extraction in the parameter block.
 Here is the example for VLT/X-Shooter::
+
+
