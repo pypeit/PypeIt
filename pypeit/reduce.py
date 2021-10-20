@@ -557,8 +557,7 @@ class Reduce:
         if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
-            #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
-            manual_dict= self.manual.dict_for_objfind(neg=True) if self.manual is not None else None
+            manual_extract_dict = self.manual.dict_for_objfind(neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
