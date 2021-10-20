@@ -77,4 +77,11 @@ When using the :ref:`pypeit-coadd-2dspec` script, you
 specify manual extraction in the parameter block.
 Here is the example for VLT/X-Shooter::
 
+    [coadd2d]
+        use_slits4wvgrid = True
+        offsets = 0.,0.,0.,0.,0.,0.
+        weights = uniform
+        manual = 1:22.4:608.1:3.
 
+Details on the format for `manual` 
+are described in :doc:`manual`.
