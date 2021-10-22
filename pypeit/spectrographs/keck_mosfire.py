@@ -171,6 +171,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Turn on the use of mask design
         if 'LONGSLIT' not in self.get_meta_value(headarr, 'decker'):
             par['calibrations']['slitedges']['use_maskdesign'] = True
+            # use dither info in the header as the default offset
+            par['reduce']['slitmask']['use_dither_offset'] = True
             # Assign RA, DEC, OBJNAME to detected objects
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
@@ -180,8 +182,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
                 # exclude the random slits outside the long2pos from slit tracing
                 par['calibrations']['slitedges']['exclude_regions'] = ['1:0:880', '1:1190:2040']
-                # use dither info in the header to find objects
-                par['reduce']['slitmask']['use_dither_offset'] = True
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
 

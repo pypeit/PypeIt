@@ -55,7 +55,7 @@ Slit-mask design matching
 -------------------------
 ``PypeIt`` is able to match the traced slit to the slit-mask design information
 contained as meta data in the DEIMOS observations. This functionality at the moment is
-implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
+implemented only for DEIMOS and MOSFIRE and is switched on by setting **use_maskdesign** flag in
 :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
 except when the *LongMirr* or the *LVM* mask is used.
 
@@ -103,8 +103,8 @@ Here are additional docs related to Keck/DEIMOS:
 
    dev/deimosframes
    dev/deimosconfig
-   dev/deimos_slitmask_ids
-   dev/deimos_radec_object
+   dev/slitmask_ids
+   dev/radec_object
    dev/deimos_wavecalib
-   dev/deimos_add_missing_obj
+   dev/add_missing_obj
    deimos_howto

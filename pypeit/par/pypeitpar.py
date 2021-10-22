@@ -1689,8 +1689,8 @@ class SlitMaskPar(ParSet):
         defaults['nsig_thrshd'] = 50.
         dtypes['nsig_thrshd'] = [int, float]
         descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
-                               'be used to compute the slitmask offset. This is the default behaviour unless ' \
-                               '``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
+                               'be used to compute the slitmask offset. This is the default behaviour for DEIMOS ' \
+                               ' unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
         defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
@@ -1700,15 +1700,16 @@ class SlitMaskPar(ParSet):
 
         defaults['use_dither_offset'] = False
         dtypes['use_dither_offset'] = bool
-        descr['use_dither_offset'] = 'Use the dither offset recorded in the header as the value ' \
-                                     'for `slitmask_offset`. This is optional, and if set PypeIt will ' \
+        descr['use_dither_offset'] = 'Use the dither offset recorded in the header of science frames as the value ' \
+                                     'of the slitmask offset. This is currently only available for Keck MOSFIRE ' \
+                                     'reduction and it is set as the default for this instrument. If set PypeIt will ' \
                                      'NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. ' \
-                                     'However, it is ignored if ``slitmask_offset`` is provided. ' \
-                                     'Currently only for Keck MOSFIRE reduction.'
+                                     'However, it is ignored if ``slitmask_offset`` is provided. '
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
+                                     'and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'

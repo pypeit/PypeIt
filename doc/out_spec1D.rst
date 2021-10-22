@@ -165,7 +165,7 @@ where:
 
 In addition, if reducing :doc:`deimos` data and slit-mask design matching is performed
 (see :ref:`deimos:Slit-mask design matching`), ``maskdef_id``, ``objname``, ``objra``, ``objdec`` are also provided
-for each spectrum (see :ref:`deimos_radec_object_report`).
+for each spectrum (see :ref:`radec_object_report`).
 
 Current Data Model
 ==================
