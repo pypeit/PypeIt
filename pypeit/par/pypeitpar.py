@@ -2359,7 +2359,7 @@ class WavelengthSolutionPar(ParSet):
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
-                         'recoded in the header of the arc frames (this is currently ' \
+                         'recorded in the header of the arc frames (this is currently ' \
                          'available only for Keck DEIMOS).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 

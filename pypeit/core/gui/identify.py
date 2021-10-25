@@ -196,7 +196,8 @@ class Identify(object):
         arccen : ndarray
             Arc spectrum
         lamps : :obj:`list`
-            List of arc lamps to be used for wavelength calibration
+            List of arc lamps to be used for wavelength calibration.
+            E.g., ['ArI','NeI','KrI','XeI']
         slits : :class:`SlitTraceSet`
             Data container with slit trace information
         slit : int, optional

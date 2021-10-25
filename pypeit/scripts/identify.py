@@ -74,13 +74,13 @@ class Identify(scriptbase.ScriptBase):
 
         # Get the lamp list
         if args.lamps is None:
-            lamplist = par['lamps']
-            if lamplist is None:
+            lamps = par['lamps']
+            if lamps is None:
                 print("ERROR :: Cannot determine the lamps")
                 sys.exit()
         else:
-            lamplist = args.lamps.split(",")
-        par['lamps'] = lamplist
+            lamps = args.lamps.split(",")
+        par['lamps'] = lamps
 
         # Load the slits
         slits = slittrace.SlitTraceSet.from_file(args.slits_file)
@@ -94,12 +94,12 @@ class Identify(scriptbase.ScriptBase):
 
         # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in MasterArc.
-        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamplist, binspectral=slits.binspec, det=args.det,
+        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, binspectral=slits.binspec, det=args.det,
                                  master_key=mkey, msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
-        arcfitter = Identify.initialise(arccen, lamplist, slits, slit=int(args.slit), par=par,
+        arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=spec.nonlinear_counts(msarc.detector),
                                         pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
@@ -115,7 +115,7 @@ class Identify(scriptbase.ScriptBase):
             waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                                   arc_spectra=np.atleast_2d(arcfitter.specdata).T,
                                   spat_ids=np.atleast_1d(int(arcfitter._spatid)), PYP_SPEC=specname,
-                                  lamps=','.join(lamplist))
+                                  lamps=','.join(lamps))
         else:
             waveCalib = None
 
