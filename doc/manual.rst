@@ -73,9 +73,14 @@ the same relative position for each echelle order.
 Coadd2D
 -------
 
+For 2D coadds, there is no :doc:`pypeit_file` so the approach
+is different.
+
 When using the :ref:`pypeit-coadd-2dspec` script, you
 specify manual extraction in the parameter block.
-Here is the example for VLT/X-Shooter::
+Here is 
+`the example for VLT/X-Shooter <https://github.com/pypeit/PypeIt-development-suite/blob/master/pypeit_files/vlt_xshooter_vis_manual.pypeit>`_ 
+from our DevSuite::
 
     [coadd2d]
         use_slits4wvgrid = True
