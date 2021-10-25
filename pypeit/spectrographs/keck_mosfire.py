@@ -115,7 +115,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [1, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['calibrations']['darkframe']['exprng'] = [1, None]
         par['scienceframe']['exprng'] = [20, None]
 
         # Sensitivity function parameters
@@ -240,25 +240,28 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'idname':
-            if headarr[0].get('KOAIMTYP', None) is not None:
-                return headarr[0].get('KOAIMTYP')
-            else:
-                try:
-                    # TODO: This should be changed to except on a specific error.
-                    FLATSPEC = int(headarr[0].get('FLATSPEC'))
-                    PWSTATA7 = int(headarr[0].get('PWSTATA7'))
-                    PWSTATA8 = int(headarr[0].get('PWSTATA8'))
-                    if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                        if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
-                            return 'flatlamp_off'
-                        else:
-                            return 'object'
-                    elif FLATSPEC == 1:
-                        return 'flatlamp'
-                    elif PWSTATA7 == 1 or PWSTATA8 == 1:
-                        return 'arclamp'
-                except:
-                    return 'unknown'
+            # KOAIMTYP non good frame typing
+            # if headarr[0].get('KOAIMTYP', None) is not None:
+            #     return headarr[0].get('KOAIMTYP')
+            # else:
+            try:
+                # TODO: This should be changed to except on a specific error.
+                FLATSPEC = int(headarr[0].get('FLATSPEC'))
+                PWSTATA7 = int(headarr[0].get('PWSTATA7'))
+                PWSTATA8 = int(headarr[0].get('PWSTATA8'))
+                if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                    if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                        return 'flatlampoff'
+                    else:
+                        return 'object'
+                elif FLATSPEC == 0 and headarr[0].get('FILTER') == 'Dark':
+                    return 'dark'
+                elif FLATSPEC == 1:
+                    return 'flatlamp'
+                elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                    return 'arclamp'
+            except:
+                return 'unknown'
         if meta_key == 'lampstat01':
             if headarr[0].get('FLATSPEC', None) is not None:
                 return 'on' if headarr[0].get('FLATSPEC')==1 else 'off'
@@ -329,7 +332,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['bias', 'dark']:
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
-            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlamp_off'))
+            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlampoff'))
         if ftype in ['illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')

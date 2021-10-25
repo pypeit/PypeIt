@@ -598,9 +598,9 @@ class EdgeTraceSet(DataContainer):
                     # table.Column(name='SLITRFOC', dtype=float, length=length,
                     #              description='Right edge of the slit in mm at the focal plane'),
                     table.Column(name='SLITLOPT', dtype=float, length=length,
-                                description='Left edge of the slit in pixel predicted by optical model'),
+                                description='Left edge of the slit in pixel predicted by slitmask design'),
                     table.Column(name='SLITROPT', dtype=float, length=length,
-                                description='Right edge of the slit in pixel predicted optical model'),
+                                description='Right edge of the slit in pixel predicted slitmask design'),
                     table.Column(name='SLITRA', dtype=float, length=length,
                                  description='Right ascension of the slit center (deg)'),
                     table.Column(name='SLITDEC', dtype=float, length=length,
@@ -4390,8 +4390,8 @@ class EdgeTraceSet(DataContainer):
             - 'TRACELPIX': Spatial pixel coordinate for left edge
             - 'TRACERPIX': Spatial pixel coordinate for right edge
             - 'SLITID': Slit ID Number (`maskdef_id`)
-            - 'SLITLOPT': Left edge of the slit in pixel from optical model before x-correlation
-            - 'SLITROPT': Right edge of the slit in pixel from optical model before x-correlation
+            - 'SLITLOPT': Left edge of the slit in pixel from slitmask design before x-correlation
+            - 'SLITROPT': Right edge of the slit in pixel from slitmask design before x-correlation
             - 'SLITRA': Right ascension of the slit center (deg)
             - 'SLITDEC': Declination of the slit center (deg)
             - 'SLITLEN': Slit length (arcsec)
@@ -4465,18 +4465,18 @@ class EdgeTraceSet(DataContainer):
         registration.
 
         The :attr:`objects` is an `astropy.table.Table`_ with 5 columns:
-        - 'OBJID': Object ID Number
-        - 'OBJRA': Right ascension of the object (deg)
-        - 'OBJDEC': Declination of the object (deg)
-        - 'OBJNAME': Object name assigned by the observer
-        - 'OBJMAG': Object magnitude provided by the observer
-        - 'OBJMAG_BAND': Band of the magnitude provided by the observer
-        - 'SLITID': Slit ID Number (`maskdef_id`)
-        - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
-        edge of the slit (in PypeIt orientation)
-        - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
-        edge of the slit (in PypeIt orientation)
-        - 'TRACEID': Row index that matches 'TRACEID' in the design table
+            - 'OBJID': Object ID Number
+            - 'OBJRA': Right ascension of the object (deg)
+            - 'OBJDEC': Declination of the object (deg)
+            - 'OBJNAME': Object name assigned by the observer
+            - 'OBJMAG': Object magnitude provided by the observer
+            - 'OBJMAG_BAND': Band of the magnitude provided by the observer
+            - 'SLITID': Slit ID Number (`maskdef_id`)
+            - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
+            edge of the slit (in PypeIt orientation)
+            - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
+            edge of the slit (in PypeIt orientation)
+            - 'TRACEID': Row index that matches 'TRACEID' in the design table
 
         Args:
             maskdef_id (:obj:`numpy.array`):
