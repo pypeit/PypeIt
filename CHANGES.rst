@@ -2,6 +2,7 @@
 --------
 
 - Introduces pypeit_parse_calib_id script
+- Throw a warning if the chosen spectrograph has a header which does not match expectation
 
 
 1.6.0 (1 Oct 2021)
