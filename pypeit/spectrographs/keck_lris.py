@@ -901,13 +901,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 detector_dict2['gain'] = np.atleast_1d([1.26])
                 detector_dict1['ronoise'] = np.atleast_1d([99.])
                 detector_dict2['ronoise'] = np.atleast_1d([5.2])
-            elif date > t2021_upgrade: #Implicitly assumes 2 amps and the ampmode is HSPLIT,VUP
-                msgs.warn("We are using LRISr gain/RN values based on Sunil's estimates. Will be updated to WMKO values soon.")
-                detector_dict1['gain'] = np.atleast_1d([1.71, 1.68])
-                detector_dict2['gain'] = np.atleast_1d([1.61, 1.72])
-                detector_dict1['ronoise'] = np.atleast_1d([4.42, 4.24])
-                detector_dict2['ronoise'] = np.atleast_1d([4.41, 4.68])
-
+            elif date > t2021_upgrade: 
+                # Note:  We are unlikely to trip this.  Other things probably failed first
+                msgs.error("This is the new detector.  Use keck_lris_red_mark4")
             else: # This is the 2020 July 29 run
                 msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
                 detector_dict1['gain'] = np.atleast_1d([1.45])
@@ -1166,6 +1162,19 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
 
         if hdu is None:
             return detector_container.DetectorContainer(**detector_dict1)
+
+        # Date of Mark4 installation
+        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        # TODO -- Update with the date we transitioned to the correct ones
+        t_gdhead = time.Time("2021-11-01", format='isot')  
+        date = time.Time(hdu[0].header['MJD'], format='mjd')
+
+        if date < t2021_upgrade:
+            msgs.error("This is not the Mark4 detector.  Use a different keck_lris_red spectrograph")
+
+        if date < t_gdhead:
+            amp_mode = hdu[0].header['AMPMODE']
+            embed(header='1176 of keck_lris')
 
         # Deal with number of amps
         head0 = hdu[0].header
