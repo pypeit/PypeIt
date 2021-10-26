@@ -90,6 +90,13 @@ class Spectrograph:
     camera = None
     """
     Name of the spectrograph camera or arm.
+    This is used by specdb, so use that naming convention
+    """
+
+    header_name = None
+    """
+    Name of the spectrograph camera or arm from the Header
+      Usually the INSTRUME card.
     """
 
     pypeline = 'MultiSlit'
@@ -517,6 +524,20 @@ class Spectrograph:
             no restrictions on configuration values, None is returned.
         """
         pass
+
+    def vet_instrument(self, meta_tbl):
+        if 'instrument' in meta_tbl.keys():
+            # Check that there is only one instrument
+            #  This could fail if one mixes is much older calibs
+            instr_names = np.unique(meta_tbl['instrument'].data)
+            if len(instr_names) != 1:
+                msgs.warn(f"More than one instrument in your dataset! {instr_names}")
+                msgs.warn(f"Proceed with great caution...")
+            # Check the name
+            if instr_names[0] != self.header_name:
+                msgs.warn(f"Your header's instrument name doesn't match the expected one! {instr_names[0]}, {self.header_name}")
+                msgs.warn(f"You may have chosen the wrong PypeIt spectrograph name")
+            
 
     def config_independent_frames(self):
         """

@@ -23,6 +23,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     name = 'keck_nires'
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRES'
+    header_name = 'NIRES'
     pypeline = 'Echelle'
     supported = True
 
@@ -157,6 +158,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='INSTR')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def configuration_keys(self):
         """

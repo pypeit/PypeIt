@@ -46,6 +46,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     name = 'keck_deimos'
     telescope = telescopes.KeckTelescopePar()
     camera = 'DEIMOS'
+    header_name = 'DEIMOS'
     supported = True
     comment = 'Supported gratings: 600ZD, 830G, 900ZD, 1200B, 1200G; see :doc:`deimos`'
 
@@ -336,6 +337,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['object'] = dict(ext=0, card='OBJECT')
         self.meta['filter1'] = dict(ext=0, card='DWFILNAM')
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
