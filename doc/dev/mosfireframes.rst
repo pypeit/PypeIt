@@ -39,9 +39,9 @@ in the :class:`~pypeit.metadata.PypeItMetaData` object are:
       ``FLATSPEC``       ``lampstat01``
       ``PWSTATA7``          No key
       ``PWSTATA8``          No key
-       ``OBJECT``          ``object``
-       ``FILTER``          ``filter1``
-         No key            ``idname``
+       ``OBJECT``         ``object``
+       ``FILTER``         ``filter1``
+         No key           ``idname``
     ================   =================
 
  ``idname`` is defined using a combination of header keys,
@@ -53,18 +53,18 @@ The criteria used to select each frame type are as follows:
 =============   =====================   ============   ============   ============   ============   =============   =============================================
 Frame           ``idname ``             ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7``   ``PWSTATA8``   ``FILTER``       ``OBJECT``
 =============   =====================   ============   ============   ============   ============   =============   =============================================
-``science``     ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
-``standard``    ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
-``dark``        ``'dark'``                Not used        ``0``         Not used       Not used       ``'Dark'``    Not used
+``science``     ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
+``standard``    ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
+``dark``        ``'dark'``                Not used        ``0``         Not used       Not used      ``'Dark'``     Not used
 ``pixelflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``pixelflat``   ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
+``pixelflat``   ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat:Off' or 'lamps off'``
 ``trace``       ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``trace``       ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
+``trace``       ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat:Off' or 'lamps off'``
 ``illumflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
 ``arc``         ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
-``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
+``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
 ``tilt``        ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
-``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
+``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
 =============   ====================   ===========   ============    ============
 
 Note that, by default, the exposure time (``TRUITIME``) is not used only
