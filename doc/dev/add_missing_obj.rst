@@ -103,7 +103,7 @@ To run the test:
 .. code-block:: bash
 
     cd pypeit/tests
-    pytest test_slitmask::test_add_missing_obj -W ignore
+    pytest test_slitmask.py::test_assign_maskinfo_add_missing -W ignore
 
 The test requires that you have downloaded the ``PypeIt`` :ref:`dev-suite` (including the folder compressed in
 "Cooked_pypeit_dev_vX.XX.X.tar.gz", where vX.XX.X indicates the version of the file) and defined
@@ -132,10 +132,9 @@ and is as follows:
        and the objects information re-initialized, i.e.,  ``RA``, ``DEC``, ``MASKDEF_OBJNAME`` and ``MASKDEF_EXTRACT``
        are set to ``None`` for the detected objects, while the spectra of undetected object are removed.
 
-    7. :func:`~pypeit.slittrace.SlitTraceSet.assign_maskinfo` is then run and the object RA, Dec and object
-       name are assigned to each detected objects.
-
-    8. :func:`~pypeit.slittrace.SlitTraceSet.mask_add_missing_obj` is also run and adds a new
+    7. :func:`pypeit.slittrace.average_maskdef_offset` is run to determine an average slitmask offset over
+       all the detectors, which is used by :func:`pypeit.slittrace.assign_addobjs_alldets` to assign
+       the object RA, Dec and object name to each extracted spectrum and to add a new
        :class:`~pypeit.specobj.SpecObj` to the :class:`~pypeit.specobjs.SpecObjs` class for each
        undetected object, updating all the relevant attributes (see `Procedure`_).
 

@@ -582,12 +582,13 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
         obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
         obj_ra, obj_dec = meta.convert_radec(obj_ra, obj_dec)
+        objname = [item.strip() for item in ssl['Target_Name']]
         #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
         objects = np.array([np.array(ssl['Slit_Number'], dtype=int),
                            np.zeros(ssl['Slit_Number'].size, dtype=int),   # no object ID
                            obj_ra,
                            obj_dec,
-                           np.array(ssl['Target_Name']),
+                           objname,
                            np.array(targs_mtch['Magnitude'], dtype=float),
                            ['None']*ssl['Slit_Number'].size,       # no magnitude band
                            topdist,

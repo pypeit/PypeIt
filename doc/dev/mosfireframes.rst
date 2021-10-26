@@ -55,16 +55,16 @@ Frame           ``idname ``             ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7
 =============   =====================   ============   ============   ============   ============   =============   =============================================
 ``science``     ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
 ``standard``    ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
-``dark``        ``'dark'``                ``None``        ``0``       Not checked    Not checked     ``'Dark'``     Not checked
-``pixelflat``   ``'flatlamp'``            ``None``        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not checked
-``pixelflat``   ``'flatlampoff'``         ``None``        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
-``trace``       ``'flatlamp'``            ``None``        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not checked
-``trace``       ``'flatlampoff'``         ``None``        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
-``illumflat``   ``'flatlamp'``            ``None``        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not checked
-``arc``         ``'arclamp'``             ``None``        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not checked
-``arc``         ``'object'``              ``None``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
-``tilt``        ``'arclamp'``             ``None``        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not checked
-``tilt``        ``'object'``              ``None``        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
+``dark``        ``'dark'``                Not used        ``0``         Not used       Not used       ``'Dark'``    Not used
+``pixelflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
+``pixelflat``   ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
+``trace``       ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
+``trace``       ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   include ``'Flat:Off'`` or ``'lamps off'``
+``illumflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
+``arc``         ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
+``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
+``tilt``        ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
+``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   `not include ``'Flat:Off'`` or ``'lamps off'``
 =============   ====================   ===========   ============    ============
 
 Note that, by default, the exposure time (``TRUITIME``) is not used only
@@ -97,8 +97,8 @@ The test requires that you have downloaded the ``PypeIt``
 variable that points to the relevant directory. The algorithm of the
 test is as follows:
 
-    1. Find all the directories in the :ref:`dev-suite` with Keck
-       MOSFIRE data.
+    1. Find all the directories in the :ref:`dev-suite` where a selected
+       sample of Keck MOSFIRE data is.
 
     2. For each directory (i.e., instrument setup):
 
@@ -112,9 +112,7 @@ test is as follows:
 
         c. Read both the by-hand and automatically generated frame
            types from these two pypeit files and check that they are
-           identical. This check is *only* performed for the
-           calibration frames, not any ``science`` or ``standard``
-           frames.
+           identical.
 
 Because this test is now included in the ``PypeIt``
 :ref:`unit-tests`, this frame-typing check is performed by the

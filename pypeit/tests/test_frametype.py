@@ -74,7 +74,8 @@ def test_mosfire():
     raw_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_mosfire')
 
     # Get the list of setup directories
-    setups = glob.glob(os.path.join(raw_dir, '*'))
+    setups = [os.path.join('/Users/dpelliccia/PypeIt/PypeIt-development-suite/RAW_DATA/keck_mosfire', isetup)
+                for isetup in ['Y_multi', 'long2pos1_H', 'mask1_K_with_continuum', 'mask1_J_with_continuum']]
 
     # Set the output path and *remove if* if it already exists
     output_path = os.path.join(os.getcwd(), 'output')
@@ -109,9 +110,6 @@ def test_mosfire():
         # in the automatically generated pypeit file are identical
         for f in by_hand_frametypes.keys():
             type_list = np.sort(by_hand_frametypes[f].split(','))
-            if 'science' in type_list or 'standard' in type_list:
-                # Only ensuring that calibrations are correctly typed
-                continue
             assert f in auto_frametypes.keys(), \
                 'Frame {0} not automatically parsed for setup {1}.'.format(f, setup)
             assert np.array_equal(type_list, np.sort(auto_frametypes[f].split(','))), \
