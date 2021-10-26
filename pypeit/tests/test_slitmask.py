@@ -135,7 +135,7 @@ def test_dith_obs():
         instrument = load_spectrograph(name)
         par = instrument.default_pypeit_par()
         # working only on detector 3 (det=3 for DEIMOS. For MOSFIRE does not matter because we have only one det)
-        det = 3
+        det = 1
 
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det,
@@ -144,6 +144,8 @@ def test_dith_obs():
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
+        # set the slitmask parameter to use the alignment boxes to determine the slitmask_offset
+        par['reduce']['slitmask']['bright_maskdef_id'] = 918850
 
         # Run edge trace
         edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'], bpm=msbpm, auto=True,
@@ -160,13 +162,18 @@ def test_dith_obs():
                                          'spec1d_DE.20141021.35719-GOODSS_DEIMOS_20141021T095514.045.fits')
 
         sobjs = specobjs.SpecObjs.from_fitsfile(specobjs_file)
-        # Init at null
-        for sobj in sobjs:
-            sobj.MASKDEF_ID = None
-            sobj.MASKDEF_OBJNAME = None
-            sobj.RA = None
-            sobj.DEC = None
-            sobj.MASKDEF_EXTRACT = None
+        # Init at null and remove the force extraction
+        idx_remove = []
+        for i, sobj in enumerate(sobjs):
+            if sobj.MASKDEF_EXTRACT:
+                idx_remove.append(i)
+            else:
+                sobj.MASKDEF_ID = None
+                sobj.MASKDEF_OBJNAME = None
+                sobj.RA = None
+                sobj.DEC = None
+                sobj.MASKDEF_EXTRACT = None
+        sobjs.remove_sobj(idx_remove)
 
         if name == 'keck_deimos':
             dither_off = None
@@ -186,9 +193,9 @@ def test_dith_obs():
         if name == 'keck_deimos':
             # Check if recover the maskdef assignment
             assert sobjs[sobjs.SLITID == 1583].MASKDEF_OBJNAME == 'yg_21385', 'Wrong dithered DEIMOS MASKDEF_OBJNAME'
-            assert sobjs[sobjs.SLITID == 1583].RA == 53.11095, 'Wrong object dithered DEIMOS RA'
-            assert sobjs[sobjs.SLITID == 1583].DEC == -27.72781, 'Wrong object dithered DEIMOS DEC'
-            assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'yg_21385'].SPAT_PIXPOS[0]) == 1753, \
+            assert sobjs[sobjs.SLITID == 1583].RA == 53.11094583, 'Wrong object dithered DEIMOS RA'
+            assert sobjs[sobjs.SLITID == 1583].DEC == -27.72781111, 'Wrong object dithered DEIMOS DEC'
+            assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'yg_21385'].SPAT_PIXPOS[0]) == 1574, \
                 'Wrong object (yg_21385) location on the dithered DEIMOS slit'
 
 
