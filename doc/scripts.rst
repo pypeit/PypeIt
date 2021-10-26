@@ -195,6 +195,11 @@ The script usage can be displayed by calling the script with the
 
 .. _pypeit_chk_2dslits:
 
+pypeit_chk_wavecalib
+====================
+
+See :ref:`pypeit-chk-wavecalib for details.
+
 pypeit_chk_2dslits
 ==================
 
