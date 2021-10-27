@@ -7,7 +7,6 @@ import glob
 import os
 
 from IPython import embed
-import astropy
 
 from pkg_resources import resource_filename
 
