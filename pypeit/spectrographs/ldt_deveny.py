@@ -196,7 +196,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # Wavelength Calibration Parameters
         # Include all the lamps available on DeVeny
-        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
+        #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         # These are changes from defaults from another spectrograph...
         # TODO: Not sure if we will need to adjust these at some point
@@ -297,6 +299,18 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             :ref:`pypeit_file`.
         """
         return super().pypeit_file_keys() + ['slitwid','lampstat01']
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+        """
+        return [f'{lamp.strip()}I' for lamp in np.unique( np.concatenate(
+            [lname.split(',') for lname in fitstbl['lampstat01']]) )]
 
     def config_specific_par(self, scifile, inp_par=None):
         """
