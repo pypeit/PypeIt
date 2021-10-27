@@ -1400,7 +1400,6 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
     for i in range(calib_dets.size):
         # Select the edges to use
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
-        on_det = sobjs.DET == calib_dets[i]
         if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
             calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
