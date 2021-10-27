@@ -476,6 +476,16 @@ class Spectrograph:
         # Fill in bad pixels if a master bias frame is provided
         return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
 
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception.
+        """
+        msgs.error('This spectrograph does not support the use of lamps list from header. '
+                   'provide a list of lamps using the parameter `lamps` in WavelengthSolutionPar')
+
     def get_slitmask(self, filename):
         """
         Empty for base class.  See derived classes.

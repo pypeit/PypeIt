@@ -279,7 +279,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
@@ -289,11 +289,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '900ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -717,6 +719,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             bpm_img[:,931:934] = 1
 
         return bpm_img
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+
+        """
+
+        return [f'{lamp}I' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
 
     def get_telescope_offset(self, file_list):
         """
