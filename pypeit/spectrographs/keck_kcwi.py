@@ -38,6 +38,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
+    header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True
     comment = 'Supported setups: BM, BH2; see :doc:`keck_kcwi`'
