@@ -95,7 +95,7 @@ class Spectrograph:
 
     header_name = None
     """
-    Name of the spectrograph camera or arm from the Header
+    Name of the spectrograph camera or arm from the Header.
     Usually the INSTRUME card.
     """
 

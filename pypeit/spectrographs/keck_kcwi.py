@@ -187,6 +187,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
