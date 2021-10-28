@@ -158,6 +158,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
+
+            # Hack for the not-stable commission version of the Mark4 detector
+            if binning == '0,0':
+                binning = '1,1'
+                
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
@@ -1173,18 +1178,21 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         if date < t2021_upgrade:
             msgs.error("This is not the Mark4 detector.  Use a different keck_lris_red spectrograph")
 
+        # Deal with the intermediate headers
         if date < t_gdhead:
             amp_mode = hdu[0].header['AMPMODE']
+            msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
             ampmode_translate_file = os.path.join(
                 resource_filename('pypeit', 'data'), 'spectrographs',
                 'keck_lris_red_mark4', 'dict_for_ampmode.json')
             ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
             # Load up the corrected header
+            swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
             header_file = os.path.join(
                 resource_filename('pypeit', 'data'), 'spectrographs',
                 'keck_lris_red_mark4', 
-                f'header{ampmode_translate_dict[amp_mode]}_{binning.replace(",","_")}.fits')
+                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
             correct_header = fits.getheader(header_file)
         else:
             correct_header = hdu[0].header
@@ -1206,18 +1214,48 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
 
         detector_dict1['datasec'] = []
         detector_dict1['oscansec'] = []
-        for iamp in range(detector_dict1['numamplifiers']):
+
+        # Parse which AMPS were used
+        used_amps = []
+        for amp in range(4):
+            if f'AMPNM{amp}' in correct_header.keys():
+                used_amps.append(amp)
+        # Check
+        assert detector_dict1['numamplifiers'] == len(used_amps)
+
+        # Reverse engenieering to translate LRIS DSEC, BSEC
+        #  into ones friendly for PypeIt...
+        binspec = int(binning[0])
+        binspatial = int(binning[-1])
+        
+        for iamp in used_amps:
             # These are column, row
             dsecs = correct_header[f'DSEC{iamp}'].split(',')
+            d_rows = [int(item) for item in dsecs[1][:-1].split(':')]
+            d_cols = [int(item) for item in dsecs[0][1:].split(':')]
             bsecs = correct_header[f'BSEC{iamp}'].split(',')
+            o_rows = [int(item) for item in bsecs[1][:-1].split(':')]
+            o_cols = [int(item) for item in bsecs[0][1:].split(':')]
+
+            # Deal with binning (heaven help me!!)
+            d_rows = [str(item*binspec) if item != 1 else str(item) for item in d_rows]
+            o_rows = [str(item*binspec) if item != 1 else str(item) for item in o_rows]
+            d_cols = [str(item*binspatial) if item != 1 else str(item) for item in d_cols]
+            o_cols = [str(item*binspatial) if item != 1 else str(item) for item in o_cols]
+
             # These are now row, column
-            detector_dict1['datasec'] += ['['+dsecs[1][:-1]+','+dsecs[0][1:]+']']
-            detector_dict1['oscansec'] += ['['+bsecs[1][:-1]+','+bsecs[0][1:]+']']
+            #  And they need to be native!!  i.e. no binning accounted for..
+            detector_dict1['datasec'] += [f"[{':'.join(d_rows)},{':'.join(d_cols)}]"]
+            detector_dict1['oscansec'] += [f"[{':'.join(o_rows)},{':'.join(o_cols)}]"]
+
         detector_dict1['datasec'] = np.array(detector_dict1['datasec'])
         detector_dict1['oscansec'] = np.array(detector_dict1['oscansec'])
 
         # Instantiate
         detector = detector_container.DetectorContainer(**detector_dict1)
+
+        print('Dict1:', detector_dict1)
+        print('Binning:', binning)
 
         # Return
         return detector

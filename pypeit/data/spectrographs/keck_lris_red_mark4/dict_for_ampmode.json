@@ -7,5 +7,6 @@
     "HRIGHT,VUP": "U2",
     "HSPLIT,VDOWN": "L1U1",
     "HSPLIT,VSPLIT": "L2U2L1U1",
+    "ALL": "L2U2L1U1",
     "HSPLIT,VUP": "L2U2"
 }
