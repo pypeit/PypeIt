@@ -16,6 +16,8 @@ import numpy as np
 from astropy.io import fits
 from astropy import time
 
+from linetools import utils as ltu
+
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit import io
@@ -1119,7 +1121,6 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     """
     ndet = 1
     name = 'keck_lris_red_mark4'
-    camera = 'LRISr'
     supported = True
     comment = 'New Mark4 detector, circa Spring 2021'
 
@@ -1174,11 +1175,22 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
 
         if date < t_gdhead:
             amp_mode = hdu[0].header['AMPMODE']
-            embed(header='1176 of keck_lris')
+            # Load up translation dict
+            ampmode_translate_file = os.path.join(
+                resource_filename('pypeit', 'data'), 'spectrographs',
+                'keck_lris_red_mark4', 'dict_for_ampmode.json')
+            ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
+            # Load up the corrected header
+            header_file = os.path.join(
+                resource_filename('pypeit', 'data'), 'spectrographs',
+                'keck_lris_red_mark4', 
+                f'header{ampmode_translate_dict[amp_mode]}_{binning.replace(",","_")}.fits')
+            correct_header = fits.getheader(header_file)
+        else:
+            correct_header = hdu[0].header
 
         # Deal with number of amps
-        head0 = hdu[0].header
-        detector_dict1['numamplifiers'] = head0['TAPLINES']
+        detector_dict1['numamplifiers'] = correct_header['TAPLINES']
 
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
@@ -1196,8 +1208,8 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         detector_dict1['oscansec'] = []
         for iamp in range(detector_dict1['numamplifiers']):
             # These are column, row
-            dsecs = head0[f'DSEC{iamp}'].split(',')
-            bsecs = head0[f'BSEC{iamp}'].split(',')
+            dsecs = correct_header[f'DSEC{iamp}'].split(',')
+            bsecs = correct_header[f'BSEC{iamp}'].split(',')
             # These are now row, column
             detector_dict1['datasec'] += ['['+dsecs[1][:-1]+','+dsecs[0][1:]+']']
             detector_dict1['oscansec'] += ['['+bsecs[1][:-1]+','+bsecs[0][1:]+']']
