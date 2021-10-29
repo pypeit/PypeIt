@@ -24,6 +24,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
     name = 'vlt_sinfoni'
     telescope = telescopes.VLTTelescopePar()
     camera = 'SINFONI'
+    header_name = 'SINFONI'
     supported = True
     comment = 'Gratings tested: K'
 
@@ -186,6 +187,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS FILT1 NAME')
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRAT1 NAME')
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET IMGNAME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',
