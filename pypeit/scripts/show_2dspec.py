@@ -89,7 +89,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             return
 
         # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(
+            args.file, args.det, chk_version=False)
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
