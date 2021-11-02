@@ -840,8 +840,8 @@ class DataContainer:
         return is_exact or name in [c.__name__ for c in cls.__subclasses__()]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, ext_pseudo=None, transpose_table_arrays=False, hdu_prefix=None,
-               allow_subclasses=False):
+    def _parse(cls, hdu, ext=None, ext_pseudo=None, transpose_table_arrays=False, 
+               hdu_prefix=None, allow_subclasses=False):
         """
         Parse data read from one or more HDUs.
 
@@ -1311,8 +1311,8 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, chk_version=True,
-                 allow_subclasses=False):
+    def from_hdu(cls, hdu, ext=None, ext_pseudo=None, hdu_prefix=None, 
+                 chk_version=True, allow_subclasses=False):
         """
         Instantiate the object from an HDU extension.
 
@@ -1339,7 +1339,8 @@ class DataContainer:
         # instead.  Instead, `d` is passed to `cls.from_dict`, which initiates
         # everything correctly.
         d, dm_version_passed, dm_type_passed, parsed_hdus \
-                = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, hdu_prefix=hdu_prefix,
+                = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, 
+                             hdu_prefix=hdu_prefix,
                              allow_subclasses=allow_subclasses)
         # Check version and type?
         if not dm_type_passed:
