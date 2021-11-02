@@ -617,14 +617,6 @@ class FlatField(object):
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
-        # Build wavelength image -- not always used, but for convenience done here
-        slitmask = self.slits.slit_img(initial=True, 
-                                       flexure=self.wavetilts.spat_flexure)
-        tilts = self.wavetilts.fit2tiltimg(slitmask, 
-                                           flexure=self.wavetilts.spat_flexure)
-        waveimg = self.wv_calib.build_waveimg(
-            tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
-
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
         rawflat = self.rawflatimg.image
@@ -1072,6 +1064,16 @@ class FlatField(object):
             self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak]/self.flat_model[onslit_tweak]
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
+
+            # Build wavelength image AFTER the slits have been tweaked.  This is
+            #  the only place in this method that uses it.  It is not always used, 
+            #  but for convenience done here
+            slitmask = self.slits.slit_img(initial=True, 
+                                        flexure=self.wavetilts.spat_flexure)
+            tilts = self.wavetilts.fit2tiltimg(slitmask, 
+                                            flexure=self.wavetilts.spat_flexure)
+            waveimg = self.wv_calib.build_waveimg(
+                tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
 
             # Minimum wavelength?
             if self.flatpar['pixelflat_min_wave'] is not None:
