@@ -644,7 +644,7 @@ class CoAdd2D:
                                                                 **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
 
-    def load_coadd2d_stacks(self, spec2d):
+    def load_coadd2d_stacks(self, spec2d, chk_version=False):
         """
         Routine to read in required images for 2d coadds given a list of spec2d files.
 
@@ -678,10 +678,10 @@ class CoAdd2D:
                 s2dobj = f
             else:
                 # If spec2d is a list of files, option to also use spec1ds
-                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det)
+                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det, chk_version=chk_version)
                 spec1d_file = f.replace('spec2d', 'spec1d')
                 if os.path.isfile(spec1d_file):
-                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
+                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=chk_version)
                     this_det = sobjs.DET == self.det
                     specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
