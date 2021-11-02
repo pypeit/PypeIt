@@ -1139,23 +1139,24 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
         """
-         Provides the slit edges positions predicted by the slitmask design using
-         the mask coordinates already converted from mm to pixels by the method
+        Provides the slit edges positions predicted by the slitmask design using
+        the mask coordinates already converted from mm to pixels by the method
         `mask_to_pixel_coordinates`.
 
         If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
         and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
 
         Args:
-        ccdnum (:obj:`int`):
-            Detector number
-        filename (:obj:`str`, optional):
-            The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
-            Default is None, i.e., to use previously instantiated attributes.
-        debug (:obj:`bool`, optional):
-            Run in debug mode
+            ccdnum (:obj:`int`):
+                Detector number
+            filename (:obj:`str`, optional):
+                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+                Default is None, i.e., to use previously instantiated attributes.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
         Returns:
-            Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
             Two arrays are the predictions of the slit edges from the slitmask design and
             one contains the indices to order the slits from left to right in the PypeIt orientation
 

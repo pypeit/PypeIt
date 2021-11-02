@@ -4473,10 +4473,11 @@ class EdgeTraceSet(DataContainer):
             - 'OBJMAG_BAND': Band of the magnitude provided by the observer
             - 'SLITID': Slit ID Number (`maskdef_id`)
             - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
-            edge of the slit (in PypeIt orientation)
+               edge of the slit (in PypeIt orientation)
             - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
-            edge of the slit (in PypeIt orientation)
+               edge of the slit (in PypeIt orientation)
             - 'TRACEID': Row index that matches 'TRACEID' in the design table
+
 
         Args:
             maskdef_id (:obj:`numpy.array`):

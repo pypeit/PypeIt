@@ -3,7 +3,7 @@
 .. _slitmask_ids_report:
 
 Slitmask ID assignment and missing slits
-===============================================
+========================================
 
 Version History
 ---------------
@@ -28,8 +28,8 @@ and is part of the more general slit tracing procedure described in :ref:`slit_t
 Procedure
 ---------
 
-Slitmask ID assignment and missing slits
-++++++++++++++++++++++++++++++++++++++++
+ID assignment and adding missing slits
+++++++++++++++++++++++++++++++++++++++
 
 Slitmask ID assignment is primarily performed by
 :func:`pypeit.edgetrace.EdgeTraceSet.maskdesign_matching`. This function matches the slit 

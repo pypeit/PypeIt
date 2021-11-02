@@ -28,7 +28,7 @@ MOSFIRE frame typing
 The primary typing of MOSFIRE frames is performed by
 :func:`pypeit.spectrographs.keck_mosfire.KeckMOSFIRESpectrograph.check_frame_type`.
 This function checks the values of various header keywords against a
-set of criteria used to classify the frame type. The headers cards
+set of criteria used to classify the frame type. The header cards
 required for the frame-typing and their associated keyword (when available)
 in the :class:`~pypeit.metadata.PypeItMetaData` object are:
 
@@ -44,14 +44,13 @@ in the :class:`~pypeit.metadata.PypeItMetaData` object are:
          No key           ``idname``
     ================   =================
 
- ``idname`` is defined using a combination of header keys,
-including ``PWSTATA7`` and ``PWSTATA8`` (see below).
+``idname`` is defined using a combination of header keys, including ``PWSTATA7`` and ``PWSTATA8`` (see below).
 
 
 The criteria used to select each frame type are as follows:
 
 =============   =====================   ============   ============   ============   ============   =============   =============================================
-Frame           ``idname ``             ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7``   ``PWSTATA8``   ``FILTER``       ``OBJECT``
+Frame           ``idname``              ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7``   ``PWSTATA8``   ``FILTER``      ``OBJECT``
 =============   =====================   ============   ============   ============   ============   =============   =============================================
 ``science``     ``'object'``              ``>20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
 ``standard``    ``'object'``              ``<20s``        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
@@ -65,7 +64,7 @@ Frame           ``idname ``             ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7
 ``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
 ``tilt``        ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
 ``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-=============   ====================   ===========   ============    ============
+=============   =====================   ============   ============   ============   ============   =============   =============================================
 
 Note that, by default, the exposure time (``TRUITIME``) is not used only
 to distinguish between ``science`` and ``standard`` frames; the criteria

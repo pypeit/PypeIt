@@ -60,7 +60,7 @@ calib_ids
 ---------
 
 When pypeit runs successful, a file with a .calib extension is
-generated that offers a summary of the :ref:`_master-naming`.
+generated that offers a summary of the :ref:`master-naming`.
 
 You may generate a similar (and perhaps more readable)
-file using the :ref:`_pypeit-parse-calib-id` script.
+file using the :ref:`pypeit-parse-calib-id` script.
