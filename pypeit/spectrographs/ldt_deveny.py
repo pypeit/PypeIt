@@ -22,7 +22,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
-    camera = 'deveny'
+    camera = 'DeVeny'
     header_name = 'Deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
     supported = True
@@ -182,7 +182,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Calibration Parameters
+        # Processing Steps
+        turn_off = dict(use_biasimage=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Turn off illumflat -- other defaults OK (as of v1.4.1)
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
@@ -210,7 +213,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
 
-        # Slit-edge settings for long-slit data (slit > 90" long)
+        # Slit-edge settings for long-slit data (DeVeny's slit > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
@@ -219,6 +222,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #   possibly due to the Wynne type E camera.
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
+
+        # Flat fielding adjustment -- Don't deal with noise at blue end
+        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3200
+
+        # Cosmic ray rejection parameters for science frames
+        par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
+        par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
         # Reduction and Extraction Parameters
         par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
