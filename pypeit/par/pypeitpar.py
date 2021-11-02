@@ -1671,7 +1671,7 @@ class SlitMaskPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['obj_toler'] = 1.
-        dtypes['obj_toler'] = float
+        dtypes['obj_toler'] = [int, float]
         descr['obj_toler'] = 'If slitmask design information is provided, and slit matching is performed ' \
                              '(``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides ' \
                              'the desired tolerance (arcsec) to match sources to targeted objects'

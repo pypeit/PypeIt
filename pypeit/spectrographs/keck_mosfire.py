@@ -155,7 +155,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
             # turn PCA off
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-            # if 'x' in not in the maskname, the maskname does not include the number of CSU
+            # if "x" is not in the maskname, the maskname does not include the number of CSU
             # used for the longslit and the length of the longslit cannot be determined
             if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
                     ('x' in self.get_meta_value(headarr, 'decker')):
@@ -169,7 +169,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['bound_detector'] = True
 
         # Turn on the use of mask design
-        if 'LONGSLIT' not in self.get_meta_value(headarr, 'decker'):
+        else:
             par['calibrations']['slitedges']['use_maskdesign'] = True
             # use dither info in the header as the default offset
             par['reduce']['slitmask']['use_dither_offset'] = True
@@ -181,7 +181,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
                 # exclude the random slits outside the long2pos from slit tracing
-                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:880', '1:1190:2040']
+                pix_start, pix_end = _long2pos_pos()
+                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
+                                                                       '1:{}:2040'.format(pix_end)]
                 # assume that the main target is always detected, i.e., skipping force extraction
                 par['reduce']['slitmask']['extract_missing_objs'] = False
 
@@ -548,13 +550,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Book keeping: Count and check that the # of objects in the SSL matches that of the MSL
         # and if we recover the total number of CSUs
-        CSUnumslits = 46
         numslits = np.zeros(len(ssl))
         for i in range(len(ssl)):
             slit = ssl[i]
             numslits[i] = np.where(slit['Target_Name'] == msl['Target_in_Slit'])[0].size
 
-        if (numslits.sum() != CSUnumslits) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
+        if (numslits.sum() != _CSUnumslits()) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
                 and ('long2pos' not in self.get_meta_value(filename, 'decker')):
             msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
                        'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
@@ -566,7 +567,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if 'long2pos' in self.get_meta_value(filename, 'decker'):
             slit_centers_wrong = np.array(ssl['Slit_length'], dtype=float) / 2.
             # correct slit length
-            ssl['Slit_length'] = '22.970', '7.010', '22.970'
+            ssl['Slit_length'] = _long2pos_slits_length()
             slit_centers = np.array(ssl['Slit_length'], dtype=float) / 2.
             centers_diff = slit_centers - slit_centers_wrong
             targ_dist_center[0] -= centers_diff[0]
@@ -636,7 +637,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Args:
             ccdnum (:obj:`int`):
                 Detector number
-            filename (:obj:`str`, optional):
+            filename (:obj:`str`):
                 The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
                 Default is None, i.e., to use previously instantiated attributes.
             debug (:obj:`bool`, optional):
@@ -648,21 +649,21 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             one contains the indices to order the slits from left to right in the PypeIt orientation
 
         """
-        # Re-initiate slitmask and amap and bmap
+        # Re-initiate slitmask
         if filename is not None:
-            # Reset the slitmask
             self.get_slitmask(filename)
+        else:
+            msgs.error('The name of a science file should be provided')
 
         if self.slitmask is None:
             msgs.error('Unable to read slitmask design info. Provide a file.')
 
-        # Hard-Coded for MOSFIRE
-        platescale = 0.1798
-        slit_gap = round(0.97/platescale)
+        platescale = self.get_detector_par(det=1)['platescale']
+        slit_gap = _slit_gap(platescale)
 
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
-        edge = 2034 if 'long2pos' not in self.get_meta_value(filename, 'decker') else 1188
+        edge = _starting_edge(filename)
         bot_edges = np.array([edge], dtype=np.int)
         for i in range(self.slitmask.nslits - 1):
             # target is the slit number
@@ -713,14 +714,87 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         return top_edges, bot_edges, sortindx, self.slitmask
 
 
-def find_longslit_pos(raw_file):
+def _CSUnumslits():
+    """
+    Returns:
+        :obj:int: Number of CSUs always used by MOSFIRE in the slitmask
+
+    """
+    return 46
+
+
+def _slit_gap(platescale):
+    """
+    Args:
+        platescale (:obj:`float`): platescale for the current detector
+
+    Returns:
+        :obj:float: Gap between each slit. The unit is pixels if platescale is provided otherwise it is arcsec.
+
+    """
+
+    return round(0.97 / platescale) if platescale is not None else 0.97
+
+
+def _CSUlength(platescale):
+    """
+    Args:
+        platescale (:obj:`float`): platescale for the current detector
+
+    Returns:
+        :obj:float: Nominal length of each CSU. The unit is pixels if platescale is provided otherwise it is arcsec.
+
+    """
+
+    return 7.01/platescale if platescale is not None else 7.01
+
+
+def _starting_edge(scifile):
+    """
+    Provides the slit edge from where to start when extracting the prediction from the slitmask design
+
+    Args:
+        scifile (:obj:`str`):
+            The filename of the science frame.
+
+    Returns:
+        :obj:int: Pixel position of the starting edge
+    """
+    hdu = io.fits_open(scifile)
+    decker = hdu[0].header['MASKNAME']
+
+    return 2034 if 'long2pos' not in decker else 1188
+
+
+def _long2pos_slits_length():
+    """
+
+    Returns:
+        :obj:`tuple`: Three float numbers indicating the length in arcsec of the three slits in the long2pos mask
+
+    """
+    return '22.970', '7.010', '22.970'
+
+
+def _long2pos_pos():
+    """
+
+    Returns:
+        :obj:`tuple`: Two integer number indicating the x position of the
+        beginning and the end of the three slits forming the long2pos mask
+
+    """
+    return 880, 1190
+
+
+def find_longslit_pos(scifile):
     """
     Given a MOSFIRE science raw file, find the position of the slit
     in the LONGSLIT slitmask
 
     Args:
-        raw_file: (:obj:`str`):
-            Name of the file to read.
+        scifile: (:obj:`str`):
+            Name of the science file to read.
 
     Returns:
         :obj:`tuple`: Two integer number indicating the x position of the
@@ -728,13 +802,12 @@ def find_longslit_pos(raw_file):
 
     """
     # Read some values from header
-    hdu = io.fits_open(raw_file)
+    hdu = io.fits_open(scifile)
     decker = hdu[0].header['MASKNAME']
-    pixelscale = hdu[0].header['PSCALE']
+    platescale = hdu[0].header['PSCALE']
 
-    # Hard-coded for MOSFIRE
-    slit_gap = 0.97/pixelscale  # pixels
-    CSUlength = 7.01/pixelscale  # pixels
+    slit_gap = _slit_gap(platescale)  # pixels
+    CSUlength = _CSUlength(platescale)  # pixels
 
     # Number of CSU used to make this longslit is recorded in the MASKNAME
     CSUnum = int(decker.split("x")[0].split('-')[1])
