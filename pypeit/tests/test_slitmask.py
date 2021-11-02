@@ -26,7 +26,7 @@ def flat_files(instr='keck_deimos'):
     if instr == 'keck_deimos':
         return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_M_8500', ifile)
                 for ifile in ['DE.20100913.57161.fits.gz', 'DE.20100913.57006.fits.gz']]
-    if instr == 'keck_mosfire':
+    elif instr == 'keck_mosfire':
         return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_mosfire', 'J_multi', ifile)
                     for ifile in ['m191015_0002.fits', 'm191015_0003.fits', 'm191015_0004.fits']]
 
@@ -62,7 +62,7 @@ def test_assign_maskinfo_add_missing():
         if name == 'keck_deimos':
             specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                          'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
-        if name == 'keck_mosfire':
+        elif name == 'keck_mosfire':
             specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                                          'spec1d_m191014_0170-2M2228_12_MOSFIRE_20191014T095212.598.fits')
 
@@ -81,12 +81,13 @@ def test_assign_maskinfo_add_missing():
         sobjs.remove_sobj(idx_remove)
 
         # get the dither offset if available
-        if name == 'keck_mosfire':
+        if name == 'keck_deimos':
+            dither_off = None
+
+        elif name == 'keck_mosfire':
             dither_off = instrument.parse_dither_pattern([os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                                        'keck_mosfire', 'J_multi',
                                                                        'm191014_0170.fits')])[2][0]
-        if name == 'keck_deimos':
-            dither_off = None
 
         # get object positions from slitmask design and slitmask offsets
         calib_slits = slittrace.get_maskdef_objpos_offset_alldets(sobjs, [slits], [None],
@@ -111,7 +112,7 @@ def test_assign_maskinfo_add_missing():
                 'Wrong object (ero884) location on the DEIMOS slit'
             assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'ero191'].SPAT_PIXPOS[0]) == 1119, \
                 'Wrong object (ero191) location on the DEIMOS slit'
-        if name == 'keck_mosfire':
+        elif name == 'keck_mosfire':
             # Check if recover the maskdef assignment
             assert sobjs[sobjs.SLITID == 395].MASKDEF_OBJNAME == '18', 'Wrong MOSFIRE MASKDEF_OBJNAME'
             assert sobjs[sobjs.SLITID == 395].RA == 332.0611666666666, 'Wrong object MOSFIRE RA'

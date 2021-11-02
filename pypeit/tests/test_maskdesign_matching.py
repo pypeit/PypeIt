@@ -19,7 +19,7 @@ def flat_files(instr='keck_deimos'):
     if instr == 'keck_deimos':
         return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '1200G_Cooper', ifile)
                 for ifile in ['d0115_0023.fits.gz', 'd0115_0024.fits.gz', 'd0115_0025.fits.gz']]
-    if instr == 'keck_mosfire':
+    elif instr == 'keck_mosfire':
         return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_mosfire', 'J_multi', ifile)
                     for ifile in ['m191015_0002.fits', 'm191015_0003.fits', 'm191015_0004.fits']]
 
@@ -44,7 +44,6 @@ def test_maskdef_id():
         par = instrument.config_specific_par(traceImage.files[0])
         trace_par = par['calibrations']['slitedges']
 
-
         # Run edge trace
         edges = EdgeTraceSet(traceImage, instrument, trace_par, bpm=msbpm, auto=True,
                                                debug=False, show_stages=False,qa_path=None)
@@ -57,7 +56,7 @@ def test_maskdef_id():
             # `maskdef_id` is the slit_id ("dSlitId") from the DEIMOS slit-mask design. If the matching is done
             # correctly these are the slit_id values that the first and last slits should have. These values are
             # coming from a reduction run with DEEP2 IDL-based pipeline.
-        if name == 'keck_mosfire':
+        elif name == 'keck_mosfire':
             assert slits.maskdef_id[0] == 11, 'MOSFIRE maskdef_id not found or wrong'
             assert slits.maskdef_id[-1] == 1, 'MOSFIRE maskdef_id not found or wrong'
             # `maskdef_id` is the slit_id ("Slit_Number") from the MOSFIRE slit-mask design.
@@ -134,7 +133,7 @@ def test_add_missing_slits():
             # Form the same slit
             indx[10] = True
             indx[11] = True
-        if name == 'keck_mosfire':
+        elif name == 'keck_mosfire':
             # Two traces NOT from the same slit
             assert round(edges.edge_fit[edges.pca.reference_row, :][0]) == 349, 'wrong MOSFIRE left trace position'
             assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, 'wrong MOSFIRE right trace position'
@@ -169,7 +168,7 @@ def test_add_missing_slits():
             # These values are obtained by running PypeIt with the "adding missing traces" functionality.
             # These are within a few pixels (max 4 pixels) from their original values. The correctness of these values
             # was also tested by visual inspection of the EdgeTraceSet image.
-        if name == 'keck_mosfire':
+        elif name == 'keck_mosfire':
             # Two traces NOT from the same slit
             assert round(edges.edge_fit[edges.pca.reference_row, :][1]) == 348, 'MOSFIRE left trace position not recovered'
             assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, 'MOSFIRE right trace position not recovered'

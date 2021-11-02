@@ -74,7 +74,7 @@ def test_mosfire():
     raw_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_mosfire')
 
     # Get the list of setup directories
-    setups = [os.path.join('/Users/dpelliccia/PypeIt/PypeIt-development-suite/RAW_DATA/keck_mosfire', isetup)
+    setups = [os.path.join(raw_dir, isetup)
                 for isetup in ['Y_multi', 'long2pos1_H', 'mask1_K_with_continuum', 'mask1_J_with_continuum']]
 
     # Set the output path and *remove if* if it already exists
@@ -119,3 +119,4 @@ def test_mosfire():
 
         # Clean up after every setup
         shutil.rmtree(output_path)
+        
