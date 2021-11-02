@@ -681,7 +681,7 @@ class CoAdd2D:
                 s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det)
                 spec1d_file = f.replace('spec2d', 'spec1d')
                 if os.path.isfile(spec1d_file):
-                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=False)
                     this_det = sobjs.DET == self.det
                     specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
