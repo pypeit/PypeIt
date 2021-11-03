@@ -1,3 +1,9 @@
+1.6.1dev
+--------
+
+- Introduces pypeit_parse_calib_id script
+- Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
+  the header and use it for wavelength calibration.
 
 
 1.6.0 (1 Oct 2021)
