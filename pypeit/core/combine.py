@@ -179,6 +179,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     weights_stack = broadcast_weights(weights, shape)
     weights_mask_stack = weights_stack*mask_stack.astype(float)
 
+    #embed(header='182 of combine')
     weights_sum = np.sum(weights_mask_stack, axis=0)
     inv_w_sum = 1./(weights_sum + (weights_sum == 0.0))
     sci_list_out = []

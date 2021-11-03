@@ -182,12 +182,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.
-#        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] \
-        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
@@ -199,14 +196,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
-        # Set the default exposure time ranges for the frame typing
-#        par['calibrations']['biasframe']['exprng'] = [None, 2]
-#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-#        par['calibrations']['traceframe']['exprng'] = [None, 30]
-#        par['scienceframe']['exprng'] = [30, None]
-
         # Do not sigmaclip the arc frames
         par['calibrations']['arcframe']['process']['clip'] = False
         # Do not sigmaclip the tilt frames
@@ -217,6 +206,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+
+        # Find objects
+        par['reduce']['findobj']['find_fwhm'] = 10.  # 1.1"
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
@@ -300,6 +292,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Object FWHM
 
         # Return
         return par

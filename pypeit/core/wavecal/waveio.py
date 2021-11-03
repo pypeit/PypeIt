@@ -59,13 +59,16 @@ def load_wavelength_calibration(filename):
     return wv_calib
 
 
-def load_template(arxiv_file, det):
+def load_template(arxiv_file, det, mnmx=None):
     """
     Load a full template file from disk
 
     Args:
         arxiv_file: str
         det: int
+        mnmx (list, optional):
+            min, max wavelength for the arxiv
+
 
     Returns:
         wave: ndarray
@@ -85,8 +88,17 @@ def load_template(arxiv_file, det):
         idx = np.where(tbl['det'].data & 2**det)[0]
     else:
         idx = np.arange(len(tbl)).astype(int)
+    tbl_wv = tbl['wave'].data[idx]
+    tbl_fx = tbl['flux'].data[idx] 
+
+    # Cut down?
+    if mnmx is not None:
+        gd_wv = (tbl_wv >= mnmx[0]) & (tbl_wv <= mnmx[1])
+        tbl_wv = tbl_wv[gd_wv]
+        tbl_fx = tbl_fx[gd_wv]
+
     # Return
-    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
 
 
 def load_reid_arxiv(arxiv_file):
