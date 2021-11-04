@@ -44,7 +44,7 @@ def show_trace(specobjs, det, viewer, ch):
         else:
             trc_name = obj_id
         if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+            display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
         elif manual_extr_flag is True:
             display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
         else:
