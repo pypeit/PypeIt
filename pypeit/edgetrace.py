@@ -514,10 +514,10 @@ class EdgeTraceSet(DataContainer):
         self.master_dir = None          # Directory for Master frames
         self.omodel_bspat = None        # Left edges predicted by the optical model (before x-correlation)
         self.omodel_tspat = None        # Right edges predicted by the optical model (before x-correlation)
-        self.coeff_b = None             # Coefficients of the x-correlation between LEFT edges predicted
-                                        # by the optical model and traced on the image.
-        self.coeff_t = None             # Coefficients of the x-correlation between LEFT edges predicted
-                                        # by the optical model and traced on the image.
+        self.cc_params_b = None         # Parameters of the x-correlation between LEFT edges predicted
+                                        # by the slitmask design and the one traced on the image.
+        self.cc_params_t = None         # Parameters of the x-correlation between RIGHT edges predicted
+                                        # by the slitmask design and the one traced on the image.
         self.maskfile = None            # File used to slurp in slit-mask design
         self.slitmask = None            # SlitMask instance that hold info on slitmask design
         self.success = False            # Flag that the automatic edge tracing was successful
@@ -543,8 +543,8 @@ class EdgeTraceSet(DataContainer):
         self.maskdef_id = None
         self.omodel_bspat = None
         self.omodel_tspat = None
-        self.coeff_b = None
-        self.coeff_t = None
+        self.cc_params_b = None
+        self.cc_params_t = None
         self.maskfile = None
         self.slitmask = None
         self.success = False
@@ -4338,8 +4338,8 @@ class EdgeTraceSet(DataContainer):
         # left and right spatial position of the slit edges from optical model (before x-correlation)
         # with the purpose to fill a table with the information on slitmask design matching. The table will
         # be filled out at the very end of the slit tracing process, in `get_slits()`.
-        self.coeff_b = coeff_b
-        self.coeff_t = coeff_t
+        self.cc_params_b = coeff_b[0], coeff_b[1], sigres_b
+        self.cc_params_t = coeff_t[0], coeff_t[1], sigres_t
         self.omodel_bspat = omodel_bspat
         self.omodel_tspat = omodel_tspat
 
@@ -4379,7 +4379,7 @@ class EdgeTraceSet(DataContainer):
         else:
             msgs.warn('LEFT AND RIGHT EDGES *NOT* SYNCHRONIZED AFTER MASK DESIGN MATCHING')
 
-    def _fill_design_table(self, maskdef_id, coeff_b, coeff_t, omodel_bspat, omodel_tspat, spat_id):
+    def _fill_design_table(self, maskdef_id, cc_params_b, cc_params_t, omodel_bspat, omodel_tspat, spat_id):
         """
         Fill :attr:`design` based on the results of the design
         registration.
@@ -4400,16 +4400,20 @@ class EdgeTraceSet(DataContainer):
             - 'ALIGN': Slit used for alignment (1-yes; 0-no), not target observations.
         And three `.meta` info:
             - 'MASKFILE': name of file with the slitmask info
-            - 'MASKOFF': The coefficient 'offset' of the x-correlation between edges predicted by
-                         the optical mode and the one traced on the image. There one coefficient per each edge side
-            - 'MASKSCL': The coefficient 'scale' of the x-correlation between edges predicted by
-                         the optical mode and the one traced on the image. There one coefficient per each edge side
+            - 'MASKOFFL', 'MASKOFFR': The coefficient 'offset' of the x-correlation between edges predicted by
+                                      the slitmask design and the one traced on the image. One value per
+                                      each edge side.
+            - 'MASKSCLL', 'MASKSCLR': The coefficient 'scale' of the x-correlation between edges predicted by
+                                      the slitmask design and the one traced on the image. One value per
+                                      each edge side
+            - 'MASKRMSL', 'MASKRMSR': The RMS of the x-correlation between edges predicted by the slitmask design
+                                      and the one traced on the image. One value per each edge side
 
         Args:
             maskdef_id (:obj:`numpy.array`):
                 Slit ID number from slit-mask design matched to traced slits.
-            coeff_b, coeff_t (:obj:`numpy.array`):
-                Fit parameters of the cross-correlation between slit-mask design
+            cc_params_b, cc_params_t (:obj:`tuple`):
+                Three parameters of the cross-correlation (2 coefficients and RMS) between slit-mask design
                 and traced edges for the left and right edges.
             omodel_bspat, omodel_tspat (:obj:`numpy.array`):
                 Left and right spatial position of the slit edges from optical model
@@ -4437,8 +4441,12 @@ class EdgeTraceSet(DataContainer):
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
         # Save the fit parameters and the source file as table metadata
         self.design.meta['MASKFILE'] = self.maskfile
-        self.design.meta['MASKOFF'] = coeff_b[0], coeff_t[0]
-        self.design.meta['MASKSCL'] = coeff_b[1], coeff_t[1]
+        self.design.meta['MASKOFFL'] = cc_params_b[0]
+        self.design.meta['MASKOFFR'] = cc_params_t[0]
+        self.design.meta['MASKSCLL'] = cc_params_b[1]
+        self.design.meta['MASKSCLR'] = cc_params_t[1]
+        self.design.meta['MASKRMSL'] = cc_params_b[2]
+        self.design.meta['MASKRMSR'] = cc_params_t[2]
         # Fill the columns
         self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
         self.design['TRACESROW'] = np.full(nslits, reference_row,
@@ -5072,7 +5080,7 @@ class EdgeTraceSet(DataContainer):
                           "They will not be included in the design table")
 
             # Store the matched slit-design and object information in a table.
-            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat,
+            self._fill_design_table(_maskdef_id, self.cc_params_b, self.cc_params_b, self.omodel_bspat,
                                     self.omodel_tspat, spat_id)
             self._fill_objects_table(_maskdef_id)
             # TODO - instead of merging the two tables, just create a single one

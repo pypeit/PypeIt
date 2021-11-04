@@ -947,6 +947,8 @@ class SlitTraceSet(datamodel.DataContainer):
         obj_slit_coords = SkyCoord(ra=self.maskdef_designtab['SLITRA'],
                                    dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
         obj_slit_pa = self.maskdef_designtab['SLITPA']
+        # RMS (in arcsec) of the x-correlation between predicted and traced left slits edges
+        cc_rms = self.maskdef_designtab.meta['MASKRMSL'] * plate_scale
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
@@ -1004,7 +1006,11 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.info('MASKDEF_ID:{}'.format(maskid))
             msgs.info('Difference between expected and detected object '
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
-            in_toler = np.abs(separ*plate_scale) < TOLER
+            # we include in the tolerance the rms of the slit edges matching and the size of
+            # the detected object with the highest peak flux
+            ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
+            obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
+            in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
             if np.any(in_toler):
                 # Parse the peak fluxes
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
