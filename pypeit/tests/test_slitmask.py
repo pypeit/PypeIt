@@ -95,7 +95,7 @@ def test_assign_maskinfo_add_missing():
                                                                   par['calibrations']['slitedges']['det_buffer'],
                                                                   par['reduce']['slitmask'], dither_off=dither_off)
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
-        calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'])
+        calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
         sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
                                                  par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])
@@ -185,7 +185,7 @@ def test_dith_obs():
                                                                   par['calibrations']['slitedges']['det_buffer'],
                                                                   par['reduce']['slitmask'], dither_off=dither_off)
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
-        calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'])
+        calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
         sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
                                                  par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])

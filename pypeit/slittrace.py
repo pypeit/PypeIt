@@ -1008,8 +1008,11 @@ class SlitTraceSet(datamodel.DataContainer):
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
             # we include in the tolerance the rms of the slit edges matching and the size of
             # the detected object with the highest peak flux
-            ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
-            obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
+            if not np.any(cut_sobjs[idx].smash_peakflux == None):
+                ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
+                obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
+            else:
+                obj_fwhm = 0.
             in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
             if np.any(in_toler):
                 # Parse the peak fluxes
@@ -1432,8 +1435,9 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         platescale (:obj:`float`):
             Platescale, must be the same for every detectors
         list_detectors (:obj:`tuple`):
-            An array that lists the detector numbers (shape :math:`(2, N_{\rm dets})`
-            or (:math:`N_{\rm dets}`,)), and a flag that if True indicates if the spectrograph is
+            An array that lists the detector numbers of the current spectrograph,
+            e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]]), with shape :math:`(2, N_{\rm dets})`
+            or (:math:`N_{\rm dets}`,), and a flag that indicates if the spectrograph is
             divided into blue and red detectors.
 
     Returns:
@@ -1478,7 +1482,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
     else:
         # blue dets
         # find which dets in calib_slits are blue
-        indx_b = find_det_indx(calib_dets, spectrograph_dets=spectrograph_dets[0])
+        indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
         if slitmask_offsets[indx_b].size > 0:
             # compute median if these dets have values of slitmask_offsets
             _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_b], sigma=2.)
@@ -1490,7 +1494,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
             # red dets
             # if median computed for blue dets, find now which dets in calib_slits are red
-            indx_r = find_det_indx(calib_dets, spectrograph_dets=spectrograph_dets[1])
+            indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
             if slitmask_offsets[indx_r].size > 0:
                 # compute median if these dets have values of slitmask_offsets
                 _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)
@@ -1510,17 +1514,6 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
                       '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
         return calib_slits
-
-
-def find_det_indx(calib_dets, spectrograph_dets=None):
-    if spectrograph_dets is None:
-        spectrograph_dets = [[1]]
-    det_indx = np.array([], dtype=int)
-    for i in range(calib_dets.size):
-        if calib_dets[i] in spectrograph_dets:
-            det_indx = np.append(det_indx, i)
-    return det_indx
-
 
 
 def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):
