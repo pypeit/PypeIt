@@ -1750,7 +1750,7 @@ class TelluricPar(ParSet):
     """
 
     def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, maxiter=None, ntell=None,
                  sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
                  disp=None, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None,
                  bal_wv_min_max=None, bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None,
@@ -1773,6 +1773,10 @@ class TelluricPar(ParSet):
         descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
                                'generated from HITRAN models for each observatory using nominal site parameters. They ' \
                                'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+        
+        defaults['ntell'] = 4
+        dtypes['ntell'] = int
+        descr['ntell'] = 'Number of telluric PCA components to use in the fitting'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
