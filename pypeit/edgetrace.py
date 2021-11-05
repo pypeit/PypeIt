@@ -591,16 +591,16 @@ class EdgeTraceSet(DataContainer):
                                  description='Spatial pixel coordinate for right edge'),
                     table.Column(name='SPAT_ID', dtype=int, length=length,
                                  description='ID Number assigned by the pypeline to each slit'),
-                    table.Column(name='SLITID', dtype=int, length=length,
+                    table.Column(name='MASKDEF_ID', dtype=int, length=length,
                                  description='Slit ID Number from slit-mask design'),
                     # table.Column(name='SLITLFOC', dtype=float, length=length,
                     #              description='Left edge of the slit in mm at the focal plane'),
                     # table.Column(name='SLITRFOC', dtype=float, length=length,
                     #              description='Right edge of the slit in mm at the focal plane'),
-                    table.Column(name='SLITLOPT', dtype=float, length=length,
-                                description='Left edge of the slit in pixel predicted by slitmask design'),
-                    table.Column(name='SLITROPT', dtype=float, length=length,
-                                description='Right edge of the slit in pixel predicted slitmask design'),
+                    table.Column(name='SLITLMASKDEF', dtype=float, length=length,
+                                description='Left edge of the slit in pixel from slit-mask design before x-correlation'),
+                    table.Column(name='SLITRMASKDEF', dtype=float, length=length,
+                                description='Right edge of the slit in pixel from slit-mask design before x-correlation'),
                     table.Column(name='SLITRA', dtype=float, length=length,
                                  description='Right ascension of the slit center (deg)'),
                     table.Column(name='SLITDEC', dtype=float, length=length,
@@ -645,8 +645,8 @@ class EdgeTraceSet(DataContainer):
                                  description='Object magnitude provided by the observer'),
                     table.Column(name='OBJMAG_BAND', dtype='<U32', length=length,
                                  description='Band of the magnitude provided by the observer'),
-                    table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
+                    table.Column(name='MASKDEF_ID', dtype=int, length=length,
+                                 description='Slit ID Number from slit-mask design'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
                                  description='Projected distance (in arcsec) of the object from the '
                                              'left edge of the slit (in PypeIt orientation).'),
@@ -987,7 +987,7 @@ class EdgeTraceSet(DataContainer):
         if self.par['exclude_regions'] is not None:
             reg_start, reg_end = self._parse_exclude_regions()
             for i in range(reg_start.size):
-                self.tracebpm[:, int(reg_start[i]):int(reg_end[i])] = True
+                self.tracebpm[:, reg_start[i]:reg_end[i]] = True
 
         self.sobelsig, edge_img \
                 = trace.detect_slit_edges(_img, bpm=self.tracebpm,
@@ -1078,19 +1078,20 @@ class EdgeTraceSet(DataContainer):
             and ending pixels of the regions to exclude in this detector
         """
         if self.par['exclude_regions'] is None:
-            return
-        else:
-            # create the arrays with det, starting pixels and ending pixels
-            dets = np.zeros(len(self.par['exclude_regions']))
-            reg_start = np.zeros(len(self.par['exclude_regions']))
-            reg_end = np.zeros(len(self.par['exclude_regions']))
-            # fill them
-            for i, region in enumerate(self.par['exclude_regions']):
-                dets[i], reg_start[i], reg_end[i] = region.split(':')
-            # select the current detector
-            this_det = dets == self.spectrograph.ndet
+            msgs.error('No regions to exclude have been provided. '
+                       'To do so, see parameter `exclude_regions` in `EdgeTracePar`')
 
-            return reg_start[this_det], reg_end[this_det]
+        # create the arrays with det, starting pixels and ending pixels
+        dets = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        reg_start = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        reg_end = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        # fill them
+        for i, region in enumerate(self.par['exclude_regions']):
+            dets[i], reg_start[i], reg_end[i] = [int(s) for s in region.split(':')]
+        # select the current detector
+        this_det = dets == self.spectrograph.ndet
+
+        return reg_start[this_det], reg_end[this_det]
 
     def _base_header(self, hdr=None):
         """
@@ -4389,9 +4390,9 @@ class EdgeTraceSet(DataContainer):
             - 'TRACESROW': Spectral row for provided left and right edges
             - 'TRACELPIX': Spatial pixel coordinate for left edge
             - 'TRACERPIX': Spatial pixel coordinate for right edge
-            - 'SLITID': Slit ID Number (`maskdef_id`)
-            - 'SLITLOPT': Left edge of the slit in pixel from slitmask design before x-correlation
-            - 'SLITROPT': Right edge of the slit in pixel from slitmask design before x-correlation
+            - 'MASKDEF_ID': Slit ID Number from slit-mask design
+            - 'SLITLMASKDEF': Left edge of the slit in pixel from slitmask design before x-correlation
+            - 'SLITRMASKDEF': Right edge of the slit in pixel from slitmask design before x-correlation
             - 'SLITRA': Right ascension of the slit center (deg)
             - 'SLITDEC': Declination of the slit center (deg)
             - 'SLITLEN': Slit length (arcsec)
@@ -4456,10 +4457,10 @@ class EdgeTraceSet(DataContainer):
         self.design['TRACERPIX'] = self.edge_fit[reference_row,self.traceid>0][matched].astype(
                                         dtype=self.design['TRACERPIX'].dtype)
         self.design['SPAT_ID'] = spat_id[matched].astype(dtype=self.design['SPAT_ID'].dtype)
-        self.design['SLITID'] = self.slitmask.slitid[ind].astype(
-                                        dtype=self.design['SLITID'].dtype)
-        self.design['SLITLOPT'] = omodel_bspat[ind].astype(dtype=self.design['SLITLOPT'].dtype)
-        self.design['SLITROPT'] = omodel_tspat[ind].astype(dtype=self.design['SLITROPT'].dtype)
+        self.design['MASKDEF_ID'] = self.slitmask.slitid[ind].astype(
+                                        dtype=self.design['MASKDEF_ID'].dtype)
+        self.design['SLITLMASKDEF'] = omodel_bspat[ind].astype(dtype=self.design['SLITLMASKDEF'].dtype)
+        self.design['SLITRMASKDEF'] = omodel_tspat[ind].astype(dtype=self.design['SLITRMASKDEF'].dtype)
         if self.slitmask.onsky is not None:
             for i,key in enumerate(['SLITRA', 'SLITDEC', 'SLITLEN', 'SLITWID', 'SLITPA']):
                 self.design[key] = self.slitmask.onsky[ind,i].astype(
@@ -4479,7 +4480,7 @@ class EdgeTraceSet(DataContainer):
             - 'OBJNAME': Object name assigned by the observer
             - 'OBJMAG': Object magnitude provided by the observer
             - 'OBJMAG_BAND': Band of the magnitude provided by the observer
-            - 'SLITID': Slit ID Number (`maskdef_id`)
+            - 'MASKDEF_ID': Slit ID Number from slit-mask design
             - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
                edge of the slit (in PypeIt orientation)
             - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
@@ -4514,14 +4515,14 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
+        for i,key in enumerate(['MASKDEF_ID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
                                 'OBJ_TOPDIST', 'OBJ_BOTDIST']):
             self.objects[key] = self.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data
-        self.objects['TRACEID'] = utils.index_of_x_eq_y(self.objects['SLITID'],
-                                                         self.design['SLITID'], strict=True)
+        self.objects['TRACEID'] = utils.index_of_x_eq_y(self.objects['MASKDEF_ID'],
+                                                         self.design['MASKDEF_ID'], strict=True)
 
 # NOTE: I'd like us to keep this commented mask_refine function around
 # for the time being.
@@ -5085,8 +5086,8 @@ class EdgeTraceSet(DataContainer):
             self._fill_objects_table(_maskdef_id)
             # TODO - instead of merging the two tables, just create a single one
             _merged_designtab = table.join(self.design, self.objects, keys=['TRACEID'])
-            _merged_designtab.remove_column('SLITID_2')
-            _merged_designtab.rename_column('SLITID_1', 'SLITID')
+            _merged_designtab.remove_column('MASKDEF_ID_2')
+            _merged_designtab.rename_column('MASKDEF_ID_1', 'MASKDEF_ID')
             # One more item
             _posx_pa = float(self.slitmask.posx_pa)
         else:

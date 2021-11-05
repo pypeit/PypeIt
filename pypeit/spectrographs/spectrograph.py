@@ -469,6 +469,16 @@ class Spectrograph:
         # Fill in bad pixels if a master bias frame is provided
         return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
 
+    def list_detectors(self):
+        """
+        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        They are separated if they are split into blue and red detectors
+
+        This method is not defined for all spectrographs.
+
+        """
+        return None, None
+
     def get_lamps(self, fitstbl):
         """
         Extract the list of arc lamps used from header.

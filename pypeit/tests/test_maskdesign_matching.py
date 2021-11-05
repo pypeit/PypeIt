@@ -205,7 +205,7 @@ def test_overlapped_slits():
 
     slits = edges.get_slits()
     # Check that the total number of expected slits and the number of alignment slits are correct.
-    assert len(slits.maskdef_designtab['SLITID'].data) == 22, 'wrong number of slits for this detector'
+    assert len(slits.maskdef_designtab['MASKDEF_ID'].data) == 22, 'wrong number of slits for this detector'
     assert np.sum(slits.maskdef_designtab['ALIGN'].data) == 3, 'wrong number of alignment slits'
     # These number have been verified by visual inspection.
 

@@ -1282,6 +1282,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return omodel_bspat, omodel_tspat, sortindx, self.slitmask
 
+    def list_detectors(self):
+        """
+        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        They are separated if they are split into blue and red detectors
+        Returns:
+            :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
+            indicates that the spectrograph is divided into blue and red detectors. The array has
+            shape :math:`(2, N_{\rm dets})` if split into blue and red dets, otherwise shape (:math:`N_{\rm dets}`,))
+        """
+        dets = np.vstack((np.arange(self.ndet)[:self.ndet//2]+1, np.arange(self.ndet)[self.ndet//2:]+1))
+        return dets, True
+
     def spec1d_match_spectra(self, sobjs):
         """Match up slits in a SpecObjs file
         based on coords.  Specific to DEIMOS
