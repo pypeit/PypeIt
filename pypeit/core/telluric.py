@@ -64,16 +64,16 @@ def init_qso_pca(filename,wave_grid,redshift, npca):
     pca_table = table.Table.read(filename)
     wave_pca_c = pca_table['WAVE_PCA'][0].flatten()
     pca_comp_c = pca_table['PCA_COMP'][0][0,:,:]
-    coeffs_c =pca_table['PCA_COEFFS'][0][0,:,:]
-    #wave_pca_c, cont_all_c, pca_comp_c, coeffs_c, mean_pca, covar_pca, diff_pca, mix_fit, chi2, dof = pickle.load(open(filename,'rb'))
+    coeffs_c = pca_table['PCA_COEFFS'][0][0,:,:]
     num_comp = pca_comp_c.shape[0] # number of PCA components
     # Interpolate PCA components onto wave_grid
-    pca_interp = scipy.interpolate.interp1d(wave_pca_c*(1.0 + redshift),pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)
+    pca_interp = scipy.interpolate.interp1d(wave_pca_c, pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)
     pca_comp_new = pca_interp(wave_grid)
     # Generate a mixture model for the coefficients prior, what should ngauss be?
     #prior = mixture.GaussianMixture(n_components = npca-1).fit(coeffs_c[:, 1:npca])
     # Construct the PCA dict
-    pca_dict = {'npca': npca, 'components': pca_comp_new, 'coeffs': coeffs_c, 'z_fid': redshift, 'dloglam': dloglam}
+    pca_dict = {'npca': npca, 'components': pca_comp_new, 'coeffs': coeffs_c, 'z_fid': redshift, 'dloglam': dloglam,
+                'interp': pca_interp, 'wave_grid': wave_grid}
     return pca_dict
 
 def qso_pca_eval(theta,qso_pca_dict):
@@ -98,8 +98,7 @@ def qso_pca_eval(theta,qso_pca_dict):
     z_qso = theta[0]
     norm = theta[1]
     A = theta[2:]
-    dshift = int(np.round(np.log10((1.0 + z_qso)/(1.0 + z_fid))/dloglam))
-    C_now = np.roll(C[:npca,:], dshift, axis=1)
+    C_now = pca_dict['interp'](pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
     return norm*np.exp(np.dot(np.append(1.0,A),C_now))
 
 # TODO The prior is not currently used, but this is left in here anyway.
