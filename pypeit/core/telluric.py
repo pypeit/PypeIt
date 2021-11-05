@@ -354,10 +354,10 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
 
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
-    ncomp_use = arg_dict['ncomp_tell_use']
+    ncomp_use = arg_dict['ntell']
     
     # TODO: make this work without shift and stretch turned on
-    nfit = arg_dict['ncomp_tell_use']+3
+    nfit = arg_dict['ntell']+3
     
     theta_obj = theta[:-nfit]
     theta_tell = theta[-nfit:]
@@ -461,7 +461,7 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
     nsamples = arg_dict['popsize']*nparams
     # FD: Currently assumes shift and stretch are turned on.
-    ntell = arg_dict['ncomp_tell_use']+3
+    ntheta_tell = arg_dict['ntell']+3
     # Decide how to initialize
     if init_from_last is not None:
         # Use a Gaussian ball about the optimum from a previous iteration
@@ -487,8 +487,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                                                    init = init, updating='immediate', popsize=popsize,
                                                    recombination=arg_dict['recombination'], maxiter=arg_dict['diff_evol_maxiter'],
                                                    polish=arg_dict['polish'], disp=arg_dict['disp'])
-    theta_obj  = result.x[:-ntell]
-    theta_tell = result.x[-ntell:]
+    theta_obj  = result.x[:-ntheta_tell]
+    theta_tell = result.x[-ntheta_tell:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -826,7 +826,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     """
 
     pca_dict = init_qso_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
-    pca_mean = np.exp(pca_dict['components'][0, :])
+    pca_mean = np.exp(pca_dict['interp'](pca_dict['wave_grid']*(1+pca_dict['z_fid']))[0, :])
     tell_mask = tellmodel > obj_params['tell_norm_thresh']
     # Create a reference model and bogus noise
     flux_ref = pca_mean * tellmodel
@@ -1163,7 +1163,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
     return mask_star
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
-                      telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True,
+                      telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True, ntell=4,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1207,6 +1207,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Polynomial order for the sensitivity function fit.
     mask_abs_lines : :obj:`bool`, optional, default=True
         Mask proiminent stellar absorption lines?
+    ntell : :obj:`int`, optional, default = 4
+        Number of telluric PCA components to use
     delta_coeff_bounds : :obj:`tuple`, optional, default = (-20.0, 20.0)
         Parameters setting the polynomial coefficient bounds for sensfunc
         optimization.
@@ -1295,6 +1297,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
+                      ntell=ntell,
                       init_sensfunc_model, eval_sensfunc_model, ech_orders=ech_orders,
                       sn_clip=sn_clip, maxiter=maxiter, lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
@@ -1336,7 +1339,7 @@ def create_bal_mask(wave, bal_wv_min_max):
 
 
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8,
-                 pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1,
+                 pca_lower=1220.0, pca_upper=3100.0, bal_wv_min_max=None, delta_zqso=0.1, ntell=4,
                  bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  maxiter=3, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                  debug_init=False, debug=False, show=False):
@@ -1372,6 +1375,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     delta_zqso : :obj:`float`, optional
         During the fit, the QSO redshift is allowed to vary within
         ``+/-delta_zqso``.
+    ntell : :obj:`int`, optional, default = 4
+        Number of telluric PCA components to use
     bounds_norm : :obj:`tuple`, optional
         A two-tuple with the lower and upper bounds on the fractional adjustment
         of the flux in the QSO model spectrum.  For example, a value of ``(0.1,
@@ -1455,7 +1460,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model,
                       eval_qso_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
-                      recombination=recombination, polish=polish, disp=disp, debug=debug)
+                      ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
 
@@ -1500,7 +1505,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None,
                   star_ra=None, star_dec=None, func='legendre', model='exp', polyorder=5,
-                  mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
+                  mask_abs_lines=True, ntell=4, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, maxiter=3,
                   tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                   debug_init=False, debug=False, show=False):
@@ -1553,7 +1558,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_star_model,
-                      eval_star_model,  sn_clip=sn_clip, tol=tol, popsize=popsize,
+                      eval_star_model, ntell=ntell, sn_clip=sn_clip, tol=tol, popsize=popsize,
                       recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
@@ -1598,7 +1603,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre',
-                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True,
+                  model='exp', polyorder=3, fit_wv_min_max=None, mask_lyman_a=True, ntell=4,
                   delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                   only_orders=None, sn_clip=30.0, maxiter=3, tol=1e-3, popsize=30,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False,
@@ -1648,7 +1653,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_poly_model,
                       eval_poly_model, sn_clip=sn_clip, maxiter=maxiter, tol=tol, popsize=popsize,
-                      recombination=recombination, polish=polish, disp=disp, debug=debug)
+                      ntell=ntell, recombination=recombination, polish=polish, disp=disp, debug=debug)
     TelObj.run(only_orders=only_orders)
     TelObj.to_file(telloutfile, overwrite=True)
 
@@ -1948,6 +1953,8 @@ class Telluric(datamodel.DataContainer):
 
     datamodel = {'telgrid': dict(otype=str,
                                  descr='File containing grid of HITRAN atmosphere models'),
+                 'ntell': dict(otype=int,
+                                    descr='Number of telluric PCA components used')
                  'std_src': dict(otype=str, descr='Name of the standard source'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
@@ -1983,7 +1990,7 @@ class Telluric(datamodel.DataContainer):
     """DataContainer datamodel."""
 
     @staticmethod
-    def empty_model_table(norders, nspec, n_obj_par=0):
+    def empty_model_table(norders, nspec, ntell=4, n_obj_par=0):
         """
         Construct an empty `astropy.table.Table`_ for the telluric model
         results.
@@ -2008,16 +2015,10 @@ class Telluric(datamodel.DataContainer):
             table.Column(name='OBJ_MODEL', dtype=float, length=norders, shape=(nspec,),
                          description='Best-fitting object model spectrum'),
             # TODO: Why do we need both TELL_THETA and all the individual parameters...
-            table.Column(name='TELL_THETA', dtype=float, length=norders, shape=(7,),
+            table.Column(name='TELL_THETA', dtype=float, length=norders, shape=(ntell+3,),
                          description='Best-fitting telluric model parameters'),
-            table.Column(name='TELL_PRESS', dtype=float, length=norders,
-                         description='Best-fitting telluric model pressure'),
-            table.Column(name='TELL_TEMP', dtype=float, length=norders,
-                         description='Best-fitting telluric model temperature'),
-            table.Column(name='TELL_H2O', dtype=float, length=norders,
-                         description='Best-fitting telluric model humidity'),
-            table.Column(name='TELL_AIRMASS', dtype=float, length=norders,
-                         description='Best-fitting telluric model airmass'),
+            table.Column(name='TELL_COEFF', dtype=float, length=norders, shape=(ntell,),
+                         description='Best-fitting telluric PCA coefficients'),
             table.Column(name='TELL_RESLN', dtype=float, length=norders,
                          description='Best-fitting telluric model spectral resolution'),
             table.Column(name='TELL_SHIFT', dtype=float, length=norders,
@@ -2046,7 +2047,7 @@ class Telluric(datamodel.DataContainer):
                          description='Maximum wavelength included in the fit')])
 
     def __init__(self, wave, flux, ivar, gpm, telgridfile, obj_params, init_obj_model,
-                 eval_obj_model, ech_orders=None, sn_clip=30.0, airmass_guess=1.5,
+                 eval_obj_model, ech_orders=None, sn_clip=30.0, ntell=4,
                  resln_guess=None, resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  pix_stretch_bounds=(0.9,1.1), maxiter=2, sticky=True, lower=3.0, upper=3.0,
                  seed=777, ballsize = 5e-4, tol=1e-3, diff_evol_maxiter=1000,  popsize=30,
@@ -2067,7 +2068,7 @@ class Telluric(datamodel.DataContainer):
         self.telgrid = telgridfile
         self.obj_params = obj_params
         self.init_obj_model = init_obj_model
-        self.airmass_guess = airmass_guess
+        self.ntell = ntell
         self.eval_obj_model = eval_obj_model
         self.ech_orders = ech_orders
         self.sn_clip = sn_clip
@@ -2206,6 +2207,7 @@ class Telluric(datamodel.DataContainer):
         self.ngrid = None
         self.resln_guess = None
 
+        self.ntell = None
         self.tell_guess = None
         self.bounds_tell = None
 
@@ -2355,13 +2357,10 @@ class Telluric(datamodel.DataContainer):
                                              kind='linear', bounds_error=False,
                                              fill_value=0.0)(wave_in_gd)
         self.model['TELL_THETA'][iord] = self.theta_tell_list[iord]
-        self.model['TELL_PRESS'][iord] = self.theta_tell_list[iord][0]
-        self.model['TELL_TEMP'][iord] = self.theta_tell_list[iord][1]
-        self.model['TELL_H2O'][iord] = self.theta_tell_list[iord][2]
-        self.model['TELL_AIRMASS'][iord] = self.theta_tell_list[iord][3]
-        self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][4]
-        self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
-        self.model['TELL_STRETCH'][iord] = self.theta_tell_list[iord][6]
+        self.model['TELL_COEFF'][iord] = self.theta_tell_list[iord][:self.ntell]
+        self.model['TELL_RESLN'][iord] = self.theta_tell_list[iord][self.ntell]
+        self.model['TELL_SHIFT'][iord] = self.theta_tell_list[iord][self.ntell+1]
+        self.model['TELL_STRETCH'][iord] = self.theta_tell_list[iord][self.ntell+2]
         ntheta_iord = len(self.theta_obj_list[iord])
         self.model['OBJ_THETA'][iord][:ntheta_iord] = self.theta_obj_list[iord]
         self.model['CHI2'][iord] = self.result_list[iord].fun
@@ -2436,14 +2435,14 @@ class Telluric(datamodel.DataContainer):
         function.
 
         Returns:
-            :obj:`tuple`: The guess pressure, temperature, humidity,
-            airmass, resolution, shift, and stretch parameters. The first
-            three are the median of the parameters covered by the telluric
-            model grid.
+            :obj:`tuple`: The guess telluric PCA coefficients,
+            resolution, shift, and stretch parameters.
         """
-        return np.median(self.tell_dict['pressure_grid']), np.median(self.tell_dict['temp_grid']), \
-               np.median(self.tell_dict['h2o_grid']), self.airmass_guess, self.resln_guess, \
-               0.0, 1.0
+        guess = list(np.zeros(ntell))
+        guess.append(self.resln_guess)
+        guess.append(0.0)
+        guess.append(1.0)
+        return tuple(guess)
 
     def get_bounds_tell(self):
         """
@@ -2456,13 +2455,15 @@ class Telluric(datamodel.DataContainer):
             stretch parameters.
         """
         # Set the bounds for the optimization
-        return [(self.tell_dict['pressure_grid'].min(), self.tell_dict['pressure_grid'].max()),
-                (self.tell_dict['temp_grid'].min(), self.tell_dict['temp_grid'].max()),
-                (self.tell_dict['h2o_grid'].min(), self.tell_dict['h2o_grid'].max()),
-                (self.tell_dict['airmass_grid'].min(), self.tell_dict['airmass_grid'].max()),
-                (self.resln_guess * self.resln_frac_bounds[0],
-                 self.resln_guess * self.resln_frac_bounds[1]),
-                self.pix_shift_bounds, self.pix_stretch_bounds]
+        bounds = []
+        for ii in range(self.ntell):
+            bounds.append((self.tell_dict['bounds_tell_pca'][0][ii+1],
+                           self.tell_dict['bounds_tell_pca'][1][ii+1]))
+        bounds.append((self.resln_guess * self.resln_frac_bounds[0],
+                       self.resln_guess * self.resln_frac_bounds[1]))
+        bounds.append(self.pix_shift_bounds)
+        bounds.append(self.pix_stretch_bounds)
+        return bounds
 
     def sort_telluric(self):
         """
@@ -2484,10 +2485,8 @@ class Telluric(datamodel.DataContainer):
         # Do a quick loop over all the orders to sort them in order of strongest
         # to weakest telluric absorption
         for iord in range(self.norders):
-            tm_grid = self.tell_dict['tell_grid'][...,self.ind_lower[iord]:self.ind_upper[iord]+1]
-            tell_model_mid = tm_grid[tm_grid.shape[0]//2, tm_grid.shape[1]//2,
-                                     tm_grid.shape[2]//2, tm_grid.shape[3]//2, :]
-            tell_med[iord] = np.mean(tell_model_mid)
+            tell_model_mean = self.tell_dict['tell_pca'][0,self.ind_lower[iord]:self.ind_upper[iord]+1]
+            tell_med[iord] = np.mean(tell_model_mean)
 
         # Perform fits in order of telluric strength
         return tell_med.argsort()
