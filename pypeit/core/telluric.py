@@ -130,99 +130,53 @@ def qso_pca_eval(theta,qso_pca_dict):
 #    return gaussian_mixture_model.score_samples(A.reshape(1,-1))
 
 
-def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
+def read_telluric_pca(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     """
-    Reads in the telluric grid from a file.
-
-    Optionally, this method also trims the grid to be in within ``wave_min``
+    Reads in the telluric PCA components from a file.
+    
+    Optionally, this method also trims wavelength to be in within ``wave_min``
     and ``wave_max`` and pads the data (see ``pad_frac``).
-
+    
     .. todo::
         List and describe the contents of the dictionary in the return
         description.
-
+    
     Args:
         filename (:obj:`str`):
-           Telluric grid filename
+            Telluric PCA filename
         wave_min (:obj:`float`):
-           Minimum wavelength at which the grid is desired
+            Minimum wavelength at which the grid is desired
         wave_max (:obj:`float`):
-           Maximum wavelength at which the grid is desired.
+            Maximum wavelength at which the grid is desired.
         pad_frac (:obj:`float`):
-           Percentage padding to be added to the grid boundaries if
-           ``wave_min`` or ``wave_max`` are input; ignored otherwise. The
-           resulting grid will extend from ``(1.0 - pad_frac)*wave_min`` to
-           ``(1.0 + pad_frac)*wave_max``.
-
+            Percentage padding to be added to the grid boundaries if
+            ``wave_min`` or ``wave_max`` are input; ignored otherwise. The
+            resulting grid will extend from ``(1.0 - pad_frac)*wave_min`` to
+            ``(1.0 + pad_frac)*wave_max``.
+    
     Returns:
-        :obj:`dict`: Dictionary containing the telluric grid.
+        :obj:`dict`: Dictionary containing the telluric PCA components.
     """
 
     hdul = io.fits_open(filename)
-    wave_grid_full = 10.0*hdul[1].data
-    model_grid_full = hdul[0].data
-    nspec_full = wave_grid_full.size
-
+    wave_grid_full = hdul[1].data
+    pca_comp_full = hdul[0].data
+    ncomp = hdul[0].header['NCOMP']
+    bounds = hdul[2].data
+    
     ind_lower = np.argmin(np.abs(wave_grid_full - (1.0 - pad_frac)*wave_min)) \
                     if wave_min is not None else 0
     ind_upper = np.argmin(np.abs(wave_grid_full - (1.0 + pad_frac)*wave_max)) \
                     if wave_max is not None else nspec_full
     wave_grid = wave_grid_full[ind_lower:ind_upper]
-    model_grid = model_grid_full[...,ind_lower:ind_upper]
-
-    pg = hdul[0].header['PRES0']+hdul[0].header['DPRES']*np.arange(0,hdul[0].header['NPRES'])
-    tg = hdul[0].header['TEMP0']+hdul[0].header['DTEMP']*np.arange(0,hdul[0].header['NTEMP'])
-    hg = hdul[0].header['HUM0']+hdul[0].header['DHUM']*np.arange(0,hdul[0].header['NHUM'])
-    if hdul[0].header['NAM'] > 1:
-        ag = hdul[0].header['AM0']+hdul[0].header['DAM']*np.arange(0,hdul[0].header['NAM'])
-    else:
-        ag = hdul[0].header['AM0']+1*np.arange(0,1)
+    pca_comp_grid = pca_comp_full[:,ind_lower:ind_upper]
 
     dwave, dloglam, resln_guess, pix_per_sigma = wvutils.get_sampling(wave_grid)
     tell_pad_pix = int(np.ceil(10.0 * pix_per_sigma))
 
     return dict(wave_grid=wave_grid, dloglam=dloglam, resln_guess=resln_guess,
-                pix_per_sigma=pix_per_sigma, tell_pad_pix=tell_pad_pix, pressure_grid=pg,
-                temp_grid=tg, h2o_grid=hg, airmass_grid=ag, tell_grid=model_grid)
-
-
-def interp_telluric_grid(theta, tell_dict):
-    """
-    Interpolate the telluric model grid to the specified location in
-    parameter space.
-
-    The interpolation is only performed over the 4D parameter space specified
-    by pressure, temperature, humidity, and airmass. This routine performs
-    nearest-gridpoint interpolation to evaluate the telluric model at an
-    arbitrary location in this 4-d space. The telluric grid is assumed to be
-    uniformly sampled in this parameter space.
-
-    Args:
-        theta (`numpy.ndarray`_):
-            A 4-element vector with the telluric model parameters: pressure,
-            temperature, humidity, and airmass.
-        tell_dict (dict):
-            Dictionary containing the telluric grid. See
-            :func:`read_telluric_grid`.
-
-    Returns:
-        `numpy.ndarray`_: Telluric model evaluated at the provided 4D
-        position in parameter space. The telluric model is provided over all
-        available wavelengths in ``tell_dict``.
-    """
-    if len(theta) != 4:
-        msgs.error('Input parameter vector must have 4 and only 4 values.')
-    pg = tell_dict['pressure_grid']
-    tg = tell_dict['temp_grid']
-    hg = tell_dict['h2o_grid']
-    ag = tell_dict['airmass_grid']
-    p, t, h, a = theta
-    pi = int(np.round((p-pg[0])/(pg[1]-pg[0]))) if len(pg) > 1 else 0
-    ti = int(np.round((t-tg[0])/(tg[1]-tg[0]))) if len(tg) > 1 else 0
-    hi = int(np.round((h-hg[0])/(hg[1]-hg[0]))) if len(hg) > 1 else 0
-    ai = int(np.round((a-ag[0])/(ag[1]-ag[0]))) if len(ag) > 1 else 0
-    return tell_dict['tell_grid'][pi,ti,hi,ai]
-
+            pix_per_sigma=pix_per_sigma, tell_pad_pix=tell_pad_pix, ncomp_tell_pca=ncomp,
+            tell_pca=pca_comp_grid, bounds_tell_pca=bounds)
 
 def conv_telluric(tell_model, dloglam, res):
     """
@@ -332,29 +286,42 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
         theta_tell in model atmosphere parameter space.
     """
     ntheta = len(theta_tell)
-    if ntheta not in [5, 7]:
-        msgs.error('Input model atmosphere parameters must have length 5 or 7.')
+    # Infer number of used components from the number of parameters
+    # TODO: make this work even without shift and stretch
+    ncomp_use = ntheta-3
+    if comp_use > tell_dict['ncomp_tell_pca']:
+        msgs.error('Asked for more PCA components than exist in PCA file.')
+    
+    tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use])
 
-    tellmodel_hires = interp_telluric_grid(theta_tell[:4], tell_dict)
-
+    # PCA model can technically give some unphysical values,
+    # so trim to stay between 0 and 1
+    clip_hi = tellmodel_hires > 1.0
+    tellmodel_hires[clip_hi] = 1.0
+    clip_lo = tellmodel_hires < 0.0
+    tellmodel_hires[clip_lo] = 0.0
+    
     # Set the wavelength range if not provided
     ind_lower = 0 if ind_lower is None else ind_lower
     ind_upper = tell_dict['wave_grid'].size - 1 if ind_upper is None else ind_upper
-
+    
     # Deal with padding for the convolutions
     ind_lower_pad = np.fmax(ind_lower - tell_dict['tell_pad_pix'], 0)
     ind_upper_pad = np.fmin(ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
     ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
     ind_lower_final = ind_lower_pad if ind_lower_pad == ind_lower else ind_lower - ind_lower_pad
     ind_upper_final = ind_upper_pad if ind_upper_pad == ind_upper else ind_upper - ind_upper_pad
+    # FD: currently assumes shift + stretch is on
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad+1],
-                                   tell_dict['dloglam'], theta_tell[4])
-    if ntheta == 5:
-        return tellmodel_conv[ind_lower_final:ind_upper_final]
+                                   tell_dict['dloglam'], theta_tell[-3])
 
+    #if ntheta == 5:
+    #    return tellmodel_conv[ind_lower_final:ind_upper_final]
+
+    # FD: currently assumes shift + stretch is on
     tellmodel_out = shift_telluric(tellmodel_conv,
                                    np.log10(tell_dict['wave_grid'][ind_lower_pad:ind_upper_pad+1]),
-                                   tell_dict['dloglam'], theta_tell[5], theta_tell[6])
+                                   tell_dict['dloglam'], theta_tell[-2], theta_tell[-1])
     return tellmodel_out[ind_lower_final:ind_upper_final]
 
 
@@ -387,9 +354,13 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
 
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
-
-    theta_obj = theta[:-7]
-    theta_tell = theta[-7:]
+    ncomp_use = arg_dict['ncomp_tell_use']
+    
+    # TODO: make this work without shift and stretch turned on
+    nfit = arg_dict['ncomp_tell_use']+3
+    
+    theta_obj = theta[:-nfit]
+    theta_tell = theta[-nfit:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, model_gpm = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -422,9 +393,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                 theta_obj = theta[:-7]
                 theta_tell = theta[-7:]
 
-            The telluric model theta_tell is currently hard wired to be six dimensional::
-
-                pressure, temperature, humidity, airmass, resln, shift = theta_tell
+            The telluric model theta_tell includes a user-specified number
+            of PCA coefficients, spectral resolution, shift, and stretch.
 
             The object model theta_obj can have an arbitrary size and is
             provided as an argument to obj_model_func
@@ -490,6 +460,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
     nparams = len(bounds) # Number of parameters in the model
     popsize = arg_dict['popsize'] # Note this does nothing if the init is done from a previous iteration or optimum
     nsamples = arg_dict['popsize']*nparams
+    # FD: Currently assumes shift and stretch are turned on.
+    ntell = arg_dict['ncomp_tell_use']+3
     # Decide how to initialize
     if init_from_last is not None:
         # Use a Gaussian ball about the optimum from a previous iteration
@@ -503,9 +475,9 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
         init_obj = np.array([[np.clip(param + ballsize*(bounds_obj[i][1] - bounds_obj[i][0]) * rng.standard_normal(1)[0],
                                       bounds_obj[i][0], bounds_obj[i][1]) for i, param in enumerate(arg_dict['obj_dict']['init_obj_opt_theta'])]
                              for jsamp in range(nsamples)])
-        tell_lhs = utils.lhs(7, samples=nsamples)
+        tell_lhs = utils.lhs(ntell, samples=nsamples)
         init_tell = np.array([[bounds[-idim][0] + tell_lhs[isamp, idim] * (bounds[-idim][1] - bounds[-idim][0])
-                               for idim in range(7)] for isamp in range(nsamples)])
+                               for idim in range(ntell)] for isamp in range(nsamples)])
         init = np.hstack((init_obj, init_tell))
     else:
         # If this is the first iteration and no object model optimum is presented, use a latin hypercube which is the default
@@ -515,8 +487,8 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
                                                    init = init, updating='immediate', popsize=popsize,
                                                    recombination=arg_dict['recombination'], maxiter=arg_dict['diff_evol_maxiter'],
                                                    polish=arg_dict['polish'], disp=arg_dict['disp'])
-    theta_obj  = result.x[:-7]
-    theta_tell = result.x[-7:]
+    theta_obj  = result.x[:-ntell]
+    theta_tell = result.x[-ntell:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
