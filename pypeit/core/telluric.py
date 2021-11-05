@@ -2206,7 +2206,6 @@ class Telluric(datamodel.DataContainer):
         self.ngrid = None
         self.resln_guess = None
 
-        self.ntell = None
         self.tell_guess = None
         self.bounds_tell = None
 
@@ -2317,7 +2316,7 @@ class Telluric(datamodel.DataContainer):
         """
 
         self.model = self.empty_model_table(self.norders, self.nspec_in,
-                                            n_obj_par=self.max_ntheta_obj)
+                                            ntell=self.ntell, n_obj_par=self.max_ntheta_obj)
         if 'output_meta_keys' in self.obj_params:
             for key in self.obj_params['output_meta_keys']:
                 if key.lower() in self.datamodel.keys():
