@@ -289,10 +289,10 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     # Infer number of used components from the number of parameters
     # TODO: make this work even without shift and stretch
     ncomp_use = ntheta-3
-    if comp_use > tell_dict['ncomp_tell_pca']:
+    if ncomp_use > tell_dict['ncomp_tell_pca']:
         msgs.error('Asked for more PCA components than exist in PCA file.')
     
-    tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use])
+    tellmodel_hires = np.dot(np.append(1,theta_tell[:ncomp_use]),tell_dict['tell_pca'][:ncomp_use+1])
 
     # PCA model can technically give some unphysical values,
     # so trim to stay between 0 and 1
@@ -1297,8 +1297,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      ntell=ntell,
-                      init_sensfunc_model, eval_sensfunc_model, ech_orders=ech_orders,
+                      init_sensfunc_model, eval_sensfunc_model, ntell=ntell, ech_orders=ech_orders,
                       sn_clip=sn_clip, maxiter=maxiter, lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
                       sensfunc=True, debug=debug)
@@ -1954,7 +1953,7 @@ class Telluric(datamodel.DataContainer):
     datamodel = {'telgrid': dict(otype=str,
                                  descr='File containing grid of HITRAN atmosphere models'),
                  'ntell': dict(otype=int,
-                                    descr='Number of telluric PCA components used')
+                                    descr='Number of telluric PCA components used'),
                  'std_src': dict(otype=str, descr='Name of the standard source'),
                  'std_name': dict(otype=str, descr='Type of standard source'),
                  'std_cal': dict(otype=str,
@@ -2100,7 +2099,7 @@ class Telluric(datamodel.DataContainer):
 
         # 3) Read the telluric grid and initalize associated parameters
         wv_gpm = self.wave_in_arr > 1.0
-        self.tell_dict = read_telluric_grid(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
+        self.tell_dict = read_telluric_pca(self.telgrid, wave_min=self.wave_in_arr[wv_gpm].min(),
                                             wave_max=self.wave_in_arr[wv_gpm].max())
         self.wave_grid = self.tell_dict['wave_grid']
         self.ngrid = self.wave_grid.size
@@ -2159,7 +2158,7 @@ class Telluric(datamodel.DataContainer):
             self.bounds_list[iord] = bounds_iord
             arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                  tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord],
-                                 ind_upper=self.ind_upper[iord],
+                                 ind_upper=self.ind_upper[iord], ntell=self.ntell,
                                  obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
                                  ballsize=self.ballsize, bounds=bounds_iord, rng=self.rng,
                                  diff_evol_maxiter=self.diff_evol_maxiter, tol=self.tol,
@@ -2438,7 +2437,7 @@ class Telluric(datamodel.DataContainer):
             :obj:`tuple`: The guess telluric PCA coefficients,
             resolution, shift, and stretch parameters.
         """
-        guess = list(np.zeros(ntell))
+        guess = list(np.zeros(self.ntell))
         guess.append(self.resln_guess)
         guess.append(0.0)
         guess.append(1.0)
