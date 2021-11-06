@@ -63,8 +63,11 @@ except when the *LongMirr* or the *LVM* mask is used.
 information from the slitmask design, and forces the extraction of undetected object at the location
 expected from the slitmask design. See `Additional Reading`_ .
 
-When the extraction of undetected object is performed, it may be occasionally necessary to set
-**no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords` to avoid a bad local sky subtraction.
+When the extraction of undetected object is performed, a gaussian profile with FWHM given by the parameter
+``find_fwhm`` in :ref:`pypeit_par:FindObjPar Keywords` is assumed. The default value for DEIMOS is **find_fwhm = 10**
+(pixels), but the user needs to adjust this value according to the size of the objects to extract. Moreover,
+it may be occasionally necessary to set **no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords`
+to avoid a bad local sky subtraction.
 
 Wavelength Calibration
 ----------------------
