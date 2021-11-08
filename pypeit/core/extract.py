@@ -1143,7 +1143,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             boxcar_rad_skymask=None, cont_sig_thresh=2.0,
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
-            qa_title='objfind'):
+            qa_title='objfind', outfile_objprof=None):
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
@@ -1263,6 +1263,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             
                 specobj_dict = {'SLITID': 999, 'det': 1,
                                 'objtype': 'unknown', 'pypeline': 'unknown'}
+        outfile_objprof : :obj:`str`, optional
+            Directory and filename for the object profile generated QA
 
     Returns:
         tuple: Returns the following:
@@ -1517,8 +1519,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
         plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
-        viewer, ch = display.show_image(image*(thismask*inmask))
-        plt.show()
+        if debug_all:
+            viewer, ch = display.show_image(image*(thismask*inmask))
+            plt.show()
+        elif outfile_objprof is not None:
+            plt.savefig(outfile_objprof, dpi=400)
+            plt.close('all')
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
