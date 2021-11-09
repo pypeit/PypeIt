@@ -1162,8 +1162,8 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             nonlinear=0.76,
             mincounts=-1e10,
             numamplifiers=2,  # These are defaults but can modify below
-            gain=np.atleast_1d([1.71, 1.61]),
-            ronoise=np.atleast_1d([3.64, 3.45]),
+            gain=np.atleast_1d([1.61, 1.67]), # Assumes AMPMODE=HSPLIT,VUP
+            ronoise=np.atleast_1d([3.65, 3.52]),
         )
 
         if hdu is None:
