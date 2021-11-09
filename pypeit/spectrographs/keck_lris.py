@@ -1254,8 +1254,8 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Instantiate
         detector = detector_container.DetectorContainer(**detector_dict1)
 
-        print('Dict1:', detector_dict1)
-        print('Binning:', binning)
+        #print('Dict1:', detector_dict1)
+        #print('Binning:', binning)
 
         # Return
         return detector
