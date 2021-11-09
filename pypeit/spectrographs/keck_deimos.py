@@ -19,7 +19,7 @@ from scipy import interpolate
 from astropy.io import fits
 from astropy.coordinates import SkyCoord, Angle
 from astropy.table import Table
-from astropy import units
+from astropy import units, time
 
 import linetools
 
@@ -321,7 +321,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
         self.meta['binning'] = dict(card=None, compound=True)
 
-        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['dispname'] = dict(ext=0, card='GRATENAM')
@@ -366,6 +366,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 return headarr[0]['G4TLTWAV']
             else:
                 msgs.warn('This is probably a problem. Non-standard DEIMOS GRATEPOS={0}.'.format(headarr[0]['GRATEPOS']))
+        elif meta_key == 'mjd':
+            if headarr[0].get('MJD-OBS', None) is not None:
+                return headarr[0]['MJD-OBS']
+            else:
+                return time.Time('{}T{}'.format(headarr[0]['DATE-OBS'], headarr[0]['UTC'])).mjd
         else:
             msgs.error("Not ready for this compound meta")
 
