@@ -215,7 +215,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
             sci_dict[det]['specobjs'], sci_dict[det]['detector'], sci_dict[det]['slits'], \
             sci_dict[det]['tilts'], sci_dict[det]['waveimg'] \
-                    = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks)
+                    = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks, basename=basename)
 
             # Save pseudo image master files
             #coadd.save_masters()
