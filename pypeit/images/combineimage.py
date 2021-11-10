@@ -278,7 +278,6 @@ class CombineImage:
             comb_texp = exptime[0]
 
         # Coadd them
-        #embed(header='281 of combineimage')
         if combine_method == 'mean':
             weights = np.ones(self.nfiles, dtype=float)/self.nfiles
             img_list_out, var_list_out, gpm, nstack \

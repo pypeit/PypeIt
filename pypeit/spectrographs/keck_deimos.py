@@ -293,8 +293,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
 
-        # Object FWHM
-
         # Return
         return par
 
