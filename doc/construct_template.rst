@@ -51,7 +51,32 @@ Once all of the slits and master wavelength calibration files are
 selected, use the function :func:`pypeit.core.wavecal.templates.build_template` to turn the list of slits,
 wavelength ranges, and master wavecalib files into a final template.
 
-The input looks like the following:
+For longevity, it is a good idea to obtain the PypeIt Development Suite and combine your solution
+with all PypeIt wavelength solutions using the same instrument and grating. If you used the
+:ref:`wave_calib:pypeit_identify` utility, it will output a file called ``wvcalib.fits``.
+You should put this file in the appropriate instrument folder in the PypeIt Development Suite
+templates directory::
+
+    $PYPEIT_DEV/dev_algorithms/wavelengths/template_files/
+
+you should also rename this file to match the current formatting:
+
+    `mv wvcalib.fits TELESCOPE_INSTRUMENT_GRATING_WAVECEN.fits`
+
+Now, open the :func:`pypeit.core.wavecal.spectrographs/templ_TELESCOPE_INSTRUMENT.py` file,
+and either add a new setup if yours doesn't already exist, or edit a setup if you want to add your solution
+to a pre-existing setup (this is only usually warranted if you are extending the wavelength coverage of
+a previous setup). The key information you will need is the spectral binning and the slit spatid.
+Both of these numbers are printed on the command line when you complete the fitting with the
+:ref:`wave_calib:pypeit_identify` utility.
+Once this is setup, simply cd into the same directory as the `templ_TELESCOPE_INSTRUMENT.py` file and run
+`python templates.py`.
+This will automatically put your solution into the reid_arxiv. Add all of these files to git, and submit a
+PR for both PypeIt and the PypeIt Development Suite.
+
+Alternatively, if you want to construct a template file yourself (with the possible disadvantage that
+your solution cannot be stitched together with solutions from the same spectrograph+grating in the future),
+you can write a script, and the input looks like the following:
 
 .. code-block:: python
 

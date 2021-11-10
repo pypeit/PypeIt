@@ -25,7 +25,6 @@ def data_path(filename):
 kast_blue = load_spectrograph('shane_kast_blue')
 kast_par = kast_blue.default_pypeit_par()
 keck_nires = load_spectrograph('keck_nires')
-nires_par = keck_nires.default_pypeit_par()
 
 
 @pytest.fixture
@@ -96,11 +95,14 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     """
     # Setup
     det = 1
-    bpm = np.zeros((2048,1024))
-    pixelflat = np.ones_like(bpm)
+    bpm = np.zeros((2048,1024), dtype=int)
+    pixelflat = np.ones(bpm.shape, dtype=float)
+    nires_par = keck_nires.default_pypeit_par()
 
     # Sci image
     flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
+    nires_par['scienceframe']['process']['use_illumflat'] = False
+    nires_par['scienceframe']['process']['use_specillum'] = False
     sciImg = buildimage.buildimage_fromlist(keck_nires, det, nires_par['scienceframe'],
                                             nires_sci_files, bias=None, bpm=bpm,
                                             flatimages=flatImages)
@@ -112,3 +114,6 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     sciImg = sciImg.sub(bgImg, nires_par['scienceframe']['process'])
     # Test
     assert isinstance(sciImg, pypeitimage.PypeItImage)
+
+
+

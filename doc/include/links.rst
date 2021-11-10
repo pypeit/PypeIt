@@ -16,6 +16,7 @@
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _numpy.ma.MaskedArray: http://docs.scipy.org/doc/numpy/reference/maskedarray.baseclass.html
+.. _numpy.ma.median: https://numpy.org/doc/stable/reference/generated/numpy.ma.median.html
 .. _numpy.recarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.recarray.html
 .. _numpy.meshgrid: http://docs.scipy.org/doc/numpy/reference/generated/numpy.meshgrid.html
 .. _numpy.where: http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
@@ -64,6 +65,7 @@
 .. _astropy.time.Time: https://docs.astropy.org/en/stable/time/
 .. _astropy.coordinates.SkyCoord: https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html
 .. _astropy.coordinates.EarthLocation: https://docs.astropy.org/en/stable/api/astropy.coordinates.EarthLocation.html
+.. _astropy.stats.SigmaClip: https://docs.astropy.org/en/stable/api/astropy.stats.SigmaClip.html
 
 .. scikit-learn
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html

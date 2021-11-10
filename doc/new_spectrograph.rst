@@ -1,4 +1,8 @@
 
+.. Where do we specify the pypeit image orientation convention, etc?  I want to
+   specify somewhere that the exposure time needs to be in seconds.  Do we
+   something like a "PypeIt Conventions" doc?
+
 .. _new_spec:
 
 ****************
@@ -95,6 +99,10 @@ new spectrograph are as follows:
 
 #. For echelle spectrographs, there are numerous methods required that provide
    details for the (currently fixed) format of the orders.
+
+#. You may need to generate wavelength solutions for your setups. You can use the
+   :ref:`wave_calib:pypeit_identify` utility, and add this to the PypeIt archive
+   by following the steps outlined in the :doc:`construct_template` documentation.
 
 
 See this `example PR <https://github.com/pypeit/PypeIt/pull/1179>`_ for the SOAR/Goodman spectrograph.

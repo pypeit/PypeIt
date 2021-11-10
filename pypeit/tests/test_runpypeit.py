@@ -5,6 +5,7 @@ import os
 import sys
 import glob
 import shutil
+from IPython.terminal.embed import embed
 
 from configobj import ConfigObj
 
@@ -15,6 +16,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
+from pypeit.scripts.parse_calib_id import ParseCalibID
 from pypeit.scripts.setup import Setup
 from pypeit.scripts.run_pypeit import RunPypeIt
 from pypeit.tests.tstutils import dev_suite_required
@@ -85,6 +87,14 @@ def test_run_pypeit_calib_only():
             assert os.path.isfile(os.path.join(configdir, 'Masters', master_file)
                                   ), 'Master File {:s} missing!'.format(master_file)
 
+        # Now test parse_calib_id
+        if ss == 0:
+            pargs2 = ParseCalibID.parse_args([pyp_file])
+            calib_dict = ParseCalibID.main(pargs2)
+            assert isinstance(calib_dict, dict)
+            assert len(calib_dict) > 0
+            assert calib_dict['1']['A_1_01']['arc']['raw_files'][0] == 'b1.fits.gz'
+
         # Clean-up
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
@@ -141,3 +151,5 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
+
+

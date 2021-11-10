@@ -38,6 +38,8 @@ The script usage can be displayed by calling the script with the
 Pipeline Scripts
 ++++++++++++++++
 
+.. _pypeit-chk-for-calibs:
+
 pypeit_chk_for_calibs
 =====================
 
@@ -63,6 +65,53 @@ to the screen::
       None True
 
 
+.. _pypeit-parse-calib-id:
+
+pypeit_parse_calib_id
+=====================
+
+The ``pypeit_parse_calib_id`` script prints a simple summary to the screen
+of the calibration frames.  This enables you (hopefully) to parse the 
+rather obscure PypeIt naming.  Here is a typical call::
+
+    pypeit_parse_calib_id vlt_xshooter_vis_1x1.pypeit
+
+And the associated output::
+
+    {
+        "1": {
+            "A_1_01": {
+                "arc": {
+                    "master_key": "A_1_01",
+                    "master_name": "MasterArc_A_1_01.fits",
+                    "raw_files": [
+                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
+                    ]
+                },
+                "bias": {
+                    "master_key": "A_1_01",
+                    "master_name": "MasterBias_A_1_01.fits",
+                    "raw_files": [
+                        "XSHOO.2010-04-28T10:23:42.901.fits.gz",
+                        "XSHOO.2010-04-28T10:26:26.465.fits.gz",
+                        "XSHOO.2010-04-28T10:29:10.029.fits.gz"
+                    ]
+                },
+                "tilt": {
+                    "master_key": "A_1_01",
+                    "master_name": "MasterTiltimg_A_1_01.fits",
+                    "raw_files": [
+                        "XSHOO.2010-04-28T14:36:27.000.fits.gz"
+                    ]
+                }
+            }
+        }
+    }
+
+Here, the first level is the calib_grp (1), the next level gives
+the Master key (A_1_01) and then there is a listing of the files
+contributing to each of the :ref:`_masters`.  See those docs for more.
+
 .. _pypeit-obslog:
 
 pypeit_obslog
@@ -79,8 +128,6 @@ pypeit_setup
 ============
 
 This setups files for data reduction.  See :doc:`setup` for details
-
-.. _run-pypeit:
 
 run_pypeit
 ==========

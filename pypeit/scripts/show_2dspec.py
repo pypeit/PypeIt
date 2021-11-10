@@ -44,7 +44,7 @@ def show_trace(specobjs, det, viewer, ch):
         else:
             trc_name = obj_id
         if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+            display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
         elif manual_extr_flag is True:
             display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
         else:
@@ -89,7 +89,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             return
 
         # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(
+            args.file, args.det, chk_version=False)
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
