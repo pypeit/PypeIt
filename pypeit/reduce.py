@@ -1122,11 +1122,10 @@ class MultiSlitReduce(Reduce):
             else:
                 sig_thresh = self.par['reduce']['findobj']['sig_thresh']
 
-            # TODO we need to add QA paths and QA hooks. QA should be
-            # done through objfind where all the relevant information
-            # is. This will be a png file(s) per slit.
-            outfile_objprof = qa.set_qa_filename(self.basename, 'obj_profile_qa', slit=specobj_dict['SLITID'],
-                                         det=specobj_dict['DET'], out_dir=self.par['rdx']['redux_path'])
+            # Set the filename and path for the object finding QA
+            if self.basename is not None:
+                outfile_objprof = qa.set_qa_filename(self.basename, 'obj_profile_qa', slit=specobj_dict['SLITID'],
+                                                     det=specobj_dict['DET'], out_dir=self.par['rdx']['redux_path'])
 
             sobjs_slit, skymask[thismask] = \
                     extract.objfind(image, thismask,
