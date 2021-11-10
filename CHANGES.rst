@@ -4,6 +4,8 @@
 - Introduces pypeit_parse_calib_id script
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
   the header and use it for wavelength calibration.
+- Allow one to restrict the wavelength range of the arxiv template
+- Set DEMIOS FWHM default to 10 pixels
 
 
 1.6.0 (1 Oct 2021)
