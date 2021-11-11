@@ -413,7 +413,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     for i in range(nright):
         points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
                     else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
-        canvas.add(str('path'), points, color=str('red'))
+        canvas.add(str('path'), points, color=str('magenta'))
         if not synced:
             # Add text
             xt, yt = float(_right_id_loc[top,i]), float(y[top])
