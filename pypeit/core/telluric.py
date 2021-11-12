@@ -475,9 +475,9 @@ def tellfit(flux, thismask, arg_dict, init_from_last=None):
         init_obj = np.array([[np.clip(param + ballsize*(bounds_obj[i][1] - bounds_obj[i][0]) * rng.standard_normal(1)[0],
                                       bounds_obj[i][0], bounds_obj[i][1]) for i, param in enumerate(arg_dict['obj_dict']['init_obj_opt_theta'])]
                              for jsamp in range(nsamples)])
-        tell_lhs = utils.lhs(ntell, samples=nsamples)
+        tell_lhs = utils.lhs(ntheta_tell, samples=nsamples)
         init_tell = np.array([[bounds[-idim][0] + tell_lhs[isamp, idim] * (bounds[-idim][1] - bounds[-idim][0])
-                               for idim in range(ntell)] for isamp in range(nsamples)])
+                               for idim in range(ntheta_tell)] for isamp in range(nsamples)])
         init = np.hstack((init_obj, init_tell))
     else:
         # If this is the first iteration and no object model optimum is presented, use a latin hypercube which is the default
@@ -2265,8 +2265,8 @@ class Telluric(datamodel.DataContainer):
                                               inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1,iord],
                                               maxiter=self.maxiter, lower=self.lower,
                                               upper=self.upper, sticky=self.sticky)
-            self.theta_obj_list[iord] = self.result_list[iord].x[:-7]
-            self.theta_tell_list[iord] = self.result_list[iord].x[-7:]
+            self.theta_obj_list[iord] = self.result_list[iord].x[:-(self.ntell+3)]
+            self.theta_tell_list[iord] = self.result_list[iord].x[-(self.ntell+3):]
             self.obj_model_list[iord], modelmask \
                     = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
             self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
