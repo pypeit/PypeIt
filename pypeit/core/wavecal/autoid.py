@@ -158,14 +158,12 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
 
     # Stats
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    rms = np.sqrt(np.sum((waveFit.wave_fit[gpm]-wave_soln_fit[gpm])**2)/len(waveFit.pixel_fit[gpm])) # Ang
-    dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
-    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
-    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
+    ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(waveFit.cen_disp), size='small')
+    ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(waveFit.rms), size='small')
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
     res = waveFit.wave_fit-wave_soln_fit
-    ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/dwv_pix, marker='x')
+    ax_res.scatter(waveFit.pixel_fit[gpm], res[gpm]/waveFit.cen_disp, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
@@ -180,7 +178,6 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None,
     plt.close('all')
 
     plt.rcdefaults()
-
 
     return
 
@@ -847,7 +844,7 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
                   x_percentile=50., template_dict=None, debug=False, nonlinear_counts=1e10):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
@@ -861,6 +858,9 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
     Args:
         spec: ndarray (nspec, nslit)
           Spectra to be calibrated
+        lamps : :obj:`list`
+            List of arc lamps to be used for wavelength calibration.
+            E.g., ['ArI','NeI','KrI','XeI']
         par: WavelengthSolutionPar ParSet
           Calibration parameters
         ok_mask: ndarray, bool
@@ -883,11 +883,11 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
 
     """
     # Load line lists
-    if 'ThAr' in par['lamps']:
-        line_lists_all = waveio.load_line_lists(par['lamps'])
+    if 'ThAr' in lamps:
+        line_lists_all = waveio.load_line_lists(lamps)
         line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
     else:
-        line_lists = waveio.load_line_lists(par['lamps'])
+        line_lists = waveio.load_line_lists(lamps)
 
     # Load template
     if template_dict is None:
@@ -1063,6 +1063,9 @@ class ArchiveReid:
         desired.
     spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
         Spectrograph instance
+    lamps : :obj:`list`
+        List of arc lamps to be used for wavelength calibration.
+        E.g., ['ArI','NeI','KrI','XeI']
     par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
         Key parameters that drive the behavior of the
         wavelength-solution algorithms.
@@ -1109,7 +1112,7 @@ class ArchiveReid:
 
     """
     # TODO: Because we're passing orders directly, we no longer need spectrograph...
-    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all=False,
+    def __init__(self, spec, spectrograph, lamps, par, ok_mask=None, use_unknowns=True, debug_all=False,
                  debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False,
                  orders=None, nonlinear_counts=1e10):
 
@@ -1146,7 +1149,7 @@ class ArchiveReid:
 
         self.par = par
         self.spectrograph = spectrograph
-        self.lamps = self.par['lamps']
+        self.lamps = lamps
         self.use_unknowns = use_unknowns
 
         # Mask info
@@ -1335,6 +1338,9 @@ class HolyGrail:
     ----------
     spec : ndarray
         2D array of arcline spectra (nspec,nslit)
+    lamps : :obj:`list`
+        List of arc lamps to be used for wavelength calibration.
+        E.g., ['ArI','NeI','KrI','XeI']
     par : ParSet or dict, default = default parset, optional
         This is the parset par['calibrations']['wavelengths']. A
         dictionary with the corresponding parameter names also works.
@@ -1375,15 +1381,15 @@ class HolyGrail:
 
     """
 
-    def __init__(self, spec, par = None, ok_mask=None, islinelist=False, 
-                 outroot=None, debug = False, verbose=False,
+    def __init__(self, spec, lamps, par=None, ok_mask=None, islinelist=False,
+                 outroot=None, debug=False, verbose=False,
                  binw=None, bind=None, nstore=1, use_unknowns=True, 
                  nonlinear_counts=None, spectrograph=None):
 
         # Set some default parameters
         self._spec = spec
         self._par = pypeitpar.WavelengthSolutionPar() if par is None else par
-        self._lines = self._par['lamps']
+        self._lamps = lamps
         self._npix, self._nslit = spec.shape
         self._nstore = nstore
         self._binw = binw
@@ -1415,18 +1421,18 @@ class HolyGrail:
 
         # Load the linelist to be used for pattern matching
         if self._islinelist:
-            self._line_lists = self._lines
-            self._unknwns = self._lines[:0].copy()
+            self._line_lists = self._lamps
+            self._unknwns = self._lamps[:0].copy()
         else:
-            if 'ThAr' in self._lines:
-                line_lists_all = waveio.load_line_lists(self._lines)
+            if 'ThAr' in self._lamps:
+                line_lists_all = waveio.load_line_lists(self._lamps)
                 self._line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
                 self._unknwns = line_lists_all[np.where(line_lists_all['ion'] == 'UNKNWN')]
             else:
                 restrict = spectrograph if self._par['use_instr_flag'] else None
                 self._line_lists = waveio.load_line_lists(
-                    self._lines, restrict_on_instr=restrict)
-                self._unknwns = waveio.load_unknown_list(self._lines)
+                    self._lamps, restrict_on_instr=restrict)
+                self._unknwns = waveio.load_unknown_list(self._lamps)
 
         if self._use_unknowns:
             self._tot_list = table.vstack([self._line_lists, self._unknwns])
@@ -1440,7 +1446,7 @@ class HolyGrail:
         # Find the wavelength solution!
         # KD Tree algorithm only works for ThAr - check first that this is what is being used
         self._thar = False
-        if 'ThAr' in self._lines and len(self._lines) == 1:
+        if 'ThAr' in self._lamps and len(self._lamps) == 1:
             self._thar = True
             # Set up the grids to be used for pattern matching
             self.set_grids(ngridw=5000, ngridd=1000)

@@ -1,7 +1,13 @@
+1.6.1dev
+--------
+
+- Introduces pypeit_parse_calib_id script
+- Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
+  the header and use it for wavelength calibration.
 
 
-1.5.1.dev
----------
+1.6.0 (1 Oct 2021)
+------------------
 
 - Modifications to reduce header crashes
 - Added `image_proc.rst` doc, which includes a table with the primary parameters
@@ -31,15 +37,12 @@
       from the tabulated value.
     - Whether or not you add the shot noise and a noise floor to the variance
       image are now optional and controlled by parameters in ProcessImagesPar.
-
     - Changes to default ProcessImagesPar parameters: use_specillum = False for
       all frame types; shot_noise = False and noise_floor = 0 for biases; and
       use_overscan=True, use_biasimage=True, noise_floor=0., and mask_cr=True
       for darks.  Adjustments propagated to individual spectrographs.
-
     - BPM is not recalculated after applying the flat-field correction because
       it is not longer changed by that function.
-
     - The code keeps track of the image scaling via the flat-field correction,
       and propagates this to the noise model.
     - Compute and save a "base-level variance" that includes readnoise, dark
