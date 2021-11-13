@@ -922,6 +922,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
             wvcalib[str(slit)] = None
             continue
         msgs.info("Processing slit {}".format(slit))
+        msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         ispec = spec[:,slit]
 
@@ -1175,12 +1176,10 @@ class ArchiveReid:
         self.ech_fix_format = self.par['ech_fix_format']
 
         # Paramters that govern wavelength solution fitting
-        self.rms_threshold = self.par['rms_threshold']
         self.match_toler = self.par['match_toler']
         self.func = self.par['func']
         self.n_first= self.par['n_first']
         self.sigrej_first= self.par['sigrej_first']
-        self.n_final= self.par['n_final']
         self.sigrej_final= self.par['sigrej_final']
 
         # Load the line lists
@@ -1248,6 +1247,9 @@ class ArchiveReid:
             ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
+            rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
+            msgs.info("Using sigdetect =  {}".format(sigdetect))
+            msgs.info("Using rms_threshold =  {}".format(rms_threshold))
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
@@ -1274,7 +1276,7 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            if final_fit['rms'] > wvutils.parse_param(self.par, 'rms_threshold', slit):
+            if final_fit['rms'] > rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Need to add additional spectra to arxiv to improve fits'.format(
@@ -1492,6 +1494,8 @@ class HolyGrail:
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
                                      # an ID on either side of the spectrum)
 
+        rms_threshold = wvutils.parse_param(self._par, 'rms_threshold', slit)
+        msgs.info("Using rms_threshold =  {}".format(rms_threshold))
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
@@ -1503,7 +1507,6 @@ class HolyGrail:
                         psols, msols = self.results_brute(tcent_ecent,poly=poly, pix_tol=pix_tol,
                                                           detsrch=detsrch, lstsrch=lstsrch,wavedata=wavedata)
                         patt_dict, final_fit = self.solve_slit(slit, psols, msols,tcent_ecent)
-                        rms_threshold = wvutils.parse_param(self._par, 'rms_threshold', slit)
                         if final_fit is None:
                             # This is not a good solution
                             continue
@@ -1544,6 +1547,7 @@ class HolyGrail:
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
             sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
+            msgs.info("Using sigdetect =  {}".format(sigdetect))
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _  =\
                 wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\

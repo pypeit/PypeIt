@@ -4,6 +4,8 @@
 - Introduces pypeit_parse_calib_id script
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
   the header and use it for wavelength calibration.
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+slit dependent lists.
 
 
 1.6.0 (1 Oct 2021)
@@ -91,10 +93,7 @@
   runs the extraction. In between the two loops, the slitmask offset is computed.
 - A script (`get_telescope_offset`) to determine the telescope pointing offsets is
   added to `pypeit/spectrographs/keck_deimos.py`
-- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
-slit dependent lists.
 - Improve SOAR Goodman fluxing
-
 
 
 1.4.2 (06 Jul 2021)
