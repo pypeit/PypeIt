@@ -91,14 +91,14 @@ def qso_pca_eval(theta,qso_pca_dict):
 
     """
 
-    C = pca_dict['components']
-    z_fid = pca_dict['z_fid']
-    dloglam = pca_dict['dloglam']
-    npca = pca_dict['npca']  # Size of the PCA currently being used, original PCA in the dict could be larger
+    C = qso_pca_dict['components']
+    z_fid = qso_pca_dict['z_fid']
+    dloglam = qso_pca_dict['dloglam']
+    npca = qso_pca_dict['npca']  # Size of the PCA currently being used, original PCA in the dict could be larger
     z_qso = theta[0]
     norm = theta[1]
     A = theta[2:]
-    C_now = pca_dict['interp'](pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
+    C_now = qso_pca_dict['interp'](qso_pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
     return norm*np.exp(np.dot(np.append(1.0,A),C_now))
 
 # TODO The prior is not currently used, but this is left in here anyway.
