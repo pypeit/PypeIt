@@ -199,9 +199,6 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         plt.clf()
         ax = plt.gca()
         ax.plot(nwwv, nwspec)
-        # DEBUGGING
-        #wave, flux, bin = waveio.load_template('keck_deimos_1200B.fits', 1)
-        #ax.plot(wave, flux)
         plt.show()
     # Generate the table
     wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)

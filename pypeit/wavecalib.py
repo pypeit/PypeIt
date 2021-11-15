@@ -475,6 +475,7 @@ class BuildWaveCalib:
                                              self.binspectral,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
+                                             #debug=True, debug_reid=True, debug_xcorr=True)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 

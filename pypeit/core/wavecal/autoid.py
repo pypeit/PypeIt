@@ -844,8 +844,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
-                  x_percentile=50., template_dict=None, debug=False, nonlinear_counts=1e10):
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, 
+                  debug_xcorr=False, debug_reid=False,
+                  x_percentile=50., template_dict=None, debug=False, 
+                  nonlinear_counts=1e10):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -891,7 +893,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
 
     # Load template
     if template_dict is None:
-        temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+        temp_wv, temp_spec, temp_bin = waveio.load_template(
+            par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
         temp_wv = template_dict['wave']
         temp_spec = template_dict['spec']
@@ -922,6 +925,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
             wvcalib[str(slit)] = None
             continue
         msgs.info("Processing slit {}".format(slit))
+        msgs.info("Using sigdetect = {}".format(sigdetect))
         # Grab the observed arc spectrum
         ispec = spec[:,slit]
 
@@ -944,8 +948,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
             plt.clf()
             ax = plt.gca()
             #
-            ax.plot(xvals, temp_spec)  # Template
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
+            ax.plot(xvals, temp_spec, label='template')  # Template
+            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
+            ax.legend()
             plt.show()
             embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
@@ -1175,12 +1180,10 @@ class ArchiveReid:
         self.ech_fix_format = self.par['ech_fix_format']
 
         # Paramters that govern wavelength solution fitting
-        self.rms_threshold = self.par['rms_threshold']
         self.match_toler = self.par['match_toler']
         self.func = self.par['func']
         self.n_first= self.par['n_first']
         self.sigrej_first= self.par['sigrej_first']
-        self.n_final= self.par['n_final']
         self.sigrej_final= self.par['sigrej_final']
 
         # Load the line lists
@@ -1248,6 +1251,9 @@ class ArchiveReid:
             ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
+            rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
+            msgs.info("Using sigdetect =  {}".format(sigdetect))
+            msgs.info("Using rms_threshold =  {}".format(rms_threshold))
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
                 reidentify(self.spec[:,slit], self.spec_arxiv[:,ind_sp], self.wave_soln_arxiv[:,ind_sp],
                            self.tot_line_list, self.nreid_min, cc_thresh=cc_thresh, match_toler=self.match_toler,
@@ -1274,7 +1280,6 @@ class ArchiveReid:
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
-            rms_threshold = wvutils.parse_param(self.par, 'rms_threshold', slit)
             if final_fit['rms'] > rms_threshold:
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Reidentify report for slit {0:d}/{1:d}:'.format(slit, self.nslits-1) + msgs.newline() +
@@ -1405,18 +1410,11 @@ class HolyGrail:
 
         # Set the input parameters
         self._nonlinear_counts = nonlinear_counts
-        #self._sigdetect = self._par['sigdetect']
-        #self._lowest_nsig = self._par['lowest_nsig']
         # JFH I'm not convinced that the codea actually does anything except use the lowest nsig, but am not sure
-        self._sigdetect = self._par['sigdetect']
-#        self._lowest_nsig = self._par['sigdetect']
-
-        self._rms_threshold = self._par['rms_threshold']
         self._match_toler = self._par['match_toler']
         self._func = self._par['func']
         self._n_first= self._par['n_first']
         self._sigrej_first= self._par['sigrej_first']
-        self._n_final= self._par['n_final']
         self._sigrej_final= self._par['sigrej_final']
 
         self._use_unknowns = use_unknowns
@@ -1500,6 +1498,8 @@ class HolyGrail:
         idthresh = 0.5               # Criteria for early return (at least this fraction of lines must have
                                      # an ID on either side of the spectrum)
 
+        rms_threshold = wvutils.parse_param(self._par, 'rms_threshold', slit)
+        msgs.info("Using rms_threshold =  {}".format(rms_threshold))
         best_patt_dict, best_final_fit = None, None
         # Loop through parameter space
         for poly in rng_poly:
@@ -1519,7 +1519,7 @@ class HolyGrail:
                             # First time a fit is found
                             best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             continue
-                        elif final_fit['rms'] < self._rms_threshold:
+                        elif final_fit['rms'] < rms_threshold:
                             # Has a better fit been identified (i.e. more lines identified)?
                             if len(final_fit['pixel_fit']) > len(best_final_fit['pixel_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
@@ -1550,10 +1550,12 @@ class HolyGrail:
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
+            sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
+            msgs.info("Using sigdetect =  {}".format(sigdetect))
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _  =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _  =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit].copy(), sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
 
             # Were there enough lines?  This mainly deals with junk slits
             if self._all_tcent.size < min_nlines:
@@ -1656,10 +1658,11 @@ class HolyGrail:
                 self._all_final_fit[str(slit)] = {}
                 continue
             # Detect lines, and decide which tcent to use
+            sigdetect = wvutils.parse_param(self._par, 'sigdetect', slit)
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
             self._all_tcent_weak, self._all_ecent_weak, self._cut_tcent_weak, self._icut_weak, _ =\
-                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=self._sigdetect, nonlinear_counts = self._nonlinear_counts)
+                wvutils.arc_lines_from_spec(self._spec[:, slit], sigdetect=sigdetect, nonlinear_counts = self._nonlinear_counts)
             if self._all_tcent.size == 0:
                 msgs.warn("No lines to identify in slit {0:d}!".format(slit+ 1))
                 continue
@@ -1943,7 +1946,8 @@ class HolyGrail:
                         dindex = np.append(dindex, dd)               # index in the array of pixel detections bsdet
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
+                             sigdetect= wvutils.parse_param(self._par, 'sigdetect', bs),
                              mask=np.zeros(bsdet.size, dtype=np.bool), scores = None)
             patt_dict['sign'] = sign
             patt_dict['bwv'] = np.median(wcen[wcen != 0.0])
@@ -1971,7 +1975,8 @@ class HolyGrail:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
-            if final_fit['rms'] > self._rms_threshold:
+
+            if final_fit['rms'] >  wvutils.parse_param(self._par, 'rms_threshold', bs):
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Cross-match report for slit {0:d}/{1:d}:'.format(bs + 1, self._nslit) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
@@ -2123,7 +2128,8 @@ class HolyGrail:
 
             # Finalize the best guess of each line
             # Initialise the patterns dictionary
-            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
+            patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
+                             sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
                              mask=np.zeros(dets.size, dtype=np.bool))
             patt_dict['sign'] = sign
             patt_dict['bwv'] = wvcen
@@ -2147,7 +2153,7 @@ class HolyGrail:
                           '  Fit was not good enough! Will try cross matching iteratively' + msgs.newline() +
                           '---------------------------------------------------')
                 continue
-            if final_fit['rms'] > self._rms_threshold:
+            if final_fit['rms'] > wvutils.parse_param(self._par, 'rms_threshold', slit):
                 msgs.warn('---------------------------------------------------' + msgs.newline() +
                           'Cross-match report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
                           '  Poor RMS ({0:.3f})! Will try cross matching iteratively'.format(final_fit['rms']) + msgs.newline() +
@@ -2476,7 +2482,7 @@ class HolyGrail:
         patt_dict, final_dict = None, None
         for idx in range(nstore):
             # Solve the patterns
-            tpatt_dict = self.solve_patterns(bestlist[idx], tcent_ecent)
+            tpatt_dict = self.solve_patterns(slit, bestlist[idx], tcent_ecent)
             if tpatt_dict is None:
                 # This pattern wasn't good enough
                 continue
@@ -2492,13 +2498,34 @@ class HolyGrail:
                 # First time a fit is found
                 patt_dict, final_dict = tpatt_dict, tfinal_dict
                 continue
-            elif tfinal_dict['rms'] < self._rms_threshold:
+            elif tfinal_dict['rms'] < wvutils.parse_param(self._par, 'rms_threshold', slit):
                 # Has a better fit been identified (i.e. more lines ID)?
                 if len(tfinal_dict['pixel_fit']) > len(final_dict['pixel_fit']):
                     patt_dict, final_dict = copy.deepcopy(tpatt_dict), copy.deepcopy(tfinal_dict)
         return patt_dict, final_dict
 
-    def solve_patterns(self, bestlist, tcent_ecent):
+    def solve_patterns(self, slit, bestlist, tcent_ecent):
+        """
+
+        Args:
+            slit (int):
+               The ID of the slit
+            bestlist (list or ndarray):
+                A 5 element list, each containing a numpy.ndarray, with the following values required for each index:
+                    0: central wavelength of the pattern
+                    1: central dispersion of pattern
+                    2: sign of the pattern (note, sign = 1 [-1] if pixels correlate [anticorrelate] with wavelength
+                    3: index of the full list of patterns that were created from the detected arc lines
+                    4: index of the full list of patterns that were created from the line list.
+            tcent_ecent (list):
+                A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
+
+        Returns:
+        -------
+            patt_dict (dict):
+                Dictionary containing information about the best patterns.
+
+        """
 
         # Obtain a full list of indices that are consistent with the maximum value
         wcen, dcen, sign, dindex, lindex = bestlist[0], bestlist[1], bestlist[3], bestlist[4], bestlist[5]
@@ -2511,7 +2538,8 @@ class HolyGrail:
             signtxt = "anticorrelate"
 
         # Initialise the patterns dictionary
-        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0., sigdetect=self._sigdetect,
+        patt_dict = dict(acceptable=False, nmatch=0, ibest=-1, bwv=0.,
+                         sigdetect=wvutils.parse_param(self._par, 'sigdetect', slit),
                          mask=np.zeros(use_tcent.size, dtype=np.bool))
         patterns.solve_triangles(use_tcent, self._wvdata, dindex, lindex, patt_dict)
         # Check if a solution was found
@@ -2590,7 +2618,7 @@ class HolyGrail:
                       '---------------------------------------------------')
             self._all_patt_dict[str(slit)] = None
             self._all_final_fit[str(slit)] = None
-        elif best_final_fit['rms'] > self._rms_threshold:
+        elif best_final_fit['rms'] > wvutils.parse_param(self._par, 'rms_threshold', slit):
             msgs.warn('---------------------------------------------------' + msgs.newline() +
                       'Preliminary report for slit {0:d}/{1:d}:'.format(slit, self._nslit-1) + msgs.newline() +
                       '  Poor RMS ({0:.3f})! Attempting to cross match.'.format(best_final_fit['rms']) + msgs.newline() +
