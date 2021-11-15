@@ -844,8 +844,10 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
     return detections, spec_cont_sub, patt_dict_slit
 
 
-def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=False, debug_reid=False,
-                  x_percentile=50., template_dict=None, debug=False, nonlinear_counts=1e10):
+def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, 
+                  debug_xcorr=False, debug_reid=False,
+                  x_percentile=50., template_dict=None, debug=False, 
+                  nonlinear_counts=1e10):
     """
     Method of wavelength calibration using a single, comprehensive template spectrum
 
@@ -891,7 +893,8 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
 
     # Load template
     if template_dict is None:
-        temp_wv, temp_spec, temp_bin = waveio.load_template(par['reid_arxiv'], det)
+        temp_wv, temp_spec, temp_bin = waveio.load_template(
+            par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
         temp_wv = template_dict['wave']
         temp_spec = template_dict['spec']
@@ -944,8 +947,9 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2, debug
             plt.clf()
             ax = plt.gca()
             #
-            ax.plot(xvals, temp_spec)  # Template
-            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k')  # Input
+            ax.plot(xvals, temp_spec, label='template')  # Template
+            ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
+            ax.legend()
             plt.show()
             embed(header='909 autoid')
         i0 = npad // 2 + int(shift_cc)
