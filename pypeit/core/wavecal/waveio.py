@@ -59,15 +59,15 @@ def load_wavelength_calibration(filename):
     return wv_calib
 
 
-def load_template(arxiv_file, det, mnmx=None):
+def load_template(arxiv_file, det, wvrng=None):
     """
     Load a full template file from disk
 
     Args:
         arxiv_file: str
         det: int
-        mnmx (list, optional):
-            min, max wavelength for the arxiv
+        wvrng (list, optional):
+            min, max wavelength range for the arxiv
 
 
     Returns:
@@ -92,8 +92,8 @@ def load_template(arxiv_file, det, mnmx=None):
     tbl_fx = tbl['flux'].data[idx] 
 
     # Cut down?
-    if mnmx is not None:
-        gd_wv = (tbl_wv >= mnmx[0]) & (tbl_wv <= mnmx[1])
+    if wvrng is not None:
+        gd_wv = (tbl_wv >= wvrng[0]) & (tbl_wv <= wvrng[1])
         tbl_wv = tbl_wv[gd_wv]
         tbl_fx = tbl_fx[gd_wv]
 

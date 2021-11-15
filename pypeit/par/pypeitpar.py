@@ -2282,7 +2282,7 @@ class WavelengthSolutionPar(ParSet):
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
-                 nsnippet=None, use_instr_flag=None, mnxwv_arxiv=None):
+                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2418,9 +2418,9 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
-        defaults['mnxwv_arxiv'] = None
-        dtypes['mnxwv_arxiv'] = list
-        descr['mnxwv_arxiv'] = 'Cut the arxiv template down to these specified wavelengths [min,max]'
+        defaults['wvrng_arxiv'] = None
+        dtypes['wvrng_arxiv'] = list
+        descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
 
         defaults['nsnippet'] = 2
         dtypes['nsnippet'] = int
@@ -2554,7 +2554,7 @@ class WavelengthSolutionPar(ParSet):
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
-                   'mnxwv_arxiv']
+                   'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

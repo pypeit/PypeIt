@@ -79,7 +79,8 @@ class Show2DSpec(scriptbase.ScriptBase):
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
         parser.add_argument('--prefix', type=str, default='',
                             help="Append this to the channel name [let's you do more than one set]")
-        parser.add_argument('--no_clear', default=False, action="store_true",
+        parser.add_argument('--no_clear', dest='clear', default=True, 
+                            action="store_false",
                             help='Do *not* clear all existing tabs')
         return parser
 
@@ -142,7 +143,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         mask_in = None
         if args.showmask:
             viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM",
-                                                 waveimg=spec2DObj.waveimg, clear=(not args.no_clear))
+                                                 waveimg=spec2DObj.waveimg, 
+                                                 clear=args.clear)
 
         channel_names = []
         # SCIIMG
@@ -155,7 +157,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             chname_sci = args.prefix+'sciimg-det{:s}'.format(sdet)
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(image, chname=chname_sci,
-                                                waveimg=spec2DObj.waveimg, clear=(not args.no_clear),
+                                                waveimg=spec2DObj.waveimg, 
+                                                clear=args.clear,
                                                 cuts=(cut_min, cut_max))
 
             if sobjs is not None:

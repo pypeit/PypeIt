@@ -894,7 +894,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
     # Load template
     if template_dict is None:
         temp_wv, temp_spec, temp_bin = waveio.load_template(
-            par['reid_arxiv'], det, mnmx=par['mnxwv_arxiv'])
+            par['reid_arxiv'], det, wvrng=par['wvrng_arxiv'])
     else:
         temp_wv = template_dict['wave']
         temp_spec = template_dict['spec']

@@ -208,7 +208,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
 
         # Find objects
-        par['reduce']['findobj']['find_fwhm'] = 10.  # 1.1"
+        #  The following corresponds to 1.1" if unbinned (DEIMOS is never binned)
+        par['reduce']['findobj']['find_fwhm'] = 10.  
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
