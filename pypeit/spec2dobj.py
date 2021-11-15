@@ -114,8 +114,11 @@ class Spec2DObj(datamodel.DataContainer):
         if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
             msgs.error("Requested detector {} is not in this file - {}".format(det, file))
         #
-        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det), chk_version=chk_version)
+        slf = super(Spec2DObj, cls).from_hdu(hdul, 
+                                             hdu_prefix=spec2d_hdu_prefix(det), 
+                                             chk_version=chk_version)
         slf.head0 = hdul[0].header
+        slf.chk_version = chk_version
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
@@ -130,6 +133,7 @@ class Spec2DObj(datamodel.DataContainer):
     def _init_internals(self):
         self.process_steps = None
         self.head0 = None
+        self.chk_version = None  # Mainly for viewing/using old versions
 
     def _validate(self):
         """
@@ -145,7 +149,7 @@ class Spec2DObj(datamodel.DataContainer):
             self.imgbitm = ','.join(list(bitmask.keys()))
         else:
             # Validate
-            if self.imgbitm != ','.join(list(bitmask.keys())):
+            if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
                 msgs.error("Input BITMASK keys differ from current data model!")
 
     def _bundle(self):

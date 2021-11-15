@@ -2282,7 +2282,7 @@ class WavelengthSolutionPar(ParSet):
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
-                 nsnippet=None, use_instr_flag=None):
+                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2358,7 +2358,9 @@ class WavelengthSolutionPar(ParSet):
         #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
-                         'None for no calibration.  ' # \
+                         '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
+                         'recorded in the header of the arc frames (this is currently ' \
+                         'available only for Keck DEIMOS).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2416,8 +2418,10 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
-        # TODO: Should people be using full_template?  If so, change the
-        # description of method.
+        defaults['wvrng_arxiv'] = None
+        dtypes['wvrng_arxiv'] = list
+        descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
+
         defaults['nsnippet'] = 2
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
@@ -2549,7 +2553,8 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag']
+                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
+                   'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

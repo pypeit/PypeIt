@@ -182,7 +182,7 @@ class Identify(object):
         self.replot()
 
     @classmethod
-    def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None,
+    def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
                    pxtoler=0.1, fwhm=4.):
         """Initialise the 'Identify' window for real-time wavelength calibration
@@ -195,6 +195,9 @@ class Identify(object):
         ----------
         arccen : ndarray
             Arc spectrum
+        lamps : :obj:`list`
+            List of arc lamps to be used for wavelength calibration.
+            E.g., ['ArI','NeI','KrI','XeI']
         slits : :class:`SlitTraceSet`
             Data container with slit trace information
         slit : int, optional
@@ -241,11 +244,11 @@ class Identify(object):
         detns = tdetns[icut]
 
         # Load line lists
-        if 'ThAr' in par['lamps']:
-            line_lists_all = waveio.load_line_lists(par['lamps'])
+        if 'ThAr' in lamps:
+            line_lists_all = waveio.load_line_lists(lamps)
             line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
         else:
-            line_lists = waveio.load_line_lists(par['lamps'])
+            line_lists = waveio.load_line_lists(lamps)
 
         # Trim the wavelength scale if requested
         if wavelim is not None:
