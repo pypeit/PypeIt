@@ -31,10 +31,6 @@ def keck_lris_red_mark4_R400(overwrite=False):
 
 
 
+# Run em
 if __name__ == '__main__':
-    keck_lris_red_mark4_R400(overwrite=True)
-    #keck_deimos_830G(overwrite=False) # False for Testing; True for real
-    #keck_deimos_1200G(overwrite=False)
-    #keck_deimos_1200B()
-    #keck_deimos_900ZD(overwrite=False)
-    pass
+    keck_lris_red_mark4_R400()#overwrite=True)
