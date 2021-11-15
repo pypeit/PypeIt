@@ -6,6 +6,7 @@
   the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
 - Set DEMIOS FWHM default to 10 pixels
+- QL script for Keck/DEIMOS
 
 
 1.6.0 (1 Oct 2021)

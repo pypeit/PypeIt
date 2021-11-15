@@ -14,6 +14,8 @@ import io
 import numpy as np
 import argparse
 
+from pypeit.scripts import scriptbase
+
 from pypeit.scripts.utils import Utilities
 from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file
@@ -24,6 +26,66 @@ from pypeit.par.util import make_pypeit_file
 from pypeit import utils
 
 from IPython import embed
+
+class QLKeckDEIMOS(scriptbase.ScriptBase):
+
+    @classmethod
+    def name(cls):
+        """
+        Return the name of the executable.
+        """
+        return 'pypeit_ql_keck_deimos'
+
+    @classmethod
+    def get_parser(cls, width=None):
+        import argparse
+        parser = super().get_parser(description='Pypeit QL for Keck/DEIMOS',
+                                    width=width, formatter=argparse.RawDescriptionHelpFormatter)
+        parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of '
+                                                    'Keck/DEIMOS files',
+                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
+        parser.add_argument('--redux_path', type=str, help='Path to where reduction products lie')
+        parser.add_argument('--root', type=str, help='Root of filenames, eg.  DE.2018')
+        parser.add_argument('--calibs_only', default=False, action='store_true',
+                            help='Run on calibs only')
+        parser.add_argument('--science', type=str, help='Science frame filename')
+        parser.add_argument('--frameID', type=str, help='Science frameID')
+        parser.add_argument('--arc', type=str, help='Arc frame filename')
+        parser.add_argument('--flat', type=str, help='Flat frame filename')
+        parser.add_argument('-b', '--box_radius', type=float,
+                            help='Set the radius for the boxcar extraction (arcsec)')
+        parser.add_argument('-d', '--det', type=int, default=0,
+                            help='Detector number. Cannot use with --slit_spat')
+        parser.add_argument('--ignore_headers', default=False, action='store_true',
+                            help='Ignore bad headers?')
+        parser.add_argument('--user_pixflat', type=str,
+                            help='Use a user-supplied pixel flat (e.g. keck_lris_blue)')
+        parser.add_argument('--maskID', type=int,
+                            help='Reduce this slit as specified by the maskID value')
+        parser.add_argument('--slit_spat', type=str,
+                            help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 0:175')
+
+        return parser
+
+    @staticmethod
+    def main(pargs):
+
+        script_Utils = Utilities('keck_deimos')
+
+        # Afternoon calibs
+        if pargs.calibs_only:
+            if pargs.root is None:
+                msgs.error("Need to set --root when using --calibs_only")
+            msgs.info("Processing calibrations only")
+            process_calibs(pargs, script_Utils)
+            return
+
+        # Slurp the afternoon runs and grab the right PypeIt file
+        calib_pypeit_file, ps_sci = get_science_setup(pargs, script_Utils)
+
+        # Run on the science frame
+        run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci)
 
 
 def process_calibs(pargs, script_Utils):
@@ -169,65 +231,3 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
                                    '-r={}'.format(redux_path),
                                    ])
     run_pypeit.RunPypeIt.main(run_pargs)
-
-
-def parse_args(options=None, return_parser=False):
-
-    parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of '
-                                                 'Keck/DEIMOS files',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-    parser.add_argument('--redux_path', type=str, help='Path to where reduction products lie')
-    parser.add_argument('--root', type=str, help='Root of filenames, eg.  DE.2019')
-    parser.add_argument('--calibs_only', default=False, action='store_true',
-                        help='Run on calibs only')
-    parser.add_argument('--science', type=str, help='Science frame filename')
-    parser.add_argument('--frameID', type=str, help='Science frameID')
-    parser.add_argument('--arc', type=str, help='Arc frame filename')
-    parser.add_argument('--flat', type=str, help='Flat frame filename')
-    parser.add_argument('-b', '--box_radius', type=float,
-                        help='Set the radius for the boxcar extraction (arcsec)')
-    parser.add_argument('-d', '--det', type=int, default=1,
-                        help='Detector number. Cannot use with --slit_spat')
-    parser.add_argument('--ignore_headers', default=False, action='store_true',
-                        help='Ignore bad headers?')
-    parser.add_argument('--user_pixflat', type=str,
-                        help='Use a user-supplied pixel flat (e.g. keck_lris_blue)')
-    parser.add_argument('--maskID', type=int,
-                        help='Reduce this slit as specified by the maskID value')
-    parser.add_argument('--slit_spat', type=str,
-                        help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175')
-
-    if return_parser:
-        return parser
-
-    return parser.parse_args() if options is None else parser.parse_args(options)
-
-
-def main(pargs):
-
-    import os
-    import numpy as np
-
-    from IPython import embed
-
-    from pypeit import pypeit
-    from pypeit import pypeitsetup
-    from pypeit.core import framematch
-
-    script_Utils = Utilities('keck_deimos')
-
-    # Afternoon calibs
-    if pargs.calibs_only:
-        if pargs.root is None:
-            msgs.error("Need to set --root when using --calibs_only")
-        msgs.info("Processing calibrations only")
-        process_calibs(pargs, script_Utils)
-        return
-
-    # Slurp the afternoon runs and grab the right PypeIt file
-    calib_pypeit_file, ps_sci = get_science_setup(pargs, script_Utils)
-
-    # Run on the science frame
-    run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci)
-    #embed(header='133 of ql')
