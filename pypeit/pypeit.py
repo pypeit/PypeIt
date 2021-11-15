@@ -7,12 +7,19 @@ Main driver class for PypeIt run
 """
 import time
 import os
-import numpy as np
 import copy
+import json
+
+from IPython import embed
+
+import numpy as np
+
+from configobj import ConfigObj
+
 from astropy.io import fits
 from astropy.table import Table
-from astropy.time import Time
 
+from pypeit import masterframe
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
@@ -23,17 +30,15 @@ from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
-from pypeit import io
+from pypeit import utils
 from pypeit.history import History
-
-from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
 
-from IPython import embed
+from linetools import utils as ltu
 
-class PypeIt(object):
+class PypeIt:
     """
     This class runs the primary calibration and extraction in PypeIt
 
@@ -74,8 +79,6 @@ class PypeIt(object):
         fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
-#    __metaclass__ = ABCMeta
-
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
                  show=False, redux_path=None, calib_only=False):
 
@@ -250,27 +253,36 @@ class PypeIt(object):
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
 
-    def calib_all(self):
+    def calib_all(self, run=True):
         """
         Create calibrations for all setups
 
         This will not crash if not all of the standard set of files are not provided
 
+        Args:
+            run (bool, optional): If False, only print the calib names and do
+            not actually run.  Only used with the pypeit_parse_calib_id script
 
+        Returns:
+            dict: A simple dict summarizing the calibration names
         """
+        calib_dict = {}
 
         self.tstart = time.time()
 
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
         for i in range(self.fitstbl.n_calib_groups):
+            # 1-indexed calib number
+            calib_grp = str(i+1)
             # Find all the frames in this calibration group
             in_grp = self.fitstbl.find_calib_group(i)
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
             detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                            ndet=self.spectrograph.ndet)
+                                                ndet=self.spectrograph.ndet)
+            calib_dict[calib_grp] = {}
             # Loop on Detectors
             for self.det in detectors:
                 # Instantiate Calibrations class
@@ -281,11 +293,48 @@ class PypeIt(object):
                     user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
                                                          self.par['rdx']['maskIDs']))
                 # Do it
+                # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
-                self.caliBrate.run_the_steps()
+
+                # Allow skipping the run (e.g. parse_calib_id.py script)
+                if run:
+                    self.caliBrate.run_the_steps()
+
+                key = self.caliBrate.master_key_dict['frame']
+                calib_dict[calib_grp][key] = {}
+                for step in self.caliBrate.steps:
+                    if step in ['bpm', 'slits', 
+                                'wv_calib', 'tilts', 'flats']:
+                        continue
+                    elif step == 'tiltimg':  # Annoying kludge
+                        step = 'tilt'
+                    # Prep
+                    raw_files, self.caliBrate.master_key_dict[step] = self.caliBrate._prep_calibrations(step)
+                    masterframe_name = masterframe.construct_file_name(
+                        buildimage.frame_image_classes[step],
+                        self.caliBrate.master_key_dict[step], 
+                        master_dir=self.caliBrate.master_dir)
+
+                    # Add to dict
+                    if len(raw_files) > 0:
+                        calib_dict[calib_grp][key][step] = {}
+                        calib_dict[calib_grp][key][step]['master_key'] = self.caliBrate.master_key_dict[step]
+                        calib_dict[calib_grp][key][step]['master_name'] = os.path.basename(masterframe_name)
+                        calib_dict[calib_grp][key][step]['raw_files'] = [os.path.basename(ifile) for ifile in raw_files]
+
+        # Print the results
+        print(json.dumps(calib_dict, sort_keys=True, indent=4))
+
+        # Write
+        msgs.info('Writing calib file')
+        calib_file = self.pypeit_file.replace('.pypeit', '.calib_ids')
+        ltu.savejson(calib_file, calib_dict, overwrite=True, easy_to_read=True)
 
         # Finish
         self.print_end_time()
+
+        # Return
+        return calib_dict
 
     def reduce_all(self):
         """
@@ -389,18 +438,23 @@ class PypeIt(object):
 
         Args:
             detnum (:obj:`int`, :obj:`list`, optional):
-                One or more detectors to reduce.  If None, return the
-                full list for the provided number of detectors (`ndet`).
+                One or more detectors to reduce.  If None, return the full list
+                for the provided number of detectors (``ndet``).  Should be None
+                if ``slitspatnum`` is provided.
             ndet (:obj:`int`, optional):
                 The number of detectors for this instrument.  Only used
-                if `detnum is None`.
+                if ``detnum`` is None.
+            slitspatnum (:obj:`str`, optional):
+                A standard format string used to identify a slit by its detector
+                number and spatial pixel.  Should be None if ``detnum`` is
+                provided.
 
         Returns:
-            list:  List of detectors to be reduced
-
+            :obj:`list`: List of detectors to be reduced.
         """
         if detnum is not None and slitspatnum is not None:
-            msgs.error("You cannot specify both detnum and slitspatnum.  Too painful for over-writing SpecObjs")
+            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
+                       'over-writing SpecObjs.')
         if detnum is None and slitspatnum is None:
             return np.arange(1, ndet+1).tolist()
         elif detnum is not None:
@@ -408,6 +462,7 @@ class PypeIt(object):
         else:
             return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
+    # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
@@ -813,9 +868,23 @@ class PypeIt(object):
                                                 det=det, binning=self.binning,
                                                 basename=self.basename)
 
-        skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-            global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
-            obstime=self.obstime)
+        # Prepare some masks and the tilts
+        self.redux.prepare_extraction()
+
+        if not self.par['reduce']['extraction']['skip_extraction']:
+            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
+                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+                obstime=self.obstime)
+        else:
+            # Since the extraction was not performed, fill the arrays with the best available information
+            skymodel = self.redux.initial_sky
+            objmodel = np.zeros_like(self.redux.sciImg.image)
+            ivarmodel = np.copy(self.redux.sciImg.ivar)
+            outmask = self.redux.sciImg.fullmask
+            scaleImg = self.redux.scaleimg
+            waveImg = self.redux.waveimg
+            tilts = self.redux.tilts
+            sobjs = sobjs_obj
 
         # TODO -- Do this upstream
         # Tack on detector and wavelength RMS
@@ -931,19 +1000,7 @@ class PypeIt(object):
         Print the elapsed time
         """
         # Capture the end time and print it to user
-        tend = time.time()
-        codetime = tend-self.tstart
-        if codetime < 60.0:
-            msgs.info('Execution time: {0:.2f}s'.format(codetime))
-        elif codetime/60.0 < 60.0:
-            mns = int(codetime/60.0)
-            scs = codetime - 60.0*mns
-            msgs.info('Execution time: {0:d}m {1:.2f}s'.format(mns, scs))
-        else:
-            hrs = int(codetime/3600.0)
-            mns = int(60.0*(codetime/3600.0 - hrs))
-            scs = codetime - 60.0*mns - 3600.0*hrs
-            msgs.info('Execution time: {0:d}h {1:d}m {2:.2f}s'.format(hrs, mns, scs))
+        msgs.info(utils.get_time_string(time.time()-self.tstart))
 
     # TODO: Move this to fitstbl?
     def show_science(self):

@@ -16,7 +16,7 @@ class CompareSky(scriptbase.ScriptBase):
         parser = super().get_parser(description='Compare the extracted sky spectrum against an '
                                                 'archived sky model maintained by PypeIt.',
                                     width=width)
-        parser.add_argument('file', type=str, help='Spectral file')
+        parser.add_argument('file', type=str, help='spec1d Spectral file')
         parser.add_argument('skyfile', type=str,
                             help='Archived PypeIt sky file (e.g. paranal_sky.fits)')
         parser.add_argument('--exten', type=int, help='FITS extension')
@@ -24,6 +24,8 @@ class CompareSky(scriptbase.ScriptBase):
                             help='Show Optimal? Default is boxcar')
         parser.add_argument('--scale_user', default=1., type=float,
                             help='Scale user spectrum by a factor')
+        parser.add_argument('--test', default=False, action='store_true',
+                            help='Load files but do not show plot')
         return parser
 
     # Script to run XSpec from the command line or ipython
@@ -41,21 +43,25 @@ class CompareSky(scriptbase.ScriptBase):
         sky_path = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec')
 
         # Extension
-        exten = args.exten if hasattr(args, 'exten') else 0
+        exten = args.exten if args.exten is not None else 1
 
         # Read spec keywords
         ikwargs = {}
         if args.optimal:
-            ikwargs['wave_tag'] = 'opt_wave'
-            ikwargs['flux_tag'] = 'opt_sky'
+            ikwargs['wave_tag'] = 'OPT_WAVE'
+            ikwargs['flux_tag'] = 'OPT_COUNTS_SKY'
+            ikwargs['ivar_tag'] = 'OPT_COUNTS_IVAR'
+            ikwargs['sig_tag'] = 'OPT_COUNTS_SIG'
         else:
-            ikwargs['wave_tag'] = 'box_wave'
-            ikwargs['flux_tag'] = 'box_sky'
+            ikwargs['wave_tag'] = 'BOX_WAVE'
+            ikwargs['flux_tag'] = 'BOX_COUNTS_SKY'
+            ikwargs['ivar_tag'] = 'BOX_COUNTS_IVAR'
+            ikwargs['sig_tag'] = 'BOX_COUNTS_SIG'
 
         # Load user file
         user_sky = readspec(args.file, exten=exten, **ikwargs)
         # Load sky spec
-        arx_sky = readspec(sky_path+args.skyfile)
+        arx_sky = readspec(os.path.join(sky_path, args.skyfile))
 
         # Plot
         plt.clf()
@@ -63,6 +69,7 @@ class CompareSky(scriptbase.ScriptBase):
         plt.plot(arx_sky.wavelength, arx_sky.flux, 'b-', label='archive')
         legend = plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
                             handletextpad=0.3, fontsize='small', numpoints=1)
-        plt.show()
+        if not args.test:
+            plt.show()
 
 

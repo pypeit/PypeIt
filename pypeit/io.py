@@ -14,8 +14,6 @@ import gzip
 import shutil
 from packaging import version
 
-from IPython import embed
-
 import numpy
 
 from configobj import ConfigObj
@@ -33,6 +31,7 @@ import astropy
 import sklearn
 import pypeit
 import time
+
 
 # TODO -- Move this module to core/
 

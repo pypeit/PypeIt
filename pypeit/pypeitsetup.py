@@ -280,7 +280,8 @@ class PypeItSetup:
             :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, files=self.file_list,
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, 
+                                      files=self.file_list,
                                       usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
@@ -316,9 +317,10 @@ class PypeItSetup:
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
-    def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
-            clean_config=True, groupings=True, obslog=False, write_files=True,
-            no_write_sorted=False):
+    def run(self, setup_only=False, calibration_check=False, 
+            sort_dir=None, write_bkg_pairs=False,
+            clean_config=True, groupings=True, obslog=False, 
+            write_files=True, no_write_sorted=False):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -348,6 +350,7 @@ class PypeItSetup:
                 success of the setup and how to proceed, and provides
                 warnings (instead of errors) for issues that may
                 cause the reduction itself to fail.
+                If True, this also allows for bad headers.
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are
                 appropriately setup and exist on disk. ``PypeIt`` is

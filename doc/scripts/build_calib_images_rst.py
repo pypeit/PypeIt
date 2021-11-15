@@ -71,8 +71,8 @@ if __name__ == '__main__':
     # Set the output directory
     output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
                                'doc', 'include')
-    for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.TiltImage, WaveCalib, WaveTilts,
-                FlatImages]:
+    for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.DarkImage,
+                buildimage.TiltImage, WaveCalib, WaveTilts, FlatImages]:
 
         ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
 

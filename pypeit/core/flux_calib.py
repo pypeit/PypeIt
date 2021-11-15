@@ -396,6 +396,7 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
 
     Parameters
     ----------
+    longitude, latitude: Geocentric coordinates in degrees (floats).
     toler : Angle, optional
         Tolerance for matching detector to site (5 deg)
 
@@ -438,8 +439,8 @@ def extinction_correction(wave, airmass, extinct):
     Parameters
     ----------
     wave (`numpy.ndarray`_):
-        Wavelengths for interpolation. Should be sorted Assumes
-        Angstroms
+        Wavelengths for interpolation. Should be sorted.
+        Assumes angstroms.
     airmass : float
         Airmass
     extinct : Table
@@ -448,7 +449,10 @@ def extinction_correction(wave, airmass, extinct):
     Returns:
     -------
     `numpy.ndarray`_:
-        Flux corrections at the input wavelengths
+        Multiplucative flux correction factors
+        at the input wavelengths.
+        i.e. true_flux = correction_factor*observed_flux
+
     """
     # Checks
     if airmass < 1.:

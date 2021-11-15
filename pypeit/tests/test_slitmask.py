@@ -54,7 +54,7 @@ def test_assign_maskinfo():
 
     # Test that the maskfile is saved properly
     hdul = fits.open(slits.maskfile)
-    det_par = keck_deimos.get_detector_par(hdul, det=det)
+    det_par = keck_deimos.get_detector_par(det, hdu=hdul)
 
     specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
@@ -118,7 +118,7 @@ def test_add_missing_obj():
 
     # Test that the maskfile is saved properly
     hdul = fits.open(slits.maskfile)
-    det_par = keck_deimos.get_detector_par(hdul, det=det)
+    det_par = keck_deimos.get_detector_par(det, hdu=hdul)
 
     specobjs_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                             'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')

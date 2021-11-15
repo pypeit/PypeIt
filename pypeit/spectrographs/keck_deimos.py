@@ -60,15 +60,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.amap = None
         self.bmap = None
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -76,7 +77,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent?
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -181,12 +182,9 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
         par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.
-#        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] \
-        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
@@ -198,14 +196,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['comb_sigrej'] = 10.
 
-        # Set the default exposure time ranges for the frame typing
-#        par['calibrations']['biasframe']['exprng'] = [None, 2]
-#        par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
-#        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-#        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-#        par['calibrations']['traceframe']['exprng'] = [None, 30]
-#        par['scienceframe']['exprng'] = [30, None]
-
         # Do not sigmaclip the arc frames
         par['calibrations']['arcframe']['process']['clip'] = False
         # Do not sigmaclip the tilt frames
@@ -216,6 +206,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+
+        # Find objects
+        #  The following corresponds to 1.1" if unbinned (DEIMOS is never binned)
+        par['reduce']['findobj']['find_fwhm'] = 10.  
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
@@ -277,7 +271,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
@@ -287,11 +281,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         elif self.get_meta_value(headarr, 'dispname') == '1200B':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200B.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         elif self.get_meta_value(headarr, 'dispname') == '900ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_900ZD.fits'
-            par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+            # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
+        # Arc lamps list from header
+        par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -639,7 +635,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Return
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return self.get_detector_par(hdu, det if det is not None else 1), \
+        return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
                image, hdu, exptime, rawdatasec_img, oscansec_img
 
     def bpm(self, filename, det, shape=None, msbias=None):
@@ -714,6 +710,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             bpm_img[:,931:934] = 1
 
         return bpm_img
+
+    def get_lamps(self, fitstbl):
+        """
+        Extract the list of arc lamps used from header
+
+        Args:
+            fitstbl (`astropy.table.Table`_):
+                The table with the metadata for one or more arc frames.
+
+        Returns:
+            lamps (:obj:`list`) : List used arc lamps
+
+        """
+
+        return [f'{lamp}I' for lamp in np.unique(np.concatenate([lname.split() for lname in fitstbl['lampstat01']]))]
 
     def get_telescope_offset(self, file_list):
         """

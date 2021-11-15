@@ -93,7 +93,8 @@ class PypeItMetaData:
             The table with the relevant metadata for each fits file to
             use in the data reduction.
     """
-    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, strict=True):
+    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, 
+                 strict=True):
 
         if data is None and files is None:
             # Warn that table will be empty
@@ -109,7 +110,8 @@ class PypeItMetaData:
 
         # Build table
         self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, usrdata=usrdata))
+                                 else self._build(files, strict=strict, 
+                                                  usrdata=usrdata))
 
         # Merge with user data, if present
         if usrdata is not None:
@@ -189,9 +191,10 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict,
-                                                         usr_row=usr_row, ignore_bad_header
-                                                            =self.par['rdx']['ignore_bad_headers'])
+                value = self.spectrograph.get_meta_value(headarr, meta_key, 
+                                                         required=strict,
+                                                         usr_row=usr_row, 
+                        ignore_bad_header = self.par['rdx']['ignore_bad_headers'])
                 if isinstance(value, str) and '#' in value:
                     value = value.replace('#', '')
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
@@ -700,7 +703,8 @@ class PypeItMetaData:
 
         # Configuration identifiers are iterations through the
         # upper-case letters: A, B, C, etc.
-        cfg_iter = string.ascii_uppercase
+        double_alphabet = [str_i + str_j for str_i in string.ascii_uppercase for str_j in string.ascii_uppercase]
+        cfg_iter = list(string.ascii_uppercase) + double_alphabet
         cfg_indx = 0
 
         # TODO: Placeholder: Allow an empty set of configuration keys

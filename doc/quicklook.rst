@@ -154,7 +154,7 @@ MOSFIRE QL Example
 
 Here is an example call::
 
-    pypeit_ql_keck_nires /data/Keck_MOSFIRE/Raw m191120_0043.fits m191120_0044.fits m191120_0045.fits m191120_0046.fits --spec_samp_fact 2.0 --spat_samp_fact 2.0
+    pypeit_ql_keck_mosfire /data/Keck_MOSFIRE/Raw m191120_0043.fits m191120_0044.fits m191120_0045.fits m191120_0046.fits --spec_samp_fact 2.0 --spat_samp_fact 2.0
 
 .. _mosfire-output:
 
