@@ -884,9 +884,6 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
           Dict of wavelength calibration solutions
 
     """
-    #debug_xcorr=True
-    #debug_reid=True
-    #debug=True
     # Load line lists
     if 'ThAr' in lamps:
         line_lists_all = waveio.load_line_lists(lamps)
@@ -948,7 +945,7 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
             npad *= -1
             tspec = np.zeros(nspec)
             tspec[npad // 2:npad // 2 + ncomb] = tspec_cont_sub
-        else:
+        else:  # No padding necessary
             pspec = ispec_cont_sub
             tspec = tspec_cont_sub
         # Cross-correlate

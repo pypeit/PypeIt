@@ -6,6 +6,7 @@
   the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
 - Set DEMIOS FWHM default to 10 pixels
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
 
 
 1.6.0 (1 Oct 2021)

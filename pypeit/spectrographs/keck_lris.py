@@ -126,9 +126,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-        # TODO: Sunil replaced TELAPSE with TTIME and mJD-OBS with MJD temporarily. Sunil needs to create a new detector class for this stuff.
-        self.meta['mjd'] = dict(ext=0, card='MJD')
-        self.meta['exptime'] = dict(ext=0, card='TELAPSE')
+        # 
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
         self.meta['dichroic'] = dict(ext=0, card='DICHNAME')
@@ -166,7 +166,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            curr_date = time.Time(headarr[0]['MJD'], format='mjd')
+            curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -872,7 +872,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             det=1,
             dataext=1,
             specaxis=0,
-            specflip=True,  # This is for the new LRISr
+            specflip=False,
             spatflip=False,
             platescale=0.135,
             darkcurr=0.0,
@@ -896,7 +896,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Allow for post COVID detector issues
             t2020_1 = time.Time("2020-06-30", format='isot')  # First run
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
-            # Allow for the new detector upgrade
+            # Check for the new detector (Mark4) upgrade
             t2021_upgrade = time.Time("2021-04-15", format='isot') 
             date = time.Time(hdu[0].header['MJD'], format='mjd')
 
@@ -932,11 +932,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         if namps == 2 or (namps==4 and len(hdu)==3):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             # Long silt mode
-            # TODO: Change AMPPSIZE to whatever is on the new FITS files for data after the upgrade.
             if hdu[0].header['AMPPSIZE'] == '[1:1024,1:4096]':
                 idx = 0 if det==1 else 1  # Vid1 for det=1, Vid4 for det=2
-                #if idx>0:
-                #    import pdb; pdb.set_trace()
                 detector.gain = np.atleast_1d(detector.gain[idx])
                 detector.ronoise = np.atleast_1d(detector.ronoise[idx])
             else:
@@ -1122,13 +1119,18 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
 class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     """
-    Child to handle the original LRISr detector (pre 01 JUL 2009)
+    Child to handle the new Mark4 detector
     """
     ndet = 1
     name = 'keck_lris_red_mark4'
     supported = True
     comment = 'New Mark4 detector, circa Spring 2021'
 
+    def init_meta(self):
+        super().init_meta()
+        # Over-ride a pair
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='TELAPSE')
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -1172,7 +1174,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Date of Mark4 installation
         t2021_upgrade = time.Time("2021-04-15", format='isot') 
         # TODO -- Update with the date we transitioned to the correct ones
-        t_gdhead = time.Time("2021-11-01", format='isot')  
+        t_gdhead = time.Time("2022-01-01", format='isot')  
         date = time.Time(hdu[0].header['MJD'], format='mjd')
 
         if date < t2021_upgrade:
@@ -1634,8 +1636,7 @@ def get_orig_rawimage(raw_file, debug=False):
         oscansec_img[:, biascols] = iamp+1
         imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
         rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
-    # TODO: I've replaced TELAPSE with TTIME temporarily
-    return image, hdul, float(head0['TELAPSE']), \
+    return image, hdul, float(head0['ELAPTIME']), \
            rawdatasec_img, oscansec_img
 
 
