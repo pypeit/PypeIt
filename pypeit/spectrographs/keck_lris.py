@@ -1015,7 +1015,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
+            if self.name == 'keck_lris_red_mark4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
+            else:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['sigdetect'] = 20.0
             par['calibrations']['wavelengths']['nsnippet'] = 1
@@ -1124,7 +1127,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
     ndet = 1
     name = 'keck_lris_red_mark4'
     supported = True
-    comment = 'New Mark4 detector, circa Spring 2021'
+    comment = 'New Mark4 detector, circa Spring 2021; Supported setups = R400'
 
     def init_meta(self):
         super().init_meta()
@@ -1306,7 +1309,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
+    comment = 'Original detector; replaced in 2009; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):

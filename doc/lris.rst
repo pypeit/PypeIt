@@ -82,6 +82,18 @@ very blue.
 keck_lris_red
 =============
 
+Detectors
++++++++++
+
+There have been 3 (or is it 4?!) generations of detectors
+in the LRISr camera.  The original is named `keck_lris_red_orig`,
+the LBNL detectors (2kx4k) are `keck_lris_red` and the newest
+Mark4 detector is `keck_lris_red_mark4`.   
+
+For the latter (Mark4), the wavelengths have been incorporated for the 
+R400 grating only so far but the arxiv solutions from the LBNL detector
+may work ok.  Check the outputs!
+
 Taking Calibrations for LRISr
 =============================
 
