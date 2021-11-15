@@ -94,9 +94,6 @@ For the latter (Mark4), the wavelengths have been incorporated for the
 R400 grating only so far but the arxiv solutions from the LBNL detector
 may work ok.  Check the outputs!
 
-Taking Calibrations for LRISr
-=============================
-
 LRISr Default Settings
 ++++++++++++++++++++++
 
@@ -107,10 +104,10 @@ for LRISr::
     settings trace slits pca params [3,2,1,0]
 
 Known issues
-++++++++++++
+============
 
 LRISb Slit Edges
-----------------
+++++++++++++++++
 
 When observing in long-slit mode, PypeIt might set the slit incorrectly
 for detector 2.  This may occur if the counts from the flat field
@@ -135,7 +132,7 @@ Here is an example for the PypeIt file::
 This will force a slit onto the detector for reduction.
 
 Multi-slit
-----------
+++++++++++
 
 The code may identify a 'ghost' slit in empty detector real
 estate if your mask does not fill most of the field.  Be prepared
