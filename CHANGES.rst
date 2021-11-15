@@ -6,6 +6,8 @@
   the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
 - Set DEMIOS FWHM default to 10 pixels
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
 
 
 1.6.0 (1 Oct 2021)
