@@ -64,10 +64,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0,        #
+            dataext         = 0,
             specaxis        = 1,        # Native spectrum is along the x-axis
             specflip        = True,     # DeVeny CCD has blue at the right
-            spatflip        = False,    #
+            spatflip        = False,
             platescale      = 0.34,     # Arcsec / pixel
             darkcurr        = 4.5,      # Electrons per hour
             saturation      = 65535.,   # 16-bit ADC
@@ -182,11 +182,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Processing Steps
-        turn_off = dict(use_biasimage=False, use_darkimage=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        # Turn off illumflat -- other defaults OK (as of v1.4.1)
+        # Turn off illumflat -- other defaults OK (as of v1.6.0)
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
 
@@ -198,10 +194,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['bpm_usebias'] = True
 
         # Wavelength Calibration Parameters
-        # Include all the lamps available on DeVeny
-        #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
-        # Arc lamps list from header
+        # Arc lamps list from header -- instead of defining the full list here
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
+        #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
+        # The default WaveCalib method is `holy-grail`, but there is an option...
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         # These are changes from defaults from another spectrograph...
         # TODO: Not sure if we will need to adjust these at some point
@@ -213,7 +209,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
 
-        # Slit-edge settings for long-slit data (DeVeny's slit > 90" long)
+        # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['minimum_slit_length'] = 90.
@@ -230,13 +226,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
 
-        # Reduction and Extraction Parameters
+        # Reduction and Extraction Parameters -- Look for fainter objects
         par['reduce']['findobj']['sig_thresh'] = 5.0   # Default: 10.0
 
-        # Flexure correction parameters
+        # Flexure Correction Parameters
         par['flexure']['spec_method'] = 'boxcar'  # Default: 'skip'
 
-        # Sensitivity function parameters
+        # Sensitivity Function Parameters
         par['sensfunc']['polyorder'] = 7  # Default: 5
 
         return par
