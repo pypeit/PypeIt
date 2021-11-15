@@ -898,7 +898,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
             # Check for the new detector (Mark4) upgrade
             t2021_upgrade = time.Time("2021-04-15", format='isot') 
-            date = time.Time(hdu[0].header['MJD'], format='mjd')
+            date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), 
+                             format='mjd')
 
             if date < t2020_1:
                 pass
