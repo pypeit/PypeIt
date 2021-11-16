@@ -24,6 +24,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     name = 'mmt_bluechannel'
+    header_name = 'mmtbluechan'
     telescope = telescopes.MMTTelescopePar()
     camera = 'Blue_Channel'
     supported = True
@@ -118,6 +119,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

@@ -136,6 +136,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -493,6 +494,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
     name = 'keck_lris_blue'
     camera = 'LRISb'
+    header_name = 'LRISBLUE'
     supported = True
     comment = 'Blue camera; see :doc:`lris`'
     
@@ -844,6 +846,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     name = 'keck_lris_red'
     camera = 'LRISr'
+    header_name = 'LRIS'
     supported = True
     comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     

@@ -25,6 +25,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     name = 'mdm_osmos_mdm4k'
     telescope = telescopes.KPNOTelescopePar()
     camera = 'MDM4K'
+    header_name = 'OSMOS'
     supported = True
     comment = 'MDM OSMOS spectrometer'
 
@@ -125,6 +126,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

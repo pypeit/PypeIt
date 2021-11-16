@@ -98,6 +98,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Additional ones, generally for configuration determination or time
         self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        self.meta['instrument'] = dict(ext=0, card='VERSION')
         lamp_names = [ '1', '2', '3', '4', '5',
                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
         for kk,lamp_name in enumerate(lamp_names):
@@ -200,6 +201,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_blue'
     camera = 'KASTb'
     supported = True
+    header_name = 'kastb'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -327,6 +329,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_red'
     camera = 'KASTr'
     supported = True
+    header_name = 'kastr'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -565,6 +568,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     camera = 'KASTr'
     supported = True
     comment = 'Red reticon'
+    header_name = 'kastr'
 
     def get_detector_par(self, det, hdu=None):
         """
