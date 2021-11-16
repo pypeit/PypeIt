@@ -2,6 +2,7 @@
 --------
 
 - Introduces pypeit_parse_calib_id script
+- Throw a warning if the chosen spectrograph has a header which does not match expectation
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
   the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template

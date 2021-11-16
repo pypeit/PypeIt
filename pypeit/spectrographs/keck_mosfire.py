@@ -27,6 +27,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     name = 'keck_mosfire'
     telescope = telescopes.KeckTelescopePar()
     camera = 'MOSFIRE'
+    header_name = 'MOSFIRE'
     supported = True
     comment = 'Gratings tested: Y, J, K'
 
@@ -160,6 +161,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['dithpat'] = dict(ext=0, card='PATTERN')
         self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
         self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
