@@ -1215,8 +1215,11 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             pass
         elif detector_dict1['numamplifiers'] == 4:
             # From the web page on 2021-10-04 (L1, L2, U1, U2)
-            # TODO -- Make sure this is right -- See doc by SS
-            detector_dict1['gain'] = np.atleast_1d([1.71, 1.64, 1.61, 1.67])
+            #  Corrected by JXP and SS using chk_lris_mark4_gain.py in the DevSuite
+            detector_dict1['gain'] = np.atleast_1d([1.710, 
+                                                    1.64*1.0245,  # L2
+                                                    1.61*1.0185,  # U1
+                                                    1.67*1.0052]) # U2
             detector_dict1['ronoise'] = np.atleast_1d([3.64, 3.45, 3.65, 3.52])
         else:
             msgs.error("Did not see this namps coming..")
