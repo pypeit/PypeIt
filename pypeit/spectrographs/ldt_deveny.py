@@ -219,9 +219,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spat_order'] = 4  # Default: 3
         par['calibrations']['tilts']['spec_order'] = 5  # Default: 4
 
-        # Flat fielding adjustment -- Don't deal with noise at blue end
-        par['calibrations']['flatfield']['pixelflat_min_wave'] = 3200
-
         # Cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0  # Default: 4.5
         par['scienceframe']['process']['objlim'] = 2.0   # Default: 3.0
@@ -350,6 +347,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Reduction File if the default method fails.  This parameter pre-loads the proper
             # reid_arxiv in this case.
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300l_HgCdAr.fits'
+            # Flat fielding adjustment -- Apparent smudge on DV2 grating?
+            # Causes weird excess illumination blueward of 3500A along center of slit for flats
+            par['calibrations']['flatfield']['pixelflat_min_wave'] = 3500
         elif grating == 'DV3 (300/6750)':
             pass
         elif grating == 'DV4 (400/8000)':
@@ -359,7 +359,10 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500l_HgCdAr.fits'
         elif grating == 'DV6 (600/4900)':
-            pass
+            # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
+            # Reduction File if the default method fails.  This parameter pre-loads the proper
+            # reid_arxiv in this case.
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600l_HgCdNeAr.fits'
         elif grating == 'DV7 (600/6750)':
             pass
         elif grating == 'DV8 (831/8000)':
