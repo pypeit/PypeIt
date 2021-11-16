@@ -667,6 +667,10 @@ class FlatField(object):
         twod_model = np.ones_like(rawflat)
         twod_gpm_out = np.ones_like(rawflat, dtype=np.bool)
 
+        # Before looping over slits, check if we need to create a waveimg
+        make_waveimg = self.flatpar['pixelflat_min_wave'] is not None or \
+                       self.flatpar['pixelflat_max_wave'] is not None
+
         # #################################################
         # Model each slit independently
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
@@ -1066,15 +1070,13 @@ class FlatField(object):
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
-            # Build wavelength image AFTER the slits have been tweaked.  This is
-            #  the only place in this method that uses it.  It is not always used, 
-            #  but for convenience done here
-            slitmask = self.slits.slit_img(initial=True, 
-                                        flexure=self.wavetilts.spat_flexure)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, 
-                                            flexure=self.wavetilts.spat_flexure)
-            waveimg = self.wv_calib.build_waveimg(
-                tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
+            # If needed, build wavelength image AFTER the slits have been tweaked.
+            if make_waveimg:
+                slitmask = self.slits.slit_img(flexure=self.wavetilts.spat_flexure)
+                tilts = self.wavetilts.fit2tiltimg(slitmask, 
+                                                flexure=self.wavetilts.spat_flexure)
+                waveimg = self.wv_calib.build_waveimg(
+                    tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
 
             # Minimum wavelength?
             if self.flatpar['pixelflat_min_wave'] is not None:
