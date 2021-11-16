@@ -67,7 +67,7 @@ def init_qso_pca(filename,wave_grid,redshift, npca):
     coeffs_c = pca_table['PCA_COEFFS'][0][0,:,:]
     num_comp = pca_comp_c.shape[0] # number of PCA components
     # Interpolate PCA components onto wave_grid
-    pca_interp = scipy.interpolate.interp1d(wave_pca_c, pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)
+    pca_interp = scipy.interpolate.interp1d(wave_pca_c*(1.0+redshift), pca_comp_c, bounds_error=False, fill_value=0.0, axis=1)
     pca_comp_new = pca_interp(wave_grid)
     # Generate a mixture model for the coefficients prior, what should ngauss be?
     #prior = mixture.GaussianMixture(n_components = npca-1).fit(coeffs_c[:, 1:npca])
@@ -98,7 +98,9 @@ def qso_pca_eval(theta,qso_pca_dict):
     z_qso = theta[0]
     norm = theta[1]
     A = theta[2:]
-    C_now = qso_pca_dict['interp'](qso_pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
+    #C_now = qso_pca_dict['interp'](qso_pca_dict['wave_grid']/(1.0+z_qso))[:npca,:]
+    dshift = int(np.round(np.log10((1.0 + z_qso)/(1.0 + z_fid))/dloglam))
+    C_now = np.roll(C[:npca,:], dshift, axis=1)
     return norm*np.exp(np.dot(np.append(1.0,A),C_now))
 
 # TODO The prior is not currently used, but this is left in here anyway.
