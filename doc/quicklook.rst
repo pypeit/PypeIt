@@ -208,4 +208,6 @@ a command like::
 This will process and extract spectra from the slit_id=763 in the 
 science exposure DE.20130409.20629.fits.  Again, you specify
 the path to the RAW frames and the `path_for_calibs` which is also
-where the reduced spectra will appear.
+where the reduced spectra will appear.  
+
+We estimate 2min for full extraction on a single slit.
