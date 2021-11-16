@@ -1437,7 +1437,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         list_detectors (:obj:`tuple`):
             An array that lists the detector numbers of the current spectrograph,
             e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]]), with shape :math:`(2, N_{\rm dets})`
-            or (:math:`N_{\rm dets}`,), and a flag that indicates if the spectrograph is
+            or :math:`(1, N_{\rm dets})`, and a flag that indicates if the spectrograph is
             divided into blue and red detectors.
 
     Returns:
@@ -1470,7 +1470,12 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
         return calib_slits
 
-    if not blue_and_red:
+    # are there dets from calib_slits that are blue?
+    indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
+    # if this spectrograph is not split into blue and red detectors
+    # or if it is but there are no available offsets in the blue
+    if not blue_and_red or slitmask_offsets[indx_b].size == 0:
+        # use all the available offsets to compute the median
         _, median_off, _ = sigma_clipped_stats(slitmask_offsets, sigma=2.)
         for cs in calib_slits:
             # assign median to each det
@@ -1479,41 +1484,29 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
         return calib_slits
 
-    else:
-        # blue dets
-        # find which dets in calib_slits are blue
-        indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
-        if slitmask_offsets[indx_b].size > 0:
-            # compute median if these dets have values of slitmask_offsets
-            _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_b], sigma=2.)
-            for cs in calib_slits[indx_b]:
-                # assign median to each blue det
-                cs.maskdef_offset = median_off
-            msgs.info('Average Slitmask offset for the blue detectors: '
-                      '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
+    if slitmask_offsets[indx_b].size > 0:
+        # compute median if these blue dets have values of slitmask_offsets
+        _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_b], sigma=2.)
+        for cs in calib_slits[indx_b]:
+            # assign median to each blue det
+            cs.maskdef_offset = median_off
+        msgs.info('Average Slitmask offset for the blue detectors: '
+                  '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
-            # red dets
-            # if median computed for blue dets, find now which dets in calib_slits are red
-            indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
-            if slitmask_offsets[indx_r].size > 0:
-                # compute median if these dets have values of slitmask_offsets
-                _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)
+        # which dets from calib_slits are red?
+        indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
+        if slitmask_offsets[indx_r].size > 0:
+            # compute median if these red dets have values of slitmask_offsets
+            _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)
 
-            # assign median to each red det (median would be the one computed for red dets if exists
-            # or the median computed for blue dets)
-            for cs in calib_slits[indx_r]:
-                cs.maskdef_offset = median_off
-            msgs.info('Average Slitmask offset for the red detectors: '
-                      '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
-        else:
-            # if median was not computed for blue dets, use the remaining (red) dets to compute the median for all dets
-            _, median_off, _ = sigma_clipped_stats(slitmask_offsets, sigma=2.)
-            for cs in calib_slits:
-                cs.maskdef_offset = median_off
-            msgs.info('Average Slitmask offset for all the detectors: '
-                      '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
+        # assign median to each red det (median would be the one computed for red dets if exists
+        # or the median computed for blue dets)
+        for cs in calib_slits[indx_r]:
+            cs.maskdef_offset = median_off
+        msgs.info('Average Slitmask offset for the red detectors: '
+                  '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
-        return calib_slits
+    return calib_slits
 
 
 def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):

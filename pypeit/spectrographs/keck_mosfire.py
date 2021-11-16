@@ -216,8 +216,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['object'] = dict(ext=0, card='OBJECT')
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
-        # Lamps
-        # flat lamps on/off
+        # Lamps on/off or Ar/Ne
         self.meta['lampstat01'] = dict(card=None, compound=True)
 
         # Dithering
@@ -241,35 +240,38 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'idname':
-            # KOAIMTYP non good frame typing
-            # if headarr[0].get('KOAIMTYP', None) is not None:
-            #     return headarr[0].get('KOAIMTYP')
-            # else:
-            try:
-                # TODO: This should be changed to except on a specific error.
-                FLATSPEC = int(headarr[0].get('FLATSPEC'))
-                PWSTATA7 = int(headarr[0].get('PWSTATA7'))
-                PWSTATA8 = int(headarr[0].get('PWSTATA8'))
-                if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                    if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
-                        return 'flatlampoff'
-                    else:
-                        return 'object'
-                elif FLATSPEC == 0 and headarr[0].get('FILTER') == 'Dark':
-                    return 'dark'
-                elif FLATSPEC == 1:
-                    return 'flatlamp'
-                elif PWSTATA7 == 1 or PWSTATA8 == 1:
-                    return 'arclamp'
-            except:
+            FLATSPEC = headarr[0].get('FLATSPEC')
+            PWSTATA7 = headarr[0].get('PWSTATA7')
+            PWSTATA8 = headarr[0].get('PWSTATA8')
+            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                    return 'flatlampoff'
+                else:
+                    return 'object'
+            elif FLATSPEC == 0 and headarr[0].get('FILTER') == 'Dark':
+                return 'dark'
+            elif FLATSPEC == 1:
+                return 'flatlamp'
+            elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                return 'arclamp'
+            else:
+                msgs.warn('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
                 return 'unknown'
         if meta_key == 'lampstat01':
-            if headarr[0].get('FLATSPEC', None) is not None:
-                return 'on' if headarr[0].get('FLATSPEC')==1 else 'off'
+            if headarr[0].get('PWSTATA7') == 1 or headarr[0].get('PWSTATA8') == 1:
+                lamps = []
+                if headarr[0].get('PWSTATA7') == 1:
+                    lamps.append(headarr[0].get('PWLOCA7')[:2])
+                if headarr[0].get('PWSTATA8') == 1:
+                    lamps.append(headarr[0].get('PWLOCA8')[:2])
+                return ','.join(lamps)
+            elif headarr[0].get('FLATSPEC') == 1 or headarr[0].get('FLSPECTR') == 'on':
+                return 'on'
             else:
-                return headarr[0].get('FLSPECTR')
+                return 'off'
+
         if meta_key == 'dithoff':
-            if headarr[0].get('YOFFSET', None) is not None:
+            if headarr[0].get('YOFFSET') is not None:
                 return headarr[0].get('YOFFSET')
             else:
                 return 0.0
@@ -331,12 +333,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlampoff'))
         if ftype in ['illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')
+            return good_exp & (fitstbl['lampstat01'] == 'on') & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -344,45 +346,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
             is_arc = fitstbl['idname'] == 'arclamp'
-            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'object')
+            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check. Can be ``'off'``, ``'arcs'``, or
-                ``'dome'``.
-
-        Returns:
-            `numpy.ndarray`_: A boolean array selecting fits files that meet
-            the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-        if status == 'off':
-            # Check if all are off
-            return fitstbl['lampstat01'] == 'off'
-            # return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
-            #               axis=0)
-        # DP: this is not checking the lamp status of the arcs, but of the flats
-        # if status == 'arcs':
-        #     # Check if any arc lamps are on
-        #     arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-        #     return np.any(np.array([ fitstbl[k] == '1' for k in fitstbl.keys()
-        #                                     if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
-            return fitstbl['lampstat01'] == 'on'
-
-        raise ValueError('No implementation for status = {0}'.format(status))
 
     def parse_dither_pattern(self, file_list, ext=None):
         """
@@ -522,9 +489,10 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         Returns:
             :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
             indicates that the spectrograph is divided into blue and red detectors. The array has
-            shape :math:`(2, N_{\rm dets})` if split into blue and red dets, otherwise shape (:math:`N_{\rm dets}`,))
+            shape :math:`(2, N_{\rm dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{\rm dets})`
         """
-        dets = np.arange(self.ndet)+1
+        dets = np.array([range(self.ndet)])+1
+
         return dets, False
 
     def get_slitmask(self, filename):

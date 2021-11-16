@@ -484,7 +484,7 @@ class Spectrograph:
         This method is not defined for all spectrographs.
 
         """
-        return None, None
+        return None, False
 
     def get_lamps(self, fitstbl):
         """
