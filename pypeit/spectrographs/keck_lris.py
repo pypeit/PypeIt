@@ -137,6 +137,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+        # Extras for pypeit file
+        self.meta['amp'] = dict(ext=0, card='NUMAMPS')  # This may evolve with date to TAPLINES
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -216,7 +218,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno']
+        return super().pypeit_file_keys() + ['frameno', 'amp']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -1072,7 +1074,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle']
+        return super().configuration_keys() + ['dispangle', 'amp']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
