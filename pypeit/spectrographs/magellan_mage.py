@@ -25,6 +25,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'magellan_mage'
     camera = 'MagE'
+    header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
     supported = True
@@ -152,6 +153,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTRUME')
         self.meta['idname'] = dict(ext=0, card='EXPTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

@@ -25,6 +25,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     name = 'not_alfosc'
     telescope = telescopes.NOTTelescopePar()
     camera = 'ALFOSC'
+    header_name = 'ALFOSC_FASU'
     supported = True
     comment = 'Grisms 4, 19'
 
@@ -153,6 +154,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='ALGRNM')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
