@@ -138,7 +138,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # Extras for pypeit file
-        self.meta['amp'] = dict(ext=0, card='NUMAMPS')  # This may evolve with date to TAPLINES
+        self.meta['amp'] = dict(card=None, compound=True)
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -190,6 +190,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                     return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
                 else:  # Lamp didn't exist.  Set to None
                     return 'None'
+        elif 'amp' in meta_key:
+            if self.name == 'keck_lris_red_mark4':
+                return headarr[0]['TAPLINES']
+            else:
+                return headarr[0]['NUMAMPS']
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -218,7 +223,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             :class:`~pypeit.metadata.PypeItMetaData` instance to print to the
             :ref:`pypeit_file`.
         """
-        return super().pypeit_file_keys() + ['frameno', 'amp']
+        return super().pypeit_file_keys() + ['frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -1074,7 +1079,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'amp']
+        return super().configuration_keys() + ['dispangle', 'amp', 'binning']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
