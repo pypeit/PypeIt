@@ -27,6 +27,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
     name = 'bok_bc'
     camera = 'BC'
     comment = 'Bok B&C spectrometer'
+    header_name = 'Bok B&C spectrometer'
     supported = True
 
     def configuration_keys(self):
@@ -66,6 +67,7 @@ class BokBCSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='DISPERSE')
         self.meta['dispangle'] = dict(ext=0, card='TILTPOS', rtol=1e-3)
         self.meta['idname'] = dict(ext=0, card='OBJECT')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
 

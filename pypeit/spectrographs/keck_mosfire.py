@@ -31,6 +31,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     name = 'keck_mosfire'
     telescope = telescopes.KeckTelescopePar()
     camera = 'MOSFIRE'
+    header_name = 'MOSFIRE'
     supported = True
     comment = 'Gratings tested: Y, J, K; see :doc:`mosfire`'
 
@@ -218,14 +219,12 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Lamps
         # flat lamps on/off
         self.meta['lampstat01'] = dict(card=None, compound=True)
-        # lamp_names = ['FLATSPEC']
-        # for kk,lamp_name in enumerate(lamp_names):
-        #     self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
 
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='PATTERN')
         self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
         self.meta['dithoff'] = dict(card=None, compound=True)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -384,8 +383,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat01'] == 'on'
 
         raise ValueError('No implementation for status = {0}'.format(status))
-
-
 
     def parse_dither_pattern(self, file_list, ext=None):
         """
