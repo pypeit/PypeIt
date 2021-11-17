@@ -860,14 +860,13 @@ class PypeIt:
                                                 det=det, binning=self.binning,
                                                 basename=self.basename)
 
-        # Prepare some masks and the tilts
-        self.redux.prepare_extraction()
-
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
                 global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
                 obstime=self.obstime)
         else:
+            # Although exrtaction is not performed, still need to prepare some masks and the tilts
+            self.redux.prepare_extraction(global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = self.redux.initial_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)
