@@ -732,6 +732,7 @@ class IRSensFunc(SensFunc):
                                                    ech_orders=self.meta_spec['ECH_ORDERS'],
                                                    sn_clip=self.par['IR']['sn_clip'],
                                                    mask_abs_lines=self.par['mask_abs_lines'],
+                                                   ntell=self.par['IR']['ntell'],
                                                    maxiter=self.par['IR']['maxiter'],
                                                    lower=self.par['IR']['lower'],
                                                    upper=self.par['IR']['upper'],
