@@ -1388,7 +1388,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
-    This info is recorded in the SlitTraceSet datamodel.
+    This info is recorded in the `SlitTraceSet` datamodel.
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
@@ -1427,22 +1427,24 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
 def average_maskdef_offset(calib_slits, platescale, list_detectors):
     """
     Loop around all the calibrated detectors to compute the median offset between
-    the expected and measure slitmask position. This info is recorded in the SlitTraceSet datamodel.
+    the expected and measure slitmask position. This info is recorded in the `SlitTraceSet` datamodel.
 
     Args:
         calib_slits (:obj:`list`):
-            List of `SlitTraceSet` with information on the traced slit edges
+            List of `SlitTraceSet` with information on the traced slit edges.
         platescale (:obj:`float`):
-            Platescale, must be the same for every detectors
+            Platescale, must be the same for every detectors.
         list_detectors (:obj:`tuple`):
             An array that lists the detector numbers of the current spectrograph,
-            e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]]), with shape :math:`(2, N_{\rm dets})`
-            or :math:`(1, N_{\rm dets})`, and a flag that indicates if the spectrograph is
+            e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]]), with shape :math:`(2, N_{dets})`
+            or :math:`(1, N_{dets})`, and a flag that indicates if the spectrograph is
             divided into blue and red detectors.
 
     Returns:
-        Array of `SlitTraceSet` with updated information on the traced slit edges
+        Array of `SlitTraceSet` with updated information on the traced slit edges.
+
     """
+
     calib_slits = np.array(calib_slits)
 
     # unpack list_detectors

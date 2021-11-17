@@ -60,13 +60,13 @@ Frame           ``idname``              ``TRUITIME``   ``FLATSPEC``   ``PWSTATA7
 ``trace``       ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
 ``trace``       ``'flatlampoff'``         Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``include 'Flat:Off' or 'lamps off'``
 ``illumflat``   ``'flatlamp'``            Not used        ``1``          ``0``          ``0``       ``!= 'Dark'``   Not used
-``arc``         ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
+``arc``         ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used
 ``arc``         ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
-``tilt``        ``'arclamp'``             Not used        ``1``          ``1``          ``1``       ``!= 'Dark'``   Not used
+``tilt``        ``'arclamp'``             Not used        ``0``          ``1``          ``1``       ``!= 'Dark'``   Not used
 ``tilt``        ``'object'``              Not used        ``0``          ``0``          ``0``       ``!= 'Dark'``   ``not include 'Flat:Off' or 'lamps off'``
 =============   =====================   ============   ============   ============   ============   =============   =============================================
 
-Note that, by default, the exposure time (``TRUITIME``) is not used only
+Note that, by default, the exposure time (``TRUITIME``) is only used
 to distinguish between ``science`` and ``standard`` frames; the criteria
 for ``TRUITIME`` can be changed using the ``exprng``
 parameter in the :ref:`pypeit_file`; see also :ref:`frame_types`.

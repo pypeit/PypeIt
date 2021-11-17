@@ -1286,10 +1286,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
         They are separated if they are split into blue and red detectors
+
         Returns:
             :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
             indicates that the spectrograph is divided into blue and red detectors. The array has
-            shape :math:`(2, N_{\rm dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{\rm dets})`
+            shape :math:`(2, N_{dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{dets})`
         """
         dets = np.vstack((np.arange(self.ndet)[:self.ndet//2]+1, np.arange(self.ndet)[self.ndet//2:]+1))
         return dets, True
