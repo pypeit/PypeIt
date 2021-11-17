@@ -1178,7 +1178,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             nonlinear=0.76,
             mincounts=-1e10,
             numamplifiers=2,  # These are defaults but can modify below
-            gain=np.atleast_1d([1.61, 1.67]), # Assumes AMPMODE=HSPLIT,VUP
+            gain=np.atleast_1d([1.61, 1.67*0.959]), # Assumes AMPMODE=HSPLIT,VUP;  Corrected by JXP using 2x1 binned flats
             ronoise=np.atleast_1d([3.65, 3.52]),
         )
 
