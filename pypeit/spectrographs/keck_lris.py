@@ -300,7 +300,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
         elif status == 'halogen':
-            return fitstbl['lampstat12'] == 'on'
+            halo_lamp_stat = ['lampstat12']
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in halo_lamp_stat]), axis=0)
         else:
             msgs.error(f"Bad status option! {status}")
 
