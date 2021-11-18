@@ -166,10 +166,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
 
-            # Hack for the not-stable commission version of the Mark4 detector
-            if binning == '0,0':
-                binning = '1,1'
-                
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
