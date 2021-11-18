@@ -748,6 +748,9 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
     # TODO: Update with sigma_clipped stats with our new cenfunc and std_func = mad_std
     sn2 = (sn_sigclip.mean(axis=0).compressed())**2  #S/N^2 value for each spectrum
+    if sn2.shape[0] != nstack:
+        msgs.error('No unmasked value in one of the exposures. Check inputs.')
+
     rms_sn = np.sqrt(sn2)  # Root Mean S/N**2 value for all spectra
 
     # Check if relative weights input
