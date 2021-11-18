@@ -196,7 +196,7 @@ def test_dith_obs():
             assert sobjs[sobjs.SLITID == 1583].MASKDEF_OBJNAME == 'yg_21385', 'Wrong dithered DEIMOS MASKDEF_OBJNAME'
             assert sobjs[sobjs.SLITID == 1583].RA == 53.11094583, 'Wrong object dithered DEIMOS RA'
             assert sobjs[sobjs.SLITID == 1583].DEC == -27.72781111, 'Wrong object dithered DEIMOS DEC'
-            assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'yg_21385'].SPAT_PIXPOS[0]) == 1574, \
+            assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'yg_21385'].SPAT_PIXPOS[0]) == 1578, \
                 'Wrong object (yg_21385) location on the dithered DEIMOS slit'
 
 
