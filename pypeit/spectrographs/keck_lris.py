@@ -137,8 +137,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
         # Extras for pypeit file
-        self.meta['amp'] = dict(card=None, compound=True)
+        if self.name == 'keck_lris_red_mark4':
+            self.meta['amp'] = dict(ext=0, card='TAPLINES')
+        else:
+            self.meta['amp'] = dict(ext=0, card='NUMAMPS')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -190,11 +194,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                     return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
                 else:  # Lamp didn't exist.  Set to None
                     return 'None'
-        elif 'amp' in meta_key:
-            if self.name == 'keck_lris_red_mark4':
-                return headarr[0]['TAPLINES']
-            else:
-                return headarr[0]['NUMAMPS']
         else:
             msgs.error("Not ready for this compound meta")
 
