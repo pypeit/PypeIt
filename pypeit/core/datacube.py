@@ -564,6 +564,7 @@ def coadd_cube(files, parset, overwrite=False):
     # Grab the parset, if not provided
     if parset is None: parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
+    fluxCalibrate = False
 
     # Check the output file
     outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename']+".fits"
@@ -576,8 +577,13 @@ def coadd_cube(files, parset, overwrite=False):
     if cubepar['standard_cube'] is not None:
         if not os.path.exists(cubepar['standard_cube']):
             msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
+        fluxCalibrate = True
         stdcube = fits.open(cubepar['standard_cube'])
-        msgs.info("Reference scale loaded from file: {0:s}".format(cubepar['standard_cube']))
+        # Extract a spectrum of the standard star
+
+        # Calculate the sensitivity curve
+
+        # Get a spectrum of the flats in case
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
