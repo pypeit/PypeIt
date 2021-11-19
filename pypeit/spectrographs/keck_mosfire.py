@@ -13,11 +13,15 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import framematch
+from pypeit.core import framematch, meta
 from pypeit import utils
+from pypeit import io
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 from scipy import special
+from pypeit.spectrographs.slitmask import SlitMask
+
+from pypeit.utils import index_of_x_eq_y
 
 class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
@@ -29,7 +33,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     camera = 'MOSFIRE'
     header_name = 'MOSFIRE'
     supported = True
-    comment = 'Gratings tested: Y, J, K'
+    comment = 'Gratings tested: Y, J, K; see :doc:`mosfire`'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -111,8 +115,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
+        par['calibrations']['arcframe']['exprng'] = [1, None]
+        par['calibrations']['darkframe']['exprng'] = [1, None]
         par['scienceframe']['exprng'] = [20, None]
 
         # Sensitivity function parameters
@@ -126,6 +130,65 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['IR']['telgridfile'] \
                 = os.path.join(par['sensfunc']['IR'].default_root,
                                'TelFit_MaunaKea_3100_26100_R20000.fits')
+        return par
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        headarr = self.get_headarr(scifile)
+
+        if 'LONGSLIT' in self.get_meta_value(headarr, 'decker'):
+            # turn PCA off
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+            # if "x" is not in the maskname, the maskname does not include the number of CSU
+            # used for the longslit and the length of the longslit cannot be determined
+            if ('LONGSLIT-46x' not in self.get_meta_value(headarr, 'decker')) and \
+                    ('x' in self.get_meta_value(headarr, 'decker')):
+                # find the spat pixel positions where the longslit starts and ends
+                pix_start, pix_end = self.find_longslit_pos(scifile)
+                # exclude the random slits outside the longslit from slit tracing
+                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
+                                                                       '1:{}:2040'.format(pix_end)]
+                par['calibrations']['slitedges']['det_buffer'] = 0
+                # artificially add left and right edges
+                par['calibrations']['slitedges']['bound_detector'] = True
+
+        # Turn on the use of mask design
+        else:
+            par['calibrations']['slitedges']['use_maskdesign'] = True
+            # use dither info in the header as the default offset
+            par['reduce']['slitmask']['use_dither_offset'] = True
+            # Assign RA, DEC, OBJNAME to detected objects
+            par['reduce']['slitmask']['assign_obj'] = True
+            # force extraction of undetected objects
+            par['reduce']['slitmask']['extract_missing_objs'] = True
+            # needed for better slitmask design matching
+            par['calibrations']['flatfield']['tweak_slits'] = False
+            if 'long2pos' in self.get_meta_value(headarr, 'decker'):
+                # exclude the random slits outside the long2pos from slit tracing
+                pix_start, pix_end = self._long2pos_pos()
+                par['calibrations']['slitedges']['exclude_regions'] = ['1:0:{}'.format(pix_start),
+                                                                       '1:{}:2040'.format(pix_end)]
+                # assume that the main target is always detected, i.e., skipping force extraction
+                par['reduce']['slitmask']['extract_missing_objs'] = False
+
+        # Return
         return par
 
     def init_meta(self):
@@ -150,17 +213,16 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='OBSMODE')
         self.meta['idname'] = dict(card=None, compound=True)
         self.meta['frameno'] = dict(ext=0, card='FRAMENUM')
+        self.meta['object'] = dict(ext=0, card='OBJECT')
         # Filter
         self.meta['filter1'] = dict(ext=0, card='FILTER')
-        # Lamps
-        lamp_names = ['FLATSPEC']
-        for kk,lamp_name in enumerate(lamp_names):
-            self.meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Lamps on/off or Ar/Ne
+        self.meta['lampstat01'] = dict(card=None, compound=True)
 
         # Dithering
         self.meta['dithpat'] = dict(ext=0, card='PATTERN')
         self.meta['dithpos'] = dict(ext=0, card='FRAMEID')
-        self.meta['dithoff'] = dict(ext=0, card='YOFFSET')
+        self.meta['dithoff'] = dict(card=None, compound=True)
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
@@ -178,22 +240,41 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'idname':
-            if headarr[0].get('KOAIMTYP', None) is not None:
-                return headarr[0].get('KOAIMTYP')
+            FLATSPEC = headarr[0].get('FLATSPEC')
+            PWSTATA7 = headarr[0].get('PWSTATA7')
+            PWSTATA8 = headarr[0].get('PWSTATA8')
+            if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                if 'Flat:Off' in headarr[0].get('OBJECT') or "lamps off" in headarr[0].get('OBJECT'):
+                    return 'flatlampoff'
+                else:
+                    return 'object'
+            elif FLATSPEC == 0 and headarr[0].get('FILTER') == 'Dark':
+                return 'dark'
+            elif FLATSPEC == 1:
+                return 'flatlamp'
+            elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                return 'arclamp'
             else:
-                try:
-                    # TODO: This should be changed to except on a specific error.
-                    FLATSPEC = int(headarr[0].get('FLATSPEC'))
-                    PWSTATA7 = int(headarr[0].get('PWSTATA7'))
-                    PWSTATA8 = int(headarr[0].get('PWSTATA8'))
-                    if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                        return 'object'
-                    elif FLATSPEC == 1:
-                        return 'flatlamp'
-                    elif PWSTATA7 == 1 or PWSTATA8 == 1:
-                        return 'arclamp'
-                except:
-                    return 'unknown'
+                msgs.warn('Header keyword FLATSPEC, PWSTATA7, or PWSTATA8 may not exist')
+                return 'unknown'
+        if meta_key == 'lampstat01':
+            if headarr[0].get('PWSTATA7') == 1 or headarr[0].get('PWSTATA8') == 1:
+                lamps = []
+                if headarr[0].get('PWSTATA7') == 1:
+                    lamps.append(headarr[0].get('PWLOCA7')[:2])
+                if headarr[0].get('PWSTATA8') == 1:
+                    lamps.append(headarr[0].get('PWLOCA8')[:2])
+                return ','.join(lamps)
+            elif headarr[0].get('FLATSPEC') == 1 or headarr[0].get('FLSPECTR') == 'on':
+                return 'on'
+            else:
+                return 'off'
+
+        if meta_key == 'dithoff':
+            if headarr[0].get('YOFFSET') is not None:
+                return headarr[0].get('YOFFSET')
+            else:
+                return 0.0
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -227,7 +308,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 #        # pypeit.metadata.PypeItMetaData.set_pypeit_cols
 #        pypeit_keys += [calib', 'comb_id', 'bkg_id']
 #        return pypeit_keys
-        return super().pypeit_file_keys() + ['dithpat', 'dithpos', 'dithoff', 'frameno']
+        return super().pypeit_file_keys() + [ 'lampstat01', 'dithpat', 'dithpos', 'dithoff', 'frameno']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -252,56 +333,23 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         if ftype in ['science', 'standard']:
             return good_exp & (fitstbl['idname'] == 'object')
         if ftype in ['bias', 'dark']:
-            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'dark')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
+            return good_exp & ((fitstbl['idname'] == 'flatlamp') | (fitstbl['idname'] == 'flatlampoff'))
+        if ftype in ['illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['idname'] == 'flatlamp')
+            return good_exp & (fitstbl['lampstat01'] == 'on') & (fitstbl['idname'] == 'flatlamp')
         if ftype == 'pinhole':
             # Don't type pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
             # TODO: This is a kludge.  Allow science frames to also be
             # classified as arcs
-            is_arc = self.lamps(fitstbl, 'arcs') & (fitstbl['idname'] == 'arclamp')
-            is_obj = self.lamps(fitstbl, 'off') & (fitstbl['idname'] == 'object')
+            is_arc = fitstbl['idname'] == 'arclamp'
+            is_obj = (fitstbl['lampstat01'] == 'off') & (fitstbl['idname'] == 'object')
             return good_exp & (is_arc | is_obj)
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def lamps(self, fitstbl, status):
-        """
-        Check the lamp status.
-
-        Args:
-            fitstbl (`astropy.table.Table`_):
-                The table with the fits header meta data.
-            status (:obj:`str`):
-                The status to check. Can be ``'off'``, ``'arcs'``, or
-                ``'dome'``.
-
-        Returns:
-            `numpy.ndarray`_: A boolean array selecting fits files that meet
-            the selected lamp status.
-
-        Raises:
-            ValueError:
-                Raised if the status is not one of the valid options.
-        """
-        if status == 'off':
-            # Check if all are off
-            return np.all(np.array([fitstbl[k] == 0 for k in fitstbl.keys() if 'lampstat' in k]),
-                          axis=0)
-        if status == 'arcs':
-            # Check if any arc lamps are on
-            arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,6) ]
-            return np.any(np.array([ fitstbl[k] == 1 for k in fitstbl.keys()
-                                            if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
-            return fitstbl['lampstat01'] == '1'
-
-        raise ValueError('No implementation for status = {0}'.format(status))
-
-
 
     def parse_dither_pattern(self, file_list, ext=None):
         """
@@ -434,3 +482,319 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         else:
             return wave_in, counts_in, counts_ivar_in, gpm_in
 
+    def list_detectors(self):
+        """
+        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        They are separated if they are split into blue and red detectors
+
+        Returns:
+            :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
+            indicates that the spectrograph is divided into blue and red detectors. The array has
+            shape :math:`(2, N_{dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{dets})`
+        """
+        dets = np.array([range(self.ndet)])+1
+
+        return dets, False
+
+    def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a MOSFIRE file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        This can be used for multi-object slitmask, but it it's not good
+        for "LONGSLIT" nor "long2pos". Both "LONGSLIT" and "long2pos" have emtpy/incomplete
+        binTable where the slitmask data are stored.
+
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        # Open the file
+        hdu = io.fits_open(filename)
+
+        # load slitmask info
+        targs = hdu['Target_List'].data
+        ssl = hdu['Science_Slit_List'].data
+        msl = hdu['Mechanical_Slit_List'].data
+        # some needed cleanup
+        ssl = ssl[ssl['Slit_Number'] != ' ']
+        msl = msl[msl['Slit_Number'] != ' ']
+
+        # Book keeping: Count and check that the # of objects in the SSL matches that of the MSL
+        # and if we recover the total number of CSUs
+        numslits = np.zeros(len(ssl))
+        for i in range(len(ssl)):
+            slit = ssl[i]
+            numslits[i] = np.where(slit['Target_Name'] == msl['Target_in_Slit'])[0].size
+
+        if (numslits.sum() != self._CSUnumslits()) and ('LONGSLIT' not in self.get_meta_value(filename, 'decker')) \
+                and ('long2pos' not in self.get_meta_value(filename, 'decker')):
+            msgs.error('The number of allocated CSU slits does not match the number of possible slits. '
+                       'Slitmask design matching not possible. Turn parameter `use_maskdesign` off')
+
+        targ_dist_center = np.array(ssl['Target_to_center_of_slit_distance'], dtype=float)
+
+        slit_centers = np.array(ssl['Slit_length'], dtype=float) / 2.
+        # Some # adjustment for long2pos
+        if 'long2pos' in self.get_meta_value(filename, 'decker'):
+            slit_centers_wrong = np.array(ssl['Slit_length'], dtype=float) / 2.
+            # correct slit length
+            ssl['Slit_length'] = self._long2pos_slits_length()
+            slit_centers = np.array(ssl['Slit_length'], dtype=float) / 2.
+            centers_diff = slit_centers - slit_centers_wrong
+            targ_dist_center[0] -= centers_diff[0]
+            targ_dist_center[2] += centers_diff[2]
+
+        # Projected distance (in arcsec) of the object from the left and right (top and bot) edges of the slit
+        topdist = np.round(slit_centers + targ_dist_center, 3)
+        botdist = np.round(slit_centers - targ_dist_center, 3)
+
+        # Find the index to map the objects in the Science Slit List and the Target list
+        indx = index_of_x_eq_y(targs['Target_Name'], ssl['Target_Name'])
+        targs_mtch = targs[indx]
+        obj_ra = targs_mtch['RA_Hours']+' '+targs_mtch['RA_Minutes']+' '+targs_mtch['RA_Seconds']
+        obj_dec = targs_mtch['Dec_Degrees']+' '+targs_mtch['Dec_Minutes']+' '+targs_mtch['Dec_Seconds']
+        obj_ra, obj_dec = meta.convert_radec(obj_ra, obj_dec)
+        objname = [item.strip() for item in ssl['Target_Name']]
+        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+        objects = np.array([np.array(ssl['Slit_Number'], dtype=int),
+                           np.zeros(ssl['Slit_Number'].size, dtype=int),   # no object ID
+                           obj_ra,
+                           obj_dec,
+                           objname,
+                           np.array(targs_mtch['Magnitude'], dtype=float),
+                           ['None']*ssl['Slit_Number'].size,       # no magnitude band
+                           topdist,
+                           botdist]).T
+
+        # PA corresponding to positive x on detector (spatial)
+        posx_pa = hdu[0].header['SKYPA2']
+        if posx_pa < 0.:
+            posx_pa += 360.
+
+        slit_ra = ssl['Slit_RA_Hours']+' '+ssl['Slit_RA_Minutes']+' '+ssl['Slit_RA_Seconds']
+        slit_dec = ssl['Slit_Dec_Degrees']+' '+ssl['Slit_Dec_Minutes']+' '+ssl['Slit_Dec_Seconds']
+        slit_ra, slit_dec = meta.convert_radec(slit_ra, slit_dec)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([np.zeros(ssl['Slit_Number'].size),   # mosfire maskdef has not slit corners
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size),
+                                           np.zeros(ssl['Slit_Number'].size)]).T.reshape(-1,4,2),
+                                 slitid=np.array(ssl['Slit_Number'], dtype=int),
+                                 align=ssl['Target_Name'] == 'posB',
+                                 science=ssl['Target_Name'] != 'posB',
+                                 onsky=np.array([slit_ra,
+                                                 slit_dec,
+                                                 np.array(ssl['Slit_length'], dtype=float),
+                                                 np.array(ssl['Slit_width'], dtype=float),
+                                                 np.array([round(hdu[0].header['SKYPA3'],2)]*ssl['Slit_Number'].size)]).T,
+                                 objects=objects,
+                                 posx_pa=posx_pa)
+        return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design using
+        the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+            ccdnum (:obj:`int`):
+                Detector number
+            filename (:obj:`str`):
+                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+                Default is None, i.e., to use previously instantiated attributes.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+
+        """
+        # Re-initiate slitmask
+        if filename is not None:
+            self.get_slitmask(filename)
+        else:
+            msgs.error('The name of a science file should be provided')
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        platescale = self.get_detector_par(det=1)['platescale']
+        slit_gap = self._slit_gap(platescale)
+
+        # build an array of values containing the bottom (right) edge of the slits
+        # starting edge
+        edge = self._starting_edge(filename)
+        bot_edges = np.array([edge], dtype=np.int)
+        for i in range(self.slitmask.nslits - 1):
+            # target is the slit number
+            edge -= (self.slitmask.onsky[:,2][i]/platescale + slit_gap)
+            bot_edges = np.append(bot_edges, np.round(edge))
+        if bot_edges[-1] < 0:
+            bot_edges[-1] = 1
+
+        # build an array of values containing the top (left) edge of the slits
+        top_edges = bot_edges - np.round(self.slitmask.onsky[:,2]/platescale)
+        if top_edges[-1] < 0:
+            top_edges[-1] = 1
+
+        # Sort slits from left to right
+        sortindx = np.argsort(self.slitmask.slitid[::-1])
+
+        # This print a QA table with info on the slits sorted from left to right.
+        if not debug:
+            num = 0
+            msgs.info('Expected slits')
+            msgs.info('*' * 18)
+            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
+            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
+            for i in range(sortindx.shape[0]):
+                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
+                num += 1
+            msgs.info('*' * 18)
+
+        # If instead we run this method in debug mode, we print more info
+        if debug:
+            num = 0
+            msgs.info('Expected slits')
+            msgs.info('*' * 92)
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
+                                                                                    'slitLen(arcsec)',
+                                                                                    'slitWid(arcsec)',
+                                                                                    'top_edges(pix)',
+                                                                                    'bot_edges(pix)'))
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
+                                                                                    '-' * 11, '-' * 18, '-' * 15))
+            for i in range(sortindx.size):
+                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
+                            self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
+                            self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
+                num += 1
+            msgs.info('*' * 92)
+
+        return top_edges, bot_edges, sortindx, self.slitmask
+
+    @staticmethod
+    def _CSUnumslits():
+        """
+        Returns:
+            :obj:int: Number of CSUs always used by MOSFIRE in the slitmask
+
+        """
+        return 46
+
+    @staticmethod
+    def _slit_gap(platescale):
+        """
+        Args:
+            platescale (:obj:`float`): platescale for the current detector
+
+        Returns:
+            :obj:float: Gap between each slit. The unit is pixels if platescale is provided otherwise it is arcsec.
+
+        """
+
+        return round(0.97 / platescale) if platescale is not None else 0.97
+
+    @staticmethod
+    def _CSUlength(platescale):
+        """
+        Args:
+            platescale (:obj:`float`): platescale for the current detector
+
+        Returns:
+            :obj:float: Nominal length of each CSU. The unit is pixels if platescale is provided otherwise it is arcsec.
+
+        """
+
+        return 7.01/platescale if platescale is not None else 7.01
+
+    @staticmethod
+    def _starting_edge(scifile):
+        """
+        Provides the slit edge from where to start when extracting the prediction from the slitmask design
+
+        Args:
+            scifile (:obj:`str`):
+                The filename of the science frame.
+
+        Returns:
+            :obj:int: Pixel position of the starting edge
+        """
+        hdu = io.fits_open(scifile)
+        decker = hdu[0].header['MASKNAME']
+
+        return 2034 if 'long2pos' not in decker else 1188
+
+    @staticmethod
+    def _long2pos_slits_length():
+        """
+
+        Returns:
+            :obj:`tuple`: Three float numbers indicating the length in arcsec of the three slits in the long2pos mask
+
+        """
+        return '22.970', '7.010', '22.970'
+
+    @staticmethod
+    def _long2pos_pos():
+        """
+
+        Returns:
+            :obj:`tuple`: Two integer number indicating the x position of the
+            beginning and the end of the three slits forming the long2pos mask
+
+        """
+        return 880, 1190
+
+    @staticmethod
+    def find_longslit_pos(scifile):
+        """
+        Given a MOSFIRE science raw file, find the position of the slit
+        in the LONGSLIT slitmask
+
+        Args:
+            scifile: (:obj:`str`):
+                Name of the science file to read.
+
+        Returns:
+            :obj:`tuple`: Two integer number indicating the x position of the
+            beginning and the end of the slit.
+
+        """
+        # Read some values from header
+        hdu = io.fits_open(scifile)
+        decker = hdu[0].header['MASKNAME']
+        platescale = hdu[0].header['PSCALE']
+
+        slit_gap = KeckMOSFIRESpectrograph._slit_gap(platescale)  # pixels
+        CSUlength = KeckMOSFIRESpectrograph._CSUlength(platescale)  # pixels
+
+        # Number of CSU used to make this longslit is recorded in the MASKNAME
+        CSUnum = int(decker.split("x")[0].split('-')[1])
+        slit_length = CSUnum * CSUlength + (CSUnum-1)*slit_gap
+        if CSUnum % 2 == 0:
+            pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + (CSUlength+slit_gap)/2. + 1)
+            pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. - (CSUlength+slit_gap)/2. + 1)
+        else:
+            pix_start = hdu[0].header['CRPIX2'] - (slit_length/2. + 1)
+            pix_end = hdu[0].header['CRPIX2'] + (slit_length/2. + 1)
+
+        return int(round(pix_start)), int(round(pix_end))
