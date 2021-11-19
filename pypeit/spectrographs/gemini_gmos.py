@@ -57,12 +57,12 @@ class GeminiGMOSMosaic:
                                                                 'rotation': -0.003}
                                                     },
         'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2': {'default_shape': (2048, 4224),
-                                                (0, 0): {'shift': (-2115.95, -0.21739),
+                                                   (0, 0): {'shift': (-2115.95, -0.21739),
                                                             'rotation': -0.004},
-                                                (2048, 0): {},
-                                                (4096, 0): {'shift': (2115.48, 0.1727),
-                                                            'rotation': -0.00537}
-                                                },
+                                                   (2048, 0): {},
+                                                   (4096, 0): {'shift': (2115.48, 0.1727),
+                                                               'rotation': -0.00537}
+                                                   },
 
     # GMOS-S
         'EEV8056-20-03EEV8194-19-04EEV8261-07-04': {'default_shape': (2048, 4608),
@@ -80,12 +80,12 @@ class GeminiGMOSMosaic:
                                                                 'rotation': 0.012}
                                                     },
         'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1': {'default_shape': (2048, 4224),
-                                                (0, 0): {'shift': (-2110.2, 0.71),
-                                                        'rotation': 0.},
-                                                (2048, 0): {},
-                                                (4096, 0): {'shift': (2109., -0.73),
-                                                            'rotation': 0.}
-                                                },
+                                                  (0, 0): {'shift': (-2110.2, 0.71),
+                                                           'rotation': 0.},
+                                                  (2048, 0): {},
+                                                  (4096, 0): {'shift': (2109., -0.73),
+                                                              'rotation': 0.}
+                                                  },
     }
 
 
@@ -415,9 +415,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             return None, None, None
 
         # Return the transformation parameters in pypeit format
-        shift = [tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift']),
+#        shift = [tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift']),
+#                 (0.,0.),
+#                 tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'])]
+        shift = [(-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][0],
+                   GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][1]),
                  (0.,0.),
-                 tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'])]
+                 (-GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'][0],
+                   GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'][1])]
         rotation = [-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['rotation'],
                     0.,
                     -GeminiGMOSMosaic.geometry[self.detid][(0,0)]['rotation']]
