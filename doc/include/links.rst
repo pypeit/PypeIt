@@ -70,6 +70,7 @@
 .. scikit
 .. _sklearn.decomposition.PCA: https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
 .. _scikit-image Homographies: https://scikit-image.org/docs/dev/auto_examples/transform/plot_transform_types.html
+.. _skimage.transform.EuclideanTransform: https://scikit-image.org/docs/dev/api/skimage.transform.html#skimage.transform.EuclideanTransform
 
 .. pydl
 .. _pydl.goddard.astro.airtovac: http://pydl.readthedocs.io/en/stable/api/pydl.goddard.astro.airtovac.html#pydl.goddard.astro.airtovac

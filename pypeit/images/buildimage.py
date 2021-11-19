@@ -207,6 +207,6 @@ frame_image_classes = dict(
     dark=DarkImage,
     arc=ArcImage,
     tilt=TiltImage,
-    tilts=TiltImage,
     trace=TraceImage,
     align=AlignImage)
+

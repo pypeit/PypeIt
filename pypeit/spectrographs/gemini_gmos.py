@@ -20,6 +20,74 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.par import pypeitpar
 
+class GeminiGMOSMosaic:
+    """
+    Provides the geometry required to mosaic Gemini GMOS data.
+
+    This is purposely a direct copy of the data provided here:
+
+    `https://github.com/GeminiDRSoftware/DRAGONS/blob/a59e6ff5c8ca79bc64ecd690ac50e4a91278530b/geminidr/gmos/lookups/geometry_conf.py#L26`_
+
+    From v3.0.0 of the Gemini DRAGONS software package.  Specifically, if you
+    have DRAGONS installed,
+    :attr:`pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaic.geometry` should be
+    identical to:
+
+    .. code-block:: python
+
+        from geminidr.gmos.lookups.geometry_conf import geometry
+    
+    Updating to any changes made to the DRAGONS version requires by-hand editing
+    of the ``PypeIt`` code.
+    """
+    geometry = {
+        # GMOS-N
+        'EEV9273-16-03EEV9273-20-04EEV9273-20-03': {'default_shape': (2048, 4608),
+                                                    (0, 0): {'shift': (-2087.50,-1.58),
+                                                            'rotation': -0.004},
+                                                    (2048, 0): {},
+                                                    (4096, 0): {'shift': (2088.8723, -1.86),
+                                                                'rotation': -0.046}
+                                                            },
+        'e2v 10031-23-05,10031-01-03,10031-18-04': {'default_shape': (2048, 4608),
+                                                    (0, 0): {'shift': (-2087.7,-0.749),
+                                                            'rotation': -0.009},
+                                                    (2048, 0): {},
+                                                    (4096, 0): {'shift': (2087.8014, 2.05),
+                                                                'rotation': -0.003}
+                                                    },
+        'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2': {'default_shape': (2048, 4224),
+                                                (0, 0): {'shift': (-2115.95, -0.21739),
+                                                            'rotation': -0.004},
+                                                (2048, 0): {},
+                                                (4096, 0): {'shift': (2115.48, 0.1727),
+                                                            'rotation': -0.00537}
+                                                },
+
+    # GMOS-S
+        'EEV8056-20-03EEV8194-19-04EEV8261-07-04': {'default_shape': (2048, 4608),
+                                                    (0, 0): {'shift': (-2086.44, 5.46),
+                                                            'rotation': -0.01},
+                                                    (2048, 0): {},
+                                                    (4096, 0): {'shift': (2092.53, 9.57),
+                                                                'rotation': 0.02}
+                                                    },
+        'EEV2037-06-03EEV8194-19-04EEV8261-07-04': {'default_shape': (2048, 4608),
+                                                    (0, 0): {'shift': (-2086.49, -0.22),
+                                                            'rotation': 0.011},
+                                                    (2048, 0): {},
+                                                    (4096, 0): {'shift': (2089.31, 2.04),
+                                                                'rotation': 0.012}
+                                                    },
+        'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1': {'default_shape': (2048, 4224),
+                                                (0, 0): {'shift': (-2110.2, 0.71),
+                                                        'rotation': 0.},
+                                                (2048, 0): {},
+                                                (4096, 0): {'shift': (2109., -0.73),
+                                                            'rotation': 0.}
+                                                },
+    }
+
 
 class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -27,6 +95,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     should not be instantiated.
     """
     ndet = 3
+    detid = None
 
     def __init__(self):
         super().__init__()
@@ -337,6 +406,22 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
                 array, hdu, exptime, rawdatasec_img, oscansec_img
 
+    def get_mosaic_par(self):
+        """
+        Return the detector mosaic parameters.
+        """
+        if self.detid is None:
+            return None, None, None
+
+        # Return the transformation parameters in pypeit format
+        shift = [tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift']),
+                 (0.,0.),
+                 tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'])]
+        rotation = [-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['rotation'],
+                    0.,
+                    -GeminiGMOSMosaic.geometry[self.detid][(0,0)]['rotation']]
+        return GeminiGMOSMosaic.geometry[self.detid]['default_shape'], shift, rotation
+
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -347,6 +432,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
+    detid = 'BI5-36-4k-2,BI11-33-4k-1,BI12-34-4k-1'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -560,6 +646,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     name = 'gemini_gmos_north_ham'
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); Used since Feb 2017; see :doc:`gemini_gmos`'
+    detid = 'BI13-20-4k-1,BI12-09-4k-2,BI13-18-4k-2'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -707,6 +794,8 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     name = 'gemini_gmos_north_e2v'
     supported = True
     comment = 'E2V detector; see :doc:`gemini_gmos`'
+    # TODO: Check this is correct
+    detid = 'e2v 10031-23-05,10031-01-03,10031-18-04'
 
     def get_detector_par(self, det, hdu=None):
         """

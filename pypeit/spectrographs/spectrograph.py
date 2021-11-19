@@ -634,6 +634,12 @@ class Spectrograph:
         """
         pass
 
+    def get_mosaic_par(self):
+        """
+        Return the hard-coded (list of) detector mosaic(s).
+        """
+        pass
+
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces
