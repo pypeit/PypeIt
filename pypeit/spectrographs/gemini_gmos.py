@@ -126,6 +126,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -429,6 +430,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
     name = 'gemini_gmos_south_ham'
     camera = 'GMOS-S'
+    header_name = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
@@ -636,6 +638,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     telescope = telescopes.GeminiNTelescopePar()
     camera = 'GMOS-N'
+    header_name = 'GMOS-N'
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):

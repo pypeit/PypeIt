@@ -90,6 +90,13 @@ class Spectrograph:
     camera = None
     """
     Name of the spectrograph camera or arm.
+    This is used by specdb, so use that naming convention
+    """
+
+    header_name = None
+    """
+    Name of the spectrograph camera or arm from the Header.
+    Usually the INSTRUME card.
     """
 
     pypeline = 'MultiSlit'
@@ -469,6 +476,16 @@ class Spectrograph:
         # Fill in bad pixels if a master bias frame is provided
         return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
 
+    def list_detectors(self):
+        """
+        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
+        They are separated if they are split into blue and red detectors
+
+        This method is not defined for all spectrographs.
+
+        """
+        return None, False
+
     def get_lamps(self, fitstbl):
         """
         Extract the list of arc lamps used from header.
@@ -490,6 +507,17 @@ class Spectrograph:
         """
         Predict detector pixel coordinates for a given set of slit-mask
         coordinates.
+
+        This method is not defined for all spectrographs. This base-class
+        method raises an exception. This may be because ``use_maskdesign``
+        has been set to True for a spectrograph that does not support it.
+        """
+        msgs.error('This spectrograph does not support the use of mask design. '
+                   'Set `use_maskdesign=False`')
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design.
 
         This method is not defined for all spectrographs. This base-class
         method raises an exception. This may be because ``use_maskdesign``
@@ -527,6 +555,20 @@ class Spectrograph:
             no restrictions on configuration values, None is returned.
         """
         pass
+
+    def vet_instrument(self, meta_tbl):
+        if 'instrument' in meta_tbl.keys():
+            # Check that there is only one instrument
+            #  This could fail if one mixes is much older calibs
+            instr_names = np.unique(meta_tbl['instrument'].data)
+            if len(instr_names) != 1:
+                msgs.warn(f"More than one instrument in your dataset! {instr_names} \n"+
+                f"Proceed with great caution...")
+            # Check the name
+            if instr_names[0] != self.header_name:
+                msgs.warn(f"Your header's instrument name doesn't match the expected one! {instr_names[0]}, {self.header_name}\n"+
+                f"You may have chosen the wrong PypeIt spectrograph name")
+            
 
     def config_independent_frames(self):
         """

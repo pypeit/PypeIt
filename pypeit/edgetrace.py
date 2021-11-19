@@ -514,11 +514,12 @@ class EdgeTraceSet(DataContainer):
         self.master_dir = None          # Directory for Master frames
         self.omodel_bspat = None        # Left edges predicted by the optical model (before x-correlation)
         self.omodel_tspat = None        # Right edges predicted by the optical model (before x-correlation)
-        self.coeff_b = None             # Coefficients of the x-correlation between LEFT edges predicted
-                                        # by the optical model and traced on the image.
-        self.coeff_t = None             # Coefficients of the x-correlation between LEFT edges predicted
-                                        # by the optical model and traced on the image.
+        self.cc_params_b = None         # Parameters of the x-correlation between LEFT edges predicted
+                                        # by the slitmask design and the one traced on the image.
+        self.cc_params_t = None         # Parameters of the x-correlation between RIGHT edges predicted
+                                        # by the slitmask design and the one traced on the image.
         self.maskfile = None            # File used to slurp in slit-mask design
+        self.slitmask = None            # SlitMask instance that hold info on slitmask design
         self.success = False            # Flag that the automatic edge tracing was successful
 
     def _reinit_trace_data(self):
@@ -542,9 +543,10 @@ class EdgeTraceSet(DataContainer):
         self.maskdef_id = None
         self.omodel_bspat = None
         self.omodel_tspat = None
-        self.coeff_b = None
-        self.coeff_t = None
+        self.cc_params_b = None
+        self.cc_params_t = None
         self.maskfile = None
+        self.slitmask = None
         self.success = False
 
     @property
@@ -589,16 +591,16 @@ class EdgeTraceSet(DataContainer):
                                  description='Spatial pixel coordinate for right edge'),
                     table.Column(name='SPAT_ID', dtype=int, length=length,
                                  description='ID Number assigned by the pypeline to each slit'),
-                    table.Column(name='SLITID', dtype=int, length=length,
+                    table.Column(name='MASKDEF_ID', dtype=int, length=length,
                                  description='Slit ID Number from slit-mask design'),
                     # table.Column(name='SLITLFOC', dtype=float, length=length,
                     #              description='Left edge of the slit in mm at the focal plane'),
                     # table.Column(name='SLITRFOC', dtype=float, length=length,
                     #              description='Right edge of the slit in mm at the focal plane'),
-                    table.Column(name='SLITLOPT', dtype=float, length=length,
-                                description='Left edge of the slit in pixel predicted by optical model'),
-                    table.Column(name='SLITROPT', dtype=float, length=length,
-                                description='Right edge of the slit in pixel predicted optical model'),
+                    table.Column(name='SLITLMASKDEF', dtype=float, length=length,
+                                description='Left edge of the slit in pixel from slit-mask design before x-correlation'),
+                    table.Column(name='SLITRMASKDEF', dtype=float, length=length,
+                                description='Right edge of the slit in pixel from slit-mask design before x-correlation'),
                     table.Column(name='SLITRA', dtype=float, length=length,
                                  description='Right ascension of the slit center (deg)'),
                     table.Column(name='SLITDEC', dtype=float, length=length,
@@ -643,8 +645,8 @@ class EdgeTraceSet(DataContainer):
                                  description='Object magnitude provided by the observer'),
                     table.Column(name='OBJMAG_BAND', dtype='<U32', length=length,
                                  description='Band of the magnitude provided by the observer'),
-                    table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
+                    table.Column(name='MASKDEF_ID', dtype=int, length=length,
+                                 description='Slit ID Number from slit-mask design'),
                     table.Column(name='OBJ_TOPDIST', dtype=float, length=length,
                                  description='Projected distance (in arcsec) of the object from the '
                                              'left edge of the slit (in PypeIt orientation).'),
@@ -979,6 +981,14 @@ class EdgeTraceSet(DataContainer):
         # TODO: Decide if mask should be passed to this or not,
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
+
+        # Only after the correction for the bad column, update the bmp with the
+        # regions to exclude from slit tracing
+        if self.par['exclude_regions'] is not None:
+            reg_start, reg_end = self._parse_exclude_regions()
+            for i in range(reg_start.size):
+                self.tracebpm[:, reg_start[i]:reg_end[i]] = True
+
         self.sobelsig, edge_img \
                 = trace.detect_slit_edges(_img, bpm=self.tracebpm,
                                           median_iterations=self.par['filt_iter'],
@@ -1058,6 +1068,30 @@ class EdgeTraceSet(DataContainer):
 
         # Restart the log
         self.log = [inspect.stack()[0][3]]
+
+    def _parse_exclude_regions(self):
+        """
+        Parse the `exclude_regions` parset.
+
+        Returns:
+            :obj:`tuple`: Returns two arrays with the starting
+            and ending pixels of the regions to exclude in this detector
+        """
+        if self.par['exclude_regions'] is None:
+            msgs.error('No regions to exclude have been provided. '
+                       'To do so, see parameter `exclude_regions` in `EdgeTracePar`')
+
+        # create the arrays with det, starting pixels and ending pixels
+        dets = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        reg_start = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        reg_end = np.zeros(len(self.par['exclude_regions']), dtype=int)
+        # fill them
+        for i, region in enumerate(self.par['exclude_regions']):
+            dets[i], reg_start[i], reg_end[i] = [int(s) for s in region.split(':')]
+        # select the current detector
+        this_det = dets == self.spectrograph.ndet
+
+        return reg_start[this_det], reg_end[this_det]
 
     def _base_header(self, hdr=None):
         """
@@ -4030,9 +4064,12 @@ class EdgeTraceSet(DataContainer):
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
         `det_buffer`.
         """
+        # find where sobelsig is not masked
+        sobelsig_nomask = np.where(self.sobelsig[int(self.nspec/2.), :] != 0)[0]
+
         self.insert_traces(np.array([-1,1]),
-                           np.array([np.full(self.nspec, self.par['det_buffer'], dtype='float'),
-                                     np.full(self.nspec, self.nspat-1-self.par['det_buffer'],
+                           np.array([np.full(self.nspec, sobelsig_nomask[0]+self.par['det_buffer'], dtype='float'),
+                                     np.full(self.nspec, sobelsig_nomask[-1]-self.par['det_buffer'],
                                              dtype='float')]).T)
 
     def fully_masked_traces(self, flag=None, exclude=None):
@@ -4073,17 +4110,16 @@ class EdgeTraceSet(DataContainer):
 
         Use of this method requires:
             - a PCA decomposition is available,
-            - :attr:`spectrograph` has a viable `get_slitmask` method
-              to read slit mask design data. This data can be pulled
+            - :attr:`spectrograph` has a viable `get_maskdef_slitedges` method
+              to read edge trace locations predicted by the slitmask design. This data can be pulled
               from one of the files used to construct the trace image.
-            - :attr:`spectrograph` has a viable `get_grating` method
-              which provides the grating info to recover the optical model.
-            - :attr:`spectrograph` has a viable `get_amapbmap` method
-              which provides pre- and post-grating maps of the detector
-              used convert the mask design data from mm to pixels.
 
-        The method use a collection of scripts in pypeit.core.slitdesign_matching
+        The method uses a collection of scripts in pypeit.core.slitdesign_matching
         which are taken from DEEP2 IDL-based pipeline for DEIMOS data.
+
+        NOTE this method was first written to deal with edge traces predicted by DEIMOS optical model, but
+        subsequently adapted to be used with other spectrographs that don't use optical models.
+
 
 
         Args:
@@ -4099,122 +4135,11 @@ class EdgeTraceSet(DataContainer):
         if self.is_empty:
             msgs.error('No traces to match.')
 
-        # The PCA decomposition must have already been determined
-        if self.pcatype is None:
-            msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
-
         # `traceimg` must have knowledge of the flat frame that built it
         self.maskfile = self.traceimg.files[0]
-        if self.spectrograph.get_slitmask(self.maskfile) is None:
-            msgs.error('Unable to read slitmask design info')
-        if self.spectrograph.get_grating(self.maskfile) is None:
-            msgs.error('Unable to read grating info')
-        if self.spectrograph.get_amapbmap(self.maskfile) is None:
-            msgs.error('Unable to read amap and bmap')
 
-        # Match left and right edges separately
-        # Sort slits in mm from the slit-mask design
-        sortindx = np.argsort(self.spectrograph.slitmask.center[:, 0])
-
-        # Left (bottom) and right (top) traces in pixels from optical model (image plane and detector)
-        # bottom
-        omodel_bcoo = self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.bottom[:, 0],
-                                                                 y=self.spectrograph.slitmask.bottom[:, 1])
-        bedge_img, ccd_b, bedge_pix = omodel_bcoo[0], omodel_bcoo[2], omodel_bcoo[3]
-
-        # top
-        omodel_tcoo = self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.top[:, 0],
-                                                                  y=self.spectrograph.slitmask.top[:, 1])
-        tedge_img, ccd_t, tedge_pix = omodel_tcoo[0], omodel_tcoo[2], omodel_tcoo[3]
-
-        # Per each slit we take the median value of the traces over the wavelength direction. These medians will be used
-        # for the cross-correlation with the traces found in the images.
-        ccdnum=self.traceimg.detector.det
-        omodel_bspat = np.zeros(self.spectrograph.slitmask.nslits)
-        omodel_tspat = np.zeros(self.spectrograph.slitmask.nslits)
-
-        for i in range(omodel_bspat.size):
-            # We "flag" the left and right traces predicted by the optical model that are outside of the
-            # current detector, by giving a value of -1.
-            # bottom
-            omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] < 10 else np.median(
-                                                                                    bedge_pix[i, ccd_b[i, :] == ccdnum])
-            # top
-            omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] < 10 else np.median(
-                                                                                    tedge_pix[i, ccd_t[i, :] == ccdnum])
-
-            # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
-            # is determined using the pixel position from the image plane.
-            whgood = np.where(tedge_img[i, :] > -1e4)[0]
-            npt_img = whgood.shape[0] // 2
-            # This is hard-coded for DEIMOS, since it refers to the detectors configuration
-            whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
-            if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
-                omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
-            if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
-                omodel_tspat[i] = omodel_bspat[i] + np.median((tedge_img - bedge_img)[i, whgood])
-
-            # If the `omodel_bspat` is greater than `omodel_tspat` we switch the order
-            if omodel_bspat[i] > omodel_tspat[i]:
-                invert_order = omodel_bspat[i]
-                omodel_bspat[i] = omodel_tspat[i]
-                omodel_tspat[i] = invert_order
-
-        # If there are overlapping slits, i.e., omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1],
-        # move the overlapping edges to be adjacent instead
-        for i in range(sortindx.size -1):
-            if omodel_tspat[sortindx][i] != -1 and omodel_bspat[sortindx][i+1] != -1 and \
-                    omodel_tspat[sortindx][i] > omodel_bspat[sortindx][i+1]:
-                diff = omodel_tspat[sortindx][i] - omodel_bspat[sortindx][i+1]
-                omodel_tspat[sortindx[i]] -= diff/2.
-                omodel_bspat[sortindx[i+1]] += diff/2. + 0.1
-                # # Re-check If the `omodel_bspat` is greater than `omodel_tspat` and switch the order.
-                # # It may happens if 3 slits are overlapping (true story!)
-                # if omodel_bspat[sortindx[i]] > omodel_tspat[sortindx[i]]:
-                #     invert_order = omodel_bspat[sortindx[i]]
-                #     omodel_bspat[sortindx[i]] = omodel_tspat[sortindx[i]]
-                #     omodel_tspat[sortindx[i]] = invert_order
-
-        # This print a QA table with info on the slits (sorted from left to right) that fall in the current detector.
-        # The only info provided here is `slitid`, which is called `dSlitId` in the DEIMOS design file. I had to remove
-        # `slitindex` because not always matches `SlitName` from the DEIMOS design file.
-        if not debug:
-            num = 0
-            msgs.info('Expected slits on current detector')
-            msgs.info('*' * 18)
-            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'dSlitId'))
-            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 9))
-            for i in range(sortindx.shape[0]):
-                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
-                    msgs.info('{0:^6d} {1:^12d}'.format(num, self.spectrograph.slitmask.slitid[sortindx][i]))
-                    num += 1
-            msgs.info('*' * 18)
-
-        # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
-        # the IDL-based pipeline.
-        if debug:
-            num = 0
-            msgs.info('Expected slits on current detector')
-            msgs.info('*' * 92)
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^16s}'.format('N.',
-                                                                                             'dSlitId', 'slitLen(mm)',
-                                                                                             'slitWid(mm)',
-                                                                                             'spat_cen(mm)',
-                                                                                             'omodel_bottom(pix)',
-                                                                                             'omodel_top(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format('-' * 4, '-' * 9, '-' * 11,
-                                                                                             '-' * 11, '-' * 13,
-                                                                                             '-' * 18, '-' * 15))
-            for i in range(sortindx.size):
-                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
-                    msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f} {4:^14.3f}    {5:^16.2f} {6:^14.2f}'
-                              .format(num, self.spectrograph.slitmask.slitid[sortindx][i],
-                                         self.spectrograph.slitmask.length[sortindx][i],
-                                         self.spectrograph.slitmask.width[sortindx][i],
-                                         self.spectrograph.slitmask.center[:, 0][sortindx][i],
-                                         omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
-                    num += 1
-            msgs.info('*' * 92)
+        omodel_bspat, omodel_tspat, sortindx, self.slitmask = \
+            self.spectrograph.get_maskdef_slitedges(ccdnum=self.traceimg.detector.det, filename=self.maskfile, debug=debug)
 
         # reference row
         bpm = self.bitmask.flagged(self.edge_msk, self.bitmask.bad_flags)
@@ -4306,10 +4231,10 @@ class EdgeTraceSet(DataContainer):
 
         if debug:
             slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, bot_edge_pred, reference_row,
-                                             self.spectrograph.slitmask.slitindx, nspat=self.nspat, duplicates=dupl_b,
+                                             self.slitmask.slitindx, nspat=self.nspat, duplicates=dupl_b,
                                              missing=needind_b, edge='left')
             slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, top_edge_pred, reference_row,
-                                             self.spectrograph.slitmask.slitindx, nspat=self.nspat, duplicates=dupl_t,
+                                             self.slitmask.slitindx, nspat=self.nspat, duplicates=dupl_t,
                                              missing=needind_t, edge='right')
 
         # Put duplicate flags for left and right traces together in one array
@@ -4343,8 +4268,8 @@ class EdgeTraceSet(DataContainer):
             msgs.info('Adding {} left missing edge(s)'.format(needind_b.size))
             # Append the missing indices and re-sort all
             ind_b = np.append(ind_b, needind_b)
-            sortind_b = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
-                                                         self.spectrograph.slitmask.slitid[ind_b], strict=True))
+            sortind_b = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
+                                                         self.slitmask.slitid[ind_b], strict=True))
             ind_b = ind_b[sortind_b]
             for i in range(bot_edge_pred[needind_b].size):
                 # check if the trace that will be added is off detector
@@ -4361,7 +4286,7 @@ class EdgeTraceSet(DataContainer):
                         # If close trace is "right" but it's too close to the new left trace,
                         # add the new trace after "right" one
                         if (self.traceid[indx] > 0) and \
-                                ((self.edge_fit[self.pca.reference_row, indx] - bot_edge_pred[needind_b][i]) < 5):
+                                ((self.edge_fit[reference_row, indx] - bot_edge_pred[needind_b][i]) < 5):
                             bot_edge_pred[needind_b[i]] = self.edge_fit[reference_row, indx] + 1
                     missing_left_traces = self.predict_traces(bot_edge_pred[needind_b][i], side=-1)
                     self.insert_traces(-1, missing_left_traces, mode='mask', nudge=False)
@@ -4371,8 +4296,8 @@ class EdgeTraceSet(DataContainer):
             msgs.info('Adding {} right missing edge(s)'.format(needind_t.size))
             # Append the missing indices and re-sort all
             ind_t = np.append(ind_t, needind_t)
-            sortind_t = np.argsort(utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid[sortindx],
-                                                         self.spectrograph.slitmask.slitid[ind_t], strict=True))
+            sortind_t = np.argsort(utils.index_of_x_eq_y(self.slitmask.slitid[sortindx],
+                                                         self.slitmask.slitid[ind_t], strict=True))
             ind_t = ind_t[sortind_t]
             for i in range(top_edge_pred[needind_t].size):
                 # check if the trace that will be added is off detector
@@ -4396,26 +4321,26 @@ class EdgeTraceSet(DataContainer):
 
         if debug:
             slitdesign_matching.plot_matches(self.edge_fit[:, self.is_left], ind_b, bot_edge_pred, reference_row,
-                                                 self.spectrograph.slitmask.slitindx, nspat=self.nspat, edge='left')
+                                                 self.slitmask.slitindx, nspat=self.nspat, edge='left')
             slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, top_edge_pred, reference_row,
-                                                 self.spectrograph.slitmask.slitindx, nspat=self.nspat, edge='right')
+                                                 self.slitmask.slitindx, nspat=self.nspat, edge='right')
 
         self.maskdef_id = np.zeros(self.ntrace, dtype=int)
-        self.maskdef_id[self.is_left] = self.spectrograph.slitmask.slitid[ind_b]
-        self.maskdef_id[self.is_right] = self.spectrograph.slitmask.slitid[ind_t]
+        self.maskdef_id[self.is_left] = self.slitmask.slitid[ind_b]
+        self.maskdef_id[self.is_right] = self.slitmask.slitid[ind_t]
 
         # flag as 'BOXSLIT' the edges that are predicted to be alignment boxes from optical model.
         align_slit = np.zeros(self.ntrace, dtype=bool)
-        align_slit[self.is_left] = self.spectrograph.slitmask.alignment_slit[ind_b]
-        align_slit[self.is_right] = self.spectrograph.slitmask.alignment_slit[ind_t]
+        align_slit[self.is_left] = self.slitmask.alignment_slit[ind_b]
+        align_slit[self.is_right] = self.slitmask.alignment_slit[ind_t]
         self.edge_msk[:, align_slit] = self.bitmask.turn_on(self.edge_msk[:, align_slit], 'BOXSLIT')
 
         # Propagate the coefficients, `coeff_b` and `coeff_t`, of the x-correlation and the
         # left and right spatial position of the slit edges from optical model (before x-correlation)
         # with the purpose to fill a table with the information on slitmask design matching. The table will
         # be filled out at the very end of the slit tracing process, in `get_slits()`.
-        self.coeff_b = coeff_b
-        self.coeff_t = coeff_t
+        self.cc_params_b = coeff_b[0], coeff_b[1], sigres_b
+        self.cc_params_t = coeff_t[0], coeff_t[1], sigres_t
         self.omodel_bspat = omodel_bspat
         self.omodel_tspat = omodel_tspat
 
@@ -4455,7 +4380,7 @@ class EdgeTraceSet(DataContainer):
         else:
             msgs.warn('LEFT AND RIGHT EDGES *NOT* SYNCHRONIZED AFTER MASK DESIGN MATCHING')
 
-    def _fill_design_table(self, maskdef_id, coeff_b, coeff_t, omodel_bspat, omodel_tspat, spat_id):
+    def _fill_design_table(self, maskdef_id, cc_params_b, cc_params_t, omodel_bspat, omodel_tspat, spat_id):
         """
         Fill :attr:`design` based on the results of the design
         registration.
@@ -4465,9 +4390,9 @@ class EdgeTraceSet(DataContainer):
             - 'TRACESROW': Spectral row for provided left and right edges
             - 'TRACELPIX': Spatial pixel coordinate for left edge
             - 'TRACERPIX': Spatial pixel coordinate for right edge
-            - 'SLITID': Slit ID Number (`maskdef_id`)
-            - 'SLITLOPT': Left edge of the slit in pixel from optical model before x-correlation
-            - 'SLITROPT': Right edge of the slit in pixel from optical model before x-correlation
+            - 'MASKDEF_ID': Slit ID Number from slit-mask design
+            - 'SLITLMASKDEF': Left edge of the slit in pixel from slitmask design before x-correlation
+            - 'SLITRMASKDEF': Right edge of the slit in pixel from slitmask design before x-correlation
             - 'SLITRA': Right ascension of the slit center (deg)
             - 'SLITDEC': Declination of the slit center (deg)
             - 'SLITLEN': Slit length (arcsec)
@@ -4476,16 +4401,20 @@ class EdgeTraceSet(DataContainer):
             - 'ALIGN': Slit used for alignment (1-yes; 0-no), not target observations.
         And three `.meta` info:
             - 'MASKFILE': name of file with the slitmask info
-            - 'MASKOFF': The coefficient 'offset' of the x-correlation between edges predicted by
-                         the optical mode and the one traced on the image. There one coefficient per each edge side
-            - 'MASKSCL': The coefficient 'scale' of the x-correlation between edges predicted by
-                         the optical mode and the one traced on the image. There one coefficient per each edge side
+            - 'MASKOFFL', 'MASKOFFR': The coefficient 'offset' of the x-correlation between edges predicted by
+                                      the slitmask design and the one traced on the image. One value per
+                                      each edge side.
+            - 'MASKSCLL', 'MASKSCLR': The coefficient 'scale' of the x-correlation between edges predicted by
+                                      the slitmask design and the one traced on the image. One value per
+                                      each edge side
+            - 'MASKRMSL', 'MASKRMSR': The RMS of the x-correlation between edges predicted by the slitmask design
+                                      and the one traced on the image. One value per each edge side
 
         Args:
             maskdef_id (:obj:`numpy.array`):
                 Slit ID number from slit-mask design matched to traced slits.
-            coeff_b, coeff_t (:obj:`numpy.array`):
-                Fit parameters of the cross-correlation between slit-mask design
+            cc_params_b, cc_params_t (:obj:`tuple`):
+                Three parameters of the cross-correlation (2 coefficients and RMS) between slit-mask design
                 and traced edges for the left and right edges.
             omodel_bspat, omodel_tspat (:obj:`numpy.array`):
                 Left and right spatial position of the slit edges from optical model
@@ -4494,14 +4423,17 @@ class EdgeTraceSet(DataContainer):
 
 
         """
+        # Check that slitmask is initiated
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info')
         # as reference row we use the midpoint in the spectral direction
         reference_row = self.edge_fit[:, 0].size // 2
 
         # matched index for the slit-mask design data.
-        ind = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitid, maskdef_id, strict=False)
-        # if not all the element of self.spectrograph.slitmask.slitid[ind] are equal to maskdef_id, keep only the
+        ind = utils.index_of_x_eq_y(self.slitmask.slitid, maskdef_id, strict=False)
+        # if not all the element of self.slitmask.slitid[ind] are equal to maskdef_id, keep only the
         # elements that are equal (matched)
-        matched = np.where(self.spectrograph.slitmask.slitid[ind] == maskdef_id)[0]
+        matched = np.where(self.slitmask.slitid[ind] == maskdef_id)[0]
         ind = ind[matched]
         # Number of slits
         nslits = matched.size
@@ -4510,8 +4442,12 @@ class EdgeTraceSet(DataContainer):
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)
         # Save the fit parameters and the source file as table metadata
         self.design.meta['MASKFILE'] = self.maskfile
-        self.design.meta['MASKOFF'] = coeff_b[0], coeff_t[0]
-        self.design.meta['MASKSCL'] = coeff_b[1], coeff_t[1]
+        self.design.meta['MASKOFFL'] = cc_params_b[0]
+        self.design.meta['MASKOFFR'] = cc_params_t[0]
+        self.design.meta['MASKSCLL'] = cc_params_b[1]
+        self.design.meta['MASKSCLR'] = cc_params_t[1]
+        self.design.meta['MASKRMSL'] = cc_params_b[2]
+        self.design.meta['MASKRMSR'] = cc_params_t[2]
         # Fill the columns
         self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
         self.design['TRACESROW'] = np.full(nslits, reference_row,
@@ -4521,15 +4457,15 @@ class EdgeTraceSet(DataContainer):
         self.design['TRACERPIX'] = self.edge_fit[reference_row,self.traceid>0][matched].astype(
                                         dtype=self.design['TRACERPIX'].dtype)
         self.design['SPAT_ID'] = spat_id[matched].astype(dtype=self.design['SPAT_ID'].dtype)
-        self.design['SLITID'] = self.spectrograph.slitmask.slitid[ind].astype(
-                                        dtype=self.design['SLITID'].dtype)
-        self.design['SLITLOPT'] = omodel_bspat[ind].astype(dtype=self.design['SLITLOPT'].dtype)
-        self.design['SLITROPT'] = omodel_tspat[ind].astype(dtype=self.design['SLITROPT'].dtype)
-        if self.spectrograph.slitmask.onsky is not None:
+        self.design['MASKDEF_ID'] = self.slitmask.slitid[ind].astype(
+                                        dtype=self.design['MASKDEF_ID'].dtype)
+        self.design['SLITLMASKDEF'] = omodel_bspat[ind].astype(dtype=self.design['SLITLMASKDEF'].dtype)
+        self.design['SLITRMASKDEF'] = omodel_tspat[ind].astype(dtype=self.design['SLITRMASKDEF'].dtype)
+        if self.slitmask.onsky is not None:
             for i,key in enumerate(['SLITRA', 'SLITDEC', 'SLITLEN', 'SLITWID', 'SLITPA']):
-                self.design[key] = self.spectrograph.slitmask.onsky[ind,i].astype(
+                self.design[key] = self.slitmask.onsky[ind,i].astype(
                                         dtype=self.design[key].dtype)
-        self.design['ALIGN'] = self.spectrograph.slitmask.alignment_slit[ind].astype(
+        self.design['ALIGN'] = self.slitmask.alignment_slit[ind].astype(
                                         dtype=self.design['ALIGN'].dtype)
 
     def _fill_objects_table(self, maskdef_id):
@@ -4538,24 +4474,29 @@ class EdgeTraceSet(DataContainer):
         registration.
 
         The :attr:`objects` is an `astropy.table.Table`_ with 5 columns:
-        - 'OBJID': Object ID Number
-        - 'OBJRA': Right ascension of the object (deg)
-        - 'OBJDEC': Declination of the object (deg)
-        - 'OBJNAME': Object name assigned by the observer
-        - 'OBJMAG': Object magnitude provided by the observer
-        - 'OBJMAG_BAND': Band of the magnitude provided by the observer
-        - 'SLITID': Slit ID Number (`maskdef_id`)
-        - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
-        edge of the slit (in PypeIt orientation)
-        - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
-        edge of the slit (in PypeIt orientation)
-        - 'TRACEID': Row index that matches 'TRACEID' in the design table
+            - 'OBJID': Object ID Number
+            - 'OBJRA': Right ascension of the object (deg)
+            - 'OBJDEC': Declination of the object (deg)
+            - 'OBJNAME': Object name assigned by the observer
+            - 'OBJMAG': Object magnitude provided by the observer
+            - 'OBJMAG_BAND': Band of the magnitude provided by the observer
+            - 'MASKDEF_ID': Slit ID Number from slit-mask design
+            - 'OBJ_TOPDIST': Projected distance (in arcsec) of the object from the left
+               edge of the slit (in PypeIt orientation)
+            - 'OBJ_BOTDIST': Projected distance (in arcsec) of the object from the right
+               edge of the slit (in PypeIt orientation)
+            - 'TRACEID': Row index that matches 'TRACEID' in the design table
+
 
         Args:
             maskdef_id (:obj:`numpy.array`):
                 Slit ID number from slit-mask design matched to traced slits.
         """
-        if self.spectrograph.slitmask.objects is None:
+        # Check that slitmask is initiated
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info')
+
+        if self.slitmask.objects is None:
             # No object data available in slit mask design object
             self.objects = None
             return
@@ -4563,10 +4504,10 @@ class EdgeTraceSet(DataContainer):
         # The index in the objects table are found by mapping the slit
         # index of each object in the design file to the slit index
         # included in the registration
-        obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.objects[:,0], maskdef_id, strict=False)
-        # if not all the element of self.spectrograph.slitmask.objects[obj_index,0] are equal to maskdef_id,
+        obj_index = utils.index_of_x_eq_y(self.slitmask.objects[:,0], maskdef_id, strict=False)
+        # if not all the element of self.slitmask.objects[obj_index,0] are equal to maskdef_id,
         # keep only the elements that are equal (matched)
-        matched = np.where(self.spectrograph.slitmask.objects[obj_index,0].astype(int) == maskdef_id)[0]
+        matched = np.where(self.slitmask.objects[obj_index,0].astype(int) == maskdef_id)[0]
         obj_index = obj_index[matched]
 
         # Number of objects
@@ -4574,14 +4515,14 @@ class EdgeTraceSet(DataContainer):
         # Instantiate an empty table
         self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
         # Fill the columns
-        for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
+        for i,key in enumerate(['MASKDEF_ID', 'OBJID', 'OBJRA', 'OBJDEC', 'OBJNAME', 'OBJMAG', 'OBJMAG_BAND',
                                 'OBJ_TOPDIST', 'OBJ_BOTDIST']):
-            self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
+            self.objects[key] = self.slitmask.objects[obj_index,i].astype(dtype=self.objects[key].dtype)
 
         # SLITINDX is the index of the slit in the `design` table, not
         # in the original slit-mask design data
-        self.objects['TRACEID'] = utils.index_of_x_eq_y(self.objects['SLITID'],
-                                                         self.design['SLITID'], strict=True)
+        self.objects['TRACEID'] = utils.index_of_x_eq_y(self.objects['MASKDEF_ID'],
+                                                         self.design['MASKDEF_ID'], strict=True)
 
 # NOTE: I'd like us to keep this commented mask_refine function around
 # for the time being.
@@ -5140,15 +5081,15 @@ class EdgeTraceSet(DataContainer):
                           "They will not be included in the design table")
 
             # Store the matched slit-design and object information in a table.
-            self._fill_design_table(_maskdef_id, self.coeff_b, self.coeff_t, self.omodel_bspat,
+            self._fill_design_table(_maskdef_id, self.cc_params_b, self.cc_params_b, self.omodel_bspat,
                                     self.omodel_tspat, spat_id)
             self._fill_objects_table(_maskdef_id)
             # TODO - instead of merging the two tables, just create a single one
             _merged_designtab = table.join(self.design, self.objects, keys=['TRACEID'])
-            _merged_designtab.remove_column('SLITID_2')
-            _merged_designtab.rename_column('SLITID_1', 'SLITID')
+            _merged_designtab.remove_column('MASKDEF_ID_2')
+            _merged_designtab.rename_column('MASKDEF_ID_1', 'MASKDEF_ID')
             # One more item
-            _posx_pa = float(self.spectrograph.slitmask.posx_pa)
+            _posx_pa = float(self.slitmask.posx_pa)
         else:
             _maskdef_id = None
             _merged_designtab = None

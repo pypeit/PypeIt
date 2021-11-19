@@ -24,6 +24,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
     camera = 'deveny'
+    header_name = 'Deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
     supported = True
 
@@ -105,6 +106,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
