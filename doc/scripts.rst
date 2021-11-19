@@ -5,7 +5,7 @@ PypeIt scripts
 ``PypeIt`` is packaged with several scripts that should have been installed
 directly into your path (e.g. ``~/anaconda/bin``).
 
-**If you are developing a new script, see :ref:`new_script`.**
+**If you are developing a new script, see** :ref:`new_script`.
 
 Installation Scripts
 ++++++++++++++++++++
@@ -110,7 +110,7 @@ And the associated output::
 
 Here, the first level is the calib_grp (1), the next level gives
 the Master key (A_1_01) and then there is a listing of the files
-contributing to each of the :ref:`_masters`.  See those docs for more.
+contributing to each of the :ref:`masters`.  See those docs for more.
 
 .. _pypeit-obslog:
 
@@ -198,7 +198,7 @@ The script usage can be displayed by calling the script with the
 pypeit_chk_wavecalib
 ====================
 
-See :ref:`pypeit-chk-wavecalib for details.
+See :ref:`pypeit-chk-wavecalib` for details.
 
 pypeit_chk_2dslits
 ==================
