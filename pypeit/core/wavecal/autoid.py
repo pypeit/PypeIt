@@ -2521,7 +2521,6 @@ class HolyGrail:
                 A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
 
         Returns:
-        -------
             patt_dict (dict):
                 Dictionary containing information about the best patterns.
 

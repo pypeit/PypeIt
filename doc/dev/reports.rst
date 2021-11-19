@@ -12,9 +12,10 @@ development of ``PypeIt``.
    :maxdepth: 1
    
    deimosframes
-   deimos_slitmask_ids
+   mosfireframes
+   slitmask_ids
    deimosconfig
-   deimos_radec_object
+   radec_object
    deimos_wavecalib
-   deimos_add_missing_obj
+   add_missing_obj
 
