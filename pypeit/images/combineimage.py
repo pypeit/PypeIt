@@ -203,28 +203,22 @@ class CombineImage:
                 shape = (self.nfiles,) + pypeitImage.shape
                 img_stack = np.zeros(shape, dtype=float)
                 scl_stack = np.ones(shape, dtype=float)
-#                ivar_stack= np.ones(shape, dtype=float)
                 rn2img_stack = np.zeros(shape, dtype=float)
                 basev_stack = np.zeros(shape, dtype=float)
-#                crmask_stack = np.zeros(shape, dtype=bool)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 lampstat = [None]*self.nfiles
-                darkcurr = np.zeros(self.nfiles, dtype=float)
+#                darkcurr = np.zeros(self.nfiles, dtype=float)
                 exptime = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
-            # Save the dark current and exposure time
-            darkcurr[kk] = pypeitImage.detector['darkcurr']
+            # NOTE: Don't need dark current.  It's included in the "base
+            # variance" (basev)
+#            darkcurr[kk] = pypeitImage.detector['darkcurr']
+            # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = pypeitImage.exptime
             # Processed image
             img_stack[kk] = pypeitImage.image
-#            # Construct raw variance image and turn into inverse variance
-#            if pypeitImage.ivar is not None:
-#                ivar_stack[kk] = pypeitImage.ivar
-#            # Mask cosmic rays
-#            if pypeitImage.crmask is not None:
-#                crmask_stack[kk] = pypeitImage.crmask
             # Get the count scaling
             if pypeitImage.img_scale is not None:
                 scl_stack[kk] = pypeitImage.img_scale
@@ -259,14 +253,14 @@ class CombineImage:
                       + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
             print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
 
-        # Do a similar check for darkcurr 
-        if np.any(np.absolute(np.diff(darkcurr)) > 0):
-            msgs.warn('Dark current is not consistent for all images being combined!  '
-                      f'Using the value for frame {self.files[-1]}.')
-        # TODO: Use the last one because the detector from the last file is also
-        # the one passed to the PypeItImage object constructed for the combined
-        # image.
-        comb_dark = darkcurr[-1]
+#        # Do a similar check for darkcurr 
+#        if np.any(np.absolute(np.diff(darkcurr)) > 0):
+#            msgs.warn('Dark current is not consistent for all images being combined!  '
+#                      f'Using the value for frame {self.files[-1]}.')
+#        # TODO: Use the last one because the detector from the last file is also
+#        # the one passed to the PypeItImage object constructed for the combined
+#        # image.
+#        comb_dark = darkcurr[-1]
 
         # ... and exptime
         if np.any(np.absolute(np.diff(exptime)) > 0):

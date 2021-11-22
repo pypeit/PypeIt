@@ -2,8 +2,6 @@
 from IPython import embed
 
 import numpy as np
-from scipy import ndimage
-#from matplotlib import pyplot
 
 from pypeit import msgs
 

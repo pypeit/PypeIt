@@ -132,8 +132,11 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
+        det (:obj:`int`, :obj:`tuple`):
+            The 1-indexed detector number(s) to process.  If a tuple, it must
+            include detectors viable as a mosaic for the provided spectrograph;
+            see
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
         frame_par (:class:`~pypeit.par.pypeitpar.FramePar`):
             Parameters that dictate the processing of the images.  See
             :class:`~pypeit.par.pypeitpar.ProcessImagesPar` for the
@@ -173,14 +176,25 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         # requires frametype to be valid
         msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
 
+#    if isinstance(det, tuple):
+#        if det not in spectrograph.allowed_mosaics:
+#            msgs.error(f'Detectors {det} do not form valid mosaic for {spectrgraph.name}.')
+#        _det = det
+#    else:
+#        _det = (det,)
+#
+#    ndet = len(_det)
+#    _imgs = [None]*ndet
+#    for i in range(ndet):
+
     # Do it
-    combineImage = combineimage.CombineImage(spectrograph, det, 
-                                             frame_par['process'], file_list)
+    combineImage = combineimage.CombineImage(spectrograph, det, #_det[i],
+                                                frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
-                                   sigma_clip=frame_par['process']['clip'],
-                                   sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation, slits=slits,
-                                   combine_method=frame_par['process']['combine'])
+                                    sigma_clip=frame_par['process']['clip'],
+                                    sigrej=frame_par['process']['comb_sigrej'],
+                                    maxiters=maxiters, ignore_saturation=ignore_saturation,
+                                    slits=slits, combine_method=frame_par['process']['combine'])
 
     # Decorate according to the type of calibration, primarily as needed for
     # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by

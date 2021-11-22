@@ -682,6 +682,7 @@ class Spectrograph:
         """
         pass
 
+    @property
     def allowed_mosaics(self):
         """
         The list of allowed detector mosaics.

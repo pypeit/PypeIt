@@ -34,7 +34,7 @@ def test_transform_series():
     """
     Test construction of composite from a series.
     """
-    steps = [dict(scale=(1.5,2)), dict(rotation=np.pi/3), dict(translation=[2,1])]
+    steps = [dict(scale=2), dict(rotation=np.pi/3), dict(translation=[2,1])]
     a1 = transform.affine_transform_series(steps)
     a2 = transform.affine_transform_matrix(scale=steps[0]['scale'], rotation=steps[1]['rotation'],
                                            translation=steps[2]['translation'])

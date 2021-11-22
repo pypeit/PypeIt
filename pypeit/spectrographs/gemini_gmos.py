@@ -437,6 +437,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                     -GeminiGMOSMosaic.geometry[self.detid][(0,0)]['rotation']]
         return GeminiGMOSMosaic.geometry[self.detid]['default_shape'], shift, rotation
 
+    @property
     def allowed_mosaics(self):
         """
         Return the list of allowed detector mosaics.

@@ -488,7 +488,7 @@ class RawImage:
         #   - Subtract dark current.  The tabulated dark current is *always*
         #     subtracted regardless of whether or not use_darkimage is true.  If
         #     a dark frame is provided and subtracted, its shape and orientation
-        #     must match *processed* image, and the units *must* be in
+        #     must match the *processed* image, and the units *must* be in
         #     electrons/counts.  If available, uncertainty from the dark
         #     subtraction is added to the variance.
         self.subtract_dark(dark_image=dark if self.par['use_darkimage'] else None)

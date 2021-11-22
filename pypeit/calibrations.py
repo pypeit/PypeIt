@@ -721,8 +721,8 @@ class Calibrations:
                 if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                                      self.par['wavelengths'], lamps, binspectral=binspec,
-                                                      det=self.det,
+                                                      self.par['wavelengths'], lamps,
+                                                      binspectral=binspec, det=self.det,
                                                       master_key=self.master_key_dict['arc'],
                                                       qa_path=self.qa_path, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
