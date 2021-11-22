@@ -19,6 +19,9 @@ For instructions on how to add a new spectrograph see:
 
 .. include:: include/spectrographs_table.rst
 
+
+.. _spec_details:
+
 Instrument-specific Details
 ===========================
 
@@ -32,6 +35,7 @@ instrument-specific details for running ``PypeIt``.
    new_spectrograph
    gemini_gmos
    deimos
+   mosfire
    keck_kcwi
    lris
    mage

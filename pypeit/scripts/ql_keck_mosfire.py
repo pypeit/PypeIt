@@ -272,7 +272,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
                        'points at the Master Calibs')
 
         # We need the platescale
-        platescale = spectrograph.get_detector_par(None, 1)['platescale']
+        platescale = spectrograph.get_detector_par(1)['platescale']
         # Parse the offset information out of the headers. TODO in the future
         # get this out of fitstable
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)

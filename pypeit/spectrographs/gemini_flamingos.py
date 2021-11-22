@@ -46,6 +46,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
 class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
@@ -56,16 +57,18 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     camera = 'FLAMINGOS'
     supported = True
     comment = 'Flamingos-2 NIR spectrograph'
+    header_name = 'F2'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -88,7 +91,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
             gain            = np.atleast_1d(4.44),
             ronoise         = np.atleast_1d(5.0), #8 CDS read
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]'),
+            oscansec        = None,
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -223,16 +226,18 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
 
     name = 'gemini_flamingos1'
     camera = 'FLAMINGOS'
+    header_name = 'F1'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:

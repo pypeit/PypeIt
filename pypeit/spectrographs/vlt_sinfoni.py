@@ -24,18 +24,20 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
     name = 'vlt_sinfoni'
     telescope = telescopes.VLTTelescopePar()
     camera = 'SINFONI'
+    header_name = 'SINFONI'
     supported = True
     comment = 'Gratings tested: K'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -58,7 +60,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(2.42),
             ronoise         = np.atleast_1d(7.0),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None, #np.atleast_1d('[:,:]')
         )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -100,17 +102,18 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
 
-        # TODO We need to implement dark subtrction for the arcframe and tiltframe. Currently the pypeit file won't let me do this.
-        par['calibrations']['arcframe']['process']['cr_sigrej'] = 20.0
+        # TODO: We need to implement dark subtraction for the arcframe and
+        # tiltframe. Currently the pypeit file won't let me do this.
+        par['calibrations']['arcframe']['process']['sigclip'] = 20.0
         #par['calibrations']['arcframe']['process']['combine'] = 'median'
         par['calibrations']['arcframe']['process']['mask_cr'] = True
 
 
-        par['calibrations']['tiltframe']['process']['cr_sigrej'] = 20.0
+        par['calibrations']['tiltframe']['process']['sigclip'] = 20.0
         #par['calibrations']['tiltframe']['process']['combine'] = 'median'
         par['calibrations']['tiltframe']['process']['mask_cr'] = True
 
-        par['calibrations']['skyframe']['process']['cr_sigrej'] = 20.0
+        par['calibrations']['skyframe']['process']['sigclip'] = 20.0
         #par['calibrations']['skyframe']['process']['combine'] = 'median'
         par['calibrations']['skyframe']['process']['mask_cr'] = True
 
@@ -123,6 +126,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
         par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
         par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        # TODO: `mask_cr` now defaults to True for darks.  Should this be turned off?
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.9
@@ -183,6 +187,7 @@ class VLTSINFONISpectrograph(spectrograph.Spectrograph):
         self.meta['filter1'] = dict(ext=0, card='HIERARCH ESO INS FILT1 NAME')
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRAT1 NAME')
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO OCS DET IMGNAME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         # Dithering
         self.meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFFSETY',

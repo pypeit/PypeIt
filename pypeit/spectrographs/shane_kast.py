@@ -98,6 +98,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Additional ones, generally for configuration determination or time
         self.meta['dichroic'] = dict(ext=0, card='BSPLIT_N')
+        self.meta['instrument'] = dict(ext=0, card='VERSION')
         lamp_names = [ '1', '2', '3', '4', '5',
                        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
         for kk,lamp_name in enumerate(lamp_names):
@@ -200,16 +201,18 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_blue'
     camera = 'KASTb'
     supported = True
+    header_name = 'kastb'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -217,7 +220,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         # Detector 1
         detector_dict = dict(
-            binning=self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning='1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning'),
             det=1,
             dataext=0,
             specaxis=1,
@@ -234,14 +237,11 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             ygap=0.,
             ysize=1.,
             darkcurr=0.0,
-            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),  # These are rows, columns on the raw frame, 1-indexed
+            # These are rows, columns on the raw frame, 1-indexed
+            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),
             oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
         )
-        # suffix='_blue'
-        detector = detector_container.DetectorContainer(**detector_dict)
-
-        # Return
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -329,23 +329,33 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
     name = 'shane_kast_red'
     camera = 'KASTr'
     supported = True
+    header_name = 'kastr'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            Shane/KASTr.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -363,7 +373,15 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             numamplifiers   = 2,
             gain            = np.atleast_1d([1.9, 1.9]),
             ronoise         = np.atleast_1d([3.8, 3.8]),
+            datasec         = None,
+            oscansec        = None
             )
+
+        if hdu is None:
+            return detector_container.DetectorContainer(**detector_dict)
+
+        # TODO: I don't know how to handle the stuff below for the
+        # auto-generated detector table...
 
         # Parse datasec, oscancsec from the header
         header = hdu[0].header
@@ -550,23 +568,26 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     camera = 'KASTr'
     supported = True
     comment = 'Red reticon'
+    header_name = 'kastr'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(

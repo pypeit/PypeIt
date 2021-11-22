@@ -110,12 +110,13 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-
 def load_sky_spectrum(sky_file):
     """
     Load a sky spectrum into an XSpectrum1D object
 
-    ..todo -- Try to eliminate the XSpectrum1D dependancy
+    .. todo::
+
+        Try to eliminate the XSpectrum1D dependancy
 
     Args:
         sky_file: str

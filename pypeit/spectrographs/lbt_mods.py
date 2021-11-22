@@ -72,6 +72,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNAME')
         self.meta['dichroic'] = dict(ext=0, card='FILTNAME')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -191,7 +192,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         # TODO These parameters should probably be stored in the detector par
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
+        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
@@ -239,27 +240,28 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods1r'
     camera = 'MODS1R'
+    header_name = 'MODS1R'
     supported = True
     comment = 'MODS-I red spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        xbin = hdu[0].header['CCDXBIN']
-        ybin = hdu[0].header['CCDYBIN']
-        binning = '{:},{:}'.format(xbin,ybin)
+        binning = '1,1' if hdu is None \
+                    else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
         detector_dict = dict(
@@ -277,11 +279,11 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([2.38,2.50,2.46,2.81]),
             ronoise         = np.atleast_1d([3.78,4.04,4.74,4.14]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -403,27 +405,27 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
     name = 'lbt_mods1b'
     camera = 'MODS1B'
+    header_name = 'MODS1B'
     supported = True
     comment = 'MODS-I blue spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        xbin = hdu[0].header['CCDXBIN']
-        ybin = hdu[0].header['CCDYBIN']
-        binning = '{:},{:}'.format(xbin,ybin)
+        binning = '1,1' if hdu is None \
+                    else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
         detector_dict = dict(
@@ -441,11 +443,11 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
             ronoise         = np.atleast_1d([3.41,2.93,2.92,2.76]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -559,27 +561,28 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2r'
     camera = 'MODS2R'
+    header_name = 'MODS2R'
     supported = True
     comment = 'MODS-II red spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        xbin = hdu[0].header['CCDXBIN']
-        ybin = hdu[0].header['CCDYBIN']
-        binning = '{:},{:}'.format(xbin,ybin)
+        binning = '1,1' if hdu is None \
+                    else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
         detector_dict = dict(
@@ -597,11 +600,11 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([1.70,1.67,1.66,1.66]),
             ronoise         = np.atleast_1d([2.95,2.65,2.78,2.87]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):
@@ -720,27 +723,28 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2b'
     camera = 'MODS2B'
+    header_name = 'MODS2B'
     supported = True
     comment = 'MODS-II blue spectrometer'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        xbin = hdu[0].header['CCDXBIN']
-        ybin = hdu[0].header['CCDYBIN']
-        binning = '{:},{:}'.format(xbin,ybin)
+        binning = '1,1' if hdu is None \
+                    else f"{hdu[0].header['CCDXBIN']},{hdu[0].header['CCDYBIN']}"
 
         # Detector 1
         detector_dict = dict(
@@ -758,11 +762,11 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
             numamplifiers   = 4,
             gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
             ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64]),
-            datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+# TODO: The raw image reader sets these up by hand
+#            datasec         = np.atleast_1d('[:,:]'),
+#            oscansec        = np.atleast_1d('[:,:]')
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):

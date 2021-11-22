@@ -28,24 +28,26 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_binospec'
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
+    header_name = 'Binospec'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -107,6 +109,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat01'] = dict(ext=1, card='HENEAR')
         # used for flatlamp, SCRN is actually telescope status
         self.meta['lampstat02'] = dict(ext=1, card='SCRN')
+        self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -342,7 +345,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # TOdO Store these parameters in the DetectorPar.
         # Number of amplifiers
-        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
+        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...

@@ -25,6 +25,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     name = 'p200_tspec'
     telescope = telescopes.P200TelescopePar()
     camera = 'TSPEC'
+    header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
     supported = True
     comment = 'TripleSpec spectrograph'
@@ -50,6 +51,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='FPA')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='FPA')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -72,15 +74,16 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -103,10 +106,9 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')
+            oscansec        = None #np.atleast_1d('[:,:]')
             )
-        detector = detector_container.DetectorContainer(**detector_dict)
-        return detector
+        return detector_container.DetectorContainer(**detector_dict)
 
     @classmethod
     def default_pypeit_par(cls):

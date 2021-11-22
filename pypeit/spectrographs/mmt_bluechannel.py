@@ -24,28 +24,47 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     name = 'mmt_bluechannel'
+    header_name = 'mmtbluechan'
     telescope = telescopes.MMTTelescopePar()
     camera = 'Blue_Channel'
     supported = True
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            MMT/BlueChannel.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        header = hdu[0].header
-
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if hdu is None:
+            binning = '1,1'
+            gain = None
+            ronoise = None
+            darkcurr = None
+            datasec = None
+            oscansec = None
+        else:
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            gain = np.atleast_1d(hdu[0].header['GAIN'])
+            ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
+            darkcurr = hdu[0].header['DARKCUR']
+            datasec = np.atleast_1d(hdu[0].header['DATASEC'])
+            oscansec = np.atleast_1d(hdu[0].header['BIASSEC'])
 
         # Detector 1
         detector_dict = dict(
@@ -59,16 +78,18 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
             ygap            = 0.,
             ysize           = 1.,
             platescale      = 0.3,
-            darkcurr        = header['DARKCUR'],
+            darkcurr        = darkcurr, #header['DARKCUR'],
             saturation      = 65535.,
             nonlinear       = 0.95,  # need to look up and update
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(header['GAIN']),
-            ronoise         = np.atleast_1d(header['RDNOISE']),
+            gain            = gain, #np.atleast_1d(header['GAIN']),
+            ronoise         = ronoise, #np.atleast_1d(header['RDNOISE']),
             # note that the header entries use the binned sizes
-            datasec         = np.atleast_1d(header['DATASEC']),
-            oscansec        = np.atleast_1d(header['BIASSEC'])
+# TODO: These aren't needed because the read_rawimage sets these directly,
+# right?
+            datasec         = datasec, #np.atleast_1d(header['DATASEC']),
+            oscansec        = oscansec #np.atleast_1d(header['BIASSEC'])
         )
 
         return detector_container.DetectorContainer(**detector_dict)
@@ -98,6 +119,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # used for arc and continuum lamps
         self.meta['lampstat01'] = dict(ext=0, card=None, compound=True)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -343,7 +365,7 @@ class MMTBlueChannelSpectrograph(spectrograph.Spectrograph):
 
         # TODO Store these parameters in the DetectorPar.
         # Number of amplifiers
-        detector_par = self.get_detector_par(hdu, det if det is not None else 1)
+        detector_par = self.get_detector_par(det if det is not None else 1, hdu=hdu)
         numamp = detector_par['numamplifiers']
 
         # First read over the header info to determine the size of the output array...

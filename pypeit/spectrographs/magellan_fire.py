@@ -35,6 +35,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
+    camera = 'FIRE'
+    header_name = 'FIRE'
 
     def init_meta(self):
         """
@@ -58,6 +60,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
     def pypeit_file_keys(self):
@@ -89,20 +92,20 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire'
-    camera = 'FIRE'
     pypeline = 'Echelle'
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -179,7 +182,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
 
         # Processing steps
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False,
+                        use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
@@ -332,19 +336,19 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire_long'
-    camera = 'FIRE'
     supported = True
     comment = 'Magellan/FIRE in long-slit/high-throughput mode'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:

@@ -57,6 +57,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
 
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -334,7 +335,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
         # Return, transposing array back to orient the overscan properly
-        return self.get_detector_par(hdu, det if det is not None else 1), \
+        return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
                 array, hdu, exptime, rawdatasec_img, oscansec_img
 
 
@@ -344,19 +345,21 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
     name = 'gemini_gmos_south_ham'
     camera = 'GMOS-S'
+    header_name = 'GMOS-S'
     telescope = telescopes.GeminiSTelescopePar()
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); see :doc:`gemini_gmos`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -364,7 +367,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         # Binning
         # TODO: Could this be detector dependent??
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -549,6 +552,7 @@ class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):
     """
     telescope = telescopes.GeminiNTelescopePar()
     camera = 'GMOS-N'
+    header_name = 'GMOS-N'
 
 
 class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
@@ -560,15 +564,16 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
     supported = True
     comment = 'Hamamatsu detector (R400, B600, R831); Used since Feb 2017; see :doc:`gemini_gmos`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -576,7 +581,7 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         """
         # TODO: Could this be detector dependent?
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -706,15 +711,16 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     supported = True
     comment = 'E2V detector; see :doc:`gemini_gmos`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -722,7 +728,7 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
         """
         # TODO: Could this be detector dependent?
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(

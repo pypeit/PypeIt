@@ -25,27 +25,30 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'magellan_mage'
     camera = 'MagE'
+    header_name = 'MagE'
     telescope = telescopes.MagellanTelescopePar()
     pypeline = 'Echelle'
     supported = True
     comment = 'See :doc:`mage`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
         # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        # TODO: Could this be detector dependent??
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict = dict(
@@ -150,6 +153,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='INSTRUME')
         self.meta['idname'] = dict(ext=0, card='EXPTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

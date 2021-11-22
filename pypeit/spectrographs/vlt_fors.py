@@ -91,6 +91,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         self.meta['detector'] = dict(ext=0, card='EXTNAME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -196,25 +197,38 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
     name = 'vlt_fors2'
     camera = 'FORS2'
+    header_name = 'FORS2'
     supported = True
     comment = '300I, 300V gratings'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
-                1-indexed detector number.
+                1-indexed detector number.  ESO writes each of the two detectors
+                to separate files.  When ``hdu`` is provided, this is ignored
+                and instead the chip is determined by the header parameter
+                "EXTNAME".  If ``hdu`` is None (for automatically generated
+                documentation only), this can be used to set the chip (1 or 2)
+                that is returned.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+        if hdu is None:
+            binning = '1,1'
+            chip = 'CHIP1' if det == 1 else 'CHIP2'
+        else:
+            # Binning
+            # TODO: Could this be detector dependent??
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
 
         # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
         detector_dict1 = dict(
@@ -258,11 +272,12 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         )
 
         # Finish
-        chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
         if chip == 'CHIP1':
             return detector_container.DetectorContainer(**detector_dict1)
         elif chip == 'CHIP2':
             return detector_container.DetectorContainer(**detector_dict2)
+        else:
+            msgs.error(f'Unknown chip: {chip}!')
 
     def config_specific_par(self, scifile, inp_par=None):
         """

@@ -106,6 +106,7 @@ class RunPypeIt(scriptbase.ScriptBase):
         from pypeit import pypeit
         from pypeit import msgs
 
+
         # Initiate logging for bugs and command line help
         # These messages will not be saved to a log file
         # Set the default variables
@@ -136,10 +137,11 @@ class RunPypeIt(scriptbase.ScriptBase):
             pypeIt.par['rdx']['detnum'] = int(args.detector)
 
         if args.calib_only:
-            pypeIt.calib_all()
+            calib_dict = pypeIt.calib_all()
         else:
             pypeIt.reduce_all()
         msgs.info('Data reduction complete')
+
         # QA HTML
         msgs.info('Generating QA HTML')
         pypeIt.build_qa()

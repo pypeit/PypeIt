@@ -199,9 +199,6 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         plt.clf()
         ax = plt.gca()
         ax.plot(nwwv, nwspec)
-        # DEBUGGING
-        #wave, flux, bin = waveio.load_template('keck_deimos_1200B.fits', 1)
-        #ax.plot(wave, flux)
         plt.show()
     # Generate the table
     wvutils.write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
@@ -246,7 +243,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         tuple: np.ndarray, np.ndarray, PypeItFit:  wave, flux, pypeitFitting
 
     """
-    if 'json' in in_file:
+    if '.json' in in_file:
         wv_dict = ltu.loadjson(in_file)
         iwv_calib = wv_dict[str(slit)]
         pypeitFitting = fitting.PypeItFit(fitc=np.array(iwv_calib['fitc']),
@@ -262,7 +259,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
         #wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
         #                   minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
         flux = np.array(iwv_calib['spec']).flatten()
-    elif 'fits' in in_file:
+    elif '.fits' in in_file:
         wvcalib = wavecalib.WaveCalib.from_file(in_file)
         idx = np.where(wvcalib.spat_ids == slit)[0][0]
         flux = wvcalib.arc_spectra[:,idx]
@@ -281,7 +278,6 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
 
     # Return
     return wv_vac, flux, pypeitFitting
-
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -437,6 +433,7 @@ def xidl_arcspec(xidl_file, slit):
         spec = spec[::-1]
     # Return
     return wv_vac.value, spec
+
 
 def main(flg):
 
@@ -747,24 +744,6 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
                        chk=True, subtract_conti=True)
 
-    # Keck KCWI
-    if flg & (2 ** 29):
-        # FeAr BH2
-        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200.json')
-        outroot = 'keck_kcwi_BH2_4200.fits'
-        binspec = 1
-        slits = [1015]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-        # FeAr BM
-        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
-        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
-        outroot = 'keck_kcwi_BM.fits'
-        binspec = 1
-        slits = [1026, 1021]
-        lcut = [4350.0, 8000.0]
-        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-
     # MMT/MMIRS
     if flg & (2**32):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
@@ -867,9 +846,6 @@ if __name__ == '__main__':
 
     # MDM/OSMMOS
     #flg += 2**28
-
-    # Keck KCWI
-    #flg += 2**29
 
     # MMT MMIRS
     #flg += 2**32

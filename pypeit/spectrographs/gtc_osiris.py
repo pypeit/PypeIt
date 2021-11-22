@@ -24,10 +24,11 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     name = 'gtc_osiris'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
+    header_name = 'OSIRIS'
     supported = True
     comment = 'See :doc:`gtc_osiris`'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
@@ -35,18 +36,17 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         <http://www.gtc.iac.es/instruments/osiris/>`__.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         # Detector 1
         detector_dict1 = dict(
@@ -118,7 +118,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['arcframe']['exprng'] = [None, None]  # Long arc exposures
         par['calibrations']['arcframe']['process']['clip']=False
-        par['calibrations']['arcframe']['process']['combine']='weightmean' #Multiple arcs with different lamps, so can't median combine
+        par['calibrations']['arcframe']['process']['combine']='mean' #Multiple arcs with different lamps, so can't median combine
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
@@ -155,6 +155,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

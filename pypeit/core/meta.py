@@ -50,12 +50,13 @@ def convert_radec(ra, dec):
     else:
         return ra, dec
 
-# TODO JFH define_core_meta and define_additional_meta should be moved to the spectrograph.py modules, or added there as
-# methods. It is easier to understand all the meta tools if their definitions are all in one place.
+
 def define_core_meta():
     """
     Define the core set of meta data that must be defined
     to run PypeIt.
+
+    See the metadata.rst file for further discussion
 
     .. warning::
 
@@ -137,6 +138,7 @@ def define_additional_meta(nlamps=20):
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
                        'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
+                       'instrument': dict(dtype=str, comment='Header supplied instrument name'),
                        'mode': dict(dtype=str, comment='Observing mode'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),

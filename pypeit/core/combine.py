@@ -1,4 +1,6 @@
 """ Module for image combining
+
+.. include:: ../include/links.rst
 """
 import numpy as np
 
@@ -40,55 +42,87 @@ def maxnonsat(array, saturated):
 # TODO make weights optional and do uniform weighting without.
 def weighted_combine(weights, sci_list, var_list, inmask_stack,
                      sigma_clip=False, sigma_clip_stack=None, sigrej=None, maxiters=5):
-    """
+    r"""
+    Combine multiple sets of images, all using the same weights and mask.
 
-    Args:
-        weights (ndarray):
-            Weights to use. Options for the shape of weights are:
+    The multiple sets of images and variances to combine must have the same
+    shape --- ``(nimgs, nspec, nspat)`` --- and this shape must match the
+    provided *single* mask set (``inmask_stack``).  The provided weights are
+    broadcast to the necessary shape (see below), where one can provide one
+    weight per image, one weight per image spatial coordinate (i.e.,
+    wavelength-dependent weights), or independent weights for each pixel.
 
-                - (nimgs,) -- a single weight per image in the stack
-                - (nimgs, nspec) -- wavelength dependent weights per
-                  image in the stack
-                - (nimgs, nspec, nspat) -- weights input with the shape
-                  of the image stack
+    Optionally, the image stack can be sigma-clipped by setting
+    ``sigma_clip=True``.  If sigma-clipping is requested and no sigma-rejection
+    thresholds are provided (``sigrej`` is None), the sigma-rejection thresholds
+    are set *automatically* depending on the number of images to combine.  The
+    default rejection thresholds are 1.1, 1.3, 1.6, 1.9, or 2.0 for,
+    respectively, 3, 4, 5, 6, or :math:`\geq 7` images.  Sigma-clipping cannot
+    be performed if there are fewer than 3 images.  The pixel rejection is based
+    on a *single* image stack provided by ``sigma_clip_stack``, which does not
+    necessarily need to be any of the image stacks provided by ``sci_list``.
+    Pixels rejected by sigma-clipping the ``sigma_clip_stack`` array are applied
+    to all image stacks in ``sci_list``.
 
-             Note that the weights are distinct from the mask which is
-             dealt with via inmask_stack argument so there should not be
-             any weights that are set to zero (although in principle
-             this would still work).
+    The combined images are collected into the returned image list, where the
+    order of the list is identical to the input ``sci_list``.  The returned mask
+    and pixel accounting array is identical for all stacked images.
+    
+    Parameters
+    ----------
+    weights : `numpy.ndarray`_
+        Weights to use. Options for the shape of weights are:
 
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with the  weights, inmask_stack, and possibly sigma clipping
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be combined with proper erorr propagation, i.e.
-            using the  weights**2, inmask_stack, and possibly sigma clipping
-        inmask_stack: ndarray, boolean, shape (nimgs, nspec, nspat)
-            Array of input masks for the images. True = Good, False=Bad
-        sigma_clip: bool, default = False
-            Combine with a mask by sigma clipping the image stack. Only valid if nimgs > 2
-        sigma_clip_stack: ndarray, float, shape (nimgs, nspec, nspat), default = None
-            The image stack to be used for the sigma clipping. For example if
-            if the list of images to be combined with the weights is [sciimg_stack, waveimg_stack, tilts_stack] you
-            would be sigma clipping with sciimg_stack, and would set sigma_clip_stack = sciimg_stack
-        sigrej: int or float, default = None
-            Rejection threshold for sigma clipping. Code defaults to determining this automatically based
-            on the numberr of images provided.
-        maxiters:
-            Maximum number of iterations for sigma clipping using astropy.stats.SigmaClip
+            - ``(nimgs,)``: a single weight per image in the stack
 
-    Returns:
-        tuple: Returns the following:
-            - sci_list_out: list: The list of ndarray float combined
-              images with shape (nspec, nspat)
-            - var_list_out: list: The list of ndarray propagated
-              variance images with shape (nspec, nspat)
-            - gpm: bool ndarray, shape (nspec, nspat): Good pixel mask for
-              combined image. True=Good, False=Bad
-            - nused: int ndarray, shape (nspec, nspat): Image of
-              integers indicating the number of images that contributed
-              to each pixel
+            - ``(nimgs, nspec)``: wavelength dependent weights per image in the
+              stack
+            
+            - ``(nimgs, nspec, nspat)``: weights input with the shape of the
+              image stack
+
+        Note that the weights are distinct from the mask, which is dealt with
+        via the ``inmask_stack`` argument, meaning there should not be any
+        weights that are set to zero (although in principle this would still
+        work).
+    sci_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ image groups to stack.  Each
+        image group *must* have the same shape: ``(nimgs, nspec, nspat)``.
+    var_list : :obj:`list`
+        List of floating-point `numpy.ndarray`_ images providing the variance
+        for each image group.  The number of image groups and the shape of each
+        group must match ``sci_list``.  These are used to propagate the error in
+        the combined images.
+    inmask_stack : `numpy.ndarray`_, boolean, shape (nimgs, nspec, nspat)
+        Good-pixel mask (True=Good, False=Bad) for the input image stacks.  This
+        single group of good-pixel masks is applied to *all* input image groups.
+    sigma_clip : :obj:`bool`, optional, default = False
+        Combine with a mask by sigma clipping the image stack.  Stacks can only
+        be sigma-clipped if there are 3 or more images.
+    sigma_clip_stack : `numpy.ndarray`_, float, shape (nimgs, nspec, nspat), optional, default = None
+        The image stack to be used for the sigma clipping. For example, if the
+        list of images to be combined with the weights is ``[sciimg_stack,
+        waveimg_stack, tilts_stack]`` and you want to clip based on
+        ``sciimg_stack``, you would set ``sigma_clip_stack=sciimg_stack``.
+    sigrej : :obj:`int`, :obj:`float`, optional, default = None
+        Rejection threshold for sigma clipping.  If None and ``sigma_clip`` is
+        True, the rejection threshold is set based on the number of images to
+        combine; see above.  This value is passed directly to
+        `astropy.stats.SigmaClip`_ as its ``sigma`` parameter.
+    maxiters : :obj:`int`, optional, default=5
+        Maximum number of rejection iterations; see `astropy.stats.SigmaClip`_.
+
+    Returns
+    -------
+    sci_list_out : :obj:`list`
+        The list of ndarray float combined images with shape ``(nspec, nspat)``.
+    var_list_out : :obj:`list`
+        The list of ndarray propagated variance images with shape ``(nspec,
+        nspat)``.
+    gpm : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good pixel mask for combined image (True=Good, False=Bad).
+    nused : integer `numpy.ndarray`_, shape (nspec, nspat)
+        Number of pixels combined at each location in the stacked images.
     """
 
     shape = img_list_error_check(sci_list, var_list)
@@ -114,11 +148,11 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
 
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
-            msgs.error('You must specify sigma_clip_stack, i.e. which quantity to use for sigma clipping')
+            msgs.error('You must specify sigma_clip_stack; sigma-clipping is based on this array '
+                       'and propagated to the arrays to be stacked.')
         if sigrej is None:
-            if nimgs <= 2:
-                sigrej = 100.0  # Irrelevant for only 1 or 2 files, we don't sigma clip below
-            elif nimgs == 3:
+            # NOTE: If these are changed, make sure to update the doc-string!
+            if nimgs == 3:
                 sigrej = 1.1
             elif nimgs == 4:
                 sigrej = 1.3
@@ -130,27 +164,29 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
                 sigrej = 2.0
         # sigma clip if we have enough images
         # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-        data = np.ma.MaskedArray(sigma_clip_stack, np.invert(inmask_stack))
-        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median', stdfunc=utils.nan_mad_std)
+        data = np.ma.MaskedArray(sigma_clip_stack, mask=np.logical_not(inmask_stack))
+        sigclip = stats.SigmaClip(sigma=sigrej, maxiters=maxiters, cenfunc='median',
+                                  stdfunc=utils.nan_mad_std)
         data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
-        mask_stack = np.invert(data_clipped.mask)  # mask_stack = True are good values
+        mask_stack = np.logical_not(data_clipped.mask)  # mask_stack = True are good values
     else:
         if sigma_clip and nimgs < 3:
-            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 images. '
-                      'Proceeding without sigma clipping')
+            msgs.warn('Sigma clipping requested, but you cannot sigma clip with less than 3 '
+                      'images.  Proceeding without sigma clipping')
         mask_stack = inmask_stack  # mask_stack = True are good values
 
     nused = np.sum(mask_stack, axis=0)
     weights_stack = broadcast_weights(weights, shape)
-    weights_mask_stack = weights_stack*mask_stack
+    weights_mask_stack = weights_stack*mask_stack.astype(float)
 
     weights_sum = np.sum(weights_mask_stack, axis=0)
+    inv_w_sum = 1./(weights_sum + (weights_sum == 0.0))
     sci_list_out = []
     for sci_stack in sci_list:
-        sci_list_out.append(np.sum(sci_stack*weights_mask_stack, axis=0)/(weights_sum + (weights_sum == 0.0)))
+        sci_list_out.append(np.sum(sci_stack * weights_mask_stack, axis=0) * inv_w_sum)
     var_list_out = []
     for var_stack in var_list:
-        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
+        var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) * inv_w_sum**2)
     # Was it masked everywhere?
     gpm = np.any(mask_stack, axis=0)
 

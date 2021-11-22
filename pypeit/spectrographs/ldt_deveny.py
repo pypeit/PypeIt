@@ -24,30 +24,42 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
     name = 'ldt_deveny'
     telescope = telescopes.LDTTelescopePar()
     camera = 'deveny'
+    header_name = 'Deveny'
     comment = 'LDT DeVeny Optical Spectrograph'
     supported = True
 
     # Parameters equal to the PypeIt defaults, shown here for completeness
     # pypeline = 'MultiSlit'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            LTD/DeVeny.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
             Object with the detector metadata.
         """
-        header = hdu[0].header
-        
-        # Binning
-        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        if hdu is None:
+            binning = '1,1'
+            gain = None
+            ronoise = None
+        else:
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            gain = np.atleast_1d(hdu[0].header['GAIN'])
+            ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
 
         # Detector
         detector_dict = dict(
@@ -63,8 +75,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             nonlinear       = 1.0,      # -- Still need to measure this, close to 0.99+
             mincounts       = -1e10,
             numamplifiers   = 1,
-            gain            = np.atleast_1d(header['GAIN']),
-            ronoise         = np.atleast_1d(header['RDNOISE']),
+            gain            = gain, #np.atleast_1d(header['GAIN']),
+            ronoise         = ronoise, #np.atleast_1d(header['RDNOISE']),
             # Data & Overscan Sections -- Edge tracing can handle slit edges
             #  These values are hardwired here because they are also hardwired in
             #  the current CCD controller software.  The user cannot easily change
@@ -94,6 +106,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['mjd'] = dict(card=None, compound=True)
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')

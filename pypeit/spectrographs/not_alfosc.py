@@ -25,21 +25,30 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
     name = 'not_alfosc'
     telescope = telescopes.NOTTelescopePar()
     camera = 'ALFOSC'
+    header_name = 'ALFOSC_FASU'
     supported = True
     comment = 'Grisms 4, 19'
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, det, hdu=None):
         """
         Return metadata for the selected detector.
 
         Detector data from `here
         <http://www.not.iac.es/instruments/detectors/CCD14/>`__.
 
+        .. warning::
+
+            Many of the necessary detector parameters are read from the file
+            header, meaning the ``hdu`` argument is effectively **required** for
+            NOT/ALFOSC.  The optional use of ``hdu`` is only viable for
+            automatically generated documentation.
+
         Args:
-            hdu (`astropy.io.fits.HDUList`_):
-                The open fits file with the raw image of interest.
             det (:obj:`int`):
                 1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
 
         Returns:
             :class:`~pypeit.images.detector_container.DetectorContainer`:
@@ -47,9 +56,18 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         """
         # http://www.not.iac.es/instruments/detectors/CCD14/
 
+        if hdu is None:
+            binning = '1,1'
+            gain = None
+            ronoise = None
+        else:
+            binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+            gain = np.atleast_1d(hdu[1].header['GAIN'])  # e-/ADU
+            ronoise = np.atleast_1d(hdu[1].header['RDNOISE'])  # e-
+
         # Detector 1
         detector_dict = dict(
-            binning         =self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            binning         = binning,
             det             = 1,
             dataext         = 1,
             specaxis        = 0,
@@ -60,18 +78,20 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             ysize           = 1.,
             platescale      = 0.2138,
             mincounts       = -1e10,
-            darkcurr        = 1.3,   # e-/pix/hr
-            saturation      = 700000., # ADU
+            darkcurr        = 1.3,      # e-/pix/hr
+            saturation      = 700000.,  # ADU
             nonlinear       = 0.86,
             datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2062)),  # Unbinned
             oscansec        = None,
             numamplifiers   = 1,
+            gain            = gain,     # e-/ADU
+            ronoise         = ronoise   # e-
         )
 
-        # Parse datasec, oscancsec from the header
-        head1 = hdu[1].header
-        detector_dict['gain'] = np.atleast_1d(head1['GAIN'])  # e-/ADU
-        detector_dict['ronoise'] = np.atleast_1d(head1['RDNOISE'])  # e-
+#        # Parse datasec, oscancsec from the header
+#        head1 = hdu[1].header
+#        detector_dict['gain'] = np.atleast_1d(head1['GAIN'])  # e-/ADU
+#        detector_dict['ronoise'] = np.atleast_1d(head1['RDNOISE'])  # e-
 
         # Return
         return detector_container.DetectorContainer(**detector_dict)
@@ -106,7 +126,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
-        # No ovescan region!
+        # No overscan region!
         turn_off = dict(use_overscan=False)
         par.reset_all_processimages_par(**turn_off)
 
@@ -134,6 +154,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='ALGRNM')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
