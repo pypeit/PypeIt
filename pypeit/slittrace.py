@@ -1362,7 +1362,6 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
-# TODO: Provide a better description for slitspatnum!
 def parse_slitspatnum(slitspatnum):
     """
     Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.

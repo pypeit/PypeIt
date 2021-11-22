@@ -17,6 +17,8 @@
       but the user can provide the maskdef_id of a slit with a bright object that can trace the offset.
     - improvements in the frame typing
 - Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
+- Set DEMIOS FWHM default to 10 pixels
+- QL script for Keck/DEIMOS
 
 
 1.6.0 (1 Oct 2021)
