@@ -38,6 +38,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     name = 'keck_kcwi'
     telescope = telescopes.KeckTelescopePar()
     camera = 'KCWI'
+    header_name = 'KCWI'
     pypeline = 'IFU'
     supported = True
     comment = 'Supported setups: BM, BH2; see :doc:`keck_kcwi`'
@@ -139,14 +140,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Templates
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
-            par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2.fits'
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
+        elif self.get_meta_value(headarr, 'dispname') == 'BL':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BL.fits'
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -186,6 +187,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.meta['pressure'] = dict(card=None, compound=True, required=False)
         self.meta['temperature'] = dict(card=None, compound=True, required=False)
         self.meta['humidity'] = dict(card=None, compound=True, required=False)
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
@@ -265,8 +267,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
 
-        # Don't do optimal extraction for 3D data.
-        par['reduce']['extraction']['skip_optimal'] = True  # Because extraction occurs before the DAR correction, don't to optimal - boxcar will also be rubbish
+        # Don't do 1D extraction for 3D data - it's meaningless because the DAR correction must be performed on the 3D data.
+        par['reduce']['extraction']['skip_extraction'] = True  # Because extraction occurs before the DAR correction, don't extract
 
         # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True

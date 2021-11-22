@@ -67,3 +67,56 @@ def test_deimos():
         # Clean up after every setup
         shutil.rmtree(output_path)
 
+
+@dev_suite_required
+def test_mosfire():
+    # Raw DEIMOS directory
+    raw_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_mosfire')
+
+    # Get the list of setup directories
+    setups = [os.path.join(raw_dir, isetup)
+                for isetup in ['Y_multi', 'long2pos1_H', 'mask1_K_with_continuum', 'mask1_J_with_continuum']]
+
+    # Set the output path and *remove if* if it already exists
+    output_path = os.path.join(os.getcwd(), 'output')
+    if os.path.isdir(output_path):
+        shutil.rmtree(output_path)
+
+    # Iterate through the setups
+    for setup in setups:
+
+        # Find the relevant pypeit file constructed by hand.
+        by_hand_pypeit = os.path.join(os.getenv('PYPEIT_DEV'), 'pypeit_files',
+                                      'keck_mosfire_{0}.pypeit'.format(
+                                          os.path.split(setup)[1].lower()))
+
+        if not os.path.isfile(by_hand_pypeit):
+            # It doesn't exist, so assume there is no by-hand pypeit
+            # file to compare to
+            continue
+
+        # Run pypeit_setup
+        ps = PypeItSetup.from_file_root(setup, 'keck_mosfire', output_path=output_path)
+        ps.run(setup_only=True)
+        # Write the automatically generated pypeit data
+        pypeit_files = ps.fitstbl.write_pypeit(output_path, cfg_lines=ps.user_cfg)
+
+        # Read the frame types from both the by-hand and automated
+        # pypeit files
+        _, _, by_hand_frametypes, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
+        _, _, auto_frametypes, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+
+        # For each file in the by-hand list, check that the frame types
+        # in the automatically generated pypeit file are identical
+        for f in by_hand_frametypes.keys():
+            type_list = np.sort(by_hand_frametypes[f].split(','))
+            assert f in auto_frametypes.keys(), \
+                'Frame {0} not automatically parsed for setup {1}.'.format(f, setup)
+            assert np.array_equal(type_list, np.sort(auto_frametypes[f].split(','))), \
+                'Frame types differ for file {0} in setup {1}\n'.format(f, setup) \
+                + '    By-hand types: {0}'.format(by_hand_frametypes[f]) \
+                + '    Automated types: {0}'.format(auto_frametypes[f])
+
+        # Clean up after every setup
+        shutil.rmtree(output_path)
+        

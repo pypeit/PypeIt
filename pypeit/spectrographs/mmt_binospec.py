@@ -28,6 +28,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_binospec'
     telescope = telescopes.MMTTelescopePar()
     camera = 'BINOSPEC'
+    header_name = 'Binospec'
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -108,6 +109,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['lampstat01'] = dict(ext=1, card='HENEAR')
         # used for flatlamp, SCRN is actually telescope status
         self.meta['lampstat02'] = dict(ext=1, card='SCRN')
+        self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

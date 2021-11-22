@@ -46,6 +46,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
 class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
@@ -56,6 +57,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     camera = 'FLAMINGOS'
     supported = True
     comment = 'Flamingos-2 NIR spectrograph'
+    header_name = 'F2'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -224,6 +226,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
 
     name = 'gemini_flamingos1'
     camera = 'FLAMINGOS'
+    header_name = 'F1'
 
     def get_detector_par(self, det, hdu=None):
         """

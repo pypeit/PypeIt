@@ -319,12 +319,12 @@ def test_identify():
 
     waveCalib = wavecalib.WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                               arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                              spat_ids=np.atleast_1d(arcfitter._slit),
+                              spat_ids=np.atleast_1d(int(arcfitter._spatid)),
                               PYP_SPEC='shane_kast_blue',
                               )
 
     # If you touch the following line, you probably need to update the call in scripts/identify.py
-    arcfitter.store_solution(final_fit, '', 1, force_save=True, wvcalib=waveCalib)
+    arcfitter.store_solution(final_fit, 1, rmstol=0.1, force_save=True, wvcalib=waveCalib)
 
     # Test we can read it
     tmp = wavecalib.WaveCalib.from_file('wvcalib.fits')
@@ -567,6 +567,7 @@ def test_collate_1d(tmp_path, monkeypatch):
                                                                '--spec1d_files', expanded_alt_spec1d])
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         
+# pypeit_parse_calib_id is tested in test_runpypeit
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

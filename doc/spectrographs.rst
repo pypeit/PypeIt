@@ -35,6 +35,7 @@ instrument-specific details for running ``PypeIt``.
    new_spectrograph
    gemini_gmos
    deimos
+   mosfire
    keck_kcwi
    lris
    mage
