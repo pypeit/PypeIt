@@ -678,9 +678,18 @@ class Spectrograph:
 
     def get_mosaic_par(self):
         """
-        Return the hard-coded (list of) detector mosaic(s).
+        Return the hard-coded parameters needed to construct detector mosaics.
         """
         pass
+
+    def allowed_mosaics(self):
+        """
+        The list of allowed detector mosaics.
+
+        For instruments with no allowed detector mosaics, this *must* be
+        returned as an empty list.
+        """
+        return []
 
     def get_rawimage(self, raw_file, det):
         """

@@ -29,7 +29,7 @@ class ViewFits(scriptbase.ScriptBase):
         parser.add_argument('--exten', type=int, default=None,
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
-        parser.add_argument('--det', type=str, default=1,
+        parser.add_argument('--det', type=str, default='1',
                             help='Detector number. To mosaic keck_deimos or keck_lris images, '
                                  'set equal to mosaic.')
         parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')

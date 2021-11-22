@@ -409,15 +409,24 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_mosaic_par(self):
         """
-        Return the detector mosaic parameters.
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Returns:
+            :obj:`tuple`: Returns three objects: (1) a tuple with the
+            **expected** shape of each image in the mosaic, (2) a list of
+            tuples, one per image, with the pixel shifts to apply in each
+            dimension, and (3) a list of rotations in degrees.
         """
         if self.detid is None:
             return None, None, None
 
         # Return the transformation parameters in pypeit format
-#        shift = [tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift']),
-#                 (0.,0.),
-#                 tuple(-s for s in GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'])]
         shift = [(-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][0],
                    GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][1]),
                  (0.,0.),
@@ -427,6 +436,19 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                     0.,
                     -GeminiGMOSMosaic.geometry[self.detid][(0,0)]['rotation']]
         return GeminiGMOSMosaic.geometry[self.detid]['default_shape'], shift, rotation
+
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Gemini GMOS only allows for mosaicing all three detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            ``PypeIt``.
+        """
+        return [(1,2,3)]
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
