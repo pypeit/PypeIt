@@ -19,7 +19,7 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import flexure
-from pypeit.core import parse
+#from pypeit.core import parse
 from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
@@ -27,6 +27,7 @@ from pypeit import datamodel
 from pypeit.images import detector_container
 
 
+# TODO: CHANGE THIS
 def det_hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
 
@@ -361,6 +362,8 @@ class SpecObj(datamodel.DataContainer):
         for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
             naming_model[skey.lower()] = skey
 
+        sdet = f'{self.DET:02}'
+
         if 'Echelle' in self.PYPELINE:
             # ObjID
             name = naming_model['obj']
@@ -371,7 +374,7 @@ class SpecObj(datamodel.DataContainer):
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
                 ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-            sdet = parse.get_dnum(self.DET, prefix=False)
+#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             # Order number
@@ -389,7 +392,7 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-            sdet = parse.get_dnum(self.DET, prefix=False)
+#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             self.NAME = name
         elif 'IFU' in self.PYPELINE:
@@ -402,7 +405,7 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-' + naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-            sdet = parse.get_dnum(self.DET, prefix=False)
+#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             self.NAME = name
         else:

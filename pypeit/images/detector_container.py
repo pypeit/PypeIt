@@ -4,12 +4,16 @@
 .. include:: ../include/links.rst
 
 """
-import numpy as np
 import inspect
 
-from pypeit import datamodel
-
 from IPython import embed
+
+import numpy as np
+
+from astropy.table import Table
+
+from pypeit import datamodel
+from pypeit import msgs
 
 
 class DetectorContainer(datamodel.DataContainer):
@@ -22,7 +26,9 @@ class DetectorContainer(datamodel.DataContainer):
 
     """
     # Set the version of this class
-    version = '1.0.0'
+    version = '1.0.1'
+    # Force the full datamodel into a single row of an astropy Table
+    one_row_table = True
     # Be careful.  None of these can match default FITS header cards
     datamodel = {'dataext': dict(otype=int, descr='Index of fits extension containing data'),
                  'specaxis': dict(otype=int,
@@ -109,12 +115,44 @@ class DetectorContainer(datamodel.DataContainer):
 
     def _bundle(self):
         """
-        Overload for the HDU name
+        Overload base class bundling so that detector data is all forced into a
+        single BinTableHDU row.
 
         Returns:
-            list:
-
+            :obj:`list`: List of dictionaries to write to HDUs.
         """
-        return super(DetectorContainer, self)._bundle(ext='DETECTOR')
+        return super(DetectorContainer, self)._bundle(ext='DETECTOR') #, one_row_table=True)
+
+#    @classmethod    
+#    def from_hdu(cls, hdu, **kwargs):
+#        """
+#        Overload the base class instantiation from an HDU to force the reader to
+#        extract the data from the single-row table.
+#
+#        .. warning::
+#            ``kwargs`` are passed directly to
+#            :func:`~pypeit.datamodel.DataContainer.from_hdu`, which will raise
+#            an exception if any of the keywords are not recognized.
+#        """
+#        if 'one_row_table' in kwargs:
+#            if not kwargs['one_row_table']:
+#                msgs.warn(f'{cls.__name__} must always use one_row_table=True!')
+#            del kwargs['one_row_table']
+#        return super(DetectorContainer, cls).from_hdu(hdu, one_row_table=True, **kwargs)
+
+    @property
+    def name(self):
+        """
+        Return a string identifier for the detector.
+        """
+        return f'DET{self.det:02}'
+
+    @classmethod
+    def parse_name(cls, name):
+        """
+        Parse the string identifier of the detector into its integer index.
+        """
+        return int(name[3:])
+
 
 

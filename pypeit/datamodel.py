@@ -567,6 +567,14 @@ class DataContainer:
     components.
     """
 
+    one_row_table = False
+    """
+    Force the full datamodel to be encapsulated into an `astropy.table.Table`_
+    with a single row when written to disk.  Beware that this requires that this
+    is possible!  See, e.g.,
+    :class:`~pypeit.images.detector_container.DetectorContainer`.
+    """
+
     # Define the data model
     datamodel = None
     """
@@ -744,15 +752,16 @@ class DataContainer:
             - a single item (object) to be written, which will be
               written in the provided order without any extension
               names (although see the caveat in
-              :func:`pypeit.io.dict_to_hdu` for dictionaries with
+              :func:`~pypeit.io.dict_to_hdu` for dictionaries with
               single array or `astropy.table.Table`_ items).
 
-        The item to be written can be a single array for an ImageHDU,
-        an `astropy.table.Table`_ for a BinTableHDU, or a dictionary;
-        see :func:`pypeit.io.write_to_hdu`.
+        The item to be written can be a single array for an
+        `astropy.io.fits.ImageHDU`_, an `astropy.table.Table`_ for a
+        `astropy.io.fits.BinTableHDU`_, or a dictionary; see
+        :func:`~pypeit.io.write_to_hdu`.
 
-        For how these objects parsed into the HDUs, see
-        :func:`to_hdu`.
+        For how these objects are parsed into the HDUs, see
+        :func:`~pypeit.datamodel.DataContainer.to_hdu`.
 
         The default behavior implemented by this base class just parses the
         attributes into a single dictionary based on the datamodel, under the
@@ -761,8 +770,8 @@ class DataContainer:
 
             - a dictionary object
             - more than one `astropy.table.Table`_, or
-            - an `astropy.table.Table`_ and an array-like object
-              (:obj:`list` or `numpy.ndarray`_)
+            - the combination of an `astropy.table.Table`_ and one or more
+              array-like objects (:obj:`list` or `numpy.ndarray`_)
 
         Certain **restrictions** apply to how the data can be bundled
         for the general parser implementation (:func:`_parse`) to
@@ -814,6 +823,17 @@ class DataContainer:
                 d[key] = str(self[key])
             else:
                 d[key] = self[key]
+
+        if self.one_row_table:
+            # Attempt to stuff the full datamodel into a single-row astropy
+            # Table
+            try:
+                d = Table({key: np.expand_dims(val, 0) if isinstance(val, np.ndarray) else [val] 
+                            for key, val in d.items()})
+            except:
+                msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
+                           'into a single-row astropy Table!')
+
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
@@ -931,16 +951,11 @@ class DataContainer:
                 warnings.**
                 
         Returns:
-            :obj:`tuple`: Return three objects
+            :obj:`tuple`: Return four objects: (1) a dictionary with the
+            datamodel contents, (2) a boolean flagging if the datamodel version
+            checking has passed, (3) a boolean flagging if the datamodel type
+            checking has passed, and (4) the list of parsed HDUs.
 
-                - :obj:`dict`: Dictionary used to instantiate the object.
-                - :obj:`bool`: Describes datamodel version checking passed
-                - :obj:`bool`: Describes datamodel type checking passed
-
-        Raises:
-            TypeError:
-                Raised if ``ext``, or any of its elements if it's a
-                :obj:`list`, are not either strings or integers.
         """
         dm_version_passed = True
         dm_type_passed = True
@@ -952,8 +967,8 @@ class DataContainer:
         _ext_pseudo = _ext if ext_pseudo is None else np.atleast_1d(ext_pseudo)
 
         if len(_ext_pseudo) != len(_ext):
-            raise ValueError(f'Length of provided extension pseudonym list must match number of '
-                             f'extensions selected: {len(_ext)}.')
+            msgs.error(f'Length of provided extension pseudonym list must match number of '
+                       f'extensions selected: {len(_ext)}.')
 
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext_pseudo])
 
@@ -1067,6 +1082,34 @@ class DataContainer:
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)
+
+        # Unpack if necessary
+        if cls.one_row_table:
+            # WARNING: This has only been tested for single-extension
+            # DataContainers!!
+
+            # NOTE: This works for the 1D vector elements of DetectorContainer,
+            # but it's untested for any higher dimensional arrays...
+            _d = {key:val if cls.datamodel[key]['otype'] == np.ndarray else val[0] 
+                    for key, val in _d.items()}
+            # NOTE: Annoyingly, casting becomes awkward when forcing all the
+            # data into an astropy Table.  E.g., int becomes np.int64, which
+            # won't be accepted by the strict typing rules used when setting
+            # attributes/items.  The following is a work-around for this
+            # specific case, but it likely points to a larger issue that we may
+            # need to address in DataContainer.
+            for key in _d.keys():
+                if key not in cls.datamodel:
+                    continue
+                types = cls.datamodel[key]['otype'] \
+                            if isinstance(cls.datamodel[key]['otype'], (list, tuple)) \
+                            else [cls.datamodel[key]['otype']]
+                if any([isinstance(_d[key], t) for t in types]):
+                    continue
+                for t in types:
+                    if np.can_cast(_d[key], t, casting='equiv'):
+                        _d[key] = t(_d[key])
+                        break
 
         # Return
         return _d, dm_version_passed and found_data, dm_type_passed and found_data, \
@@ -1239,8 +1282,11 @@ class DataContainer:
             limit_hdus (:obj:`list`, optional):
                 Limit the HDUs that can be written to the items in this list
             force_to_bintbl (:obj:`bool`, optional):
-                Force any dict into a BinTableHDU (e.g. for
-                :class:`pypeit.specobj.SpecObj`)
+                Force construction of a `astropy.io.fits.BinTableHDU`_ instead
+                of an `astropy.io.fits.ImageHDU`_ when either there are no
+                arrays or tables to write or only a single array is provided (as
+                needed for, e.g., :class:`~pypeit.specobj.SpecObj`).  See
+                :func:`~pypeit.io.write_to_hdu`.  
             hdu_prefix (:obj:`str`, optional):
                 Prefix for the HDU names. If None, will use
                 :attr:`hdu_prefix`. If the latter is also None, no
@@ -1342,6 +1388,7 @@ class DataContainer:
                 = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, 
                              hdu_prefix=hdu_prefix,
                              allow_subclasses=allow_subclasses)
+
         # Check version and type?
         if not dm_type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
@@ -1349,6 +1396,7 @@ class DataContainer:
             _f = msgs.error if chk_version else msgs.warn
             _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
                + ' does not match version used to write your HDU(s)!')
+
         # Instantiate
         return cls.from_dict(d=d)
 

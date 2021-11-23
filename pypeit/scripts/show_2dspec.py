@@ -78,7 +78,7 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('--channels', type=str,
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
         parser.add_argument('--prefix', type=str, default='',
-                            help="Append this to the channel name [let's you do more than one set]")
+                            help="Channel name prefix [lets you display more than one set]")
         parser.add_argument('--no_clear', dest='clear', default=True, 
                             action="store_false",
                             help='Do *not* clear all existing tabs')
@@ -94,15 +94,14 @@ class Show2DSpec(scriptbase.ScriptBase):
             return
 
         # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
-        spec2DObj = spec2dobj.Spec2DObj.from_file(
-            args.file, args.det, chk_version=False)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
 
         # Init
-        # TODO: get_dnum needs to be deprecated...
-        sdet = get_dnum(args.det, prefix=False)
+        # TODO: move this to be a member function of Spec2DObj
+        sdet = f'{args.det:02}'
 
         # Find the set of channels to show
         if args.channels is not None:

@@ -27,7 +27,6 @@ def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
-    #dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame_shape[0],frame_shape[1],4))
     if gen:

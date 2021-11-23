@@ -421,9 +421,9 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Base-level header to include in the HDU. If None, an
             empty header is used and then added to.
         force_to_bintbl (:obj:`bool`, optional):
-            Force a BinTableHDU to be constructed instead of an
-            ImageHDU when either there are no arrays or tables to
-            write or only a single array is provided.
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -629,8 +629,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
-        force_to_bintbl (bool, optional):
-            Force dict into a BinTableHDU
+        force_to_bintbl (:obj:`bool`, optional):
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:

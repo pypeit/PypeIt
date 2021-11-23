@@ -21,7 +21,7 @@ from pypeit.images import pypeitimage
 from pypeit.core import extract
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
-from pypeit.core import parse
+#from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
@@ -656,7 +656,8 @@ class CoAdd2D:
         """
 
         # Get the detector string
-        sdet = parse.get_dnum(self.det, prefix=False)
+        #sdet = parse.get_dnum(self.det, prefix=False)
+        sdet = f'{self.det:02}'
 
         # Get the master dir
 

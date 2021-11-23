@@ -8,6 +8,8 @@ import os
 import re
 from typing import List
 
+from IPython import embed
+
 import numpy as np
 
 from astropy import units
@@ -23,9 +25,6 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit import slittrace
 from pypeit import utils
-
-from IPython import embed
-
 
 class SpecObjs:
     """
@@ -81,7 +80,9 @@ class SpecObjs:
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
-                detector_hdus[hdu.header['DET']] = detector_container.DetectorContainer.from_hdu(hdu)
+                # TODO: BEWARE! Below requires a known format for the HDU name.
+                _det = detector_container.DetectorContainer.parse_name(hdu.name.split('-')[0])
+                detector_hdus[_det] = detector_container.DetectorContainer.from_hdu(hdu)
         # Now the objects
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
@@ -637,6 +638,7 @@ class SpecObjs:
             else:
                 msgs.error("Should not get here...")
             # Check -- If sobj had only 1 array, the BinTableHDU test will fail
+            # TODO: We shouldn't have assert statements in production-level code.
             assert len(shdu) == 1, 'Bad data model!!'
             assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
             #shdu[0].header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
