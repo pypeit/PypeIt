@@ -1139,7 +1139,7 @@ class Coadd2DPar(ParSet):
 
         # Offsets
         defaults['offsets'] = None
-        dtypes['offsets'] = list
+        dtypes['offsets'] = [list, str]
         descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels).'
 
         # Offsets

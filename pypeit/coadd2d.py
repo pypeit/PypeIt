@@ -172,6 +172,12 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
+        # maskdef info
+        self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
+        self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
+        self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
+        self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
+
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
         Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
@@ -687,6 +693,7 @@ class CoAdd2D:
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)
             detectors_list.append(s2dobj.detector)
+            embed()
             if ifile == 0:
                 sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
                 waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
@@ -808,6 +815,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         #  1) offsets is None -- auto compute offsets from brightest object, so then default to auto_weights=True
         #  2) offsets not None, weights = None (uniform weighting) or weights is not None (input weights)
         #  3) offsets not None, auto_weights=True (Do not support)
+        #  4) offsets == 'maskdef', weights = None (uniform weighting) or weights is not None (input weights)
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
@@ -815,6 +823,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         if offsets is None:
             self.objid_bri, self.spatid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
+
+        elif (offsets == 'maskdef') and (self.maskdef_offset is not None):
+            self.offsets = self.compute_offsets_from_maskdef()
 
         self.use_weights = self.parse_weights(weights)
 
@@ -831,6 +842,22 @@ class MultiSlitCoAdd2D(CoAdd2D):
             return weights
         else:
             msgs.error('Unrecognized format for weights')
+
+    def compute_offsets_from_maskdef(self):
+
+        msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+
+        offsets = self.maskdef_offset[0] - self.maskdef_offset
+        # Print out a report on the offsets
+        msg_string = msgs.newline() + '---------------------------------------------'
+        msg_string += msgs.newline() + ' Summary of offsets from maskdef_offset   '
+        msg_string += msgs.newline() + '---------------------------------------------'
+        msg_string += msgs.newline() + '           exp#      offset                  '
+        for iexp, off in enumerate(offsets):
+            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
+        msg_string += msgs.newline() + '-----------------------------------------------'
+        msgs.info(msg_string)
+        return offsets
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
