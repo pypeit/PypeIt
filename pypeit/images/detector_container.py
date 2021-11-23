@@ -141,14 +141,25 @@ class DetectorContainer(datamodel.DataContainer):
 #        return super(DetectorContainer, cls).from_hdu(hdu, one_row_table=True, **kwargs)
 
     @property
+    def det_str(self):
+        """
+        Return a string identifier for the detector.
+        """
+        return f'{self.det:02}'
+
+    @property
     def name(self):
         """
         Return a string identifier for the detector.
         """
         return f'DET{self.det:02}'
 
-    @classmethod
-    def parse_name(cls, name):
+    @staticmethod
+    def hdu_prefix(det):
+        return f'DET{det:02}-'
+
+    @staticmethod
+    def parse_name(name):
         """
         Parse the string identifier of the detector into its integer index.
         """

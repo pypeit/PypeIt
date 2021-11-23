@@ -656,10 +656,10 @@ class SpecObjs:
         # Deal with Detectors
         for key, item in detector_hdus.items():
             # TODO - Add EXT to the primary header for these??
-            prefix = specobj.det_hdu_prefix(key)
+            prefix = detector_container.DetectorContainer.hdu_prefix(key)
             # Name
             if prefix not in item.name:  # In case we are re-loading
-                item.name = specobj.det_hdu_prefix(key)+item.name
+                item.name = prefix+item.name
             # Append
             hdus += [item]
 

@@ -27,11 +27,6 @@ from pypeit import datamodel
 from pypeit.images import detector_container
 
 
-# TODO: CHANGE THIS
-def det_hdu_prefix(det):
-    return 'DET{:02d}-'.format(det)
-
-
 class SpecObj(datamodel.DataContainer):
     """
     Class to handle object spectra from a single exposure.
@@ -374,7 +369,6 @@ class SpecObj(datamodel.DataContainer):
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
                 ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             # Order number
@@ -392,7 +386,6 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             self.NAME = name
         elif 'IFU' in self.PYPELINE:
@@ -405,7 +398,6 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-' + naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-#            sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             self.NAME = name
         else:

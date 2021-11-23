@@ -20,7 +20,6 @@ from pypeit import specobjs
 from pypeit import io
 
 from pypeit.display import display
-from pypeit.core.parse import get_dnum
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe
 from pypeit import spec2dobj
@@ -100,7 +99,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         msgs.reset(verbosity=2)
 
         # Init
-        # TODO: move this to be a member function of Spec2DObj
+        # TODO: Does spec2DObj have a detector?  Can this instead be
+        # spec2DObj.detector.det_str ?
         sdet = f'{args.det:02}'
 
         # Find the set of channels to show

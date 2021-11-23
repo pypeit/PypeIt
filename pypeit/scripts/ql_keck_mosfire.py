@@ -34,7 +34,6 @@ from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.parse import get_dnum
 from pypeit.core.wavecal import wvutils
 from pypeit import sensfunc
 from pypeit.core import flux_calib
@@ -271,8 +270,12 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
 
+        # Get detector (there's only one)
+        det = 1 # MOSFIRE has a single detector
+        detector = spectrograph.get_detector_par(det)
+
         # We need the platescale
-        platescale = spectrograph.get_detector_par(1)['platescale']
+        platescale = detector['platescale']
         # Parse the offset information out of the headers. TODO in the future
         # get this out of fitstable
         dither_pattern, dither_id, offset_arcsec = spectrograph.parse_dither_pattern(files)
@@ -299,7 +302,6 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         ## Read in the master frames that we need
         ##
-        det = 1 # MOSFIRE has a single detector
         if std_spec1d_file is not None:
             # Get the standard trace if need be
             sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
@@ -314,7 +316,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             std_trace = None
 
         # Read in the msbpm
-        sdet = get_dnum(det, prefix=False)
+        sdet = detector.det_str
         msbpm = spectrograph.bpm(A_files[0], det)
         # Read in the slits
         slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
