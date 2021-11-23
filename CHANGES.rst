@@ -2,8 +2,21 @@
 --------
 
 - Introduces pypeit_parse_calib_id script
+- Throw a warning if the chosen spectrograph has a header which does not match expectation
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
   the header and use it for wavelength calibration.
+- Allow one to restrict the wavelength range of the arxiv template
+- Set DEIMOS FWHM default to 10 pixels
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
+- Improvements for MOSFIRE:
+    - uses slitmask info in the slit edge tracing
+    - associates RA, Dec and Object name to each extracted object
+    - extracts undetected objects using the predicted position from slitmask info
+    - uses dither offeset recorded in the header as default slitmask_offset,
+      but the user can provide the maskdef_id of a slit with a bright object that can trace the offset.
+    - improvements in the frame typing
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
 
 
 1.6.0 (1 Oct 2021)

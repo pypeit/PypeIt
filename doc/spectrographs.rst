@@ -37,6 +37,7 @@ instrument-specific details for running ``PypeIt``.
    gemini_gmos
    gemini_gnirs
    deimos
+   mosfire
    keck_kcwi
    lris
    lbt_mods

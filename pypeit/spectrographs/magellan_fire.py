@@ -35,6 +35,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
     """
     ndet = 1
     telescope = telescopes.MagellanTelescopePar()
+    camera = 'FIRE'
+    header_name = 'FIRE'
 
     def init_meta(self):
         """
@@ -58,6 +60,7 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
 
     def pypeit_file_keys(self):
@@ -89,7 +92,6 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire'
-    camera = 'FIRE'
     pypeline = 'Echelle'
     supported = True
     comment = 'Magellan/FIRE in echelle mode'
@@ -334,7 +336,6 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
 
     """
     name = 'magellan_fire_long'
-    camera = 'FIRE'
     supported = True
     comment = 'Magellan/FIRE in long-slit/high-throughput mode'
 

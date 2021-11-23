@@ -24,6 +24,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
     name = 'gtc_osiris'
     telescope = telescopes.GTCTelescopePar()
     camera = 'OSIRIS'
+    header_name = 'OSIRIS'
     supported = True
     comment = 'See :doc:`gtc_osiris`'
 
@@ -154,6 +155,7 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRISM')
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
         self.meta['dichroic'] = dict(ext=0, card='FILTER1')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

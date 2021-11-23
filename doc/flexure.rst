@@ -76,20 +76,33 @@ This will:
 Spectral
 ========
 
-By default, the code will calculate a flexure shift based on the
-extracted sky spectrum (boxcar).
-A cross-correlation between this
-sky spectrum and an archived spectrum is performed to calculate
-a single, pixel shift.  This is then imposed on the wavelength solution
-with simple linear interpolation.
+``PypeIt`` calculates the spectral flexure correction, as a single pixel shift,
+by performing a cross-correlation between an extracted sky spectrum and an archived sky spectrum.
+This is then imposed on the wavelength solution with simple linear interpolation.
+To enable this correction the parameter ``spec_method`` in :ref:`pypeit_par:FlexurePar Keywords`
+should be set to ``boxcar`` or ``slitcen``. The default is ``spec_method = skip``, i.e.,
+no spectral flexure correction, for most spectrographs, except:
 
-The standard approach is to compare the sky model
-from the observation with an archived sky model. Generally, by default, the
-Paranal sky spectrum is used. The default is 
+- Gemini/GMOS (N&S)
+- Keck/DEIMOS
+- Keck/KCWI
+- Keck/LRIS (all)
+- LBT/MODS (all)
+- MMT/Binospec
+- NTT/EFOSC2
+- Shane/KAST (all)
+- VLT/FORS2
+
+If ``spec_method = boxcar`` (recommended) the observed sky spectrum flux is boxcar extracted,
+while the spectrum wavelength is taken from the extracted 1D object. If no objects have been
+extracted, set ``spec_method = slitcen``, which uses a spectrum extracted from the center of
+each slit.
+
+For the archived sky spectrum, generally, the Paranal sky spectrum is used by default. However, this is
 different for Kast blue and LRIS blue where sky_kastb_600.fits and sky_LRISb_600.fits
 are respectively used (see `Alternate sky models`_ for all sky models).
 
-Narrow sky emission liens dominate the analysis, but other features 
+Narrow sky emission lines dominate the analysis, but other features
 can affect the cross-correlation.
 
 
