@@ -326,7 +326,7 @@ class FlatImages(datamodel.DataContainer):
 
 
 
-class FlatField(object):
+class FlatField:
     """
     Builds pixel-level flat-field and the illumination flat-field.
 

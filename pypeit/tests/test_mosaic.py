@@ -72,25 +72,32 @@ def test_gemini_gmos():
 
     # Load the spectrograph
     spec = load_spectrograph('gemini_gmos_north_ham')
-    expected_shape, shift, rot = spec.get_mosaic_par()
+    msc = (1,2,3)
+    msc_par = spec.get_mosaic_par(msc, hdu=fits.open(file))
 
+#    expected_shape, shift, rot = spec.get_mosaic_par(msc)
     # Load the images and trim and orient them
     imgs = [None]*spec.ndet
-    tforms = [None]*spec.ndet
-    for det in range(spec.ndet):
-        imgs[det] = RawImage(file, spec, det+1)
-        imgs[det].trim()
-        imgs[det].orient()
-        binning = tuple(int(b) for b in imgs[det].detector.binning.split(','))
-        shape = tuple(n // b for n, b in zip(expected_shape, binning))
-        tforms[det] = mosaic.build_image_mosaic_transform(shape, shift[det], rot[det], binning)
+#    tforms = [None]*spec.ndet
+    for i, det in enumerate(msc):
+        imgs[i] = RawImage(file, spec, det)
+        imgs[i].trim()
+        imgs[i].orient()
+        imgs[i] = imgs[i].image
+#        binning = tuple(int(b) for b in imgs[det].detector.binning.split(','))
+#        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+#        tforms[det] = mosaic.build_image_mosaic_transform(shape, shift[det], rot[det], binning)
 
-    input_imgs = [img.image for img in imgs]
-    mosaic_pypeit, mosaic_ivar, mosaic_npix = mosaic.build_image_mosaic(input_imgs, tforms)
+#    input_imgs = [img.image for img in imgs]
+#    mosaic_pypeit, mosaic_ivar, mosaic_npix = mosaic.build_image_mosaic(input_imgs, tforms)
+
+    mosaic_pypeit, mosaic_ivar, mosaic_npix = mosaic.build_image_mosaic(imgs, msc_par.tform)
 
     _mosaic_pypeit = np.fliplr(mosaic_pypeit.T).astype(np.uint16)
     mosaic_dragons = fits.open(dragons_file)[0].data
     assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:-1,1:-1]), 'Bad mosaic'
 
+
+test_gemini_gmos()
 
 

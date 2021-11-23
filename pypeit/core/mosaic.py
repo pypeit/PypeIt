@@ -234,6 +234,10 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     # Is there a way to make this faster?
     for i in range(nimg):
         _inv_tform = np.linalg.inv(_tforms[i])
+        # TODO: I'm not a fan of using cval=np.nan, but this might be the most
+        # robust way to catch mosaic pixels that are not filled by the input
+        # image.  I'm not sure if we lose efficiency by using NaN instead of a
+        # real scalar.
         _tform_img = ndimage.affine_transform(imgs[i], _inv_tform, output_shape=mosaic_shape,
                                               cval=np.nan, order=order)
         filled = np.logical_not(np.isnan(_tform_img))
@@ -250,6 +254,11 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
                                                             output_shape=mosaic_shape,
                                                             cval=0., order=order)[filled]
 
+    # TODO: This test is crude.  Input and output pixel sizes should be
+    # identical, but I don't know if the order=0 approach will ever lead to a
+    # single mosaic pixel being filled by more than one input pixel.  If so,
+    # `overlap='error'` will catch both those cases and when multiple input
+    # images overlap.
     has_overlap = np.any(mosaic_npix > 1)
     if has_overlap and overlap == 'error':
         # Input images should not be allowed to overlap

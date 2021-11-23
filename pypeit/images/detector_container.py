@@ -1,8 +1,8 @@
-""" Simple object to hold + process a single image.
+"""
+:class:`~pypeit.datamodel.DataContainer` object to hold detector properties.
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
-
 """
 import inspect
 
@@ -10,20 +10,13 @@ from IPython import embed
 
 import numpy as np
 
-from astropy.table import Table
-
 from pypeit import datamodel
 from pypeit import msgs
 
 
 class DetectorContainer(datamodel.DataContainer):
     """
-    Class to hold a Detector
-
-    Args:
-
-    Attributes:
-
+    Class to hold a detector properties.
     """
     # Set the version of this class
     version = '1.0.1'
@@ -121,24 +114,7 @@ class DetectorContainer(datamodel.DataContainer):
         Returns:
             :obj:`list`: List of dictionaries to write to HDUs.
         """
-        return super(DetectorContainer, self)._bundle(ext='DETECTOR') #, one_row_table=True)
-
-#    @classmethod    
-#    def from_hdu(cls, hdu, **kwargs):
-#        """
-#        Overload the base class instantiation from an HDU to force the reader to
-#        extract the data from the single-row table.
-#
-#        .. warning::
-#            ``kwargs`` are passed directly to
-#            :func:`~pypeit.datamodel.DataContainer.from_hdu`, which will raise
-#            an exception if any of the keywords are not recognized.
-#        """
-#        if 'one_row_table' in kwargs:
-#            if not kwargs['one_row_table']:
-#                msgs.warn(f'{cls.__name__} must always use one_row_table=True!')
-#            del kwargs['one_row_table']
-#        return super(DetectorContainer, cls).from_hdu(hdu, one_row_table=True, **kwargs)
+        return super(DetectorContainer, self)._bundle(ext='DETECTOR')
 
     @property
     def det_str(self):
@@ -152,10 +128,13 @@ class DetectorContainer(datamodel.DataContainer):
         """
         Return a string identifier for the detector.
         """
-        return f'DET{self.det:02}'
+        return f'DET{self.det_str}'
 
     @staticmethod
     def hdu_prefix(det):
+        """
+        Return the prefix of HDU names for detectors.
+        """
         return f'DET{det:02}-'
 
     @staticmethod

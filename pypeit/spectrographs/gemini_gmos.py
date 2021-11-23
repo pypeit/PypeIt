@@ -18,9 +18,11 @@ from pypeit import io
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 from pypeit.par import pypeitpar
 
-class GeminiGMOSMosaic:
+class GeminiGMOSMosaicLookUp:
     """
     Provides the geometry required to mosaic Gemini GMOS data.
 
@@ -30,8 +32,8 @@ class GeminiGMOSMosaic:
 
     From v3.0.0 of the Gemini DRAGONS software package.  Specifically, if you
     have DRAGONS installed,
-    :attr:`pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaic.geometry` should be
-    identical to:
+    :attr:`pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp.geometry`
+    should be identical to:
 
     .. code-block:: python
 
@@ -407,7 +409,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
                 array, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_mosaic_par(self):
+    def get_mosaic_par(self, mosaic, hdu=None):
         """
         Return the hard-coded parameters needed to construct detector mosaics
         from unbinned images.
@@ -416,6 +418,18 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
         lists, the length of the list is the same as the number of detectors in
         the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
 
         Returns:
             :obj:`tuple`: Returns three objects: (1) a tuple with the
@@ -426,16 +440,52 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         if self.detid is None:
             return None, None, None
 
-        # Return the transformation parameters in pypeit format
-        shift = [(-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][0],
-                   GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['shift'][1]),
-                 (0.,0.),
-                 (-GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'][0],
-                   GeminiGMOSMosaic.geometry[self.detid][(0,0)]['shift'][1])]
-        rotation = [-GeminiGMOSMosaic.geometry[self.detid][(4096,0)]['rotation'],
-                    0.,
-                    -GeminiGMOSMosaic.geometry[self.detid][(0,0)]['rotation']]
-        return GeminiGMOSMosaic.geometry[self.detid]['default_shape'], shift, rotation
+        if mosaic not in self.allowed_mosaics:
+            msgs.error(f'Mosaic of detectors {mosaic} is not currently implemented.  '
+                       f'Options are: {self.allowed_mosaics}.')
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+        # Number of detectors in the mosaic
+        ndet = len(mosaic)
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # Binning *must* be consistent for all detectors
+        if any(d.binning != detectors[0].binning for d in detectors[1:]):
+            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+
+        # Collect the offsets and rotations for *all unbinned* detectors in the
+        # full instrument, ordered by the number of the detector.  Detector
+        # numbers must be sequential and 1-indexed.
+        # NOTE: These lines use the directly copied metadata from the Gemini
+        # DRAGONS software and then adjusts them so that they are in "PypeIt
+        # format".  See the mosaic documentattion.
+        expected_shape = GeminiGMOSMosaicLookUp.geometry[self.detid]['default_shape']
+        shift = np.array([(-GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][0],
+                            GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][1]),
+                          (0.,0.),
+                          (-GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][0],
+                           GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][1])])
+        rotation = np.array([-GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['rotation'],
+                             0.,
+                             -GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['rotation']])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*ndet
+        msc_rot = [None]*ndet
+        msc_tfm = [None]*ndet
+        for i, d in enumerate([det-1 for det in mosaic]):
+            msc_sft[i] = shift[d]
+            msc_rot[i] = rotation[d]
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm))
 
     @property
     def allowed_mosaics(self):

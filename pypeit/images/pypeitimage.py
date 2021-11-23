@@ -8,7 +8,8 @@ import os
 import inspect
 
 from pypeit import msgs
-from pypeit.images import detector_container, imagebitmask
+from pypeit.images import imagebitmask
+from pypeit.images.detector_container import DetectorContainer
 from pypeit.core import procimg
 from pypeit.display import display
 from pypeit import datamodel
@@ -35,12 +36,12 @@ class PypeItImage(datamodel.DataContainer):
         bpm (`numpy.ndarray`_, optional):
         crmask (`numpy.ndarray`_, optional):
         fullmask (`numpy.ndarray`_, optional):
-        detector (:class:`pypeit.images.data_container.DataContainer`):
+        detector (:class:`~pypeit.images.data_container.DataContainer`):
         spat_flexure (:obj:`float`, optional):
 
     Attributes:
         head0 (astropy.io.fits.Header):
-        detector (:class:`pypeit.images.detector_container.DetectorContainer`):
+        detector (:class:`~pypeit.images.detector_container.DetectorContainer`):
         files (list):
         rawheadlst (list):
             List containing headers of the raw image file
@@ -68,8 +69,7 @@ class PypeItImage(datamodel.DataContainer):
                  'bpm': dict(otype=np.ndarray, atype=np.integer, descr='Bad pixel mask'),
                  'crmask': dict(otype=np.ndarray, atype=np.bool_, descr='CR mask image'),
                  'fullmask': dict(otype=np.ndarray, atype=np.integer, descr='Full image bitmask'),
-                 'detector': dict(otype=detector_container.DetectorContainer,
-                                  descr='Detector DataContainer'),
+                 'detector': dict(otype=DetectorContainer, descr='Detector DataContainer'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  # TODO: Use BUNIT instead?  This has a specific meaning in the
                  # FITS standard, so I'm not sure.

@@ -207,14 +207,10 @@ class CombineImage:
                 basev_stack = np.zeros(shape, dtype=float)
                 gpm_stack = np.zeros(shape, dtype=bool)
                 lampstat = [None]*self.nfiles
-#                darkcurr = np.zeros(self.nfiles, dtype=float)
                 exptime = np.zeros(self.nfiles, dtype=float)
 
             # Save the lamp status
             lampstat[kk] = self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)
-            # NOTE: Don't need dark current.  It's included in the "base
-            # variance" (basev)
-#            darkcurr[kk] = pypeitImage.detector['darkcurr']
             # Save the exposure time to check if it's consistent for all images.
             exptime[kk] = pypeitImage.exptime
             # Processed image
@@ -253,16 +249,7 @@ class CombineImage:
                       + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
             print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
 
-#        # Do a similar check for darkcurr 
-#        if np.any(np.absolute(np.diff(darkcurr)) > 0):
-#            msgs.warn('Dark current is not consistent for all images being combined!  '
-#                      f'Using the value for frame {self.files[-1]}.')
-#        # TODO: Use the last one because the detector from the last file is also
-#        # the one passed to the PypeItImage object constructed for the combined
-#        # image.
-#        comb_dark = darkcurr[-1]
-
-        # ... and exptime
+        # Do a similar check for exptime
         if np.any(np.absolute(np.diff(exptime)) > 0):
             # TODO: This should likely throw an error instead!
             msgs.warn('Exposure time is not consistent for all images being combined!  '
