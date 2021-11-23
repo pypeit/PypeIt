@@ -52,7 +52,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
-            binning = '1,1'
+            binning = '1,1'             # Most common use mode
             gain = 1.52                 # Hardcoded in the header
             ronoise = 4.9               # Hardcoded in the header
         else:
@@ -77,12 +77,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             gain            = gain,     # See above
             ronoise         = ronoise,  # See above
             # Data & Overscan Sections -- Edge tracing can handle slit edges
-            #  These values are hardwired here because they are also hardwired in
-            #  the current CCD controller software.  The user cannot easily change
-            #  the windowing of the chip, nor is there an operational incentive
-            #  to do so (the chip reads out fairly quickly as is).
-            datasec         = np.atleast_1d('[5:512,54:2096]'),
-            oscansec        = np.atleast_1d('[5:512,2101:2144]')
+            datasec         = self.swap_section(hdu[0].header['TRIMSEC']),
+            oscansec        = self.swap_section(hdu[0].header['BIASSEC'])
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -106,14 +102,13 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
-        
+
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
-
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -130,10 +125,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # Binning in lois headers is space-separated rather than comma-separated.
-            binspec, binspatial = headarr[0]['CCDSUM'].split()
-            binning = parse.binning2string(binspec, binspatial)
-            return binning
+            # Binning in lois headers is space-separated (like Gemini).
+            binspec, binspatial = parse.parse_binning(headarr[0]['CCDSUM'])
+            return parse.binning2string(binspec, binspatial)
 
         if meta_key == 'mjd':
             # Use astropy to convert 'DATE-OBS' into a mjd.
@@ -248,7 +242,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'dispangle', 'filter1']
+        return ['dispname', 'dispangle', 'filter1', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -375,3 +369,19 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             pass
 
         return par
+
+    def swap_section(self, section_string):
+        """
+        Swap the FITS header keywords TRIMSEC / BIASSEC into the order and
+        numpy type needed for PypeIt.  The LDT/DeVeny FITS header lists the
+        sections as '[SPEC_SEC,SPAT_SEC]', but PypeIt needs the sections in
+        the form np.atleast_1d('[SPAT_SEC,SPEC_SEC]')
+
+        Args:
+            section_string (:obj:`str`):
+                The FITS keyword string to be parsed / translated
+        Returns:
+            section (:obj:`numpy.ndarray`): Numpy image section needed by PypeIt
+        """
+        spec_sec, spat_sec = section_string.strip('[]').split(',')
+        return np.atleast_1d(f"[{spat_sec},{spec_sec}]")
