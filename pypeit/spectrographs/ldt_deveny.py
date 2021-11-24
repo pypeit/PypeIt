@@ -52,9 +52,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             Object with the detector metadata.
         """
         if hdu is None:
-            binning = '1,1'             # Most common use mode
-            gain = 1.52                 # Hardcoded in the header
-            ronoise = 4.9               # Hardcoded in the header
+            binning = '1,1'                 # Most common use mode
+            gain = np.atleast_1d(1.52)      # Hardcoded in the header
+            ronoise = np.atleast_1d(4.9)    # Hardcoded in the header
             datasec = np.atleast_1d('[5:512,54:2096]')     # Most common
             oscansec = np.atleast_1d('[5:512,2101:2144]')  # Most common
         else:

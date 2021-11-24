@@ -3228,7 +3228,7 @@ Alterations to the default parameters are::
   [flexure]
       spec_method = boxcar
 
-LDT deveny (``ldt_deveny``)
+LDT DeVeny (``ldt_deveny``)
 ---------------------------
 Alterations to the default parameters are::
 
@@ -3290,7 +3290,7 @@ Alterations to the default parameters are::
               noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
-          lamps = NeI, ArI, CdI, HgI
+          lamps = use_header
           sigdetect = 10.0
           fwhm_fromlines = True
           rms_threshold = 0.5
@@ -3306,6 +3306,8 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
           noise_floor = 0.01
           use_illumflat = False
   [reduce]
