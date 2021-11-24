@@ -108,34 +108,33 @@ class DetectorContainer(datamodel.DataContainer):
 
     def _bundle(self):
         """
-        Overload base class bundling so that detector data is all forced into a
-        single BinTableHDU row.
+        Overload base class bundling to select appropriate extension name.
 
         Returns:
             :obj:`list`: List of dictionaries to write to HDUs.
         """
-        return super(DetectorContainer, self)._bundle(ext='DETECTOR')
-
-    @property
-    def det_str(self):
-        """
-        Return a string identifier for the detector.
-        """
-        return f'{self.det:02}'
+        return super()._bundle(ext='DETECTOR')
 
     @property
     def name(self):
         """
         Return a string identifier for the detector.
         """
-        return f'DET{self.det_str}'
+        return self.get_name(self.det)
 
     @staticmethod
-    def hdu_prefix(det):
+    def get_det_str(det):
         """
-        Return the prefix of HDU names for detectors.
+        Return a string identifier for the detector.
         """
-        return f'DET{det:02}-'
+        return f'{det:02}'
+
+    @staticmethod
+    def get_name(det):
+        """
+        Return a string identifier for the detector.
+        """
+        return f'DET{DetectorContainer.get_det_str(det)}'
 
     @staticmethod
     def parse_name(name):

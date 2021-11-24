@@ -825,11 +825,23 @@ class DataContainer:
                 d[key] = self[key]
 
         if self.one_row_table:
-            # Attempt to stuff the full datamodel into a single-row astropy
-            # Table
+            # Attempt to stuff the full datamodel into an astropy Table with a
+            # single row
+            # NOTE: This is annoyingly complicated to avoid adding elements that
+            # are None to the table.
+            del_keys = []
+            for key, val in d.items():
+                if isinstance(val, np.ndarray):
+                    d[key] = np.expand_dims(val, 0) 
+                elif val is None:
+                    del_keys += [key]
+                else:
+                    d[key] = [val]
+            for key in del_keys:
+                del d[key]
+
             try:
-                d = Table({key: np.expand_dims(val, 0) if isinstance(val, np.ndarray) else [val] 
-                            for key, val in d.items()})
+                d = Table(d)
             except:
                 msgs.error(f'Cannot force all elements of {self.__class__.__name__} datamodel'
                            'into a single-row astropy Table!')
@@ -1090,7 +1102,7 @@ class DataContainer:
 
             # NOTE: This works for the 1D vector elements of DetectorContainer,
             # but it's untested for any higher dimensional arrays...
-            _d = {key:val if cls.datamodel[key]['otype'] == np.ndarray else val[0] 
+            _d = {key:val if cls.datamodel[key]['otype'] == np.ndarray or val is None else val[0] 
                     for key, val in _d.items()}
             # NOTE: Annoyingly, casting becomes awkward when forcing all the
             # data into an astropy Table.  E.g., int becomes np.int64, which
@@ -1099,7 +1111,7 @@ class DataContainer:
             # specific case, but it likely points to a larger issue that we may
             # need to address in DataContainer.
             for key in _d.keys():
-                if key not in cls.datamodel:
+                if _d[key] is None or key not in cls.datamodel:
                     continue
                 types = cls.datamodel[key]['otype'] \
                             if isinstance(cls.datamodel[key]['otype'], (list, tuple)) \

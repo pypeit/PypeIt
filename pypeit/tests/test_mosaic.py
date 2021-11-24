@@ -11,6 +11,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images.rawimage import RawImage
 from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit.core import mosaic
+from pypeit.images.mosaic import Mosaic
 
 
 def test_transform():
@@ -31,6 +32,37 @@ def test_transform():
     assert np.allclose(np.diag(tform)[:2], np.repeat([np.sqrt(0.5)], 2)) and \
             np.allclose(np.diag(np.fliplr(tform[:2,:2])), np.sqrt(0.5)*np.array([-0.5,2])), \
             'Bad scale transform'
+
+
+@dev_suite_required
+def test_io():
+    file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos', 'GN_HAM_R400_885',
+                        'N20190205S0035.fits')
+
+    # Load the spectrograph
+    spec = load_spectrograph('gemini_gmos_north_ham')
+    msc = spec.get_mosaic_par((1,2,3), hdu=fits.open(file))
+
+    test_file = data_path('tmp_mosaic.fits')
+    msc.to_file(test_file, overwrite=True)
+
+    _msc = Mosaic.from_file(test_file)
+
+    # Check a few attributes are equal
+    assert np.array_equal(msc.tform, _msc.tform), 'Bad transform read'
+    assert _msc.shape == msc.shape, 'Bad shape read'
+    assert _msc.name == msc.name, 'Bad name setup'
+
+    assert len(_msc.detectors) == len(msc.detectors), 'Bad number of detectors'
+
+    assert _msc.detectors[0]['dataext'] == msc.detectors[0]['dataext'], 'Bad read dataext'
+    assert np.array_equal(_msc.detectors[1]['gain'], msc.detectors[1]['gain']), 'Bad read gain'
+    assert _msc.detectors[2]['binning'] == msc.detectors[2]['binning'], 'Bad read binning'
+    assert np.array_equal(_msc.detectors[1]['datasec'], msc.detectors[1]['datasec']), \
+            'Bad read datasec'
+
+    os.remove(test_file)
+
 
 @dev_suite_required
 def test_gemini_gmos():
@@ -97,7 +129,5 @@ def test_gemini_gmos():
     mosaic_dragons = fits.open(dragons_file)[0].data
     assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:-1,1:-1]), 'Bad mosaic'
 
-
-test_gemini_gmos()
 
 
