@@ -18,7 +18,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import spec2dobj, alignframe
-from pypeit.core.flux_calib import load_extinction_data, extinction_correction
+from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 from pypeit.core.procimg import grow_masked
@@ -264,6 +264,25 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     dec_diff = spl_dec(wave_arr) - spl_dec(wave_ref)
 
     return ra_diff, dec_diff
+
+
+def extract_standard_spec(stdcube):
+    """ Extract a spectrum of a standard star from a datacube
+
+    Args:
+        std_cube (`astropy.io.fits.HDUList`_):
+            An HDU list of fits files
+
+    Returns:
+        wave (`numpy.ndarray`_): Wavelength of the star.
+        Nlam_star (`numpy.ndarray`_): counts/second/Angstrom
+        Nlam_ivar_star (`numpy.ndarray`_): inverse variance of Nlam_star
+        gpm_star (`numpy.ndarray`_): good pixel mask for Nlam_star
+    """
+
+
+
+    return wave, Nlam, Nlam_ivar, gpm
 
 
 def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
@@ -564,7 +583,6 @@ def coadd_cube(files, parset, overwrite=False):
     # Grab the parset, if not provided
     if parset is None: parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
-    fluxCalibrate = False
 
     # Check the output file
     outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename']+".fits"
@@ -577,13 +595,22 @@ def coadd_cube(files, parset, overwrite=False):
     if cubepar['standard_cube'] is not None:
         if not os.path.exists(cubepar['standard_cube']):
             msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
-        fluxCalibrate = True
+        senspar = parset['sensfunc']
         stdcube = fits.open(cubepar['standard_cube'])
+        star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
         # Extract a spectrum of the standard star
-
+        wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
+        # Read in some information above the standard star
+        std_dict = get_standard_spectrum(star_type=senspar['star_type'],
+                                         star_mag=senspar['star_mag'],
+                                         ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
-
-        # Get a spectrum of the flats in case
+        zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
+            fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+                          mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
+                          nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
+                          trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
+                          polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
@@ -609,6 +636,9 @@ def coadd_cube(files, parset, overwrite=False):
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
         detector = spec2DObj.detector
         flexure = None  #spec2DObj.sci_spat_flexure
+
+        # Get the exposure time
+        exptime = fits.open(fil)[0].header['EXPTIME']
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -701,6 +731,8 @@ def coadd_cube(files, parset, overwrite=False):
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
+        # Also convert the flux_sav to counts/s
+        ext_corr /= exptime
         # Correct for extinction
         flux_sav = flux_ext[wvsrt] * ext_corr
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
@@ -708,8 +740,7 @@ def coadd_cube(files, parset, overwrite=False):
         resrt = np.argsort(wvsrt)
 
         # Calculate the weights relative to the zeroth cube
-        if ff != 0:
-            weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
+        weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # Store the information
         numpix = raimg[onslit_gpm].size
@@ -719,7 +750,7 @@ def coadd_cube(files, parset, overwrite=False):
         all_sci = np.append(all_sci, flux_sav[resrt].copy())
         all_ivar = np.append(all_ivar, ivar_sav[resrt].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
-        all_wghts = np.append(all_wghts, weights[ff]*np.ones(numpix))
+        all_wghts = np.append(all_wghts, weights[ff]*np.ones(numpix)/weights[0])
 
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -838,15 +869,17 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Find the NGP coordinates for all input pixels
     msgs.info("Generating data cube")
+    # Convert the cube to counts/s/Ang/arcsec2
+    scl_units = dwv * 3600.0 * 3600.0 * dspat * dspat
     bins = (xbins, ybins, spec_bins)
-    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
+    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts/scl_units)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
     norm_cube = (norm > 0) / (norm + (norm == 0))
     datacube *= norm_cube
     # Create the variance cube, including weights
     msgs.info("Generating variance cube")
     all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
-    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * (all_wghts/scl_units)**2)
     var_cube *= norm_cube**2
 
     # Save the datacube
