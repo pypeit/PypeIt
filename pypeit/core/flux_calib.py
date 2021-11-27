@@ -66,17 +66,13 @@ def blackbody_func(a, teff):
         a (float):
             flux normalisation factor
         teff (float):
-            Effective temperature of the blackbody
+            Effective temperature of the blackbody (in units of K)
 
     Returns:
         waves : `numpy.ndarray`_ of the wavelengths
         flam : `numpy.ndarray`_ flux in units of erg/s/cm^2/A
     """
     waves = np.arange(3000.0, 25000.0, 0.1) * units.AA
-    # Setup the units
-    # TODO: This alters the input!!
-    teff *= units.K
-    a *= 1.0E-23
     # Calculate the function
     flam = ((a*2*constants.h*constants.c**2)/waves**5) / (np.exp((constants.h*constants.c / 
                 (waves*constants.k_B*teff)).to(units.m/units.m).value)-1.0)
@@ -210,7 +206,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['flux'] = std_dict['flux'][np.logical_not(mask)]
             elif sset == 'blackbody':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23'], star_tbl[_idx]['T_K'])
+                waves, flam = blackbody_func(star_tbl[_idx]['a_x10m23']*1.0E-23, star_tbl[_idx]['T_K']*units.K)
                 std_dict['std_source'] = sset
                 std_dict['wave'] = waves * units.AA
                 std_dict['flux'] = flam * units.erg / units.s / units.cm ** 2 / units.AA
@@ -344,10 +340,14 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             Spectral type of your standard/telluric star
         star_mag (float):
             Apparent magnitude of the telluric star
-        ra (float):
+        ra (float, str):
+            Standard right-ascension in decimal degrees (float)
+            -OR-
             Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-        dec (float):
-            Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
+        dec (float, str):
+            Standard declination in decimal degrees (float)
+            -OR-
+            Standard declination in dd:mm:ss string format (e.g., 52:52:01.0')
 
     Returns:
         dict: Dictionary containing the information you provided and the
