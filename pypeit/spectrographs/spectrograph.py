@@ -411,16 +411,7 @@ class Spectrograph:
         # TODO: Why isn't this a boolean array?
         return np.zeros(_shape, dtype=np.int8)
 
-    # TODO: This method needs some attention:
-    #       - 'det' is not needed; it's only used for the print statement.  The
-    #         print statement should be in the calling function.
-    #       - the docstring is wrong.  msbias must be a PypeItImage.
-    #       - We shouldn't be both editing and returning bpm_img.  We should not
-    #         edit bpm_img directly.  We should copy it and return the updated
-    #         version.
-    #       - The threshold used to flag the bad pixels should be a keyword
-    #         parameter that defaults to 10.
-    def bpm_frombias(self, msbias, bpm_img):
+    def bpm_frombias(self, msbias, bpm_img, thresh=10.):
         """
         Generate a bad-pixel mask from a master bias frame.
 
@@ -431,6 +422,8 @@ class Spectrograph:
                 Zeroth-order bad pixel mask; i.e., generated using
                 :func:`~pypeit.spectrographs.spectrograph.Spectrograph.empty_bpm`.
                 **Must** be the same shape as ``msbias``.
+            thresh (:obj:`float`, optional):
+                The sigma threshold used to identify bad pixels.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set to 1
@@ -450,7 +443,7 @@ class Spectrograph:
         for i in range(nimg):
             medval = np.median(_bias[i])
             madval = 1.4826 * np.median(np.absolute(_bias[i] - medval))
-            _bpm_img[i,np.abs(_bias[i] - medval) > 10.0 * madval] = 1
+            _bpm_img[i,np.abs(_bias[i] - medval) > thresh * madval] = 1
         # Done
         return _bpm_img[0] if nimg == 1 else _bpm_img
 
