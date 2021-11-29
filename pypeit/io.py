@@ -823,6 +823,8 @@ def fits_open(filename, **kwargs):
     Returns:
         `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
     """
+    if not os.path.isfile(filename):
+        msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:

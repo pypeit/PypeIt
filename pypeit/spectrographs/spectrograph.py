@@ -74,7 +74,6 @@ class Spectrograph:
     Number of detectors for this instrument.
     """
 
-    # TODO: Fix docstring
     name = None
     """
     The name of the spectrograph. See :ref:`instruments` for the currently
@@ -412,37 +411,48 @@ class Spectrograph:
         # TODO: Why isn't this a boolean array?
         return np.zeros(_shape, dtype=np.int8)
 
-    # TODO: This both edits and returns bpm_img. Is that the behavior we want?
-    def bpm_frombias(self, msbias, det, bpm_img):
+    # TODO: This method needs some attention:
+    #       - 'det' is not needed; it's only used for the print statement.  The
+    #         print statement should be in the calling function.
+    #       - the docstring is wrong.  msbias must be a PypeItImage.
+    #       - We shouldn't be both editing and returning bpm_img.  We should not
+    #         edit bpm_img directly.  We should copy it and return the updated
+    #         version.
+    #       - The threshold used to flag the bad pixels should be a keyword
+    #         parameter that defaults to 10.
+    def bpm_frombias(self, msbias, bpm_img):
         """
         Generate a bad-pixel mask from a master bias frame.
 
-        .. warning::
-            ``bpm_img`` is edited in-place and returned
-
         Args:
-            msbias (`numpy.ndarray`_):
+            msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Master bias frame used to identify bad pixels.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
             bpm_img (`numpy.ndarray`_):
-                Bad pixel mask. **Must** be the same shape as ``msbias``.
-                **This array is edited in place.**
+                Zeroth-order bad pixel mask; i.e., generated using
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.empty_bpm`.
+                **Must** be the same shape as ``msbias``.
 
         Returns:
             `numpy.ndarray`_: An integer array with a masked value set to 1
             and an unmasked value set to 0. The shape of the returned image
             is the same as the provided ``msbias`` and ``bpm_img`` images.
         """
-        msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
-        medval = np.median(msbias.image)
-        madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-        ww = np.where(np.abs(msbias.image - medval) > 10.0 * madval)
-        bpm_img[ww] = 1
+        # Check that the bias has the correct shape
+        if msbias.image.shape != bpm_img.shape:
+            msgs.error(f'Shape mismatch between master bias {msbias.image.shape} and expected '
+                       f'BPM {bpm_img.shape}.')
+        # Setup
+        nimg = 1 if bpm_img.ndim == 2 else bpm_img.shape[0]
+        _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img.copy()
+        _bias = np.expand_dims(msbias.image, 0) if nimg == 1 else msbias.image
 
-        # Return
-        return bpm_img
+        # Treat each bias image separately
+        for i in range(nimg):
+            medval = np.median(_bias[i])
+            madval = 1.4826 * np.median(np.absolute(_bias[i] - medval))
+            _bpm_img[i,np.abs(_bias[i] - medval) > 10.0 * madval] = 1
+        # Done
+        return _bpm_img[0] if nimg == 1 else _bpm_img
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -454,27 +464,41 @@ class Spectrograph:
         provided.
 
         Args:
-            filename (:obj:`str` or None):
-                An example file to use to get the image shape.
-            det (:obj:`int`):
-                1-indexed detector number to use when getting the image
-                shape from the example file.
-            shape (tuple, optional):
-                Processed image shape
-                Required if filename is None
-                Ignored if filename is not None
-            msbias (`numpy.ndarray`_, optional):
-                Master bias frame used to identify bad pixels
+            filename (:obj:`str`):
+                An example file to use to get the image shape.  Can be None.
+            det (:obj:`int`, :obj:`tuple`):
+                1-indexed detector(s) to read.  An image mosaic is selected
+                using a :obj:`tuple` with the detectors in the mosaic, which
+                must be one of the allowed mosaics returned by
+                :func:`allowed_mosaics`.
+            shape (:obj:`tuple`, optional):
+                Processed image shape.  If ``filename`` is None, this *must* be
+                provided; otherwise, this is ignored.
+            msbias (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
+                Master bias frame.  If provided, it is used by
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.bpm_frombias`
+                to identify bad pixels.
 
         Returns:
-            `numpy.ndarray`_: An integer array with a masked value set
-            to 1 and an unmasked value set to 0.  All values are set to
-            0.
+            `numpy.ndarray`_: An integer array with a masked value set to 1 and
+            an unmasked value set to 0.
         """
-        # Generate an empty BPM first
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-        # Fill in bad pixels if a master bias frame is provided
-        return bpm_img if msbias is None else self.bpm_frombias(msbias, det, bpm_img)
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+        # If using a mosaic, the shape of *all* processed images must be
+        # identical.  Therefore, we only need to generate the empty BPM for one
+        # of the detectors, like so:
+        bpm_img = self.empty_bpm(filename, _det[0], shape=shape)
+        # Repeat it if necessary
+        if nimg > 1:
+            bpm_img = np.tile(bpm_img, (nimg,1,1))
+
+        if msbias is None:
+            # Not using bias to identify bad pixels, so we're done
+            return bpm_img
+
+        msgs.info(f'Generating a BPM using bias for det={_det} for {self.name}')
+        return self.bpm_frombias(msbias, bpm_img)
 
     def list_detectors(self):
         """
@@ -692,24 +716,58 @@ class Spectrograph:
         """
         return []
 
+    def validate_det(self, det):
+        """
+        Validate the detector(s) provided.
+
+        Args:
+            det (:obj:`int`, :obj:`tuple`):
+                Selection of 1-indexed detector(s).  An image mosaic is selected
+                using a :obj:`tuple` with the detectors in the mosaic, which
+                must be one of the allowed mosaics returned by
+                :func:`allowed_mosaics`.
+
+        Returns:
+            :obj:`tuple`: Returns the number of detectors and a tuple with the
+            validated detectors.  If ``det`` is provided as a single integer,
+            the latter is just a one-element tuple.  Otherwise, it is identical
+            to the input ``det`` tuple, assuming the validation was successful.
+        """
+        if isinstance(det, tuple):
+            if det not in self.allowed_mosaics:
+                msgs.error(f'Selected detectors {det} are not an allowed mosaic for {self.name}.')
+            return len(det), det
+        if not isinstance(det, (int, np.integer)):
+            msgs.error(f'Provided det must have type tuple or integer, not {type(det)}.')
+        return 1, (det,)
+
     def get_rawimage(self, raw_file, det):
         """
-        Read raw images and generate a few other bits and pieces
-        that are key for image processing.
+        Read raw images and generate a few other bits and pieces that are key
+        for image processing.
+
+        .. warning::
+
+            - When reading multiple detectors for a mosaic, this function
+              expects all detector arrays to have exactly the same shape.
 
         Parameters
         ----------
         raw_file : :obj:`str`
             File to read
-        det : :obj:`int`
-            1-indexed detector to read
+        det : :obj:`int`, :obj:`tuple`
+            1-indexed detector(s) to read.  An image mosaic is selected using a
+            :obj:`tuple` with the detectors in the mosaic, which must be one of
+            the allowed mosaics returned by :func:`allowed_mosaics`.
 
         Returns
         -------
-        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
-            Detector metadata parameters.
+        detector_par : :class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`
+            Detector metadata parameters for one or more detectors.
         raw_img : `numpy.ndarray`_
-            Raw image for this detector.
+            Raw image for this detector.  Shape is 2D if a single detector image
+            is read and 3D if multiple detectors are read.  E.g., the image from
+            the first detector in the tuple is accessed using ``raw_img[0]``.
         hdu : `astropy.io.fits.HDUList`_
             Opened fits file
         exptime : :obj:`float`
@@ -717,30 +775,27 @@ class Spectrograph:
         rawdatasec_img : `numpy.ndarray`_
             Data (Science) section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
         oscansec_img : `numpy.ndarray`_
             Overscan section of the detector as provided by setting the
             (1-indexed) number of the amplifier used to read each detector
-            pixel. Pixels unassociated with any amplifier are set to 0.
+            pixel. Pixels unassociated with any amplifier are set to 0.  Shape
+            is identical to ``raw_img``.
         """
         # Open
         hdu = io.fits_open(raw_file)
 
-        # Grab the DetectorContainer
-        detector = self.get_detector_par(det, hdu=hdu)
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
 
-        # Raw image
-        raw_img = hdu[detector['dataext']].data.astype(float)
-        # TODO: This feels very dangerous.  Can we make this a priority?
-        # TODO -- Move to FLAMINGOS2 spectrograph
-        # Raw data from some spectrograph (i.e. FLAMINGOS2) have an
-        # addition extention, so I add the following two lines. It's
-        # easier to change here than writing another get_rawimage
-        # function in the spectrograph file.
-        if raw_img.ndim == 3:
-            raw_img = raw_img[0]
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
 
-        # Extras
+        # Grab metadata from the header
+        # NOTE: These metadata must be *identical* for all images when reading a
+        # mosaic
         headarr = self.get_headarr(hdu)
 
         # Exposure time (used by RawImage)
@@ -749,47 +804,74 @@ class Spectrograph:
 
         # Rawdatasec, oscansec images
         binning = self.get_meta_value(headarr, 'binning')
-        if detector['specaxis'] == 1:
+        # NOTE: This means that `specaxis` must be the same for all detectors in
+        # a mosaic
+        if detectors[0]['specaxis'] == 1:
             binning_raw = (',').join(binning.split(',')[::-1])
         else:
             binning_raw = binning
 
-        for section in ['datasec', 'oscansec']:
+        raw_img = [None]*nimg
+        rawdatasec_img = [None]*nimg
+        oscansec_img = [None]*nimg
+        for i in range(nimg):
 
-            # Get the data section
-            # Try using the image sections as header keywords
-            # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
-            #  Code like the following maybe useful
-            #hdr = hdu[detector[det - 1]['dataext']].header
-            #image_sections = [hdr[key] for key in detector[det - 1][section]]
-            # Grab from Detector
-            image_sections = detector[section]
-            #if not isinstance(image_sections, list):
-            #    image_sections = [image_sections]
-            # Always assume normal FITS header formatting
-            one_indexed = True
-            include_last = True
+            # Raw image
+            raw_img[i] = hdu[detectors[i]['dataext']].data.astype(float)
+            # Raw data from some spectrograph (i.e. FLAMINGOS2) have an addition
+            # extention, so I add the following two lines. It's easier to change
+            # here than writing another get_rawimage function in the
+            # spectrograph file.
+            # TODO: This feels dangerous, but not sure what to do about it...
+            if raw_img[i].ndim != 2:
+                raw_img[i] = np.squeeze(raw_img[i])
+            if raw_img[i].ndim != 2:
+                msgs.error(f"Raw images must be 2D; check extension {detectors[i]['dataext']} "
+                           f"of {raw_file}.")
 
-            # Initialize the image (0 means no amplifier)
-            pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(detector['numamplifiers']):
+            for section in ['datasec', 'oscansec']:
 
-                if image_sections is not None:  # and image_sections[i] is not None:
-                    # Convert the data section from a string to a slice
-                    datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
-                                              include_end=include_last, require_dim=2,
-                                              binning=binning_raw)
-                    # Assign the amplifier
-                    pix_img[datasec] = i+1
+                # Get the data section
+                # Try using the image sections as header keywords
+                # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
+                #  Code like the following maybe useful
+                #hdr = hdu[detector[det - 1]['dataext']].header
+                #image_sections = [hdr[key] for key in detector[det - 1][section]]
+                # Grab from Detector
+                image_sections = detectors[i][section]
+                #if not isinstance(image_sections, list):
+                #    image_sections = [image_sections]
+                # Always assume normal FITS header formatting
+                one_indexed = True
+                include_last = True
 
-            # Finish
-            if section == 'datasec':
-                rawdatasec_img = pix_img.copy()
-            else:
-                oscansec_img = pix_img.copy()
+                # Initialize the image (0 means no amplifier)
+                pix_img = np.zeros(raw_img[i].shape, dtype=int)
+                for j in range(detectors[i]['numamplifiers']):
 
-        # Return
-        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+                    if image_sections is not None:  # and image_sections[i] is not None:
+                        # Convert the data section from a string to a slice
+                        datasec = parse.sec2slice(image_sections[j], one_indexed=one_indexed,
+                                                  include_end=include_last, require_dim=2,
+                                                  binning=binning_raw)
+                        # Assign the amplifier
+                        pix_img[datasec] = j+1
+
+                # Finish
+                if section == 'datasec':
+                    rawdatasec_img[i] = pix_img.copy()
+                else:
+                    oscansec_img[i] = pix_img.copy()
+
+        if nimg == 1:
+            # Return single image
+            return detectors[0], raw_img[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+
+        if any([img.shape != raw_img[0].shape for img in raw_img[1:]]):
+            msgs.error('All raw images in a mosaic must have the same shape.')
+        # Return all images for mosaic
+        return mosaic, np.array(raw_img), hdu, exptime, np.array(rawdatasec_img), \
+                np.array(oscansec_img)
 
     def get_lamps_status(self, headarr):
         """
