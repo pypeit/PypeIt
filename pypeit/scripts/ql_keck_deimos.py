@@ -45,14 +45,12 @@ class QLKeckDEIMOS(scriptbase.ScriptBase):
                                                     'Keck/DEIMOS files',
                                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-        parser.add_argument('--redux_path', type=str, help='Path to where reduction products lie')
+        parser.add_argument('--redux_path', type=str, 
+                            help='Path to where reduction products lie')
         parser.add_argument('--root', type=str, help='Root of filenames, eg.  DE.2018')
         parser.add_argument('--calibs_only', default=False, action='store_true',
                             help='Run on calibs only')
         parser.add_argument('--science', type=str, help='Science frame filename')
-        parser.add_argument('--frameID', type=str, help='Science frameID')
-        parser.add_argument('--arc', type=str, help='Arc frame filename')
-        parser.add_argument('--flat', type=str, help='Flat frame filename')
         parser.add_argument('-b', '--box_radius', type=float,
                             help='Set the radius for the boxcar extraction (arcsec)')
         parser.add_argument('-d', '--det', type=int, default=0,
@@ -196,8 +194,16 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
         for key in ps.usrdata.keys():
             new_row[key] = ps_sci.fitstbl[key][0]
         ps.usrdata.add_row(new_row)
+
     # Build
     _ = ps.build_fitstbl()
+
+    # Remove any extraneous science files in the folder
+    gd_files = (ps.fitstbl['filename'] == os.path.basename(science_file)) | (
+        ps.fitstbl['frametype'] != 'science')
+    ps.fitstbl.table = ps.fitstbl.table[gd_files]
+    ps.file_list = np.array(ps.file_list)[gd_files].tolist()
+
     # Generate PypeIt file
     # TODO -- Generalize this with metadata.write_pypeit()
     # Write the file

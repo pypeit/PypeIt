@@ -6,7 +6,6 @@
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc lamps from
   the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
-- Set DEIMOS FWHM default to 10 pixels
 - Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
   slit dependent lists.
 - Improvements for MOSFIRE:

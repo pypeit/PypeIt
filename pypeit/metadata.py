@@ -1231,7 +1231,6 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
-                embed(header='1185 of metadata')
                 raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():

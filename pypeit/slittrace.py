@@ -1317,7 +1317,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 msk[idx] = False
             self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
         elif user_slits['method'] == 'maskIDs':
-            embed(header='865 of slittrace')
+            raise NotImplementedError("Not ready for maskID yet")
 
     def mask_flats(self, flatImages):
         """

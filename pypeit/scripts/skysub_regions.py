@@ -44,9 +44,6 @@ class SkySubRegions(scriptbase.ScriptBase):
         # Generate a utilities class
         info = utils.Utilities(None, pypeit_file=args.file, det=args.det)
 
-        # Generate a utilities class
-        info = utils.Utilities(args.file, args.det)
-
         # Interactively select a science frame
         sciIdx = info.select_science_frame(standard=args.standard)
 
