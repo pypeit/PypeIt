@@ -138,10 +138,12 @@ class CoAdd1D:
         self.coaddfile = coaddfile
         wave_gpm = self.wave_coadd > 1.0
         # Generate the DataContainer
-        onespec = OneSpec(self.wave_coadd[wave_gpm], self.flux_coadd[wave_gpm], wave_grid=self.wave_grid[wave_gpm],
+        from IPython import embed
+        onespec = OneSpec(self.wave_coadd[wave_gpm], self.flux_coadd[wave_gpm], wave_grid=self.wave_grid,
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
+
         onespec.head0 = self.header
 
         # Add history entries for coadding.
@@ -192,9 +194,11 @@ class MultiSlitCoAdd1D(CoAdd1D):
               - wave, flux, ivar, gpm
 
         """
+        print("======WE ARE HERE==========")
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            dv=self.par['dv'], wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],

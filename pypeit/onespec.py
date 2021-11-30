@@ -35,8 +35,8 @@ class OneSpec(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang)'),
-                 'wave_grid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang)'),
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang), weighted by pixel contributions'),
+                 'wave_grid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang), uniformly-spaced either in lambda or log10-lambda/velocity'),
                  'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
