@@ -139,7 +139,8 @@ class CoAdd1D:
         wave_gpm = self.wave_coadd > 1.0
         # Generate the DataContainer
         from IPython import embed
-        onespec = OneSpec(self.wave_coadd[wave_gpm], self.flux_coadd[wave_gpm], wave_grid=self.wave_grid,
+        print("===== shape", self.wave_coadd.shape, np.ones(self.wave_coadd.shape).shape)
+        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid=np.ones(self.wave_coadd.shape), flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
@@ -194,7 +195,6 @@ class MultiSlitCoAdd1D(CoAdd1D):
               - wave, flux, ivar, gpm
 
         """
-        print("======WE ARE HERE==========")
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
