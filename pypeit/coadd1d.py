@@ -84,7 +84,7 @@ class CoAdd1D:
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load_arrays()
         # Coadd the data
-        self.wave_grid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -138,9 +138,7 @@ class CoAdd1D:
         self.coaddfile = coaddfile
         wave_gpm = self.wave_coadd > 1.0
         # Generate the DataContainer
-        from IPython import embed
-        print("===== shape", self.wave_coadd.shape, np.ones(self.wave_coadd.shape).shape)
-        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid=np.ones(self.wave_coadd.shape), flux=self.flux_coadd[wave_gpm],
+        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid=self.wave_grid_mid[:-1][wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
