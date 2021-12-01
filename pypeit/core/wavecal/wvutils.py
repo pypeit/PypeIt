@@ -183,6 +183,7 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             basically multiples the 'native' spectral pixels by
             ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
 
+   # TODO Add the shapes of the return values.
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
             - ``wave_grid``: New wavelength grid, not masked
