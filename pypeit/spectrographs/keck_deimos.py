@@ -1558,6 +1558,7 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False):
                         AIRMASS=float(meta['AIRMASS']), 
                         DISPNAME=str(meta['GRATING'][0]), 
                         PYP_SPEC='keck_deimos', 
+                        PYPELINE='MultiSlit',
                         RA=coord.ra.deg, 
                         DEC=coord.dec.deg
                    )

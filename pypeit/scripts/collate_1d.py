@@ -31,7 +31,8 @@ from pypeit.core.collate import collate_spectra_by_source, SourceObject
 from pypeit.scripts import scriptbase
 from pypeit.slittrace import SlitTraceBitMask
 from pypeit.spec2dobj import AllSpec2DObj
-
+from pypeit.sensfilearchive import SensFileArchive
+from pypeit import fluxcalibrate
 
 def extract_id(header):
     """
@@ -363,6 +364,60 @@ def exclude_source_objects(source_objects, exclude_map, par):
         filtered_objects.append(source_object)
     return (filtered_objects, excluded_messages)
 
+def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
+    """
+    Flux calibrate spec1d files using archived sens func files.
+
+    Args:
+        par (`obj`:pypeit.par.pypeitpar.PypeItPar): 
+            Parameters for collating, fluxing, and coadding.
+        spectrograph (`obj`:pypeit.spectrographs.spectrograph):
+            Spectrograph for the files to flux.
+        spec1d_files (list of str):
+            List of spec1d files to flux calibrate.
+        failed_fluxing_msgs(list of str):
+            Return parameter describing any failures that occurred when fluxing.
+
+    Returns:
+        list of str: The spec1d files that were successfully flux calibrated.
+    """
+
+    # Make sure fluxing from archive is supported for this spectrograph
+    if spectrograph.name not in SensFileArchive.supported_spectrographs():
+        msgs.error(f"Flux calibrating {spectrograph.name} with an archived sensfunc is not supported.")
+
+    par['fluxcalib']['use_archived_sens'] = True
+    par['fluxcalib']['extrap_sens'] = True
+
+    sf_archive = SensFileArchive.get_instance(spectrograph.name)
+    flux_calibrated_files = []
+    for spec1d_file in spec1d_files:
+
+        # Get the archived sens file to use
+        try:
+            sens_file = sf_archive.get_archived_sensfile(spec1d_file)
+        except Exception:
+            formatted_exception = traceback.format_exc()
+            msgs.warn(formatted_exception)
+            msgs.warn(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
+            failed_fluxing_msgs.append(f"Could not find archived sensfunc to flux {spec1d_file}, skipping it.")
+            failed_fluxing_msgs.append(formatted_exception)
+            
+        # Flux calibrate the spec1d file
+        try:
+            FxCalib = fluxcalibrate.FluxCalibrate.get_instance([spec1d_file], [sens_file],
+                                                                par=par['fluxcalib'])
+            flux_calibrated_files.append(spec1d_file)
+
+        except Exception:
+            formatted_exception = traceback.format_exc()
+            msgs.warn(formatted_exception)
+            msgs.warn(f"Failed to flux calibrate {spec1d_file}, skipping it.")
+            failed_fluxing_msgs.append(f"Failed to flux calibrate {spec1d_file}, skipping it.")
+            failed_fluxing_msgs.append(formatted_exception)
+
+    # Return the succesfully fluxed files
+    return flux_calibrated_files
 
 def coadd(par, source):
     """coadd the spectra for a given source.
@@ -373,7 +428,7 @@ def coadd(par, source):
             which files and spectra to coadd.
     """
     par['coadd1d']['coaddfile'] = source.coaddfile
-    par['coadd1d']['flux_value'] = False
+    par['coadd1d']['flux_value'] = par['collate1d']['flux']
     spectrograph = load_spectrograph(par['rdx']['spectrograph'])
 
     # Instantiate
@@ -473,7 +528,7 @@ def find_archvie_files_from_spec1d(par, spec1d_files):
 
     return spec1d_text_files, pypeit_files, missing_archive_msgs
 
-def write_warnings(par, excluded_obj_msgs, failed_source_msgs, missing_archive_files, start_time, total_time):
+def write_warnings(par, excluded_obj_msgs, failed_source_msgs, missing_archive_files, failed_fluxing_msgs, start_time, total_time):
     """
     Write gathered warning messages to a `collate_warnings.txt` file.
 
@@ -483,6 +538,9 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, missing_archive_f
 
         failed_source_msgs (:obj:`list` of :obj:`str`): 
             Messages about which objects failed coadding and why.
+
+        failed_fluxing_msgs (:obj:)`list` of :obj:`str`): 
+            Messages about which files could not be flux calibrated and why.
 
         missing_archive_fgiles (:obj:`list` of :obj:`str`): 
             Messages about files that could not be archived.
@@ -494,6 +552,11 @@ def write_warnings(par, excluded_obj_msgs, failed_source_msgs, missing_archive_f
         print("pypeit_collate_1d warnings", file=f)
         print(f"\nStarted {start_time.isoformat(sep=' ')}", file=f)
         print(f"Duration: {total_time}", file=f)
+
+        if len(failed_fluxing_msgs) > 0:
+            print("\nFlux calibration failures\n", file=f)
+            for msg in failed_fluxing_msgs:
+                print(msg, file=f)
 
         print("\nExcluded Objects:\n", file=f)
         for msg in excluded_obj_msgs:
@@ -576,6 +639,9 @@ def build_parameters(args):
 
     if args.dry_run:
         params['collate1d']['dry_run'] = True
+
+    if args.flux:
+        params['collate1d']['flux'] = True
 
     if args.archive_dir is not None:
         params['collate1d']['archive_root'] = args.archive_dir
@@ -717,6 +783,7 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
                             help=blank_par.descr['match_using'])
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
+        parser.add_argument('--flux', default=False, action = 'store_true')
         parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
         parser.add_argument('--pypeit_file', type=str, help=blank_par.descr['pypeit_file'])
         parser.add_argument('--exclude_slit_bm', type=str, nargs='*',
@@ -771,20 +838,22 @@ class Collate1D(scriptbase.ScriptBase):
             spec2d_files = []
             exclude_map = dict()
 
+        # Flux the spec1ds based on a archived sensfunc
+        failed_fluxing_msgs = []        
+        if par['collate1d']['flux']:
+            spec1d_files = flux(par, spectrograph, spec1d_files, failed_fluxing_msgs)
+
+        # Build source objects from spec1d file, this list is not collated 
         source_objects = SourceObject.build_source_objects(spec1d_files,
                                                            par['collate1d']['match_using'],
                                                            par['collate1d']['outdir'])
 
-        # Filter based the coadding ex_value, and the exclude_serendip 
+        # Filter based on the coadding ex_value, and the exclude_serendip 
         # boolean
         (objects_to_coadd, excluded_obj_msgs) = exclude_source_objects(source_objects, exclude_map, par)
 
         # Collate the spectra
         source_list = collate_spectra_by_source(objects_to_coadd, tolerance)
-
-        #sensfunc, how to identify standard file
-
-        # fluxing etc goes here
 
         # Coadd the spectra
         successful_source_list = []
@@ -834,7 +903,7 @@ class Collate1D(scriptbase.ScriptBase):
         total_time = datetime.now() - start_time
 
         write_warnings(par, excluded_obj_msgs, failed_source_msgs, missing_archive_msgs,
-                       start_time, total_time)
+                       failed_fluxing_msgs, start_time, total_time)
 
         msgs.info(f'Total duration: {total_time}')
 
