@@ -183,14 +183,14 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             basically multiples the 'native' spectral pixels by
             ``spec_samp_fact``, i.e. units ``spec_samp_fact`` are pixels.
 
-   # TODO Add the shapes of the return values.
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: New wavelength grid, not masked
-            - ``wave_grid_mid``: New wavelength grid evaluated at the centers of
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked
+            - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
               the wavelength bins, that is this grid is simply offset from
               ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
               depending on whether linear or (log10 or velocity) was requested.
+              Last bin center is removed since it falls outside wave_grid.
               For iref or concatenate the linear wavelength sampling will be
               calculated.
             - ``dsamp``: The pixel sampling for wavelength grid created.
@@ -270,6 +270,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
         wave_grid_diff = np.append(wave_grid_diff, wave_grid_diff[-1])
         wave_grid_mid = wave_grid + wave_grid_diff / 2.0
         dsamp = np.median(wave_grid_diff)
+
+    wave_grid_mid = wave_grid_mid[:-1]  # removing the last bin since the midpoint now falls outside of wave_grid rightmost bin
 
     return wave_grid, wave_grid_mid, dsamp
 

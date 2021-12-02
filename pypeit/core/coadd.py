@@ -2410,7 +2410,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
-    wave_grid, _, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
                                             dloglam=dloglam, spec_samp_fact=spec_samp_fact)
@@ -2578,7 +2578,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
     #                          header=header, ex_value=ex_value, overwrite=True)
 
 
-    return (wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack), \
+    return wave_grid_mid, (wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack), \
            (waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,)
 
 

@@ -36,7 +36,7 @@ class OneSpec(datamodel.DataContainer):
     version = '1.0.0'
 
     datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang), weighted by pixel contributions'),
-                 'wave_grid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang) evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity'),
+                 'wave_grid_mid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang) evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity'),
                  'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
@@ -76,7 +76,7 @@ class OneSpec(datamodel.DataContainer):
         #
         return slf
 
-    def __init__(self, wave, flux, wave_grid=None, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
+    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
