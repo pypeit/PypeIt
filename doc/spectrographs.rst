@@ -33,14 +33,14 @@ instrument-specific details for running ``PypeIt``.
    :maxdepth: 1
 
    new_spectrograph
-   gemini_gmos
    deimos
    mosfire
+   gemini_gmos
+   gtc_osiris
    keck_kcwi
    lris
    mage
+   ntt_efosc2
    shane_kast
    xshooter
-   gtc_osiris
-   ntt_efosc2
    
