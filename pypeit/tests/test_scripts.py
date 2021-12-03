@@ -1,7 +1,6 @@
 """
 Module to run tests on scripts
 """
-import ast
 import os
 from pkg_resources import resource_filename
 import shutil
