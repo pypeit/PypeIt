@@ -568,6 +568,7 @@ def test_collate_1d(tmp_path, monkeypatch):
                                                                '--spec1d_files', expanded_alt_spec1d])
         assert scripts.collate_1d.Collate1D.main(parsed_args) == 0
         
+# pypeit_parse_calib_id is tested in test_runpypeit
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

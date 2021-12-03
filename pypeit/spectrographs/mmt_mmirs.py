@@ -33,6 +33,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
     name = 'mmt_mmirs'
     telescope = telescopes.MMTTelescopePar()
     camera = 'MMIRS'
+    header_name = 'mmirs'
     supported = True
 
     def init_meta(self):
@@ -57,6 +58,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=1, card='DISPERSE')
         self.meta['idname'] = dict(ext=1, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=1, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """

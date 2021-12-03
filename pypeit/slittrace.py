@@ -825,7 +825,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = sobjs.DET == self.det
+            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
         else:
             cut_sobjs = sobjs
@@ -846,7 +846,7 @@ class SlitTraceSet(datamodel.DataContainer):
                     continue
 
             # Object index
-            oidx = np.where(self.maskdef_designtab['SLITID'].data == self.maskdef_id[islit])[0][0]
+            oidx = np.where(self.maskdef_designtab['MASKDEF_ID'].data == self.maskdef_id[islit])[0][0]
             #
             # Do it
             SPAT_PIXPOS = float((self.maskdef_objpos[oidx]+self.maskdef_offset) + slits_left[specmid, islit])
@@ -902,7 +902,7 @@ class SlitTraceSet(datamodel.DataContainer):
             thisobj.RA = self.maskdef_designtab['OBJRA'][oidx]
             thisobj.DEC = self.maskdef_designtab['OBJDEC'][oidx]
             thisobj.MASKDEF_OBJNAME = self.maskdef_designtab['OBJNAME'][oidx]
-            thisobj.MASKDEF_ID = self.maskdef_designtab['SLITID'][oidx]
+            thisobj.MASKDEF_ID = self.maskdef_designtab['MASKDEF_ID'][oidx]
             thisobj.MASKDEF_EXTRACT = True
             thisobj.hand_extract_flag = False
             # Add to SpecObjs
@@ -943,14 +943,16 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.error('A value for the slitmask offset must be provided.')
 
         # Unpack -- Remove this once we have a DataModel
-        obj_maskdef_id = self.maskdef_designtab['SLITID'].data
+        obj_maskdef_id = self.maskdef_designtab['MASKDEF_ID'].data
         obj_slit_coords = SkyCoord(ra=self.maskdef_designtab['SLITRA'],
                                    dec=self.maskdef_designtab['SLITDEC'], frame='fk5', unit='deg')
         obj_slit_pa = self.maskdef_designtab['SLITPA']
+        # RMS (in arcsec) of the x-correlation between predicted and traced left slits edges
+        cc_rms = self.maskdef_designtab.meta['MASKRMSL'] * plate_scale
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = sobjs.DET == self.det
+            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
                 msgs.warn('NO detected objects.')
@@ -997,14 +999,21 @@ class SlitTraceSet(datamodel.DataContainer):
             # Index for SpecObjs on this slit
             idx = np.where(cut_sobjs.MASKDEF_ID == maskid)[0]
             # Index for slitmask
-            sidx = np.where(self.maskdef_designtab['SLITID'] == maskid)[0][0]
+            sidx = np.where(self.maskdef_designtab['MASKDEF_ID'] == maskid)[0][0]
             # Within TOLER?
             # separation in pixels
             separ = measured[idx] - (expected[idx] + self.maskdef_offset)
             msgs.info('MASKDEF_ID:{}'.format(maskid))
             msgs.info('Difference between expected and detected object '
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
-            in_toler = np.abs(separ*plate_scale) < TOLER
+            # we include in the tolerance the rms of the slit edges matching and the size of
+            # the detected object with the highest peak flux
+            if not np.any(cut_sobjs[idx].smash_peakflux == None):
+                ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
+                obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
+            else:
+                obj_fwhm = 0.
+            in_toler = np.abs(separ*plate_scale) < (TOLER + cc_rms + obj_fwhm/2)
             if np.any(in_toler):
                 # Parse the peak fluxes
                 peak_flux = cut_sobjs[idx].smash_peakflux[in_toler]
@@ -1068,7 +1077,7 @@ class SlitTraceSet(datamodel.DataContainer):
         slit_cen = (slits_left + slits_right) / 2.
 
         # Unpack -- Remove this once we have a DataModel
-        obj_maskdef_id = self.maskdef_designtab['SLITID'].data
+        obj_maskdef_id = self.maskdef_designtab['MASKDEF_ID'].data
         # Distance (arcsec) of the object from the left edge
         obj_topdist = self.maskdef_designtab['OBJ_TOPDIST'].data
         obj_botdist = self.maskdef_designtab['OBJ_BOTDIST'].data
@@ -1126,7 +1135,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return
 
     def get_maskdef_offset(self, sobjs, slits_left, platescale, slitmask_off, bright_maskdefid,
-                           nsig_thrshd, use_alignbox):
+                           nsig_thrshd, use_alignbox, dither_off=None):
         """
         Determine the Slitmask offset (pixels) from position expected by the slitmask design
 
@@ -1139,6 +1148,7 @@ class SlitTraceSet(datamodel.DataContainer):
             nsig_thrshd (:obj:`float`): Objects detected above this sigma threshold will be use to
                                         compute the slitmask offset
             use_alignbox (:obj:`bool`): Flag that determines if the alignment boxes are used to measure the offset
+            dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
 
 
         """
@@ -1153,10 +1163,16 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.info('User-provided slitmask offset: {} pixels ({} arcsec)'.format(round(self.maskdef_offset, 2),
                                                                             round(self.maskdef_offset*platescale, 2)))
             return
+        # If using the dither offeset recorde in the header, just save it and return
+        if dither_off is not None:
+            self.maskdef_offset = -dither_off/platescale
+            msgs.info('Slitmask offset from the dither pattern: {} pixels ({} arcsec)'.
+                      format(round(self.maskdef_offset, 2), round(self.maskdef_offset*platescale, 2)))
+            return
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = sobjs.DET == self.det
+            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
                 msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.det))
@@ -1168,7 +1184,7 @@ class SlitTraceSet(datamodel.DataContainer):
             return
 
         # Maskdef ID
-        obj_maskdef_id = self.maskdef_designtab['SLITID'].data
+        obj_maskdef_id = self.maskdef_designtab['MASKDEF_ID'].data
         # Flag for slits used for alignment (1-yes; 0-no)
         flag_align = self.maskdef_designtab['ALIGN'].data
         align_maskdef_ids = obj_maskdef_id[flag_align == 1]
@@ -1367,11 +1383,12 @@ def parse_slitspatnum(slitspatnum):
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
 
-def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par):
+def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par,
+                                      dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
-    This info is recorded in the SlitTraceSet datamodel.
+    This info is recorded in the `SlitTraceSet` datamodel.
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
@@ -1380,6 +1397,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
         platescale (:obj:`list`): List of platescale for every detector
         det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
+        dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
 
     Returns:
         List of `SlitTraceSet` with updated information on the traced slit edges
@@ -1391,7 +1409,6 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
     for i in range(calib_dets.size):
         # Select the edges to use
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
-        on_det = sobjs.DET == calib_dets[i]
         if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
             calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
@@ -1401,25 +1418,41 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
                                               slitmask_par['slitmask_offset'],
                                               slitmask_par['bright_maskdef_id'],
                                               slitmask_par['nsig_thrshd'],
-                                              slitmask_par['use_alignbox'])
+                                              slitmask_par['use_alignbox'],
+                                              dither_off=dither_off)
 
     return calib_slits
 
 
-def average_maskdef_offset(calib_slits, platescale):
+def average_maskdef_offset(calib_slits, platescale, list_detectors):
     """
     Loop around all the calibrated detectors to compute the median offset between
-    the expected and measure slitmask position. This info is recorded in the SlitTraceSet datamodel.
+    the expected and measure slitmask position. This info is recorded in the `SlitTraceSet` datamodel.
 
     Args:
         calib_slits (:obj:`list`):
-        List of `SlitTraceSet` with information on the traced slit edges
+            List of `SlitTraceSet` with information on the traced slit edges.
         platescale (:obj:`float`):
-        Platescale, must be the same for every detectors
+            Platescale, must be the same for every detectors.
+        list_detectors (:obj:`tuple`):
+            An array that lists the detector numbers of the current spectrograph,
+            e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]]), with shape :math:`(2, N_{dets})`
+            or :math:`(1, N_{dets})`, and a flag that indicates if the spectrograph is
+            divided into blue and red detectors.
 
     Returns:
-        List of `SlitTraceSet` with updated information on the traced slit edges
+        Array of `SlitTraceSet` with updated information on the traced slit edges.
+
     """
+
+    calib_slits = np.array(calib_slits)
+
+    # unpack list_detectors
+    spectrograph_dets = list_detectors[0]
+    blue_and_red = list_detectors[1]
+    if spectrograph_dets is None or blue_and_red is None:
+        msgs.warn('No average slitmask offset computed')
+        return calib_slits
 
     # determine if a slitmask offset exist and use the average offset over all the detectors
     # grab slitmask offsets from slits calibrations
@@ -1427,65 +1460,53 @@ def average_maskdef_offset(calib_slits, platescale):
     # grab corresponding detectors
     calib_dets = np.array([ss.det for ss in calib_slits])
 
-    # remove eventual None
-    calib_dets = calib_dets[slitmask_offsets != None]
-    slitmask_offsets = slitmask_offsets[slitmask_offsets != None].astype('float')
-    if slitmask_offsets.size > 0:
-        # zero is assigned when no offset could be measured. If all detectors have maskdef_offset=0 give a warning
-        if slitmask_offsets[slitmask_offsets!=0].size == 0:
-            msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
-            msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG! '
-                      'Especially for dithered observations!')
-            msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
-        else:
-            # define which are the blue and red detectors. This is hard coded for DEIMOS but no other
-            # instrument should ever get to this point.
-            # TODO find a way to make this not DEIMOS specific
-            blue_dets = np.array([1, 2, 3, 4])
-            red_dets = np.array([5, 6, 7, 8])
+    # remove eventual None and zeros (zero is assigned when no offset could be measured.)
+    calib_dets = calib_dets[(slitmask_offsets != None) & (slitmask_offsets != 0)]
+    slitmask_offsets = slitmask_offsets[(slitmask_offsets != None) & (slitmask_offsets != 0)].astype('float')
+    if slitmask_offsets.size == 0:
+        # If all detectors have maskdef_offset=0 give a warning
+        msgs.warn('No slitmask offset could be measured. Assumed to be zero. ')
+        msgs.warn('RA, DEC, OBJNAME assignment and forced extraction of undetected objects MAY BE WRONG! '
+                  'Especially for dithered observations!')
+        msgs.warn('To provide a value set `slitmask_offset` in `SlitMaskPar`')
 
-            # separate maskdef_offsets for blue and red detectors
-            blue_slitmask_offsets = []
-            red_slitmask_offsets = []
-            for i in range(calib_dets.size):
-                if calib_dets[i] in blue_dets:
-                    blue_slitmask_offsets.append(slitmask_offsets[i])
-                if calib_dets[i] in red_dets:
-                    red_slitmask_offsets.append(slitmask_offsets[i])
-            blue_slitmask_offsets = np.array(blue_slitmask_offsets)
-            red_slitmask_offsets = np.array(red_slitmask_offsets)
+        return calib_slits
 
-            # compute average slitmask_offset for blue detectors
-            # msgs.warn('Slitmask offsets in each blue det: {}.'.format(np.round(blue_slitmask_offsets, 2)))
-            if blue_slitmask_offsets[blue_slitmask_offsets!=0].size > 0:
-                _, median_off_blue, _ = sigma_clipped_stats(blue_slitmask_offsets[blue_slitmask_offsets!=0], sigma=2.)
-            # compute average slitmask_offset for red detectors
-            # msgs.warn('Slitmask offsets in each red det: {}.'.format(np.round(red_slitmask_offsets, 2)))
-            if red_slitmask_offsets[red_slitmask_offsets!=0].size > 0:
-                _, median_off_red, _ = sigma_clipped_stats(red_slitmask_offsets[red_slitmask_offsets!=0], sigma=2.)
+    # are there dets from calib_slits that are blue?
+    indx_b = np.where(np.in1d(calib_dets, spectrograph_dets[0]))[0]
+    # if this spectrograph is not split into blue and red detectors
+    # or if it is but there are no available offsets in the blue
+    if not blue_and_red or slitmask_offsets[indx_b].size == 0:
+        # use all the available offsets to compute the median
+        _, median_off, _ = sigma_clipped_stats(slitmask_offsets, sigma=2.)
+        for cs in calib_slits:
+            # assign median to each det
+            cs.maskdef_offset = median_off
+        msgs.info('Average Slitmask offset: {:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
-            # if all the blue_slitmask_offsets were zero, we estimate median_off_blue from median_off_red
-            # usually traces in red dets are 1-2pixels shifted to the right w.r.t. traces in blue dets
-            if 'median_off_blue' not in locals():
-                median_off_blue = median_off_red - 1.
-            # if all the red_slitmask_offsets were zero, we estimate median_off_red from median_off_blue
-            if 'median_off_red' not in locals():
-                median_off_red = median_off_blue + 1.
-            # at this point, we should never have both blue_slitmask_offsets and red_slitmask_offsets all zero.
+        return calib_slits
 
-            if np.any([det in blue_dets for det in calib_dets]):
-                msgs.info('Average Slitmask offset for the blue detectors: '
-                          '{:.2f} pixels ({:.2f} arcsec).'.format(median_off_blue, median_off_blue*platescale))
-            if np.any([det in red_dets for det in calib_dets]):
-                msgs.info('Average Slitmask offset for the red detectors: '
-                          '{:.2f} pixels ({:.2f} arcsec).'.format(median_off_red, median_off_red*platescale))
+    if slitmask_offsets[indx_b].size > 0:
+        # compute median if these blue dets have values of slitmask_offsets
+        _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_b], sigma=2.)
+        for cs in calib_slits[indx_b]:
+            # assign median to each blue det
+            cs.maskdef_offset = median_off
+        msgs.info('Average Slitmask offset for the blue detectors: '
+                  '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
-            # update the slit calibration with the average slitmask offset
-            for i in range(len(calib_slits)):
-                if calib_slits[i].det in blue_dets:
-                    calib_slits[i].maskdef_offset = median_off_blue
-                if calib_slits[i].det in red_dets:
-                    calib_slits[i].maskdef_offset = median_off_red
+        # which dets from calib_slits are red?
+        indx_r = np.where(np.in1d(calib_dets, spectrograph_dets[1]))[0]
+        if slitmask_offsets[indx_r].size > 0:
+            # compute median if these red dets have values of slitmask_offsets
+            _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_r], sigma=2.)
+
+        # assign median to each red det (median would be the one computed for red dets if exists
+        # or the median computed for blue dets)
+        for cs in calib_slits[indx_r]:
+            cs.maskdef_offset = median_off
+        msgs.info('Average Slitmask offset for the red detectors: '
+                  '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
 
     return calib_slits
 
@@ -1497,7 +1518,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
-        calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
+        calib_slits (`numpy.ndarray`_): Array of `SlitTraceSet` with information on the traced slit edges
         spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
         platescale (:obj:`list`): List of platescale for every detector
         fwhm (:obj:`float`):  Estimate of the FWHM of objects in pixels

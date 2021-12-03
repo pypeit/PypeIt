@@ -378,7 +378,7 @@ class SpecObjs:
             int:
         """
         if self[0].PYPELINE == 'Echelle':
-            indx = self.ECH_ORDERINDX == slitorder
+            indx = self.ECH_ORDER == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
         elif self[0].PYPELINE == 'IFU':

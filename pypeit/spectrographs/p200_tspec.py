@@ -25,6 +25,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
     name = 'p200_tspec'
     telescope = telescopes.P200TelescopePar()
     camera = 'TSPEC'
+    header_name = 'TSPEC_SPEC'
     pypeline = 'Echelle'
     supported = True
     comment = 'TripleSpec spectrograph'
@@ -50,6 +51,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='FPA')
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='FPA')
 
     def compound_meta(self, headarr, meta_key):
         """

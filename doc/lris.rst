@@ -97,8 +97,17 @@ need to increase the `edge_thresh` parameter to
 keck_lris_red
 =============
 
-Taking Calibrations for LRISr
-=============================
+Detectors
++++++++++
+
+There have been 3 (or is it 4?!) generations of detectors
+in the LRISr camera.  The original is named `keck_lris_red_orig`,
+the LBNL detectors (2kx4k) are `keck_lris_red` and the newest
+Mark4 detector is `keck_lris_red_mark4`.   
+
+For the latter (Mark4), the wavelengths have been incorporated for the 
+R400 grating only so far but the arxiv solutions from the LBNL detector
+may work ok.  Check the outputs!
 
 LRISr Default Settings
 ++++++++++++++++++++++
@@ -110,10 +119,10 @@ for LRISr::
     settings trace slits pca params [3,2,1,0]
 
 Known issues
-++++++++++++
+============
 
 LRISb Slit Edges
-----------------
+++++++++++++++++
 
 When observing in long-slit mode, PypeIt might set the slit incorrectly
 for detector 2.  This may occur if the counts from the flat field
@@ -138,7 +147,7 @@ Here is an example for the PypeIt file::
 This will force a slit onto the detector for reduction.
 
 Multi-slit
-----------
+++++++++++
 
 The code may identify a 'ghost' slit in empty detector real
 estate if your mask does not fill most of the field.  Be prepared

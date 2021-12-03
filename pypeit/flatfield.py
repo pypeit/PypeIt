@@ -1055,6 +1055,7 @@ class FlatField(object):
             if exit_status > 1:
                 msgs.warn('Two-dimensional fit to flat-field data failed!  No higher order '
                           'flat-field corrections included in model of slit {0}!'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
             else:
                 twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
                 twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt)]

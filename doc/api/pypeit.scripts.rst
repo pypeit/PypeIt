@@ -26,6 +26,7 @@ Submodules
    pypeit.scripts.lowrdx_skyspec
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
+   pypeit.scripts.parse_calib_id
    pypeit.scripts.qa_html
    pypeit.scripts.ql_keck_mosfire
    pypeit.scripts.ql_keck_nires

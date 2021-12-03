@@ -124,6 +124,9 @@ class PypeItMetaData:
         self.configs = None
         self.calib_bitmask = None
 
+        # Validate instrument name
+        self.spectrograph.vet_instrument(self.table)
+
     def _impose_types(self, columns, types):
         """
         Impose a set of types on certain columns.

@@ -167,7 +167,7 @@ Slit Edges
 
 The code will automatically assign edges to each slit on the
 detector.  This includes using inform from the slitmask design
-recorded in the FITS file, as described in :doc:`dev/deimos_slitmask_ids`
+recorded in the FITS file, as described in :doc:`dev/slitmask_ids`
 
 Here is a zoom-in screen shot from the first tab in the *ginga*
 window after using

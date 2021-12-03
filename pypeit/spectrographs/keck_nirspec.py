@@ -21,6 +21,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     telescope = telescopes.KeckTelescopePar()
     camera = 'NIRSPEC'
+    header_name = 'NIRSPEC'
 
     def get_detector_par(self, det, hdu=None):
         """
@@ -157,6 +158,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='DISPERS')
         self.meta['hatch'] = dict(ext=0, card='CALMPOS')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
         # Lamps
         lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
         for kk,lamp_name in enumerate(lamp_names):
