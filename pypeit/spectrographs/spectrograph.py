@@ -155,40 +155,41 @@ class Spectrograph:
         par['rdx']['spectrograph'] = cls.name
         return par
 
-    def nonlinear_counts(self, detector_par, datasec_img=None, apply_gain=True):
-        """
-        Return the counts at which the detector response becomes
-        non-linear.
-
-        Default is to apply the gain, i.e. return this is counts not ADU
-
-        Args:
-            detector_par (:class:`~pypeit.images.detector_container.DetectorContainer`):
-                Detector-specific metadata.
-            datasec_img (`numpy.ndarray`_, optional):
-                If provided, nonlinear_counts is returned as an image.
-                **Do not use this option**; it is not yet implemented
-                downstream.
-            apply_gain (:obj:`bool`, optional):
-                Apply gain in the calculation. I.e., convert the value to
-                counts. If only a float is returned, (i.e. ``datasec_img`` is
-                not provided), the mean of the gains for all amplifiers is
-                used.
-
-        Returns:
-            :obj:`float`, `numpy.ndarray`_: Counts at which the detector
-            response becomes nonlinear. If ``datasec_img`` is provided, an
-            image of the same shape is returned with the pixel-specific
-            nonlinear-count threshold.
-        """
-        if datasec_img is not None:
-            raise NotImplementedError('Cannot accommodate pixel-specific definition of '
-                                      'nonlinear counts.')
-        gain = np.atleast_1d(detector_par['gain']) if apply_gain \
-                else np.ones(len(detector_par['gain']), dtype=float)
-        return detector_par['saturation'] * detector_par['nonlinear'] \
-                * (np.mean(gain) if datasec_img is None
-                   else procimg.gain_frame(datasec_img, gain.tolist()))
+# TODO: Moved to DetectorContainer.  Note this function never uses self...
+#    def nonlinear_counts(self, detector_par, datasec_img=None, apply_gain=True):
+#        """
+#        Return the counts at which the detector response becomes
+#        non-linear.
+#
+#        Default is to apply the gain, i.e. return this is counts not ADU
+#
+#        Args:
+#            detector_par (:class:`~pypeit.images.detector_container.DetectorContainer`):
+#                Detector-specific metadata.
+#            datasec_img (`numpy.ndarray`_, optional):
+#                If provided, nonlinear_counts is returned as an image.
+#                **Do not use this option**; it is not yet implemented
+#                downstream.
+#            apply_gain (:obj:`bool`, optional):
+#                Apply gain in the calculation. I.e., convert the value to
+#                counts. If only a float is returned, (i.e. ``datasec_img`` is
+#                not provided), the mean of the gains for all amplifiers is
+#                used.
+#
+#        Returns:
+#            :obj:`float`, `numpy.ndarray`_: Counts at which the detector
+#            response becomes nonlinear. If ``datasec_img`` is provided, an
+#            image of the same shape is returned with the pixel-specific
+#            nonlinear-count threshold.
+#        """
+#        if datasec_img is not None:
+#            raise NotImplementedError('Cannot accommodate pixel-specific definition of '
+#                                      'nonlinear counts.')
+#        gain = np.atleast_1d(detector_par['gain']) if apply_gain \
+#                else np.ones(len(detector_par['gain']), dtype=float)
+#        return detector_par['saturation'] * detector_par['nonlinear'] \
+#                * (np.mean(gain) if datasec_img is None
+#                   else procimg.gain_frame(datasec_img, gain.tolist()))
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -436,7 +437,12 @@ class Spectrograph:
                        f'BPM {bpm_img.shape}.')
         # Setup
         nimg = 1 if bpm_img.ndim == 2 else bpm_img.shape[0]
-        _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img.copy()
+
+        # NOTE: expand_dims does *not* copy the array, so we need to do so
+        # explicitly here ...
+        _bpm_img = np.expand_dims(bpm_img.copy(), 0) if nimg == 1 else bpm_img.copy()
+        # ... but not here.  I.e., we don't want to change the input bpm_img,
+        # and we only ever access the values of msbias.
         _bias = np.expand_dims(msbias.image, 0) if nimg == 1 else msbias.image
 
         # Treat each bias image separately
@@ -708,6 +714,16 @@ class Spectrograph:
         returned as an empty list.
         """
         return []
+
+    @property
+    def default_mosaic(self):
+        """
+        Return the default detector mosaic.
+
+        For instruments with no allowed detector mosaics, this *must* be
+        returned as None.
+        """
+        return None
 
     def validate_det(self, det):
         """

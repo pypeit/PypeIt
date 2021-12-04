@@ -101,7 +101,8 @@ class Identify(scriptbase.ScriptBase):
         # Launch the identify window
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
-                                        nonlinear_counts=spec.nonlinear_counts(msarc.detector),
+#                                        nonlinear_counts=spec.nonlinear_counts(msarc.detector),
+                                        nonlinear_counts=msarc.detector.nonlinear_counts(),
                                         pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
         # Testing?
         if args.test:

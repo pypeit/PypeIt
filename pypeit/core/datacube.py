@@ -21,7 +21,8 @@ from pypeit import spec2dobj, alignframe
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
-from pypeit.core.procimg import grow_masked
+#from pypeit.core.procimg import grow_masked
+from pypeit.core.procimg import grow_mask
 from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
@@ -393,7 +394,9 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspa
         nrmCube = (norm > 0) / (norm + (norm == 0))
         whtlght = (wlcube * nrmCube)[:, :, 0]
         # Create a mask of good pixels (trim the edges)
-        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
+#        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
+        # TODO: NEED TO CHECK THIS IS OKAY!!
+        gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
         whtlght *= gpm
         # Set the masked regions to the minimum value
         minval = np.min(whtlght[gpm == 1])

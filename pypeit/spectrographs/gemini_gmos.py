@@ -511,6 +511,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         return [(1,2,3)]
 
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
+
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
     """
@@ -663,6 +667,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         _det = list(_det)
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+        # NOTE: expand_dims does *not* copy the array.  We can edit it directly
+        # because we've created it inside this function.
         _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
         # Get the binning
@@ -946,7 +952,9 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
         nimg = 1 if array.ndim == 2 else array.shape[0]
         if nimg == 1:
             _detpar = [detpar]
-            _array = np.expand_dims(array.copy(), 0)
+            # NOTE: expand_dims does *not* copy the array.  We can edit it
+            # directly because we've created it inside this function.
+            _array = np.expand_dims(array, 0)
         for i in range(nimg):
             xbin, ybin = parse.parse_binning(_detpar[i].binning)
             # TODO: Should double check NOD&SHUFFLE was not on

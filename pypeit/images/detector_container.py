@@ -12,6 +12,7 @@ import numpy as np
 
 from pypeit import datamodel
 from pypeit import msgs
+from pypeit.core import procimg
 
 
 class DetectorContainer(datamodel.DataContainer):
@@ -58,10 +59,21 @@ class DetectorContainer(datamodel.DataContainer):
                                     descr='arcsec per pixel in the spatial dimension for an '
                                           'unbinned pixel'),
                  'darkcurr': dict(otype=(int, float), descr='Dark current (e-/pixel/hour)'),
-                 'saturation': dict(otype=(int, float), descr='The detector saturation level'),
+                # TODO: There are actually two types of "saturation": (1) the
+                # point at which the amplifier A/D converter reaches the upper
+                # limit of the bit representation (e.g., 65535 = 2**16-1) or (2)
+                # the point at which the electron well depth is filled.  The
+                # reason this matters is that detection of the former should be
+                # done using the ADU/DN value in the *raw* frame --- before
+                # subtracting the bias, applying the gain, etc. --- and
+                # detection of the latter should be done using counts in the
+                # *bias-subtracted* frame.  Looking across all our instruments,
+                # it looks like we're mixing how we define this number...
+                 'saturation': dict(otype=(int, float),
+                                    descr='The detector saturation level in ADU/DN'),
                  'mincounts': dict(otype=(int, float),
-                                   descr='Counts in a pixel below this value will be ignored '
-                                         'as being unphysical'),
+                                   descr='Counts (e-) in a pixel below this value will be ignored '
+                                         'as being unphysical.'),
                  'nonlinear': dict(otype=(int, float),
                                    descr='Percentage of detector range which is linear '
                                          '(i.e. everything above ``nonlinear*saturation`` will '
@@ -142,6 +154,35 @@ class DetectorContainer(datamodel.DataContainer):
         Parse the string identifier of the detector into its integer index.
         """
         return int(name[3:])
+
+    def nonlinear_counts(self, datasec_img=None, apply_gain=True):
+        """
+        Return the ADU/DN or counts at which the detector response becomes
+        non-linear.
+
+        Args:
+            datasec_img (`numpy.ndarray`_, optional):
+                An image identifying the amplifier used to read each pixel in
+                the detector data section.  If provided, the returned object is
+                an image giving the non-linear counts for each pixel.
+            apply_gain (:obj:`bool`, optional):
+                Apply gain in the calculation. I.e., convert the value to
+                counts. If only a float is returned, (i.e. ``datasec_img`` is
+                not provided), the mean of the gains for all amplifiers is
+                used.
+
+        Returns:
+            :obj:`float`, `numpy.ndarray`_: Counts at which the detector
+            response becomes nonlinear. If ``datasec_img`` is provided, an
+            image of the same shape is returned with the pixel-specific
+            nonlinear-count threshold.
+        """
+        if apply_gain:
+            gain = np.mean(self.gain) if datasec_img is None \
+                    else procimg.gain_frame(datasec_img, self.gain)
+        else:
+            gain = 1.
+        return self.saturation * self.nonlinear * gain
 
 
 

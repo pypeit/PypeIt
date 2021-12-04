@@ -691,6 +691,8 @@ class Reduce:
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
             # Find CRs with sky subtraction
+            # TODO: Shouldn't the saturation flagging account for the
+            # subtraction of the sky?
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=self.global_sky)
             # Update the fullmask

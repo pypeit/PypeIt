@@ -58,9 +58,13 @@ item (dictionary) for the datamodel element provides the type and
 description information for that datamodel element. For each
 datamodel element, the dictionary item must provide:
 
-    - ``otype``: This is the type of the object for this datamodel
-      item. E.g., for a float or a `numpy.ndarray`_, you would set
-      ``otype=float`` and ``otype=np.ndarray``, respectively.
+    - ``otype``: This is the type of the object for this datamodel item. E.g.,
+      for a float or a `numpy.ndarray`_, you would set ``otype=float`` and
+      ``otype=np.ndarray``, respectively.  The ``otype`` can also be a tuple
+      with optional types.  Beware optional types that are themselves
+      DataContainers.  This works for
+      :class:`~pypeit.images.pypeitimage.PypeItImage`, but it likely needs more
+      testing.
 
     - ``descr``: This provides a text description of the datamodel
       element. This is used to construct the datamodel tables in the
@@ -72,12 +76,6 @@ array. E.g., for a floating point array containing an image, your
 datamodel could be simply::
 
     datamodel = {'image' : dict(otype=np.ndarray, atype=float, descr='My image')}
-
-Currently, ``datamodel`` components are restricted to have ``otype``
-that are :obj:`tuple`, :obj:`int`, :obj:`float`, ``numpy.integer``,
-``numpy.floating``, `numpy.ndarray`_, or `astropy.table.Table`_
-objects. E.g., ``datamodel`` values for ``otype`` *cannot* be
-:obj:`dict`.
 
 More advanced examples are given below.
 
@@ -624,6 +622,7 @@ class DataContainer:
 
 
     def __init__(self, d=None):
+
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
@@ -660,15 +659,30 @@ class DataContainer:
             #self.__dict__.update(d)  # This by-passes the data model checking
 
             ## Assign the values provided by the input dictionary
-            for key in d:
+            for key in d.keys():
+
+                # DataContainer element can be one of multiple DataContainer types
+                optional_dc_type = isinstance(self.datamodel[key]['otype'], tuple) \
+                        and any([obj_is_data_container(t) for t in self.datamodel[key]['otype']])
+                if optional_dc_type and isinstance(d[key], dict):
+                    for t in self.datamodel[key]['otype']:
+                        try:
+                            dc = t(**d[key])
+                        except:
+                            dc = None
+                            continue
+                    if dc is None:
+                        msgs.error(f'Could not assign dictionary element {key} to datamodel '
+                                   f'for {self.__class__.__name__}.')
+                    setattr(self, key, dc)
+                    continue
+                
                 # Nested DataContainer?
-                if obj_is_data_container(self.datamodel[key]['otype']):
-                    if isinstance(d[key], dict):
-                        setattr(self, key, self.datamodel[key]['otype'](**d[key]))
-                    else:
-                        setattr(self, key, d[key])
-                else:
-                    setattr(self, key, d[key])
+                if obj_is_data_container(self.datamodel[key]['otype']) and isinstance(d[key], dict):
+                    setattr(self, key, self.datamodel[key]['otype'](**d[key]))
+                    continue
+
+                setattr(self, key, d[key])
 
         # Validate the object
         self._validate()
@@ -1192,7 +1206,10 @@ class DataContainer:
 
     def __getitem__(self, item):
         """Get an item directly from the internal dict."""
-        return self.__dict__[item]
+        try:
+            return self.__dict__[item]
+        except KeyError as e:
+            raise KeyError(f'{item} is not an item in {self.__class__.__name__}.') from e
 
     def keys(self):
         """
