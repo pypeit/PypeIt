@@ -1124,7 +1124,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None):
+    def __init__(self, offsets=None, spat_toler=None, weights=None, use_slits4wvgrid=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1140,7 +1140,14 @@ class Coadd2DPar(ParSet):
         # Offsets
         defaults['offsets'] = None
         dtypes['offsets'] = [list, str]
-        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels).'
+        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels). ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
+                           'design matching (currently available for DEIMOS and MOSFIRE only).'
+
+        defaults['spat_toler'] = 5
+        dtypes['spat_toler'] = int
+        descr['spat_toler'] = 'This parameter provides the desired tolerance in spatial pixel used ' \
+                              'to identify slits in different exposures'
 
         # Offsets
         defaults['use_slits4wvgrid'] = False
@@ -1164,7 +1171,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['offsets', 'weights', 'use_slits4wvgrid']
+        parkeys = ['offsets', 'spat_toler', 'weights', 'use_slits4wvgrid']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
