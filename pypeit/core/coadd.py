@@ -1990,7 +1990,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
              maxrej=None, qafile=None, title='', debug=False,
              debug_scale=False, show_scale=False, show=False,
-             verbose=False):
+             verbose=True):
 
     '''
     Driver routine for coadding longslit/multi-slit spectra.

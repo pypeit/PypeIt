@@ -693,7 +693,7 @@ class CoAdd2D:
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)
             detectors_list.append(s2dobj.detector)
-            embed()
+
             if ifile == 0:
                 sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
                 waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
@@ -995,7 +995,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
                        'ratio on the same slit of every exposure')
 
-        self.snr_report(snr_bar, slitid=slitid)
+        self.snr_report(snr_bar, slitid=spat_ids[slitid])
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
