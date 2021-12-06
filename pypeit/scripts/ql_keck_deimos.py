@@ -223,7 +223,7 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
         ridx = ps.user_cfg.index('[rdx]')
         ps.user_cfg.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
     else:
-        embed(header='NOT READY:  118 of ql_deimos')
+        raise NotImplementedError('NOT READY:  118 of ql_deimos')
     # Do it
     make_pypeit_file(science_pypeit,
                      script_Utils.spectrograph.name, [],
