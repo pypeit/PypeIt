@@ -203,7 +203,7 @@ One Slit
 To reduce a single slit on a single detector for a single exposure, you would issue
 a command like::
 
-    pypeit_ql_keck_deimos full_path_to_raw_files --science=DE.20130409.20629.fits --slit_spat=3:763 --redux_path=path_for_calibs 
+    pypeit_ql_keck_deimos full_path_to_raw_files --science=DE.20130409.20629.fits --slit_spat=3:763 --redux_path=path_to_calibs 
 
 This will process and extract spectra from the slit_id=763 in the 
 science exposure DE.20130409.20629.fits.  Again, you specify
