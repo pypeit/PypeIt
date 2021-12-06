@@ -493,6 +493,8 @@ class RawImage:
         self.par = par
         if bpm is not None:
             self._bpm = bpm
+            if self._bpm.ndim == 2:
+                self._bpm = np.expand_dims(self._bpm, 0)
 
         # Check the input
         if self.par['use_biasimage'] and bias is None:
@@ -669,7 +671,7 @@ class RawImage:
                    None if self.base_var is None else self.base_var[0], \
                    None if self.img_scale is None else self.img_scale[0], \
                    None if self.bpm is None else self.bpm[0]
-        return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2_img, \
+        return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
                 self.base_var, self.img_scale, self.bpm
 
     def spatial_flexure_shift(self, slits, force=False):
@@ -761,8 +763,7 @@ class RawImage:
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
-                orig_image = self.image.copy()
-                viewer, ch = display.show_image(orig_image, chname='orig_image')
+                viewer, ch = display.show_image(self.image[0], chname='orig_image')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Apply the relative spectral illumination
@@ -829,12 +830,14 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already bias subtracted.')
             return
-        if self.image.shape != bias_image.shape:
+        _bias = bias_image.image if self.nimg > 1 else np.expand_dims(bias_image.image, 0)
+        if self.image.shape != _bias.shape:
             msgs.error('Shape mismatch with bias image!')
-        self.image -= bias_image.image
+        self.image -= _bias
         # TODO: Also incorporate the mask?
         if bias_image.ivar is not None and self.proc_var is not None:
-            self.proc_var += utils.inverse(bias_image.ivar)
+            self.proc_var += utils.inverse(bias_image.ivar if self.nimg > 1 
+                                           else np.expand_dims(bias_image.ivar, 0))
         self.steps[step] = True
 
     # TODO: expscale is currently not a parameter that the user can control.
@@ -974,12 +977,13 @@ class RawImage:
         var = [None]*self.nimg
         for i in range(self.nimg):
             # Subtract the overscan.  var is the variance in the overscan
-            # subtraction
+            # subtraction.
             _os_img[i], var[i] = procimg.subtract_overscan(self.image[i], self.datasec_img[i],
                                                            self.oscansec_img[i],
                                                            method=self.par['overscan_method'],
                                                            params=self.par['overscan_par'],
-                                                           var=self.rn2img[i])
+                                                           var=None if self.rn2img is None 
+                                                                else self.rn2img[i])
         self.image = np.array(_os_img)
         # Parse the returned value
         if self.rn2img is not None:

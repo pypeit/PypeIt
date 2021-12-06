@@ -192,6 +192,8 @@ class CombineImage:
         # If not provided, generate the bpm for this spectrograph and detector.
         # Regardless of the file used, this must result in the same bpm, so we
         # just use the first one.
+        # TODO: Why is this done here?  It's the same thing as what's done if
+        # bpm is not passed to RawImage.process...
         if bpm is None:
             bpm = self.spectrograph.bpm(self.files[0], self.det)
 
@@ -202,6 +204,7 @@ class CombineImage:
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                            flatimages=flatimages, slits=slits, mosaic=mosaic)
+
             if self.nfiles == 1:
                 # Only 1 file, so we're done
                 pypeitImage.files = self.files
@@ -309,6 +312,7 @@ class CombineImage:
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
+                                       amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
@@ -319,16 +323,13 @@ class CombineImage:
                                        shot_noise=self.par['shot_noise'])
 
         # Internals
-        # TODO: Do we need these two?
+        # TODO: Do we need these?
         comb.files = self.files
         comb.rawheadlist = pypeitImage.rawheadlist
         comb.process_steps = pypeitImage.process_steps
 
         # Build the base level mask
-#        nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
-#                                                              apply_gain=self.par['apply_gain'])
-        nonlinear_counts = pypeitImage.detector.nonlinear_counts(apply_gain=self.par['apply_gain'])
-        comb.build_mask(saturation=nonlinear_counts)
+        comb.build_mask(saturation='default', mincounts='default')
 
         # Flag all pixels with no contributions from any of the stacked images.
         comb.update_mask('STCKMASK', indx=np.logical_not(gpm))

@@ -28,6 +28,7 @@ from pypeit import coadd1d
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.pypmsgs import PypeItError
 
+
 @dev_suite_required
 def test_quicklook():
     # The following needs the LRISb calibration files to be
@@ -229,7 +230,7 @@ def test_view_fits_mosaic():
                                                    '--proc'])
     scripts.view_fits.ViewFits.main(pargs)
 
-test_view_fits_mosaic()
+#test_view_fits_mosaic()
 
 @cooked_required
 def test_chk_flat():
@@ -251,6 +252,7 @@ def test_chk_wavecalib():
     scripts.chk_wavecalib.ChkWaveCalib.main(pargs)
 
 
+# NOTE: May fail if DetectorContainer datamodel changes.
 def test_coadd1d_1():
     """
     Test basic coadd using shane_kast_blue
@@ -278,6 +280,7 @@ def test_coadd1d_1():
     os.remove(coadd_ofile)
 
 
+# NOTE: May fail if DetectorContainer datamodel changes.
 def test_coadd1d_2():
     """
     Test combining Echelle
@@ -349,6 +352,7 @@ def test_identify():
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
 
+
 @dev_suite_required
 def test_obslog():
     # Define the output directories (HARDCODED!!)
@@ -366,7 +370,8 @@ def test_obslog():
     # Clean up
     shutil.rmtree(setupdir)
 
-@dev_suite_required
+
+@cooked_required
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
@@ -381,6 +386,7 @@ def test_compare_sky():
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test',
                                                        '--optimal'])
     scripts.compare_sky.CompareSky.main(pargs)
+
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):

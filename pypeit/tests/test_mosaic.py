@@ -129,6 +129,5 @@ def test_gemini_gmos():
     mosaic_dragons = fits.open(dragons_file)[0].data
     assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:-1,1:-1]), 'Bad mosaic'
 
-test_gemini_gmos()
 
 

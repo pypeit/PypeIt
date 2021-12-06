@@ -225,7 +225,6 @@ class PypeItImage(datamodel.DataContainer):
             msgs.warn('Assuming image units are counts (e-).')
             self.units = 'e-'
 
-
     def _bundle(self):
         """
         Package the datamodel for writing.
@@ -235,6 +234,7 @@ class PypeItImage(datamodel.DataContainer):
             its own fits extension. See
             :class:`~pypeit.datamodel.DataContainer`.
         """
+        # TODO: Add `files` and `process_steps`?
         d = []
         # Primary image
         d.append(dict(image=self.image))
@@ -482,9 +482,7 @@ class PypeItImage(datamodel.DataContainer):
             msgs.error('Minimum counts array must have the same shape as the image.')
 
         # Setup the saturation level 
-        if saturation is None or isinstance(saturation, np.ndarray):
-            _saturation = saturation
-        elif isinstance(saturation, str):
+        if isinstance(saturation, str):
             if saturation != 'default':
                 msgs.error(f'Unknown saturation string: {saturation}')
             _saturation = self.map_detector_value('saturation') \
@@ -492,19 +490,17 @@ class PypeItImage(datamodel.DataContainer):
             if self.units == 'e-':
                 _saturation *= self.map_detector_value('gain')
         else:
-            msgs.error(f'cannot handle saturation argument with type {type(saturation)}.')
+            _saturation = saturation
 
         # Setup the minimum counts level 
-        if mincounts is None or isinstance(mincounts, np.ndarray):
-            _mincounts = mincounts
-        elif isinstance(mincounts, str):
+        if isinstance(mincounts, str):
             if mincounts != 'default':
                 msgs.error(f'Unknown mincounts string: {mincounts}')
             _mincounts = self.map_detector_value('mincounts')
             if self.units == 'ADU':
                 _mincounts /= self.map_detector_value('gain')
         else:
-            msgs.error(f'cannot handle mincounts argument with type {type(mincounts)}.')
+            _mincounts = mincounts
 
         if from_scratch:
             # Instatiate the mask

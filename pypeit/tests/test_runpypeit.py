@@ -19,13 +19,9 @@ matplotlib.use('agg')  # For Travis
 from pypeit.scripts.parse_calib_id import ParseCalibID
 from pypeit.scripts.setup import Setup
 from pypeit.scripts.run_pypeit import RunPypeIt
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit import specobjs
 
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 @dev_suite_required
 def test_run_pypeit_calib_only():
@@ -151,5 +147,6 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
+
 
 

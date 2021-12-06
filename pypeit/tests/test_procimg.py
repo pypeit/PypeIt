@@ -160,18 +160,18 @@ def test_lacosmic():
     pimg = img.process(par)
     test_img = pimg.image[:500,:500]
     test_var = utils.inverse(pimg.ivar[:500,:500])
-#    _crmask = procimg.lacosmic(test_img, 1e10, 1., varframe=test_var, maxiter=1) 
-    crmask = procimg.new_lacosmic(test_img, varframe=test_var, maxiter=1)
+    crmask = procimg.lacosmic(test_img, varframe=test_var, maxiter=1)
     assert np.sum(crmask) == 1240, 'L.A.Cosmic changed'
 
-    _crmask = procimg.new_lacosmic(test_img, varframe=test_var, maxiter=2)
+    _crmask = procimg.lacosmic(test_img, varframe=test_var, maxiter=2)
     assert np.sum(_crmask) > np.sum(crmask), '2nd iteration should find more cosmics'
 
-    _crmask = procimg.new_lacosmic(test_img, saturation=6000., varframe=test_var, maxiter=1)
+    _crmask = procimg.lacosmic(test_img, saturation=6000., varframe=test_var, maxiter=1)
     assert np.sum(_crmask) < np.sum(crmask), 'Should have flagged some pixels as saturated'
 
-    __crmask = procimg.new_lacosmic(test_img, saturation=np.full(test_img.shape, 6000.),
+    __crmask = procimg.lacosmic(test_img, saturation=np.full(test_img.shape, 6000.),
                                     varframe=test_var, maxiter=1)
     assert np.array_equal(__crmask, _crmask), 'Saturation array failed.'
+
 
 
