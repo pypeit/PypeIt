@@ -203,7 +203,8 @@ class BuildWaveTilts:
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
+            else self.mstilt.detector.nonlinear_counts()
+#            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that

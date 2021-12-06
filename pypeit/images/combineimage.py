@@ -25,13 +25,15 @@ class CombineImage:
 
     All core processing steps for each image are handled by
     :class:`~pypeit.images.rawimage.RawImage`.  This class can be used to
-    process both single images and lists of images.
+    process both single images, lists of images, and detector mosaics.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
+        det (:obj:`int`, :obj:`tuple`):
+            The 1-indexed detector number(s) to process.  If a tuple, it must
+            include detectors viable as a mosaic for the provided spectrograph;
+            see :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
         files (:obj:`str`, array-like):
@@ -40,8 +42,8 @@ class CombineImage:
     Attributes:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
+        det (:obj:`int`, :obj:`tuple`):
+            The 1-indexed detector number(s) to process.
         par (:class:`~pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.
         files (:obj:`list`):
@@ -61,7 +63,8 @@ class CombineImage:
             msgs.error('CombineImage requires a list of files to instantiate')
 
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean'):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='mean',
+            mosaic=False):
         r"""
         Process and combine all images.
 
@@ -167,9 +170,13 @@ class CombineImage:
             dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
                 Dark-current image; passed directly to
                 :func:`~pypeit.images.rawimage.RawImage.process` for all images.
-            combine_method (str):
+            combine_method (:obj:`str`, optional):
                 Method used to combine images.  Must be ``'mean'`` or
                 ``'median'``; see above.
+            mosaic (:obj:`bool`, optional):
+                If multiple detectors are being processes, mosaic them into a
+                single image.  See
+                :func:`~pypeit.images.rawimage.RawImage.process`.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The combination of
@@ -185,6 +192,8 @@ class CombineImage:
         # If not provided, generate the bpm for this spectrograph and detector.
         # Regardless of the file used, this must result in the same bpm, so we
         # just use the first one.
+        # TODO: Why is this done here?  It's the same thing as what's done if
+        # bpm is not passed to RawImage.process...
         if bpm is None:
             bpm = self.spectrograph.bpm(self.files[0], self.det)
 
@@ -194,9 +203,11 @@ class CombineImage:
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
-                                           flatimages=flatimages, slits=slits)
+                                           flatimages=flatimages, slits=slits, mosaic=mosaic)
+
             if self.nfiles == 1:
                 # Only 1 file, so we're done
+                pypeitImage.files = self.files
                 return pypeitImage
             elif kk == 0:
                 # Allocate arrays to collect data for each frame
@@ -301,6 +312,7 @@ class CombineImage:
 
         # Build the combined image
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
+                                       amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
@@ -311,14 +323,13 @@ class CombineImage:
                                        shot_noise=self.par['shot_noise'])
 
         # Internals
-        # TODO: Do we need these two?
+        # TODO: Do we need these?
+        comb.files = self.files
         comb.rawheadlist = pypeitImage.rawheadlist
         comb.process_steps = pypeitImage.process_steps
 
         # Build the base level mask
-        nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
-                                                              apply_gain=self.par['apply_gain'])
-        comb.build_mask(saturation=nonlinear_counts)
+        comb.build_mask(saturation='default', mincounts='default')
 
         # Flag all pixels with no contributions from any of the stacked images.
         comb.update_mask('STCKMASK', indx=np.logical_not(gpm))

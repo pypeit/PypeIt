@@ -3,15 +3,10 @@ Module to test spectrograph read functions
 """
 import os
 
-import pytest
-import glob
-
-from pkg_resources import resource_filename
+from IPython import embed
 
 from pypeit import spectrographs
-from pypeit.core import procimg
-
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, data_path
 
 
 @dev_suite_required
@@ -85,6 +80,20 @@ def test_gemini_gmos_gmossham():
     bpm = s.bpm(example_file, det)
     assert data.shape == (512, 1152)
     assert bpm.shape == (1024, 512)
+
+
+@dev_suite_required
+def test_gemini_gmos_gmossham_mosaic():
+    s = spectrographs.gemini_gmos.GeminiGMOSSHamSpectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos',
+                                'GS_HAM_R400_700', 'S20181005S0085.fits.gz')
+    assert os.path.isfile(example_file), 'Could not find example file for Gemini GMOS-S Ham read.'
+    det = (1,2,3)
+    mosaic, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (3, 512, 1152)
+    assert bpm.shape == (3, 1024, 512)
+
 
 @dev_suite_required
 def test_magellanfire_echelle():
@@ -176,8 +185,7 @@ def test_kecknirspec():
 
 def test_shanekastblue():
     s = spectrographs.shane_kast.ShaneKastBlueSpectrograph()
-    example_file = os.path.join(resource_filename('pypeit', 'tests'), 'files',
-                                'b1.fits.gz')
+    example_file = data_path('b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     det=1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)

@@ -1,3 +1,9 @@
+"""
+Provide basic mosaicing functions.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 
 from IPython import embed
 
@@ -100,7 +106,7 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
     Returns:
         :obj:`tuple`: Returns the shape for the mosaic image as a
         two-tuple and the new transformation matrices as a list of
-        `numpy.ndrray`_ objects.
+        `numpy.ndarray`_ objects.
     """
     # Use the number of transforms to set the number of images
     nimg = len(tforms)
@@ -158,19 +164,29 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         variances as necessary in overlap regions.
 
     Args:
-        imgs (:obj:`list`):
-            List of `numpy.ndarray`_ images to include in the mosaic.
-        tforms (:obj:`list`):
+        imgs (:obj:`list`, `numpy.ndarray`_):
+            List of `numpy.ndarray`_ images to include in the mosaic.  The shape
+            of all the input images must be identical if ``mosaic_shape`` is
+            None.
+        tforms (:obj:`list`, `numpy.ndarray`_):
             List of `numpy.ndarray`_ objects with the transformation matrices
             necessary to convert between image and mosaic coordinates.  See
             :func:`pypeit.core.mosaic.build_image_mosaic_transform`.  The number
-            of transforms must match the number of images.
-        ivar (:obj:`list`, optional):
+            of transforms must match the number of images.  If ``mosaic_shape``
+            is None, the transforms are considered in a relative sense.  That
+            is, the shape of the output mosaic is determined by applying these
+            transforms to the bounding boxes of each image and then determining
+            the shape needed to retain all pixels in the input images.  The
+            transforms are then adjusted appropriately to map to this shape; see
+            :func:`~pypeit.core.mosaic.prepare_mosaic`.  If ``mosaic_shape`` is
+            *not* None, these transforms are expected to map directly to the
+            output mosaic coordinates.
+        ivar (:obj:`list`, `numpy.ndarray`_, optional):
             List of `numpy.ndarray`_ images with the inverse variance of the
             image data.  The number of inverse-variance images must match the
             number of images in the mosaic.  If None, inverse variance is
             returned as None.
-        bpm (:obj:`list`, optional):
+        bpm (:obj:`list`, `numpy.ndarray`_, optional):
             List of boolean `numpy.ndarray`_ objects with the bad-pixel mask for
             each image in the mosaic.  The number of bad-pixel masks must match
             the number of images in the mosaic.  If None, all input pixels are
@@ -195,10 +211,15 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
                   mosaic.
 
     Returns:
-        :obj:`tuple`: Three `numpy.ndarray`_ objects are returned: (1) the
-        mosaic image, (2) its inverse variance (None if no inverse variance is
-        provided), and (3) an integer array with the number of input pixels in
-        each output pixel.
+        :obj:`tuple`: Four objects are returned. The first three are
+        `numpy.ndarray`_ objects with the mosaic image, its inverse variance
+        (None if no inverse variance is provided), and an integer array with the
+        number of input pixels in each output pixel.  The last contains the
+        detailed transformation matrices applied to each image.  If
+        ``mosaic_shape`` is provided, these are identical to the input
+        ``tforms``; otherwise, these are the transforms adjusted from the
+        relative frame to the absolute mosaic frame given its determined shape;
+        see :func:`~pypeit.core.mosaic.prepare_mosaic`.
     """
     # Check the input
     nimg = len(imgs)
@@ -208,8 +229,8 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         msgs.error('If providing any, must provide inverse-variance for each image in the mosaic.')
     if bpm is not None and len(bpm) != nimg:
         msgs.error('If providing any, must provide bad-pixel masks for each image in the mosaic.')
-    if overlap not in ['combine', 'flag', 'error']:
-        msgs.error(f'Unknown value for overlap ({overlap}), must be "combine", "flag", or "error".')
+    if overlap not in ['combine', 'error']:
+        msgs.error(f'Unknown value for overlap ({overlap}), must be "combine" or "error".')
 
     # Get the output shape, if necessary
     if mosaic_shape is None:
@@ -228,6 +249,8 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
 
     mosaic_npix = np.zeros(mosaic_shape, dtype=int)
     mosaic_data = np.zeros(mosaic_shape, dtype=float)
+    # NOTE: "mosaic_ivar" is actually the variance until it's inverted just
+    # before output
     mosaic_ivar = None if ivar is None else np.zeros(mosaic_shape, dtype=float)
 
     # TODO: These loops can end up creating and destroying lots of big arrays.
@@ -248,7 +271,7 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         mosaic_data[filled] += _tform_img[filled]
         mosaic_npix[filled] += 1
         if ivar is not None:
-            # NOTE: "mosaic_ivar" is actually the variance until it's converted
+            # NOTE: "mosaic_ivar" is actually the variance until it's inverted
             # just before output
             mosaic_ivar[filled] += ndimage.affine_transform(var[i], _inv_tform,
                                                             output_shape=mosaic_shape,
@@ -275,6 +298,6 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         # Revert to inverse variance
         mosaic_ivar = inverse(mosaic_ivar)
 
-    return mosaic_data, mosaic_ivar, mosaic_npix
+    return mosaic_data, mosaic_ivar, mosaic_npix, _tforms
 
 

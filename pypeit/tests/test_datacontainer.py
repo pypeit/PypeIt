@@ -227,13 +227,13 @@ class ComplexInitContainer(DataContainer):
 
 #-----------------------------------------------------------------------
 
-def test_fulldatamodel():
-    # Include
-    full_dmodel = pypeitimage.PypeItImage.full_datamodel()
-    assert 'detector' in full_dmodel
-    # Do not include
-    full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
-    assert 'detector' not in full_dmodel
+#def test_fulldatamodel():
+#    # Include
+#    full_dmodel = pypeitimage.PypeItImage.full_datamodel()
+#    assert 'detector' in full_dmodel
+#    # Do not include
+#    full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
+#    assert 'detector' not in full_dmodel
 
 
 def test_single_element_array():

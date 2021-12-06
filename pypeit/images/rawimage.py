@@ -19,6 +19,7 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import flat
 from pypeit.core import flexure
+from pypeit.core.mosaic import build_image_mosaic
 from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
@@ -27,15 +28,33 @@ from pypeit.display import display
 # we need both hdu and headarr?
 class RawImage:
     """
-    Class to load and process a raw image
+    Class to load and process raw images.
+
+    Generally speaking, this class should only be used as follows:
+
+    .. code-block:: python
+
+        # Load the raw data and prepare the object
+        rawImage = RawImage(file, spectrograph, det)
+        pypeitImage = rawImage.process(par)
+
+    modulo details of the keyword arguments in
+    :func:`~pypeit.images.rawimage.RawImage.process`.  The class has many
+    methods that handle each step of the processing but the order of these steps
+    matters, meaning they're not guaranteed to succeed if done out of order.
+    This is most relevant when processing multiple detector images into an image
+    mosaic; see :func:`process`.
 
     Args:
         ifile (:obj:`str`):
             File with the data.
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             The spectrograph from which the data was collected.
-        det (:obj:`int`):
-            The detector to load/process.
+        det (:obj:`int`, :obj:`tuple`):
+            1-indexed detector(s) to read.  An image mosaic is selected using a
+            :obj:`tuple` with the detectors in the mosaic, which must be one of
+            the allowed mosaics returned by
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
 
     Attributes:
         filename (:obj:`str`):
@@ -43,12 +62,12 @@ class RawImage:
         spectrograph (:class:`~pypeit.spectrograph.spectrographs.Spectrograph`):
             Spectrograph instance with the instrument-specific properties and
             methods.
-        det (:obj:`int`):
-            1-indexed detector number
-        detector (:class:`~pypeit.images.detector_container.DetectorContainer`):
-            Detector characteristics
+        det (:obj:`int`, :obj:`tuple`):
+            1-indexed detector number(s); see class argument.
+        detector (:class:`~pypeit.images.detector_container.DetectorContainer`, :class:`~pypeit.images.mosaic.Mosaic`):
+            Mosaic/Detector characteristics
         rawimage (`numpy.ndarray`_):
-            The raw, not trimmed or reoriented, image data for the detector.
+            The raw, not trimmed or reoriented, image data for the detector(s).
         hdu (`astropy.io.fits.HDUList`_):
             The full list of HDUs provided by :attr:`filename`.
         exptime (:obj:`float`):
@@ -104,8 +123,29 @@ class RawImage:
         self.detector, self.rawimage, self.hdu, self.exptime, self.rawdatasec_img, \
                 self.oscansec_img = self.spectrograph.get_rawimage(self.filename, self.det)
 
+        # NOTE: The binning is expected to be the same for all images in a
+        # mosaic, but this isn't checked
+
+        # Number of loaded images (needed in case the raw image is used to
+        # create a mosaic)
+        self.nimg = 1 if self.rawimage.ndim == 2 else self.rawimage.shape[0]
+
+        # Re-package so that, independent of whether or not the image is a
+        # detector mosaic, the attributes are all organized with the number of
+        # detectors along their first axis.
+        if self.nimg > 1:
+            self.mosaic = self.detector
+            self.detector = self.mosaic.detectors
+        else:
+            self.mosaic = None
+            self.detector = np.array([self.detector])
+            self.rawimage = np.expand_dims(self.rawimage, 0)
+            self.rawdatasec_img = np.expand_dims(self.rawdatasec_img, 0)
+            self.oscansec_img = np.expand_dims(self.oscansec_img, 0)
+
         # Grab items from rawImage (for convenience and for processing)
         #   Could just keep rawImage in the object, if preferred
+        # TODO: Why do we need to deepcopy this?
         self.headarr = deepcopy(self.spectrograph.get_headarr(self.hdu))
 
         # Key attributes
@@ -113,16 +153,19 @@ class RawImage:
         self.datasec_img = self.rawdatasec_img.copy()
         # NOTE: Prevent estimate_readnoise() from altering self.detector using
         # deepcopy
-        self.ronoise = deepcopy(self.detector['ronoise'])
+        self.ronoise = np.array([deepcopy(d['ronoise']) for d in self.detector])
 
         # Attributes
         self.par = None
         self.ivar = None
         self.rn2img = None
+        self.dark = None
+        self.dark_var = None
         self.proc_var = None
         self.base_var = None
         self.spat_flexure_shift = None
         self.img_scale = None
+        self.det_img = None
         self._bpm = None
 
         # All possible processing steps.  NOTE: These have to match the
@@ -135,8 +178,13 @@ class RawImage:
                           orient=False,
                           subtract_bias=False,
                           subtract_dark=False,
+                          build_mosaic=False,
                           spatial_flexure_shift=False,
                           flatfield=False)
+
+    @property
+    def shape(self):
+        return () if self.image is None else self.image.shape
 
     @property
     def bpm(self):
@@ -152,11 +200,12 @@ class RawImage:
 
         """
         if self._bpm is None:
-            # TODO: Was this ever being called?
-#            self._bpm = self.spectrograph.bpm(shape=self.image.shape, filename=self.filename,
-#                                              det=self.det)
-            # TODO: Pass bias if there is one?
-            self._bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
+            # TODO: Pass master bias if there is one?  Only if `bpm_usebias` is
+            # true in the calibrations parameter set, but we don't have access
+            # to that here.  Add it as a parameter of ProcessImagesPar?
+            self._bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape[1:])
+            if self.nimg == 1:
+                self._bpm = np.expand_dims(self._bpm, 0)
         return self._bpm
 
     @property
@@ -171,6 +220,16 @@ class RawImage:
         # corrections if we are applying the pixel-flat correction.
 #        return self.par['use_pixelflat'] or self.par['use_specillum'] or self.par['use_illumflat']
         return self.par['use_pixelflat']
+
+    @property
+    def use_slits(self):
+        """
+        Return a flag setting if the slit-edge traces should be used in the
+        image processing.
+        """
+        if self.par is None:
+            return False
+        return self.par['spat_flexure_correct'] or (self.use_flat and self.par['use_illumflat'])
 
     def apply_gain(self, force=False):
         """
@@ -189,16 +248,26 @@ class RawImage:
             msgs.warn('Gain was already applied.')
             return
 
-        # Behavior needs to be different if the image has been trimmed or not
-        gain = procimg.gain_frame(self.datasec_img, np.atleast_1d(self.detector['gain']))
-        # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
-        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape:
-            # Image is raw, so need to include overscan sections
-            # TODO: This only works assuming that there is *no* overlap between
-            # oscansec_img and datasec_img.  There shouldn't be, but the code
-            # doesn't check this...
-            gain += procimg.gain_frame(self.oscansec_img, np.atleast_1d(self.detector['gain']))
-        self.image *= gain
+        # Have the images been trimmed?
+        not_trimmed = self.rawimage.shape is not None and self.image.shape == self.rawimage.shape
+
+        # Construct an image with the gain in each pixel
+        gain = [None]*self.nimg
+        for i in range(self.nimg):
+            # Behavior needs to be different if the image has been trimmed or not
+            gain[i] = procimg.gain_frame(self.datasec_img[i],
+                                         np.atleast_1d(self.detector[i]['gain']))
+            if not_trimmed:
+                # Image is raw, so need to include overscan sections
+                # TODO: This only works assuming that there is *no* overlap between
+                # oscansec_img and datasec_img.  There shouldn't be, but the code
+                # doesn't check this...
+                gain[i] += procimg.gain_frame(self.oscansec_img[i],
+                                              np.atleast_1d(self.detector[i]['gain']))
+
+        # Convert from DN to counts
+        self.image *= np.array(gain)
+
         # NOTE: In ``process``, ``apply_gain`` is called first, meaning that all
         # the variance arrays should be None.
         self.steps[step] = True
@@ -213,19 +282,13 @@ class RawImage:
         Returns:
             `numpy.ndarray`_: The inverse variance in the image.
         """
-        # TODO: This approach assumes that the dark-current provided/known for
-        # each detector is more accurate and precise than using the counts in
-        # the dark image itself (assuming one is available) to calculate the
-        # dark-current shot noise.  Instead, we could pass an image of the dark
-        # current, if available.
-        npix = np.prod(parse.parse_binning(self.detector.binning))
-        darkcurr = npix*self.detector['darkcurr'] \
-                    if self.detector['darkcurr'] > 0 and self.par['shot_noise'] else None
-        self.base_var = procimg.base_variance(self.rn2img, darkcurr=darkcurr, exptime=self.exptime,
+        if self.dark is None and self.par['shot_noise']:
+            msgs.error('Dark image has not been created!  Run build_dark.')
+        _dark = self.dark if self.par['shot_noise'] else None
+        _counts = self.image if self.par['shot_noise'] else None
+        self.base_var = procimg.base_variance(self.rn2img, darkcurr=_dark, exptime=self.exptime,
                                               proc_var=self.proc_var, count_scale=self.img_scale)
-        var = procimg.variance_model(self.base_var,
-                                     counts=self.image if self.par['shot_noise'] else None,
-                                     count_scale=self.img_scale,
+        var = procimg.variance_model(self.base_var, counts=_counts, count_scale=self.img_scale,
                                      noise_floor=self.par['noise_floor'])
         return utils.inverse(var)
 
@@ -245,17 +308,20 @@ class RawImage:
         """
         if self.oscansec_img.shape != self.image.shape:
             msgs.error('Must estimate readnoise before trimming the image.')
-        for amp in range(len(self.ronoise)):
-            if self.ronoise[amp] > 0 and not self.par['empirical_rn']:
-                # Skip if the readnoise is defined and the empirical readnoise
-                # estimate was not explicitly requested.
-                continue
-            if not np.any(self.oscansec_img==amp+1):
-                msgs.error(f'Cannot estimate readnoise for amplifier {amp+1}; no overscan region!')
-            gain = 1. if self.steps['apply_gain'] else self.detector['gain'][amp]
-            biaspix = self.image[self.oscansec_img==amp+1] * gain
-            self.ronoise[amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
-            msgs.info(f'Estimated readnoise of amplifier {amp+1} = {self.ronoise[amp]:.3f} e-')
+        for i in range(self.nimg):
+            for amp in range(len(self.ronoise[i])):
+                if self.ronoise[i,amp] > 0 and not self.par['empirical_rn']:
+                    # Skip if the readnoise is defined and the empirical readnoise
+                    # estimate was not explicitly requested.
+                    continue
+                if not np.any(self.oscansec_img[i]==amp+1):
+                    msgs.error(f'Cannot estimate readnoise for amplifier {amp+1}.  Raw image '
+                               'has no overscan region!')
+                gain = 1. if self.steps['apply_gain'] else self.detector[i]['gain'][amp]
+                biaspix = self.image[i,self.oscansec_img[i]==amp+1] * gain
+                self.ronoise[i,amp] = stats.sigma_clipped_stats(biaspix, sigma=5)[-1]
+                msgs.info(f'Estimated readnoise of amplifier {amp+1} = '
+                          f'{self.ronoise[i,amp]:.3f} e-')
 
     def build_rn2img(self, units='e-', digitization=False):
         """
@@ -278,31 +344,31 @@ class RawImage:
             # TODO: Consider just calling estimate_readnoise here...
             msgs.error('Some readnoise values <=0; first call estimate_readnoise.')
 
-        # Compute and return the readnoise variance image 
-        rn2 = procimg.rn2_frame(self.datasec_img, self.ronoise, units=units,
-                                gain=self.detector['gain'], digitization=digitization)
-        # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
-        if self.rawimage.shape is not None and self.image.shape == self.rawimage.shape \
-                and np.any(self.oscansec_img > 0):
-            # Image is raw, so need to include overscan sections
-            # TODO: This only works assuming that there is *no* overlap between
-            # oscansec_img and datasec_img.  There shouldn't be, but the code
-            # doesn't check this...
-            rn2 += procimg.rn2_frame(self.oscansec_img, self.ronoise, units=units,
-                                     gain=self.detector['gain'], digitization=digitization)
-        return rn2
+        # Have the images been trimmed?
+        not_trimmed = self.rawimage.shape is not None and self.image.shape == self.rawimage.shape
 
-    def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, debug=False,
-                dark=None):
+        rn2 = [None]*self.nimg
+        for i in range(self.nimg):
+            # Compute and return the readnoise variance image 
+            rn2[i] = procimg.rn2_frame(self.datasec_img[i], self.ronoise[i], units=units,
+                                       gain=self.detector[i]['gain'], digitization=digitization)
+            # TODO: Could also check if steps['trim'] is true.  Is either better or worse?
+            if not_trimmed and np.any(self.oscansec_img[i] > 0):
+                # Image is raw, so need to include overscan sections
+                # TODO: This only works assuming that there is *no* overlap between
+                # oscansec_img and datasec_img.  There shouldn't be, but the code
+                # doesn't check this...
+                rn2[i] += procimg.rn2_frame(self.oscansec_img[i], self.ronoise[i], units=units,
+                                            gain=self.detector[i]['gain'],
+                                            digitization=digitization)
+        return np.array(rn2)
+
+    def process(self, par, bpm=None, flatimages=None, bias=None, slits=None, dark=None,
+                mosaic=False, debug=False):
         """
-        Process the image.
+        Process the data.
 
         See further discussion of :ref:`image_proc` in ``PypeIt``.
-
-        .. note::
-
-            The processing step order is currently 'frozen' as is.  However, in
-            the future, we may choose to allow optional ordering.
 
         The processing steps used (depending on the parameter toggling in
         :attr:`par`), in the order they will be applied are:
@@ -341,13 +407,29 @@ class RawImage:
                image.  I.e., if you trim and orient this image, you must also
                have trimmed and oriented the bias frames.
 
-            #. :func:`subtract_dark`: Subtract the master dark image.  The shape
-               and orientation of the dark image must match the *processed*
-               image.  I.e., if you trim and orient this image, you must also
-               have trimmed and oriented the dark frames.  The dark image is
-               *automatically* scaled by the ratio of the exposure times to
-               ensure the counts/s in the dark are removed from the image being
-               processed.
+            #. :func:`build_dark`: Create dark-current images using both the
+               tabulated dark-current value for each detector and any directly
+               observed dark images.  The shape and orientation of the observed
+               dark image must match the *processed* image.  I.e., if you trim
+               and orient this image, you must also have trimmed and oriented
+               the dark frames.  The dark image is *automatically* scaled by the
+               ratio of the exposure times to ensure the counts/s in the dark
+               are removed from the image being processed.
+
+            #. :func:`subtract_dark`: Subtract the master dark image and
+               propagate any error.
+
+            #. :func:`build_mosaic`: If data from multiple detectors are being
+               processed as components of a detector mosaic, this resamples the
+               individual images into a single image mosaic.  The current
+               "resampling" scheme is restricted to nearest grid-point
+               interpolation; see .  The placement of this step is important in that
+               all of the previous corrections (overscan, trim, orientation,
+               bias- and dark-subtraction) are done on the individual detector
+               images.  However, after this point, we potentially need the slits
+               and flat-field images which are *only defined in the mosaic
+               frame*.  Because of this, bias and dark frames should *never* be
+               reformatted into a mosaic.
 
             #. :func:`spatial_flexure_shift`: Measure any spatial shift due to
                flexure.
@@ -387,10 +469,15 @@ class RawImage:
                 construct the slit illumination profile, if requested via the
                 ``use_illumflat`` parameter in :attr:`par`; see
                 :func:`~pypeit.flatfield.FlatImages.fit2illumflat`.
-            debug (:obj:`bool`, optional):
-                Run in debug mode.
             dark (:class:`~pypeit.images.pypeitimage.PypeItImage`):
                 Dark image
+            mosaic (:obj:`bool`, optional):
+                When processing multiple detectors, resample the images into a
+                mosaic.  If flats or slits are provided (and used), this *must*
+                be true because these objects are always defined in the mosaic
+                frame.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
 
         Returns:
             :class:`~pypeit.images.pypeitimage.PypeItImage`: The processed
@@ -406,6 +493,8 @@ class RawImage:
         self.par = par
         if bpm is not None:
             self._bpm = bpm
+            if self._bpm.ndim == 2:
+                self._bpm = np.expand_dims(self._bpm, 0)
 
         # Check the input
         if self.par['use_biasimage'] and bias is None:
@@ -417,6 +506,18 @@ class RawImage:
         if self.use_flat and flatimages is None:
             msgs.error('Flat-field corrections requested but no flat-field images generated '
                        'or provided.  Make sure you have flat-field images in your PypeIt file!')
+        if self.use_slits and slits is None:
+            # TODO: I think this should only happen as a developer error, not a
+            # user error, but I'm not sure.
+            msgs.error('Processing steps requested that require slit-edge traces, but they were '
+                       'not provided!')
+        if self.nimg > 1 and not mosaic and (self.use_flat or self.use_slits):
+            msgs.error('Mosaicing must be performed if multiple detectors are processed and '
+                       'either flat-fielding or spatial flexure corrections are applied.')
+        if self.nimg == 1 and mosaic:
+            msgs.warn('Only processing a single detector; mosaicing is ignored.')
+
+        # TODO: Checking for bit saturation should be done here.
 
         #   - Convert from ADU to electron counts.
         if self.par['apply_gain']:
@@ -460,6 +561,11 @@ class RawImage:
 
         #   - Check the shape of the bpm
         if self.bpm.shape != self.image.shape:
+            # TODO: The logic of whether or not the BPM uses the master bias to
+            # identify bad pixels is difficult to follow.  Where and how the bpm
+            # is created, and whether or not it uses the master bias should be
+            # more clean.
+
             # The BPM is the wrong shape.  Assume this is because the
             # calibrations were taken with a different binning than the science
             # data, and assume this is because a BPM was provided as an
@@ -485,22 +591,35 @@ class RawImage:
             # Uncertainty from the bias subtraction is added to the variance.
             self.subtract_bias(bias)
 
-        #   - Subtract dark current.  The tabulated dark current is *always*
-        #     subtracted regardless of whether or not use_darkimage is true.  If
-        #     a dark frame is provided and subtracted, its shape and orientation
-        #     must match the *processed* image, and the units *must* be in
-        #     electrons/counts.  If available, uncertainty from the dark
-        #     subtraction is added to the variance.
-        self.subtract_dark(dark_image=dark if self.par['use_darkimage'] else None)
+        # TODO: Checking for count (well-depth) saturation should be done here.
 
-        # TODO: We should be performing the cosmic-ray detection/masking here,
-        # *before* flat-fielding, right?.
+        #   - Create the dark current image(s).  The dark-current image *always*
+        #     includes the tabulated dark current and the call below ensures
+        #     that this is *always* subtracted from the image being processed,
+        #     regardless of whether or not use_darkimage is true.  If a dark
+        #     frame is provided and subtracted, its shape and orientation must
+        #     match the *processed* image, and the units *must* be in
+        #     electrons/counts.
+        self.build_dark(dark_image=dark if self.par['use_darkimage'] else None)
+
+        #   - Subtract dark current.  This simply subtracts the dark current
+        #     from the image being processed.  If available, uncertainty from
+        #     the dark subtraction is added to the processing variance.
+        self.subtract_dark()
+
+        # Create the mosaic images.  This *must* come after trimming and
+        # orienting and before determining the spatial flexure shift and
+        # applying any flat-fielding.
+        if self.nimg > 1 and mosaic:
+            self.build_mosaic()
 
         # Calculate flexure, if slits are provided and the correction is
         # requested.  NOTE: This step must come after trim, orient (just like
-        # bias and dark subtraction) and before field flattening.
-        self.spat_flexure_shift = None if slits is None or not self.par['spat_flexure_correct'] \
-                                    else self.spatial_flexure_shift(slits)
+        # bias and dark subtraction) and before field flattening.  Also the
+        # function checks that the slits exist if running the spatial flexure
+        # correction, so no need to do it again here.
+        self.spat_flexure_shift = self.spatial_flexure_shift(slits) \
+                                    if self.par['spat_flexure_correct'] else None
 
         # Flat-field the data.  This propagates the flat-fielding corrections to
         # the variance.  The returned bpm is propagated to the PypeItImage
@@ -508,19 +627,16 @@ class RawImage:
         flat_bpm = self.flatfield(flatimages, slits=slits, debug=debug) if self.use_flat else None
 
         # Calculate the inverse variance
-        # TODO: This approach assumes that the dark-current provided/known for
-        # each detector is more accurate and precise than using the counts in
-        # the dark image itself (assuming one is available) to calculate the
-        # dark-current shot noise.  We could pass ``darkcurr=dark`` if ``dark``
-        # is available instead...
         self.ivar = self.build_ivar()
 
         # Generate a PypeItImage.
         # NOTE: To reconstruct the variance model, you need base_var, image,
         # img_scale, noise_floor, and shot_noise.
-        pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                              base_var=self.base_var, img_scale=self.img_scale,
-                                              bpm=self.bpm, detector=self.detector,
+        _det, _image, _ivar, _datasec_img, _det_img, _rn2img, _base_var, _img_scale, _bpm \
+                = self._squeeze()
+        pypeitImage = pypeitimage.PypeItImage(_image, ivar=_ivar, amp_img=_datasec_img,
+                                              det_img=_det_img, rn2img=_rn2img, base_var=_base_var,
+                                              img_scale=_img_scale, bpm=_bpm, detector=_det,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.name,
                                               units='e-' if self.par['apply_gain'] else 'ADU',
@@ -533,14 +649,30 @@ class RawImage:
         # Mask(s)
         if self.par['mask_cr']:
             pypeitImage.build_crmask(self.par)
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
-                                                              apply_gain=self.par['apply_gain'])
-        pypeitImage.build_mask(saturation=nonlinear_counts)
+
+        pypeitImage.build_mask(saturation='default', mincounts='default')
         if flat_bpm is not None:
             pypeitImage.update_mask('BADSCALE', indx=flat_bpm)
 
         # Return
         return pypeitImage
+
+    def _squeeze(self):
+        """
+        Convenience method for preparing attributes for construction of a ``PypeItImage``.
+        """
+        _det = self.detector[0] if self.mosaic is None else self.mosaic
+        if self.nimg == 1:
+            return _det, self.image[0], \
+                   None if self.ivar is None else self.ivar[0], \
+                   None if self.datasec_img is None else self.datasec_img[0], \
+                   None if self.det_img is None else self.det_img[0], \
+                   None if self.rn2img is None else self.rn2img[0], \
+                   None if self.base_var is None else self.base_var[0], \
+                   None if self.img_scale is None else self.img_scale[0], \
+                   None if self.bpm is None else self.bpm[0]
+        return _det, self.image, self.ivar, self.datasec_img, self.det_img, self.rn2img, \
+                self.base_var, self.img_scale, self.bpm
 
     def spatial_flexure_shift(self, slits, force=False):
         """
@@ -562,7 +694,10 @@ class RawImage:
             # Already field flattened
             msgs.warn('Spatial flexure shift already calculated.')
             return
-        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
+        if self.nimg > 1:
+            msgs.error('CODING ERROR: Must use a single image (single detector or detector '
+                       'mosaic) to determine spatial flexure.')
+        self.spat_flexure_shift = flexure.spat_flexure_shift(self.image[0], slits)
         self.steps[step] = True
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
@@ -615,6 +750,9 @@ class RawImage:
             msgs.error('Need to provide slits to create illumination flat.')
         if self.par['use_specillum'] and flatimages.pixelflat_spec_illum is None:
             msgs.error("Spectral illumination correction desired but not generated/provided.")
+        if self.nimg > 1:
+            msgs.error('CODING ERROR: Can only apply flat field to a single image (single '
+                       'detector or detector mosaic).')
 
         # Generate the illumination flat, as needed
         illum_flat = 1.0
@@ -625,8 +763,7 @@ class RawImage:
                 viewer, ch = display.show_image(illum_flat, chname='illum_flat')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
-                orig_image = self.image.copy()
-                viewer, ch = display.show_image(orig_image, chname='orig_image')
+                viewer, ch = display.show_image(self.image[0], chname='orig_image')
                 display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Apply the relative spectral illumination
@@ -636,8 +773,8 @@ class RawImage:
         # NOTE: Using flat.flatfield to effectively multiply image*img_scale is
         # a bit overkill...
         total_flat = flatimages.pixelflat_norm * illum_flat * spec_illum
-        self.img_scale = utils.inverse(total_flat)
-        self.image, flat_bpm = flat.flatfield(self.image, total_flat)
+        self.img_scale = np.expand_dims(utils.inverse(total_flat), 0)
+        self.image[0], flat_bpm = flat.flatfield(self.image[0], total_flat)
         self.steps[step] = True
         return flat_bpm
 
@@ -661,12 +798,16 @@ class RawImage:
             msgs.warn('Image was already oriented.')
             return
         # Orient the image to have blue/red run bottom to top
-        self.image = self.spectrograph.orient_image(self.detector, self.image)
+        self.image = np.array([self.spectrograph.orient_image(d, i) 
+                               for d,i in zip(self.detector, self.image)])
         if self.rn2img is not None:
-            self.rn2img = self.spectrograph.orient_image(self.detector, self.rn2img)
+            self.rn2img = np.array([self.spectrograph.orient_image(d, i)
+                                    for d,i in zip(self.detector, self.rn2img)])
         if self.proc_var is not None:
-            self.proc_var = self.spectrograph.orient_image(self.detector, self.proc_var)
-        self.datasec_img = self.spectrograph.orient_image(self.detector, self.datasec_img)
+            self.proc_var = np.array([self.spectrograph.orient_image(d, i)
+                                      for d,i in zip(self.detector, self.proc_var)])
+        self.datasec_img = np.array([self.spectrograph.orient_image(d, i)
+                                     for d,i in zip(self.detector, self.datasec_img)])
         self.steps[step] = True
 
     def subtract_bias(self, bias_image, force=False):
@@ -689,30 +830,35 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already bias subtracted.')
             return
-        self.image -= bias_image.image
+        _bias = bias_image.image if self.nimg > 1 else np.expand_dims(bias_image.image, 0)
+        if self.image.shape != _bias.shape:
+            msgs.error('Shape mismatch with bias image!')
+        self.image -= _bias
         # TODO: Also incorporate the mask?
         if bias_image.ivar is not None and self.proc_var is not None:
-            self.proc_var += utils.inverse(bias_image.ivar)
+            self.proc_var += utils.inverse(bias_image.ivar if self.nimg > 1 
+                                           else np.expand_dims(bias_image.ivar, 0))
         self.steps[step] = True
 
     # TODO: expscale is currently not a parameter that the user can control.
     # Should it be?
-    def subtract_dark(self, dark_image=None, expscale=True, force=False):
+    def build_dark(self, dark_image=None, expscale=True):
         """
-        Subtract detector dark current.
+        Build the dark image data used for dark subtraction and error
+        propagation.
 
-        This method subtracts both the tabulated dark-current for the detector
-        and a dark image.  For this to be appropriate, the dark image (if
-        provided) *must* also have had the tabulated dark-current value
-        subtracted from it.
+        If a dark image is not provided, the dark image is simply the tabulated
+        value and the error is set to None.  Otherwise, the dark is the
+        combination of the tabulated dark-current for the detector and a dark
+        image.  For this to be appropriate, the dark image (if provided) *must*
+        also have had the tabulated dark-current value subtracted from it.
 
         Also, the processing of the dark image (if provided) should match the
         processing of the image being processed.  For example, if this image has
         been bias subtracted, so should be the dark image.
 
-        If the ``dark_image`` object includes an inverse variance estimate and
-        if :attr:`proc_var` is available, the uncertainty in the dark will be
-        propagated to the dark-subtracted image.
+        If the ``dark_image`` object includes an inverse variance estimate, this
+        is used to set the dark-current error.
 
         .. warning::
 
@@ -725,12 +871,71 @@ class RawImage:
 
         Args:
             dark_image (:class:`~pypeit.images.pypeitimage.PypeItImage`, optional):
-                The dark image to subtract.  If None, only the tabulated
-                dark-current is subtracted from *all* pixels.
+                The *observed* dark image in counts (not counts/s).  If None,
+                only the tabulated dark-current are used to construct the dark
+                image(s).
             expscale (:obj:`bool`, optional):
                 Scale the dark image (if provided) by the ratio of the exposure
                 times so that the counts per second represented by the dark
-                image are appropriately subtracted from image being processed.
+                image are correct.
+        """
+        # TODO: Is the dark-current amplifier dependent?  Also, this usage means
+        # that darkcurr cannot be None.
+
+        # Tabulated dark current is in e-/pixel/hour and exptime is in s, the
+        # 3600 factor converts the dark current to e-/pixel, and the
+        # multiplication by the number of binned pixels converts to e- (per
+        # binned pixel).  The dark counts per binned pixel is determined
+        # separately for each detector.
+        self.dark = np.array([np.prod(parse.parse_binning(d.binning))*d.darkcurr
+                                * self.exptime / 3600. for d in self.detector])
+
+        if dark_image is None:
+            # Reformat the tabulated dark counts into an image for each
+            # detector.
+            self.dark = np.repeat(self.dark, np.prod(self.image.shape[1:])
+                                  ).reshape(self.image.shape)
+            return
+
+        # Include the deviations from the tabulated value as determined by an
+        # observed dark image.
+        if self.image.shape != dark_image.shape:
+            # Shapes must match
+            msgs.error('Shape mismatch with dark image!')
+
+        # Scale the observed dark counts by the ratio of the exposure times.
+        # TODO: Include a warning when the scaling is "significant"?
+        scale = self.exptime / dark_image.exptime if expscale else 1.
+
+        # Warn the user if the counts in the dark image are significantly
+        # different from the tabulated value.  The 50% difference is not
+        # well justified but, for now, hard-coded.
+        med_dark = np.median(scale * dark_image.image, axis=(1,2))
+        large_signal = np.absolute(med_dark) > 0.5*self.dark
+        if any(large_signal):
+            med_str = np.array2string(med_dark, formatter={'float_kind':lambda x: "%.2f" % x},
+                                      separator=',')
+            drk_str = np.array2string(0.5*self.dark, formatter={'float_kind':lambda x: "%.2f" % x},
+                                      separator=',')
+            msgs.warn(f'Dark-subtracted dark frame has significant signal remaining.  Median '
+                        f'counts are {med_str}; warning threshold = +/- {drk_str}.')
+
+        # Combine the tabulated and observed dark values
+        # NOTE: This converts self.dark from a vector to an array
+        self.dark = scale * dark_image.image + self.dark[:,None,None]
+        if dark_image.ivar is not None:
+            # Include the scaling in the error, if available
+            self.dark_var = scale**2 * utils.inverse(dark_image.ivar)
+
+    def subtract_dark(self, force=False):
+        """
+        Subtract detector dark current.
+
+        The :attr:`dark` and :attr:`dark_ivar` arrays must have already been
+        constructed using :func:`build_dark`.  If they aren't, a warning is
+        thrown and nothing is done.
+
+        Args:
             force (:obj:`bool`, optional):
                 Force the dark to be subtracted, even if the step log
                 (:attr:`steps`) indicates that it already has been.
@@ -740,29 +945,14 @@ class RawImage:
             # Already bias subtracted
             msgs.warn('Image was already dark subtracted.')
             return
-        # TODO: Is the dark-current amplifier dependent?  Also, this usage means
-        # that darkcurr cannot be None.
-        # Tabulated dark current is in e-/pixel/hour and exptime is in s, the
-        # 3600 factor converts the dark current to e-/pixel/s.
-        npix = np.prod(parse.parse_binning(self.detector.binning))
-        dark_count = npix*self.detector['darkcurr'] * self.exptime / 3600.
-        if dark_image is not None:
-            # TODO: Include a warning when the scaling is "signficant"?
-            scale = self.exptime / dark_image.exptime if expscale else 1.
-            # Warn the user if the counts in the dark image are significantly
-            # different from the tabulated value.  The 50% difference is not
-            # well justified but, for now, hard-coded.
-            med_dark = np.median(scale * dark_image.image)
-            if np.absolute(med_dark) > 0.5*dark_count:
-                msgs.warn(f'Dark-subtracted dark frame has significant signal remaining.  Median '
-                          f'count is {med_dark:.2f}; warning threshold = +/-{0.5*dark_count:.2f}.')
-            # NOTE: This converts dark_count from a scalar to an array
-            dark_count += scale * dark_image.image
-            if dark_image.ivar is not None and self.proc_var is not None:
-                # Include the variance in the dark image
-                # TODO: Also incorporate the mask?
-                self.proc_var += scale**2 * utils.inverse(dark_image.ivar)
-        self.image -= dark_count
+
+        if self.dark is None:
+            msgs.error('Dark image has not been created!  Run build_dark.')
+
+        self.image -= self.dark
+        if self.dark_var is not None:
+            # Include the variance in the dark image
+            self.proc_var += self.dark_var
         self.steps[step] = True
 
     def subtract_overscan(self, force=False):
@@ -779,18 +969,27 @@ class RawImage:
             # Already overscan subtracted
             msgs.warn("Image was already overscan subtracted!")
             return
-        # Subtract the overscan.  var is the variance in the overscan
-        # subtraction
-        self.image, var = procimg.subtract_overscan(self.image, self.datasec_img,
-                                                    self.oscansec_img,
-                                                    method=self.par['overscan_method'],
-                                                    params=self.par['overscan_par'],
-                                                    var=self.rn2img)
+
+        # NOTE: procimg.subtract_overscan checks that the provided images all
+        # have the same shape.  This will fault if the images have already been
+        # trimmed.
+        _os_img = [None]*self.nimg
+        var = [None]*self.nimg
+        for i in range(self.nimg):
+            # Subtract the overscan.  var is the variance in the overscan
+            # subtraction.
+            _os_img[i], var[i] = procimg.subtract_overscan(self.image[i], self.datasec_img[i],
+                                                           self.oscansec_img[i],
+                                                           method=self.par['overscan_method'],
+                                                           params=self.par['overscan_par'],
+                                                           var=None if self.rn2img is None 
+                                                                else self.rn2img[i])
+        self.image = np.array(_os_img)
         # Parse the returned value
         if self.rn2img is not None:
             # Include the variance in the overscan subtraction in the
             # "processing variance"
-            self.proc_var += var
+            self.proc_var += np.array(var)
         self.steps[step] = True
 
     def subtract_pattern(self):
@@ -807,31 +1006,34 @@ class RawImage:
             msgs.warn("Image was already pattern subtracted!")
             return
 
-        # The image must have an overscan region for this to work.
-        if not np.any(self.oscansec_img > 0):
-            msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
-
         # The image cannot have already been trimmed
         if self.oscansec_img.shape != self.image.shape:
             msgs.error('Must estimate readnoise before trimming the image.')
 
-        # Grab the frequency, if it exists in the header.  For some instruments,
-        # PYPEITFRQ is added to the header in get_rawimage() in the spectrograph
-        # file.  See keck_kcwi.py for an example.
-        frequency = []
-        try:
-            # Grab a list of all the amplifiers
-            amps = np.sort(np.unique(self.oscansec_img[np.where(self.oscansec_img > 0)]))
-            for amp in amps:
-                frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
-            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
-            if len(frequency) == 0:
+        _ps_img = [None]*self.nimg
+        for i in range(self.nimg):
+            # The image must have an overscan region for this to work.
+            if not np.any(self.oscansec_img[i] > 0):
+                msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
+
+            # Grab the frequency, if it exists in the header.  For some instruments,
+            # PYPEITFRQ is added to the header in get_rawimage() in the spectrograph
+            # file.  See keck_kcwi.py for an example.
+            frequency = []
+            try:
+                # Grab a list of all the amplifiers
+                amps = np.sort(np.unique(self.oscansec_img[i,self.oscansec_img[i] > 0]))
+                for amp in amps:
+                    frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
+                # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+                if len(frequency) == 0:
+                    frequency = None
+            except KeyError:
                 frequency = None
-        except KeyError:
-            frequency = None
-        # Subtract the pattern and overwrite the current image
-        self.image = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img,
-                                              frequency=frequency)
+            # Subtract the pattern and overwrite the current image
+            _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
+                                                  self.oscansec_img[i], frequency=frequency)
+        self.image = np.array(_ps_img)
         self.steps[step] = True
 
     def trim(self, force=False):
@@ -857,18 +1059,118 @@ class RawImage:
             # Already trimmed
             msgs.warn('Image was already trimmed.')
             return
-        self.image = procimg.trim_frame(self.image, self.datasec_img < 1)
+        self.image = np.array([procimg.trim_frame(i, d < 1)
+                               for i, d in zip(self.image, self.datasec_img)])
         if self.rn2img is not None:
-            self.rn2img = procimg.trim_frame(self.rn2img, self.datasec_img < 1)
+            self.rn2img = np.array([procimg.trim_frame(r, d < 1)
+                                    for r, d in zip(self.rn2img, self.datasec_img)])
         if self.proc_var is not None:
-            self.proc_var = procimg.trim_frame(self.proc_var, self.datasec_img < 1)
+            self.proc_var = np.array([procimg.trim_frame(p, d < 1)
+                                      for p, d in zip(self.proc_var, self.datasec_img)])
         # NOTE: This must be done last because the untrimmed image is used for
         # deciding what to trim!
-        self.datasec_img = procimg.trim_frame(self.datasec_img, self.datasec_img < 1)
+        self.datasec_img = np.array([procimg.trim_frame(d, d < 1) for d in self.datasec_img])
         self.steps[step] = True
 
+    def build_mosaic(self):
+        """
+        When processing multiple detectors, this remaps the detector data to a mosaic.
+
+        This is largely a wrapper for multiple calls to
+        :func:`~pypeit.core.mosaic.build_image_mosaic`.  Resampling is currently
+        restricted to nearest grid-point interpolation (``order=0``).
+
+        Construction of the mosaic(s) must be done *after* the images have been
+        trimmed and oriented to follow the ``PypeIt`` convention.
+
+        This function remaps ``image``, ``datasec_img``, ``rn2img``, ``dark``,
+        ``dark_var``, ``proc_var``, and ``base_var``.  These are all originally
+        calculated in the native detector frame.  Because ``img_scale`` is only
+        related to the flat-field images, it is not remapped because these
+        images are always processed in the mosaic frame.
+        """
+        if self.nimg == 1:
+            # NOTE: This also catches cases where the mosaicing has already been
+            # performed.
+            msgs.warn('There is only one image, so there is nothing to mosaic!')
+            return
+
+        # Check that the mosaicing is allowed
+        if not self.steps['trim'] or not self.steps['orient']:
+            msgs.error('Images must be trimmed and PypeIt-oriented before mosaicing.')
+
+        # Create images that will track which detector contributes to each pixel
+        # in the mosaic.  These images are created here first *before*
+        # `self.image` is mosaiced below. NOTE: This assumes there is no overlap
+        # in the detector mosaic (which should be true).
+        self.det_img = np.array([np.full(img.shape, d.det, dtype=int)
+                                    for img,d in zip(self.image, self.detector)])
+
+        # Transform the image data to the mosaic frame.  This call determines
+        # the shape of the mosaic image and adjusts the relative transforms to
+        # the absolute mosaic frame.
+        self.image, _, _img_npix, _tforms = build_image_mosaic(self.image, self.mosaic.tform)
+        shape = self.image.shape
+        # Maintain dimensionality
+        self.image = np.expand_dims(self.image, 0)
+
+        # For the remaining transforms, we can use the first call to skip over
+        # the need to determine the output mosaic shape and the adjusted
+        # transforms.
+
+        # Transform the BPM and maintain its type
+        bpm_type = self.bpm.dtype
+        self._bpm = build_image_mosaic(self.bpm.astype(float), _tforms, mosaic_shape=shape)[0]
+        # Include pixels that have no contribution from the original image in
+        # the bad pixel mask of the mosaic.
+        self._bpm[_img_npix < 1] = 1
+        self._bpm = np.expand_dims(self._bpm.astype(bpm_type), 0)
+
+        # NOTE: The bitmask is set by a combination of pixels without any
+        # contributions when creating the image mosaic and when mosaicing the
+        # detector bpms.  The `_img_npix` equivalent for the other mosaics
+        # (e.g., the rn2img mosaic) should be identical.
+
+        # Get the pixels associated with each amplifier
+        self.datasec_img = build_image_mosaic(self.datasec_img.astype(float), _tforms,
+                                              mosaic_shape=shape)[0]
+        self.datasec_img = np.expand_dims(self.datasec_img.astype(int), 0)
+
+        # Get the pixels associated with each detector
+        self.det_img = build_image_mosaic(self.det_img.astype(float), _tforms,
+                                          mosaic_shape=shape)[0]
+        self.det_img = np.expand_dims(self.det_img.astype(int), 0)
+
+        # Transform all the variance arrays, as necessary
+        if self.rn2img is not None:
+            self.rn2img = build_image_mosaic(self.rn2img, _tforms, mosaic_shape=shape)[0]
+            self.rn2img = np.expand_dims(self.rn2img, 0)
+        if self.dark is not None:
+            self.dark = build_image_mosaic(self.dark, _tforms, mosaic_shape=shape)[0]
+            self.dark = np.expand_dims(self.dark, 0)
+        if self.dark_var is not None:
+            self.dark_var = build_image_mosaic(self.dark_var, _tforms, mosaic_shape=shape)[0]
+            self.dark_var = np.expand_dims(self.dark_var, 0)
+        if self.proc_var is not None:
+            self.proc_var = build_image_mosaic(self.proc_var, _tforms, mosaic_shape=shape)[0]
+            self.proc_var = np.expand_dims(self.proc_var, 0)
+        if self.base_var is not None:
+            self.base_var = build_image_mosaic(self.base_var, _tforms, mosaic_shape=shape)[0]
+            self.base_var = np.expand_dims(self.base_var, 0)
+
+        # TODO: Mosaicing means that many of the internals are no longer
+        # valid/useful.  Specifically, I set ronoise, rawimage, rawdatsec_img,
+        # and oscansec_img to None, which will force the code to barf if some of
+        # the methods that use these are called after the mosaicing.
+        self.ronoise = None
+        self.rawimage = None
+        self.rawdatasec_img = None
+        self.oscansec_img = None
+        self.nimg = 1
+        self.steps[inspect.stack()[0][3]] = True
+
     def __repr__(self):
-        return ('<{:s}: file={}, steps={}>'.format(self.__class__.__name__, self.filename,
-                                                   self.steps))
+        return f'<{self.__class__.__name__}: file={self.filename}, nimg={self.nimg}, ' \
+               f'steps={self.steps}>'
 
 

@@ -83,3 +83,24 @@ def test_io(kast_blue_bias_files):
     # Clean up
     os.remove(outfile)
 
+
+@dev_suite_required
+def test_process_multidet():
+    files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'gemini_gmos',
+                                   'GN_HAM_R400_885', 'N20190205S024*.fits'))
+    files.sort()
+    spec = load_spectrograph('gemini_gmos_north_ham')
+    frame_par = spec.default_pypeit_par()['calibrations']['biasframe']
+
+    det = 1
+    bias_img_det1 = buildimage.buildimage_fromlist(spec, det, frame_par, files)
+
+    det = (1,2,3)
+    bias_img = buildimage.buildimage_fromlist(spec, det, frame_par, files)
+
+    assert np.array_equal(bias_img_det1.image, bias_img.image[0]) \
+            and not np.array_equal(bias_img_det1.image, bias_img.image[1]) \
+            and not np.array_equal(bias_img_det1.image, bias_img.image[2]), \
+                'Bad multi-detector processing'
+
+

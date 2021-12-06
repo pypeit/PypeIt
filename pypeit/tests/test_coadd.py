@@ -16,7 +16,7 @@ from pypeit.core.datacube import coadd_cube
 from pypeit import msgs
 from pypeit import utils
 from IPython import embed
-from pypeit.tests.tstutils import cooked_required
+from pypeit.tests.tstutils import cooked_required, data_path
 
 kast_blue = load_spectrograph('shane_kast_blue')
 
@@ -25,11 +25,7 @@ warnings.simplefilter("ignore", UserWarning)
 
 # TODO: Need to rewrite the test for coadd1d. FW commented out most tests at this moment.
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
-#@pytest.fixture -- Crashes in pytest 4.0.0 as we call this from inside the test, not the call to the test
 def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     """
     Parameters
@@ -57,7 +53,7 @@ def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     ivar = utils.inverse(sig**2)
     return flux, ivar, mask
 
-#@pytest.fixture
+
 def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     """ Generate a set of normalized spectra with varying wavelength
     and noise

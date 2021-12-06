@@ -58,9 +58,13 @@ item (dictionary) for the datamodel element provides the type and
 description information for that datamodel element. For each
 datamodel element, the dictionary item must provide:
 
-    - ``otype``: This is the type of the object for this datamodel
-      item. E.g., for a float or a `numpy.ndarray`_, you would set
-      ``otype=float`` and ``otype=np.ndarray``, respectively.
+    - ``otype``: This is the type of the object for this datamodel item. E.g.,
+      for a float or a `numpy.ndarray`_, you would set ``otype=float`` and
+      ``otype=np.ndarray``, respectively.  The ``otype`` can also be a tuple
+      with optional types.  Beware optional types that are themselves
+      DataContainers.  This works for
+      :class:`~pypeit.images.pypeitimage.PypeItImage`, but it likely needs more
+      testing.
 
     - ``descr``: This provides a text description of the datamodel
       element. This is used to construct the datamodel tables in the
@@ -72,12 +76,6 @@ array. E.g., for a floating point array containing an image, your
 datamodel could be simply::
 
     datamodel = {'image' : dict(otype=np.ndarray, atype=float, descr='My image')}
-
-Currently, ``datamodel`` components are restricted to have ``otype``
-that are :obj:`tuple`, :obj:`int`, :obj:`float`, ``numpy.integer``,
-``numpy.floating``, `numpy.ndarray`_, or `astropy.table.Table`_
-objects. E.g., ``datamodel`` values for ``otype`` *cannot* be
-:obj:`dict`.
 
 More advanced examples are given below.
 
@@ -624,6 +622,7 @@ class DataContainer:
 
 
     def __init__(self, d=None):
+
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
@@ -660,58 +659,79 @@ class DataContainer:
             #self.__dict__.update(d)  # This by-passes the data model checking
 
             ## Assign the values provided by the input dictionary
-            for key in d:
+            for key in d.keys():
+
+                # DataContainer element can be one of multiple DataContainer types
+                optional_dc_type = isinstance(self.datamodel[key]['otype'], tuple) \
+                        and any([obj_is_data_container(t) for t in self.datamodel[key]['otype']])
+                if optional_dc_type and isinstance(d[key], dict):
+                    for t in self.datamodel[key]['otype']:
+                        try:
+                            dc = t(**d[key])
+                        except:
+                            dc = None
+                            continue
+                        else:
+                            break
+                    if dc is None:
+                        msgs.error(f'Could not assign dictionary element {key} to datamodel '
+                                   f'for {self.__class__.__name__}.')
+                    setattr(self, key, dc)
+                    continue
+                
                 # Nested DataContainer?
-                if obj_is_data_container(self.datamodel[key]['otype']):
-                    if isinstance(d[key], dict):
-                        setattr(self, key, self.datamodel[key]['otype'](**d[key]))
-                    else:
-                        setattr(self, key, d[key])
-                else:
-                    setattr(self, key, d[key])
+                if obj_is_data_container(self.datamodel[key]['otype']) and isinstance(d[key], dict):
+                    setattr(self, key, self.datamodel[key]['otype'](**d[key]))
+                    continue
+
+                setattr(self, key, d[key])
 
         # Validate the object
         self._validate()
 
-    @classmethod
-    def full_datamodel(cls, include_parent=True, include_children=True):
-        """
-        Expand out the datamodel into a single dict
-        This needs to be a class method to access the datamodel without instantiation
-
-        Args:
-            include_parent (bool, optional):
-                If True, include the parent entry in additional to its pieces
-            include_children (bool, optional):
-                If True, expand any items that are DataModel's
-
-
-        Returns:
-            dict: All the keys, items of the nested datamodel's
-
-        """
-        #
-        full_datamodel = {}
-        for key in cls.datamodel.keys():
-            # Data container?
-            if obj_is_data_container(cls.datamodel[key]['otype']):
-                if include_parent:
-                    full_datamodel[key] = cls.datamodel[key]
-                if include_children:
-                    # Now run through the others
-                    sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
-                    for key in sub_datamodel.keys():
-                        # Check  this is not a duplicate
-                        if key in full_datamodel.keys():
-                            msgs.error("Duplicate key in DataModel.  Deal with it..")
-                        # Assign
-                        full_datamodel[key] = sub_datamodel[key]
-                else:
-                    full_datamodel[key] = cls.datamodel[key]
-            else:
-                full_datamodel[key] = cls.datamodel[key]
-        #
-        return full_datamodel
+# TODO: I removed this rather than updating it to allow for multiple
+# DataContainer options in otype.  This method was only used in building the rst
+# tables (in a way that didn't expand it's children) and in tests.  I can work
+# on bringing this back, if requested.
+#    @classmethod
+#    def full_datamodel(cls, include_parent=True, include_children=True):
+#        """
+#        Expand out the datamodel into a single dict
+#        This needs to be a class method to access the datamodel without instantiation
+#
+#        Args:
+#            include_parent (bool, optional):
+#                If True, include the parent entry in additional to its pieces
+#            include_children (bool, optional):
+#                If True, expand any items that are DataModel's
+#
+#
+#        Returns:
+#            dict: All the keys, items of the nested datamodel's
+#
+#        """
+#        #
+#        full_datamodel = {}
+#        for key in cls.datamodel.keys():
+#            # Data container?
+#            if obj_is_data_container(cls.datamodel[key]['otype']):
+#                if include_parent:
+#                    full_datamodel[key] = cls.datamodel[key]
+#                if include_children:
+#                    # Now run through the others
+#                    sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
+#                    for key in sub_datamodel.keys():
+#                        # Check this is not a duplicate
+#                        if key in full_datamodel.keys():
+#                            msgs.error('CODING ERROR: Duplicate datamodel key.')
+#                        # Assign
+#                        full_datamodel[key] = sub_datamodel[key]
+#                else:
+#                    full_datamodel[key] = cls.datamodel[key]
+#            else:
+#                full_datamodel[key] = cls.datamodel[key]
+#        #
+#        return full_datamodel
 
     def _init_internals(self):
         """
@@ -1023,6 +1043,23 @@ class DataContainer:
                 hduindx = _ext[np.where(_ext_pseudo == pseudo_hduindx)[0][0]]
                 # Add it to the list of parsed HDUs
                 parsed_hdus += [hduindx]
+
+                # Parse an extension that can be one of many DataContainers
+                if isinstance(cls.datamodel[e]['otype'], tuple) \
+                        and any([obj_is_data_container(t) for t in cls.datamodel[e]['otype']]):
+                    for t in cls.datamodel[e]['otype']:
+                        # TODO: May need a try block here...
+                        data, dvpassed, dtpassed, _ = t._parse(_hdu[hduindx])
+                        if dvpassed and dtpassed:
+                            break
+                    # Save the successfully parsed data, or the last one that
+                    # failed and continue
+                    _d[e] = data
+                    dm_version_passed &= dvpassed
+                    dm_type_passed &= dtpassed
+                    continue
+
+                # Parse an extension that can only be one DataContainer
                 if obj_is_data_container(cls.datamodel[e]['otype']):
                     # Parse the DataContainer
                     # TODO: This only works with single extension
@@ -1033,14 +1070,15 @@ class DataContainer:
                     _d[e], p1, p2, _ = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
                     dm_version_passed &= p1
                     dm_type_passed &= p2
-                else:
-                    # Parse the Image or Table data
-                    dm_type_passed &= cls.confirm_class(_hdu[hduindx].header['DMODCLS'],
-                                                        allow_subclasses=allow_subclasses)
-                    dm_version_passed &= _hdu[hduindx].header['DMODVER'] == cls.version
-                    # Grab it
-                    _d[e] = _hdu[hduindx].data if isinstance(_hdu[hduindx], fits.ImageHDU) \
-                        else Table.read(_hdu[hduindx]).copy()
+                    continue
+
+                # Parse Image or Table data
+                dm_type_passed &= cls.confirm_class(_hdu[hduindx].header['DMODCLS'],
+                                                    allow_subclasses=allow_subclasses)
+                dm_version_passed &= _hdu[hduindx].header['DMODVER'] == cls.version
+                # Grab it
+                _d[e] = _hdu[hduindx].data if isinstance(_hdu[hduindx], fits.ImageHDU) \
+                    else Table.read(_hdu[hduindx]).copy()
 
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
@@ -1099,6 +1137,9 @@ class DataContainer:
         if cls.one_row_table:
             # WARNING: This has only been tested for single-extension
             # DataContainers!!
+
+            embed()
+            exit()
 
             # NOTE: This works for the 1D vector elements of DetectorContainer,
             # but it's untested for any higher dimensional arrays...
@@ -1192,7 +1233,10 @@ class DataContainer:
 
     def __getitem__(self, item):
         """Get an item directly from the internal dict."""
-        return self.__dict__[item]
+        try:
+            return self.__dict__[item]
+        except KeyError as e:
+            raise KeyError(f'{item} is not an item in {self.__class__.__name__}.') from e
 
     def keys(self):
         """
@@ -1592,3 +1636,6 @@ def obj_is_data_container(obj):
 
     """
     return inspect.isclass(obj) and issubclass(obj, DataContainer)
+
+
+

@@ -355,7 +355,8 @@ class BuildWaveCalib:
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.msarc.detector)
+            else self.msarc.detector.nonlinear_counts()
+#            else self.spectrograph.nonlinear_counts(self.msarc.detector)
             #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------

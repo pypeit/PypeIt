@@ -639,7 +639,8 @@ class FlatField:
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
+#        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
+        nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
