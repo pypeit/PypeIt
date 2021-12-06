@@ -26,12 +26,10 @@ class GeminiGMOSMosaicLookUp:
     """
     Provides the geometry required to mosaic Gemini GMOS data.
 
-    This is purposely a direct copy of the data provided here:
-
-    `https://github.com/GeminiDRSoftware/DRAGONS/blob/a59e6ff5c8ca79bc64ecd690ac50e4a91278530b/geminidr/gmos/lookups/geometry_conf.py#L26`_
-
-    from v3.0.0 of the Gemini DRAGONS software package.  Specifically, if you
-    have DRAGONS installed,
+    This is purposely a direct copy of the data provided by v3.0.0 of the Gemini
+    `DRAGONS
+    <https://github.com/GeminiDRSoftware/DRAGONS/blob/a59e6ff5c8ca79bc64ecd690ac50e4a91278530b/geminidr/gmos/lookups/geometry_conf.py#L26>`__
+    software package.  Specifically, if you have DRAGONS installed,
     :attr:`pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp.geometry`
     should be identical to:
 
@@ -1095,7 +1093,7 @@ def gemini_read_amp(inp, ext):
 
     Parameters
     ----------
-    inp : :obj:`str`, `astropy.fits.HDUList`_
+    inp : :obj:`str`, `astropy.io.fits.HDUList`_
         The file name of a fits file with the data or the already opened
         `astropy.io.fits.HDUList`_ object.
     ext : :obj:`str`, :obj:`int`

@@ -1,3 +1,9 @@
+"""
+Provide basic mosaicing functions.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 
 from IPython import embed
 
@@ -100,7 +106,7 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
     Returns:
         :obj:`tuple`: Returns the shape for the mosaic image as a
         two-tuple and the new transformation matrices as a list of
-        `numpy.ndrray`_ objects.
+        `numpy.ndarray`_ objects.
     """
     # Use the number of transforms to set the number of images
     nimg = len(tforms)

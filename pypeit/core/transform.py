@@ -1,3 +1,9 @@
+"""
+Provide basic coordinate tranformation functions.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../include/links.rst
+"""
 
 from IPython import embed
 

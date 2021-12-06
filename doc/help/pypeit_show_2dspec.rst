@@ -27,7 +27,7 @@
                             with a flux calibration (default: None)
       --channels CHANNELS   Only show a subset of the channels (0-indexed), e.g. 1,3
                             (default: None)
-      --prefix PREFIX       Append this to the channel name [let's you do more than
-                            one set] (default: )
+      --prefix PREFIX       Channel name prefix [lets you display more than one set]
+                            (default: )
       --no_clear            Do *not* clear all existing tabs (default: True)
     
