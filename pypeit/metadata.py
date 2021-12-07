@@ -8,11 +8,13 @@ import os
 import io
 import string
 from copy import deepcopy
+import datetime
+
+from IPython import embed
 
 import numpy as np
 import yaml
 
-import datetime
 from astropy import table, coordinates, time, units
 
 from pypeit import msgs
@@ -25,7 +27,7 @@ from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
-from IPython import embed
+
 
 # TODO: Turn this into a DataContainer
 # Initially tried to subclass this from astropy.table.Table, but that
@@ -417,12 +419,15 @@ class PypeItMetaData:
         Args:
             row (:obj:`int`):
                 The 0-indexed row used to construct the key.
-            det (:obj:`int`, optional):
-                The 1-indexed detector.  Default is 1.
+            det (:obj:`int`, :obj:`tuple`, optional):
+                The 1-indexed detector number(s).  If a tuple, it must include
+                detectors designated as a viable mosaic for
+                :attr:`spectrograph`; see
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
 
         Returns:
-            str: Master key with configuration, calibration group(s),
-            and detector.
+            :obj:`str`: Master key with configuration, calibration group(s), and
+            detector.
 
         Raises:
             PypeItError:
@@ -432,10 +437,8 @@ class PypeItMetaData:
         if 'setup' not in self.keys() or 'calibbit' not in self.keys():
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
-        if det <= 0 or det > self.spectrograph.ndet:
-            raise IndexError('{0} is not a valid detector for {1}!'.format(det,
-                             self.spectrograph.name))
-        return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
+        det_name = self.spectrograph.get_det_name(det)
+        return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
 
     def construct_obstime(self, row):
         """

@@ -28,6 +28,8 @@ provide instrument-specific:
 
 from abc import ABCMeta
 
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
@@ -38,7 +40,8 @@ from pypeit.core import parse
 from pypeit.core import procimg
 from pypeit.core import meta
 from pypeit.par import pypeitpar
-from IPython import embed
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 
 # TODO: Create an EchelleSpectrograph derived class that holds all of
 # the echelle specific methods.
@@ -714,6 +717,36 @@ class Spectrograph:
         returned as an empty list.
         """
         return []
+
+    def get_det_name(self, det):
+        """
+        Return a name for the detector or mosaic.
+
+        This is a simple wrapper for
+        :func:`pypeit.images.detector_container.DetectorContainer.get_name` or
+        :func:`pypeit.images.mosaic.Mosaic.get_name`, depending on the type of
+        ``det``.
+
+        Args:
+            det (:obj:`int`, :obj:`tuple`):
+                The 1-indexed detector number(s).  If a tuple, it must include
+                detectors designated as a viable mosaic for
+                :attr:`spectrograph`; see
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+
+        Returns:
+            :obj:`str`: Name for the detector or mosaic.
+        """
+        if isinstance(det, tuple):
+            # The "detector" is a mosaic.
+            if det not in self.allowed_mosaics:
+                msgs.error(f'{det} is not an allowed mosaic for {self.name}.')
+            return Mosaic.get_name(self.allowed_mosaics.index(det)+1)
+
+        # Single detector
+        if det <= 0 or det > self.ndet:
+            msgs.error(f'{det} is not a valid detector for {self.name}.')
+        return DetectorContainer.get_name(det)
 
     @property
     def default_mosaic(self):

@@ -43,14 +43,18 @@ def construct_file_name(master_obj, master_key, master_dir=None):
 
 def grab_key_mdir(inp, from_filename=False):
     """
-    Grab master_key and master_dir by parsing a filename or inspecting a header
+    Grab master_key and master_dir by parsing a filename or inspecting a header.
+
     Args:
-        inp (:obj:`str` or astropy.io.fits.Header):
+        inp (:obj:`str`, `astropy.io.fits.Header`_):
             Either a filename or a Header of a FITS file
-        from_filename (bool, optional):
-            If true, parse the input filename using the naming model
+
+        from_filename (:obj:`bool`, optional):
+            If true, parse the input filename using the naming model.
+
     Returns:
-        tuple:  str, str of master_key and master_dir
+        :obj:`tuple`:  Two strings with the master key and the master directory
+        for the master file.
     """
     if from_filename:
         # Grab the last folder of the path
