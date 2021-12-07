@@ -82,10 +82,15 @@ class ViewFits(scriptbase.ScriptBase):
                     msgs.error(f'{args.spectrograph} does not have a known mosaic')
             else:
                 try:
-                    _det = int(args.det[0])
+                    _det = tuple(int(d) for d in args.det)
                 except:
                     msgs.error(f'Could not convert detector input to integer.')
-                mosaic = False
+                mosaic = len(_det) > 1
+                if not mosaic:
+                    _det = _det[0]
+
+            embed()
+            exit()
 
             if args.proc:
                 # Use the biasframe processing parameters because processing

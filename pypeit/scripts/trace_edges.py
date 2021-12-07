@@ -25,9 +25,11 @@ class TraceEdges(scriptbase.ScriptBase):
         parser.add_argument('-g', '--group', default=None,
                             help='If providing a pypeit file, use the trace images for this '
                                  'calibration group.  If None, use the first calibration group.')
-        parser.add_argument('-d', '--detector', default=None, type=int,
-                            help='Only analyze the specified detector; otherwise analyze all or '
-                                 'detectors selected by the pypeit file, if provided.')
+        parser.add_argument('-d', '--detector', type=str, default=None, nargs='*',
+                            help='Detector(s) to process.  If more than one, the list of detectors '
+                                 'must be one of the allowed mosaics hard-coded for the selected '
+                                 'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
+                                 'keck_lris will use the default mosaic.')
         parser.add_argument('-s', '--spectrograph', default=None, type=str,
                             help='A valid spectrograph identifier, which is only used if providing'
                                  ' files directly: {0}'.format(', '.join(available_spectrographs)))
@@ -135,12 +137,15 @@ class TraceEdges(scriptbase.ScriptBase):
 
         if detectors is None:
             detectors = np.arange(spec.ndet)+1
-        if isinstance(detectors, int):
+        elif isinstance(detectors, (int, tuple)):
             detectors = [detectors]
+        elif any([isinstance(d,str) for d in detectors]):
+            detectors = [eval(d) for d in detectors]
+
         master_dir = os.path.join(redux_path, args.master_dir)
         for det in detectors:
-            # Master keyword for output file name
-            master_key = '{0}_{1}'.format(master_key_base, str(det).zfill(2))
+#            # Master keyword for output file name
+#            master_key = '{0}_{1}'.format(master_key_base, str(det).zfill(2))
 
             # Get the bias frame if requested
             if bias_files is None:
@@ -161,12 +166,14 @@ class TraceEdges(scriptbase.ScriptBase):
             # Build the trace image
             traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, files, bias=msbias,
                                                         bpm=msbpm, dark=msdark)
-
             # Trace the slit edges
             t = time.perf_counter()
-            edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, bpm=msbpm, auto=True,
-                                           debug=args.debug, show_stages=args.show,
+            edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, bpm=traceImage.bpm,
+                                           auto=True, debug=args.debug, show_stages=args.show,
                                            qa_path=qa_path)
+
+            embed()
+            exit()
 
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             # Write the MasterEdges file

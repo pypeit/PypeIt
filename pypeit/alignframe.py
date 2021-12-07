@@ -86,7 +86,7 @@ class Alignments(datamodel.DataContainer):
         show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
 
 
-class TraceAlignment(object):
+class TraceAlignment:
     """
     Class to guide the determination of the alignment traces
 
@@ -308,4 +308,7 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="",
+                                   color=color)
+
+

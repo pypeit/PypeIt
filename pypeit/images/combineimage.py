@@ -314,9 +314,10 @@ class CombineImage:
         comb = pypeitimage.PypeItImage(image=comb_img, ivar=utils.inverse(comb_var), nimg=nstack,
                                        amp_img=pypeitImage.amp_img, det_img=pypeitImage.det_img,
                                        rn2img=comb_rn2, base_var=comb_basev, img_scale=comb_scl,
+                                       bpm=np.logical_not(gpm).astype(np.uint8),
                                        # NOTE: The detector is needed here so
                                        # that we can get the dark current later.
-                                       bpm=bpm, detector=pypeitImage.detector,
+                                       detector=pypeitImage.detector,
                                        PYP_SPEC=self.spectrograph.name,
                                        units='e-' if self.par['apply_gain'] else 'ADU',
                                        exptime=comb_texp, noise_floor=self.par['noise_floor'],

@@ -32,6 +32,8 @@ class Mosaic(datamodel.DataContainer):
     datamodel = {'id': dict(otype=int, descr='Mosaic ID number'),
                  'detectors': dict(otype=np.ndarray, atype=DetectorContainer,
                                    descr='List of objects with detector parameters.'),
+                 'binning': dict(otype=str, descr='On-chip binning'),
+                 'platescale': dict(otype=float, descr='Detector platescale in arcsec/pixel'),
                  'shape': dict(otype=tuple,
                                descr='Shape of each processed detector image'),
                  'shift': dict(otype=np.ndarray, atype=float,
@@ -50,6 +52,19 @@ class Mosaic(datamodel.DataContainer):
 
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+
+    def _validate(self):
+        """
+        Validate the mosaic.
+        """
+        if self.detectors is not None:
+            self.platescale = self.detectors[0].platescale
+            self.binning = self.detectors[0].binning
+            for i in range(1,self.ndet):
+                if self.detectors[i].platescale != self.platescale:
+                    msgs.error('Platescale difference between detectors in mosaic.')
+                if self.detectors[i].binning != self.binning:
+                    msgs.error('Binning difference between detectors in mosaic.')
 
     def _bundle(self):
         """

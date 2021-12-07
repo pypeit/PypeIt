@@ -196,15 +196,31 @@ class PypeItImage(datamodel.DataContainer):
         """
         Validate the object.
 
-        This currently simply checks that the bitmasks used to create the image
-        are the same as those defined by this version of
-        :class:`~pypeit.images.imagebitmask.ImageBitMask`.
+        Validation steps are:
+
+            #. Check that the bitmasks used to create the image are the same as
+               those defined by this version of
+               :class:`~pypeit.images.imagebitmask.ImageBitMask`.
+
+            #. Check that all the image data arrays (image, ivar, etc) have the
+               same shape.
+
+            #. Initialize the bit mask and incorporate any BPM (:attr:`bpm`) or
+               cosmic-ray flags (:attr:`crmask`).
+
+            #. Set the units to counts if none are provided.
         """
         if self.imgbitm is None:
             self.imgbitm = ','.join(list(self.bitmask.keys()))
-            return
-        if self.imgbitm != ','.join(list(self.bitmask.keys())):
+        elif self.imgbitm != ','.join(list(self.bitmask.keys())):
             msgs.error("Input BITMASK keys differ from current data model!")
+
+        if self.image is not None:
+            for attr in ['ivar', 'nimg', 'amp_img', 'det_img', 'rn2img', 'base_var', 'img_scale',
+                         'bpm', 'crmask', 'fullmask']:
+                _arr = getattr(self, attr)
+                if _arr is not None and _arr.shape != self.shape:
+                    msgs.error(f'Attribute {attr} does not match image shape.')
 
         # Make sure the fullmask, bpm, and crmask are all consistent
         # TODO: These steps ignore any existing flags in fullmask and resets

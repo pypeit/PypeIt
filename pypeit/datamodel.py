@@ -1138,9 +1138,6 @@ class DataContainer:
             # WARNING: This has only been tested for single-extension
             # DataContainers!!
 
-            embed()
-            exit()
-
             # NOTE: This works for the 1D vector elements of DetectorContainer,
             # but it's untested for any higher dimensional arrays...
             _d = {key:val if cls.datamodel[key]['otype'] == np.ndarray or val is None else val[0] 

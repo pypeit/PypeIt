@@ -223,14 +223,11 @@ def test_view_fits_mosaic():
     """
     file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos', 'GN_HAM_R400_885',
                         'N20190205S0035.fits')
-#    file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos', 'GS_HAM_R400_700',
-#                        'S20181005S0085.fits.gz')
     pargs = scripts.view_fits.ViewFits.parse_args(['gemini_gmos_north_ham', file,
                                                    '--det', 'mosaic',
                                                    '--proc'])
     scripts.view_fits.ViewFits.main(pargs)
 
-#test_view_fits_mosaic()
 
 @cooked_required
 def test_chk_flat():
