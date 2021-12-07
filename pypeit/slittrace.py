@@ -109,7 +109,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # Define the data model
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
-                 'det': dict(otype=int, descr='Detector'),
+                 'detid': dict(otype=int, descr='Detector or Mosaic ID'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -173,11 +173,11 @@ class SlitTraceSet(datamodel.DataContainer):
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
-    def __init__(self, left_init, right_init, pypeline, det=None, nspec=None, nspat=None, PYP_SPEC=None,
-                 mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
-                 maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None, maskdef_slitcen=None,
-                 ech_order=None, nslits=None, left_tweak=None,
+    def __init__(self, left_init, right_init, pypeline, detid=None, nspec=None, nspat=None,
+                 PYP_SPEC=None, mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1,
+                 pad=0, spat_id=None, maskdef_id=None, maskdef_designtab=None, maskfile=None,
+                 maskdef_posx_pa=None, maskdef_offset=None, maskdef_objpos=None,
+                 maskdef_slitcen=None, ech_order=None, nslits=None, left_tweak=None,
                  right_tweak=None, center=None, mask=None, slitbitm=None):
 
         # Instantiate the DataContainer
@@ -825,7 +825,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
+            on_det = (sobjs.DET == self.detid) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
         else:
             cut_sobjs = sobjs
@@ -860,7 +860,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # Generate a new specobj
             specobj_dict = {'SLITID': self.spat_id[islit], # Confirm this
-                            'DET': self.det, 
+                            'DET': self.detid, 
                             'OBJTYPE': 'science',  # Confirm this is ok
                             'PYPELINE': self.pypeline}
             thisobj = specobj.SpecObj(**specobj_dict)
@@ -952,7 +952,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
+            on_det = (sobjs.DET == self.detid) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
                 msgs.warn('NO detected objects.')
@@ -1172,14 +1172,14 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Restrict to objects on this detector
         if sobjs.nobj > 0:
-            on_det = (sobjs.DET == self.det) & (sobjs.OBJID > 0)  # use only positive detections
+            on_det = (sobjs.DET == self.detid) & (sobjs.OBJID > 0)  # use only positive detections
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
-                msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.det))
+                msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.detid))
                 self.maskdef_offset = 0.0
                 return
         else:
-            msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.det))
+            msgs.warn('NO detected objects. Slitmask offset cannot be estimated in det={}. '.format(self.detid))
             self.maskdef_offset = 0.0
             return
 
@@ -1236,12 +1236,12 @@ class SlitTraceSet(datamodel.DataContainer):
                 mean, median_off, std = sigma_clipped_stats(align_offs, sigma=2.)
                 self.maskdef_offset = median_off
                 msgs.info('Slitmask offset estimated using ALIGN BOXES in det={}: '
-                          '{} pixels ({} arcsec)'.format(self.det, round(self.maskdef_offset, 2),
+                          '{} pixels ({} arcsec)'.format(self.detid, round(self.maskdef_offset, 2),
                                                          round(self.maskdef_offset*platescale, 2)))
             else:
                 self.maskdef_offset = 0.0
                 msgs.info('NO objects detected in ALIGN BOXES. Slitmask offset '
-                          'cannot be estimated in det={}.'.format(self.det))
+                          'cannot be estimated in det={}.'.format(self.detid))
             return
 
         # if the maskdef_id of a bright object is provided by the user, check if it is in
@@ -1252,7 +1252,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 if sidx.size == 0:
                     self.maskdef_offset = 0.0
                     msgs.info('Object in slit {} not detected. Slitmask offset '
-                              'cannot be estimated in det={}.'.format(bright_maskdefid, self.det))
+                              'cannot be estimated in det={}.'.format(bright_maskdefid, self.detid))
                 else:
                     # Parse the peak fluxes
                     peak_flux = cut_sobjs[sidx].smash_peakflux
@@ -1262,7 +1262,7 @@ class SlitTraceSet(datamodel.DataContainer):
                     bright_expected = expected[imx_sidx]
                     self.maskdef_offset = bright_measured - bright_expected
                     msgs.info('Slitmask offset computed using bright object in slit {} (det={}): '
-                              '{} pixels ({} arcsec)'.format(bright_maskdefid, self.det, round(self.maskdef_offset, 2),
+                              '{} pixels ({} arcsec)'.format(bright_maskdefid, self.detid, round(self.maskdef_offset, 2),
                                                              round(self.maskdef_offset*platescale, 2)))
             else:
                 self.maskdef_offset = 0.0
@@ -1279,15 +1279,15 @@ class SlitTraceSet(datamodel.DataContainer):
                 mean, median_off, std = sigma_clipped_stats(off, sigma=2.)
                 self.maskdef_offset = median_off
                 msgs.info('Slitmask offset estimated in det={}: '
-                          '{} pixels ({} arcsec)'.format(self.det, round(self.maskdef_offset, 2),
+                          '{} pixels ({} arcsec)'.format(self.detid, round(self.maskdef_offset, 2),
                                                          round(self.maskdef_offset*platescale, 2)))
             else:
                 msgs.warn('Less than 3 objects detected above {} sigma threshold. '
-                          'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.det))
+                          'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.detid))
                 self.maskdef_offset = 0.0
         else:
             msgs.warn('Less than 3 objects detected above {} sigma threshold. '
-                      'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.det))
+                      'Slitmask offset cannot be estimated in det={}.'.format(nsig_thrshd, self.detid))
             self.maskdef_offset = 0.0
 
         return
@@ -1405,7 +1405,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
     """
 
     # grab corresponding detectors
-    calib_dets = np.array([ss.det for ss in calib_slits])
+    calib_dets = np.array([ss.detid for ss in calib_slits])
     for i in range(calib_dets.size):
         # Select the edges to use
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
@@ -1458,7 +1458,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
     # grab slitmask offsets from slits calibrations
     slitmask_offsets = np.array([ss.maskdef_offset for ss in calib_slits])
     # grab corresponding detectors
-    calib_dets = np.array([ss.det for ss in calib_slits])
+    calib_dets = np.array([ss.detid for ss in calib_slits])
 
     # remove eventual None and zeros (zero is assigned when no offset could be measured.)
     calib_dets = calib_dets[(slitmask_offsets != None) & (slitmask_offsets != 0)]
@@ -1530,7 +1530,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
     """
 
     # grab corresponding detectors
-    calib_dets = np.array([ss.det for ss in calib_slits])
+    calib_dets = np.array([ss.detid for ss in calib_slits])
     for i in range(calib_dets.size):
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use

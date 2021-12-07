@@ -144,8 +144,8 @@ class TraceEdges(scriptbase.ScriptBase):
 
         master_dir = os.path.join(redux_path, args.master_dir)
         for det in detectors:
-#            # Master keyword for output file name
-#            master_key = '{0}_{1}'.format(master_key_base, str(det).zfill(2))
+            # Master keyword for output file name
+            master_key = f'{master_key_base}_{spec.get_det_name(det)}'
 
             # Get the bias frame if requested
             if bias_files is None:
@@ -171,9 +171,6 @@ class TraceEdges(scriptbase.ScriptBase):
             edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, bpm=traceImage.bpm,
                                            auto=True, debug=args.debug, show_stages=args.show,
                                            qa_path=qa_path)
-
-            embed()
-            exit()
 
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
             # Write the MasterEdges file

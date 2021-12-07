@@ -161,6 +161,13 @@ class Mosaic(datamodel.DataContainer):
         return cls.from_dict(d=d)
 
     @property
+    def det(self):
+        """
+        Return a tuple with the set of detector ids in the mosaic.
+        """
+        return tuple() if self.detectors is None else tuple(d.det for d in self.detectors)
+
+    @property
     def ndet(self):
         """
         Return the number of detectors in the mosaic.

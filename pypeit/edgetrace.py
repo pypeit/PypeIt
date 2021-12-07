@@ -124,6 +124,7 @@ from pypeit import sampling
 from pypeit import masterframe
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
+from pypeit.images.mosaic import Mosaic
 from pypeit.bitmask import BitMask
 from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
@@ -5096,11 +5097,14 @@ class EdgeTraceSet(DataContainer):
             _posx_pa = None
 
         # Instantiate and return
+        id_attr = 'id' if isinstance(self.traceimg.detector, Mosaic) else 'det'
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline,
-                                      det=self.traceimg.detector.det, nspat=self.nspat,
+                                      detid=self.traceimg.detector[id_attr], nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                       maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                       ech_order=ech_order)
+
+
