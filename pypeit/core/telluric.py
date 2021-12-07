@@ -569,6 +569,7 @@ def unpack_orders(sobjs, ret_flam=False):
         nspec = sobjs[0].optimal['COUNTS'].size
     # Allocate arrays and unpack spectrum
     wave = np.zeros((nspec, norders))
+    #wave_grid_mid = np.zeros((nspec, norders))
     #wave_mask = np.zeros((nspec, norders),dtype=bool)
     flam = np.zeros((nspec, norders))
     flam_ivar = np.zeros((nspec, norders))
@@ -583,6 +584,10 @@ def unpack_orders(sobjs, ret_flam=False):
         else:
             flam[:,iord] = sobjs[iord].optimal['COUNTS']
             flam_ivar[:,iord] = sobjs[iord].optimal['COUNTS_IVAR']
+        #try:
+        #    wave_grid_mid[:, iord] = sobjs[iord].optimal['WAVE_GRID_MID']
+        #except KeyError:
+        #    wave_grid_mid[:, iord] = None
 
     return wave, flam, flam_ivar, flam_mask
 
@@ -640,6 +645,10 @@ def general_spec_reader(specfile, ret_flam=False):
         spec = onespec.OneSpec.from_file(specfile)
         # Unpack
         wave = spec.wave
+        try:
+            wave_grid_mid = spec.wave_grid_mid
+        except KeyError:
+            wave_grid_mid = None
         counts = spec.flux
         counts_ivar = spec.ivar
         counts_gpm = spec.mask.astype(bool)
@@ -650,9 +659,9 @@ def general_spec_reader(specfile, ret_flam=False):
     meta_spec = dict(bonus=bonus)
     meta_spec['core'] = spect_dict
 
-    return wave, counts, counts_ivar, counts_gpm, meta_spec, head
+    return wave, wave_grid_mid, counts, counts_ivar, counts_gpm, meta_spec, head
 
-def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, spectrograph=None, telluric=None,
+def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spectrograph=None, telluric=None,
                         obj_model=None, header=None, ex_value='OPT', overwrite=True):
     """
     Write final spectrum to disk.
@@ -682,8 +691,9 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, spectrograph=None, tellu
            Overwrite existing file?
     """
     wave_gpm = wave > 1.0
-    spec = onespec.OneSpec(wave[wave_gpm], flux[wave_gpm], PYP_SPEC=spectrograph,
-                           ivar=ivar[wave_gpm], mask=gpm[wave_gpm].astype(int),
+
+    spec = onespec.OneSpec(wave=wave[wave_gpm], wave_grid_mid=None if telluric is None else wave_grid_mid[wave_gpm],
+                           flux=flux[wave_gpm], PYP_SPEC=spectrograph, ivar=ivar[wave_gpm], mask=gpm[wave_gpm].astype(int),
                            telluric=None if telluric is None else telluric[wave_gpm],
                            obj_model=None if obj_model is None else obj_model[wave_gpm],
                            ext_mode=ex_value, fluxed=True)
@@ -1471,7 +1481,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
                                         'lbound_norm', 'ubound_norm', 'tell_norm_thresh'),
                       debug_init=debug_init)
 
-    wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
 
     # Mask the IGM and mask wavelengths that extend redward of our PCA
@@ -1521,7 +1531,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr,
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, wave_grid_mid=wave_grid_mid,
                         spectrograph=header['PYP_SPEC'], telluric=telluric, obj_model=pca_model,
                         header=header, ex_value='OPT', overwrite=True)
 
@@ -1542,7 +1552,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         disp = True
 
     # Read in the data
-    wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
     # Read in standard star dictionary and interpolate onto regular telluric wave_grid
     star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
     star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
@@ -1620,7 +1630,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr,
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, wave_grid_mid=wave_grid_mid,
                         spectrograph=header['PYP_SPEC'], telluric=telluric,
                         obj_model=star_model, header=header, ex_value='OPT', overwrite=True)
 
@@ -1641,7 +1651,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         disp = True
 
     # Read in the data
-    wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
+    wave, wave_grid_mid, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
 
     if flux.ndim == 2:
         norders = flux.shape[1]
@@ -1712,7 +1722,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr,
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, wave_grid_mid=wave_grid_mid,
                         spectrograph=header['PYP_SPEC'], telluric=telluric, obj_model=poly_model,
                         header=header, ex_value='OPT', overwrite=True)
 
@@ -1721,7 +1731,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
 
 
 class Telluric(datamodel.DataContainer):
-    r"""
+    """
     Simultaneously fit model object and telluric spectra to an observed
     spectrum.
 
