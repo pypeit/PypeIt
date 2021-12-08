@@ -89,9 +89,6 @@ class ViewFits(scriptbase.ScriptBase):
                 if not mosaic:
                     _det = _det[0]
 
-            embed()
-            exit()
-
             if args.proc:
                 # Use the biasframe processing parameters because processing
                 # these frames is independent of any other frames (ie., does not

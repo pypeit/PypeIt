@@ -748,6 +748,53 @@ class Spectrograph:
             msgs.error(f'{det} is not a valid detector for {self.name}.')
         return DetectorContainer.get_name(det)
 
+    def select_detectors(self, subset=None):
+        """
+        Vet and return a set of valid detectors or detector mosaics for this
+        spectrograph.
+
+        By default, the method returns a list selecting all the detectors
+        individually.  A subset can be selected using one of the following
+        methods:
+
+            - If ``subset`` is a string, it is assumed that you're selecting a
+              set of detector and spatial pixel coordinate combinations needed
+              to reduce a single slit; see ``slitspatnum`` in the
+              :ref:`pypeitpar`.  The string is parsed into the list of relevant
+              detectors.
+
+            - If ``subset`` is a list, integer, or tuple, it is parsed into a
+              set of single detector or detector mosaics to reduce.
+
+        Args:
+            subset (:obj:`int`, :obj:`tuple`, :obj:`list`, :obj:`str`, optional):
+                An object used select a subset of detectors to reduce.  See
+                description above.  Note detectors are 1-indexed.
+
+        Returns:
+            :obj:`list`: List of detectors or detector mosaics to be reduced.
+
+        Raises:
+            PypeItError: Raised if any of the detectors or detector mosaics
+            specified by ``subset`` are invalid.
+        """
+        if subset is None:
+            return np.arange(1, self.ndet+1).tolist()
+
+        if isinstance(subset, str):
+            _subset = parse.parse_slitspatnum(subset)[0].tolist() 
+        elif isinstance(subset, (int, tuple)):
+            _subset = [subset]
+        else:
+            _subset = subset
+
+        allowed = np.arange(1, self.ndet+1).tolist() + self.allowed_mosaics
+        if any([s not in allowed for s in _subset]):
+            msgs.error('Selected detectors or detector mosaics contain invalid values.')
+
+        return _subset
+
+
     @property
     def default_mosaic(self):
         """

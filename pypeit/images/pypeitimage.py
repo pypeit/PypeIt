@@ -611,7 +611,9 @@ class PypeItImage(datamodel.DataContainer):
         """
         Reset the mask; :attr:`fullmask` is reset to be 0 everywhere.
         """
-        self.fullmask = np.zeros(self.image.shape, dtype=self.bitmask.minimum_dtype(asuint=True))
+        if self.image is not None:
+            self.fullmask = np.zeros(self.image.shape,
+                                     dtype=self.bitmask.minimum_dtype(asuint=True))
 
     def select_flag(self, flag=None, invert=False):
         """

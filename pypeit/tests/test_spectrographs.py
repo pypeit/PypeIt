@@ -5,7 +5,13 @@ import os
 
 from IPython import embed
 
+import pytest
+
+from pypeit.pypmsgs import PypeItError
 from pypeit import spectrographs
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit import pypeitsetup
+from pypeit.par.util import make_pypeit_file
 from pypeit.tests.tstutils import dev_suite_required, data_path
 
 
@@ -254,5 +260,39 @@ def test_vltxshooternir():
     bpm = s.bpm(example_file, det)
     assert data.shape == (1100,2048)
     assert bpm.shape == (2045, 1097)
+
+
+def test_select_detectors_pypeit_file():
+    # Generate a PYPIT file
+    pypeit_file = data_path('test.pypeit')
+    make_pypeit_file(pypeit_file, 'shane_kast_blue', [data_path('b*fits.gz')], setup_mode=True)
+
+    # Perform the setup
+    setup = pypeitsetup.PypeItSetup.from_pypeit_file(pypeit_file)
+    par, spectrograph, fitstbl = setup.run(sort_dir=data_path(''))
+
+    assert spectrograph.select_detectors(subset=par['rdx']['detnum']) == [1], \
+            'Incorrect detectors selected.'
+
+    # Clean-up
+    os.remove(data_path('test.calib'))
+    os.remove(data_path('test.pypeit'))
+
+
+def test_select_detectors_mosaic():
+
+    spec = load_spectrograph('gemini_gmos_north_ham')
+
+    # Invalid detector
+    with pytest.raises(PypeItError):
+        spec.select_detectors(subset=4)
+    # Invalid mosaic
+    with pytest.raises(PypeItError):
+        spec.select_detectors(subset=(2,3))
+
+    # Valid
+    assert spec.select_detectors() == [1,2,3], 'Bad detector selection'
+    # Valid
+    assert spec.select_detectors(subset=[3,(1,2,3)]) == [3,(1,2,3)], 'Bad detector selection'
 
 

@@ -662,6 +662,35 @@ def parse_binning(binning):
     # Return
     return binspectral, binspatial
 
+# TODO: Allow this to differentiate between detectors and mosaics
+def parse_slitspatnum(slitspatnum):
+    """
+    Parse a string into a list of detectors and SPAT_IDs.
+
+    These strings follow a syntax mostly used to restrict the reduction to a set
+    of slits.  The syntax is DET:SPAT.  For example, ``slitspatnum =
+    1:175,1:205`` will reduce the slits found at spatial positions 175 and 205
+    on detector 1.
+
+    Args:
+        slitspatnum (:obj:`str`, :obj:`list`):
+            A single string or list of strings to parse.
+
+    Returns:
+        :obj:`tuple`:  Two integer arrays with the list of 1-indexed detector
+        numbers and spatial pixels coordinates for each slit.  The shape of each
+        array is ``(nslits,)``, where ``nslits`` is the number of
+        ``slitspatnum`` entries parsed (1 if only a single string is provided).
+    """
+    dets = []
+    spat_ids = []
+    for item in slitspatnum.split(','):
+        spt = item.split(':')
+        dets.append(int(spt[0]))
+        spat_ids.append(int(spt[1]))
+    # Return
+    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
+
 
 def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, binning=None):
     """

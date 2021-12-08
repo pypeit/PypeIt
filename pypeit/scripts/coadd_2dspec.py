@@ -19,7 +19,6 @@ from pypeit import coadd2d
 from pypeit import io
 from pypeit import specobjs
 from pypeit import spec2dobj
-from pypeit.pypeit import PypeIt
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -176,7 +175,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
+#        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
+        detectors = spectrograph.select_detectors(subset=parset['rdx']['detnum'])
         if len(detectors) != spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
             set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))

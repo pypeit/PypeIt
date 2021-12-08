@@ -138,6 +138,11 @@ class Mosaic(datamodel.DataContainer):
         # DetectorContainer data
         d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu[ext_to_use])
 
+        # These are the same as the attributes for the detectors, so we need to
+        # get rid of them.  We'll get them back via the _validate function.
+        del d['platescale']
+        del d['binning']
+
         # Now fake out the DetectorContainer method to get the detector metadata
         ndet = hdu[ext_to_use].data.shape[0]
         tbl = table.Table(hdu[ext_to_use].data)

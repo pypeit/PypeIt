@@ -11,10 +11,7 @@ from pypeit import msgs
 from pypeit.par.util import make_pypeit_file
 from pypeit import pypeitsetup
 from pypeit.pypeit import PypeIt
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import data_path
 
 
 def test_initialization():

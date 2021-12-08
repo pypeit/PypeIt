@@ -280,8 +280,9 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                                ndet=self.spectrograph.ndet)
+#            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+#                                                ndet=self.spectrograph.ndet)
+            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
             calib_dict[calib_grp] = {}
             # Loop on Detectors
             for self.det in detectors:
@@ -428,37 +429,38 @@ class PypeIt:
         # Finish
         self.print_end_time()
 
-    # This is a static method to allow for use in coadding script 
-    @staticmethod
-    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
-        """
-        Return the 1-indexed list of detectors to reduce.
-
-        Args:
-            detnum (:obj:`int`, :obj:`list`, optional):
-                One or more detectors to reduce.  If None, return the full list
-                for the provided number of detectors (``ndet``).  Should be None
-                if ``slitspatnum`` is provided.
-            ndet (:obj:`int`, optional):
-                The number of detectors for this instrument.  Only used
-                if ``detnum`` is None.
-            slitspatnum (:obj:`str`, optional):
-                A standard format string used to identify a slit by its detector
-                number and spatial pixel.  Should be None if ``detnum`` is
-                provided.
-
-        Returns:
-            :obj:`list`: List of detectors to be reduced.
-        """
-        if detnum is not None and slitspatnum is not None:
-            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
-                       'over-writing SpecObjs.')
-        if detnum is None and slitspatnum is None:
-            return np.arange(1, ndet+1).tolist()
-        elif detnum is not None:
-            return np.atleast_1d(detnum).tolist()
-        else:
-            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
+# NOTE: Moved to pypeit.spectrographs.spectrograph
+#    # This is a static method to allow for use in coadding script 
+#    @staticmethod
+#    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
+#        """
+#        Return the 1-indexed list of detectors to reduce.
+#
+#        Args:
+#            detnum (:obj:`int`, :obj:`list`, optional):
+#                One or more detectors to reduce.  If None, return the full list
+#                for the provided number of detectors (``ndet``).  Should be None
+#                if ``slitspatnum`` is provided.
+#            ndet (:obj:`int`, optional):
+#                The number of detectors for this instrument.  Only used
+#                if ``detnum`` is None.
+#            slitspatnum (:obj:`str`, optional):
+#                A standard format string used to identify a slit by its detector
+#                number and spatial pixel.  Should be None if ``detnum`` is
+#                provided.
+#
+#        Returns:
+#            :obj:`list`: List of detectors to be reduced.
+#        """
+#        if detnum is not None and slitspatnum is not None:
+#            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
+#                       'over-writing SpecObjs.')
+#        if detnum is None and slitspatnum is None:
+#            return np.arange(1, ndet+1).tolist()
+#        elif detnum is not None:
+#            return np.atleast_1d(detnum).tolist()
+#        else:
+#            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
     # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
@@ -538,12 +540,15 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                            slitspatnum=self.par['rdx']['slitspatnum'],
-                                            ndet=self.spectrograph.ndet)
-        if len(detectors) != self.spectrograph.ndet:
-            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
+#        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+#                                            slitspatnum=self.par['rdx']['slitspatnum'],
+#                                            ndet=self.spectrograph.ndet)
+        subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                    else self.par['rdx']['detnum']
+        detectors = self.spectrograph.select_detectors(subset=subset)
+#        if len(detectors) != self.spectrograph.ndet:
+#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
+#                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
 
         # List of detectors with successful calibration
         calibrated_det = []

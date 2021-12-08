@@ -90,7 +90,7 @@ def test_trace_edges():
             scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
-    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_DET01.fits.gz')
 
     # Check that the correct number of traces were found
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)
@@ -133,7 +133,7 @@ def test_trace_add_rm():
             scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
-    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_DET01.fits.gz')
 
     # Check that the correct number of traces were found
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)

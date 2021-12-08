@@ -587,7 +587,7 @@ class SpecObjs:
                 for det in np.atleast_1d(update_det):
                     mask[_specobjs.DET == det] = False
             elif slitspatnum is not None: # slitspatnum
-                dets, spat_ids = slittrace.parse_slitspatnum(slitspatnum)
+                dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
                 for det, spat_id in zip(dets, spat_ids):
                     mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
             _specobjs = _specobjs[mask]
