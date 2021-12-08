@@ -208,8 +208,3 @@ def test_deimosslitmask():
     spec = KeckDEIMOSSpectrograph()
     spec.get_slitmask(f)
     assert spec.slitmask.nslits == 106, 'Incorrect number of slits read!'
-
-@dev_suite_required
-def test_rdx_maskid():
-    # TODO -- Write a test using maskIDs parameter
-    assert False

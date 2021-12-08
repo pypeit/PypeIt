@@ -572,15 +572,15 @@ def test_parse_slits():
     slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                               'MasterSlits_A_1_01.fits.gz')
     spec2d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+                              'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
 
     # Slits
-    pargs = parse_slits.parse_args([slits_file])
-    parse_slits.main(pargs)
+    pargs = parse_slits.ParseSlits.parse_args([slits_file])
+    parse_slits.ParseSlits.main(pargs)
 
     # Spec2d
-    pargs = parse_slits.parse_args([spec2d_file])
-    parse_slits.main(pargs)
+    pargs = parse_slits.ParseSlits.parse_args([spec2d_file])
+    parse_slits.ParseSlits.main(pargs)
     
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
