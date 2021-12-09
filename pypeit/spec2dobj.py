@@ -26,8 +26,8 @@ from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 
 
-def spec2d_hdu_prefix(det):
-    return 'DET{:02d}-'.format(det)
+#def spec2d_hdu_prefix(det):
+#    return 'DET{:02d}-'.format(det)
 
 
 class Spec2DObj(datamodel.DataContainer):
@@ -91,9 +91,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
-                                  descr='Detector or Mosaic metadata'),
-                 'detname': dict(otype=str, 
-                                 descr='String identifier for either the detector or mosaic')}
+                                  descr='Detector or Mosaic metadata') }
+                                  #, 'detname': dict(otype=str, descr='String identifier for either the detector or mosaic')}
 
     @classmethod
     def from_file(cls, file, detname, chk_version=True):
@@ -115,12 +114,12 @@ class Spec2DObj(datamodel.DataContainer):
         # Quick check on det
         if not np.any([detname in hdu.name for hdu in hdul]):
             msgs.error(f'{detname} not available in any extension of {file}')
-        slf = super().from_hdu(hdul, hdu_prefix=detname, chk_version=chk_version)
+        slf = super().from_hdu(hdul, hdu_prefix=f'{detname}-', chk_version=chk_version)
         slf.head0 = hdul[0].header
         slf.chk_version = chk_version
         return slf
 
-    def __init__(self, detname, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
+    def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, tilts):
         # Slurp
@@ -194,6 +193,12 @@ class Spec2DObj(datamodel.DataContainer):
         return d
 
     @property
+    def detname(self):
+        if self.detector is None:
+            return None
+        return self.detector.name
+
+    @property
     def hdu_prefix(self):
         """
         Provides for a dynamic hdu_prefix based on our naming model.
@@ -202,7 +207,7 @@ class Spec2DObj(datamodel.DataContainer):
             :obj:`str`: Detector/mosaic identifier
 
         """
-        return self.detname
+        return f'{self.detname}-'
 
     def update_slits(self, spec2DObj):
         """
@@ -267,22 +272,22 @@ class AllSpec2DObj:
 
         """
         # Instantiate
-        slf = cls()
+        self = cls()
         # Open
         hdul = io.fits_open(filename)
         # Meta
-        hkeys = list(hdul[0].header.keys())
-        for key in hkeys:
-            if slf.hdr_prefix in key:
-                slf['meta'][key.split(slf.hdr_prefix)[-1]] = hdul[0].header[key]
+        for key in hdul[0].header.keys():
+            if key == self.hdr_prefix+'DETS':
+                continue
+            if self.hdr_prefix in key:
+                meta_key = key.split(self.hdr_prefix)[-1].lower()
+                self['meta'][meta_key] = hdul[0].header[key]
         # Detectors included
-        detectors = hdul[0].header[slf.hdr_prefix+'DETS']
-        for detname in [int(item) for item in detectors.split(',')]:
-            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=detname, chk_version=chk_version)
-            slf[det] = obj
-        # Header
-        slf['meta']['head0'] = hdul[0].header
-        return slf
+        detectors = hdul[0].header[self.hdr_prefix+'DETS']
+        for detname in detectors.split(','):
+            self[detname] = Spec2DObj.from_hdu(hdul, hdu_prefix=f'{detname}-',
+                                               chk_version=chk_version)
+        return self
 
     def __init__(self):
         # Init meta
@@ -292,6 +297,10 @@ class AllSpec2DObj:
 
     @property
     def detectors(self):
+        """
+        Return the list of detector/mosaic names, assuming they are the list of
+        all keys except for meta.
+        """
         dets = self.keys
         dets.remove('meta')
         dets.sort()
@@ -299,25 +308,40 @@ class AllSpec2DObj:
 
     @property
     def keys(self):
+        """
+        Return the list of attributes
+        """
         return list(self.__dict__.keys())
 
-    def __setitem__(self, item, value):
-        """
-        Over-load this to insist the item is either:
-          `meta`
-          1,2,3,...
+#    def __setitem__(self, item, value):
+#        """
+#        Over-load this to insist the item is either:
+#          `meta`
+#          1,2,3,...
+#
+#        Args:
+#            item (:obj:`str` or :obj:`int`):
+#            value (object or :class:`Spec2DObj`):
+#                Should be FITS header write-able if going into `meta`
+##        """
+#        # Check item
+#        if not isinstance(item, int) and item != 'meta':
+#            raise KeyError('Key must be an integer, i.e. detector number or "meta"')
+#        # Check value
+#        if isinstance(item, int):
+#            assert isinstance(value, Spec2DObj), 'Item must be a Spec2DObj'
+#        self.__dict__[item] = value
 
-        Args:
-            item (:obj:`str` or :obj:`int`):
-            value (object or :class:`Spec2DObj`):
-                Should be FITS header write-able if going into `meta`
-        """
+    def __setitem__(self, item, value):
         # Check item
-        if not isinstance(item, int) and item != 'meta':
-            raise KeyError('Key must be an integer, i.e. detector number or "meta"')
-        # Check value
-        if isinstance(item, int):
-            assert isinstance(value, Spec2DObj), 'Item must be a Spec2DObj'
+        if not isinstance(item, str):
+            raise TypeError('Item key must be a string.')
+        if item != 'meta':
+            if not isinstance(value, Spec2DObj):
+                raise KeyError('Any item not assigned to the meta dictionary must be a Spec2DObj.')
+            if value.detname is not None and value.detname != item:
+                msgs.warn(f'Mismatch between keyword used to define the Spec2DObj item ({item}) '
+                          f'and the name of the detector/mosaic ({value.detname}).')
         self.__dict__[item] = value
 
     def __getitem__(self, item):
@@ -385,6 +409,8 @@ class AllSpec2DObj:
                 hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
 
         # Processing steps
+        # TODO: Assumes processing steps for all detectors are the same...  Does
+        # this matter?
         det = self.detectors[0]
         if self[det].process_steps is not None:
             hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
@@ -395,16 +421,16 @@ class AllSpec2DObj:
         if redux_path is not None:
             hdr['PYPRDXP'] = redux_path
         # Sky sub mode
-        if self['meta']['ir_redux']:
+        if 'ir_redux' in self['meta'] and self['meta']['ir_redux']:
             hdr['SKYSUB'] = 'DIFF'
         else:
             hdr['SKYSUB'] = 'MODEL'
         # obj find mode
-        if self['meta']['find_negative']:
+        if 'find_negative' in self['meta'] and self['meta']['find_negative']:
             hdr['FINDOBJ'] = 'POS_NEG'
         else:
             hdr['FINDOBJ'] = 'POS'
-        #
+         
         return hdr
 
     def write_to_fits(self, outfile, pri_hdr=None, update_det=None, overwrite=True):
@@ -415,12 +441,21 @@ class AllSpec2DObj:
             outfile (:obj:`str`):
                 Output filename
             pri_hdr (:class:`astropy.io.fits.Header`, optional):
-                Header to be used in lieu of default
-                Usually generated by :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
-            update_det (list, optional):
-                Detector to be updated
-            overwrite (bool, optional):
-
+                Baseline primary header.  If None, initial primary header is
+                empty.  Usually generated by
+                :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
+            update_det (:obj:`list`, optional):
+                If the output file already exists, this sets the list of
+                detectors/mosaics to update with the data in this object.  If
+                None, a new file is constructed from scratch, if overwrite is
+                True.  Otherwise, the existing file is read and any detectors in
+                that file but *not* in this one are added to this object.  I.e.,
+                if ``update_det`` is not None, **this method can alter the
+                object**.
+            overwrite (:obj:`bool`, optional):
+                If true and the output file already exists, overwrite it.  The
+                combination of this and ``update_det`` may also alter this
+                object based on the existing file.
         """
         if os.path.isfile(outfile):
             if not overwrite:
@@ -432,8 +467,7 @@ class AllSpec2DObj:
                 for det in _allspecobj.detectors:
                     if det in np.atleast_1d(update_det):
                         continue
-                    else:
-                        self[det] = _allspecobj[det]
+                    self[det] = _allspecobj[det]
 
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()
@@ -443,11 +477,15 @@ class AllSpec2DObj:
 
         # Add meta to Primary Header
         for key in self['meta']:
-            # This is not a header card
-            if key == 'head0':
+            try:
+                prihdu.header[self.hdr_prefix+key.upper()] = self['meta'][key]
+            except:
+                msgs.warn(f'Cannot add meta entry {key} to primary header!')
                 continue
-            #
-            prihdu.header[self.hdr_prefix+key.upper()] = self['meta'][key]
+            if key.lower() != key:
+                msgs.warn('Keywords in the meta dictionary are always read back in as lower case. '
+                          f'Subsequent reads of {outfile} will have converted {key} to '
+                          f'{key.lower()}!')
 
         # Loop on em (in order of detector)
         extnum = 1
@@ -455,6 +493,7 @@ class AllSpec2DObj:
         for det in self.detectors:
             hdul = self[det].to_hdu()
             # TODO -- Make adding EXT000X a default of DataContainer?
+            # TODO: Why is this needed?
             for hdu in hdul:
                 keywd = 'EXT{:04d}'.format(extnum)
                 prihdu.header[keywd] = hdu.name
@@ -463,8 +502,7 @@ class AllSpec2DObj:
             hdus += hdul
 
         # Detectors included
-        detectors = str(self.detectors)[1:-1]  # Remove the [ and ]
-        prihdu.header[self.hdr_prefix+'DETS'] = detectors
+        prihdu.header[self.hdr_prefix+'DETS'] = ','.join(self.detectors)
 
         # Finish
         hdulist = fits.HDUList(hdus)

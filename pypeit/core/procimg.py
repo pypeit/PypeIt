@@ -334,9 +334,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # Determine if there are saturated pixels
     if saturation is not None:
         satpix = sciframe >= saturation*nonlinear
-        if not np.any(satpix):
-            satpix = None
-        if satpix is not None:
+        if np.any(satpix):
             _bpm = satpix if _bpm is None else _bpm & satpix
 
     # TODO: Should we be executing boxcar_fill here before the first iteration

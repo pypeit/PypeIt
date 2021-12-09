@@ -168,8 +168,8 @@ class TraceEdges(scriptbase.ScriptBase):
                                                         bpm=msbpm, dark=msdark)
             # Trace the slit edges
             t = time.perf_counter()
-            edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, bpm=traceImage.bpm,
-                                           auto=True, debug=args.debug, show_stages=args.show,
+            edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, auto=True,
+                                           debug=args.debug, show_stages=args.show,
                                            qa_path=qa_path)
 
             print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))

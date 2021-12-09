@@ -611,8 +611,8 @@ class PypeIt:
             self.caliBrate = self.calib_one(frames, self.det)
             self.caliBrate.slits = calib_slits[i]
 
-            detid = self.spectrograph.allowed_mosaics.index(self.det)+1 \
-                        if isinstance(self.det, tuple) else self.det
+            detname = sciImg_list[i].detector.name
+            detid = sciImg_list[i].detector.parse_name(detname)
 
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -621,7 +621,7 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detid]
             else:
                 all_specobjs_on_det = all_specobjs_objfind
-            all_spec2d[detid], tmp_sobjs \
+            all_spec2d[detname], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
                                        all_specobjs_on_det, skymask_list[i])
             # Hold em
@@ -906,8 +906,7 @@ class PypeIt:
         spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
 
         # Construct the Spec2DObj
-        spec2DObj = spec2dobj.Spec2DObj(detname=self.spectrograph.get_det_name(det),
-                                        sciimg=sciImg.image,
+        spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                         ivarraw=sciImg.ivar,
                                         skymodel=skymodel,
                                         objmodel=objmodel,
