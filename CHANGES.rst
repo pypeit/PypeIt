@@ -2,6 +2,9 @@
 1.7.1dev
 --------
 
+- Fixed a bug about how `maskdef_offset` is assigned to each detector
+- Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
+  It now uses by default the stars in the alignment boxes.
 - Introduce mosaicing
     - `det` arguments can now be tuples with a list of detectors to
       combine into a mosaic.  Mosaics can now be defined in the pypeit
@@ -49,12 +52,6 @@
   (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 
-
-1.7.1dev
---------
-- Fixed a bug about how `maskdef_offset` is assigned to each detector
-- Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
-  It now uses by default the stars in the alignment boxes.
 
 1.7.0 (19 Nov 2021)
 -------------------
