@@ -959,13 +959,17 @@ class PypeIt:
         if not os.path.isdir(self.science_path):
             os.makedirs(self.science_path)
 
-        update_det = self.par['rdx']['detnum']
-        if update_det is not None:
-            if not isinstance(update_det, list):
-                update_det = [update_det]
-            for i in range(len(update_det)):
-                if isinstance(update_det[i], tuple):
-                    update_det[i] = self.spectrograph.allowed_mosaics.index(update_det[i])+1
+        # NOTE: There are some gymnastics here to keep from altering
+        # self.par['rdx']['detnum'].  I.e., I can't just set update_det =
+        # self.par['rdx']['detnum'] because that can alter the latter if I don't
+        # deepcopy it...
+        if self.par['rdx']['detnum'] is None:
+            update_det = None
+        elif isinstance(self.par['rdx']['detnum'], list):
+            update_det = [self.spectrograph.allowed_mosaics.index(d)+1 
+                            if isinstance(d, tuple) else d for d in self.par['rdx']['detnum']]
+        else:
+            update_det = self.par['rdx']['detnum']
 
         subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
