@@ -397,6 +397,7 @@ class PypeIt:
             science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
+        
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
@@ -549,6 +550,7 @@ class PypeIt:
 #        if len(detectors) != self.spectrograph.ndet:
 #            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
 #                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
+        msgs.info(f'Detectors to work on: {detectors}')
 
         # List of detectors with successful calibration
         calibrated_det = []
