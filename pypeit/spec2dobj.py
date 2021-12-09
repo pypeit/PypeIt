@@ -21,8 +21,9 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
-from pypeit.images import detector_container
 from pypeit.images import imagebitmask
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 
 
 def spec2d_hdu_prefix(det):
@@ -89,12 +90,13 @@ class Spec2DObj(datamodel.DataContainer):
                                                    'Current list: observed, heliocentric, barycentric'),
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
-                 'detector': dict(otype=detector_container.DetectorContainer,
-                                  descr='Detector DataContainer'),
-                 'det': dict(otype=int, descr='Detector index')}
+                 'detector': dict(otype=(DetectorContainer, Mosaic),
+                                  descr='Detector or Mosaic metadata'),
+                 'detname': dict(otype=str, 
+                                 descr='String identifier for either the detector or mosaic')}
 
     @classmethod
-    def from_file(cls, file, det, chk_version=True):
+    def from_file(cls, file, detname, chk_version=True):
         """
         Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
         input and to slurp the header
@@ -111,17 +113,14 @@ class Spec2DObj(datamodel.DataContainer):
         """
         hdul = io.fits_open(file)
         # Quick check on det
-        if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
-            msgs.error("Requested detector {} is not in this file - {}".format(det, file))
-        #
-        slf = super(Spec2DObj, cls).from_hdu(hdul, 
-                                             hdu_prefix=spec2d_hdu_prefix(det), 
-                                             chk_version=chk_version)
+        if not np.any([detname in hdu.name for hdu in hdul]):
+            msgs.error(f'{detname} not available in any extension of {file}')
+        slf = super().from_hdu(hdul, hdu_prefix=detname, chk_version=chk_version)
         slf.head0 = hdul[0].header
         slf.chk_version = chk_version
         return slf
 
-    def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
+    def __init__(self, detname, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
                  vel_type, vel_corr, slits, tilts):
         # Slurp
@@ -142,15 +141,19 @@ class Spec2DObj(datamodel.DataContainer):
         Returns:
 
         """
+        # Check the bitmask is current
         bitmask = imagebitmask.ImageBitMask()
-
-        assert self.det is not None, 'Must set det at instantiation!'
         if self.imgbitm is None:
             self.imgbitm = ','.join(list(bitmask.keys()))
         else:
             # Validate
             if self.imgbitm != ','.join(list(bitmask.keys())) and self.chk_version:
                 msgs.error("Input BITMASK keys differ from current data model!")
+
+        # Check the detector/mosaic identifier has been provided
+        if self.detname is None:
+            msgs.error('Detector/Mosaic string identifier must be set at instantiation.')
+
 
     def _bundle(self):
         """
@@ -193,15 +196,13 @@ class Spec2DObj(datamodel.DataContainer):
     @property
     def hdu_prefix(self):
         """
-        Provides for a dynamic hdu_prefix based on our naming model
-
-        see :func:`spec2d_hdu_prefix`
+        Provides for a dynamic hdu_prefix based on our naming model.
 
         Returns:
-            str
+            :obj:`str`: Detector/mosaic identifier
 
         """
-        return spec2d_hdu_prefix(self.det)
+        return self.detname
 
     def update_slits(self, spec2DObj):
         """
@@ -214,7 +215,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         """
         # Quick checks
-        if spec2DObj.det != self.det:
+        if spec2DObj.detname != self.detname:
             msgs.error("Objects are not even the same detector!!")
         if not np.array_equal(spec2DObj.slits.spat_id, spec2DObj.slits.spat_id):
             msgs.error("SPAT_IDs are not in sync!")
@@ -276,8 +277,8 @@ class AllSpec2DObj:
                 slf['meta'][key.split(slf.hdr_prefix)[-1]] = hdul[0].header[key]
         # Detectors included
         detectors = hdul[0].header[slf.hdr_prefix+'DETS']
-        for det in [int(item) for item in detectors.split(',')]:
-            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det), chk_version=chk_version)
+        for detname in [int(item) for item in detectors.split(',')]:
+            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=detname, chk_version=chk_version)
             slf[det] = obj
         # Header
         slf['meta']['head0'] = hdul[0].header

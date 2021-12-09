@@ -511,7 +511,7 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
     """
 
     Args:
@@ -520,7 +520,6 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
         bpm (`numpy.ndarray`_):
             True = masked slit
         basename (str):
-        det (int):
         flex_list (list):
         specobjs: (:class:`pypeit.specobjs.Specobjs`)
             Spectrally extracted objects
@@ -564,7 +563,7 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(basename, method + '_corr', det=det, slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method + '_corr', slit=slitord, out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
@@ -614,7 +613,7 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', det=det, slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method+'_sky', slit=slitord, out_dir=out_dir)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()

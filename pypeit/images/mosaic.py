@@ -104,39 +104,31 @@ class Mosaic(datamodel.DataContainer):
         return [{'MOSAIC':tbl}]
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True, **kwargs):
+    def _parse(cls, hdu, hdu_prefix=None, **kwargs):
         """
-        Instantiate the object from an HDU extension.
+        Parse the data from the provided HDU.
 
-        This is primarily a wrapper for :func:`_parse`.
+        See :func:`pypeit.datamodel.DataContainer._parse` for the
+        argument descriptions.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
-            chk_version (:obj:`bool`, optional):
-                If True, raise an error if the datamodel version or
-                type check failed. If False, throw a warning only.
+            hdu_prefix (:obj:`str`, optional):
+                Only parse HDUs with extension names matched to this prefix. If
+                None, :attr:`ext` is used. If the latter is also None, all HDUs
+                are parsed. See :func:`~pypeit.io.hdu_iter_by_ext`.
             kwargs (:obj:`dict`):
                 Used to collect extra keywords, but **has no affect on code
                 flow**.
         """
-        # TODO: Unsure about the generality of this for additional code
-        # development...  It may cause issues if the hdu has many extensions.
-        # Specifically, it won't work if the hdu has multiple mosaic extensions.
-        # Find the mosaic extension
-        _ext, _hdu = io.hdu_iter_by_ext(hdu)
-        _ext = np.atleast_1d(np.array(_ext, dtype=object))
-        ext_to_use = None
-        for e in _ext:
-            if 'DMODCLS' in hdu[e].header and hdu[e].header['DMODCLS'] == cls.__name__:
-                ext_to_use = e
-                break
-        if ext_to_use is None:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-
-        # Parsing this extension alone should collect everything but the
+        # Running the default parser should collect everything but the
         # DetectorContainer data
-        d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu[ext_to_use])
+        d, version_passed, type_passed, parsed_hdus = super()._parse(hdu, hdu_prefix=hdu_prefix)
+
+        # This should only ever read one hdu!
+        if len(parsed_hdus) > 1:
+            msgs.error('CODING ERROR: Parsing saved Mosaic instances should only parse 1 HDU.')
 
         # These are the same as the attributes for the detectors, so we need to
         # get rid of them.  We'll get them back via the _validate function.
@@ -144,26 +136,19 @@ class Mosaic(datamodel.DataContainer):
         del d['binning']
 
         # Now fake out the DetectorContainer method to get the detector metadata
-        ndet = hdu[ext_to_use].data.shape[0]
-        tbl = table.Table(hdu[ext_to_use].data)
+        _hdu = hdu[parsed_hdus[0]] if hasattr(hdu, '__len__') else hdu
+        ndet = _hdu.data.shape[0]
+        tbl = table.Table(_hdu.data)
         hdr = fits.Header()
         hdr['DMODCLS'] = DetectorContainer.__name__
-        hdr['DMODVER'] = hdu[ext_to_use].header['DETMODV']
+        hdr['DMODVER'] = _hdu.header['DETMODV']
         d['detectors'] = np.array([DetectorContainer.from_hdu(
                                         fits.BinTableHDU(data=table.Table(tbl[i]),
                                                          name='DETECTOR', header=hdr))
                                     for i in range(ndet)])
 
-        # Check version and type?
-        if not dm_type_passed:
-            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-        if not dm_version_passed:
-            _f = msgs.error if chk_version else msgs.warn
-            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-               + ' does not match version used to write your HDU(s)!')
+        return d, version_passed, type_passed, parsed_hdus
 
-        # Instantiate
-        return cls.from_dict(d=d)
 
     @property
     def det(self):

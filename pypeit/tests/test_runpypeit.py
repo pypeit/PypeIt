@@ -108,7 +108,6 @@ def test_run_pypeit():
     # Just get a few files
     testrawdir = data_path('')
 
-    #outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
     outdir = data_path('REDUX_OUT_TEST')
 
     # For previously failed tests

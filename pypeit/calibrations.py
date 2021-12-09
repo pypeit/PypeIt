@@ -652,7 +652,7 @@ class Calibrations:
                                                                  bias=self.msbias, bpm=self.msbpm,
                                                                  dark=self.msdark)
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
-                                                    self.par['slitedges'], bpm=self.msbpm,
+                                                    self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
                 if not self.edges.success:
                     self.success = False
@@ -724,7 +724,7 @@ class Calibrations:
                                                       self.par['wavelengths'], lamps,
                                                       binspectral=binspec, det=self.det,
                                                       master_key=self.master_key_dict['arc'],
-                                                      qa_path=self.qa_path, msbpm=self.msbpm)
+                                                      qa_path=self.qa_path) #, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)

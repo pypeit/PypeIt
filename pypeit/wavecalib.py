@@ -288,15 +288,15 @@ class BuildWaveCalib:
     Class to guide wavelength calibration
 
     Args:
-        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage`):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
+        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
@@ -331,7 +331,12 @@ class BuildWaveCalib:
     def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
-        # Required parameters (but can be None)
+        # TODO: This should be a stop-gap to avoid instantiation of this with
+        # any Nones.
+        if None in [msarc, slits, spectrograph, par, lamps]:
+            msgs.error('CODING ERROR: Cannot instantiate BuildWaveCalib with Nones.')
+
+        # Required parameters
         self.msarc = msarc
         self.slits = slits
         self.spectrograph = spectrograph
@@ -339,10 +344,13 @@ class BuildWaveCalib:
         self.lamps = lamps
 
         # Optional parameters
-        self.bpm = msbpm
-        if self.bpm is None and msarc is not None:
-            # msarc can be None for load;  will remove this for DataContainer
-            self.bpm = msarc.bpm
+        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        if self.bpm.shape != self.msarc.shape:
+            msgs.error('Bad-pixel mask is not the same shape as the arc image.')
+#        self.bpm = msbpm
+#        if self.bpm is None and msarc is not None:
+#            # msarc can be None for load;  will remove this for DataContainer
+#            self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -354,8 +362,13 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.msarc.detector.nonlinear_counts()
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
 #            else self.spectrograph.nonlinear_counts(self.msarc.detector)
             #else self.spectrograph.nonlinear_counts(self.det)
 

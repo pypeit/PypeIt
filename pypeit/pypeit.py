@@ -609,14 +609,17 @@ class PypeIt:
             self.caliBrate = self.calib_one(frames, self.det)
             self.caliBrate.slits = calib_slits[i]
 
+            detid = self.spectrograph.allowed_mosaics.index(self.det)+1 \
+                        if isinstance(self.det, tuple) else self.det
+
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             if all_specobjs_objfind.nobj > 0:
-                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == self.det]
+                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detid]
             else:
                 all_specobjs_on_det = all_specobjs_objfind
-            all_spec2d[self.det], tmp_sobjs \
+            all_spec2d[detid], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
                                        all_specobjs_on_det, skymask_list[i])
             # Hold em
@@ -901,7 +904,7 @@ class PypeIt:
         spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
 
         # Construct the Spec2DObj
-        spec2DObj = spec2dobj.Spec2DObj(det=self.det,
+        spec2DObj = spec2dobj.Spec2DObj(detname=self.spectrograph.get_det_name(det),
                                         sciimg=sciImg.image,
                                         ivarraw=sciImg.ivar,
                                         skymodel=skymodel,
@@ -954,13 +957,20 @@ class PypeIt:
         if not os.path.isdir(self.science_path):
             os.makedirs(self.science_path)
 
+        update_det = self.par['rdx']['detnum']
+        if update_det is not None:
+            if not isinstance(update_det, list):
+                update_det = [update_det]
+            for i in range(len(update_det)):
+                if isinstance(update_det[i], tuple):
+                    update_det[i] = self.spectrograph.allowed_mosaics.index(update_det[i])+1
+
         subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
-            all_specobjs.write_to_fits(subheader, outfile1d,
-                                       update_det=self.par['rdx']['detnum'],
+            all_specobjs.write_to_fits(subheader, outfile1d, update_det=update_det,
                                        slitspatnum=self.par['rdx']['slitspatnum'],
                                        history=history)
             # Info
@@ -982,8 +992,9 @@ class PypeIt:
                                                master_dir=self.caliBrate.master_dir,
                                                subheader=subheader,
                                                history=history)
+
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
 
     def msgs_reset(self):

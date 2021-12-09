@@ -345,6 +345,8 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # Initialize the noise model
     if varframe is not None:
         noise = np.sqrt(varframe)
+        # NOTE: Inverting the error avoids division by 0 errors
+        _inv_err = utils.inverse(noise)
 
     # Define the kernels
     # - Laplacian kernel
@@ -359,6 +361,8 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
             msgs.info("Updating the noise model")
             m5 = ndimage.filters.median_filter(_sciframe, size=5, mode='mirror')
             noise = np.sqrt(np.absolute(m5))
+            # NOTE: Inverting the error avoids division by 0 errors
+            _inv_err = utils.inverse(noise)
 
         # Use the Laplacian transform to construct the image 2nd derivative and
         # get its S/N.  NOTE: the division by 2 in the S/N calculation is from
@@ -367,7 +371,7 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
         msgs.info("Convolving image with Laplacian kernel")
         deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
                          boundary='extend')
-        s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) / 2.0 / noise
+        s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0 
 
         # Remove the large structures
         sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
@@ -387,7 +391,8 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
             # Build the fine structure image
             m3 = ndimage.filters.median_filter(_sciframe, size=3, mode='mirror')
             m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
-            f = np.clip((m3 - m37) / noise, 0.01, None)
+            # TODO: How does clip treat NaNs?
+            f = np.clip((m3 - m37) * _inv_err, 0.01, None)
             # Require cosmics to have significant contrast
             cosmics &= sp/f > objlim
             ncr = np.sum(cosmics)
@@ -434,7 +439,9 @@ def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, m
     # remove some false positives.
     #msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
-    filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
+    _inv_mad = utils.inverse(np.sqrt(np.abs(sciframe))) # Avoid divisions by 0
+    filty = ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
+    # TODO: Can we skip this now that we're not dividing by 0?
     filty[np.isnan(filty)] = 0.0
 
     sigimg = cr_screen(filty)

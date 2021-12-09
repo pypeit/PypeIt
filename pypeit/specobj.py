@@ -24,7 +24,8 @@ from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 
 
 class SpecObj(datamodel.DataContainer):
@@ -46,8 +47,6 @@ class SpecObj(datamodel.DataContainer):
         slitid (int, optional):
            Identifier for the slit (max=9999).
            Multislit and IFU
-        specobj_dict (dict, optional):
-           Uswed in the objfind() method of extract.py to Instantiate
         orderindx (int, optional):
            Running index for the order
         ech_order (int, optional):
@@ -57,7 +56,6 @@ class SpecObj(datamodel.DataContainer):
         See datamodel and _init_internals()
     """
     version = '1.1.4'
-    hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
                                     descr='Object trace along the spec (spatial pixel)'),
@@ -140,11 +138,10 @@ class SpecObj(datamodel.DataContainer):
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  # Detector
-                 # TODO: Why are both det and detector attributes, isn't det in detector?
-                 'DET': dict(otype=(int, np.integer), descr='Detector number'),
-                 'DETECTOR': dict(otype=detector_container.DetectorContainer,
-                                  descr='Detector DataContainer'),
-                 #
+                 'DET': dict(otype=(int, np.integer),
+                             descr='Integer identifier for either the detector or mosaic'),
+                 'DETECTOR': dict(otype=(DetectorContainer, Mosaic),
+                                  descr='Detector or Mosaic metadata'),
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
                  'OBJTYPE': dict(otype=str, descr='PypeIt type of object (standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
@@ -191,19 +188,18 @@ class SpecObj(datamodel.DataContainer):
                                         'object.')}
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
-                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
+                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, from_mosaic=False):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=_d)
+        _d = dict([(k,values[k]) for k in args[1:-1]])
+        super().__init__(d=_d)
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
         self.FLEX_SHIFT_TOTAL = 0.
 
         # Name
-        self.set_name()
+        self.set_name(from_mosaic=from_mosaic)
 
     @classmethod
     def from_arrays(cls, PYPE_LINE:str, wave:np.ndarray, 
@@ -243,38 +239,37 @@ class SpecObj(datamodel.DataContainer):
 
     def _bundle(self, **kwargs):
         """
-        Over-ride DataContainer._bundle() to deal with DETECTOR
+        Override base class to handle inclusion of
+        :class:`~pypeit.images.detector_container.DetectorContainer` or
+        :class:`~pypeit.images.mosaic.Mosaic` objects for each spectrum.
 
         Args:
-            kwargs:
-                Passed to DataContainer._bundle()
+            kwargs (:obj:`dict`):
+                Passed directly to the base class method.
 
         Returns:
-            list:
-
+            :obj:`list`: List of dictionaries used to construct fits extensions.
         """
-        _d = super(SpecObj, self)._bundle(**kwargs)
-        # Move DetectorContainer into its own HDU
+        # Use the base class for most of the data model
+        _d = super()._bundle(**kwargs)
+
+        # Separate out the detector into its own HDU
         if _d[0]['DETECTOR'] is not None:
             _d.append(dict(detector=_d[0].pop('DETECTOR')))
-        # Return
+
         return _d
 
-
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
+    def to_hdu(self, **kwargs):
         """
-        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
-        a BinTableHDU
-
-        See that func for Args and Returns
+        Override the base class function to force the main datamodel attributes
+        to be written to an `astropy.io.fits.BinTableHDU`_ object.  This is
+        identical to the base class method except ``force_to_bintbl`` is always
+        set to True.
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(SpecObj, self).to_hdu(**_d)
+        if 'force_to_bintbl' in kwargs and not kwargs['force_to_bintbl']:
+            msgs.warn(f'Writing a {self.__class__.__name__} always requires force_to_bintbl=True')
+            del kwargs['force_to_bintbl']
+        return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @property
     def slit_order(self):
@@ -331,35 +326,38 @@ class SpecObj(datamodel.DataContainer):
                 break
         return SN
 
-    def set_name(self):
+    def set_name(self, from_mosaic=False):
         """
-        Generate a unique index for this spectrum based on the
-        slit/order, its position and for multi-slit the detector.
+        Construct the ``PypeIt`` name for this object.
 
-        Multi-slit
+        The ``PypeIt`` name depends on the type of data being processed:
 
-            Each object is named by its:
-             - spatial position (pixel number) on the reduced image [SPAT]
-             - the slit number based on SPAT center of the slit or SlitMask ID [SLIT]
-             - the detector number [DET]
+            - For multislit and IFU data, the name is ``SPATnnnn-SLITmmmm-DETdd``, where
+              ``nnnn`` is the nearest integer pixel in the spatial direction (at the
+              spectral midpoint) where the object was extracted, ``mmmm`` is the slit
+              identification number, and ``dd`` is the detector number.
 
-            For example::
+            - For echelle data, the name is ``OBJnnnn-DETdd-ORDERoooo``, where
+              ``nnnn`` is 1000 times the fractional position along the spatial
+              direction rounded to the nearest integer, ``dd`` is the detector
+              number, and ``oooo`` is the echelle order.
 
-                SPAT0176-SLIT0185-DET01
-
-        Echelle
-
-        Returns:
-            str:
+        Args:
+            from_mosaic (:obj:`bool`, optional):
+                Indicates that the object was extracted from a detector mosaic
+                image.  If true, the identifier is changed from ``'DET'`` to
+                ``'MSC'``.
 
         """
         naming_model = {}
         for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
             naming_model[skey.lower()] = skey
+        if from_mosaic:
+            naming_model['det'] = 'MSC'
 
         sdet = f'{self.DET:02}'
 
-        if 'Echelle' in self.PYPELINE:
+        if self.PYPELINE == 'Echelle':
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
@@ -376,7 +374,7 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif 'MultiSlit' in self.PYPELINE:
+        elif self.PYPELINE in ['MultiSlit', 'IFU']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS'] is None:
@@ -388,20 +386,8 @@ class SpecObj(datamodel.DataContainer):
             name += '{:04d}'.format(self.SLITID)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)
             self.NAME = name
-        elif 'IFU' in self.PYPELINE:
-            # Spat
-            name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None:
-                name += '----'
-            else:
-                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
-            # Slit
-            name += '-' + naming_model['slit']
-            name += '{:04d}'.format(self.SLITID)
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-            self.NAME = name
         else:
-            msgs.error("Bad PYPELINE")
+            msgs.error(f'{self.PYPELINE} is not an understood pipeline.')
 
     def copy(self):
         """

@@ -125,7 +125,13 @@ class DetectorContainer(datamodel.DataContainer):
         Returns:
             :obj:`list`: List of dictionaries to write to HDUs.
         """
-        return super()._bundle(ext='DETECTOR')
+        # Run the base-level method, which will force all the components of the
+        # datamodel into a single-row table.
+        d = super()._bundle(ext='DETECTOR')
+        # Add the name to the table metadata so that it gets added to the header
+        # of the detector extension
+        d[0]['DETECTOR'].meta['name'] = self.name
+        return d
 
     @property
     def name(self):

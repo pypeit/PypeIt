@@ -865,9 +865,10 @@ class Reduce:
                         cntr += 1
 
             # Save QA
-            basename = "{0:s}_{1:s}".format(self.basename, mode)
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
-                                    specobjs=sobjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
+            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
+                                    specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
@@ -1111,10 +1112,15 @@ class MultiSlitReduce(Reduce):
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask
-            # Find objects
             specobj_dict = {'SLITID': slit_spat,
-                            'DET': self.det, 'OBJTYPE': self.objtype,
+                            'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
+            if isinstance(self.det, tuple):
+                # Image is a detector mosaic
+                specobj_dict['DET'] = self.spectrograph.allowed_mosaics.index(self.det)+1
+                specobj_dict['from_mosaic'] = True
+            else:
+                specobj_dict['DET'] = self.det
 
             # This condition allows to not use a threshold to find objects in alignment boxes
             # because these boxes are smaller than normal slits and the stars are very bright,

@@ -2268,10 +2268,6 @@ class ReduxPar(ParSet):
         # Finish
         return cls(**kwargs)
 
-#    @staticmethod
-#    def valid_spectrographs():
-#        return available_spectrographs
-
     def validate(self):
         pass
 

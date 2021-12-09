@@ -794,7 +794,6 @@ class Spectrograph:
 
         return _subset
 
-
     @property
     def default_mosaic(self):
         """

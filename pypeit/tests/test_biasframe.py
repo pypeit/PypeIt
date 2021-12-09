@@ -11,18 +11,16 @@ import glob
 import numpy as np
 
 from pypeit.images import buildimage
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.images.mosaic import Mosaic
+from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import masterframe
-
-def data_root():
-    return os.path.join(os.path.dirname(__file__), 'files')
 
 # Init a few things
 shane_kast_blue = load_spectrograph('shane_kast_blue')
 frame_par = shane_kast_blue.default_pypeit_par()['calibrations']['biasframe']
-master_key = 'A_1_01'
-master_dir = data_root()
+master_key = 'A_1_DET01'
+master_dir = data_path('')
 
 @pytest.fixture
 @dev_suite_required
@@ -102,5 +100,28 @@ def test_process_multidet():
             and not np.array_equal(bias_img_det1.image, bias_img.image[1]) \
             and not np.array_equal(bias_img_det1.image, bias_img.image[2]), \
                 'Bad multi-detector processing'
+
+@dev_suite_required
+def test_mosaic_io():
+    outfile = data_path('test_bias_mosaic.fits')
+    if os.path.isfile(outfile):
+        os.remove(outfile)
+    files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'gemini_gmos',
+                                   'GN_HAM_R400_885', 'N20190205S024*.fits'))
+    files.sort()
+    spec = load_spectrograph('gemini_gmos_north_ham')
+    frame_par = spec.default_pypeit_par()['calibrations']['biasframe']
+
+    det = (1,2,3)
+    bias = buildimage.buildimage_fromlist(spec, det, frame_par, files)
+    bias.to_file(outfile)
+
+    _bias = buildimage.BiasImage.from_file(outfile)
+    assert isinstance(_bias.detector, Mosaic), 'Bad detector type'
+    assert _bias.detector.ndet == bias.detector.ndet, 'Bad number of detectors'
+    assert np.array_equal(_bias.detector.tform, bias.detector.tform), 'Bad number of detectors'
+
+    # Clean up
+    os.remove(outfile)
 
 

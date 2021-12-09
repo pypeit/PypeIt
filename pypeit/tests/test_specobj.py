@@ -13,11 +13,8 @@ from astropy.table import Table
 from astropy.io import fits
 
 from pypeit import specobj
+from pypeit.tests.tstutils import data_path
 from pypeit import msgs
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 
 def test_init():
@@ -106,3 +103,5 @@ def test_from_arrays():
     sobj = specobj.SpecObj.from_arrays('MultiSlit', wave, flux, ivar)
 
     assert sobj.OPT_WAVE[0] == 5000.
+
+

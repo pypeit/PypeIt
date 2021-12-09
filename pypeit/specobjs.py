@@ -22,7 +22,8 @@ from pypeit import specobj
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
-from pypeit.images import detector_container
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 from pypeit import slittrace
 from pypeit import utils
 
@@ -79,10 +80,20 @@ class SpecObjs:
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
         for hdu in hdul[1:]:
-            if 'DETECTOR' in hdu.name:
-                # TODO: BEWARE! Below requires a known format for the HDU name.
-                _det = detector_container.DetectorContainer.parse_name(hdu.name.split('-')[0])
-                detector_hdus[_det] = detector_container.DetectorContainer.from_hdu(hdu)
+            if 'DETECTOR' not in hdu.name:
+                continue
+            if 'DMODCLS' not in hdu.header:
+                msgs.error('HDUs with DETECTOR in the name must have DMODCLS in their header.')
+            try:
+                dmodcls = eval(hdu.header['DMODCLS'])
+            except:
+                msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
+            # NOTE: This requires that any "detector" datamodel class has
+            # parse_name and from_hdu methods.
+            # TODO: BEWARE! Below requires a known format for the HDU name.
+            _det = dmodcls.parse_name(hdu.name.split('-')[0])
+            detector_hdus[_det] = dmodcls.from_hdu(hdu)
+
         # Now the objects
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
@@ -111,7 +122,7 @@ class SpecObjs:
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
-        self.header = header if header is not None else None
+        self.header = header
         self.hdul = None
 
         # Turn off attributes from here
@@ -434,19 +445,27 @@ class SpecObjs:
 
     def add_sobj(self, sobj):
         """
-        Add one or more SpecObj
+        Append one or more SpecObj to the existing set.
 
         Args:
-            sobj (SpecObj or list or ndarray):  One or more SpecObj objects
-
+            sobj (:class:`~pypeit.specobj.SpecObj`, :class:`~pypeit.specobjs.SpecObjs`, :obj:`list`, `numpy.ndarray`_):
+                One or more SpecObj objects to append.  If a list or array, the
+                elements of these must be instances of
+                :class:`~pypeit.specobj.SpecObj`.
         """
         if isinstance(sobj, specobj.SpecObj):
             self.specobjs = np.append(self.specobjs, [sobj])
-        elif isinstance(sobj, (np.ndarray,list)):
-            self.specobjs = np.append(self.specobjs, sobj)
-        elif isinstance(sobj, SpecObjs):
+            return
+        if isinstance(sobj, SpecObjs):
+            # TODO: Is this loop necessary?  Why not np.append(self.specobjs, sobj.specobjs)?
             for isobj in sobj:
                 self.specobjs = np.append(self.specobjs, isobj)
+            return
+        if not isinstance(sobj, (np.ndarray, list)):
+            msgs.error(f'Unable to add {type(sobj)} objects to SpecObjs')
+        if any([not isinstance(s, specobj.SpecObj) for s in sobj]):
+            msgs.error('List or arrays of objects to add must all be of type SpecObj.')
+        self.specobjs = np.append(self.specobjs, sobj)
 
     def remove_sobj(self, index):
         """
@@ -524,7 +543,7 @@ class SpecObjs:
             # For all, a new table is constructed with slice of all columns
             return SpecObjs(specobjs=self.specobjs[item], header=self.header)
 
-    def __getattr__(self, k):
+    def __getattr__(self, attr):
         """
         Overloaded to generate an array of attribute 'k' from the
         :class:`pypeit.specobj.SpecObj` objects.
@@ -532,13 +551,15 @@ class SpecObjs:
         First attempts to grab data from the Summary table, then the list
         """
         if len(self.specobjs) == 0:
-            raise ValueError("Empty specobjs")
+            raise ValueError('SpecObjs is empty!')
+        if attr in self.__dict__:  # any normal attributes are handled normally
+            return self.__dict__[attr]
         try:
-            lst = [getattr(specobj, k) for specobj in self.specobjs]
-        except ValueError:
-            raise ValueError("Attribute does not exist")
-        # Recast as an array
-        return lst_to_array(lst)
+            getattr(self.specobjs[0], attr)
+        except NameError:
+            raise NameError(f'{attr} is not an attribute of SpecObjs or SpecObj.')
+
+        return lst_to_array([getattr(specobj, attr) for specobj in self.specobjs])
 
     # Printing
     def __repr__(self):
@@ -554,6 +575,14 @@ class SpecObjs:
 
     def __len__(self):
         return len(self.specobjs)
+
+    @property
+    def size(self):
+        return self.specobjs.size
+
+    @property
+    def shape(self):
+        return self.specobjs.shape
 
     def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
                       slitspatnum=None, history=None, debug=False):
@@ -571,8 +600,8 @@ class SpecObjs:
               the indicated detectors.  Useful for re-running on a subset of detectors
 
         """
-        if os.path.isfile(outfile) and (not overwrite):
-            msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
+        if os.path.isfile(outfile) and not overwrite:
+            msgs.warn(f'{outfile} exits. Set overwrite=True to overwrite it.')
             return
 
         # If the file exists and update_det (and slit_spat_num) is provided, use the existing header
@@ -592,6 +621,7 @@ class SpecObjs:
                     mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
             _specobjs = _specobjs[mask]
             # Add in the new
+            # TODO: Is the loop necessary? add_sobj can take many SpecObj objects.
             for sobj in self.specobjs:
                 _specobjs.add_sobj(sobj)
         else:
@@ -628,21 +658,22 @@ class SpecObjs:
                 continue
             # HDUs
             if debug:
-                import pdb; pdb.set_trace()
+                raise NotImplementedError('Debugging for developers only.')
+                #embed()
+                #exit()
             shdul = sobj.to_hdu()
-            if len(shdul) == 2:  # Detector?
+            if len(shdul) not in [1, 2]:
+                msgs.error('CODING ERROR: SpecObj datamodel changed.  to_hdu should return 1 or 2 '
+                           'HDUs.  If returned, the 2nd one should be the detector/mosaic.')
+            if len(shdul) == 2:
                 detector_hdus[sobj['DET']] = shdul[1]
                 shdu = [shdul[0]]
-            elif len(shdul) == 1:  # Detector?
-                shdu = shdul
             else:
-                msgs.error("Should not get here...")
-            # Check -- If sobj had only 1 array, the BinTableHDU test will fail
-            # TODO: We shouldn't have assert statements in production-level code.
-            assert len(shdu) == 1, 'Bad data model!!'
-            assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
-            #shdu[0].header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
-            #shdu[0].header['DMODVER'] = (self.version, 'Datamodel version')
+                shdu = shdul
+
+            if len(shdu) != 1 or not isinstance(shdu[0], fits.hdu.table.BinTableHDU):
+                msgs.error('CODING ERROR: SpecObj datamodel changed.')
+
             # Name
             shdu[0].name = sobj.NAME
             # Extension
@@ -655,8 +686,7 @@ class SpecObjs:
 
         # Deal with Detectors
         for key, item in detector_hdus.items():
-            # TODO - Add EXT to the primary header for these??
-            prefix = detector_container.DetectorContainer.get_name(key)
+            prefix = item.header['name']
             # Name
             if prefix not in item.name:  # In case we are re-loading
                 item.name = f'{prefix}-{item.name}'
@@ -672,7 +702,9 @@ class SpecObjs:
         # Finish
         hdulist = fits.HDUList(hdus)
         if debug:
-            embed()
+            raise NotImplementedError('Debugging for developers only.')
+             #embed()
+             #exit()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return

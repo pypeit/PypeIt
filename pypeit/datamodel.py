@@ -964,10 +964,9 @@ class DataContainer:
                 tables. This is meant to invert the use of
                 ``transpose_arrays`` in :func:`_bound`.
             hdu_prefix (:obj:`str`, optional):
-                Only parse HDUs with extension names matched to this
-                prefix. If None, :attr:`hdu_prefix` is used. If the
-                latter is also None, all HDUs are parsed. See
-                :func:`pypeit.io.hdu_iter_by_ext`.
+                Only parse HDUs with extension names matched to this prefix. If
+                None, :attr:`ext` is used. If the latter is also None, all HDUs
+                are parsed. See :func:`pypeit.io.hdu_iter_by_ext`.
             allow_subclasses (:obj:`bool`, optional):
                 Allow subclasses of the calling class to successfully pass the
                 check on whether or not it can parse the provided HDUs.  That
@@ -1432,11 +1431,6 @@ class DataContainer:
             allow_subclasses (:obj:`bool`, optional):
                 Passed to :func:`_parse`.
         """
-        # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
-        # `cls._parse`, because this will call the `__init__` method of the
-        # derived class and we need to use the `__init__` of the base class
-        # instead.  Instead, `d` is passed to `cls.from_dict`, which initiates
-        # everything correctly.
         d, dm_version_passed, dm_type_passed, parsed_hdus \
                 = cls._parse(hdu, ext=ext, ext_pseudo=ext_pseudo, 
                              hdu_prefix=hdu_prefix,
@@ -1451,6 +1445,11 @@ class DataContainer:
                + ' does not match version used to write your HDU(s)!')
 
         # Instantiate
+        # NOTE: We can't use `cls(d)`, where `d` is the dictionary returned by
+        # `cls._parse`, because this will call the `__init__` method of the
+        # derived class and we need to use the `__init__` of the base class
+        # instead.  Instead, `d` is passed to `cls.from_dict`, which initiates
+        # everything correctly.
         return cls.from_dict(d=d)
 
     @classmethod
