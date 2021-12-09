@@ -33,7 +33,7 @@ class OneSpec(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.0'
+    version = '1.0.1'
 
     datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang), weighted by pixel contributions'),
                  'wave_grid_mid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang) evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity'),
