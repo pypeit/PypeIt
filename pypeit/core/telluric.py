@@ -645,10 +645,7 @@ def general_spec_reader(specfile, ret_flam=False):
         spec = onespec.OneSpec.from_file(specfile)
         # Unpack
         wave = spec.wave
-        try:
-            wave_grid_mid = spec.wave_grid_mid
-        except KeyError:
-            wave_grid_mid = None
+        wave_grid_mid = spec.wave_grid_mid # is None if datamodel for this is also None
         counts = spec.flux
         counts_ivar = spec.ivar
         counts_gpm = spec.mask.astype(bool)
