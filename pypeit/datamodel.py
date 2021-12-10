@@ -1157,7 +1157,7 @@ class DataContainer:
                     continue
                 for t in types:
 #                    if np.can_cast(_d[key], t, casting='equiv'):
-                    if np.can_cast(_d[key], t, casting='safe'):
+                    if np.can_cast(_d[key], t, casting='same_kind'):
                         _d[key] = t(_d[key])
                         break
 
