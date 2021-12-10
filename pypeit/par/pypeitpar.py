@@ -4768,7 +4768,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
+    def __init__(self, tolerance=None, archive_root=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4799,10 +4799,15 @@ class Collate1DPar(ParSet):
         descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
                            "but will not flux, coadd or archive."
 
+        # Forces coadding using counts instead of flux
+        defaults['ignore_flux'] = False
+        dtypes['ignore_flux'] = bool
+        descr['ignore_flux'] = "If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
+
         # Enables a flux calibration after coadding
         defaults['flux'] = False
-        dtypes['dry_run'] = bool
-        descr['dry_run'] = "If set, the script will flux calibrate after coadding."
+        dtypes['flux'] = bool
+        descr['flux'] = "If set, the script will flux calibrate using archived sensfuncs before coadding."
 
         # Directory for output files
         defaults['outdir'] = os.getcwd()
@@ -4846,7 +4851,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'flux', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

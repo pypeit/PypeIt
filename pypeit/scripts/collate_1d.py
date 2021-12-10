@@ -427,11 +427,30 @@ def coadd(par, source):
         source (`obj`:SourceObject): The SourceObject with information on
             which files and spectra to coadd.
     """
+    # Set destination file for coadding
     par['coadd1d']['coaddfile'] = source.coaddfile
-    par['coadd1d']['flux_value'] = par['collate1d']['flux']
-    spectrograph = load_spectrograph(par['rdx']['spectrograph'])
+    
+    # Determine if we should coadd flux calibrated data
+    flux_key = par['coadd1d']['ex_value'] + "_FLAM"
+
+    if par['collate1d']['ignore_flux'] is True:
+        # Use non fluxed if asked to
+        msgs.info(f"Ignoring flux for {source.coaddfile}.")
+        par['coadd1d']['flux_value'] = False
+
+    elif False in [x[flux_key] is not None for x in source.spec_obj_list]:               
+        # Do not use fluxed data if one or more objects have not been flux calibrated 
+        msgs.info(f"Not all spec1ds for {source.coaddfile} are flux calibrated, using counts instead.")
+        par['coadd1d']['flux_value'] = False
+    
+    else:
+        # Use fluxed data
+        msgs.info(f"Using flux for {source.coaddfile}.")
+        par['coadd1d']['flux_value'] = True
+
 
     # Instantiate
+    spectrograph = load_spectrograph(par['rdx']['spectrograph'])
     coAdd1d = coadd1d.CoAdd1D.get_instance(source.spec1d_file_list,
                                            [x.NAME for x in source.spec_obj_list],
                                            spectrograph=spectrograph, par=par['coadd1d'])
@@ -640,6 +659,9 @@ def build_parameters(args):
     if args.dry_run:
         params['collate1d']['dry_run'] = True
 
+    if args.ignore_flux:
+        params['collate1d']['ignore_flux'] = True
+
     if args.flux:
         params['collate1d']['flux'] = True
 
@@ -783,7 +805,8 @@ class Collate1D(scriptbase.ScriptBase):
         parser.add_argument('--match', type=str, choices=blank_par.options['match_using'],
                             help=blank_par.descr['match_using'])
         parser.add_argument('--dry_run', action='store_true', help=blank_par.descr['dry_run'])
-        parser.add_argument('--flux', default=False, action = 'store_true')
+        parser.add_argument('--ignore_flux', default=False, action='store_true', help=blank_par.descr['ignore_flux'])
+        parser.add_argument('--flux', default=False, action = 'store_true', help=blank_par.descr['flux'])
         parser.add_argument('--archive_dir', type=str, help=blank_par.descr['archive_root'])
         parser.add_argument('--pypeit_file', type=str, help=blank_par.descr['pypeit_file'])
         parser.add_argument('--exclude_slit_bm', type=str, nargs='*',
