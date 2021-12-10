@@ -1,10 +1,10 @@
-Version: 1.1.1
+Version: 1.1.4
 
 =====================  =================  ==========  ===========================================================================================================================
 Obj Key                Obj Type           Array Type  Description                                                                                                                                                                         
 =====================  =================  ==========  ===========================================================================================================================
 ``spat_id``            ndarray            int         Slit ID number from SPAT measured at half way point.
-``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`deimos`).
+``maskdef_id``         ndarray            int         Slit ID number from slitmask design (implemented only for :doc:`deimos` and :doc:`mosfire`).
 ``left_init``          ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.
 ``right_init``         ndarray            float       Spatial coordinates (pixel indices) of all right edges, one per slit.
 ``left_tweak``         ndarray            float       Spatial coordinates (pixel indices) of all left edges, one per slit.  These traces have been adjusted by the flat-field.
@@ -16,7 +16,7 @@ Obj Key                Obj Type           Array Type  Description
 ``specmax``            ndarray            float       Maximum spectral position allowed for each slit/order.
 =====================  =================  ==========  ===========================================================================================================================
 
-Additional `astropy.io.fits.BinTableHDU`_ for :doc:`deimos` reduction.
+Additional `astropy.io.fits.BinTableHDU`_ for :doc:`deimos` and :doc:`mosfire` reduction.
 
 =====================  =================  ==========  =================================================================================
 Obj Key                Obj Type           Array Type  Description
@@ -27,8 +27,8 @@ Obj Key                Obj Type           Array Type  Description
 ``TRACERPIX``          ndarray            float       Spatial pixel coordinate for right edge.
 ``SPAT_ID``            ndarray            int         Slit ID number from SPAT measured at half way point.
 ``SLITID``             ndarray            int         Slit ID Number (``maskdef_id``).
-``SLITLOPT``           ndarray            float       Left edge of the slit in pixel from optical model before x-correlation.
-``SLITROPT``           ndarray            float       Right edge of the slit in pixel from optical model before x-correlation.
+``SLITLOPT``           ndarray            float       Left edge of the slit in pixel from slitmask design before x-correlation.
+``SLITROPT``           ndarray            float       Right edge of the slit in pixel from slitmask design before x-correlation.
 ``SLITRA``             ndarray            float       Right ascension of the slit center (deg).
 ``SLITDEC``            ndarray            float       Declination of the slit center (deg).
 ``SLITLEN``            ndarray            float       Slit length (arcsec).
@@ -39,6 +39,8 @@ Obj Key                Obj Type           Array Type  Description
 ``OBJRA``              ndarray            float       Right ascension of the object (deg).
 ``OBJDEC``             ndarray            float       Declination of the object (deg).
 ``OBJNAME``            ndarray            str         Object name assigned by the observer.
+``OBJMAG``             ndarray            float       Object magnitude provided by the observer.
+``OBJMAG_BAND``        ndarray            str         Band of the magnitude provided by the observer.
 ``OBJ_TOPDIST``        ndarray            float       Projected position of the object w.r.t. the top edge of the slit (arcsec).
 ``OBJ_BOTDIST``        ndarray            float       Projected position of the object w.r.t. the bottom edge of the slit (arcsec).
 =====================  =================  ==========  =================================================================================

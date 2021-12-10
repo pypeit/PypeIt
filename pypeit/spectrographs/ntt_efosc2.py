@@ -24,6 +24,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
     ndet = 1  # Because each detector is written to a separate FITS file
     telescope = telescopes.NTTTelescopePar()
     name = 'ntt_efosc2'
+    header_name = 'EFOSC'
     camera = 'EFOSC2'
     supported = True
     comment = 'The ESO Faint Object Spectrograph and Camera version 2'
@@ -67,6 +68,7 @@ class NTTEFOSC2Spectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['dispname'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 NAME', required_ftypes=['science', 'standard'])
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     
     def compound_meta(self, headarr, meta_key):

@@ -138,6 +138,7 @@ def define_additional_meta(nlamps=20):
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
                        'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at observation time'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
+                       'instrument': dict(dtype=str, comment='Header supplied instrument name'),
                        'mode': dict(dtype=str, comment='Observing mode'),
                        'object': dict(dtype=str, comment='Alternative object name (cf. target)'),
                        'obstime': dict(dtype=str, comment='Observation time'),

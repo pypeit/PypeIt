@@ -400,7 +400,7 @@ class Reduce:
 
         return self.global_sky, self.sobjs_obj, self.skymask
 
-    def prepare_extraction(self):
+    def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
         """
         # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
@@ -430,6 +430,10 @@ class Reduce:
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
+        # Set the initial and global sky
+        self.initial_sky = global_sky.copy()
+        self.global_sky = global_sky
+
     def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
         """
         Primary code flow for PypeIt reductions
@@ -458,7 +462,7 @@ class Reduce:
 
         """
         # Start by preparing some masks and the wavelength image, ready for extraction
-        self.prepare_extraction()
+        self.prepare_extraction(global_sky)
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask, usersky = self.load_skyregions(skymask)
@@ -472,8 +476,6 @@ class Reduce:
 
         self.sobjs_obj = sobjs_obj
         self.skymask = skymask
-        self.global_sky = global_sky
-        self.initial_sky = global_sky.copy()
         self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?

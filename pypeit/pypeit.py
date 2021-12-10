@@ -582,11 +582,17 @@ class PypeIt:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # get the dither offset if available
+            if self.par['reduce']['slitmask']['use_dither_offset']:
+                dither = self.spectrograph.parse_dither_pattern([self.fitstbl.frame_paths(frames[0])])
+                dither_off = dither[2][0] if dither is not None else None
+            else:
+                dither_off = None
             calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['calibrations']['slitedges']['det_buffer'],
-                                                                      self.par['reduce']['slitmask'])
+                                                                      self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
-            calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0])
+            calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0], self.spectrograph.list_detectors())
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['reduce']['findobj']['find_fwhm'],
@@ -860,14 +866,13 @@ class PypeIt:
                                                 det=det, binning=self.binning,
                                                 basename=self.basename)
 
-        # Prepare some masks and the tilts
-        self.redux.prepare_extraction()
-
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
                 global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
                 obstime=self.obstime)
         else:
+            # Although exrtaction is not performed, still need to prepare some masks and the tilts
+            self.redux.prepare_extraction(global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = self.redux.initial_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)

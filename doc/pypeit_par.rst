@@ -318,6 +318,7 @@ Key                          Type              Options                          
 ``det_min_spec_length``      int, float        ..                                           0.33            The minimum spectral length (as a fraction of the detector size) of a trace determined by direct measurements of the detector data (as opposed to what should be included in any modeling approach; see fit_min_spec_length).                                                                                                                                                                                                                                                                                                                                                                         
 ``edge_detect_clip``         int, float        ..                                           ..              Sigma clipping level for peaks detected in the collapsed, Sobel-filtered significance image.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ``edge_thresh``              int, float        ..                                           20.0            Threshold for finding edges in the Sobel-filtered significance image.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``exclude_regions``          list, str         ..                                           ..              User-defined regions to exclude from the slit tracing. To set this parameter, the text should be a comma separated list of pixel ranges (in the x direction) to be excluded and the detector number. For example, the following string 1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 and between 300 and 400.                                                                                                                                                                                                                                                           
 ``filt_iter``                int               ..                                           0               Number of median-filtering iterations to perform on sqrt(trace) image before applying to Sobel filter to detect slit/order edges.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``fit_function``             str               ``polynomial``, ``legendre``, ``chebyshev``  ``legendre``    Function fit to edge measurements.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``fit_maxdev``               int, float        ..                                           5.0             Maximum deviation between the fitted and measured edge position for rejection in spatial pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
@@ -417,7 +418,7 @@ Key                   Type                       Options                        
 ``func``              str                        ..                                                                                                      ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``fwhm``              int, float                 ..                                                                                                      4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``fwhm_fromlines``    bool                       ..                                                                                                      False             Estimate spectral resolution in each slit using the arc lines. If True, the estimated FWHM will override ``fwhm`` only in the determination of the wavelength solution (i.e. not in WaveTilts).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use None for no calibration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use ``None`` for no calibration. Choose ``use_header`` to use the list of lamps recorded in the header of the arc frames (this is currently available only for Keck DEIMOS).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``match_toler``       float                      ..                                                                                                      2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list.  This parameter is also used as the matching tolerance in pixels for a line reidentification.  A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                                                                                                                                                                                             
 ``method``            str                        ``simple``, ``semi-brute``, ``basic``, ``holy-grail``, ``identify``, ``reidentify``, ``full_template``  ``holy-grail``    Method to use to fit the individual arc lines.  Note that most of the available methods should not be used; they are unstable and require significant parameter tweaking to succeed.  You should useeither 'holy-grail' or 'reidentify': 'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations.  It is fully automated.  When it works, it works well; however, it can fail catastrophically.  Instead, 'reidentify' is the preferred method.  It requires an archived wavelength solution for your specific instrument/grating combination as a reference.  This is used to anchor the wavelength solution for the data being reduced.  All options are: simple, semi-brute, basic, holy-grail, identify, reidentify, full_template
 ``n_final``           int, float, list, ndarray  ..                                                                                                      4                 Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -430,12 +431,13 @@ Key                   Type                       Options                        
 ``reference``         str                        ``arc``, ``sky``, ``pixel``                                                                             ``arc``           Perform wavelength calibration with an arc, sky frame.  Use 'pixel' for no wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 ``refframe``          str                        ``observed``, ``heliocentric``, ``barycentric``                                                         ``heliocentric``  Frame of reference for the wavelength calibration.  Options are: observed, heliocentric, barycentric                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``reid_arxiv``        str                        ..                                                                                                      ..                Name of the archival wavelength solution file that will be used for the wavelength reidentification.  Only used if ``method`` is 'reidentify'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``rms_threshold``     float, list, ndarray       ..                                                                                                      0.15              Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``rms_threshold``     float, list, ndarray       ..                                                                                                      0.15              Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit. Only used if ``method`` is either 'holy-grail' or 'reidentify'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 ``sigdetect``         int, float, list, ndarray  ..                                                                                                      5.0               Sigma threshold above fluctuations for arc-line detection.  Arcs are continuum subtracted and the fluctuations are computed after continuum subtraction.  This can be a single number or a vector (list or numpy array) that provides the detection threshold for each slit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 ``sigrej_final``      float                      ..                                                                                                      3.0               Number of sigma for rejection for the final guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``sigrej_first``      float                      ..                                                                                                      2.0               Number of sigma for rejection for the first guess to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 ``use_instr_flag``    bool                       ..                                                                                                      False             If True, restrict to lines matching the instrument.  WARNING: This is only implemented for shane_kast_red + HolyGrail.  Do not use it unless you really know what you are doing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``wv_cen``            float                      ..                                                                                                      0.0               Central wavelength. Backwards compatibility with basic and semi-brute algorithms.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``wvrng_arxiv``       list                       ..                                                                                                      ..                Cut the arxiv template down to this specified wavelength range [min,max]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ====================  =========================  ======================================================================================================  ================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -629,6 +631,7 @@ Key                   Type                                               Options
 ``boxcar_radius``     int, float                                         ..       1.5                              Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                       
 ``manual``            :class:`pypeit.par.pypeitpar.ManualExtractionPar`  ..       `ManualExtractionPar Keywords`_  Parameters for manual extraction                                                                                                                                                                                                                                                             
 ``model_full_slit``   bool                                               ..       False                            If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits
+``skip_extraction``   bool                                               ..       False                            Do not perform an object extraction                                                                                                                                                                                                                                                          
 ``skip_optimal``      bool                                               ..       False                            Perform boxcar extraction only (i.e. skip Optimal and local skysub)                                                                                                                                                                                                                          
 ``sn_gauss``          int, float                                         ..       4.0                              S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                             
 ``std_prof_nsigma``   float                                              ..       30.0                             prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                           
@@ -711,17 +714,18 @@ SlitMaskPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.SlitMaskPar`
 
-========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
-Key                       Type        Options  Default  Description                                                                                                                                                                                                                                                                      
-========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
-``assign_obj``            bool        ..       False    If SlitMask object was generated, assign RA,DEC,name to detected objects                                                                                                                                                                                                         
-``bright_maskdef_id``     int         ..       ..       `maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a slit containing a bright object that will be used to compute the slitmask offset. This parameter is optional and is ignored if ``slitmask_offset`` is provided.                                     
-``extract_missing_objs``  bool        ..       False    Force extraction of undetected objects at the location expected from the slitmask design. PypeIt will try to determine the FWHM from the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). If the FWHM cannot be determined, ``find_fwhm`` will be assumed.
-``nsig_thrshd``           int, float  ..       50.0     Objects detected above this significance threshold will be used to compute the slitmask offset. This is the default behaviour unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.                                                                      
-``obj_toler``             float       ..       1.0      If slitmask design information is provided, and slit matching is performed (``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides the desired tolerance (arcsec) to match sources to targeted objects                                                          
-``slitmask_offset``       int, float  ..       ..       User-provided slitmask offset (pixels) from the position expected by the slitmask design. This is optional, and if set PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                             
-``use_alignbox``          bool        ..       False    Use stars in alignment boxes to compute the slitmask offset. If this is set to ``True`` PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                                                            
-========================  ==========  =======  =======  =================================================================================================================================================================================================================================================================================
+========================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================
+Key                       Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                        
+========================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================
+``assign_obj``            bool        ..       False    If SlitMask object was generated, assign RA,DEC,name to detected objects                                                                                                                                                                                                                                                                                           
+``bright_maskdef_id``     int         ..       ..       `maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS and MOSFIRE slitmask design, respectively) of a slit containing a bright object that will be used to compute the slitmask offset. This parameter is optional and is ignored if ``slitmask_offset`` is provided.                                                                           
+``extract_missing_objs``  bool        ..       False    Force extraction of undetected objects at the location expected from the slitmask design. PypeIt will try to determine the FWHM from the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). If the FWHM cannot be determined, ``find_fwhm`` will be assumed.                                                                                  
+``nsig_thrshd``           int, float  ..       50.0     Objects detected above this significance threshold will be used to compute the slitmask offset. This is the default behaviour for DEIMOS  unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.                                                                                                                                            
+``obj_toler``             int, float  ..       1.0      If slitmask design information is provided, and slit matching is performed (``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides the desired tolerance (arcsec) to match sources to targeted objects                                                                                                                                            
+``slitmask_offset``       int, float  ..       ..       User-provided slitmask offset (pixels) from the position expected by the slitmask design. This is optional, and if set PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`.                                                                                                                                                              
+``use_alignbox``          bool        ..       False    Use stars in alignment boxes to compute the slitmask offset. If this is set to ``True`` PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`                                                                                                                                                                                              
+``use_dither_offset``     bool        ..       False    Use the dither offset recorded in the header of science frames as the value of the slitmask offset. This is currently only available for Keck MOSFIRE reduction and it is set as the default for this instrument. If set PypeIt will NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided. 
+========================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -1815,6 +1819,9 @@ Alterations to the default parameters are::
           objlim = 1.5
           use_biasimage = False
           noise_floor = 0.01
+  [reduce]
+      [[findobj]]
+          find_fwhm = 10.0
   [flexure]
       spec_method = boxcar
   [sensfunc]
@@ -1984,7 +1991,7 @@ Alterations to the default parameters are::
           no_poly = True
           joint_fit = True
       [[extraction]]
-          skip_optimal = True
+          skip_extraction = True
   [flexure]
       spec_method = slitcen
 
@@ -2252,6 +2259,98 @@ Alterations to the default parameters are::
   [flexure]
       spec_method = boxcar
 
+KECK LRISr (``keck_lris_red_mark4``)
+------------------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = keck_lris_red_mark4
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          [[[process]]]
+              combine = median
+              use_biasimage = False
+              shot_noise = False
+              use_pixelflat = False
+              use_illumflat = False
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              mask_cr = True
+              use_pixelflat = False
+              use_illumflat = False
+      [[arcframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[tiltframe]]
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[pixelflatframe]]
+          exprng = None, 60
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[pinholeframe]]
+          exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[traceframe]]
+          exprng = None, 60
+          [[[process]]]
+              use_pixelflat = False
+              use_illumflat = False
+      [[illumflatframe]]
+          [[[process]]]
+              satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[skyframe]]
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+      [[standardframe]]
+          exprng = None, 30
+          [[[process]]]
+              mask_cr = True
+              noise_floor = 0.01
+              spat_flexure_correct = True
+      [[wavelengths]]
+          lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
+          sigdetect = 10.0
+          rms_threshold = 0.2
+      [[slitedges]]
+          fit_order = 3
+          sync_center = gap
+          minimum_slit_length = 4.0
+          minimum_slit_length_sci = 6
+      [[tilts]]
+          tracethresh = 25
+          maxdev_tracefit = 1.0
+          spat_order = 4
+          spec_order = 7
+          maxdev2d = 1.0
+          sigrej2d = 5.0
+  [scienceframe]
+      exprng = 60, None
+      [[process]]
+          mask_cr = True
+          sigclip = 5.0
+          objlim = 5.0
+          noise_floor = 0.01
+          spat_flexure_correct = True
+  [reduce]
+      [[skysub]]
+          bspline_spacing = 0.8
+  [flexure]
+      spec_method = boxcar
+
 KECK LRISr (``keck_lris_red_orig``)
 -----------------------------------
 Alterations to the default parameters are::
@@ -2360,7 +2459,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 20, None
+          exprng = 1, None
           [[[process]]]
               mask_cr = True
               use_biasimage = False
@@ -2368,7 +2467,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[arcframe]]
-          exprng = 20, None
+          exprng = 1, None
           [[[process]]]
               use_biasimage = False
               use_overscan = False
