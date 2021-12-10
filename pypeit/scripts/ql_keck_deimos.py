@@ -199,10 +199,12 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
     _ = ps.build_fitstbl()
 
     # Remove any extraneous science files in the folder
-    gd_files = (ps.fitstbl['filename'] == os.path.basename(science_file)) | (
-        ps.fitstbl['frametype'] != 'science')
-    ps.fitstbl.table = ps.fitstbl.table[gd_files]
-    ps.file_list = np.array(ps.file_list)[gd_files].tolist()
+    gd_files = (ps.usrdata['filename'] == os.path.basename(science_file)) | (
+        ps.usrdata['frametype'] != 'science')
+    # Update
+    #ps.fitstbl.table = ps.fitstbl.table[gd_files]
+    #ps.file_list = np.array(ps.file_list)[gd_files].tolist()
+    ps.usrdata = ps.usrdata[gd_files]
 
     # Generate PypeIt file
     # TODO -- Generalize this with metadata.write_pypeit()
@@ -224,6 +226,7 @@ def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
         ps.user_cfg.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
     else:
         raise NotImplementedError('NOT READY:  118 of ql_deimos')
+
     # Do it
     make_pypeit_file(science_pypeit,
                      script_Utils.spectrograph.name, [],

@@ -428,7 +428,13 @@ def _parse_setup_lines(lines):
 
     """
     setups = []
-    ystr = '\n'.join(lines.tolist())
+    # Kludge for backwards compatability
+    line_list = lines.tolist()
+    for ss, line in enumerate(line_list):
+        if 'Setup' in line and ':' not in line:
+            line_list[ss] = line+':'
+    # Slurp
+    ystr = '\n'.join(line_list)
     sdict = yaml.safe_load(ystr)
     for key in sdict:
         if 'Setup' in key:
