@@ -76,6 +76,21 @@ of sunset/sunrise.
 WARNING: Internal/dome flats are likely to be too faint in the
 very blue.
 
+.. _400-3400-grism:
+
+
+400/3400 grism
+++++++++++++++
+
+If you are using this grism, you are likely aware there are
+strong ghosts.  We have found these complicate edge tracing
+for dome flats (sky flats appear ok).  Therefore, you may
+need to increase the `edge_thresh` parameter to 
+40 for successful performance, i.e.::
+
+    [calibrations]
+        [[slitedges]]
+            edge_thresh = 40
 
 .. _keck-lris-red:
 
