@@ -24,7 +24,8 @@ class DetectorContainer(datamodel.DataContainer):
     # Force the full datamodel into a single row of an astropy Table
     one_row_table = True
     # Be careful.  None of these can match default FITS header cards
-    datamodel = {'dataext': dict(otype=int, descr='Index of fits extension containing data'),
+    datamodel = {'dataext': dict(otype=(int, np.integer),
+                                 descr='Index of fits extension containing data'),
                  'specaxis': dict(otype=int,
                                   descr='Spectra are dispersed along this axis. Allowed '
                                         'values are 0 (first dimension for a numpy array '
