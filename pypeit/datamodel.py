@@ -1216,14 +1216,14 @@ class DataContainer:
             return
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
-            raise TypeError('Incorrect data type for {0}!  '.format(item) +
-                            'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
+            raise TypeError(f'Cannot assign object of type {type(value)} to {item}.\n'
+                            f"Allowed type(s) are: {self.datamodel[item]['otype']}")
         # Array?
         if 'atype' in self.datamodel[item].keys():
             if not isinstance(value.flat[0], self.datamodel[item]['atype']):
-                raise TypeError('Wrong data type for array: {}\n'.format(item)
-                                + 'Allowed type(s) for the array are: {}'.format(
-                                    self.datamodel[item]['atype']))
+                raise TypeError(f'Cannot assign array with data type {type(value.flat[0])} to '
+                                f'{item} array.\nAllowed type(s) for the array are: '
+                                f"{self.datamodel[item]['atype']}")
         # Set
         self.__dict__[item] = value
 
