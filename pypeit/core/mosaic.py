@@ -98,7 +98,7 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
         buffer (:obj:`int`, optional):
             An added buffer in each dimension that frames the mosaic
             image and should not have any image data.  Buffer pixels are
-            set to 0.  Buffer must be positive.
+            set to 0.  Buffer must be non-negative.
         inplace (:obj:`bool`, optional):
             If True, alter the provided ``tforms`` in-place.  Otherwise,
             the returned transforms are new arrays.
@@ -111,30 +111,37 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
     # Use the number of transforms to set the number of images
     nimg = len(tforms)
 
-    # Get a box the bounds the transformed coordiantes of all the mosaic
+    # Get a box that bounds the transformed coordinates of all the mosaic
     # images.
-    coo = np.array([[0,0], [shape[0],0], [shape[0], shape[1]], [0, shape[1]]]).astype(float)
+    coo = np.array([[-0.5,-0.5], [shape[0]+0.5,-0.5], [shape[0]+0.5, shape[1]+0.5],
+                    [-0.5, shape[1]+0.5]]).astype(float)
     box = None
     for i in range(nimg):
         tc = transform.coordinate_transform_2d(coo, tforms[i], inverse=False)
         if box is None:
             box = np.vstack((np.floor(np.amin(tc, axis=0)), np.ceil(np.amax(tc, axis=0))))
             continue
-        box[0] = np.floor(np.amin(np.vstack((tc,box[0])), axis=0))
-        box[1] = np.ceil(np.amax(np.vstack((tc,box[1])), axis=0))
+        box[0] = np.amin(np.vstack((tc,box[0])), axis=0)
+        box[1] = np.amax(np.vstack((tc,box[1])), axis=0)
 
     # Set the mosaic image shape
-    _buffer = 0 if buffer is None else buffer
-    if _buffer < 0:
+    if buffer < 0:
         msgs.error('Mosaic image buffer must be >= 0.')
-    mosaic_shape = tuple(*np.ceil(np.diff(box, axis=0) + 2*_buffer).astype(int))
+    mosaic_shape = tuple(*np.ceil(np.diff(box, axis=0) + 2*buffer - 1).astype(int))
 
-    # Adjust the image transformations to be within the limits of the
-    # mosaice image
+    # Adjust the image transformations to be within the limits of the mosaic
+    # image.
+
+    # NOTE: There's a subtlety in this as follows.  In order to reproduce the
+    # mosaicing results for Gemini GMOS from DRAGONS (see
+    # pypeit/tests/test_mosaic.py), the offsets below need to be whole pixels.
+    # But this leads to an asymmetry in the transforms such that one can't
+    # recover the input image frame by inversing the transform.  For now, I've
+    # chosen the approach that gets closest to the DRAGONS result.
     _tforms = tforms if inplace else [None]*nimg
     for i in range(nimg):
-        _tforms[i] = transform.affine_transform_series([dict(translation=(-(box[0,0]-_buffer),
-                                                                          -(box[0,1]-_buffer)))
+        _tforms[i] = transform.affine_transform_series([dict(translation=(-(box[0,0]-buffer), #-0.5,
+                                                                          -(box[0,1]-buffer))) #-0.5))
                                                        ]) @ tforms[i]
     return mosaic_shape, _tforms
 
@@ -162,6 +169,8 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         simply by applying the coordinate transform to each variance image with
         the same order as used for the input image, and then combining those
         variances as necessary in overlap regions.
+
+        Tests show that this approach is also not invertable.  I.e., iteratively transforming the image back and forth between the native and mosaic frames lead to image drifts.
 
     Args:
         imgs (:obj:`list`, `numpy.ndarray`_):

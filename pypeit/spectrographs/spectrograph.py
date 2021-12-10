@@ -748,6 +748,31 @@ class Spectrograph:
             msgs.error(f'{det} is not a valid detector for {self.name}.')
         return DetectorContainer.get_name(det)
 
+    def get_det_id(self, det):
+        """
+        Return an identifying index for the detector or mosaic.
+
+        Args:
+            det (:obj:`int`, :obj:`tuple`):
+                The 1-indexed detector number(s).  If a tuple, it must include
+                detectors designated as a viable mosaic for
+                :attr:`spectrograph`; see
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
+
+        Returns:
+            :obj:`int`: Unique index for the detector or mosaic.
+        """
+        if isinstance(det, tuple):
+            # The "detector" is a mosaic.
+            if det not in self.allowed_mosaics:
+                msgs.error(f'{det} is not an allowed mosaic for {self.name}.')
+            return self.allowed_mosaics.index(det)+1
+
+        # Single detector
+        if det <= 0 or det > self.ndet:
+            msgs.error(f'{det} is not a valid detector for {self.name}.')
+        return det
+
     def select_detectors(self, subset=None):
         """
         Vet and return a set of valid detectors or detector mosaics for this

@@ -951,6 +951,7 @@ class Reduce:
             bitmask_in = None
 
         img_gpm = self.sciImg.select_flag(invert=True)
+        detname = self.spectrograph.get_det_name(self.det)
 
         if attr == 'global':
             # global sky subtraction
@@ -962,7 +963,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'global_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -976,7 +977,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'local_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -987,7 +988,7 @@ class Reduce:
                     and self.sciImg.fullmask is not None:
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'sky_resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -999,7 +1000,7 @@ class Reduce:
                 # full model residual map
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -1381,6 +1382,7 @@ class EchelleReduce(Reduce):
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
+        # TODO: Not sure how this fairs if self.det is a tuple...
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
                         'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 

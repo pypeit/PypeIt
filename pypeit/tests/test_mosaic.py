@@ -97,6 +97,14 @@ def test_gemini_gmos():
 
         fits.HDUList([fits.PrimaryHDU(data=mosaic_dragons.astype(np.uint16))]
                      ).writeto(dragons_file, overwrite=True)
+
+    It's worth noting that this reproduces the DRAGONS result exactly
+    *specifically for this case*, but that's not true for some of the other
+    setups.  E.g., for some reason, the red chip in the Gemini South data sets
+    in the dev-suite is slightly off; the mosaic images are within ~1e-10 when
+    the order is >0, but there's different behavior in the nearest-grid-point
+    result leading to significant differences.  We're using exactly the same
+    transformations, so I don't understand why this should happen.
     """
     dragons_file = data_path('GN_HAM_R400_885_N20190205S0035_dragons_mosaic.fits')
     file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos', 'GN_HAM_R400_885',
@@ -107,27 +115,21 @@ def test_gemini_gmos():
     msc = (1,2,3)
     msc_par = spec.get_mosaic_par(msc, hdu=fits.open(file))
 
-#    expected_shape, shift, rot = spec.get_mosaic_par(msc)
     # Load the images and trim and orient them
     imgs = [None]*spec.ndet
-#    tforms = [None]*spec.ndet
     for i, det in enumerate(msc):
         imgs[i] = RawImage(file, spec, det)
         imgs[i].trim()
         imgs[i].orient()
         imgs[i] = imgs[i].image[0]
-#        binning = tuple(int(b) for b in imgs[det].detector.binning.split(','))
-#        shape = tuple(n // b for n, b in zip(expected_shape, binning))
-#        tforms[det] = mosaic.build_image_mosaic_transform(shape, shift[det], rot[det], binning)
-
-#    input_imgs = [img.image for img in imgs]
-#    mosaic_pypeit, mosaic_ivar, mosaic_npix = mosaic.build_image_mosaic(input_imgs, tforms)
 
     mosaic_pypeit, mosaic_ivar, mosaic_npix, _ = mosaic.build_image_mosaic(imgs, msc_par.tform)
 
     _mosaic_pypeit = np.fliplr(mosaic_pypeit.T).astype(np.uint16)
     mosaic_dragons = fits.open(dragons_file)[0].data
-    assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:-1,1:-1]), 'Bad mosaic'
+
+    assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:,:-2]), 'Bad mosaic'
+
 
 
 
