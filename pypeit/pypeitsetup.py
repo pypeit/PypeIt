@@ -25,6 +25,9 @@ from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
 
+bad_ext = [".fz"]
+
+
 # TODO: Instantiation should just automatically trigger the run
 # method...
 class PypeItSetup:
@@ -128,6 +131,9 @@ class PypeItSetup:
         self.setups = setups
         self.pypeit_file = pypeit_file
         self.user_cfg = cfg_lines
+
+        # Check the input file list
+        self.check_file_list()
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
@@ -259,6 +265,15 @@ class PypeItSetup:
 
     def __repr__(self):
         return '<{:s}: nfiles={:d}>'.format(self.__class__.__name__, self.nfiles)
+
+    def check_file_list(self):
+        """Check that the input file list only contains allowed types"""
+        for ff in range(len(self.file_list)):
+            for ee in range(len(bad_ext)):
+                if self.file_list[ff].endswith(bad_ext[ee]):
+                    msgs.error("Frames with extension {0:s} are not permitted:".format(bad_ext[ee]) + msgs.newline() +
+                               self.file_list[ff])
+        return
 
     def build_fitstbl(self, strict=True):
         """
