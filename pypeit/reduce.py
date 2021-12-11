@@ -628,8 +628,7 @@ class Reduce:
         return None, None, None
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
-                      previous_sky=None,
-
+                      previous_sky=None, 
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -643,8 +642,9 @@ class Reduce:
             show_fit (bool, optional):
             show (bool, optional):
             show_objs (bool, optional):
-            previous_sky (`numpy.ndarray`_, None):
-                Sky estimate from a previous run of global_sky
+            previous_sky (`numpy.ndarray`_, optional):
+                Sky model estimate from a previous run of global_sky
+                Used to generate an improved estimated of the variance
 
         Returns:
             `numpy.ndarray`_: image of the the global sky model
@@ -675,6 +675,7 @@ class Reduce:
         if previous_sky is None:
             ivar = self.sciImg.ivar 
         else:
+            # Estimate the variance using the input sky model
             var = procimg.variance_model(self.sciImg.base_var, 
                                           counts=previous_sky, 
                                           count_scale=self.sciImg.img_scale, 
@@ -694,15 +695,14 @@ class Reduce:
                 continue
 
             # Find sky
-            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, 
-                                                             ivar, 
-                                                             self.tilts,
-                                                             thismask, self.slits_left[:,slit_idx],
-                                                             self.slits_right[:,slit_idx],
-                                                             inmask=inmask, sigrej=sigrej,
-                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.ir_redux), show_fit=show_fit)
+            self.global_sky[thismask] = skysub.global_skysub(
+                self.sciImg.image, ivar, self.tilts, thismask, 
+                self.slits_left[:,slit_idx], self.slits_right[:,slit_idx], 
+                inmask=inmask, sigrej=sigrej, 
+                bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                no_poly=self.par['reduce']['skysub']['no_poly'], 
+                pos_mask=(not self.ir_redux), show_fit=show_fit)
+
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
