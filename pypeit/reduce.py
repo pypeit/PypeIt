@@ -364,10 +364,8 @@ class Reduce:
         msgs.info("Generating tilts image")
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
-        # # Wavelengths (on unmasked slits) - DP: I don't think we need to generate this here
-        # msgs.info("Generating wavelength image")
-        # self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
+        # ##################################################
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
@@ -391,14 +389,19 @@ class Reduce:
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+        # ##################################################
+        # Second pass global sky
         # Do we have any positive objects to proceed with?
-        if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
-                    self.par['reduce']['findobj']['skip_second_find'] or usersky):
-                self.global_sky = self.initial_sky.copy()
-            else:
-                self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
+        #if self.nobj > 0:
+
+        # Global sky subtraction second pass. Uses skymask from object finding
+        if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
+                self.par['reduce']['findobj']['skip_second_find'] or usersky):
+            self.global_sky = self.initial_sky.copy()
+        else:
+            self.global_sky = self.global_skysub(
+                skymask=self.skymask, show=self.reduce_show,
+                previous_sky=self.initial_sky.copy())
 
         return self.global_sky, self.sobjs_obj, self.skymask
 
@@ -625,6 +628,8 @@ class Reduce:
         return None, None, None
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
+                      previous_sky=None,
+
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -638,6 +643,8 @@ class Reduce:
             show_fit (bool, optional):
             show (bool, optional):
             show_objs (bool, optional):
+            previous_sky (`numpy.ndarray`_, None):
+                Sky estimate from a previous run of global_sky
 
         Returns:
             `numpy.ndarray`_: image of the the global sky model
@@ -664,6 +671,16 @@ class Reduce:
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
+        # Allow for previous sky to better estimate ivar
+        if previous_sky is None:
+            ivar = self.sciImg.ivar 
+        else:
+            var = procimg.variance_model(self.sciImg.base_var, 
+                                          counts=previous_sky, 
+                                          count_scale=self.sciImg.img_scale, 
+                                          noise_floor=self.sciImg.noise_floor)
+            ivar = utils.inverse(var)
+
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -677,7 +694,9 @@ class Reduce:
                 continue
 
             # Find sky
-            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
+            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, 
+                                                             ivar, 
+                                                             self.tilts,
                                                              thismask, self.slits_left[:,slit_idx],
                                                              self.slits_right[:,slit_idx],
                                                              inmask=inmask, sigrej=sigrej,
