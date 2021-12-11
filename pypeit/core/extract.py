@@ -1531,7 +1531,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
-        plt.title(qa_title + ': Slit# {:d}'.format(objfindQA_dict['SLITORD_ID']))
+        # plt.title(qa_title + ': Slit# {:d}'.format(objfindQA_dict['SLITORD_ID']))
         if outfile_objprof is not None:
             plt.savefig(outfile_objprof, dpi=400)
         if show_peaks:
