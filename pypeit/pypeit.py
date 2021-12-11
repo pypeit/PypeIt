@@ -810,7 +810,7 @@ class PypeIt:
                             slits=True, clear=True)
 
         # Do it
-        global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace)
+        global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
         return global_sky, sobjs_obj, skymask, sciImg
 
     def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):

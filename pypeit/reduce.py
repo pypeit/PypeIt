@@ -21,7 +21,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg
 from pypeit.images import buildimage
 from pypeit.core.moment import moment1d
 
@@ -328,7 +328,7 @@ class Reduce:
         """
         pass
 
-    def run_objfind(self, std_trace=None):
+    def run_objfind(self, std_trace=None, show_peaks=False):
         """
         Primary code flow for object finding in PypeIt reductions
 
@@ -338,6 +338,8 @@ class Reduce:
         ----------
         std_trace : `numpy.ndarray`_, optional
             Trace of the standard star
+        show_peaks : :obj:`bool`, optional
+            Show peaks in find_objects methods
 
         Returns
         -------
@@ -369,8 +371,9 @@ class Reduce:
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
-                              show_peaks=self.par['reduce']['findobj']['skip_second_find'],
+                              show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
+                              save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux,
                               manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
@@ -383,8 +386,9 @@ class Reduce:
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
                                   std_trace=std_trace,
+                                  show_peaks=show_peaks,
                                   show=self.reduce_show,
-                                  show_peaks=True,
+                                  save_objfindQA=True,
                                   manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
@@ -538,8 +542,8 @@ class Reduce:
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
-                     show_trace=False, show=False, outfile_objprof=None, manual_extract_dict=None,
-                     debug=False):
+                     show_trace=False, show=False, save_objfindQA=None,
+                     manual_extract_dict=None, debug=False):
         """
         Single pass at finding objects in the input image
 
@@ -559,8 +563,8 @@ class Reduce:
             ???
         show : :obj:`bool`, optional
             ???
-        outfile_objprof : :obj:`str`, optional
-            Directory and filename for the object profile generated QA
+        save_objfindQA : :obj:`bool`, optional
+            Save to disk (png file) QA showing the object profile
         manual_extract_dict : :obj:`dict`, optional
             ???
         debug : :obj:`bool`, optional
@@ -582,8 +586,8 @@ class Reduce:
             self.find_objects_pypeline(image,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
-                                       show_trace=show_trace, outfile_objprof=outfile_objprof,
-                                       manual_extract_dict=parse_manual, debug=debug)
+                                       show_trace=show_trace, save_objfindQA=save_objfindQA,
+                                       manual_extract_dict=parse_manual, neg=False, debug=debug)
 
         # For nobj we take only the positive objects
         if self.find_negative:
@@ -593,9 +597,8 @@ class Reduce:
             sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
-                                           show_trace=show_trace, outfile_objprof=outfile_objprof,
-                                           manual_extract_dict=parse_manual,
-                                           debug=debug)
+                                           show_trace=show_trace, save_objfindQA=save_objfindQA,
+                                           manual_extract_dict=parse_manual, neg=True, debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
             # Add (if there are any)
@@ -613,7 +616,7 @@ class Reduce:
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, outfile_objprof=None, debug=False,
+                              show=False, save_objfindQA=None, neg=False, debug=False,
                               manual_extract_dict=None):
 
         """
@@ -1056,7 +1059,7 @@ class MultiSlitReduce(Reduce):
     def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, outfile_objprof=None, debug=False):
+                              show=False, save_objfindQA=None, neg=False, debug=False):
         """
         Pipeline specific find objects routine
 
@@ -1077,8 +1080,10 @@ class MultiSlitReduce(Reduce):
             Generate QA  showing traces identified. Requires an open ginga RC
             modules window
         show : :obj:`bool`, optional
-        outfile_objprof : :obj:`str`, optional
-            Directory and filename for the object profile generated QA
+        save_objfindQA : :obj:`bool`, optional
+            Save to disk (png file) QA showing the object profile
+        neg : :obj:`bool`, optional
+            Is this a negative image?
         debug : :obj:`bool`, optional
 
         Returns
@@ -1124,10 +1129,10 @@ class MultiSlitReduce(Reduce):
             else:
                 sig_thresh = self.par['reduce']['findobj']['sig_thresh']
 
-            # Set the filename and path for the object finding QA
-            if self.basename is not None:
-                outfile_objprof = qa.set_qa_filename(self.basename, 'obj_profile_qa', slit=specobj_dict['SLITID'],
-                                                     det=specobj_dict['DET'], out_dir=self.par['rdx']['redux_path'])
+            # dict for object finding QA
+            objfindQA_dict = {'SAVE_TO_DISK': save_objfindQA, 'BASENAME': self.basename, 'SLITORD_ID': slit_spat,
+                              'OUTDIR': os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir']),
+                              'NEG': neg}
 
             sobjs_slit, skymask[thismask] = \
                     extract.objfind(image, thismask,
@@ -1136,7 +1141,7 @@ class MultiSlitReduce(Reduce):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh= sig_thresh,
+                                sig_thresh=sig_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -1145,12 +1150,12 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
+                                use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
                                 boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
-                                outfile_objprof=outfile_objprof,
+                                objfindQA_dict=objfindQA_dict,
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
@@ -1341,8 +1346,8 @@ class EchelleReduce(Reduce):
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
-                              show_trace=False, outfile_objprof=None, debug=False,
-                              manual_extract_dict=None):
+                              show_trace=False, save_objfindQA=None, neg=False,
+                              debug=False, manual_extract_dict=None):
         """
         Pipeline specific find objects routine
 
@@ -1357,9 +1362,9 @@ class EchelleReduce(Reduce):
             Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
             Generate QA  showing traces identified. Requires an open ginga RC modules window
+        neg : :obj:`bool`, optional
+            Is this a negative image?
         show : :obj:`bool`, optional
-        outfile_objprof : :obj:`str`, optional
-            Directory and filename for the object profile generated QA
         debug : :obj:`bool`, optional
 
         Returns
@@ -1381,6 +1386,11 @@ class EchelleReduce(Reduce):
         # TODO -- Eliminate this specobj_dict thing
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
                         'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
+
+        # dict for object finding QA
+        objfindQA_dict = {'SAVE_TO_DISK': save_objfindQA, 'BASENAME': self.basename, 'SLITORD_ID': 999,
+                          'OUTDIR': os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir']),
+                          'NEG': neg}
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
@@ -1404,7 +1414,7 @@ class EchelleReduce(Reduce):
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
             skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
             boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
-            show_trace=show_trace, debug=debug)
+            show_trace=show_trace, objfindQA_dict=objfindQA_dict, debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1507,7 +1517,7 @@ class IFUReduce(MultiSlitReduce):
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, outfile_objprof=None, debug=False,
+                              show=False, save_objfindQA=None, neg=False, debug=False,
                               manual_extract_dict=None):
         """
         See MultiSlitReduce for slit-based IFU reductions

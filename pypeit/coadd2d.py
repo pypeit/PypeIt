@@ -471,7 +471,7 @@ class CoAdd2D:
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
-            sciImage.image, show_peaks=True,
+            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
             manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Local sky-subtraction
