@@ -1492,7 +1492,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         # compute median if these blue dets have values of slitmask_offsets
         _, median_off, _ = sigma_clipped_stats(slitmask_offsets[indx_b], sigma=2.)
         for cs in calib_slits:
-            if cs.det in spectrograph_dets[0]:
+            if cs.detid in spectrograph_dets[0]:
                 # assign median to each blue det
                 cs.maskdef_offset = median_off
         msgs.info('Average Slitmask offset for the blue detectors: '
@@ -1507,7 +1507,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
         # assign median to each red det (median would be the one computed for red dets if exists
         # or the median computed for blue dets)
         for cs in calib_slits:
-            if cs.det in spectrograph_dets[1]:
+            if cs.detid in spectrograph_dets[1]:
                 cs.maskdef_offset = median_off
         msgs.info('Average Slitmask offset for the red detectors: '
                   '{:.2f} pixels ({:.2f} arcsec).'.format(median_off, median_off * platescale))
@@ -1517,20 +1517,26 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
 def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):
     """
-    Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to extracted object
-    and to force extraction of undetected objects.
+    Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to
+    extracted object and to force extraction of undetected objects.
 
     Args:
-        sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
-        calib_slits (`numpy.ndarray`_): Array of `SlitTraceSet` with information on the traced slit edges
-        spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
-        platescale (:obj:`list`): List of platescale for every detector
-        fwhm (:obj:`float`):  Estimate of the FWHM of objects in pixels
-        slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
+        sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+            List of SpecObj that have been found and traced.
+        calib_slits (`numpy.ndarray`_):
+            Array of `SlitTraceSet` with information on the traced slit edges.
+        spat_flexure (:obj:`list`):
+            List of shifts, in spatial pixels, between this image and SlitTrace.
+        platescale (:obj:`list`):
+            List of platescale for every detector.
+        fwhm (:obj:`float`):
+            Estimate of the FWHM of objects in pixels.
+        slitmask_par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
+            Slitmask PypeIt parameters.
 
     Returns:
-        sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
-
+        :class:`~pypeit.specobjs.SpecObjs`:
+            Updated list of spectra that have been found and traced.
     """
 
     # grab corresponding detectors
@@ -1549,3 +1555,6 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
                 sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
 
     return sobjs
+
+
+

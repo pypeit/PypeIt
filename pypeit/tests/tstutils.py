@@ -183,7 +183,7 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
     # Load up the Masters
     ret = []
 
-    master_key = 'A_1_01'
+    master_key = 'A_1_DET01'
     if aimg:
         arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
         AImg = buildimage.ArcImage.from_file(arc_file)
@@ -225,3 +225,5 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
 
     # Return
     return ret
+
+

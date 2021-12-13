@@ -545,27 +545,39 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def coadd_cube(files, parset, overwrite=False):
+def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
     Args:
-        files (list):
+        files (:obj:`list`):
             List of all spec2D files
-        parset (:class:`pypeit.par.core.PypeItPar`):
+        spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+            The name or instance of the spectrograph used to obtain the data.
+            If None, this is pulled from the file header.
+        parset (:class:`~pypeit.par.pypeitpar.PypeItPar`, optional):
             An instance of the parameter set.
-        overwrite (bool):
+        overwrite (:obj:`bool`, optional):
             Overwrite the output file, if it exists?
     """
-    # Get the detector number
-    det = 1 if parset is None else parset['rdx']['detnum']
+    if spectrograph is None:
+        with fits.open(files[0]) as hdu:
+            spectrograph = hdu[0].header['PYP_SPEC']
 
-    # Load the spectrograph
-    spec2DObj = spec2dobj.Spec2DObj.from_file(files[0], det)
-    specname = spec2DObj.head0['PYP_SPEC']
-    spec = load_spectrograph(specname)
+    if isinstance(spectrograph, str):
+        spec = load_spectrograph(spectrograph)
+        specname = spectrograph
+    else:
+        # Assume it's a Spectrograph instance
+        spec = spectrograph
+        specname = spectrograph.name
+
+    # Get the detector number and string representation
+    det = 1 if parset is None else parset['rdx']['detnum']
+    detname = spec.get_det_name(det)
 
     # Grab the parset, if not provided
-    if parset is None: parset = spec.default_pypeit_par()
+    if parset is None:
+        parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
 
     # Check the output file
@@ -603,7 +615,7 @@ def coadd_cube(files, parset, overwrite=False):
     locations = parset['calibrations']['alignment']['locations']
     for ff, fil in enumerate(files):
         # Load it up
-        spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
         detector = spec2DObj.detector
         flexure = None  #spec2DObj.sci_spat_flexure
 

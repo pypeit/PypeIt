@@ -1156,6 +1156,8 @@ class DataContainer:
                 if any([isinstance(_d[key], t) for t in types]):
                     continue
                 for t in types:
+                    # NOTE: 'equiv' is too strict for windows?  Causes CI tests
+                    # for windows to fail.
 #                    if np.can_cast(_d[key], t, casting='equiv'):
                     if np.can_cast(_d[key], t, casting='same_kind'):
                         _d[key] = t(_d[key])

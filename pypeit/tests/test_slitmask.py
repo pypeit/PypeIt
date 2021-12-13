@@ -43,15 +43,16 @@ def test_assign_maskinfo_add_missing():
 
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det,
-                                                    par['calibrations']['traceframe'], flat_files(instr=name))
+                                                    par['calibrations']['traceframe'],
+                                                    flat_files(instr=name))
         msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
 
         # Run edge trace
-        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'], bpm=msbpm, auto=True,
-                                       debug=False, show_stages=False,qa_path=None)
+        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'],
+                                       auto=True, debug=False, show_stages=False,qa_path=None)
 
         slits = edges.get_slits()
 
@@ -149,9 +150,8 @@ def test_dith_obs():
         par['reduce']['slitmask']['bright_maskdef_id'] = 918850
 
         # Run edge trace
-        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'], bpm=msbpm, auto=True,
-                                       debug=False, show_stages=False,qa_path=None)
-
+        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'],
+                                       auto=True, debug=False, show_stages=False,qa_path=None)
         slits = edges.get_slits()
 
         # Test that the maskfile is saved properly
