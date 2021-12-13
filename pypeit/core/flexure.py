@@ -731,10 +731,13 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     diff_err  = []
     los = []
     los_err= []
+
+    good_ivar = ivar > 0
+
     # Loop on known sky lines
     for line in sky_waves: 
         wline = [line-noff,line+noff] 
-        mw    = (wave > wline[0]) & (wave < wline[1])
+        mw    = (wave > wline[0]) & (wave < wline[1]) & good_ivar
         
         # Reuire minimum number
         if np.sum(mw) <= nfit_min:
@@ -742,11 +745,15 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
 
         p=[0,0,0,0]
         # Guess
-        p0 = list(fitting.guess_gauss(wave[mw],flux[mw]))
+        p0 = list(fitting.guess_gauss(wave[mw], flux[mw]))
         # Fit
-        p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
-                                w_out = 1./np.sqrt(ivar[mw]), 
-                                guesses=p0, nparam=4)
+        try:
+            p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
+                                        guesses=p0, nparam=4)
+        except:
+            # Try again with larger limit on the number of function evaluations
+            p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
+                                        guesses=p0, nparam=4, maxfev=10000)
         perr = np.sqrt(np.diag(pcov))
         #except:
         #    p=p0
@@ -931,9 +938,6 @@ class MultiSlitFlexure(DataContainer):
         mgood = (np.abs(self['indiv_fit_slope']-mu) < 2.*sd) \
                     & ( np.abs(self['indiv_fit_b']-mu2) < 2.*sd2) & good_slit
 
-        embed()
-        exit()
-
         # Fit me (without additional rejection)
         # TODO -- Allow for x,y position instead of RA, DEC
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
@@ -1015,12 +1019,11 @@ class MultiSlitFlexure(DataContainer):
         # CALCULATE RESIDUALS FROM FIT
         #   Only for QA (I think)
         resid_sky = []
-        for i in np.arange(0,self.nslits,1):
+        for i in range(self.nslits):
 
             # Require sufficient S/N in reddest detector
             if self['SN'][-1,i] > 0:
                 # Load up the full spectrum
-                #all_wave,all_flux,all_ivar,all_sky = dmost_utils.load_spectrum(f,hdu,vacuum = 1)
                 tmp_wave, all_flux, all_sky, all_ivar = np.ndarray(0), \
                     np.ndarray(0), np.ndarray(0), np.ndarray(0)
                 # TODO -- Allow for Boxcar
@@ -1052,14 +1055,12 @@ class MultiSlitFlexure(DataContainer):
                 if (np.sum(mm) > 10):
                     msgs.warn('Removing more than 10 pixels of data')
                 
-
-                _,diff,diff_err,_,_ = sky_em_residuals(
-                    all_wave,all_sky,all_ivar,
-                    self.sky_table['Wave'])
-                m=np.isfinite(diff)
-                sky_mean = np.average(np.abs(diff[m]), 
-                                      weights = 1./diff_err[m]**2)
+                _,diff,diff_err,_,_ = sky_em_residuals(all_wave, all_sky, all_ivar,
+                                                       self.sky_table['Wave'])
+                m = np.isfinite(diff)
+                sky_mean = np.average(np.abs(diff[m]), weights = 1./diff_err[m]**2)
                 resid_sky = np.append(resid_sky,sky_mean)
+
             else:
                 resid_sky = np.append(resid_sky,-1)
 

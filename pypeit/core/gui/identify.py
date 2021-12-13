@@ -48,7 +48,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    })
 
 
-class Identify(object):
+class Identify:
     """
     GUI to interactively identify arc lines. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of

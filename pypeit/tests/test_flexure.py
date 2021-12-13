@@ -90,8 +90,6 @@ def test_flex_multi():
     msFlex.measure_sky_lines()
     # FIT SURFACES
     msFlex.fit_mask_surfaces()
-    embed()
-    exit()
     # Apply
     msFlex.update_fit()
     # QA
@@ -105,13 +103,13 @@ def test_flex_multi():
 
     # Read
     msFlex2 = flexure.MultiSlitFlexure.from_file(outfile)
-    msFlex2.to_file(outfile, overwrite=True)
-
     # Check
-    assert np.all(np.isclose(msFlex2.fit_b, msFlex.fit_b))
+    assert np.array_equal(msFlex2.fit_b, msFlex.fit_b), 'Bad read'
+
+    # Try to overwrite
+    msFlex2.to_file(outfile, overwrite=True)
 
     # Clean up
     if os.path.isfile(outfile):
         os.remove(outfile)
 
-test_flex_multi()

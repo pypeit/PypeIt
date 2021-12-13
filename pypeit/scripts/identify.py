@@ -8,7 +8,6 @@ from IPython import embed
 
 from pypeit.scripts import scriptbase
 
-
 class Identify(scriptbase.ScriptBase):
 
     @classmethod
@@ -45,6 +44,7 @@ class Identify(scriptbase.ScriptBase):
 
         import numpy as np
         
+        from pypeit import msgs
         from pypeit import masterframe
         from pypeit.spectrographs.util import load_spectrograph
         from pypeit.core.gui.identify import Identify
@@ -54,30 +54,23 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.images.buildimage import ArcImage
 
         # Load the MasterArc file
-        if os.path.exists(args.arc_file):
-            arcfil = args.arc_file
-        else:
+        try:
+            msarc = ArcImage.from_file(args.arc_file)
+        except:
             try:
-                arcfil = "Masters/{0:s}".format(args.arc_file)
-            except FileNotFoundError:
-                print("Could not find MasterArc file.")
-                sys.exit()
-        msarc = ArcImage.from_file(arcfil)
-
-        mdir = msarc.head0['MSTRDIR']
-        mkey = msarc.head0['MSTRKEY']
+                msarc = ArcImage.from_file(os.path.join('Masters', args.arc_file))
+            except:
+                msgs.error('Unable to read arc file to instantiate ArcImage')
 
         # Load the spectrograph
-        specname = msarc.head0['PYP_SPEC']
-        spec = load_spectrograph(specname)
+        spec = load_spectrograph(msarc.PYP_SPEC)
         par = spec.default_pypeit_par()['calibrations']['wavelengths']
 
         # Get the lamp list
         if args.lamps is None:
             lamps = par['lamps']
             if lamps is None:
-                print("ERROR :: Cannot determine the lamps")
-                sys.exit()
+                msgs.error('Cannot determine the lamps')
         else:
             lamps = args.lamps.split(",")
         par['lamps'] = lamps
@@ -88,20 +81,21 @@ class Identify(scriptbase.ScriptBase):
         slits.mask = slits.mask_init
 
         # Check if a solution exists
-        solnname = os.path.join(mdir, masterframe.construct_file_name(WaveCalib, mkey))
+        solnname = masterframe.construct_file_name(WaveCalib, msarc.master_key,
+                                                   master_dir=msarc.master_dir)
         wv_calib = waveio.load_wavelength_calibration(solnname) \
                         if os.path.exists(solnname) and args.solution else None
 
         # Load the MasterFrame (if it exists and is desired).  Bad-pixel mask
         # set to any flagged pixel in MasterArc.
-        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, binspectral=slits.binspec, det=args.det,
-                                 master_key=mkey, msbpm=msarc.select_flag())
+        wavecal = BuildWaveCalib(msarc, slits, spec, par, lamps, binspectral=slits.binspec,
+                                 det=args.det, master_key=msarc.master_key,
+                                 msbpm=msarc.select_flag())
         arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
         # Launch the identify window
         arcfitter = Identify.initialise(arccen, lamps, slits, slit=int(args.slit), par=par,
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
-#                                        nonlinear_counts=spec.nonlinear_counts(msarc.detector),
                                         nonlinear_counts=msarc.detector.nonlinear_counts(),
                                         pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm)
         # Testing?
