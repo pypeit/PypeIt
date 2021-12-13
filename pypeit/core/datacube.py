@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
-from pypeit import spec2dobj, alignframe
+from pypeit import spec2dobj, alignframe, flatfield
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
@@ -637,8 +637,11 @@ def coadd_cube(files, parset, overwrite=False):
         detector = spec2DObj.detector
         flexure = None  #spec2DObj.sci_spat_flexure
 
+        # Load the header
+        hdr = fits.open(fil)[0].header
+
         # Get the exposure time
-        exptime = fits.open(fil)[0].header['EXPTIME']
+        exptime = hdr['EXPTIME']
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -677,7 +680,6 @@ def coadd_cube(files, parset, overwrite=False):
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
         msgs.info("Loading alignments")
-        hdr = fits.open(fil)[0].header
         alignfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], alignframe.Alignments.master_type,
                                                               hdr['TRACMKEY'], alignframe.Alignments.master_file_format)
         alignments = None
@@ -721,6 +723,19 @@ def coadd_cube(files, parset, overwrite=False):
         wave_ext = waveimg[onslit_gpm].copy()
         flux_ext = sciimg[onslit_gpm].copy()
         ivar_ext = ivar[onslit_gpm].copy()
+
+        # Correct for sensitivity as a function of grating angle
+        # (this assumes the flatfield lamp has the same shape for all setups)
+        flatfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
+                                                             hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
+        flatimages = flatfield.FlatImages.from_file(flatfile)
+        flatframe = flatimages.pixelflat_model
+        flatframe /= flatimages.fit2illumflat(slits, frametype='pixel', initial=True, flexure_shift=flexure)
+        # Calculate the relative scale
+        flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                               slit_illum_ref_idx=flatpar['slit_illum_ref_idx'],
+                               model=None, skymask=None, trim=flatpar['slit_trim'], flexure=flexure)
+        # Apply the relative scale and generate a 1D "spectrum"
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
