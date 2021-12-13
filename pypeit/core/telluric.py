@@ -158,6 +158,9 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     Returns:
         :obj:`dict`: Dictionary containing the telluric grid.
     """
+    # Check for file
+    if not os.path.isfile(filename):
+        msgs.error(f"File {filename} is not on your disk.  You likely need to download the Telluric files.  See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
 
     hdul = io.fits_open(filename)
     wave_grid_full = 10.0*hdul[1].data

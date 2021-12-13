@@ -38,6 +38,7 @@ instrument-specific details for running ``PypeIt``.
    gemini_gnirs
    deimos
    mosfire
+   gtc_osiris
    keck_kcwi
    lris
    lbt_mods
@@ -47,5 +48,4 @@ instrument-specific details for running ``PypeIt``.
    mmt_mmirs
    shane_kast
    xshooter
-   gtc_osiris
    ntt_efosc2

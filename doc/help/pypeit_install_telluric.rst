@@ -9,5 +9,5 @@
       -h, --help   show this help message and exit
       --path PATH  Path to directory with TelFit files downloaded from the PypeIt
                    Google Drive Telluric/ folder (default:
-                   /Users/dpelliccia/PypeIt/PypeIt/doc)
+                   /Users/westfall/Work/packages/pypeit/doc)
     
