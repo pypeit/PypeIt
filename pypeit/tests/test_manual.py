@@ -27,9 +27,9 @@ def test_dict_for_obj():
     mex3 = ManualExtractionObj.by_fitstbl_input('tst.fits',
                                                '1:1181.8:3820.6:3.,-1:1183.8:3820.6:3.')
 
-    dobj = mex3.dict_for_objfind(neg=False)
+    dobj = mex3.dict_for_objfind(1, neg=False)
     assert dobj['det'] == 1
 
-    dobj2 = mex3.dict_for_objfind(neg=True)
+    dobj2 = mex3.dict_for_objfind(1, neg=True)
     assert dobj2['det'] == 1
     assert np.isclose(dobj2['spat'][0], 1183.8)
