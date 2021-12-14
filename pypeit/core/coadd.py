@@ -2680,7 +2680,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
     images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
-    in used of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
+    in units of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
     in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
 
     Parameters

@@ -172,11 +172,6 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
-        # maskdef info
-        self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
-        self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
-        self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
-        self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
 
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
@@ -291,6 +286,7 @@ class CoAdd2D:
                                            self.stack_dict['waveimg_stack'],
                                            self.wave_grid, self.spat_samp_fact,
                                            weights=weights, interp_dspat=interp_dspat)
+            #TODO Add a tag to this dictionary here with the maskdef information 
             coadd_list.append(coadd_dict)
 
         return coadd_list
@@ -375,6 +371,8 @@ class CoAdd2D:
             spec_max1[islit] = nspec_vec[islit]-1
             spat_left = spat_righ + nspat_pad
 
+        #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
+        # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.name,
@@ -707,6 +705,7 @@ class CoAdd2D:
             sciivar_stack[ifile, :, :] = s2dobj.ivarmodel
             mask_stack[ifile, :, :] = s2dobj.bpmmask
             # TODO -- Set back after done testing
+
             slitmask_stack[ifile, :, :] = s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure)
             #slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=0.)
             _spat_flexure = 0. if s2dobj.sci_spat_flexure is None else s2dobj.sci_spat_flexure
@@ -811,14 +810,25 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         ## Use Cases:
         #  1) offsets is None -- auto compute offsets from brightest object, so then default to auto_weights=True
-        #  2) offsets not None, weights = None (uniform weighting) or weights is not None (input weights)
+        #  2) offsets not None (i.e. an array), weights = None (uniform weighting) or weights is not None (input weights)
         #  3) offsets not None, auto_weights=True (Do not support)
         #  4) offsets == 'maskdef_offsets', weights = None (uniform weighting) or weights is not None (input weights)
+
+
+        # maskdef info
+        self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
+        self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
+        self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
+        self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
+        # TODO Streamline compute_offsets and parse_weights to call a single function that returns the offsets and weights
+        # for the various usage cases (i.e. bright star as reference object, box slits as references, maskdef offsets, etc.)
+
+        # TODO Add typing and error checking for offsets
         if offsets is None:
             self.objid_bri, self.spatid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
 
