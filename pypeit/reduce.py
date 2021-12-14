@@ -546,7 +546,8 @@ class Reduce:
         """
         # Positive image
         if manual_extract_dict is None:
-            manual_extract_dict= self.manual.dict_for_objfind(neg=False) if self.manual is not None else None
+            manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
+
         #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_single, nobj_single, skymask_pos = \
             self.find_objects_pypeline(image,
@@ -559,7 +560,7 @@ class Reduce:
         if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
-            manual_extract_dict = self.manual.dict_for_objfind(neg=True) if self.manual is not None else None
+            manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,

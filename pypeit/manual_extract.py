@@ -17,14 +17,13 @@ class ManualExtractionObj(datamodel.DataContainer):
     Args:
         frame (:obj:`str`):
             The name of the fits file for a manual extraction
-        spat (list): List of spatial positions to hand extract
-            e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
-        spec (list): List of spectral positions to hand extract
-            e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
-        det (list): List of detectors for hand extraction. 
-            This must be a list aligned with spec and spat lists.
-        fwhm (list): List of FWHM for hand extraction. 
-            This must be a list aligned with spec and spat lists.
+        spat (np.ndarray): Array of spatial positions to hand extract
+        spec (np.ndarray): Array of spectral positions to hand extract
+        det (np.ndarray): Array of detectors for hand extraction. 
+            This must be a aligned with spec and spat .
+            The values can be negative (for negative images)
+        fwhm (np.ndarray): Array of FWHM for hand extraction. 
+            This must be aligned with spec and spat.
 
     """
     version = '1.0.0'
@@ -33,7 +32,7 @@ class ManualExtractionObj(datamodel.DataContainer):
         'frame': dict(otype=str,
                     descr='The name of the fits file for a manual extraction'),
         'det': dict(otype=np.ndarray, atype=np.integer, 
-                    descr='detectors for hand extraction.'),
+                    descr='detectors for hand extraction. These can be negative for the negative image'),
         'spec': dict(otype=np.ndarray, atype=np.floating, 
                     descr='spectral positions to hand extract'),
         'spat': dict(otype=np.ndarray, atype=np.floating, 
@@ -91,37 +90,33 @@ class ManualExtractionObj(datamodel.DataContainer):
         if len(self.fwhm) != len(self.det):
             raise ValueError("FWHM and not det not of the same length")
 
-    def dict_for_objfind(self, neg=False):
+    def dict_for_objfind(self, det, neg=False):
         """
         Repackage into a dict for the extraction code
 
         Args:
+            det (int):
+                Detector under consideration
             neg (bool, optional):
-                Negative image
+                If True, return the negative image requests
 
         Returns:
-            dict: To be passed into reduce.find_objects()
+            dict or None: To be passed into reduce.find_objects()
 
         """
-        manual_dict =  dict(hand_extract_spec=self.spec, 
-                    hand_extract_spat=self.spat,
-                    hand_extract_det=self.det, 
-                    hand_extract_fwhm=self.fwhm)
-        #
-        dets = np.atleast_1d(manual_dict['hand_extract_det'])
-        # Grab the ones we want
-        gd_det = dets > 0
-        if not neg:
-            gd_det = np.invert(gd_det)
-        # Any?
+        # Find the ones we want
+        if neg:
+            gd_det = self.det == -1*det
+        else:
+            gd_det = self.det == det
+        # None?
         if not np.any(gd_det):
-            return manual_dict
-        # Fill
+            return None
+        # Fill 
         manual_extract_dict = {}
-        for key in manual_dict.keys():
-            sgn = 1
-            if key == 'hand_extract_det':
-                sgn = -1
-            manual_extract_dict[key] = sgn*np.atleast_1d(manual_dict[key])[gd_det]
+        for key in ['spec', 'spat', 'det', 'fwhm']:
+            manual_extract_dict[key] = self[key][gd_det]
+        if neg:
+            manual_extract_dict['det'] = -1 * manual_extract_dict['det']
         # Return
         return manual_extract_dict
