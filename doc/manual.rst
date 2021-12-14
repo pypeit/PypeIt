@@ -51,6 +51,16 @@ This is to be added to the `manual` column of the
 You can generate that column when running
 :ref:`pypeit_setup` or you can add it by-hand.
 
+Here are example lines from the DevSuite for a Keck/LRISb reduction::
+
+    | b150910_2070.fits.gz | 2015-09-10T05:43:39 |   science      |          s2 |     600 |     2,2 |      560 | 600/4000 | long_1.0 | 2:234.:1000.:3. |
+    | b150910_2083.fits.gz | 2015-09-10T10:03:42 |  standard      |   feige 110 |      60 |     2,2 |      560 | 600/4000 | long_1.0 |        |
+
+The entry " 2:234.:1000.:3." specifices det=2, spat=234.0, spec=1000.0, and
+a FWHM=3.0 (pixels).
+
+If you wish to operate on the negative image for an A-B reduction
+(typically near-IR), then specify the detector value as negative.
 
 Echelle
 -------
@@ -67,7 +77,7 @@ example in the PypeIt DevSuite::
 
 The above will lay down a new trace at spatial=1181.8, 
 spectral=3820.6 pixel on detector 1 and use a FWHM 
-of 3 pixels.  It will also force an extraction at
+of 3.0 pixels.  It will also force an extraction at
 the same relative position for each echelle order.
 
 Coadd2D
@@ -88,5 +98,5 @@ from our DevSuite::
         weights = uniform
         manual = 1:22.4:608.1:3.
 
-Details on the format for `manual` 
-are described in :doc:`manual`.
+Details on the format for the `manual` entry
+are the same as above.
