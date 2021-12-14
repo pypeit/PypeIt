@@ -593,9 +593,11 @@ def coadd_cube(files, parset, overwrite=False):
     elif os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
         msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
     # Check the reference cube and image exist, if requested
+    fluxcal = False
     if cubepar['standard_cube'] is not None:
         if not os.path.exists(cubepar['standard_cube']):
             msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
+        fluxcal = True
         senspar = parset['sensfunc']
         stdcube = fits.open(cubepar['standard_cube'])
         star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
@@ -612,6 +614,8 @@ def coadd_cube(files, parset, overwrite=False):
                           nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
                           trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
                           polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
+        wgd = np.where(zeropoint_fit_gpm)
+        flux_spline = interp1d(wave[wgd], zeropoint_fit[wgd], kind='linear', bounds_error=False, fill_value="extrapolate")
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
@@ -751,8 +755,7 @@ def coadd_cube(files, parset, overwrite=False):
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
             flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
                                               bounds_error=False, fill_value="extrapolate")
-        flat_spl = flat_splines[flatfile]
-        embed()
+        flat_corr = flat_splines[flatfile](wave_ext[wvsrt])
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
@@ -763,8 +766,12 @@ def coadd_cube(files, parset, overwrite=False):
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
-        # Also convert the flux_sav to counts/s
-        ext_corr /= exptime
+        # Sensitivity function
+        sens_func = 1.0
+        if fluxcal:
+            sens_func = flux_spline(wave_ext[wvsrt])
+        # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
+        ext_corr *= sens_func / (exptime * flat_corr)
         # Correct for extinction
         flux_sav = flux_ext[wvsrt] * ext_corr
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
