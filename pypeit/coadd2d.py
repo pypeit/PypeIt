@@ -286,7 +286,7 @@ class CoAdd2D:
                                            self.stack_dict['waveimg_stack'],
                                            self.wave_grid, self.spat_samp_fact,
                                            weights=weights, interp_dspat=interp_dspat)
-            #TODO Add a tag to this dictionary here with the maskdef information 
+            #TODO Add a tag to this dictionary here with the maskdef information
             coadd_list.append(coadd_dict)
 
         return coadd_list
