@@ -1659,7 +1659,7 @@ class SlitMaskPar(ParSet):
 
     """
     def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
-                 slitmask_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
+                 slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
                  use_alignbox=None):
 
         # Grab the parameter names and values from the function
@@ -1677,7 +1677,7 @@ class SlitMaskPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
 
         defaults['obj_toler'] = 1.
-        dtypes['obj_toler'] = float
+        dtypes['obj_toler'] = [int, float]
         descr['obj_toler'] = 'If slitmask design information is provided, and slit matching is performed ' \
                              '(``use_maskdesign = True`` in ``EdgeTracePar``), this parameter provides ' \
                              'the desired tolerance (arcsec) to match sources to targeted objects'
@@ -1695,18 +1695,27 @@ class SlitMaskPar(ParSet):
         defaults['nsig_thrshd'] = 50.
         dtypes['nsig_thrshd'] = [int, float]
         descr['nsig_thrshd'] = 'Objects detected above this significance threshold will ' \
-                               'be used to compute the slitmask offset. This is the default behaviour unless ' \
-                               '``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
+                               'be used to compute the slitmask offset. This is the default behaviour for DEIMOS ' \
+                               ' unless ``slitmask_offset``, ``bright_maskdef_id`` or ``use_alignbox`` is set.'
 
         defaults['slitmask_offset'] = None
         dtypes['slitmask_offset'] = [int, float]
         descr['slitmask_offset'] = 'User-provided slitmask offset (pixels) from the position expected by ' \
                                    'the slitmask design. This is optional, and if set PypeIt will NOT compute ' \
-                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`'
+                                   'the offset using `nsig_thrshd` or `bright_maskdef_id`.'
+
+        defaults['use_dither_offset'] = False
+        dtypes['use_dither_offset'] = bool
+        descr['use_dither_offset'] = 'Use the dither offset recorded in the header of science frames as the value ' \
+                                     'of the slitmask offset. This is currently only available for Keck MOSFIRE ' \
+                                     'reduction and it is set as the default for this instrument. If set PypeIt will ' \
+                                     'NOT compute the offset using `nsig_thrshd` or `bright_maskdef_id`. ' \
+                                     'However, it is ignored if ``slitmask_offset`` is provided. '
 
         defaults['bright_maskdef_id'] = None
         dtypes['bright_maskdef_id'] = int
-        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` in the DEIMOS slitmask design) of a ' \
+        descr['bright_maskdef_id'] = '`maskdef_id` (corresponding to `dSlitId` and `Slit_Number` in the DEIMOS ' \
+                                     'and MOSFIRE slitmask design, respectively) of a ' \
                                      'slit containing a bright object that will be used to compute the ' \
                                      'slitmask offset. This parameter is optional and is ignored ' \
                                      'if ``slitmask_offset`` is provided.'
@@ -1729,7 +1738,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset',
+        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
                    'bright_maskdef_id', 'extract_missing_objs', 'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])
@@ -2179,7 +2188,7 @@ class WavelengthSolutionPar(ParSet):
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
                  nfitpix=None, IDpixels=None, IDwaves=None, refframe=None,
-                 nsnippet=None, use_instr_flag=None):
+                 nsnippet=None, use_instr_flag=None, wvrng_arxiv=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2255,7 +2264,9 @@ class WavelengthSolutionPar(ParSet):
         #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
-                         'None for no calibration.  ' # \
+                         '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
+                         'recorded in the header of the arc frames (this is currently ' \
+                         'available only for Keck DEIMOS).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -2313,8 +2324,10 @@ class WavelengthSolutionPar(ParSet):
                              'tiltable grating, this will depend on the number of solutions in ' \
                              'the arxiv.'
 
-        # TODO: Should people be using full_template?  If so, change the
-        # description of method.
+        defaults['wvrng_arxiv'] = None
+        dtypes['wvrng_arxiv'] = list
+        descr['wvrng_arxiv'] = 'Cut the arxiv template down to this specified wavelength range [min,max]'
+
         defaults['nsnippet'] = 2
         dtypes['nsnippet'] = int
         descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
@@ -2356,7 +2369,8 @@ class WavelengthSolutionPar(ParSet):
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = [float, list, np.ndarray]
         descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
-                                 'single number or a list/array providing the value for each slit.'
+                                 'single number or a list/array providing the value for each slit. ' \
+                                 'Only used if ``method`` is either \'holy-grail\' or \'reidentify\' '
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
@@ -2446,7 +2460,8 @@ class WavelengthSolutionPar(ParSet):
                    'fwhm', 'fwhm_fromlines', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
-                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag']
+                   'IDpixels', 'IDwaves', 'refframe', 'nsnippet', 'use_instr_flag',
+                   'wvrng_arxiv']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2507,7 +2522,7 @@ class EdgeTracePar(ParSet):
     see :ref:`pypeitpar`.
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
-    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
+    def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, exclude_regions=None, follow_span=None,
                  det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
                  max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
                  fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
@@ -2552,6 +2567,14 @@ class EdgeTracePar(ParSet):
         dtypes['edge_thresh'] = [int, float]
         descr['edge_thresh'] = 'Threshold for finding edges in the Sobel-filtered significance' \
                                ' image.'
+
+        defaults['exclude_regions'] = None
+        dtypes['exclude_regions'] = [list, str]
+        descr['exclude_regions'] = 'User-defined regions to exclude from the slit tracing. To set this parameter, ' \
+                                   'the text should be a comma separated list of pixel ranges (in the x direction) ' \
+                                   'to be excluded and the detector number. For example, the following string ' \
+                                   '1:0:20,1:300:400  would select two regions in det=1 between pixels 0 and 20 ' \
+                                   'and between 300 and 400.'
 
         defaults['follow_span'] = 20
         dtypes['follow_span'] = int
@@ -2926,7 +2949,7 @@ class EdgeTracePar(ParSet):
     def from_dict(cls, cfg):
         # TODO Please provide docs
         k = np.array([*cfg.keys()])
-        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
+        parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'exclude_regions', 'follow_span', 'det_min_spec_length',
                    'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
                    'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
                    'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',

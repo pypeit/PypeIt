@@ -44,7 +44,7 @@ def show_trace(specobjs, det, viewer, ch):
         else:
             trc_name = obj_id
         if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+            display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
         elif manual_extr_flag is True:
             display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
         else:
@@ -77,6 +77,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                                  'flux calibration')
         parser.add_argument('--channels', type=str,
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
+        parser.add_argument('--prefix', type=str, default='',
+                            help="Append this to the channel name [let's you do more than one set]")
+        parser.add_argument('--no_clear', dest='clear', default=True, 
+                            action="store_false",
+                            help='Do *not* clear all existing tabs')
         return parser
 
     @staticmethod
@@ -89,7 +94,8 @@ class Show2DSpec(scriptbase.ScriptBase):
             return
 
         # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(
+            args.file, args.det, chk_version=False)
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -137,7 +143,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         mask_in = None
         if args.showmask:
             viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM",
-                                                 waveimg=spec2DObj.waveimg, clear=True)
+                                                 waveimg=spec2DObj.waveimg, 
+                                                 clear=args.clear)
 
         channel_names = []
         # SCIIMG
@@ -147,10 +154,11 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
-            chname_sci = 'sciimg-det{:s}'.format(sdet)
+            chname_sci = args.prefix+'sciimg-det{:s}'.format(sdet)
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(image, chname=chname_sci,
-                                                waveimg=spec2DObj.waveimg, clear=True,
+                                                waveimg=spec2DObj.waveimg, 
+                                                clear=args.clear,
                                                 cuts=(cut_min, cut_max))
 
             if sobjs is not None:
@@ -172,7 +180,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
-            chname_skysub = 'skysub-det{:s}'.format(sdet)
+            chname_skysub = args.prefix+'skysub-det{:s}'.format(sdet)
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
                                                    waveimg=spec2DObj.waveimg, bitmask=bitMask,
                                                    mask=mask_in, cuts=(cut_min, cut_max),
@@ -211,7 +219,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                 gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
             else:
                 gpm = spec2DObj.bpmmask == 0
-            chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
+            chname_skyresids = args.prefix+'sky_resid-det{:s}'.format(sdet)
             image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids,
                                                        waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
@@ -224,7 +232,7 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # RESIDS
         if 3 in show_channels:
-            chname_resids = 'resid-det{:s}'.format(sdet)
+            chname_resids = args.prefix+'resid-det{:s}'.format(sdet)
             # full model residual map
             image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) \
                         * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)

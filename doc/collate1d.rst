@@ -270,7 +270,7 @@ If RA/DEC matching is being used, the tolerance is specified as an angular dista
 By default, it is treated as arcseconds, but any format supported by astropy `Angles <https://docs.astropy.org/en/stable/coordinates/angles.html>`_ 
 can be used. The matching is done using the `Astropy SkyCoord separation method <https://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html#astropy.coordinates.SkyCoord.separation>`_.
 
-Currently only the ``DEIMOS`` instrument supports RA/DEC matching.
+Currently only ``DEIMOS`` and ``MOSFIRE`` supports RA/DEC matching.
 
 Pixel
 +++++

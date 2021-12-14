@@ -126,6 +126,8 @@ class PypeItMetaData:
 
         # Initialize columns that the user might add
         self.set_user_added_columns()
+        # Validate instrument name
+        self.spectrograph.vet_instrument(self.table)
 
     def _impose_types(self, columns, types):
         """

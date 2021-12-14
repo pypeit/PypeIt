@@ -954,9 +954,9 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
                     markersize=7.0)
 
     ax.text(0.90, 0.90, 'Slit {:d}:  Residual (pixels) = {:0.5f}'.format(slitord_id, rms),
-            transform=ax.transAxes, size='large', ha='right', color='black', fontsize=16)
+            transform=ax.transAxes, ha='right', color='black', fontsize=16)
     ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slitord_id, rms / fwhm),
-            transform=ax.transAxes, size='large', ha='right', color='black', fontsize=16)
+            transform=ax.transAxes, ha='right', color='black', fontsize=16)
     # Label
     ax.set_xlabel('Spectral Pixel')
     ax.set_ylabel('RMS (pixels)')

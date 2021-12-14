@@ -72,6 +72,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispname'] = dict(ext=0, card='GRATNAME')
         self.meta['dichroic'] = dict(ext=0, card='FILTNAME')
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -239,6 +240,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods1r'
     camera = 'MODS1R'
+    header_name = 'MODS1R'
     supported = True
     comment = 'MODS-I red spectrometer'
 
@@ -403,6 +405,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
 
     name = 'lbt_mods1b'
     camera = 'MODS1B'
+    header_name = 'MODS1B'
     supported = True
     comment = 'MODS-I blue spectrometer'
 
@@ -558,6 +561,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2r'
     camera = 'MODS2R'
+    header_name = 'MODS2R'
     supported = True
     comment = 'MODS-II red spectrometer'
 
@@ -719,6 +723,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
     """
     name = 'lbt_mods2b'
     camera = 'MODS2B'
+    header_name = 'MODS2B'
     supported = True
     comment = 'MODS-II blue spectrometer'
 

@@ -55,7 +55,7 @@ Slit-mask design matching
 -------------------------
 ``PypeIt`` is able to match the traced slit to the slit-mask design information
 contained as meta data in the DEIMOS observations. This functionality at the moment is
-implemented only for DEIMOS and is switched on by setting **use_maskdesign** flag in
+implemented only for DEIMOS and MOSFIRE and is switched on by setting **use_maskdesign** flag in
 :ref:`pypeit_par:EdgeTracePar Keywords` to *True*.  This is, already, the default for DEIMOS,
 except when the *LongMirr* or the *LVM* mask is used.
 
@@ -63,8 +63,29 @@ except when the *LongMirr* or the *LVM* mask is used.
 information from the slitmask design, and forces the extraction of undetected object at the location
 expected from the slitmask design. See `Additional Reading`_ .
 
-When the extraction of undetected object is performed, it may be occasionally necessary to set
-**no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords` to avoid a bad local sky subtraction.
+When the extraction of undetected object is performed, a gaussian profile with FWHM given by the parameter
+``find_fwhm`` in :ref:`pypeit_par:FindObjPar Keywords` is assumed. The default value for DEIMOS is **find_fwhm = 10**
+(pixels), but the user needs to adjust this value according to the size of the objects to extract. Moreover,
+it may be occasionally necessary to set **no_local_sky = True** in :ref:`pypeit_par:SkySubPar Keywords`
+to avoid a bad local sky subtraction.
+
+Wavelength Calibration
+----------------------
+``PypeIt`` is able (currently only for DEIMOS) to read from the header of the arc frames which
+lamps were ON during the observations and to set those to be the list of lamps to be used
+for the wavelength calibration. This functionality is switched on by setting ``lamps = use_header``
+in :ref:`pypeit_par:WavelengthSolutionPar Keywords`. This is already set by default for DEIMOS.
+
+It may happen, occasionally, that some lamps are not recorded in the header even if they were ON
+during the observations. This could be the case if a specific script, called `calib_blue`
+(see https://www2.keck.hawaii.edu/inst/deimos/calib_blue.html), is used to take arc frames for
+blue observations. To resolve this, the user can just edit the PypeIt file to input the correct
+list of lamps in the following way::
+
+    [calibrations]
+      [[wavelengths]]
+            lamps = ArI, NeI, KrI, XeI, CdI, ZnI, HgI
+
 
 Flat Fielding
 -------------
@@ -103,8 +124,8 @@ Here are additional docs related to Keck/DEIMOS:
 
    dev/deimosframes
    dev/deimosconfig
-   dev/deimos_slitmask_ids
-   dev/deimos_radec_object
+   dev/slitmask_ids
+   dev/radec_object
    dev/deimos_wavecalib
-   dev/deimos_add_missing_obj
+   dev/add_missing_obj
    deimos_howto

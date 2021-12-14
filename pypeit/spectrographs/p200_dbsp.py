@@ -76,6 +76,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(card=None, rtol=1e-2, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='APERTURE')
         self.meta['idname'] = dict(ext=0, card='IMGTYPE')
+        self.meta['instrument'] = dict(ext=0, card='FPA')
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
@@ -156,6 +157,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_blue'
     camera = 'DBSPb'
+    header_name = 'DBSP_BLUE'
     supported = True
     comment = 'Blue camera'
     
@@ -378,6 +380,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_red'
     camera = 'DBSPr'
+    header_name = 'DBSP_RED2'
     supported = True
     comment = 'Red camera'
     
