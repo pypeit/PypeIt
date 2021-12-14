@@ -187,6 +187,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
+        # Always default to reducing as a mosaic
+        par['rdx']['detnum'] = [(1,2,3)]
+
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['fit_order'] = 3
 
@@ -212,8 +215,12 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Always correct for flexure
         par['flexure']['spec_method'] = 'boxcar'
-        # Splice detectors 1,2,3 when creating sensitivity function
-        par['sensfunc']['multi_spec_det'] = [1,2,3]
+
+        # TODO: Note the default is now to mosaic the detectors.  This means the
+        # user will need to set this if they ever reduce single detectors at a
+        # time.
+#        # Splice detectors 1,2,3 when creating sensitivity function
+#        par['sensfunc']['multi_spec_det'] = [1,2,3]
 
         # Set the default exposure time ranges for the frame typing
         #par['scienceframe']['exprng'] = [30, None]
@@ -367,8 +374,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 oscansec_img[ii,xs:xe,:] = kk+1
 
         # Need the exposure time
-        # TODO: Why are we not using get_meta_value?
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        exptime = self.get_meta_value(self.get_headarr(hdu), 'exptime')
 
         # Transpose now (helps with debuggin)
         array = np.transpose(array, axes=(0,2,1))

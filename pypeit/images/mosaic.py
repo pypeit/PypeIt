@@ -27,8 +27,12 @@ class Mosaic(datamodel.DataContainer):
     # Set the version of this class
     version = '1.0.0'
 
-    # WARNING: None of the keywords in this datamodel should be the same as in
-    # pypeit.images.detector_container.DetectorContainer.
+    # WARNING: `binning` and `platescale` have the same names as datamodel
+    # components in pypeit.images.detector_container.DetectorContainer.  This is
+    # to ease use of either DetectorContainer or Mosaic objects thoughout the
+    # code.  But this requires special treatment for I/O (see _parse()), so
+    # beware of adding new datamodel components with the same names as those in
+    # DetectorContainer!
     datamodel = {'id': dict(otype=int, descr='Mosaic ID number'),
                  'detectors': dict(otype=np.ndarray, atype=DetectorContainer,
                                    descr='List of objects with detector parameters.'),

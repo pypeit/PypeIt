@@ -237,8 +237,6 @@ class PypeItImage(datamodel.DataContainer):
 
         # Make sure the units are defined
         if self.units is None:
-            # TODO: Keep this warning?
-            msgs.warn('Assuming image units are counts (e-).')
             self.units = 'e-'
 
     def _bundle(self):

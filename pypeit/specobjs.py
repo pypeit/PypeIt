@@ -266,11 +266,20 @@ class SpecObjs:
                 SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
+
+            # TODO: Hack this for now, but revisit once mosaicing has been
+            # implemented for DEIMOS.  I.e., does it make sense to keep this?
+            if multi_spec_det is not None and isinstance(self.DETECTOR[0], Mosaic):
+                msc = [d.det for d in self.DETECTOR[0].detectors]
+                _multi_spec_det = None if multi_spec_det == msc else multi_spec_det
+            else:
+                _multi_spec_det = multi_spec_det
+
             # For multiple detectors grab the requested detectors
-            if multi_spec_det is not None:
+            if _multi_spec_det is not None:
                 sobjs_std = SpecObjs(header=self.header)
                 # Now append the maximum S/N object on each detector
-                for idet in multi_spec_det:
+                for idet in _multi_spec_det:
                     this_det = self.DET == idet
                     istd = SNR[this_det].argmax()
                     sobjs_std.add_sobj(self[this_det][istd])
@@ -457,7 +466,7 @@ class SpecObjs:
             self.specobjs = np.append(self.specobjs, [sobj])
             return
         if isinstance(sobj, SpecObjs):
-            # TODO: Is this loop necessary?  Why not np.append(self.specobjs, sobj.specobjs)?
+            # TODO: Possible to instead do np.append(self.specobjs, sobj.specobjs)?
             for isobj in sobj:
                 self.specobjs = np.append(self.specobjs, isobj)
             return

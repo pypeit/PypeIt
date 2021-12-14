@@ -689,50 +689,6 @@ class DataContainer:
         # Validate the object
         self._validate()
 
-# TODO: I removed this rather than updating it to allow for multiple
-# DataContainer options in otype.  This method was only used in building the rst
-# tables (in a way that didn't expand it's children) and in tests.  I can work
-# on bringing this back, if requested.
-#    @classmethod
-#    def full_datamodel(cls, include_parent=True, include_children=True):
-#        """
-#        Expand out the datamodel into a single dict
-#        This needs to be a class method to access the datamodel without instantiation
-#
-#        Args:
-#            include_parent (bool, optional):
-#                If True, include the parent entry in additional to its pieces
-#            include_children (bool, optional):
-#                If True, expand any items that are DataModel's
-#
-#
-#        Returns:
-#            dict: All the keys, items of the nested datamodel's
-#
-#        """
-#        #
-#        full_datamodel = {}
-#        for key in cls.datamodel.keys():
-#            # Data container?
-#            if obj_is_data_container(cls.datamodel[key]['otype']):
-#                if include_parent:
-#                    full_datamodel[key] = cls.datamodel[key]
-#                if include_children:
-#                    # Now run through the others
-#                    sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
-#                    for key in sub_datamodel.keys():
-#                        # Check this is not a duplicate
-#                        if key in full_datamodel.keys():
-#                            msgs.error('CODING ERROR: Duplicate datamodel key.')
-#                        # Assign
-#                        full_datamodel[key] = sub_datamodel[key]
-#                else:
-#                    full_datamodel[key] = cls.datamodel[key]
-#            else:
-#                full_datamodel[key] = cls.datamodel[key]
-#        #
-#        return full_datamodel
-
     def _init_internals(self):
         """
         Add internal variables to the object before initialization completes

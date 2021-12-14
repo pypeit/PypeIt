@@ -369,8 +369,10 @@ class ParSet:
         """
         if isinstance(data, str):
             return data if not verbatim else '``' + data + '``'
-        if hasattr(data, '__len__'):
-            return '[]' if isinstance(data, list) and len(data) == 0 \
+        if isinstance(data, list):
+            # TODO: When the list is empty, should the return include the
+            # brackets?
+            return '[]' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)

@@ -124,7 +124,8 @@ class RawImage:
                 self.oscansec_img = self.spectrograph.get_rawimage(self.filename, self.det)
 
         # NOTE: The binning is expected to be the same for all images in a
-        # mosaic, but this isn't checked
+        # mosaic, but it's left to the raw image reader for each spectrograph.
+        # See, e.g., gemini_gmos.
 
         # Number of loaded images (needed in case the raw image is used to
         # create a mosaic)
@@ -225,7 +226,9 @@ class RawImage:
     def use_slits(self):
         """
         Return a flag setting if the slit-edge traces should be used in the
-        image processing.
+        image processing.  The slits are required if a spatial flexure
+        correction is requested and/or when the slit-illumination profile is
+        removed.
         """
         if self.par is None:
             return False
@@ -659,7 +662,31 @@ class RawImage:
 
     def _squeeze(self):
         """
-        Convenience method for preparing attributes for construction of a ``PypeItImage``.
+        Convenience method for preparing attributes for construction of a
+        :class:`~pypeit.images.pypeitimage.PypeItImage`.
+        
+        The issue is that :class:`~pypeit.images.rawimage.RawImage` image arrays
+        are *always* 3D, even if there's only one image.  This is acceptable
+        because use of :class:`~pypeit.images.rawimage.RawImage` is relatively
+        self-contained.  It's really a namespace used for the image processing
+        that disappears as soon as the image processing is done.
+
+        :class:`~pypeit.images.pypeitimage.PypeItImage`, on the other hand, is a
+        core class that is shared by many subclasses and used throughout the
+        code base, meaning that it doesn't make sense to keep single images in
+        3D arrays.
+
+        This method "squeezes" (see `numpy.squeeze`_) the arrays used to
+        construct a :class:`~pypeit.images.pypeitimage.PypeItImage` so that they
+        are 3D only if they have to be.
+
+        Returns:
+            :obj:`tuple`: Returns the
+            :class:`pypeit.images.detector_container.DetectorContainer` or
+            :class:`pypeit.images.mosaic.Mosaic` instance, and the reshaped
+            arrays with the image flux, inverse variance, amplifier number,
+            detector number, readnoise-squared image, base-level variance, image
+            scaling factor, and bad-pixel mask.
         """
         _det = self.detector[0] if self.mosaic is None else self.mosaic
         if self.nimg == 1:
@@ -1053,7 +1080,7 @@ class RawImage:
             # Image *must* have been trimmed already because shape does not
             # match raw image
             self.steps[step] = True
-            msgs.warn('Image shape does not match original.')
+            msgs.warn('Image shape does not match raw image.  Assuming it was already trimmed.')
             return
         if self.steps[step] and not force:
             # Already trimmed

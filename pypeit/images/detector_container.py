@@ -137,21 +137,39 @@ class DetectorContainer(datamodel.DataContainer):
     @property
     def name(self):
         """
-        Return a string identifier for the detector.
+        Return a string identifier for the detector.  This is a simple wrapper
+        for :func:`get_name` using :attr:`det`.
         """
         return self.get_name(self.det)
 
     @staticmethod
     def get_det_str(det):
         """
-        Return a string identifier for the detector.
+        Return a string identifier for the detector.  Currently a zero-padded
+        two character string with the detector number.
+
+        Args:
+            det (:obj:`int`):
+                1- indexed detector number.
+
+        Returns:
+            :obj:`str`: String representation of the detector number used in
+            constructing the detector name.
         """
         return f'{det:02}'
 
     @staticmethod
     def get_name(det):
         """
-        Return a string identifier for the detector.
+        Return a string identifier for the detector.  Currently, e.g., DET01 for
+        det=1.
+
+        Args:
+            det (:obj:`int`):
+                1- indexed detector number.
+
+        Returns:
+            :obj:`str`: Detector name.
         """
         return f'DET{DetectorContainer.get_det_str(det)}'
 
@@ -159,6 +177,15 @@ class DetectorContainer(datamodel.DataContainer):
     def parse_name(name):
         """
         Parse the string identifier of the detector into its integer index.
+
+        Args:
+            name (:obj:`str`):
+                Detector name.  Assumed to have been created by
+                :func:`get_name`.
+
+        Returns:
+            :obj:`int`: The parsed detector number.  For example, returns 2 when
+            the name is ``DET02``.
         """
         return int(name[3:])
 

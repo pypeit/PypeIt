@@ -662,7 +662,8 @@ def parse_binning(binning):
     # Return
     return binspectral, binspatial
 
-# TODO: Allow this to differentiate between detectors and mosaics
+# TODO: Allow this to differentiate between detectors and mosaics.  Input syntax
+# likely to become, e.g., DET01:175,DET01:205.
 def parse_slitspatnum(slitspatnum):
     """
     Parse a string into a list of detectors and SPAT_IDs.

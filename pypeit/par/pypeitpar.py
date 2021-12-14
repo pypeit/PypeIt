@@ -74,35 +74,41 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-#-----------------------------------------------------------------------------
-# Reduction ParSets
 
-# TODO: Create child classes for each allowed frame type?  E.g.:
-#
-# class BiasPar(FrameGroupPar):
-#    def __init__(self, useframe=None, number=None, overscan=None, combine=None, lacosmic=None):
-#        # Set frame-specific defaults
-#        _number = 5 if number is None else number
-#        super(BiasPar, self).__init(frametype='bias', useframe=useframe, number=_number,
-#                                    overscan=overscan, combine=combine, lacosmic=lacosmic)
 
-def tuple_force(parset, paramname):
+def tuple_force(par):
     """
-    Forces a parameter in a parset to be a tuple
+    Cast object as tuple.
 
-    Parameters
-    ----------
-    parset (parset):
-    paramname (str):
+    Args:
+        par (object):
+            Object to cast as a tuple.  Can be None; if so, the returned value
+            is also None (*not* an empty tuple).  If this is already a tuple, 
+            this is the returned value.  If the input is a list with one tuple,
+            the returned value is just the single tuple in the list (i.e, this
+            does not convert the result to a tuple of one tuple).
 
-
+    Returns:
+        :obj:`tuple`: Casted result.
     """
-    # Force paramname to be a tuple
-    if parset[paramname] is not None and not isinstance(parset[paramname], tuple):
-        try:
-            parset[paramname] = tuple(parset[paramname])
-        except:
-            raise TypeError('Could not convert provided {:s} to a tuple.'.format(paramname))
+    # Already has correct type
+    if par is None or isinstance(par, tuple):
+        return par
+
+    # If the value is a list of one tuple, return the tuple.
+    # TODO: This is a hack, and we should probably revisit how this is done.
+    # The issue is that pypeit.par.util.eval_tuple always returns a list of
+    # tuples, something that's required for allowing lists of detector mosaics.
+    # But elements of TelluricPar are forced to be tuples.  When constructing
+    # the parameters to use in a given run, the sequence of merging the
+    # defaults, configuration-specific, and user-provided parameters leads to
+    # converting these TelluricPar parameters into multiply nested tuples.  This
+    # hook avoids that.
+    if isinstance(par, list) and len(par) == 1 and isinstance(par[0], tuple):
+        return par[0]
+
+    return tuple(par)
+
 
 class FrameGroupPar(ParSet):
     """
@@ -1801,8 +1807,7 @@ class TelluricPar(ParSet):
                                'spectral pixels per resolution element.'
 
 
-        # Force resln_frac_bounds to be a tuple
-        tuple_force(pars,'resln_frac_bounds')
+        pars['resln_frac_bounds'] = tuple_force(pars['resln_frac_bounds'])
         defaults['resln_frac_bounds'] = (0.5,1.5)
         dtypes['resln_frac_bounds'] = tuple
         descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
@@ -1810,18 +1815,18 @@ class TelluricPar(ParSet):
                                      'spectral resolution fit to be within the range ' \
                                      'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
 
-        tuple_force(pars,'pix_shift_bounds')
+        pars['pix_shift_bounds'] = tuple_force(pars['pix_shift_bounds'])
         defaults['pix_shift_bounds'] = (-5.0,5.0)
         dtypes['pix_shift_bounds'] = tuple
         descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
                                     'The atmosphere will be allowed to shift within this range during the fit.'
 
-        tuple_force(pars,'delta_coeff_bounds')
+        pars['delta_coeff_bounds'] = tuple_force(pars['delta_coeff_bounds'])
         defaults['delta_coeff_bounds'] = (-20.0, 20.0)
         dtypes['delta_coeff_bounds'] = tuple
         descr['delta_coeff_bounds'] = 'Parameters setting the polynomial coefficient bounds for sensfunc optimization.'
 
-        tuple_force(pars,'minmax_coeff_bounds')
+        pars['minmax_coeff_bounds'] = tuple_force(pars['minmax_coeff_bounds'])
         defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
         dtypes['minmax_coeff_bounds'] = tuple
         descr['minmax_coeff_bounds'] = "Parameters setting the polynomial coefficient bounds for sensfunc optimization." \
@@ -1941,7 +1946,7 @@ class TelluricPar(ParSet):
                             'the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, ' \
                             'wave_max_bal2,...]. These masked pixels will be ignored during the fitting.'
 
-        tuple_force(pars,'bounds_norm')
+        pars['bounds_norm'] = tuple_force(pars['bounds_norm'])
         defaults['bounds_norm'] = (0.1, 3.0)
         dtypes['bounds_norm'] = tuple
         descr['bounds_norm'] = "Normalization bounds for scaling the initial object model."

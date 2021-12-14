@@ -194,8 +194,8 @@ class CombineImage:
         # just use the first one.
         # TODO: Why is this done here?  It's the same thing as what's done if
         # bpm is not passed to RawImage.process...
-        if bpm is None:
-            bpm = self.spectrograph.bpm(self.files[0], self.det)
+#        if bpm is None:
+#            bpm = self.spectrograph.bpm(self.files[0], self.det)
 
         # Loop on the files
         for kk, ifile in enumerate(self.files):

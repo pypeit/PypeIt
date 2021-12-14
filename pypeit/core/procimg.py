@@ -410,8 +410,8 @@ def cr_screen(a, mask_value=0.0, spatial_axis=1):
     return np.ma.divide(d, mada[:,None]).filled(mask_value)
 
 
-# This is a factor of a few times faster than the previous version.  The speed
-# improvement is better for smaller images.  For larger images (e.g.,
+# NOTE: This is a factor of a few times faster than the previous version.  The
+# speed improvement is better for smaller images.  For larger images (e.g.,
 # 2048x2048), the improvement is about a factor of 3.
 def grow_mask(mask, radius):
     """
@@ -437,33 +437,6 @@ def grow_mask(mask, radius):
     x, y = np.meshgrid(np.arange(size) - size//2, np.arange(size) - size//2)
     # Dilate the mask
     return ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
-
-#def grow_masked(img, grow, growval):
-#
-#    if not np.any(img == growval):
-#        return img
-#
-#    _img = img.copy()
-#    sz_x, sz_y = img.shape
-#    d = int(1+grow)
-#    rsqr = grow*grow
-#
-#    # Grow any masked values by the specified amount
-#    for x in range(sz_x):
-#        for y in range(sz_y):
-#            if img[x,y] != growval:
-#                continue
-#
-#            mnx = 0 if x-d < 0 else x-d
-#            mxx = x+d+1 if x+d+1 < sz_x else sz_x
-#            mny = 0 if y-d < 0 else y-d
-#            mxy = y+d+1 if y+d+1 < sz_y else sz_y
-#
-#            for i in range(mnx,mxx):
-#                for j in range(mny, mxy):
-#                    if (i-x)*(i-x)+(j-y)*(j-y) <= rsqr:
-#                        _img[i,j] = growval
-#    return _img
 
 
 def gain_frame(amp_img, gain):

@@ -15,7 +15,7 @@ from pypeit.tests.tstutils import data_path
 
 
 def test_masterframe_methods():
-    master_key = 'A_1_01'
+    master_key = 'A_1_DET01'
     master_dir = data_path('')
 
     # Filename

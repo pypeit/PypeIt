@@ -21,6 +21,7 @@
 .. _numpy.meshgrid: http://docs.scipy.org/doc/numpy/reference/generated/numpy.meshgrid.html
 .. _numpy.where: http://docs.scipy.org/doc/numpy/reference/generated/numpy.where.html
 .. _numpy.random.Generator: https://numpy.org/doc/stable/reference/random/generator.html
+.. _numpy.squeeze: https://numpy.org/doc/stable/reference/generated/numpy.squeeze.html
 
 .. scipy
 .. _scipy.optimize.curve_fit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html

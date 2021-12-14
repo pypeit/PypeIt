@@ -75,8 +75,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
-        # TODO: Why is this a warning instead of msgs.info?
-        msgs.warn('PATH =' + os.getcwd())
+        msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
             spectrograph_name, config_lines, spec2d_files \

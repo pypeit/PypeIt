@@ -430,39 +430,6 @@ class PypeIt:
         # Finish
         self.print_end_time()
 
-# NOTE: Moved to pypeit.spectrographs.spectrograph
-#    # This is a static method to allow for use in coadding script 
-#    @staticmethod
-#    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
-#        """
-#        Return the 1-indexed list of detectors to reduce.
-#
-#        Args:
-#            detnum (:obj:`int`, :obj:`list`, optional):
-#                One or more detectors to reduce.  If None, return the full list
-#                for the provided number of detectors (``ndet``).  Should be None
-#                if ``slitspatnum`` is provided.
-#            ndet (:obj:`int`, optional):
-#                The number of detectors for this instrument.  Only used
-#                if ``detnum`` is None.
-#            slitspatnum (:obj:`str`, optional):
-#                A standard format string used to identify a slit by its detector
-#                number and spatial pixel.  Should be None if ``detnum`` is
-#                provided.
-#
-#        Returns:
-#            :obj:`list`: List of detectors to be reduced.
-#        """
-#        if detnum is not None and slitspatnum is not None:
-#            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
-#                       'over-writing SpecObjs.')
-#        if detnum is None and slitspatnum is None:
-#            return np.arange(1, ndet+1).tolist()
-#        elif detnum is not None:
-#            return np.atleast_1d(detnum).tolist()
-#        else:
-#            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
-
     # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """

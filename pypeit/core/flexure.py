@@ -867,7 +867,6 @@ class MultiSlitFlexure(DataContainer):
         self.pmodel_b = None
         self.pmodel_l = None
 
-    # TODO: Why isn't init part of __init__?
     def init(self, spectrograph, par):
         """ Initialize this and that about the slits, par, spectrograph
         e.g. RA, DEC, S/N
