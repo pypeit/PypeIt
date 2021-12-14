@@ -583,6 +583,7 @@ def coadd_cube(files, parset, overwrite=False):
     # Grab the parset, if not provided
     if parset is None: parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
+    flatpar = parset['calibrations']['flatfield']
 
     # Check the output file
     outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename']+".fits"
@@ -631,6 +632,7 @@ def coadd_cube(files, parset, overwrite=False):
     whitelight_img = None  # This is the whitelight image based on all input spec2d frames
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     locations = parset['calibrations']['alignment']['locations']
+    flat_splines = dict()   # A dictionary containing the splines of the flatfield
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
@@ -674,8 +676,10 @@ def coadd_cube(files, parset, overwrite=False):
         slscl = spec.get_meta_value([spec2DObj.head0], 'slitwid')
         if dspat is None:
             dspat = max(pxscl, slscl)
-        elif max(pxscl, slscl) > dspat:
-            dspat = max(pxscl, slscl)
+        if pxscl > dspat:
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the pixel scale ({1:f}'')".format(dspat,pxscl))
+        if pxscl > dspat:
+            msgs.warn("Spatial scale requested ({0:f}'') is less than the slicer scale ({1:f}'')".format(dspat, slscl))
 
         # Loading the alignments frame for these data
         astrometric = cubepar['astrometric']
@@ -728,14 +732,27 @@ def coadd_cube(files, parset, overwrite=False):
         # (this assumes the flatfield lamp has the same shape for all setups)
         flatfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
                                                              hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
-        flatimages = flatfield.FlatImages.from_file(flatfile)
-        flatframe = flatimages.pixelflat_model
-        flatframe /= flatimages.fit2illumflat(slits, frametype='pixel', initial=True, flexure_shift=flexure)
-        # Calculate the relative scale
-        flatfield.illum_profile_spectral(flatframe, waveimg, slits,
-                               slit_illum_ref_idx=flatpar['slit_illum_ref_idx'],
-                               model=None, skymask=None, trim=flatpar['slit_trim'], flexure=flexure)
-        # Apply the relative scale and generate a 1D "spectrum"
+        if flatfile not in flat_splines.keys():
+            flatimages = flatfield.FlatImages.from_file(flatfile)
+            flatframe = flatimages.pixelflat_model
+            flatframe /= flatimages.fit2illumflat(slits, frametype='pixel', initial=True, flexure_shift=flexure)
+            # Calculate the relative scale
+            scale_model = flatfield.illum_profile_spectral(flatframe, waveimg, slits,
+                                                           slit_illum_ref_idx=flatpar['slit_illum_ref_idx'], model=None,
+                                                           skymask=None, trim=flatpar['slit_trim'], flexure=flexure)
+            # Apply the relative scale and generate a 1D "spectrum"
+            onslit = waveimg != 0
+            wavebins = np.linspace(np.min(waveimg[onslit]), np.max(waveimg[onslit]), slits.nspec)
+            hist, edge = np.histogram(waveimg[onslit], bins=wavebins, weights=flatframe[onslit]/scale_model[onslit])
+            cntr, edge = np.histogram(waveimg[onslit], bins=wavebins)
+            cntr = cntr.astype(np.float)
+            norm = (cntr != 0) / (cntr + (cntr == 0))
+            spec_spl = hist * norm
+            wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
+            flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
+                                              bounds_error=False, fill_value="extrapolate")
+        flat_spl = flat_splines[flatfile]
+        embed()
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
@@ -861,6 +878,7 @@ def coadd_cube(files, parset, overwrite=False):
               msgs.newline() + "-" * 40)
 
     # Generate the output binning
+    # TODO :: If multiple frames are provided, and the user does not want to combine, output N frames.
     if combine:
         numra = int((ra_max-ra_min) * cosdec / dspat)
         numdec = int((dec_max-dec_min)/dspat)
