@@ -1145,8 +1145,7 @@ class Spectrograph:
                                 kerror = True
                     # Bomb out?
                     if kerror:
-                        # TODO: Do we want this embed here?
-                        embed(header=utils.embed_header())
+                        #embed(header=utils.embed_header())
                         msgs.error('Required meta "{0}" did not load!'.format(meta_key)
                                    + 'You may have a corrupt header.')
                 else:

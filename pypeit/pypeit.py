@@ -671,20 +671,35 @@ class PypeIt:
         Returns the trace of the standard if it is applicable to the current reduction
 
         Args:
-            std_redux (bool): If False, proceed
-            det (int): Detector index
-            std_outfile (str): Filename for the standard star spec1d file
+            std_redux (:obj:`bool`):
+                Flag that the current reduction *is* the reduction of a standard
+                and that this step should be skipped.   So, if this is False,
+                the method will proceed; otherwise, the returned value is always
+                None.
+            det (:obj:`int`, :obj:`tuple`):
+                1-indexed detector(s) to process.
+            std_outfile (:obj:`str`):
+                Filename with the standard star spec1d file.  Can be None.
 
         Returns:
-            ndarray or None: Trace of the standard star on input detector
-
+            `numpy.ndarray`_: Trace of the standard star on input detector.
+            Will be None if ``std_redux`` is true, if ``std_outfile`` is None,
+            or if the selected detector/mosaic is not available in the provided
+            spec1d file.
         """
         if std_redux is False and std_outfile is not None:
             sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
+            detid = self.spectrograph.get_det_id(det)
             # Does the detector match?
-            # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
-            # we would use the standard from another detector
-            this_det = sobjs.DET == det
+            # TODO: Instrument specific logic here could be implemented with the
+            # parset. For example LRIS-B or LRIS-R we we would use the standard
+            # from another detector.
+
+            # TODO: I'm now worried about this check because individual
+            # detectors and mosaics can have the same number (i.e., DET01 and
+            # MSC01 both have sobjs.DET == 1).  We could test against the name,
+            # but I haven't tried to implement that.
+            this_det = sobjs.DET == detid
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()

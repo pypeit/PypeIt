@@ -170,7 +170,9 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         the same order as used for the input image, and then combining those
         variances as necessary in overlap regions.
 
-        Tests show that this approach is also not invertable.  I.e., iteratively transforming the image back and forth between the native and mosaic frames lead to image drifts.
+        Tests show that this approach is also not invertable.  I.e., iteratively
+        transforming the image back and forth between the native and mosaic
+        frames lead to image drifts.
 
     Args:
         imgs (:obj:`list`, `numpy.ndarray`_):
@@ -207,8 +209,11 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         cval (:obj:`float`, optional):
             The value used to fill empty pixels in the mosaic.
         order (:obj:`int`, optional):
-            Order of the interpolation of each input image onto the mosaic grid.
-            This is passed directly to `scipy.ndimage.affine_transform`_.
+            The order of the spline interpolation of each input image onto the
+            mosaic grid.  This is passed directly to
+            `scipy.ndimage.affine_transform`_.  The order has to be in the range
+            0-5; ``order=0`` is nearest-grid-point interpolations, ``order=1``
+            is linear.
         overlap (:obj:`str`, optional):
             Keyword that indicates how to handle pixels in the regions where
             multiple images overlap in the mosaic.  Options are:
@@ -263,16 +268,17 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     mosaic_ivar = None if ivar is None else np.zeros(mosaic_shape, dtype=float)
 
     # TODO: These loops can end up creating and destroying lots of big arrays.
-    # Is there a way to make this faster?
+    # Is there a way to make this faster?  If memory becomes an issue, try adding
+    #
+    #   del _tform_img
+    #   gc.collect()
+    #
+    # at the end of each loop
     for i in range(nimg):
         _inv_tform = np.linalg.inv(_tforms[i])
-        # TODO: I'm not a fan of using cval=np.nan, but this might be the most
-        # robust way to catch mosaic pixels that are not filled by the input
-        # image.  I'm not sure if we lose efficiency by using NaN instead of a
-        # real scalar.
         _tform_img = ndimage.affine_transform(imgs[i], _inv_tform, output_shape=mosaic_shape,
-                                              cval=np.nan, order=order)
-        filled = np.logical_not(np.isnan(_tform_img))
+                                              cval=-1e20, order=order)
+        filled = _tform_img > -1e20
         if bpm is not None:
             _tform_gpm = ndimage.affine_transform(np.logical_not(bpm[i]).astype(float), _inv_tform,
                                                   output_shape=mosaic_shape, cval=0., order=0)

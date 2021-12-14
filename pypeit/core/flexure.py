@@ -750,10 +750,14 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
         try:
             p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
                                         guesses=p0, nparam=4)
-        except:
+        except RuntimeError as e:
+            msgs.warn('First attempt at Gaussian fit failed, ending with RuntimeError.  Original '
+                      f'exception: {e.args[0]}  Assuming this is because it hit the maximum '
+                      'number of function evaluations.  Trying again with a maximum of 10000.')
             # Try again with larger limit on the number of function evaluations
             p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
                                         guesses=p0, nparam=4, maxfev=10000)
+
         perr = np.sqrt(np.diag(pcov))
         #except:
         #    p=p0

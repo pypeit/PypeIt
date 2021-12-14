@@ -113,3 +113,5 @@ def test_flex_multi():
     if os.path.isfile(outfile):
         os.remove(outfile)
 
+test_flex_multi()
+

@@ -286,7 +286,7 @@ class CoAdd2D:
                 slits.mask, flag=slits.bitmask.exclude_for_reducing)))
             good_slits = np.where(np.invert(reduce_bpm))[0]
         else:
-            raise NotImplementedError('CODING ERROR: only_slits cannot be None')
+            raise NotImplementedError('Slit selection (only_slits) not implemented yet!')
 
         coadd_list = []
         for slit_idx in good_slits:

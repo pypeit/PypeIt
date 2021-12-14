@@ -14,16 +14,16 @@ from pypeit import msgs
 
 def affine_transform_matrix(scale=None, rotation=None, translation=None):
     r"""
-    Construct an affine transformation matrix for a two-dimensional image in
-    homologous coordinates.
+    Construct a two-dimensional affine transformation matrix in homologous
+    coordinates.
 
-    Method currently does *not* allow for a shear term.  The transformation is
-    returned as a `numpy.ndarray`_ in homologous coordinates.
+    The coordinate convention is to assume the coordinates are ordered in an
+    array with the Cartesian :math:`x` in the first column and Cartesian
+    :math:`y` in the second column.  See the examples below.
     
-    When applied to an image, this follows the convention that coordinates are
-    ordered as Cartesian :math:`x` along the first axis and Cartesian :math:`y`
-    along the second axis.
-
+    This function currently does *not* allow for a shear term.  The
+    transformation is returned as a `numpy.ndarray`_ in homologous coordinates.
+    
     If no arguments are provided, this simply returns an identity matrix.
 
     Otherwise, the order of operations is to scale, rotate, and then translate
@@ -46,13 +46,48 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
             to both axes, or a two-element array-like with the scaling for each
             axis.
         rotation (:obj:`float`, optional):
-            Counter-clockwise rotation in radians.  If None, rotation is 0.
+            Counter-clockwise rotation in radians.
+              The ordinate is aligned with
+            the first axis, and the abcissa is aligned with the second axis.  If
+            None, the rotation is 0.  In Cartesian coordinates, this means that the :math:`x`
         translation (array-like, optional):
             An array with two elements that provide the shift to apply in both
             image dimensions.
 
     Returns:
         `numpy.ndarray`_: A :math:`3\times3` affine-transformation matrix.
+
+    Examples:
+
+        Rotate the unit box by 45 degrees:
+
+        >>> import numpy as np
+        >>> from pypeit.core import transform
+        >>> # Cartesian:     x   y
+        >>> coo = np.array([[0., 0.],
+                            [1., 0.],
+                            [1., 1.],
+                            [0., 1.]])
+        >>> tform = transform.affine_transform_matrix(rotation=np.radians(45.))
+        >>> tform
+        array([[ 0.70710678, -0.70710678,  0.        ],
+               [ 0.70710678,  0.70710678,  0.        ],
+               [ 0.        ,  0.        ,  1.        ]])
+        >>> transform.coordinate_transform_2d(coo, tform, inverse=False)
+        array([[ 0.00000000e+00,  0.00000000e+00],
+               [ 7.07106781e-01,  7.07106781e-01],
+               [ 1.11022302e-16,  1.41421356e+00],
+               [-7.07106781e-01,  7.07106781e-01]])
+
+        Rotation about the center by first shifting, then rotating, then shifting back.
+
+        >>> shift = affine_transform_matrix(translation=[-0.5,-0.5])
+        >>> _tform = np.linalg.inv(shift) @ tform @ shift
+        >>> transform.coordinate_transform_2d(coo, _tform, inverse=False)
+        array([[ 0.5       , -0.20710678],
+               [ 1.20710678,  0.5       ],
+               [ 0.5       ,  1.20710678],
+               [-0.20710678,  0.5       ]])
     """
     tform = np.eye(3)
     if scale is not None:
@@ -122,7 +157,12 @@ def coordinate_transform_2d(coo, matrix, inverse=True):
             The affine-transformation matrix.  See
             :func:`pypeit.core.mosaic.affine_transform_matrix`.
         inverse (:obj:`bool`, optional):
-            By default, the coordinate transformation 
+            By default, the function performs the *passive* transformation;
+            i.e., transforming the coordinate axes and providing the the new
+            coordinates in the rotated frame.  Set ``inverse`` to false to
+            instead perform the *active* transformation; i.e., applying the
+            transformation to the coordinates, moving them within the existing
+            coordinate frame.
     
     Returns:
         `numpy.ndarray`_: Transformed coordinates with shape :math:`(N,2)`.

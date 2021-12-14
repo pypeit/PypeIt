@@ -306,11 +306,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-#        # Check for file; allow for extra .gz, etc. suffix
-#        fil = glob.glob(raw_file + '*')
-#        if len(fil) != 1:
-#            msgs.error("Found {:d} files matching {:s}".format(len(fil)))
-
         # Read
         msgs.info(f'Attempting to read GMOS file: {raw_file}')
         # NOTE: io.fits_open checks that the file exists
@@ -331,10 +326,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             msgs.error(f'Unexpected number of amplifiers for {self.name} based on number of '
                        f'extensions in {raw_file}.')
 
-#        # get the x and y binning factors...
-#        binning = head1['CCDSUM']
-#        xbin, ybin = [int(ibin) for ibin in binning.split(' ')]
-
         # First read over the header info to determine the size of the output array...
         datasec = head1['DATASEC']
         x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
@@ -351,24 +342,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.zeros_like(array, dtype=int)
         oscansec_img = np.zeros_like(array, dtype=int)
 
-#        # TODO: Why is this stuff here and not in the relevant subclass?
-#        if numamp == 2:  # E2V
-#            if det == 1:  # BLUEST DETECTOR
-#                order = range(6, 4, -1)
-#            elif det == 2:  # NEXT
-#                order = range(3, 5)
-#            elif det == 3:  # REDDEST DETECTOR
-#                order = range(1, 3)
-#        elif numamp == 4:  # Hamamatsu
-#            if det == 1:  # BLUEST DETECTOR
-#                order = range(12, 8, -1)
-#            elif det == 2:  # BLUEST DETECTOR
-#                order = range(8, 4, -1)
-#            elif det == 3:  # BLUEST DETECTOR
-#                order = range(4, 0, -1)
-#        else:
-#            msgs.error(f'Unexpected number of amplifiers {numamp}; expected 2 or 4!')
-
         # Get the HDU read order for this instrument
         order = self.hdu_read_order()
         for ii in range(nimg):
@@ -383,9 +356,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 xe = xs + inx
 
                 # insert data...
-                # Data section
-                #section = '[{:d}:{:d},:]'.format(xs * xbin, xe * xbin)  # Eliminate lines
-                #dsec.append(section)
                 array[ii,xs:xe,:] = np.flipud(data)
                 rawdatasec_img[ii,xs:xe, :] = kk+1
 
@@ -393,8 +363,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
                 xs = nx - numamp * nxb + kk * nxb
                 xe = xs + nxb
 
-                #osection = '[{:d}:{:d},:]'.format(xs * xbin, xe * xbin)  # TRANSPOSED FOR WHAT COMES
-                #osec.append(osection)
                 array[ii,xs:xe,:] = overscan
                 oscansec_img[ii,xs:xe,:] = kk+1
 
@@ -407,17 +375,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         rawdatasec_img = np.transpose(rawdatasec_img, axes=(0,2,1))
         oscansec_img = np.transpose(oscansec_img, axes=(0,2,1))
 
-#        # TODO: Move to the relevant subclass.
-#        # Hack me
-#        if self.name == 'gemini_gmos_north_ham_ns' \
-#                and head0['object'] in ['GCALflat', 'CuAr', 'Bias'] \
-#                and self.nod_shuffle_pix is not None:
-#            # TODO -- Should double check NOD&SHUFFLE was not on
-#            nodpix = int(self.nod_shuffle_pix/xbin)
-#            row1, row2 = nodpix + int(48/xbin), 2*nodpix+int(48/xbin) #48 is a solid value for the unusful rows in GMOS data
-#            # Shuffle me
-#            array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
-
+        # Handle returning both single and multiple images
         if nimg == 1:
             return detectors[0], array[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
         return mosaic, array, hdu, exptime, rawdatasec_img, oscansec_img
@@ -953,6 +911,12 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
             # NOTE: expand_dims does *not* copy the array.  We can edit it
             # directly because we've created it inside this function.
             _array = np.expand_dims(array, 0)
+        elif isinstance(detpar, Mosaic):
+            _detpar = detpar.detectors
+            _array = array
+        else:
+            _detpar = detpar
+            _array = array
         for i in range(nimg):
             xbin, ybin = parse.parse_binning(_detpar[i].binning)
             # TODO: Should double check NOD&SHUFFLE was not on
