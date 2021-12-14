@@ -10,6 +10,9 @@ coadd all matching spectra. It also creates metadata files about its input files
 coadded output files, and can create archive directories suitable for ingest into 
 KOA.
 
+Grouping can be done by sky coordinates if available, or by pixel coordinates.
+Coadding is done using flux calibrated spectra when available. 
+
 Fluxing is planned to be added in a future release. 
 
 Usage
@@ -105,6 +108,16 @@ followed by a list of spec1d files. An example configuration file is shown below
 
     slit_exclude_flags = BOXSLIT
 
+    # Whether to flux calibrate spec1d files using archival senfuncs.
+    # Defaults to False
+    #flux = False
+
+    # Whether to ignore existing flux calibrated data in the spec1ds.
+    # Defaults to False. Even when this is False, if the flux calibration data 
+    # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
+    #ignore_flux = False
+    
+    
     # Where to place coadded files and report files. Defaults to
     # current directory.
     #outdir = /work/output
