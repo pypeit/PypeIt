@@ -266,7 +266,24 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
-def extract_standard_spec(stdcube):
+def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    (x, y) = tup
+    xo = float(xo)
+    yo = float(yo)
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+
+def rebinND(a, shape):
+    sh = shape[0],a.shape[0]//shape[0],shape[1],a.shape[1]//shape[1]
+    return a.reshape(sh).mean(-1).mean(1)
+
+
+def extract_standard_spec(stdcube, subsample=20):
     """ Extract a spectrum of a standard star from a datacube
 
     Args:
@@ -279,10 +296,56 @@ def extract_standard_spec(stdcube):
         Nlam_ivar_star (`numpy.ndarray`_): inverse variance of Nlam_star
         gpm_star (`numpy.ndarray`_): good pixel mask for Nlam_star
     """
+    # Extract some information from the HDU list
+    flxcube = stdcube['FLUX'].data.T
+    varcube = stdcube['VARIANCE'].data.T
+    numwave = flxcube.shape[2]
 
+    embed()
+    # Setup the WCS
+    stdwcs = wcs.WCS(stdcube['FLUX'].header)
+    wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
+    wave = wcs_wav[:, 2] * 1.0E10 * units.AA
 
+    # Generate a whitelight image
+    nrmval = np.sum(flxcube != 0.0, axis=2)
+    nrmval[nrmval == 0.0] = 1.0
+    wl_img = np.sum(flxcube, axis=2) / nrmval
 
-    return wave, Nlam, Nlam_ivar, gpm
+    # Estimate the centroid and width of the standard star
+    x = np.linspace(0, wl_img.shape[1] - 1, wl_img.shape[1])
+    y = np.linspace(0, wl_img.shape[0] - 1, wl_img.shape[0])
+    xx, yy = np.meshgrid(x, y)
+    idx_max = np.unravel_index(np.argmax(wl_img), wl_img.shape)
+    initial_guess = (np.max(wl_img), idx_max[1], idx_max[0], 2, 2, 0, 0)
+    wlscl = np.max(wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
+    popt, pcov = opt.curve_fit(twoD_Gaussian, (xx, yy), wl_img.ravel()/wlscl,
+                               bounds=([0, 0, 0, 0.5, 0.5, -np.pi, -np.pi], np.inf), p0=initial_guess)
+    wid = max(popt[3], popt[4])
+
+    # Setup the coordinates of the mask
+    x = np.linspace(0, flxcube.shape[1] - 1, flxcube.shape[1] * subsample)
+    y = np.linspace(0, flxcube.shape[0] - 1, flxcube.shape[0] * subsample)
+    xx, yy = np.meshgrid(x, y)
+
+    # Generate a mask
+    newshape = (flxcube.shape[0] * subsample, flxcube.shape[1] * subsample)
+    mask = np.zeros(newshape)
+    nsig = 4  # 4 sigma should be far enough
+    ww = np.where((np.sqrt((xx - popt[1]) ** 2 + (yy - popt[2]) ** 2) < nsig * wid))
+    mask[ww] = 1
+    mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
+
+    # Extract boxcar
+    cntmask = (flxcube != 0.0) * mask
+    scimask = flxcube * mask
+    varmask = varcube * mask
+    cnt_spec = cntmask.sum(0).sum(0)
+    box_flux = scimask.sum(0).sum(0) / cnt_spec
+    box_var = varmask.sum(0).sum(0) / cnt_spec
+    box_gpm = np.ones(box_flux.size, dtype=np.bool)
+
+    return wave, box_flux, 1/box_var, box_gpm
 
 
 def make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat, ref_filename):
@@ -736,7 +799,8 @@ def coadd_cube(files, parset, overwrite=False):
         # (this assumes the flatfield lamp has the same shape for all setups)
         flatfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
                                                              hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
-        if flatfile not in flat_splines.keys():
+        if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
+            msgs.info("Calculating relative sensitivity for grating correction")
             flatimages = flatfield.FlatImages.from_file(flatfile)
             flatframe = flatimages.pixelflat_model
             flatframe /= flatimages.fit2illumflat(slits, frametype='pixel', initial=True, flexure_shift=flexure)
@@ -755,7 +819,6 @@ def coadd_cube(files, parset, overwrite=False):
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
             flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
                                               bounds_error=False, fill_value="extrapolate")
-        flat_corr = flat_splines[flatfile](wave_ext[wvsrt])
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
@@ -767,11 +830,14 @@ def coadd_cube(files, parset, overwrite=False):
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
         # Sensitivity function
+        grat_corr = 1.0
+        if cubepar['grating_corr']:
+            grat_corr = flat_splines[flatfile](wave_ext[wvsrt])
         sens_func = 1.0
         if fluxcal:
             sens_func = flux_spline(wave_ext[wvsrt])
         # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
-        ext_corr *= sens_func / (exptime * flat_corr)
+        ext_corr *= sens_func / (exptime * grat_corr)
         # Correct for extinction
         flux_sav = flux_ext[wvsrt] * ext_corr
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2

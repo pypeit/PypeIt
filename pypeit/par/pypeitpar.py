@@ -1194,7 +1194,7 @@ class CubePar(ParSet):
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
                  standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
-                 spatial_delta=None, wave_delta=None, astrometric=None):
+                 spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1302,6 +1302,12 @@ class CubePar(ParSet):
         dtypes['astrometric'] = bool
         descr['astrometric'] = 'If true, an astrometric correction will be applied using the alignment frames.'
 
+        defaults['grating_corr'] = False
+        dtypes['grating_corr'] = bool
+        descr['grating_corr'] = 'Set to True if the grating angle is (even slightly) different for any input frames,' \
+                                'or if the standard star was taken with a slightly different setup. This correction' \
+                                'divides the standard star and the science frames by a spectrum of the pixelflat.'
+
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
                                       values=list(pars.values()),
@@ -1318,7 +1324,7 @@ class CubePar(ParSet):
         # Basic keywords
         parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
-                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric']
+                   'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
