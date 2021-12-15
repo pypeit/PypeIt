@@ -1,13 +1,14 @@
 """
 Module to run tests on SpecObj
 """
-import numpy as np
 import sys
 import os
+
+from IPython import embed
+
 import pytest
 
-
-#import pypeit
+import numpy as np
 
 from astropy.table import Table
 from astropy.io import fits
@@ -18,14 +19,15 @@ from pypeit import msgs
 
 
 def test_init():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     # Test
     assert sobj.PYPELINE == 'MultiSlit'
     assert sobj['PYPELINE'] == 'MultiSlit'
     assert sobj.NAME == 'SPAT-----SLIT0000-DET01'
 
+
 def test_assignment():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj.PYPELINE = 'Blah'
     # Quick test on datamodel
@@ -39,7 +41,7 @@ def test_assignment():
 
 
 def test_hdu():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
@@ -53,7 +55,7 @@ def test_hdu():
     assert 'SLITID' in hdul[0].header.keys()
 
 def test_io():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     # Can we handle 1 array?
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     ofile = data_path('tmp.fits')
@@ -65,7 +67,7 @@ def test_io():
     os.remove(ofile)
 
 def test_iotwo():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
@@ -85,7 +87,7 @@ def test_iotwo():
     os.remove(ofile)
 
 def test_copy():
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj.smash_nsig = 1.

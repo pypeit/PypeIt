@@ -134,8 +134,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     spec_flex_table['sci_spec_flexure'] = redux.slitshift
 
     # Construct the Spec2DObj with the positive image
-    spec2DObj_A = spec2dobj.Spec2DObj(det=det,
-                                      sciimg=sciImg.image,
+    spec2DObj_A = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                       ivarraw=sciImg.ivar,
                                       skymodel=skymodel,
                                       objmodel=objmodel,
@@ -153,11 +152,10 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = True
-    all_spec2d[det] = spec2DObj_A
+    all_spec2d[spec2DObj_A.detname] = spec2DObj_A
 
     # Construct the Spec2DObj with the negative image
-    spec2DObj_B = spec2dobj.Spec2DObj(det=det,
-                                      sciimg=-sciImg.image,
+    spec2DObj_B = spec2dobj.Spec2DObj(sciimg=-sciImg.image,
                                       ivarraw=sciImg.ivar,
                                       skymodel=-skymodel,
                                       objmodel=-objmodel,
@@ -273,6 +271,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         # Get detector (there's only one)
         det = 1 # MOSFIRE has a single detector
         detector = spectrograph.get_detector_par(det)
+        detname = detector.name
 
         # We need the platescale
         platescale = detector['platescale']
@@ -305,7 +304,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         if std_spec1d_file is not None:
             # Get the standard trace if need be
             sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
-            this_det = sobjs.DET == det
+            this_det = sobjs.DET == detname
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
@@ -316,7 +315,6 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             std_trace = None
 
         # Read in the msbpm
-        sdet = detector.det_str
         msbpm = spectrograph.bpm(A_files[0], det)
         # Read in the slits
         slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
@@ -444,8 +442,8 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             # reason
             mean, med, sigma = sigma_clipped_stats(imgminsky[imgminsky_gpm], sigma_lower=3.0,
                                                    sigma_upper=3.0)
-            chname_skysub = 'fluxed-skysub-det{:s}'.format(sdet) \
-                                if args.flux else 'skysub-det{:s}'.format(sdet)
+            chname_skysub = f'fluxed-skysub-{detname.lower()}' \
+                                if args.flux else f'skysub-{detname.lower()}'
             cuts_skysub = (med - 3.0 * sigma, med + 3.0 * sigma)
             cuts_resid = (-5.0, 5.0)
             #fits.writeto('/Users/joe/ginga_test.fits',imgminsky, overwrite=True)
@@ -463,7 +461,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             display.show_slits(viewer, ch_skysub, slit_left, slit_righ, slit_ids=slit_id)
 
             # SKRESIDS
-            chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
+            chname_skyresids = f'sky_resid-{detname.lower()}'
             # sky residual map
             image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']
             viewer, ch_skyresids = display.show_image(image, chname_skyresids,

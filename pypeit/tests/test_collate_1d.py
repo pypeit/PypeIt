@@ -19,6 +19,7 @@ from pypeit.scripts.collate_1d import find_spec2d_from_spec1d,find_slits_to_excl
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.par import pypeitpar
 from pypeit.pypmsgs import PypeItError
+from pypeit.images.detector_container import DetectorContainer
 
 from pypeit.tests.tstutils import data_path, cooked_required
 
@@ -33,7 +34,7 @@ class MockSpecObj:
     def __init__(self, MASKDEF_OBJNAME, MASKDEF_ID, DET, RA, DEC, SPAT_PIXPOS, NAME, OPT_COUNTS=None, BOX_COUNTS=None):
         self.MASKDEF_OBJNAME = MASKDEF_OBJNAME
         self.MASKDEF_ID = MASKDEF_ID
-        self.DET = DET
+        self.DET = DetectorContainer.get_name(DET)
         self.RA = RA
         self.SPAT_PIXPOS = SPAT_PIXPOS
         self.DEC = DEC

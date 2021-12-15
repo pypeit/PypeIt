@@ -1114,14 +1114,9 @@ class MultiSlitReduce(Reduce):
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask
             specobj_dict = {'SLITID': slit_spat,
+                            'DET': self.sciImg.detector.name,
                             'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
-            if isinstance(self.det, tuple):
-                # Image is a detector mosaic
-                specobj_dict['DET'] = self.spectrograph.allowed_mosaics.index(self.det)+1
-                specobj_dict['from_mosaic'] = True
-            else:
-                specobj_dict['DET'] = self.det
 
             # This condition allows to not use a threshold to find objects in alignment boxes
             # because these boxes are smaller than normal slits and the stars are very bright,
@@ -1383,8 +1378,8 @@ class EchelleReduce(Reduce):
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
         # TODO: Not sure how this fairs if self.det is a tuple...
-        specobj_dict = {'SLITID': 999, #'orderindx': 999,
-                        'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+                        'PYPELINE': self.pypeline}
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,

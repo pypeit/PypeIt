@@ -27,9 +27,24 @@ from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
 
-# TODO: Document this function...
+# TODO: We should not be calling objects by the same names as modules we've
+# loaded.  I.e., we've loaded specobjs, and here we're passing specobjs to this
+# function...
 def show_trace(specobjs, det, viewer, ch):
+    """
+    Overplot the extracted object traces for this detector in the provided ginga
+    channel.
 
+    Args:
+        specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+            Object holding the 1D spectral extractions.  If None, the function
+            doesn't do anything.
+        det (:obj:`str`):
+            The string identifier for the detector or mosaic used to select the
+            extractions to show.
+        viewer (?):
+        ch (?):
+    """
     if specobjs is None:
         return
     in_det = np.where(specobjs.DET == det)[0]
@@ -173,7 +188,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                 cuts=(cut_min, cut_max))
 
             if sobjs is not None:
-                show_trace(sobjs, det, viewer, ch_sci)
+                show_trace(sobjs, detname, viewer, ch_sci)
             display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_sci)
@@ -197,7 +212,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    mask=mask_in, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, det, viewer, ch_skysub)
+                    show_trace(sobjs, detname, viewer, ch_skysub)
             display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_skysub)
@@ -236,7 +251,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                        waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                        bitmask=bitMask, mask=mask_in)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, det, viewer, ch_sky_resids)
+                    show_trace(sobjs, detname, viewer, ch_sky_resids)
             display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_skyresids)
@@ -251,7 +266,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                    bitmask=bitMask, mask=mask_in, wcs_match=True)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, det, viewer, ch_resids)
+                    show_trace(sobjs, detname, viewer, ch_resids)
             display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_resids)

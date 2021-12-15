@@ -158,12 +158,6 @@ class CoAdd2D:
         # processed data to PypeIt's main output files
         self.detname = self.spectrograph.get_det_name(self.det)
 
-        # This is the ID number used to identify the detector or mosaic.  For
-        # single detectors, this is currently identical to self.det, but for
-        # mosaics this is the 1-indexed position of the mosaic in the list of
-        # allowed mosaics returned by spectrograph.allowed_mosaics.
-        self.detid = self.spectrograph.get_det_id(self.det)
-
         self.offsets = offsets
         self.weights = weights
         self.spec_samp_fact = spec_samp_fact
@@ -703,7 +697,7 @@ class CoAdd2D:
                 spec1d_file = f.replace('spec2d', 'spec1d')
                 if os.path.isfile(spec1d_file):
                     sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
-                    this_det = sobjs.DET == self.detid
+                    this_det = sobjs.DET == self.detname
                     specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)

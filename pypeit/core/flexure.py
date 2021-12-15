@@ -806,8 +806,8 @@ class MultiSlitFlexure(DataContainer):
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
                  'nslits': dict(otype=int, descr='Number of slits'),
-                 'det': dict(otype=np.ndarray, atype=np.integer,
-                             descr='Detector number (ndet, nslits)'),
+                 'det': dict(otype=np.ndarray, atype=str,
+                             descr='String identifiers for the detector or mosaic (ndet, nslits)'),
                  'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
                  'slitid': dict(otype=np.ndarray, atype=np.floating, descr='Slit ID (nslits)'),
                  'mn_wv': dict(otype=np.ndarray, atype=np.floating,
@@ -911,7 +911,7 @@ class MultiSlitFlexure(DataContainer):
 #                for det in range(self.ndet):
 #                    self[new_key][det] = self.specobjs[self.sobj_idx[det]][key]
         # Save the detector numbers
-        self.det = np.zeros((self.ndet, self.nslits), dtype=int)
+        self.det = np.zeros((self.ndet, self.nslits), dtype=object)
         for det in range(self.ndet):
             self.det[det] = self.specobjs[self.sobj_idx[det]].DET
 

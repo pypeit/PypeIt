@@ -5086,9 +5086,8 @@ class EdgeTraceSet(DataContainer):
             _posx_pa = None
 
         # Instantiate and return
-        id_attr = 'id' if isinstance(self.traceimg.detector, Mosaic) else 'det'
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline,
-                                      detid=self.traceimg.detector[id_attr], nspat=self.nspat,
+                                      detname=self.traceimg.detector.name, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,

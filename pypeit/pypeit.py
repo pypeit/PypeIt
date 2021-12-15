@@ -579,13 +579,12 @@ class PypeIt:
             self.caliBrate.slits = calib_slits[i]
 
             detname = sciImg_list[i].detector.name
-            detid = sciImg_list[i].detector.parse_name(detname)
 
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             if all_specobjs_objfind.nobj > 0:
-                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detid]
+                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detname]
             else:
                 all_specobjs_on_det = all_specobjs_objfind
             all_spec2d[detname], tmp_sobjs \
@@ -656,17 +655,13 @@ class PypeIt:
         """
         if std_redux is False and std_outfile is not None:
             sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
-            detid = self.spectrograph.get_det_id(det)
+            detname = self.spectrograph.get_det_name(det)
             # Does the detector match?
             # TODO: Instrument specific logic here could be implemented with the
             # parset. For example LRIS-B or LRIS-R we we would use the standard
             # from another detector.
 
-            # TODO: I'm now worried about this check because individual
-            # detectors and mosaics can have the same number (i.e., DET01 and
-            # MSC01 both have sobjs.DET == 1).  We could test against the name,
-            # but I haven't tried to implement that.
-            this_det = sobjs.DET == detid
+            this_det = sobjs.DET == detname
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()

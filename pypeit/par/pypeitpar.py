@@ -1451,9 +1451,12 @@ class SensFuncPar(ParSet):
 
         defaults['multi_spec_det'] = None
         dtypes['multi_spec_det'] = list
-        descr['multi_spec_det'] = 'List of detector numbers to splice together for multi-detector instruments ' \
-                                  '(e.g. DEIMOS, GMOS). It is assumed that there is *no* overlap in wavelength ' \
-                                  'across detectors (might be ok if there is)'
+        descr['multi_spec_det'] = 'List of detectors (identified by their string name, like ' \
+                                  'DET01) to splice together for multi-detector instruments ' \
+                                  '(e.g. DEIMOS). It is assumed that there is *no* overlap in ' \
+                                  'wavelength across detectors (might be ok if there is).  If ' \
+                                  'entered as a list of integers, they should be converted to ' \
+                                  'the detector name.  **Cannot be used with detector mosaics.**'
 
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
@@ -1510,17 +1513,28 @@ class SensFuncPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm', 'UVIS',
-                   'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
-                   'mask_abs_lines']
 
-        badkeys = np.array([pk not in parkeys for pk in k])
+        # Single element parameters
+        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm',
+                   'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines']
+
+        # All parameters, including nested ParSets
+        allkeys = parkeys + ['UVIS', 'IR']
+
+        badkeys = np.array([pk not in allkeys for pk in k])
         if np.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for SensFuncPar.'.format(k[badkeys]))
+            raise ValueError(f"{','.join(k[badkeys])} are not recognized key(s) for SensFuncPar.")
 
         kwargs = {}
+        # Single element parameters
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Parameters that are themselves ParSets
+        pk = 'UVIS'
+        kwargs[pk] = SensfuncUVISPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'IR'
+        kwargs[pk] = TelluricPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     @staticmethod
@@ -3337,7 +3351,6 @@ class ReducePar(ParSet):
         dtypes['slitmask'] = [ ParSet, dict ]
         descr['slitmask'] = 'Parameters for slitmask'
 
-
         defaults['cube'] = CubePar()
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
@@ -4064,18 +4077,15 @@ class PypeItPar(ParSet):
                              '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
                              'default flux-calibration parameters.'
 
-
         # Coadd1D
         defaults['coadd1d'] = Coadd1DPar()
         dtypes['coadd1d'] = [ParSet, dict]
         descr['coadd1d'] = 'Par set to control 1D coadds.  Only used in the after-burner script.'
 
-
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
         dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
-
 
         # Sensfunc
         defaults['sensfunc'] = SensFuncPar()
@@ -4670,3 +4680,6 @@ class Collate1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+
+

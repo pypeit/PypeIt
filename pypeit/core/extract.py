@@ -1261,8 +1261,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'SLITID': 999, 'det': 1,
-                                'objtype': 'unknown', 'pypeline': 'unknown'}
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
 
     Returns:
         tuple: Returns the following:
@@ -1287,7 +1287,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:

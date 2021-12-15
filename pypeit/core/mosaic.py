@@ -16,7 +16,7 @@ from pypeit.utils import inverse
 
 
 def build_image_mosaic_transform(shape, shift, rot, binning):
-    """
+    r"""
     Build the affine transform of a binned image.
 
     The order of operaions is as follows.  Steps 1, 3, and 5 are only
@@ -42,15 +42,29 @@ def build_image_mosaic_transform(shape, shift, rot, binning):
     These steps are compiled into a single transformation matrix using
     :func:`pypeit.core.transform.affine_transform_series`.
 
+    The coordinate reference frame used for the image is identical to what is
+    used by `scipy.ndimage.affine_transform`_, which is in the pixel index
+    frame.  That is, to get the Cartesian :math:`(x,y)` coordinates assumed for
+    each pixel, run:
+
+    .. code-block:: python
+
+        x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
+
+    The coordinates are assumed to be at the *center* of the pixel.
+
     Args:
         shape (:obj:`tuple`):
             A two-tuple with the shape of the **binned** image.
         shift (:obj:`tuple`):
-            A two-tuple with the nominal shift of the *unbinned* image
-            in the mosaic in each dimension.
+            A two-tuple with the nominal shift of the *unbinned* image in the
+            mosaic in each dimension.  For example, if ``shift=(1,10)``, pixel
+            values in the first axis are shift by 1 pixel and pixel values in
+            the second axis are shifted by 10 pixels.
         rot (:obj:`float`):
-            The counter-clockwise rotation in degrees of the
-            **unbinned** image in the mosaic.
+            The counter-clockwise rotation in degrees of the **unbinned** image
+            in the mosaic.  The rotation assumes the coordinate frame described
+            above.
         binning (:obj:`tuple`):
             The number of pixels binned in each dimension.  This only
             has an effect on the results when the binning is not the
@@ -89,16 +103,16 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
 
     Args:
         shape (:obj:`tuple`):
-            A two-tuple with the shape of the images to mosaic.
+            A two-tuple with the shape of the images to mosaic.  The shape is
+            assumed to be the same for all images.
         tforms (:obj:`list`):
             A list of :math:`3\times3` `numpy.ndarray`_ objects with the
             transformations to apply to each image.  These are adjusted
             as necessary to perform the transformations within the
             coordinate system of the mosaic image.
         buffer (:obj:`int`, optional):
-            An added buffer in each dimension that frames the mosaic
-            image and should not have any image data.  Buffer pixels are
-            set to 0.  Buffer must be non-negative.
+            An added buffer in each dimension that frames the mosaic image and
+            should not have any image data.  Buffer must be non-negative.
         inplace (:obj:`bool`, optional):
             If True, alter the provided ``tforms`` in-place.  Otherwise,
             the returned transforms are new arrays.

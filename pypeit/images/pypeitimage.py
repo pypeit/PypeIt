@@ -92,7 +92,7 @@ class PypeItImage(datamodel.DataContainer):
 #            Primary header of the source fits file.  If the image is a
 #            combination of multiple files, this is None.
 
-    version = '1.1.0'
+    version = '1.2.0'
     """Datamodel version number"""
 
     datamodel = {'image': dict(otype=np.ndarray, atype=np.floating, descr='Primary image data'),

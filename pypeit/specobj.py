@@ -11,17 +11,13 @@ from IPython import embed
 
 import numpy as np
 
-from scipy import interpolate
-
 from astropy import units
 
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import flexure
-#from pypeit.core import parse
 from pypeit.core import flux_calib
-from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
 from pypeit.images.detector_container import DetectorContainer
@@ -30,32 +26,34 @@ from pypeit.images.mosaic import Mosaic
 
 class SpecObj(datamodel.DataContainer):
     """
-    Class to handle object spectra from a single exposure.
+    Class to handle single spectra from a single exposure.
 
-    One generates one of these Objects for each spectrum in the exposure. They
+    One generates one of these objects for each spectrum in the exposure. They
     are instantiated by the object finding routine, and then all spectral
     extraction information for the object are assigned as attributes
 
     Args:
-        pypeline (str): Name of the PypeIt pypeline method
-            Allowed options are:  MultiSlit, Echelle, IFU
-        DET (int): Detector number
-        copy_dict (dict, optional): Used to set the entire internal dict of the object.
-            Only used in the copy() method so far.
-        objtype (str, optional)
-           Type of object ('unknown', 'standard', 'science')
-        slitid (int, optional):
-           Identifier for the slit (max=9999).
-           Multislit and IFU
-        orderindx (int, optional):
-           Running index for the order
-        ech_order (int, optional):
-           Physical order number
-
-    Attributes:
-        See datamodel and _init_internals()
+        PYPELINE (:obj:`str`):
+            Name of the ``PypeIt`` pipeline method.  Allowed options are
+            MultiSlit, Echelle, or IFU.
+        DET (:obj:`str`):
+            The name of the detector or mosaic from which the spectrum was
+            extracted.  For example, DET01.
+        OBJTYPE (:obj:`str`, optional):
+            Object type.  For example: 'unknown', 'standard', 'science'.
+        SLITID (:obj:`int`, optional):
+            For multislit and IFU reductions, this is an identifier for the slit
+            (max=9999).
+        ECH_ORDER (:obj:`int`, optional):
+            Physical order number.
+        ECH_ORDERINDX (:obj:`int`, optional):
+            Running index for the order.
     """
+
     version = '1.1.4'
+    """
+    Current datamodel version number.
+    """
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
                                     descr='Object trace along the spec (spatial pixel)'),
@@ -138,12 +136,16 @@ class SpecObj(datamodel.DataContainer):
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  # Detector
-                 'DET': dict(otype=(int, np.integer),
-                             descr='Integer identifier for either the detector or mosaic'),
+                 # TODO: Change this to DETNAME?
+                 # NOTE: DET (or DETNAME) is needed in the case when DETECTOR is None.
+                 'DET': dict(otype=str,
+                             descr='A string identifier for the reduced detector or mosaic.'),
                  'DETECTOR': dict(otype=(DetectorContainer, Mosaic),
-                                  descr='Detector or Mosaic metadata'),
+                                  descr='Object with the detector or mosaic metadata'),
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
-                 'OBJTYPE': dict(otype=str, descr='PypeIt type of object (standard, science)'),
+                 # TODO: It's unclear if OBJTYPE has to be one among a set of
+                 # specific keywords.
+                 'OBJTYPE': dict(otype=str, descr='Object type (e.g., standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
                                      descr='Spatial location of the trace on detector (pixel) at half-way'),
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
@@ -186,9 +188,12 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Name of the object for echelle data. Same as NAME above '
                                         'but order numbers are omitted giving a unique name per '
                                         'object.')}
+    """
+    Defines the current datmodel.
+    """
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
-                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, from_mosaic=False):
+                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:-1]])
@@ -199,17 +204,15 @@ class SpecObj(datamodel.DataContainer):
         self.FLEX_SHIFT_TOTAL = 0.
 
         # Name
-        self.set_name(from_mosaic=from_mosaic)
+        self.set_name()
 
     @classmethod
-    def from_arrays(cls, PYPE_LINE:str, wave:np.ndarray, 
-                    counts:np.ndarray, ivar:np.ndarray, mode='OPT', 
-                    DET=1, SLITID=0, **kwargs):
+    def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
+                    mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
-        slf = cls(PYPE_LINE, DET, SLITID=SLITID)
+        slf = cls(PYPELINE, DET, SLITID=SLITID)
         # Add in arrays
-        for item, attr in zip((wave, counts, ivar), 
-                              ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+        for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
         # Mask
         slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
@@ -236,6 +239,15 @@ class SpecObj(datamodel.DataContainer):
         # Echelle
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
+
+    def _validate(self):
+        """
+        Validate the object.
+        """
+        pypelines = ['MultiSlit', 'IFU', 'Echelle']
+        if self.PYPELINE not in pypelines:
+            msgs.error(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
+                       f"{', '.join(pypelines)}")
 
     def _bundle(self, **kwargs):
         """
@@ -326,36 +338,31 @@ class SpecObj(datamodel.DataContainer):
                 break
         return SN
 
-    def set_name(self, from_mosaic=False):
+    def set_name(self):
         """
         Construct the ``PypeIt`` name for this object.
 
         The ``PypeIt`` name depends on the type of data being processed:
 
-            - For multislit and IFU data, the name is ``SPATnnnn-SLITmmmm-DETdd``, where
-              ``nnnn`` is the nearest integer pixel in the spatial direction (at the
-              spectral midpoint) where the object was extracted, ``mmmm`` is the slit
-              identification number, and ``dd`` is the detector number.
+            - For multislit and IFU data, the name is
+              ``SPATnnnn-SLITmmmm-{DET}``, where ``nnnn`` is the nearest integer
+              pixel in the spatial direction (at the spectral midpoint) where
+              the object was extracted, ``mmmm`` is the slit identification
+              number, and ``{DET}`` is the string identifier for the detector or
+              mosaic.
 
-            - For echelle data, the name is ``OBJnnnn-DETdd-ORDERoooo``, where
+            - For echelle data, the name is ``OBJnnnn-{DET}-ORDERoooo``, where
               ``nnnn`` is 1000 times the fractional position along the spatial
-              direction rounded to the nearest integer, ``dd`` is the detector
-              number, and ``oooo`` is the echelle order.
+              direction rounded to the nearest integer, ``{DET}`` is the string
+              identifier for the detector or mosaic, and ``oooo`` is the echelle
+              order.
 
-        Args:
-            from_mosaic (:obj:`bool`, optional):
-                Indicates that the object was extracted from a detector mosaic
-                image.  If true, the identifier is changed from ``'DET'`` to
-                ``'MSC'``.
-
+        For echelle data, this modifies both :attr:`ECH_NAME` and :attr:`NAME`;
+        otherwise, only the latter is set.
         """
         naming_model = {}
-        for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
+        for skey in ['SPAT', 'SLIT', 'SCI', 'OBJ', 'ORDER']:
             naming_model[skey.lower()] = skey
-        if from_mosaic:
-            naming_model['det'] = 'MSC'
-
-        sdet = f'{self.DET:02}'
 
         if self.PYPELINE == 'Echelle':
             # ObjID
@@ -367,8 +374,8 @@ class SpecObj(datamodel.DataContainer):
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
                 ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-            ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            name += f'-{self.DET}'
+            ech_name += f'-{self.DET}'
             # Order number
             name += '-'+naming_model['order']
             name += '{:04d}'.format(self.ECH_ORDER)
@@ -384,7 +391,7 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            name += f'-{self.DET}'
             self.NAME = name
         else:
             msgs.error(f'{self.PYPELINE} is not an understood pipeline.')

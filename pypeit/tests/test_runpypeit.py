@@ -132,11 +132,11 @@ def test_run_pypeit():
     # #########################################################
     # Test!!
     # Files exist
-    assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits'))
+    spec1d_file = os.path.join(configdir, 'Science',
+                               'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    assert os.path.isfile(spec1d_file), 'spec1d file missing'
 
     # spec1d
-    spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     
     # Check RMS
@@ -154,6 +154,7 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
+
 
 
 

@@ -13,12 +13,7 @@ from pypeit.images import buildimage
 from pypeit import edgetrace, slittrace, specobjs
 from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import dev_suite_required, cooked_required
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 
 
 # Load flats files
@@ -198,7 +193,6 @@ def test_dith_obs():
             assert sobjs[sobjs.SLITID == 1583].DEC == -27.72781111, 'Wrong object dithered DEIMOS DEC'
             assert round(sobjs[sobjs.MASKDEF_OBJNAME == 'yg_21385'].SPAT_PIXPOS[0]) == 1578, \
                 'Wrong object (yg_21385) location on the dithered DEIMOS slit'
-
 
 
 @dev_suite_required

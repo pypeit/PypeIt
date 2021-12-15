@@ -118,8 +118,8 @@ def affine_transform_series(steps):
 
     Each step in the transformation is provided by a call to
     :func:`pypeit.core.transform.affine_transform_matrix`.  The order of the
-    steps should provided in the order they should be preformed.  The following
-    should pass:
+    steps should be provided in the order they should be preformed.  The
+    following should pass:
 
     .. code-block:: python
 
@@ -152,17 +152,19 @@ def coordinate_transform_2d(coo, matrix, inverse=True):
     Args:
         coo (array-like):
             Coordinates to transform.  Shape must be :math:`(N,2)`, where
-            :math:`N` is the number of coordinates.
+            :math:`N` is the number of coordinates, Cartesian :math:`x` is in
+            the first column (``coo[:,0]``), and Cartesian :math:`y` is in the
+            second column (``coo[:,1]``).
         matrix (`numpy.ndarray`_):
-            The affine-transformation matrix.  See
-            :func:`pypeit.core.mosaic.affine_transform_matrix`.
+            The :math:3\times 3` affine-transformation matrix.  See
+            :func:`~pypeit.core.mosaic.affine_transform_matrix`.
         inverse (:obj:`bool`, optional):
             By default, the function performs the *passive* transformation;
-            i.e., transforming the coordinate axes and providing the the new
-            coordinates in the rotated frame.  Set ``inverse`` to false to
-            instead perform the *active* transformation; i.e., applying the
-            transformation to the coordinates, moving them within the existing
-            coordinate frame.
+            i.e., transforming the coordinate axes and providing the new
+            coordinates in the transformed (e.g., rotated) frame.  Set
+            ``inverse`` to false to instead perform the *active* transformation;
+            i.e., applying the transformation to the coordinates, moving them
+            within the existing coordinate frame.
     
     Returns:
         `numpy.ndarray`_: Transformed coordinates with shape :math:`(N,2)`.

@@ -221,6 +221,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # time.
 #        # Splice detectors 1,2,3 when creating sensitivity function
 #        par['sensfunc']['multi_spec_det'] = [1,2,3]
+        # NOTE: New syntax uses the detector names
+#        par['sensfunc']['multi_spec_det'] = ['DET01','DET02','DET03']
 
         # Set the default exposure time ranges for the frame typing
         #par['scienceframe']['exprng'] = [30, None]

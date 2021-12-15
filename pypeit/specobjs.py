@@ -59,15 +59,17 @@ class SpecObjs:
         Also tag on the Header
 
         Args:
-            fits_file (str):
-            det (int, optional):
-                Only load SpecObj matching this det value
-            chk_version (:obj:`bool`):
+            fits_file (:obj:`str`):
+                The name of the fits file to read.
+            det (:obj:`str`, optional):
+                The string identifier for a detector or mosaic used to select
+                the loaded spectra.  If None, all spectra are loaded.
+            chk_version (:obj:`bool`, optional):
                 If False, allow a mismatch in datamodel to proceed
 
         Returns:
-            specobsj.SpecObjs
-
+            :class:`~pypeit.specobjs.SpecObjs`: The loaded spectra from the
+            provided fits file.
         """
         # HDUList
         hdul = io.fits_open(fits_file)
@@ -88,10 +90,10 @@ class SpecObjs:
                 dmodcls = eval(hdu.header['DMODCLS'])
             except:
                 msgs.error(f"Unknown detector type datamodel class: {hdu.header['DMODCLS']}")
-            # NOTE: This requires that any "detector" datamodel class has
-            # parse_name and from_hdu methods.
-            # TODO: BEWARE! Below requires a known format for the HDU name.
-            _det = dmodcls.parse_name(hdu.name.split('-')[0])
+            # NOTE: This requires that any "detector" datamodel class has a
+            # from_hdu method, and the name of the HDU must have a known format
+            # (e.g., 'DET01-DETECTOR').
+            _det = hdu.name.split('-')[0]
             detector_hdus[_det] = dmodcls.from_hdu(hdu)
 
         # Now the objects
@@ -209,7 +211,7 @@ class SpecObjs:
         flux = np.zeros((nspec, norddet))
         flux_ivar = np.zeros((nspec, norddet))
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
-        detector = np.zeros(norddet, dtype=int)
+        detector = [None]*norddet
         ech_orders = np.zeros(norddet, dtype=int)
 
         # TODO make the extraction that is desired OPT vs BOX an optional input variable.
@@ -230,7 +232,7 @@ class SpecObjs:
         # TODO JFH: Make this an atribute of the specobj by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
-        meta_spec['DET'] = detector
+        meta_spec['DET'] = np.array(detector)
         meta_spec['DISPNAME'] = self.header['DISPNAME']
         # Return
         if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
@@ -249,8 +251,8 @@ class SpecObjs:
 
         Args:
             multi_spec_det (list):
-                If there are multiple detectors arranged in the spectral direction, return the sobjs for
-                the standard on each detector.
+                If there are multiple detectors arranged in the spectral
+                direction, return the sobjs for the standard on each detector.
 
         Returns:
             SpecObj or SpecObjs or None
@@ -267,16 +269,23 @@ class SpecObjs:
             else:
                 return None
 
-            # TODO: Hack this for now, but revisit once mosaicing has been
-            # implemented for DEIMOS.  I.e., does it make sense to keep this?
-            if multi_spec_det is not None and isinstance(self.DETECTOR[0], Mosaic):
-                msc = [d.det for d in self.DETECTOR[0].detectors]
-                _multi_spec_det = None if multi_spec_det == msc else multi_spec_det
-            else:
-                _multi_spec_det = multi_spec_det
+#            # TODO: Hack this for now, but revisit once mosaicing has been
+#            # implemented for DEIMOS.  I.e., does it make sense to keep this?
+#            if multi_spec_det is not None and isinstance(self.DETECTOR[0], Mosaic):
+#                msc = [d.det for d in self.DETECTOR[0].detectors]
+#                _multi_spec_det = None if multi_spec_det == msc else multi_spec_det
+#            else:
+#                _multi_spec_det = multi_spec_det
 
             # For multiple detectors grab the requested detectors
-            if _multi_spec_det is not None:
+            if multi_spec_det is not None:
+                # TODO: This is a hack assuming the integers in multi_spec_det
+                # are for *detectors*, not mosaics.
+                if any([isinstance(d, int) for d in multi_spec_det]):
+                    _multi_spec_det = [DetectorContainer.get_name(d) if isinstance(d, int) else d
+                                            for d in multi_spec_det]
+                else:
+                    _multi_spec_det = multi_spec_det
                 sobjs_std = SpecObjs(header=self.header)
                 # Now append the maximum S/N object on each detector
                 for idet in _multi_spec_det:
