@@ -301,7 +301,6 @@ def extract_standard_spec(stdcube, subsample=20):
     varcube = stdcube['VARIANCE'].data.T
     numwave = flxcube.shape[2]
 
-    embed()
     # Setup the WCS
     stdwcs = wcs.WCS(stdcube['FLUX'].header)
     wcs_wav = stdwcs.wcs_pix2world(np.vstack((np.zeros(numwave), np.zeros(numwave), np.arange(numwave))).T, 0)
