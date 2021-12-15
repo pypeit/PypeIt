@@ -24,9 +24,12 @@ from pypeit import utils
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
+from pypeit import onespec
 
 from pypeit.pypeitsetup import PypeItSetup
 from pypeit.pypmsgs import PypeItError
+
+
 
 @dev_suite_required
 def test_quicklook():
@@ -252,10 +255,12 @@ def test_coadd1d_1():
     scripts.coadd_1dspec.CoAdd1DSpec.main(
             scripts.coadd_1dspec.CoAdd1DSpec.parse_args([coadd_ifile, '--test_spec_path',
                                                          data_path('')]))
-
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
+    # Test that the output file is kosher and contains the right quantities
+    spec = onespec.OneSpec.from_file(coadd_ofile)
+    assert spec.wave.shape == spec.wave_grid_mid.shape
 
     # Clean up
     hdu.close()
@@ -283,6 +288,10 @@ def test_coadd1d_2():
     hdu = io.fits_open(coadd_ofile)
     assert hdu[1].header['EXT_MODE'] == 'OPT'
     assert hdu[1].header['FLUXED'] is False
+
+    # Test that the output file is kosher and contains the right quantities
+    spec = onespec.OneSpec.from_file(coadd_ofile)
+    assert spec.wave.shape == spec.wave_grid_mid.shape
 
     # Clean up
     hdu.close()
