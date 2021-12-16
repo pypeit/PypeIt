@@ -572,8 +572,6 @@ def unpack_orders(sobjs, ret_flam=False):
         nspec = sobjs[0].optimal['COUNTS'].size
     # Allocate arrays and unpack spectrum
     wave = np.zeros((nspec, norders))
-    #wave_grid_mid = np.zeros((nspec, norders))
-    #wave_mask = np.zeros((nspec, norders),dtype=bool)
     flam = np.zeros((nspec, norders))
     flam_ivar = np.zeros((nspec, norders))
     flam_mask = np.zeros((nspec, norders),dtype=bool)
@@ -587,10 +585,6 @@ def unpack_orders(sobjs, ret_flam=False):
         else:
             flam[:,iord] = sobjs[iord].optimal['COUNTS']
             flam_ivar[:,iord] = sobjs[iord].optimal['COUNTS_IVAR']
-        #try:
-        #    wave_grid_mid[:, iord] = sobjs[iord].optimal['WAVE_GRID_MID']
-        #except KeyError:
-        #    wave_grid_mid[:, iord] = None
 
     return wave, flam, flam_ivar, flam_mask
 
@@ -608,11 +602,11 @@ def general_spec_reader(specfile, ret_flam=False):
             Return FLAM instead of COUNTS.
 
     Returns:
-        :obj:`tuple`: Six objects are returned.  The first four are
-        `numpy.ndarray`_ objects with the wavelength, flux, inverse variance,
-        and good-pixel mask for each spectral pixel.  The fifth is a :obj:`dict`
-        of metadata.  And the sixth is an `astropy.io.fits.Header`_ object with
-        the primary header from the input file.
+        :obj:`tuple`: Seven objects are returned.  The first five are
+        `numpy.ndarray`_ objects with the wavelength, bin centers of wavelength grid,
+        flux, inverse variance, and good-pixel mask for each spectral pixel.
+        The 6th is a :obj:`dict` of metadata.  And the 7th is an
+        `astropy.io.fits.Header`_ object with the primary header from the input file.
     """
 
     # Place holder routine that provides a generic spectrum reader
@@ -648,7 +642,10 @@ def general_spec_reader(specfile, ret_flam=False):
         spec = onespec.OneSpec.from_file(specfile)
         # Unpack
         wave = spec.wave
-        wave_grid_mid = spec.wave_grid_mid # is None if datamodel for this is also None
+        # wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
+        # see core.wavecal.wvutils.py for more info.
+        # variable defaults to None if datamodel for this is also None (which is the case for spec1d file).
+        wave_grid_mid = spec.wave_grid_mid
         counts = spec.flux
         counts_ivar = spec.ivar
         counts_gpm = spec.mask.astype(bool)
@@ -677,6 +674,10 @@ def save_coadd1d_tofits(outfile, wave, flux, ivar, gpm, wave_grid_mid=None, spec
             inverse variance array.
         gpm (`numpy.ndarray`_):
             good pixel mask for your spectrum.
+        wave_grid_mid (`numpy.ndarray`_):
+            wavelength grid evaluated at the bin centers, uniformly-spaced in lambda or log10-lambda/velocity.
+            See core.wavecal.wvutils.py for more info. Default is None because not all files that uses telluric.py
+            has this keyword parameter (spec1dfile does not but coadd1d files do).
         spectrograph (:obj:`str`, optional):
             spectrograph name
         telluric (`numpy.ndarray`_, optional):
