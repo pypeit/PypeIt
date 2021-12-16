@@ -1,7 +1,11 @@
 .. code-block:: console
 
     # Auto-generated PypeIt file
+<<<<<<<<< Temporary merge branch 1
+    # 2021-11-19
+=========
     # 2021-12-08
+>>>>>>>>> Temporary merge branch 2
     
     # User-defined execution parameters
     [rdx]
@@ -16,7 +20,11 @@
     
     # Read in the data
     data read
+<<<<<<<<< Temporary merge branch 1
+     path /Users/westfall/Work/packages/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+=========
      path /Users/suksientie/Codes/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+>>>>>>>>> Temporary merge branch 2
     |    filename |                 frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic |
     |  b1.fits.gz |                  arc,tilt | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55 |
     | b14.fits.gz |                      bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55 |
