@@ -215,6 +215,8 @@ or have a feature request, please `submit an issue
    skysub
    extraction
    scripts
+   A-B_differencing
+   nir_example
 
 ----
 
@@ -233,7 +235,6 @@ or have a feature request, please `submit an issue
    :caption: Further processing
    :maxdepth: 1
 
-   A-B_differencing
    fluxing
    coadd1d
    telluric
