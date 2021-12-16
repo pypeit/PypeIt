@@ -2064,6 +2064,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     Returns:
         tuple: Returns the following:
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom) evaluated at the bin centers,
+              uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
             - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
               spectrum. As discussed above, this is the weighted average
               of the wavelengths of each spectrum that contriuted to a
@@ -2073,8 +2075,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               wave_stack is NOT simply the wave_grid bin centers, since
               it computes the weighted average.
             - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
-              wave_stack wavelength grid _ ivar_stack: ndarray,
-              (ngrid,): Inverse variance spectrum on wave_stack
+              wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on wave_stack
               wavelength grid. Erors are propagated according to
               weighting and masking.
             - mask_stack: ndarray, bool, (ngrid,): Mask for stacked
@@ -2204,7 +2206,10 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
         Returns:
             tuple: Returns the following:
-
+            - wave_grid_mid: ndarray, (ngrid,)
+                Wavelength grid (in Angstrom) evaluated at the bin centers,
+                uniformly-spaced either in lambda or log10-lambda/velocity.
+                See core.wavecal.wvutils.py for more.
             - wave_stack: ndarray, (ngrid,)
                  Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
                  of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
@@ -2358,6 +2363,9 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
 
     Returns:
         tuple: Returns the following:
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity.
+              See core.wavecal.wvutils.py for more.
             - wave_giant_stack: ndarray, (ngrid,): Wavelength grid for
               stacked spectrum. As discussed above, this is the weighted
               average of the wavelengths of each spectrum that
