@@ -185,13 +185,15 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
 
     Returns:
         :obj:`tuple`: Returns two `numpy.ndarray`_ objects and a float:
-            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked
+            - ``wave_grid``: (ndarray, (ngrid +1,)) New wavelength grid, not masked.
+              This is a set of bin edges (rightmost edge for the last bin and leftmost edges for the rest),
+              while wave_grid_mid is a set of bin centers, hence wave_grid has 1 more value than wave_grid_mid.
             - ``wave_grid_mid``: ndarray, (ngrid,) New wavelength grid evaluated at the centers of
               the wavelength bins, that is this grid is simply offset from
               ``wave_grid`` by ``dsamp/2.0``, in either linear space or log10
               depending on whether linear or (log10 or velocity) was requested.
               Last bin center is removed since it falls outside wave_grid.
-              For iref or concatenate the linear wavelength sampling will be
+              For iref or concatenate, the linear wavelength sampling will be
               calculated.
             - ``dsamp``: The pixel sampling for wavelength grid created.
     """
