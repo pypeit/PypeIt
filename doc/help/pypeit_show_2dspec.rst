@@ -4,7 +4,7 @@
     usage: pypeit_show_2dspec [-h] [--list] [--det DET] [--showmask] [--removetrace]
                               [--embed] [--ignore_extract_mask]
                               [--sensfunc SENSFUNC] [--channels CHANNELS]
-                              [--prefix PREFIX] [--no_clear]
+                              [--prefix PREFIX] [--no_clear] [-v VERBOSITY]
                               file
     
     Display sky subtracted, spec2d image in a Ginga viewer. Run above the Science/
@@ -16,7 +16,11 @@
     optional arguments:
       -h, --help            show this help message and exit
       --list                List the extensions only? (default: False)
-      --det DET             Detector number (default: 1)
+      --det DET             Detector name or number. If a number, the name is
+                            constructed assuming the reduction is for a single
+                            detector. If a string, it must match the name of the
+                            detector object (e.g., DET01 for a detector, MSC01 for a
+                            mosaic). (default: 1)
       --showmask            Overplot masked pixels (default: False)
       --removetrace         Do not overplot traces in the skysub, sky_resid, and
                             resid channels (default: False)
@@ -30,4 +34,7 @@
       --prefix PREFIX       Channel name prefix [lets you display more than one set]
                             (default: )
       --no_clear            Do *not* clear all existing tabs (default: True)
+      -v VERBOSITY, --verbosity VERBOSITY
+                            Verbosity level between 0 [none] and 2 [all] (default:
+                            2)
     

@@ -290,6 +290,10 @@ class SpecObjs:
                 # Now append the maximum S/N object on each detector
                 for idet in _multi_spec_det:
                     this_det = self.DET == idet
+                    if not np.any(this_det):
+                        unique_det = np.unique(self.DET)
+                        msgs.error(f'No matches for {idet} in spec1d file.  Unique options found'
+                                   f"are {', '.join(unique_det)}.  Check usage of multi_spec_det.")
                     istd = SNR[this_det].argmax()
                     sobjs_std.add_sobj(self[this_det][istd])
             else: # For normal multislit take the brightest object

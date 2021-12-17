@@ -44,7 +44,7 @@ def test_transform_series():
 def test_coordinate_transform():
     tform = transform.affine_transform_matrix(rotation=np.pi/4)
     coo = np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]])
-    _coo = transform.coordinate_transform_2d(coo, tform)
+    _coo = transform.coordinate_transform_2d(coo, tform, inverse=True)
     sqrt2 = np.sqrt(2.)
     assert np.allclose(np.array([[sqrt2, 0.], [0., -sqrt2], [-sqrt2, 0.], [0., sqrt2]]), _coo), \
             'Bad rotation'

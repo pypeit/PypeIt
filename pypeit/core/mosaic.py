@@ -15,13 +15,11 @@ from pypeit.core import transform
 from pypeit.utils import inverse
 
 
-def build_image_mosaic_transform(shape, shift, rot, binning):
+def build_image_mosaic_transform(shape, shift, rotation=0., binning=(1.,1.)):
     r"""
-    Build the affine transform of a binned image.
+    Build the affine transform matrix for a binned image.
 
-    The order of operaions is as follows.  Steps 1, 3, and 5 are only
-    performed if the image is rotated.  Steps 2 and 4 are only done if
-    the binning is not square.
+    The order of operations is as follows:
 
         #. Shift the coordinate system to the center of the image,
            assuming the (0,0) coordinate is at the center of the first
@@ -39,58 +37,69 @@ def build_image_mosaic_transform(shape, shift, rot, binning):
 
         #. Apply the requested shift, accounting for the binning.
 
-    These steps are compiled into a single transformation matrix using
-    :func:`pypeit.core.transform.affine_transform_series`.
+    Steps 1-5 are only performed if the image is rotated.  Steps 2 and 4 are
+    only done if the binning is not square.  All steps are compiled into a
+    single transformation matrix using
+    :func:`~pypeit.core.transform.affine_transform_series`.
 
-    The coordinate reference frame used for the image is identical to what is
-    used by `scipy.ndimage.affine_transform`_, which is in the pixel index
-    frame.  That is, to get the Cartesian :math:`(x,y)` coordinates assumed for
-    each pixel, run:
-
-    .. code-block:: python
-
-        x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
-
-    The coordinates are assumed to be at the *center* of the pixel.
+    The coordinate reference frame adopts numpy/matplotlib conventions; see
+    :ref:`mosaic`.  That is, if you plot the image using
+    `matplotlib.pyplot.imshow`_, the first axis is along the ordinate (Cartesian
+    :math:`y`) and the second axis is along the abscissa (Cartesian :math:`x`).
+    Shifts and rotation are with respect to this coordinate system; see
+    descriptions of ``shift`` and ``rotation``.
 
     Args:
         shape (:obj:`tuple`):
-            A two-tuple with the shape of the **binned** image.
+            A two-tuple with the shape of the **binned** image.  In terms of the
+            coordinate system, this provides the number of pixels along
+            Cartesian :math:`y` then along Cartesian :math:`x`; i.e., ``(ny,
+            nx)``.  See description above.
         shift (:obj:`tuple`):
-            A two-tuple with the nominal shift of the *unbinned* image in the
-            mosaic in each dimension.  For example, if ``shift=(1,10)``, pixel
-            values in the first axis are shift by 1 pixel and pixel values in
-            the second axis are shifted by 10 pixels.
-        rot (:obj:`float`):
+            A two-tuple with the nominal shift *in Cartesian coordinates* of the
+            *unbinned* image in the mosaic in each dimension.  For example,
+            setting ``shift=(1,10)`` means the image is shifted :math:`+1` pixel
+            in :math:`x` and :math:`+10` pixels in :math:`y`.
+        rotation (:obj:`float`, optional):
             The counter-clockwise rotation in degrees of the **unbinned** image
             in the mosaic.  The rotation assumes the coordinate frame described
             above.
-        binning (:obj:`tuple`):
-            The number of pixels binned in each dimension.  This only
-            has an effect on the results when the binning is not the
-            same in both dimensions.
+        binning (:obj:`tuple`, optional):
+            The number of pixels binned in each dimension.  The order should
+            match the provided image shape.  That is, the order is the number of
+            binned pixels in :math:`y`, then the number in :math:`x`.  This only
+            has an effect on the results when the binning is not the same in
+            both dimensions.
 
     Returns:
-        `numpy.ndarray`_: The single coordinate transformation matrix
-        that applies all transformations.  See
+        `numpy.ndarray`_: The single coordinate transformation matrix that
+        applies all transformations.  See
         :func:`pypeit.core.transform.affine_transform_series`.
     """
+    if len(shape) != 2:
+        msgs.error('Shape must be a two-tuple.')
+    if len(shift) != 2:
+        msgs.error('Shift must be a two-tuple.')
+    if len(binning) != 2:
+        msgs.error('Binning must be a two-tuple.')
+
     tform = []
-    if np.absolute(rot) > 0:
+    if np.absolute(rotation) > 0:
         # Offset to the center of the image
         tform += [dict(translation=(-(shape[0]-1)/2, -(shape[1]-1)/2))]
         if binning[0] != binning[1]:
-            # Rescale back to square pixels
+            # Rescale back to square pixels.  E.g., if the binning is 1x2, this
+            # scales the size of each pixel in 2nd axis by 2.
             tform += [dict(scale=(1.,binning[1]/binning[0]))]
         # Apply the rotation
-        tform += [dict(rotation=np.radians(rot))]
+        tform += [dict(rotation=-np.radians(rotation))]
         if binning[0] != binning[1]:
             # Undo the bin scaling
             tform += [dict(scale=(1.,binning[0]/binning[1]))]
         # Undo the offset to the image center
         tform += [dict(translation=((shape[0]-1)/2, (shape[1]-1)/2))]
     # Apply the shift
-    tform += [dict(translation=(shift[0]/binning[0], shift[1]/binning[1]))]
+    tform += [dict(translation=(shift[1]/binning[1], shift[0]/binning[0]))]
     # Compile into a single transformation and return
     return transform.affine_transform_series(tform)
 
@@ -127,11 +136,12 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
 
     # Get a box that bounds the transformed coordinates of all the mosaic
     # images.
-    coo = np.array([[-0.5,-0.5], [shape[0]+0.5,-0.5], [shape[0]+0.5, shape[1]+0.5],
-                    [-0.5, shape[1]+0.5]]).astype(float)
+    coo = np.array([[-0.5,-0.5], [shape[0]-0.5,-0.5], [shape[0]-0.5, shape[1]-0.5],
+                    [-0.5, shape[1]-0.5]])
+
     box = None
     for i in range(nimg):
-        tc = transform.coordinate_transform_2d(coo, tforms[i], inverse=False)
+        tc = transform.coordinate_transform_2d(coo, tforms[i])
         if box is None:
             box = np.vstack((np.floor(np.amin(tc, axis=0)), np.ceil(np.amax(tc, axis=0))))
             continue
@@ -141,21 +151,14 @@ def prepare_mosaic(shape, tforms, buffer=0, inplace=False):
     # Set the mosaic image shape
     if buffer < 0:
         msgs.error('Mosaic image buffer must be >= 0.')
-    mosaic_shape = tuple(*np.ceil(np.diff(box, axis=0) + 2*buffer - 1).astype(int))
+    mosaic_shape = tuple(*np.ceil(np.diff(box, axis=0) + 2*buffer).astype(int))
 
     # Adjust the image transformations to be within the limits of the mosaic
     # image.
-
-    # NOTE: There's a subtlety in this as follows.  In order to reproduce the
-    # mosaicing results for Gemini GMOS from DRAGONS (see
-    # pypeit/tests/test_mosaic.py), the offsets below need to be whole pixels.
-    # But this leads to an asymmetry in the transforms such that one can't
-    # recover the input image frame by inversing the transform.  For now, I've
-    # chosen the approach that gets closest to the DRAGONS result.
     _tforms = tforms if inplace else [None]*nimg
     for i in range(nimg):
-        _tforms[i] = transform.affine_transform_series([dict(translation=(-(box[0,0]-buffer), #-0.5,
-                                                                          -(box[0,1]-buffer))) #-0.5))
+        _tforms[i] = transform.affine_transform_series([dict(translation=(-(box[0,0]-buffer),
+                                                                          -(box[0,1]-buffer)))
                                                        ]) @ tforms[i]
     return mosaic_shape, _tforms
 
@@ -190,9 +193,11 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
 
     Args:
         imgs (:obj:`list`, `numpy.ndarray`_):
-            List of `numpy.ndarray`_ images to include in the mosaic.  The shape
-            of all the input images must be identical if ``mosaic_shape`` is
-            None.
+            List of `numpy.ndarray`_ images to include in the mosaic.  If arrays
+            do not contain floating-point values, they will be cast as
+            ``np.float64`` before passing them to
+            `scipy.ndimage.affine_transform`_.  The shape of all the input images
+            must be identical if ``mosaic_shape`` is None.
         tforms (:obj:`list`, `numpy.ndarray`_):
             List of `numpy.ndarray`_ objects with the transformation matrices
             necessary to convert between image and mosaic coordinates.  See
@@ -260,6 +265,9 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     if overlap not in ['combine', 'error']:
         msgs.error(f'Unknown value for overlap ({overlap}), must be "combine" or "error".')
 
+    if any([not np.issubdtype(img.dtype, np.floating) for img in imgs]):
+        msgs.warn('Images must be floating type, and will be recast before transforming.')
+
     # Get the output shape, if necessary
     if mosaic_shape is None:
         shape = imgs[0].shape
@@ -290,7 +298,8 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
     # at the end of each loop
     for i in range(nimg):
         _inv_tform = np.linalg.inv(_tforms[i])
-        _tform_img = ndimage.affine_transform(imgs[i], _inv_tform, output_shape=mosaic_shape,
+        img = imgs[i] if np.issubdtype(imgs[i].dtype, np.floating) else imgs[i].astype(float)
+        _tform_img = ndimage.affine_transform(img, _inv_tform, output_shape=mosaic_shape,
                                               cval=-1e20, order=order)
         filled = _tform_img > -1e20
         if bpm is not None:
@@ -302,7 +311,8 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         if ivar is not None:
             # NOTE: "mosaic_ivar" is actually the variance until it's inverted
             # just before output
-            mosaic_ivar[filled] += ndimage.affine_transform(var[i], _inv_tform,
+            _var = var[i] if np.issubdtype(var[i], np.floating) else var[i].astype(float)
+            mosaic_ivar[filled] += ndimage.affine_transform(_var, _inv_tform,
                                                             output_shape=mosaic_shape,
                                                             cval=0., order=order)[filled]
 
@@ -317,6 +327,7 @@ def build_image_mosaic(imgs, tforms, ivar=None, bpm=None, mosaic_shape=None, cva
         msgs.error('Mosaic has pixels with contributions by more than one input image!')
 
     filled = mosaic_npix > 0
+    mosaic_data[np.logical_not(filled)] = cval
     # Average the overlapping pixels
     if has_overlap:
         mosaic_data[filled] /= mosaic_npix[filled]

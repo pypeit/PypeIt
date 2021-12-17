@@ -555,7 +555,11 @@ def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
             The name or instance of the spectrograph used to obtain the data.
             If None, this is pulled from the file header.
         parset (:class:`~pypeit.par.pypeitpar.PypeItPar`, optional):
-            An instance of the parameter set.
+            An instance of the parameter set.  If None, assumes that detector 1
+            is the one reduced and uses the default reduction parameters for the
+            spectrograph (see
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
+            for the relevant spectrograph class).
         overwrite (:obj:`bool`, optional):
             Overwrite the output file, if it exists?
     """

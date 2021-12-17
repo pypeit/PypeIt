@@ -30,9 +30,8 @@ def test_transform():
     tform = mosaic.build_image_mosaic_transform(shape, (0.,0.), 45., (2,1))
 
     assert np.allclose(np.diag(tform)[:2], np.repeat([np.sqrt(0.5)], 2)) and \
-            np.allclose(np.diag(np.fliplr(tform[:2,:2])), np.sqrt(0.5)*np.array([-0.5,2])), \
+            np.allclose(np.diag(np.fliplr(tform[:2,:2])), np.sqrt(0.5)*np.array([0.5,-2])), \
             'Bad scale transform'
-
 
 @dev_suite_required
 def test_io():
@@ -129,7 +128,5 @@ def test_gemini_gmos():
     mosaic_dragons = fits.open(dragons_file)[0].data
 
     assert np.array_equal(mosaic_dragons, _mosaic_pypeit[1:,:-2]), 'Bad mosaic'
-
-
 
 

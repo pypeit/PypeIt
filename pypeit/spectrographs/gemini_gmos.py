@@ -436,14 +436,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # DRAGONS software and then adjusts them so that they are in "PypeIt
         # format".  See the mosaic documentattion.
         expected_shape = GeminiGMOSMosaicLookUp.geometry[self.detid]['default_shape']
-        shift = np.array([(-GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][0],
-                            GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][1]),
+        shift = np.array([( GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][1],
+                           -GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['shift'][0]),
                           (0.,0.),
-                          (-GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][0],
-                           GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][1])])
-        rotation = np.array([-GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['rotation'],
+                          ( GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][1],
+                           -GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['shift'][0])])
+        rotation = np.array([GeminiGMOSMosaicLookUp.geometry[self.detid][(4096,0)]['rotation'],
                              0.,
-                             -GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['rotation']])
+                             GeminiGMOSMosaicLookUp.geometry[self.detid][(0,0)]['rotation']])
 
         # The binning and process image shape must be the same for all images in
         # the mosaic

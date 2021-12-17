@@ -14,7 +14,7 @@ from pypeit import msgs
 
 def affine_transform_matrix(scale=None, rotation=None, translation=None):
     r"""
-    Construct a two-dimensional affine transformation matrix in homologous
+    Construct a two-dimensional affine transformation matrix in homogeneous
     coordinates.
 
     The coordinate convention is to assume the coordinates are ordered in an
@@ -22,7 +22,7 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
     :math:`y` in the second column.  See the examples below.
     
     This function currently does *not* allow for a shear term.  The
-    transformation is returned as a `numpy.ndarray`_ in homologous coordinates.
+    transformation is returned as a `numpy.ndarray`_ in homogeneous coordinates.
     
     If no arguments are provided, this simply returns an identity matrix.
 
@@ -46,13 +46,13 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
             to both axes, or a two-element array-like with the scaling for each
             axis.
         rotation (:obj:`float`, optional):
-            Counter-clockwise rotation in radians.
-              The ordinate is aligned with
-            the first axis, and the abcissa is aligned with the second axis.  If
-            None, the rotation is 0.  In Cartesian coordinates, this means that the :math:`x`
+            Counter-clockwise rotation in radians.  The ordinate is aligned with
+            the first axis, and the abcissa is aligned with the second axis; see
+            :func:`~pypeit.core.transform.coordinate_transform_2d`.  If None,
+            the rotation is 0.
         translation (array-like, optional):
-            An array with two elements that provide the shift to apply in both
-            image dimensions.
+            An array with two elements that provide the shift to apply in each
+            dimension.
 
     Returns:
         `numpy.ndarray`_: A :math:`3\times3` affine-transformation matrix.
@@ -73,7 +73,7 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
         array([[ 0.70710678, -0.70710678,  0.        ],
                [ 0.70710678,  0.70710678,  0.        ],
                [ 0.        ,  0.        ,  1.        ]])
-        >>> transform.coordinate_transform_2d(coo, tform, inverse=False)
+        >>> transform.coordinate_transform_2d(coo, tform)
         array([[ 0.00000000e+00,  0.00000000e+00],
                [ 7.07106781e-01,  7.07106781e-01],
                [ 1.11022302e-16,  1.41421356e+00],
@@ -83,11 +83,12 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
 
         >>> shift = affine_transform_matrix(translation=[-0.5,-0.5])
         >>> _tform = np.linalg.inv(shift) @ tform @ shift
-        >>> transform.coordinate_transform_2d(coo, _tform, inverse=False)
+        >>> transform.coordinate_transform_2d(coo, _tform)
         array([[ 0.5       , -0.20710678],
                [ 1.20710678,  0.5       ],
                [ 0.5       ,  1.20710678],
                [-0.20710678,  0.5       ]])
+
     """
     tform = np.eye(3)
     if scale is not None:
@@ -113,8 +114,8 @@ def affine_transform_matrix(scale=None, rotation=None, translation=None):
 
 def affine_transform_series(steps):
     r"""
-    Construct an affine transform from a set of transformation steps executed in
-    series.
+    Construct an affine transform matrix from a set of transformation steps
+    executed in series.
 
     Each step in the transformation is provided by a call to
     :func:`pypeit.core.transform.affine_transform_matrix`.  The order of the
@@ -144,7 +145,7 @@ def affine_transform_series(steps):
     return tform
 
 
-def coordinate_transform_2d(coo, matrix, inverse=True):
+def coordinate_transform_2d(coo, matrix, inverse=False):
     r"""
     Apply a 2D coordinate transformation using an affine-transformation matrix
     in homologous coordinates.
@@ -159,12 +160,12 @@ def coordinate_transform_2d(coo, matrix, inverse=True):
             The :math:3\times 3` affine-transformation matrix.  See
             :func:`~pypeit.core.mosaic.affine_transform_matrix`.
         inverse (:obj:`bool`, optional):
-            By default, the function performs the *passive* transformation;
-            i.e., transforming the coordinate axes and providing the new
-            coordinates in the transformed (e.g., rotated) frame.  Set
-            ``inverse`` to false to instead perform the *active* transformation;
-            i.e., applying the transformation to the coordinates, moving them
-            within the existing coordinate frame.
+            By default, the function performs the *active* transformation; i.e.,
+            applying the transformation to the coordinates, moving them within
+            the existing coordinate frame.  Set ``inverse`` to true to instead
+            perform the *passive* transformation; i.e., transforming the
+            coordinate axes and providing the new coordinates in the transformed
+            (e.g., rotated) frame.  
     
     Returns:
         `numpy.ndarray`_: Transformed coordinates with shape :math:`(N,2)`.

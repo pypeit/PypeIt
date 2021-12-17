@@ -54,13 +54,7 @@ class Identify(scriptbase.ScriptBase):
         from pypeit.images.buildimage import ArcImage
 
         # Load the MasterArc file
-        try:
-            msarc = ArcImage.from_file(args.arc_file)
-        except:
-            try:
-                msarc = ArcImage.from_file(os.path.join('Masters', args.arc_file))
-            except:
-                msgs.error('Unable to read arc file to instantiate ArcImage')
+        msarc = ArcImage.from_file(args.arc_file)
 
         # Load the spectrograph
         spec = load_spectrograph(msarc.PYP_SPEC)

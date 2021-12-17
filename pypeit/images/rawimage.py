@@ -24,6 +24,7 @@ from pypeit.images import pypeitimage
 from pypeit import utils
 from pypeit.display import display
 
+
 # TODO: I don't understand why we have some of these attributes.  E.g., why do
 # we need both hdu and headarr?
 class RawImage:
