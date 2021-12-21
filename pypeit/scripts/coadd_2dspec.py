@@ -216,6 +216,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             sci_dict[det]['specobjs'], sci_dict[det]['detector'], sci_dict[det]['slits'], \
             sci_dict[det]['tilts'], sci_dict[det]['waveimg'] \
                     = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks)
+            
+            # Tack on detector (similarly to pypeit.extract_one)
+            for sobj in sci_dict[det]['specobjs']:
+                sobj.DETECTOR = sci_dict[det]['detector']
+                # iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
+                # sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
             # Save pseudo image master files
             #coadd.save_masters()
@@ -238,6 +244,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
         subheader = spectrograph.subheader_for_spec(head2d, head2d)
         all_specobjs.write_to_fits(subheader, outfile1d)
+
+        # Info
+        outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+        sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+        sobjs.write_info(outfiletxt, spectrograph.pypeline)
 
         # 2D spectra
         # TODO -- These lines should be above once reduce() passes back something sensible
