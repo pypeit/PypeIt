@@ -1574,7 +1574,8 @@ class PypeItMetaData:
             # Create the output file name
             ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
             # Get the setup lines
-            setup_lines = dict_to_lines({'Setup {0}'.format(setup): cfg[setup]}, level=1)
+            setup_lines = dict_to_lines({'Setup {0}'.format(setup): 
+                utils.yamlify(cfg[setup])}, level=1)
             # Get the paths
             in_cfg = self['setup'] == setup
             if not np.any(in_cfg):
