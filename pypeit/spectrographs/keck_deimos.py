@@ -816,7 +816,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         objects = objects[mapid[indx] == catid]
 
         # Match the slit IDs in DesiSlits to those in BluSlits
-        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
+        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], 
+                               hdu['BluSlits'].data['dSlitId'],
                                strict=True)
 
         # PA corresponding to positive x on detector (spatial)
