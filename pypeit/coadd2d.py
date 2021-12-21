@@ -150,6 +150,8 @@ class CoAdd2D:
         self.objid_bri = None
         self.slitid_bri  = None
         self.snr_bar_bri = None
+        self.use_weights = None
+        self.wave_grid = None
 
 
         # Load the stack_dict
@@ -221,7 +223,6 @@ class CoAdd2D:
                                            const_weights=const_weights)
         return rms_sn, weights.T
 
-
     def coadd(self, only_slits=None, interp_dspat=True):
         """
         Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -268,6 +269,15 @@ class CoAdd2D:
                                                          objid=self.objid_bri)
             thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler']
 
+            # maskdef info
+            imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx] if \
+                self.stack_dict['slits_list'][0].maskdef_id is not None else None
+            imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx] if \
+                self.stack_dict['slits_list'][0].maskdef_objpos is not None else None
+            imaskdef_slitcen = self.stack_dict['slits_list'][0].maskdef_slitcen[:, slit_idx] if \
+                self.stack_dict['slits_list'][0].maskdef_slitcen is not None else None
+
+            maskdef_dict = dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos, maskdef_slitcen=imaskdef_slitcen)
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -278,14 +288,15 @@ class CoAdd2D:
                 weights = self.use_weights
             # Perform the 2d coadd
             coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
-                                           self.stack_dict['sciivar_stack'],
-                                           self.stack_dict['skymodel_stack'],
-                                           self.stack_dict['mask_stack'] == 0,
-                                           self.stack_dict['tilts_stack'],
+                                               self.stack_dict['sciivar_stack'],
+                                               self.stack_dict['skymodel_stack'],
+                                               self.stack_dict['mask_stack'] == 0,
+                                               self.stack_dict['tilts_stack'],
                                                thismask_stack,
-                                           self.stack_dict['waveimg_stack'],
-                                           self.wave_grid, self.spat_samp_fact,
-                                           weights=weights, interp_dspat=interp_dspat)
+                                               self.stack_dict['waveimg_stack'],
+                                               maskdef_dict,
+                                               self.wave_grid, self.spat_samp_fact,
+                                               weights=weights, interp_dspat=interp_dspat)
             #TODO Add a tag to this dictionary here with the maskdef information
             coadd_list.append(coadd_dict)
 
@@ -339,6 +350,11 @@ class CoAdd2D:
         spec_min1 = np.zeros(self.nslits)
         spec_max1 = np.zeros(self.nslits)
 
+        # maskdef info
+        imaskdef_id = []
+        imaskdef_objpos = []
+        imaskdef_slitcen = []
+
         nspec_grid = self.wave_grid_mid.size
         for kk, coadd_dict in enumerate(coadd_list):
             islit = good_slits[kk]
@@ -371,12 +387,23 @@ class CoAdd2D:
             spec_max1[islit] = nspec_vec[islit]-1
             spat_left = spat_righ + nspat_pad
 
+            # maskdef info
+            imaskdef_id.append(coadd_dict['maskdef_id'])
+            imaskdef_objpos.append(coadd_dict['maskdef_objpos'])
+            imaskdef_slitcen.append(coadd_dict['maskdef_slitcen'])
+
+        maskdef_id = np.array(imaskdef_id) if None not in imaskdef_id else None
+        maskdef_objpos = np.array(imaskdef_objpos) if None not in imaskdef_id else None
+        maskdef_slitcen = np.array(imaskdef_slitcen) if None not in imaskdef_id else None
+
         #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
         # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.name,
-                                         specmin=spec_min1, specmax=spec_max1, ech_order=slits.ech_order)
+                                         specmin=spec_min1, specmax=spec_max1, ech_order=slits.ech_order,
+                                         maskdef_id=maskdef_id,
+                                         maskdef_objpos=maskdef_objpos, maskdef_slitcen=maskdef_slitcen)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
         slitmask_pseudo = slits_pseudo.slit_img()
@@ -816,10 +843,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
 
         # maskdef info
-        self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
+        # self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
         self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
-        self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
-        self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
+        # self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
+        # self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']

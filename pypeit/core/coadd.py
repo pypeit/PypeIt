@@ -2734,7 +2734,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, spat_samp_fact=1.0,
+                    thismask_stack, waveimg_stack, maskdef_dict, wave_grid, spat_samp_fact=1.0,
                     weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -2910,7 +2910,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
-                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
+                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
+                maskdef_id=maskdef_dict['maskdef_id'], maskdef_objpos=maskdef_dict['maskdef_objpos'],
+                maskdef_slitcen=maskdef_dict['maskdef_slitcen'])
 
 
 
