@@ -1945,9 +1945,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
         f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                              hand_extract_dict['hand_extract_spat'],
-                              hand_extract_dict['hand_extract_spec']):
+        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
+                              hand_extract_dict['spat'],
+                              hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
             ispat = int(np.clip(np.round(spat),0,nspec-1))
