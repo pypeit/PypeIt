@@ -152,19 +152,13 @@ class CoAdd2D:
         self.snr_bar_bri = None
         self.use_weights = None
         self.wave_grid = None
+        self.good_slits = None
 
 
         # Load the stack_dict
         self.stack_dict = self.load_coadd2d_stacks(self.spec2d)
         self.pypeline = self.spectrograph.pypeline
 
-        # Check that there are the same number of slits on every exposure
-        nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
-        if not len(set(nslits_list))==1:
-            msgs.error('Not all of your exposures have the same number of slits. Check your inputs')
-        # TODO: Do the same check above but for the shape and binning
-        # of the input images?
-        self.nslits = nslits_list[0]
         self.nexp = len(self.stack_dict['specobjs_list'])
         self.nspec = self.stack_dict['slits_list'][0].nspec
         self.binning = np.array([self.stack_dict['slits_list'][0].binspec,
@@ -174,6 +168,52 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
+    @property
+    def nslits(self):
+        if self.good_slits is None:
+            nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
+            # Check that there are the same number of slits on every exposure
+            if not len(set(nslits_list))==1:
+                msgs.error('Not all of your exposures have the same number of slits. Check your inputs')
+            # TODO: Do the same check above but for the shape and binning of the input images?
+            return nslits_list[0]
+        else:
+            return self.good_slits.size
+
+    def good_slitindx(self, only_slits):
+        """
+        Args:
+            only_slits (:obj:`list`, optional):
+                List of slits to combine. It must be `slitord_id`
+
+        Returns:
+            `numpy.ndarray`_: array of index of good slits in the un-coadded frames
+        """
+        # TODO We should be checking the bitmask for the reductions or something here??
+        #  Yes, definitely - DONE?
+
+        only_slits = [only_slits] if (only_slits is not None and
+                                      isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
+
+        slits = self.stack_dict['slits_list'][0]
+        reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                         flag=slits.bitmask.exclude_for_reducing)))
+        good_slitindx = np.where(np.invert(reduce_bpm))[0]
+        if only_slits is None:
+            return good_slitindx
+
+        else:
+            only_slits = np.atleast_1d(only_slits)
+            good_onlyslits = []
+            for indx in good_slitindx:
+                if slits.slitord_id[indx] in only_slits:
+                    good_onlyslits.append(indx)
+            good_onlyslits = np.array(good_onlyslits)
+            for islit in only_slits:
+                if islit not in slits.slitord_id[good_onlyslits]:
+                    msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
+            return good_onlyslits
+            #embed(header='DEAL WITH bitmask')
 
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
@@ -249,20 +289,10 @@ class CoAdd2D:
 
         """
 
-        only_slits = [only_slits] if (only_slits is not None and
-                                      isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
-        # TODO We should be checking the bitmask for the reductions or something here??
-        #  Yes, definitely
-        if only_slits is None:
-            slits = self.stack_dict['slits_list'][0]
-            reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
-                slits.mask, flag=slits.bitmask.exclude_for_reducing)))
-            good_slits = np.where(np.invert(reduce_bpm))[0]
-        else:
-            embed(header='DEAL WITH bitmask')
+        self.good_slits = self.good_slitindx(only_slits=only_slits)
 
         coadd_list = []
-        for slit_idx in good_slits:
+        for slit_idx in self.good_slits:
             slitord_id = self.stack_dict['slits_list'][0].slitord_id[slit_idx]
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
@@ -302,7 +332,6 @@ class CoAdd2D:
 
         return coadd_list
 
-
     def create_pseudo_image(self, coadd_list):
         """
         ..todo.. see below
@@ -311,17 +340,22 @@ class CoAdd2D:
         STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
 
 
-        # Masking
-        # TODO -- Make this a method or something
-        slits = self.stack_dict['slits_list'][0]
-        reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
-            slits.mask, flag=slits.bitmask.exclude_for_reducing)))
-        good_slits = np.where(np.invert(reduce_bpm))[0]
+        # # Masking
+        # # TODO -- Make this a method or something
+        # slits = self.stack_dict['slits_list'][0]
+        # reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
+        #     slits.mask, flag=slits.bitmask.exclude_for_reducing)))
+        # good_slits = np.where(np.invert(reduce_bpm))[0]
+        # # update number of slit for the coadded frame
+        # self.nslits = good_slits.size
+
+        # Check that self.nslit is equal to len(coadd_list)
+        if self.nslits != len(coadd_list):
+            msgs.error('Wrong number of slits for the 2d coadded frame')
 
         nspec_vec = np.zeros(self.nslits,dtype=int)
         nspat_vec = np.zeros(self.nslits,dtype=int)
-        for kk, cdict in enumerate(coadd_list):
-            islit = good_slits[kk]
+        for islit, cdict in enumerate(coadd_list):
             nspec_vec[islit]=cdict['nspec']
             nspat_vec[islit]=cdict['nspat']
 
@@ -351,13 +385,13 @@ class CoAdd2D:
         spec_max1 = np.zeros(self.nslits)
 
         # maskdef info
-        imaskdef_id = []
-        imaskdef_objpos = []
-        imaskdef_slitcen = []
+        imaskdef_id = np.zeros(self.nslits, dtype=int)
+        # may not need this in pseudo or need to be adjusted
+        # imaskdef_objpos = np.zeros(self.nslits)
+        # imaskdef_slitcen = np.zeros((nspec_pseudo, self.nslits))
 
         nspec_grid = self.wave_grid_mid.size
-        for kk, coadd_dict in enumerate(coadd_list):
-            islit = good_slits[kk]
+        for islit, coadd_dict in enumerate(coadd_list):
             spat_righ = spat_left + nspat_vec[islit]
             ispec = slice(0,nspec_vec[islit])
             ispat = slice(spat_left,spat_righ)
@@ -367,7 +401,7 @@ class CoAdd2D:
             tilts_pseudo[ispec, ispat] = coadd_dict['tilts']
             # spat_img_pseudo is the sub-pixel image position on the rebinned pseudo image
             inmask_pseudo[ispec, ispat] = coadd_dict['outmask']
-            image_temp = (coadd_dict['dspat'] -  coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
+            image_temp = (coadd_dict['dspat'] - coadd_dict['dspat_mid'][0] + spat_left)*coadd_dict['outmask']
             spat_img_pseudo[ispec, ispat] = image_temp
             nused_pseudo[ispec, ispat] = coadd_dict['nused']
             wave_min[ispec, islit] = coadd_dict['wave_min']
@@ -388,32 +422,34 @@ class CoAdd2D:
             spat_left = spat_righ + nspat_pad
 
             # maskdef info
-            imaskdef_id.append(coadd_dict['maskdef_id'])
-            imaskdef_objpos.append(coadd_dict['maskdef_objpos'])
-            imaskdef_slitcen.append(coadd_dict['maskdef_slitcen'])
+            imaskdef_id[islit] = coadd_dict['maskdef_id']
+            # imaskdef_objpos[islit] = coadd_dict['maskdef_objpos']
+            # imaskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
 
-        maskdef_id = np.array(imaskdef_id) if None not in imaskdef_id else None
-        maskdef_objpos = np.array(imaskdef_objpos) if None not in imaskdef_id else None
-        maskdef_slitcen = np.array(imaskdef_slitcen) if None not in imaskdef_id else None
+        maskdef_id = imaskdef_id if None not in imaskdef_id else None
+        # maskdef_objpos = imaskdef_objpos if None not in imaskdef_id else None
+        # maskdef_slitcen = imaskdef_slitcen if None not in imaskdef_id else None
 
         #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
         # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
-                                         PYP_SPEC=self.spectrograph.name,
-                                         specmin=spec_min1, specmax=spec_max1, ech_order=slits.ech_order,
-                                         maskdef_id=maskdef_id,
-                                         maskdef_objpos=maskdef_objpos, maskdef_slitcen=maskdef_slitcen)
+                                         PYP_SPEC=self.spectrograph.name, specmin=spec_min1, specmax=spec_max1,
+                                         maskdef_id=maskdef_id, maskdef_objpos=None,
+                                         maskdef_slitcen=None)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
+        # assign ech_order if exist
+        slits_pseudo.ech_order = self.stack_dict['slits_list'][0].ech_order[self.good_slits] \
+            if self.stack_dict['slits_list'][0].ech_order is not None else None
         slitmask_pseudo = slits_pseudo.slit_img()
         # This is a kludge to deal with cases where bad wavelengths result in large regions where the slit is poorly sampled,
         # which wreaks havoc on the local sky-subtraction
         min_slit_frac = 0.70
         spec_min = np.zeros(self.nslits)
         spec_max = np.zeros(self.nslits)
-        for slit_idx in good_slits:
-            spat_id = slits_pseudo.spat_id[slit_idx]
+        for islit in range(self.nslits):
+            spat_id = slits_pseudo.spat_id[islit]
             slit_width = np.sum(inmask_pseudo*(slitmask_pseudo == spat_id),axis=1)
             slit_width_img = np.outer(slit_width, np.ones(nspat_pseudo))
             med_slit_width = np.median(slit_width_img[slitmask_pseudo == spat_id])
@@ -423,8 +459,8 @@ class CoAdd2D:
             slit_width_sm = ndimage.filters.median_filter(slit_width, size=nsmooth, mode='reflect')
             igood = (slit_width_sm > min_slit_frac*med_slit_width)
             # TODO -- need inline docs
-            spec_min[slit_idx] = spec_vec_pseudo[igood].min()
-            spec_max[slit_idx] = spec_vec_pseudo[igood].max()
+            spec_min[islit] = spec_vec_pseudo[igood].min()
+            spec_max[islit] = spec_vec_pseudo[igood].max()
             bad_pix = (slit_width_img < min_slit_frac*med_slit_width) & (slitmask_pseudo == spat_id)
             inmask_pseudo[bad_pix] = False
 
@@ -488,7 +524,7 @@ class CoAdd2D:
         #  TODO: Treat the masking of the slits objects
         #   from every exposure, come up with an aggregate mask (if it is masked on one slit,
         #   mask the slit for all) and that should be propagated into the slits object in the psuedo_dict
-        slits = self.stack_dict['slits_list'][0]
+        slits = pseudo_dict['slits']
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
         redux.reduce_bpm = reduce_bpm

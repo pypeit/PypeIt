@@ -216,7 +216,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             sci_dict[det]['specobjs'], sci_dict[det]['detector'], sci_dict[det]['slits'], \
             sci_dict[det]['tilts'], sci_dict[det]['waveimg'] \
                     = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks)
-            
+
             # Tack on detector (similarly to pypeit.extract_one)
             for sobj in sci_dict[det]['specobjs']:
                 sobj.DETECTOR = sci_dict[det]['detector']

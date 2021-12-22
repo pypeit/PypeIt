@@ -2915,7 +2915,6 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                 maskdef_slitcen=maskdef_dict['maskdef_slitcen'])
 
 
-
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
     """
     Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
