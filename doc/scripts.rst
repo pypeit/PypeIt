@@ -193,21 +193,22 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
-.. _pypeit_chk_2dslits:
 
 pypeit_chk_wavecalib
 ====================
 
 See :ref:`pypeit-chk-wavecalib` for details.
 
-pypeit_chk_2dslits
+.. _pypeit_parse_slits:
+
+pypeit_parse_slits
 ==================
 
 This script prints a simple summary of the state of the reduction
-for all of the slits in a given :doc:`out_spec2D` file.  
+for all of the slits in a given :doc:`out_spec2D` or MasterSlits file.  
 Here is a standard call::
 
-    pypeit_chk_2dslits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
+    pypeit_parse_slits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
 
 And the output to screen will look like:
 

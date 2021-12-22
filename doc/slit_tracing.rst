@@ -29,6 +29,9 @@ Viewing
 See :doc:`master_edges` and :doc:`master_slits` for notes on how to view the
 outputs related to `Slit Tracing`_.
 
+One can also run the :ref:`pypeit_parse_slits` script on the MasterSlit output
+to get a terse description of the output.
+
 Script
 ======
 
