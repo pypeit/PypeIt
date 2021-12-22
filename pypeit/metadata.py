@@ -476,6 +476,62 @@ class PypeItMetaData:
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
 
+    def get_setup(self, row, det=None, config_only=False):
+        """
+        Construct the setup dictionary.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting it.  And it may be something to put
+              in the relevant spectrograph class.
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row used to construct the setup.
+            det (:obj:`int`, optional):
+                The 1-indexed detector to include.  If None, all
+                detectors are included.
+            config_only (:obj:`bool`, optional):
+                Just return the dictionary with the configuration, don't
+                include the top-level designation of the configuration
+                itself.
+
+        Returns:
+            dict: The pypeit setup dictionary with the default format.
+
+        Raises:
+            PypeItError:
+                Raised if the 'setup' isn't been defined.
+        """
+        if 'setup' not in self.keys():
+            msgs.error('Cannot provide instrument setup without \'setup\' column; '
+                       'run set_configurations.')
+        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
+        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
+        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
+        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
+        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
+        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
+        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
+
+        skey = 'Setup {}'.format(self['setup'][row])
+        # Key names *must* match configuration_keys() for spectrographs
+        setup = {skey:
+                    {'--':
+                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
+                         'dichroic': dichroic,
+                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
+                         'binning': binning,  # PypeIt orientation binning of a science image
+                         }
+                     }
+                 }
+        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
+        #for d in _det:
+        #    setup[skey][str(d).zfill(2)] \
+        #            = {'binning': binning, 'det': d,
+        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
+        return setup[skey] if config_only else setup
+
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
         Get the list of the unique configuration names.
@@ -1469,7 +1525,7 @@ class PypeItMetaData:
                 When constructing the
                 :class:`pypeit.metadata.PypeItMetaData` object, include
                 two columns called `comb_id` and `bkg_id` that identify
-                object and background frame pairs.  
+                object and background frame pairs.
             configs (:obj:`str`, :obj:`list`, optional):
                 One or more strings used to select the configurations
                 to include in the returned objects. If ``'all'``,
@@ -1477,6 +1533,7 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :attr:`configs`.
+
 
         Raises:
             PypeItError:
@@ -1517,7 +1574,8 @@ class PypeItMetaData:
             # Create the output file name
             ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
             # Get the setup lines
-            setup_lines = dict_to_lines({'Setup {0}'.format(setup): cfg[setup]}, level=1)
+            setup_lines = dict_to_lines({'Setup {0}'.format(setup): 
+                utils.yamlify(cfg[setup])}, level=1)
             # Get the paths
             in_cfg = self['setup'] == setup
             if not np.any(in_cfg):
