@@ -318,7 +318,7 @@ class PypeItSetup:
         self.steps.append(inspect.stack()[0][3])
 
     def run(self, setup_only=False, calibration_check=False, 
-            sort_dir=None, write_bkg_pairs=False,
+            sort_dir=None, write_bkg_pairs=False, write_manual=False,
             clean_config=True, groupings=True, obslog=False, 
             write_files=True, no_write_sorted=False):
         """
@@ -363,6 +363,8 @@ class PypeItSetup:
                 Include columns with the (unassigned) background
                 image pairs. This is a convenience so that users can
                 more easily add/edit the background pair ID numbers.
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             clean_config (:obj:`bool`, optional):
                 Remove files with metadata that indicate an
                 instrument configuration that ``PypeIt`` cannot
@@ -417,13 +419,16 @@ class PypeItSetup:
         # Write the output files
         if write_files:
             self.write(output_path=sort_dir, setup_only=setup_only,
-                       calibration_check=calibration_check, write_bkg_pairs=write_bkg_pairs,
+                       calibration_check=calibration_check, 
+                       write_bkg_pairs=write_bkg_pairs,
+                       write_manual=write_manual,
                        obslog=obslog, no_write_sorted=no_write_sorted)
 
         return (None, None, None) if setup_only else (self.par, self.spectrograph, self.fitstbl)
 
     def write(self, output_path=None, setup_only=False, calibration_check=False, 
-              write_bkg_pairs=False, obslog=False, no_write_sorted=False):
+              write_bkg_pairs=False, obslog=False, write_manual=False,
+              no_write_sorted=False):
         """
         Write the set of pypeit setup files.
 
@@ -449,6 +454,8 @@ class PypeItSetup:
                 Include columns with the (unassigned) background
                 image pairs. This is a convenience so that users can
                 more easily add/edit the background pair ID numbers.
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             clean_config (:obj:`bool`, optional):
                 Remove files with metadata that indicate an
                 instrument configuration that ``PypeIt`` cannot
@@ -473,7 +480,8 @@ class PypeItSetup:
             sorted_file = pypeit_file.replace('.pypeit', '.sorted')
             sorted_file = os.path.join(_output_path, os.path.split(sorted_file)[1])
             if not no_write_sorted:
-                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs,
+                                      write_manual=write_manual)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
         else:
             # Write the calib file

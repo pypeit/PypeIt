@@ -5,6 +5,8 @@
 - Fixed a bug about how `maskdef_offset` is assigned to each detector
 - Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
   It now uses by default the stars in the alignment boxes.
+- Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
 
 1.7.0 (19 Nov 2021)
 -------------------

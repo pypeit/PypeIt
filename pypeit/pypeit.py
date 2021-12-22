@@ -27,6 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
+from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -35,6 +36,7 @@ from pypeit.history import History
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+from pypeit.manual_extract import ManualExtractionObj
 
 from linetools import utils as ltu
 
@@ -139,6 +141,8 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
+
+        
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -802,6 +806,11 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Deal with manual extraction
+        row = self.fitstbl[frames[0]]
+        manual_obj = ManualExtractionObj.by_fitstbl_input(
+            row['filename'], row['manual']) if len(row['manual'].strip()) > 0 else None
+
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
@@ -809,6 +818,7 @@ class PypeIt:
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                manual=manual_obj,
                                                 find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
