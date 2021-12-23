@@ -47,8 +47,8 @@ def test_deimos():
 
         # Read the frame types from both the by-hand and automated
         # pypeit files
-        _, _, by_hand_frametypes, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
-        _, _, auto_frametypes, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        _, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
+        _, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
 
         # For each file in the by-hand list, check that the frame types
         # in the automatically generated pypeit file are identical
@@ -103,8 +103,8 @@ def test_mosfire():
 
         # Read the frame types from both the by-hand and automated
         # pypeit files
-        _, _, by_hand_frametypes, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
-        _, _, auto_frametypes, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
+        _, _, by_hand_frametypes, _, _, _ = parse_pypeit_file(by_hand_pypeit, file_check=False)
+        _, _, auto_frametypes, _, _, _ = parse_pypeit_file(pypeit_files[0], file_check=False)
 
         # For each file in the by-hand list, check that the frame types
         # in the automatically generated pypeit file are identical

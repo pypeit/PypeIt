@@ -42,6 +42,8 @@ class Setup(scriptbase.ScriptBase):
                                  '\'A,B\' or \'B,D,E\' or \'E\'.')
         parser.add_argument('-b', '--background', default=False, action='store_true',
                             help='Include the background-pair columns for the user to edit')
+        parser.add_argument('-m', '--manual_extraction', default=False, action='store_true',
+                            help='Include the manual extraction column for the user to edit')
         parser.add_argument('-v', '--verbosity', type=int, default=2,
                             help='Level of verbosity from 0 to 2.')
         return parser
@@ -71,13 +73,15 @@ class Setup(scriptbase.ScriptBase):
         ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension,
                                         output_path=sort_dir)
         # Run the setup
-        ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background, obslog=True)
+        ps.run(setup_only=True, sort_dir=sort_dir, write_bkg_pairs=args.background, 
+               write_manual=args.manual_extraction, obslog=True)
 
         # Use PypeItMetaData to write the complete PypeIt file
         # TODO: Set cfg_split to 'all' by default?
         if args.cfg_split is not None:
             ps.fitstbl.write_pypeit(args.output_path, cfg_lines=ps.user_cfg,
                                     write_bkg_pairs=args.background,
+                                    write_manual=args.manual_extraction,
                                     configs=[item.strip() for item in args.cfg_split.split(',')])
 
 
