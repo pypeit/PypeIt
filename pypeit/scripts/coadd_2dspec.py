@@ -58,9 +58,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
 
-        # TODO implement an option to only do certian slits
-        #parser.add_argument("--only_slits", type=list, default=None,
-        #                    help="Only coadd the following slits")
+        # TODO implement an option to only do certian slits - DONE?
+        parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
 
         #parser.add_argument("--wave_method", type=str, default=None,
         #                    help="Wavelength method for wavelength grid. If not set, code will "
@@ -181,6 +180,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
             set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
 
+        # Only_slits?
+        if args.only_slits is not None:
+            only_slits = [int(item) for item in args.only_slits.split(',')]
+        else:
+            only_slits = None
+
         # Loop on detectors
         for det in detectors:
             msgs.info("Working on detector {0}".format(det))
@@ -198,7 +203,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
             # TODO Add this stuff to a run method in coadd2d
             # Coadd the slits
-            coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
+            coadd_dict_list = coadd.coadd(only_slits=only_slits) # TODO implement only_slits later - DONE?
             # Create the pseudo images
             pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
             # Reduce

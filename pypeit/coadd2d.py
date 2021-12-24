@@ -171,6 +171,7 @@ class CoAdd2D:
     @property
     def nslits(self):
         if self.good_slits is None:
+            # This is the number of slits of the single (un-coadded) frames
             nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
             # Check that there are the same number of slits on every exposure
             if not len(set(nslits_list))==1:
@@ -178,6 +179,7 @@ class CoAdd2D:
             # TODO: Do the same check above but for the shape and binning of the input images?
             return nslits_list[0]
         else:
+            # this is the number of slits of the coadded frame
             return self.good_slits.size
 
     def good_slitindx(self, only_slits):
@@ -195,20 +197,32 @@ class CoAdd2D:
         only_slits = [only_slits] if (only_slits is not None and
                                       isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
 
-        slits = self.stack_dict['slits_list'][0]
-        reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
-                                                                         flag=slits.bitmask.exclude_for_reducing)))
+        # This creates a unified bpm common to all frames
+        slits0 = self.stack_dict['slits_list'][0]
+        reduce_bpm = (slits0.mask > 0) & (np.invert(slits0.bitmask.flagged(slits0.mask,
+                                                                           flag=slits0.bitmask.exclude_for_reducing)))
+        for i in range(1, self.nexp):
+            slits = self.stack_dict['slits_list'][i]
+            reduce_bpm & (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+                                                                             flag=slits.bitmask.exclude_for_reducing)))
+        # this are the good slit index according to the bpm mask
         good_slitindx = np.where(np.invert(reduce_bpm))[0]
+
+        # this is if we want to coadd all the good slits
         if only_slits is None:
             return good_slitindx
 
+        # if instead we want to coadd only a selected (by the user) number of slits
         else:
+            # this are the `slitord_id` of the slits that we want to coadd
             only_slits = np.atleast_1d(only_slits)
             good_onlyslits = []
+            # create an array of slit index that are selected by the user and also good slits
             for indx in good_slitindx:
                 if slits.slitord_id[indx] in only_slits:
                     good_onlyslits.append(indx)
             good_onlyslits = np.array(good_onlyslits)
+            # Warnings for the slits that are selected by the user but NOT good slits
             for islit in only_slits:
                 if islit not in slits.slitord_id[good_onlyslits]:
                     msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
