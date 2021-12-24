@@ -20,7 +20,7 @@
 
 # Setup
 setup read
- Setup A
+ Setup A:
  --:
    dichroic: d55
    disperser: {angle: none, name: 600/4310}
