@@ -863,6 +863,7 @@ class EdgeTraceSet(DataContainer):
         # like a long-slit observation. At best, that will lead to a lot of
         # wasted time in the reductions; at worst, it will just cause the code
         # to fault later on.
+        embed(header='866 of edgetrace')
         self.success = self.sync()
         if not self.success:
             return
@@ -4179,6 +4180,7 @@ class EdgeTraceSet(DataContainer):
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='left')
 
+        debug = True
         if debug:
             plt.scatter(spat_bedge, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
                         label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
@@ -4197,6 +4199,7 @@ class EdgeTraceSet(DataContainer):
             plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
+
 
         # We compute the predicted edge positions from the optical model after the x-correlation with the traced edges
         # bottom edges
@@ -4325,6 +4328,7 @@ class EdgeTraceSet(DataContainer):
             slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, top_edge_pred, reference_row,
                                                  self.slitmask.slitindx, nspat=self.nspat, edge='right')
 
+        embed(header='4331 of edgetrace')
         self.maskdef_id = np.zeros(self.ntrace, dtype=int)
         self.maskdef_id[self.is_left] = self.slitmask.slitid[ind_b]
         self.maskdef_id[self.is_right] = self.slitmask.slitid[ind_t]
@@ -4374,6 +4378,7 @@ class EdgeTraceSet(DataContainer):
         # but has also a bitmask.exclude_flags it will not be removed
         self.clean_traces(force_flag=['SYNCERROR', 'OFFDETECTOR', 'SHORTSLIT'], rebuild_pca=True,
                           sync_mode='both', assume_synced=True)
+        embed(header='4380 of edgetrace')
 
         if self.is_synced:
             msgs.info('LEFT AND RIGHT EDGES SYNCHRONIZED AFTER MASK DESIGN MATCHING')
