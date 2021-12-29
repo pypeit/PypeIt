@@ -577,15 +577,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             left_edges.append(np.round(dx_pix))
         left_edges = np.array(left_edges, dtype=int)
 
+        # Build up the right edges
+        right_edges = left_edges + np.round(
+            self.slitmask.onsky[:,2]/(platescale*bin_spat)).astype(int)
+
+        # Center of slit
+        centers = (left_edges + right_edges)/2.
+
         # Trim down by detector
         # TODO -- Deal with Mark4
         # TODO -- Are blue and red side cameras slightly different?  Probably
         max_spat = 2048//bin_spat
         if ccdnum == 1:
-            good = left_edges < 0.
+            good = centers < 0.
             xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
         else:
-            good = left_edges >= 0.
+            good = centers >= 0.
             xstart = -48//bin_spat
         left_edges = left_edges + xstart
         left_edges[~good] = -1
@@ -594,10 +601,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         keep = left_edges < max_spat
         left_edges[~keep] = -1
 
-        # Build up the right edges
-        # build an array of values containing the top (left) edge of the slits
-        right_edges = left_edges + np.round(
-            self.slitmask.onsky[:,2]/(platescale*bin_spat)).astype(int)
             #self.slitmask.onsky[x_order,2]/(platescale*bin_spat)).astype(int)
         right_edges[left_edges == -1] = -1
         # Deal with right edge off the detector
