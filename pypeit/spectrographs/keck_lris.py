@@ -554,12 +554,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Where do we start??
         hdu = fits.open(filename)
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-        # TODO -- confirm this is right
-        bin_spat = int(binning[0])
-
-        # Highest x is leftmost on DET=1
-        #   And this gives negative pixel values
-        x_order = np.argsort(self.slitmask.corners[:,1,0])
+        bin_spec, bin_spat = parse.parse_binning(binning)
 
         # Slit center
         slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
@@ -588,14 +583,14 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         max_spat = 2048//bin_spat
         if ccdnum == 1:
             good = left_edges < 0.
-            xstart = max_spat + 40*bin_spat  # The 80 is for the chip gap
+            xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
         else:
             good = left_edges >= 0.
-            xstart = 0
+            xstart = -48//bin_spat
         left_edges = left_edges + xstart
         left_edges[~good] = -1
 
-        # Toss off any off the detector
+        # Toss any left edges off the right-side of the detector
         keep = left_edges < max_spat
         left_edges[~keep] = -1
 
@@ -609,8 +604,14 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         for islit in range(self.slitmask.nslits):
             if left_edges[islit] != -1 and right_edges[islit] > max_spat:
                 right_edges[islit] = max_spat
+        # Now the left
+        for islit in range(self.slitmask.nslits):
+            if right_edges[islit] != -1 and left_edges[islit] < 0:
+                left_edges[islit] = 0
 
         # Order from left to right
+        # Highest x is leftmost on DET=1
+        x_order = np.argsort(self.slitmask.corners[:,1,0])
         sortindx = x_order[::-1]
 
         '''

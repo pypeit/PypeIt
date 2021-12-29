@@ -632,6 +632,7 @@ class EdgeTraceSet(DataContainer):
             table.
         """
         length = 0 if rows is None else rows
+        # TODO -- Rename TOPDIST -> LEFTDIST and BOTDIST -> RIGHTDIST
         return table.Table([
                     table.Column(name='OBJID', dtype=int, length=length,
                                  description='Object ID Number'),

@@ -130,7 +130,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_offset': dict(otype=float, descr='Slitmask offset (pixels) from position expected '
                                                            'by the slitmask design'),
                  'maskdef_objpos': dict(otype=np.ndarray, atype=np.floating,
-                                         descr='Object positions expected by the slitmask design'),
+                                         descr='Object positions expected by the slitmask design [relative pixels]'),
                  'maskdef_slitcen': dict(otype=np.ndarray, atype=np.floating,
                                          descr='Slit centers expected by the slitmask design'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -1059,7 +1059,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return
 
-    def get_maskdef_objpos(self, plate_scale, slits_left, slits_right, det_buffer):
+    def get_maskdef_objpos(self, plate_scale, 
+                           slits_left, slits_right, det_buffer):
         """
         Determine the object positions expected by the slitmask design
 
@@ -1083,8 +1084,8 @@ class SlitTraceSet(datamodel.DataContainer):
         obj_botdist = self.maskdef_designtab['OBJ_BOTDIST'].data
 
         # slit lengths
-        expected_slitlen = (obj_topdist + obj_botdist) / plate_scale  # pixels
-        measured_slitlen = slits_right[specmid, :] - slits_left[specmid, :]  # pixels
+        expected_slitlen = (obj_topdist + obj_botdist) / plate_scale  # binned pixels
+        measured_slitlen = slits_right[specmid, :] - slits_left[specmid, :]  # binned pixels
         # difference between measured and expected slit length (but only for the left side).
         left_edgeloss = np.zeros(self.maskdef_id.size)
         # define a new slit center to take into account the slits that are smaller than what
@@ -1224,7 +1225,7 @@ class SlitTraceSet(datamodel.DataContainer):
             for align_id in align_maskdef_ids:
                 sidx = np.where(cut_sobjs.MASKDEF_ID == align_id)[0]
                 if sidx.size > 0:
-                    # Parse the peak fluxes
+                    # Take the brightest source as the star
                     peak_flux = cut_sobjs[sidx].smash_peakflux
                     imx_peak = np.argmax(peak_flux)
                     imx_sidx = sidx[imx_peak]
@@ -1383,8 +1384,9 @@ def parse_slitspatnum(slitspatnum):
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
 
-def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par,
-                                      dither_off=None):
+def get_maskdef_objpos_offset_alldets(
+    sobjs, calib_slits, spat_flexure, platescale, 
+    bin_spat, det_buffer, slitmask_par, dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
@@ -1395,6 +1397,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
         calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
         spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
         platescale (:obj:`list`): List of platescale for every detector
+        bin_spat (:obj:`int`): Binning of the detector in the spatial dimension
         det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
         dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations
@@ -1411,7 +1414,8 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platesca
         slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
         if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
-            calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
+            calib_slits[i].get_maskdef_objpos(
+                platescale[i], slits_left, slits_right, det_buffer)
 
             # get slitmask offset in each single detector
             calib_slits[i].get_maskdef_offset(sobjs, slits_left, platescale[i],

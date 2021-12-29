@@ -958,14 +958,8 @@ def load_keck_deimoslris(filename:str, instr:str):
 
     # PA corresponding to positive x on detector (spatial)
     posx_pa = hdu['MaskDesign'].data['PA_PNT'][-1]
-
-    if instr == 'keck_deimos':
-        # TODO -- CHECK THIS CODING.  SEEMS A BIT WRONG!
-        if posx_pa < -1.:
-            posx_pa += 359.
-    else:
-        if posx_pa < 0.:
-            posx_pa += 360.
+    if posx_pa < 0.:
+        posx_pa += 360.
 
     # Instantiate the slit mask object and return it
     indices = numpy.arange(4) if instr == 'keck_deimos' else numpy.arange(4)+1 
@@ -973,14 +967,6 @@ def load_keck_deimoslris(filename:str, instr:str):
     for index in indices:
         for cdim in ['X', 'Y']:
             slit_list.append(hdu['BluSlits'].data[f'slit{cdim}{index}'])
-    #slitmask = SlitMask(numpy.array([hdu['BluSlits'].data['slitX0'],
-    #                                    hdu['BluSlits'].data['slitY0'],
-    #                                    hdu['BluSlits'].data['slitX1'],
-    #                                    hdu['BluSlits'].data['slitY1'],
-    #                                    hdu['BluSlits'].data['slitX2'],
-    #                                    hdu['BluSlits'].data['slitY2'],
-    #                                    hdu['BluSlits'].data['slitX3'],
-    #                                    hdu['BluSlits'].data['slitY3']]).T.reshape(-1,4,2),
     slitmask = SlitMask(numpy.array(slit_list).T.reshape(-1,4,2),
                                 slitid=hdu['BluSlits'].data['dSlitId'],
                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',

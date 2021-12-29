@@ -27,7 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
+from pypeit.core import parse
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -585,16 +585,20 @@ class PypeIt:
         if self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
-            platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # Grab platescale with binning
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
             # get the dither offset if available
             if self.par['reduce']['slitmask']['use_dither_offset']:
                 dither = self.spectrograph.parse_dither_pattern([self.fitstbl.frame_paths(frames[0])])
                 dither_off = dither[2][0] if dither is not None else None
             else:
                 dither_off = None
-            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                                                                      self.par['calibrations']['slitedges']['det_buffer'],
-                                                                      self.par['reduce']['slitmask'], dither_off=dither_off)
+            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale, 
+                bin_spat,
+                self.par['calibrations']['slitedges']['det_buffer'], 
+                self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
             calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0], self.spectrograph.list_detectors())
             # slitmask design matching and add undetected objects
