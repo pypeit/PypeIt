@@ -589,11 +589,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # TODO -- Are blue and red side cameras slightly different?  Probably
         max_spat = 2048//bin_spat
         if ccdnum == 1:
-            good = centers < 0.
-            xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
+            if self.name == 'keck_lris_red':
+                good = centers < 0.
+                xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
+            else:
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
-            good = centers >= 0.
-            xstart = -48//bin_spat
+            if self.name == 'keck_lris_red':
+                good = centers >= 0.
+                xstart = -48//bin_spat
+            else:
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         left_edges = left_edges + xstart
         left_edges[~good] = -1
 
