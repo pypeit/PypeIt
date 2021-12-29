@@ -570,7 +570,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # build an array of values containing the bottom (right) edge of the slits
         # starting edge
         left_edges = []
-        for islit in x_order:
+        #for islit in x_order:
+        for islit in range(self.slitmask.nslits):
             sep = mask_coord.separation(slit_coords[islit])
             PA = mask_coord.position_angle(slit_coords[islit])
             #
@@ -583,7 +584,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Trim down by detector
         # TODO -- Deal with Mark4
-        # TODO -- Are blue and red side slightly different?  Probably
+        # TODO -- Are blue and red side cameras slightly different?  Probably
         max_spat = 2048//bin_spat
         if ccdnum == 1:
             good = left_edges < 0.
@@ -601,18 +602,16 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Build up the right edges
         # build an array of values containing the top (left) edge of the slits
         right_edges = left_edges + np.round(
-            self.slitmask.onsky[x_order,2]/(platescale*bin_spat)).astype(int)
+            self.slitmask.onsky[:,2]/(platescale*bin_spat)).astype(int)
+            #self.slitmask.onsky[x_order,2]/(platescale*bin_spat)).astype(int)
         right_edges[left_edges == -1] = -1
-        if ccdnum == 2:
-            if right_edges[-1] > max_spat:
-                right_edges[-1] = max_spat
-        else:
-            if right_edges[0] > max_spat:
-                right_edges[0] = max_spat
+        # Deal with right edge off the detector
+        for islit in range(self.slitmask.nslits):
+            if left_edges[islit] != -1 and right_edges[islit] > max_spat:
+                right_edges[islit] = max_spat
 
-        # Sort slits from left to right
-        sortindx = self.slitmask.slitid[x_order]
-
+        # Order from left to right
+        sortindx = x_order[::-1]
 
         '''
         # This print a QA table with info on the slits sorted from left to right.
