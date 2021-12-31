@@ -600,7 +600,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = -48//bin_spat
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
-        left_edges = left_edges + xstart
+        left_edges += xstart
+        right_edges += xstart
         left_edges[~good] = -1
 
         # Toss any left edges off the right-side of the detector
@@ -1663,7 +1664,11 @@ def lris_read_amp(inp, ext):
         hdu = io.fits_open(inp)
     else:
         hdu = inp
-    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+    # Count the number of extensions
+    n_ext = 0
+    for kk, ihdu in enumerate(hdu):
+        if 'VidInp' in ihdu.name:
+            n_ext += 1
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
