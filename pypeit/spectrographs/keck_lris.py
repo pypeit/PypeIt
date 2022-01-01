@@ -5,8 +5,6 @@ Module for LRIS specific methods.
 """
 import glob
 import os
-import pdb
-
 from IPython import embed
 
 from pkg_resources import resource_filename
@@ -1185,7 +1183,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Date of Mark4 installation
         t2021_upgrade = time.Time("2021-04-15", format='isot') 
         # TODO -- Update with the date we transitioned to the correct ones
-        t_gdhead = time.Time("2022-01-01", format='isot')  
+        t_gdhead = time.Time("2023-01-01", format='isot')
         date = time.Time(hdu[0].header['MJD'], format='mjd')
 
         if date < t2021_upgrade:
