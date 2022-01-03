@@ -592,13 +592,17 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             if self.name == 'keck_lris_red':
                 good = centers < 0.
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
+            elif self.name == 'keck_lris_blue':
+                good = centers < 0.
+                # TODO -- Check if 30 is okay for blue. This is just a guess.
+                xstart = max_spat + 30//bin_spat  # The 160 is for the chip gap
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
-            if self.name == 'keck_lris_red':
+            if self.name in ['keck_lris_red', 'keck_lris_blue']:
                 good = centers >= 0.
                 xstart = -48//bin_spat
-            else:
+            else:             
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         left_edges += xstart
         right_edges += xstart
