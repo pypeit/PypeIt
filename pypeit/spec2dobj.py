@@ -472,10 +472,7 @@ class AllSpec2DObj:
                         for key in new_Spec2DObj.datamodel.keys():
                             if new_Spec2DObj.datamodel[key]['otype'] == np.ndarray and (
                                 new_Spec2DObj[key].shape == slitmask.shape):
-                                try:
-                                    self[det][key][replace_pix] = new_Spec2DObj[key][replace_pix]
-                                except:
-                                    embed(header='478 of spec2dobj')
+                                self[det][key][replace_pix] = new_Spec2DObj[key][replace_pix]
 
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()

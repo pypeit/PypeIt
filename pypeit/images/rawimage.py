@@ -556,6 +556,9 @@ class RawImage:
                 Force the image to be field flattened, even if the step log
                 (:attr:`steps`) indicates that it already has been.
 
+        Return:
+            float: The offset!
+
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
@@ -564,6 +567,8 @@ class RawImage:
             return
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
         self.steps[step] = True
+        # Return (required!) 
+        return self.spat_flexure_shift
 
     def flatfield(self, flatimages, slits=None, force=False, debug=False):
         """

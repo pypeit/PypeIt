@@ -165,6 +165,8 @@ class Reduce:
         msgs.info("Initialising slits")
         self.initialise_slits()
 
+        embed(header='168 of reduce')
+
         # Internal bpm mask
         # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
         # with other bad flag (for which bpm>2)
