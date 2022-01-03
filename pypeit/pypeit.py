@@ -548,6 +548,8 @@ class PypeIt:
         detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
                                             slitspatnum=self.par['rdx']['slitspatnum'],
                                             ndet=self.spectrograph.ndet)
+        # Allow for multiple slitspatnum entries
+        detectors = np.unique(detectors).tolist()
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
                                 set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
@@ -608,7 +610,6 @@ class PypeIt:
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                                                                       self.par['reduce']['findobj']['find_fwhm'],
                                                                       self.par['reduce']['slitmask'])
-
         # Extract
         for i, self.det in enumerate(calibrated_det):
             # re-run (i.e., load) calibrations

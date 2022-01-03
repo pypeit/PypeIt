@@ -1376,6 +1376,8 @@ def parse_slitspatnum(slitspatnum):
     """
     dets = []
     spat_ids = []
+    if type(slitspatnum)==list:
+        slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
         dets.append(int(spt[0]))
