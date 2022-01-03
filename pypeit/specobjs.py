@@ -564,7 +564,9 @@ class SpecObjs:
             outfile (str):
             overwrite (bool, optional):
             slitspatnum (:obj:`str` or :obj:`list`, optional):
-                Restricted set of slits for reduction
+              Restricted set of slits for reduction
+              If provided, do not clobber the existing file but only update
+              the indicated slits.  Useful for re-running on a subset of slits
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
               the indicated detectors.  Useful for re-running on a subset of detectors

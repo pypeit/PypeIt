@@ -996,7 +996,9 @@ class PypeIt:
                                                subheader=subheader,
                                                history=history)
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, 
+                                 update_det=self.par['rdx']['detnum'],
+                                 slitspatnum=self.par['rdx']['slitspatnum'])
 
 
     def msgs_reset(self):

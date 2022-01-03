@@ -562,7 +562,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None,
+    def slit_img(self, pad=None, slitidx=None, initial=False, 
+                 flexure=None,
                  exclude_flag=None, use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
@@ -612,7 +613,9 @@ class SlitTraceSet(datamodel.DataContainer):
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
-
+            flexure (:obj:`float`, optional):
+                If provided, offset each slit by this amount
+                Done in select_edges()
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
