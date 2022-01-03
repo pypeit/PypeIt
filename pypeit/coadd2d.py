@@ -232,16 +232,15 @@ class CoAdd2D:
         else:
             # this are the `slitord_id` of the slits that we want to coadd
             only_slits = np.atleast_1d(only_slits)
-            good_onlyslits = []
-            # create an array of slit index that are selected by the user and also good slits
-            for indx in good_slitindx:
-                if slits.slitord_id[indx] in only_slits:
-                    good_onlyslits.append(indx)
-            good_onlyslits = np.array(good_onlyslits)
-            # Warnings for the slits that are selected by the user but NOT good slits
+            # create an array of slit index that are selected by the user and are also good slits
+            good_onlyslits = np.array([], dtype=int)
             for islit in only_slits:
-                if islit not in slits.slitord_id[good_onlyslits]:
+                if islit not in slits0.slitord_id[good_slitindx]:
+                    # Warnings for the slits that are selected by the user but NOT good slits
                     msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
+                else:
+                    indx = np.where(slits0.slitord_id[good_slitindx] == islit)[0]
+                    good_onlyslits = np.append(good_onlyslits, good_slitindx[indx])
             return good_onlyslits
             #embed(header='DEAL WITH bitmask')
 
