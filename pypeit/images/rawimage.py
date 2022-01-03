@@ -557,14 +557,14 @@ class RawImage:
                 (:attr:`steps`) indicates that it already has been.
 
         Return:
-            float: The calcualted flexure correction
+            float: The calculated flexure correction
 
         """
         step = inspect.stack()[0][3]
         if self.steps[step] and not force:
             # Already field flattened
             msgs.warn('Spatial flexure shift already calculated.')
-            return
+            return self.spat_flexure_shift 
         self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
         self.steps[step] = True
         # Return
