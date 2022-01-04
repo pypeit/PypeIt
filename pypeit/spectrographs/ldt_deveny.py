@@ -61,8 +61,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
             gain = np.atleast_1d(hdu[0].header['GAIN'])
             ronoise = np.atleast_1d(hdu[0].header['RDNOISE'])
-            datasec = self.swap_section(hdu[0].header['TRIMSEC'])
-            oscansec = self.swap_section(hdu[0].header['BIASSEC'])
+            datasec = self.swap_row_col(hdu[0].header['TRIMSEC'])
+            oscansec = self.swap_row_col(hdu[0].header['BIASSEC'])
 
         # Detector
         detector_dict = dict(
@@ -374,7 +374,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         return par
 
-    def swap_section(self, section_string):
+    def swap_row_col(self, section_string):
         """
         Swap the FITS header keywords TRIMSEC / BIASSEC into the order and
         numpy type needed for PypeIt.  The LDT/DeVeny FITS header lists the
