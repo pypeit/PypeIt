@@ -11,9 +11,9 @@ from pypeit import io
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit.spectrographs import spectrograph
 
 
 class LDTDeVenySpectrograph(spectrograph.Spectrograph):
@@ -156,7 +156,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
                         "400/8500":"DV4", "500/5500":"DV5", "600/4900":"DV6",
                         "600/6750":"DV7", "831/8000":"DV8", "1200/5000":"DV9",
                         "2160/5000":"DV10", "UNKNOWN":"DVxx"}
-            if headarr[0]['GRATING'] not in gratings.keys():
+            if headarr[0]['GRATING'] not in gratings:
                 raise ValueError(f"Grating value {headarr[0]['GRATING']} not recognized.")
             return f"{gratings[headarr[0]['GRATING']]} ({headarr[0]['GRATING']})"
 
@@ -348,7 +348,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300l_HgCdAr.fits'
             # Flat fielding adjustment -- Apparent smudge on DV2 grating?
             # Causes weird excess illumination blueward of 3500A along center of slit for flats
-            par['calibrations']['flatfield']['pixelflat_min_wave'] = 3500
+            # par['calibrations']['flatfield']['pixelflat_min_wave'] = 3500
         elif grating == 'DV3 (300/6750)':
             pass
         elif grating == 'DV4 (400/8000)':
