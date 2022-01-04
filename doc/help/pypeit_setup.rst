@@ -32,11 +32,7 @@
                             up through the wildcard (.e.g, /data/Kast/b). Use the
                             --extension option to set the types of files to search
                             for. Default is the current working directory. (default:
-<<<<<<<<< Temporary merge branch 1
                             /Users/westfall/Work/packages/pypeit/doc)
-=========
-                            /Users/suksientie/Codes/PypeIt/doc)
->>>>>>>>> Temporary merge branch 2
       -e EXTENSION, --extension EXTENSION
                             File extension; compression indicators (e.g. .gz) not
                             required. (default: .fits)
