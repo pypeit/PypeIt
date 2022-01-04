@@ -118,12 +118,14 @@ class PypeItMetaData:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id'], [int, int])
+        self._impose_types(['comb_id', 'bkg_id', 'manual'], [int, int, str])
 
         # Initialize internal attributes
         self.configs = None
         self.calib_bitmask = None
 
+        # Initialize columns that the user might add
+        self.set_user_added_columns()
         # Validate instrument name
         self.spectrograph.vet_instrument(self.table)
 
@@ -1291,7 +1293,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def set_pypeit_cols(self, write_bkg_pairs=False):
+    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False):
         """
         Generate the list of columns to be included in the fitstbl
         (nearly the complete list).
@@ -1300,6 +1302,9 @@ class PypeItMetaData:
             write_bkg_pairs (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for calib, comb_id
                 and bkg_id
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
+
 
         Returns:
             `numpy.ndarray`_: Array of columns to be used in the fits
@@ -1308,12 +1313,17 @@ class PypeItMetaData:
         # Columns for output
         columns = self.spectrograph.pypeit_file_keys()
 
+        extras = []
+
         # comb, bkg columns
-        # TODO -- SHOULD BE RENAMED TO write_extras
         if write_bkg_pairs:
-            for key in ['calib', 'comb_id', 'bkg_id']:
-                if key not in columns:
-                    columns += [key]
+            extras += ['calib', 'comb_id', 'bkg_id']
+        # manual
+        if write_manual:
+            extras += ['manual']
+        for key in extras:
+            if key not in columns:
+                columns += [key]
 
         # Take only those present
         output_cols = np.array(columns)
@@ -1332,7 +1342,7 @@ class PypeItMetaData:
         unique integer.
 
         If the 'comb_id' or 'bkg_id' columns do not exist, they're set
-        to -1.
+        to -1.  
 
         Args:
             assign_objects (:obj:`bool`, optional):
@@ -1351,7 +1361,22 @@ class PypeItMetaData:
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
 
-    def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
+    def set_user_added_columns(self):
+        """
+        Set columns that the user *might* add
+
+        .. note::
+            :attr:`table` is edited in place.
+
+        This function can be used to initialize columns
+        that the user might add
+
+        """
+        if 'manual' not in self.keys():
+            self['manual'] = ''
+
+    def write_sorted(self, ofile, overwrite=True, ignore=None, 
+                     write_bkg_pairs=False, write_manual=False):
         """
         Write the sorted file.
 
@@ -1370,6 +1395,11 @@ class PypeItMetaData:
                 Overwrite any existing file with the same name.
             ignore (:obj:`list`, optional):
                 Ignore configurations in the provided list.
+            write_bkg_pairs (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for calib, comb_id
+                and bkg_id
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
 
         Raises:
             PypeItError:
@@ -1383,7 +1413,8 @@ class PypeItMetaData:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
 
         # Grab output columns
-        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
+                                           write_manual=write_manual)
 
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
@@ -1501,7 +1532,8 @@ class PypeItMetaData:
         ff.close()
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
-                     write_bkg_pairs=False, configs=None):
+                     write_bkg_pairs=False, write_manual=False,
+                     configs=None):
         """
         Write a pypeit file in data-table format.
 
@@ -1525,7 +1557,9 @@ class PypeItMetaData:
                 When constructing the
                 :class:`pypeit.metadata.PypeItMetaData` object, include
                 two columns called `comb_id` and `bkg_id` that identify
-                object and background frame pairs.
+                object and background frame pairs.  
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             configs (:obj:`str`, :obj:`list`, optional):
                 One or more strings used to select the configurations
                 to include in the returned objects. If ``'all'``,
@@ -1561,7 +1595,8 @@ class PypeItMetaData:
             msgs.error('No setups to write!')
 
         # Grab output columns
-        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
+                                           write_manual=write_manual)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
