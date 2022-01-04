@@ -51,6 +51,9 @@ class Reduce:
         maskslits (`numpy.ndarray`_, optional):
           Specifies masked out slits
           True = Masked
+        ir_redux (:obj:`bool`, optional):
+            If True, the scImg has been subtracted by
+            a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
            Show plots along the way?
 
@@ -392,7 +395,6 @@ class Reduce:
         # ##################################################
         # Second pass global sky
         # Do we have any positive objects to proceed with?
-        #if self.nobj > 0:
 
         # Global sky subtraction second pass. Uses skymask from object finding
         if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
@@ -672,7 +674,8 @@ class Reduce:
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
         # Allow for previous sky to better estimate ivar
-        if previous_sky is None:
+        #  Unless we used a background image (i.e. ir_redux=True)
+        if previous_sky is None or self.ir_redux:
             ivar = self.sciImg.ivar 
         else:
             # Estimate the variance using the input sky model
