@@ -13,6 +13,7 @@
       --ql_path QL_PATH  An existing directory to symlink as the QL_MASTERS
                          directory. (default: None)
       --odir ODIR        The directory in which to extract the zip file. Ignored if
-                         a direct path is provided using --ql_path. (default:/Users/westfall/Work/packages/pypeit/doc)
+                         a direct path is provided using --ql_path. (default:
+                         /Users/westfall/Work/packages/pypeit/doc)
       --rmzip            Remove the downloaded zip file (default: False)
     
