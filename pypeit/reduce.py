@@ -341,8 +341,7 @@ class Reduce:
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
-                              show=self.reduce_show & (not self.std_redux),
-            )
+                              show=self.reduce_show & (not self.std_redux))
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -355,23 +354,10 @@ class Reduce:
                 self.find_objects(self.sciImg.image - self.initial_sky,
                                   std_trace=std_trace,
                                   show=self.reduce_show,
-                                  show_peaks=show_peaks,
-                )
+                                  show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
-
-        # ##################################################
-        # Second pass global sky
-        # Do we have any positive objects to proceed with?
-
-        # Global sky subtraction second pass. Uses skymask from object finding
-        if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
-                self.par['reduce']['findobj']['skip_second_find'] or usersky):
-            self.global_sky = self.initial_sky.copy()
-        else:
-            self.global_sky = self.global_skysub(
-                skymask=self.skymask, show=self.reduce_show,
-                previous_sky=self.initial_sky.copy())
+            self.skymask = skymask_init
 
         return self.global_sky, self.sobjs_obj, self.skymask
 
@@ -447,7 +433,30 @@ class Reduce:
         for i, sobj in enumerate(sobjs_obj):
             if sobj.SLITID in list(self.slits.spat_id[self.reduce_bpm]):
                 remove_idx.append(i)
+        # remove
         sobjs_obj.remove_sobj(remove_idx)
+        embed()
+        # # Create skymask for maskdef_extracted objects
+        if self.par['reduce']['slitmask']['extract_missing_objs']:
+            gdslits = np.where(np.invert(self.reduce_bpm))[0]
+            # Loop on slits
+            for slit_idx in gdslits:
+                slit_spat = self.slits.spat_id[slit_idx]
+                slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
+                thismask = self.slitmask == slit_spat
+                if slit_objs.nobj > 0:
+                    if True in slit_objs.MASKDEF_EXTRACT:
+                        skymask_fwhm = extract.create_skymask_fwhm(slit_objs, thismask,
+                                box_pix=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None) \
+                                        if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
+                        skymask[thismask] = skymask_fwhm[thismask]
+
+        # ##################################################
+        # Global sky subtraction second pass. Uses skymask from object finding
+        if ((not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not usersky)) \
+                or (self.par['reduce']['slitmask']['extract_missing_objs']):
+            self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
+                                                 previous_sky=self.initial_sky)
 
         self.sobjs_obj = sobjs_obj
         self.skymask = skymask

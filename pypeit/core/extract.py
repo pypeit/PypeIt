@@ -1044,7 +1044,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
-        thismask (np.ndarray): bool, shape (nspec, nspat)
+        thismask (`numpy.ndarray`_): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
         box_pix (float, optional):
             If set, the skymask will be at least as wide as this radius.
