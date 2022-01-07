@@ -920,7 +920,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return sobjs
 
-    def assign_maskinfo(self, sobjs, plate_scale, slits_left, TOLER=1.):
+    def assign_maskinfo(self, sobjs, plate_scale, slits_left, TOLER=1., skip_serendip=False):
         """
         Assign RA, DEC, Name to objects
         Modified in place
@@ -932,6 +932,7 @@ class SlitTraceSet(datamodel.DataContainer):
             slits_right (`numpy.ndarray`_): Array with right slit edges.
             det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
             TOLER (:obj:`float`, optional): Matching tolerance in arcsec
+            skip_serendip (:obj:`bool`, optional): Skip extraction of serendip objects?
 
         """
 
@@ -961,7 +962,8 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.warn('NO detected objects.')
             return
 
-        msgs.info('Assign slitmask design info to detected objects')
+        msgs.info('Assign slitmask design info to detected objects. '
+                  'Matching tolerance includes user-provided tolerance, slit tracing uncertainties and object size.')
         # midpoint in the spectral direction
         specmid = slits_left[:, 0].size // 2
 
@@ -990,6 +992,9 @@ class SlitTraceSet(datamodel.DataContainer):
                 expected.append(expected_objpos)
         measured = np.array(measured)
         expected = np.array(expected)
+
+        # index of SpecObjs to be removed because serendipitous objects (if `skip_serendip` is True)
+        remove_idx = []
 
         # Assign
         # Loop on slits to deal with multiple sources within TOLER
@@ -1034,17 +1039,21 @@ class SlitTraceSet(datamodel.DataContainer):
                 idx = np.array(idx)
             # Fill in the rest
             for ss in idx:
-                sobj = cut_sobjs[ss]
-                # Measured coordinates
-                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
-                new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                    np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
-                # Assign
-                sobj.RA = new_obj_coord.ra.value
-                sobj.DEC = new_obj_coord.dec.value
-                sobj.MASKDEF_OBJNAME = 'SERENDIP'
-                sobj.MASKDEF_EXTRACT = False
-                sobj.hand_extract_flag = False
+                if skip_serendip:
+                    remove_idx.append(ss)
+                    msgs.info('Skipping SERENDIP object at pixel {}'.format(cut_sobjs[ss].SPAT_PIXPOS))
+                else:
+                    sobj = cut_sobjs[ss]
+                    # Measured coordinates
+                    offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
+                    new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
+                        np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
+                    # Assign
+                    sobj.RA = new_obj_coord.ra.value
+                    sobj.DEC = new_obj_coord.dec.value
+                    sobj.MASKDEF_OBJNAME = 'SERENDIP'
+                    sobj.MASKDEF_EXTRACT = False
+                    sobj.hand_extract_flag = False
         # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
         noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
         if noidx.size > 0:
@@ -1056,8 +1065,10 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.MASKDEF_EXTRACT = False
                 sobj.hand_extract_flag = False
 
+        # Remove serendip sobjs (if any and if `skip_serendip` is True)
+        sobjs.remove_sobj(np.where(on_det)[0][remove_idx])
         # Return
-        return
+        return sobjs
 
     def get_maskdef_objpos(self, plate_scale, slits_left, slits_right, det_buffer):
         """
@@ -1536,7 +1547,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
     return calib_slits
 
 
-def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, slitmask_par):
+def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmask_par):
     """
     Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to extracted object
     and to force extraction of undetected objects.
@@ -1546,7 +1557,6 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
         calib_slits (`numpy.ndarray`_): Array of `SlitTraceSet` with information on the traced slit edges
         spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
         platescale (:obj:`list`): List of platescale for every detector
-        fwhm (:obj:`float`):  Estimate of the FWHM of objects in pixels
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
 
     Returns:
@@ -1563,10 +1573,12 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
         if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
-            calib_slits[i].assign_maskinfo(sobjs, platescale[i], slits_left, TOLER=slitmask_par['obj_toler'])
+            sobjs = calib_slits[i].assign_maskinfo(sobjs, platescale[i], slits_left, TOLER=slitmask_par['obj_toler'],
+                                                   skip_serendip=slitmask_par['skip_serendip'])
 
             if slitmask_par['extract_missing_objs']:
                 # Assign undetected objects
-                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, slitmask_par['missing_objs_fwhm']/platescale[i],
+                                                            slits_left, slits_right)
 
     return sobjs

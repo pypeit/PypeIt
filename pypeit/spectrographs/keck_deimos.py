@@ -204,13 +204,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Lower value of tracethresh
         par['calibrations']['tilts']['tracethresh'] = 10
 
+        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
-
-        # Find objects
-        #  The following corresponds to 1.1" if unbinned (DEIMOS is never binned)
-        par['reduce']['findobj']['find_fwhm'] = 10.  
 
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] \
@@ -271,6 +270,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
+            # model_full_slit when multi-slit observations (generally DEIMOS has short slits)
+            par['reduce']['extraction']['model_full_slit'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -294,10 +295,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
-        # FWHM
+        # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Objects FWHM
+        # Find objects
+        #  The following corresponds to 0.8"
+        par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
         return par

@@ -606,7 +606,6 @@ class PypeIt:
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                self.par['reduce']['findobj']['find_fwhm'],
                 self.par['reduce']['slitmask'])
 
         # Extract

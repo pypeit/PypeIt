@@ -1067,8 +1067,13 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
         med_fwhm = np.median(all_fwhm)
         # Boxcar radius?
         if box_pix is not None:
-            med_fwhm = max(med_fwhm, box_pix)
-        msgs.info("Masking around the object with {} pixels".format(med_fwhm))
+            # DP: If we want enforce the boxcar masking this will prevent it if FWHM is larger.
+            # I think here med_fwhm should be = box_pix
+            # med_fwhm = max(med_fwhm, box_pix)
+            med_fwhm = box_pix
+            msgs.info("Masking around the object with a boxcar radius of {} pixels".format(med_fwhm))
+        else:
+            msgs.info("Masking around the object with {} pixels".format(med_fwhm))
         # Loop me
         for iobj in range(nobj):
             # Create a mask for the pixels that will contribute to the object

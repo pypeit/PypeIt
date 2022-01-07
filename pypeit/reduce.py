@@ -435,7 +435,7 @@ class Reduce:
                 remove_idx.append(i)
         # remove
         sobjs_obj.remove_sobj(remove_idx)
-        embed()
+
         # # Create skymask for maskdef_extracted objects
         if self.par['reduce']['slitmask']['extract_missing_objs']:
             gdslits = np.where(np.invert(self.reduce_bpm))[0]
@@ -655,15 +655,13 @@ class Reduce:
 
         # Allow for previous sky to better estimate ivar
         #  Unless we used a background image (i.e. ir_redux=True)
-        if previous_sky is None or self.ir_redux:
-            ivar = self.sciImg.ivar 
-        else:
+        if (previous_sky is not None) and (not self.ir_redux):
             # Estimate the variance using the input sky model
             var = procimg.variance_model(self.sciImg.base_var, 
                                           counts=previous_sky, 
                                           count_scale=self.sciImg.img_scale, 
                                           noise_floor=self.sciImg.noise_floor)
-            ivar = utils.inverse(var)
+            self.sciImg.ivar = utils.inverse(var)
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -679,7 +677,7 @@ class Reduce:
 
             # Find sky
             self.global_sky[thismask] = skysub.global_skysub(
-                self.sciImg.image, ivar, self.tilts, thismask, 
+                self.sciImg.image, self.sciImg.ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx], 
                 inmask=inmask, sigrej=sigrej, 
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
