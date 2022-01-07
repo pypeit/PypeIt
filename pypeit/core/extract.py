@@ -1067,7 +1067,7 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
         med_fwhm = np.median(all_fwhm)
         # Boxcar radius?
         if box_pix is not None:
-            # DP: If we want enforce the boxcar masking this will prevent it if FWHM is larger.
+            # DP: If we want to enforce the boxcar masking this will prevent it if FWHM is larger.
             # I think here med_fwhm should be = box_pix
             # med_fwhm = max(med_fwhm, box_pix)
             med_fwhm = box_pix

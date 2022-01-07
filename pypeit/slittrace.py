@@ -1441,7 +1441,7 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure,
     calib_dets = np.array([ss.det for ss in calib_slits])
     for i in range(calib_dets.size):
         # Select the edges to use
-        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])
+        slits_left, slits_right, _ = calib_slits[i].select_edges(initial=True, flexure=spat_flexure[i])
         if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
             calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
@@ -1569,7 +1569,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
     for i in range(calib_dets.size):
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use
-        slits_left, slits_right, _ = calib_slits[i].select_edges(flexure=spat_flexure[i])  # Deal with flexure
+        slits_left, slits_right, _ = calib_slits[i].select_edges(initial=True, flexure=spat_flexure[i])  # Deal with flexure
         # Assign RA,DEC, OBJNAME to detected objects and add undetected objects
         if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
@@ -1577,8 +1577,15 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
                                                    skip_serendip=slitmask_par['skip_serendip'])
 
             if slitmask_par['extract_missing_objs']:
+                # Set the FWHM for the extraction of missing objects
+                if slitmask_par['missing_objs_fwhm'] is not None:
+                    fwhm = slitmask_par['missing_objs_fwhm']/platescale[i]
+                elif sobjs.nobj > 0:
+                    fwhm = np.median(sobjs.FWHM)
+                else:
+                    msgs.error('The median FWHM cannot be determined because no objects were detected. '
+                               'Set parameter `missing_objs_fwhm` in `SlitMaskPar`')
                 # Assign undetected objects
-                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, slitmask_par['missing_objs_fwhm']/platescale[i],
-                                                            slits_left, slits_right)
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
 
     return sobjs

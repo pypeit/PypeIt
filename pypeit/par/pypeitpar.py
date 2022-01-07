@@ -1729,14 +1729,16 @@ class SlitMaskPar(ParSet):
         descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
                                         'from the slitmask design.'
 
-        defaults['missing_objs_fwhm'] = 0.8
+        defaults['missing_objs_fwhm'] = None
         dtypes['missing_objs_fwhm'] = [int, float]
         descr['missing_objs_fwhm'] = 'Indicates the FWHM in arcsec for the force extraction of undetected objects. ' \
                                      'PypeIt will try to determine the FWHM from the flux profile ' \
                                      '(by using ``missing_objs_fwhm`` as initial guess). ' \
                                      'If the FWHM cannot be determined, ``missing_objs_fwhm`` will be assumed. ' \
                                      'If you do not want PypeIt to try to determine the FWHM set the ' \
-                                     'parameter ``use_user_fwhm`` in ``ExtractionPar`` to True.'
+                                     'parameter ``use_user_fwhm`` in ``ExtractionPar`` to True. ' \
+                                     'If ``missing_objs_fwhm`` is ``None`` (which is the default) PypeIt will use ' \
+                                     'the median FWHM of all the detected objects.'
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
