@@ -446,33 +446,35 @@ class AllSpec2DObj:
                     else:
                         self[det] = _allspecobj[det]
             elif slitspatnum is not None: # Update specific slits!
+                
+                # Grab modified detectors and slits
                 dets, spat_ids = slittrace.parse_slitspatnum(slitspatnum)
 
                 # Loop on detectors to be fussed with
-                for det in np.unique(dets):
-                    det = int(det)
-                    if det not in _allspecobj.detectors:
-                        continue
-                    # Check version 
-                    if self[det].version != _allspecobj[det].version:
-                        msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
-                    # Generate the slit "mask"
-                    slitmask = _allspecobj[det].slits.slit_img(
-                        flexure=_allspecobj[det].sci_spat_flexure)
-                    # Save the new one in a copy
-                    new_Spec2DObj = deepcopy(self[det])
-                    # Replace with the old
-                    self[det] = _allspecobj[int(det)]
-                    # Spat ids    
-                    spats = spat_ids[dets==det]
-                    for spat_id in spats:
-                        # Find pixels to replace
-                        replace_pix = slitmask == spat_id
-                        # Fill em in
-                        for key in new_Spec2DObj.datamodel.keys():
-                            if new_Spec2DObj.datamodel[key]['otype'] == np.ndarray and (
-                                new_Spec2DObj[key].shape == slitmask.shape):
-                                self[det][key][replace_pix] = new_Spec2DObj[key][replace_pix]
+                for det in _allspecobj.detectors:
+                    if det in dets:
+                        # Check version 
+                        if self[det].version != _allspecobj[det].version:
+                            msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
+                        # Generate the slit "mask"
+                        slitmask = _allspecobj[det].slits.slit_img(
+                            flexure=_allspecobj[det].sci_spat_flexure)
+                        # Save the new one in a copy
+                        new_Spec2DObj = deepcopy(self[det])
+                        # Replace with the old
+                        self[det] = _allspecobj[int(det)]
+                        # Spat ids    
+                        spats = spat_ids[dets==det]
+                        for spat_id in spats:
+                            # Find pixels to replace
+                            replace_pix = slitmask == spat_id
+                            # Fill em in
+                            for key in new_Spec2DObj.datamodel.keys():
+                                if new_Spec2DObj.datamodel[key]['otype'] == np.ndarray and (
+                                    new_Spec2DObj[key].shape == slitmask.shape):
+                                    self[det][key][replace_pix] = new_Spec2DObj[key][replace_pix]
+                    else:
+                        self[det] = _allspecobj[det]
 
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()
