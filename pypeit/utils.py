@@ -1030,7 +1030,11 @@ def yamlify(obj, debug=False):
 #    elif isinstance(obj, bytes):
 #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
-        obj = str(obj)
+        # Worry about colons!
+        if ':' in obj:
+            obj = '"'+str(obj)+'"'
+        else:
+            obj = str(obj)
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()

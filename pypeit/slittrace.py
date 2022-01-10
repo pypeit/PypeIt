@@ -1293,28 +1293,32 @@ class SlitTraceSet(datamodel.DataContainer):
                       f'Slitmask offset cannot be estimated in {self.detname}.')
             self.maskdef_offset = 0.0
 
-    def user_mask(self, det, slitspatnum):
+
+    def user_mask(self, det, user_slits):
         """
         Mask all but the input slit
 
         Args:
             det (:obj:`int`): Detector number
-            slitspatnum (:obj:`str` or :obj:`list`):
+            user_slits (:obj:`dict`):
         """
-        # Parse
-        dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
-        if det not in dets:
-            return
-        # Cut down for convenience
-        indet = dets == det
-        spat_ids = spat_ids[indet]
-        #
-        msk = np.ones(self.nslits, dtype=bool)
-        for slit_spat in spat_ids:
-            #TODO -- Consider putting in a tolerance which if not met causes a crash
-            idx = np.argmin(np.abs(self.spat_id - slit_spat))
-            msk[idx] = False
-        self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+        if user_slits['method'] == 'slitspat':
+            # Parse
+            dets, spat_ids = parse.parse_slitspatnum(user_slits['slit_info'])
+            if det not in dets:
+                return
+            # Cut down for convenience
+            indet = dets == det
+            spat_ids = spat_ids[indet]
+            #
+            msk = np.ones(self.nslits, dtype=bool)
+            for slit_spat in spat_ids:
+                #TODO -- Consider putting in a tolerance which if not met causes a crash
+                idx = np.argmin(np.abs(self.spat_id - slit_spat))
+                msk[idx] = False
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+        elif user_slits['method'] == 'maskIDs':
+            raise NotImplementedError("Not ready for maskID yet")
 
     def mask_flats(self, flatImages):
         """
@@ -1359,7 +1363,27 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
-def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, platescale, det_buffer, slitmask_par,
+def merge_user_slit(slitspatnum, maskIDs):
+    # Not set?
+    if slitspatnum is None and maskIDs is None:
+        return None
+    #
+    if slitspatnum is not None and maskIDs is not None:
+        msgs.error("These should not both have been set")
+    # MaskIDs
+    user_slit_dict = {}
+    if maskIDs is not None:
+        user_slit_dict['method'] = 'maskIDs'
+        user_slit_dict['slit_info'] = maskIDs
+    else:
+        user_slit_dict['method'] = 'slitspat'
+        user_slit_dict['slit_info'] = slitspatnum
+    # Return
+    return user_slit_dict
+
+
+def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure, 
+                                      platescale, det_buffer, slitmask_par,
                                       dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions

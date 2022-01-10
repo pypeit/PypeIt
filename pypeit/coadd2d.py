@@ -25,6 +25,7 @@ from pypeit.core import coadd
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
+from pypeit.manual_extract import ManualExtractionObj
 
 
 class CoAdd2D:
@@ -456,18 +457,23 @@ class CoAdd2D:
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-        #parcopy['calibrations']['save_masters'] = False
-        #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
+        # Manual extraction
+        if len(self.par['coadd2d']['manual'].strip()) > 0:
+            manual_obj = ManualExtractionObj.by_fitstbl_input(
+                'None', self.par['coadd2d']['manual']) 
+            manual_dict = manual_obj.dict_for_objfind()
+        else:
+            manual_dict = None
+
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux,
                                          find_negative=self.find_negative, det=self.det, show=show)
-        #redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
-        #                                 None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
         redux.tilts = pseudo_dict['tilts']
@@ -494,7 +500,7 @@ class CoAdd2D:
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
             sciImage.image, show_peaks=show_peaks,
-            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+            manual_extract_dict=manual_dict)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local

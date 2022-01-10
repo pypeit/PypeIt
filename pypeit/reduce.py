@@ -53,6 +53,7 @@ class Reduce:
           True = Masked
         show (:obj:`bool`, optional):
            Show plots along the way?
+        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -96,7 +97,7 @@ class Reduce:
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, basename=None):
+                 binning=None, setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -121,11 +122,12 @@ class Reduce:
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
                             sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
                             find_negative=find_negative, det=det, std_redux=std_redux, show=show,
-                            binning=binning, setup=setup, basename=basename)
+                            binning=binning, setup=setup, basename=basename,
+                            manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, basename=None):
+                 binning=None, setup=None, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -137,6 +139,7 @@ class Reduce:
         self.caliBrate = caliBrate
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
+        self.manual = manual
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -225,41 +228,6 @@ class Reduce:
         self.sciImg.update_mask_slitmask(self.slitmask)
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
-
-    def parse_manual_dict(self, manual_dict, neg=False):
-        """
-        Parse the manual dict
-        This method is here mainly to deal with negative images
-
-        Args:
-            manual_dict (dict or None):
-            neg (bool, optional):
-                Negative image
-
-        Returns:
-            None or dict:  None if no matches; dict if there are for manual extraction
-
-        """
-        if manual_dict is None:
-            return None
-        #
-        dets = np.atleast_1d(manual_dict['hand_extract_det'])
-        # Grab the ones we want
-        gd_det = dets > 0
-        if not neg:
-            gd_det = np.invert(gd_det)
-        # Any?
-        if not np.any(gd_det):
-            return manual_dict
-        # Fill
-        manual_extract_dict = {}
-        for key in manual_dict.keys():
-            sgn = 1
-            if key == 'hand_extract_det':
-                sgn = -1
-            manual_extract_dict[key] = sgn*np.atleast_1d(manual_dict[key])[gd_det]
-        # Return
-        return manual_extract_dict
 
     def extract(self, global_sky, sobjs_obj):
         """
@@ -373,7 +341,7 @@ class Reduce:
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+            )
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -387,7 +355,7 @@ class Reduce:
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+                )
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
@@ -540,7 +508,8 @@ class Reduce:
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
-                     show_trace=False, show=False, manual_extract_dict=None,
+                     show_trace=False, show=False, 
+                     manual_extract_dict=None,
                      debug=False):
         """
         Single pass at finding objects in the input image
@@ -562,7 +531,7 @@ class Reduce:
         show : :obj:`bool`, optional
             ???
         manual_extract_dict : :obj:`dict`, optional
-            ???
+            This is only used by 2D coadd
         debug : :obj:`bool`, optional
             ???
 
@@ -575,26 +544,28 @@ class Reduce:
         skymask : `numpy.ndarray`_
             Boolean sky mask
         """
-
         # Positive image
-        parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
+        if manual_extract_dict is None:
+            manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
+
+        #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
         sobjs_obj_single, nobj_single, skymask_pos = \
             self.find_objects_pypeline(image,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace,
-                                       manual_extract_dict=parse_manual, debug=debug)
+                                       manual_extract_dict=manual_extract_dict, debug=debug)
 
         # For nobj we take only the positive objects
         if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
-            parse_manual = self.parse_manual_dict(manual_extract_dict, neg=True)
+            manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
                                            show_trace=show_trace,
-                                           manual_extract_dict=parse_manual,
+                                           manual_extract_dict=manual_extract_dict,
                                            debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
@@ -1072,7 +1043,7 @@ class MultiSlitReduce(Reduce):
         std_trace : `numpy.ndarray`_, optional
             ???
         manual_extract_dict : :obj:`dict`, optional
-            ???
+            Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
             Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
