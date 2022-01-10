@@ -170,7 +170,7 @@ def test_pypeit_file():
     # These are user-level changes
     assert _p['calibrations']['traceframe']['process']['combine'] == 'median'
     assert _p['scienceframe']['process']['n_lohi'] == [8, 8]
-    assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
+#    assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
 
 def test_telescope():
     pypeitpar.TelescopePar()
