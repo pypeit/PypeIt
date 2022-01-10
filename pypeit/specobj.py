@@ -196,7 +196,7 @@ class SpecObj(datamodel.DataContainer):
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:-1]])
+        _d = dict([(k,values[k]) for k in args[1:]])
         super().__init__(d=_d)
 
         self.FLEX_SHIFT_GLOBAL = 0.

@@ -1756,12 +1756,13 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
-                inmask=None, spec_min_max=None,
-                fof_link=1.5, plate_scale=0.2, has_negative=False,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
-                trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
+                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
+                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0,
+                cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
                 debug_all=False, skymask_by_boxcar=False, boxcar_rad=None):
     """
