@@ -1,3 +1,8 @@
+"""
+Implements an object to handle manual object extraction.
+
+.. include:: ../include/links.rst
+"""
 import numpy as np
 import inspect
 
@@ -120,3 +125,4 @@ class ManualExtractionObj(datamodel.DataContainer):
             manual_extract_dict['det'] = -1 * manual_extract_dict['det']
         # Return
         return manual_extract_dict
+

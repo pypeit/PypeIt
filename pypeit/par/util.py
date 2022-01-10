@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Utility functions for PypeIt parameter sets
+
+.. include:: ../include/links.rst
 """
 import os
 import time

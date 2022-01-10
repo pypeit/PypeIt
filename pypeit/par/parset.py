@@ -368,6 +368,8 @@ class ParSet:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
+            if len(data) == 0:
+                return '..'
             return data if not verbatim else '``' + data + '``'
         if isinstance(data, list):
             # TODO: When the list is empty, should the return include the
@@ -741,7 +743,6 @@ class ParSet:
             output += ['----']
             output += ['']
             output += self.data[k].to_rst_table(parsets_listed=parsets_listed)
-
         return output
 
     def validate_keys(self, required=None, can_be_None=None):

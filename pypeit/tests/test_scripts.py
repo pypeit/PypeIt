@@ -241,7 +241,7 @@ def test_chk_flat():
 @cooked_required
 def test_chk_wavecalib():
     ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                                'MasterWaveCalib_A_1_DET01.fits')
+                           'MasterWaveCalib_A_1_DET01.fits')
     #
     pargs = scripts.chk_wavecalib.ChkWaveCalib.parse_args([ms_root])
     scripts.chk_wavecalib.ChkWaveCalib.main(pargs)
@@ -302,7 +302,7 @@ def test_coadd1d_2():
     os.remove(parfile)
     os.remove(coadd_ofile)
 
-test_coadd1d_2()
+#test_coadd1d_2()
 
 
 @cooked_required

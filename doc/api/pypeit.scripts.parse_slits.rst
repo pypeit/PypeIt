@@ -1,7 +1,7 @@
-pypeit.scripts.chk\_2dslits module
+pypeit.scripts.parse\_slits module
 ==================================
 
-.. automodule:: pypeit.scripts.chk_2dslits
+.. automodule:: pypeit.scripts.parse_slits
    :members:
    :private-members:
    :undoc-members:

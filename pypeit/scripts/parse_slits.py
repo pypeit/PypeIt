@@ -1,5 +1,7 @@
 """
 This script parses info from one or more SlitTraceSet objects
+
+.. include:: ../include/links.rst
 """
 
 from pypeit.scripts import scriptbase
@@ -26,6 +28,8 @@ def print_slits(slits):
         sflag = ', '
         line += '    ' + sflag.join(flags)
         print(line)
+
+
 class ParseSlits(scriptbase.ScriptBase):
 
     @classmethod
