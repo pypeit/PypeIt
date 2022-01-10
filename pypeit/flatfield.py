@@ -39,7 +39,7 @@ class FlatImages(datamodel.DataContainer):
 
     """
     minimum_version = '1.1.0'
-    version = '1.1.1'  # This patch adds pixelflat_waveimg to output; no conflict with 1.1.0
+    version = '1.1.0'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
