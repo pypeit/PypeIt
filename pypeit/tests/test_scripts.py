@@ -304,6 +304,8 @@ def test_coadd1d_2():
     os.remove(parfile)
     os.remove(coadd_ofile)
 
+test_coadd1d_2()
+
 
 @cooked_required
 def test_identify():

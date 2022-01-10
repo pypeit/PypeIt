@@ -29,6 +29,8 @@ from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
 from pypeit.datamodel import DataContainer
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 from pypeit import specobjs
 
 from IPython import embed
@@ -800,14 +802,16 @@ class MultiSlitFlexure(DataContainer):
     """
 
     # Set the version of this class
-    version = '1.0.0'
+    version = '1.1.0'
 
     datamodel = {'s1dfile': dict(otype=str, descr='spec1d filename'), 
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
                  'nslits': dict(otype=int, descr='Number of slits'),
-                 'det': dict(otype=np.ndarray, atype=str,
-                             descr='String identifiers for the detector or mosaic (ndet, nslits)'),
+                 'is_msc': dict(otype=np.ndarray, atype=(int, np.integer),
+                                descr='Flag that the "det" is the mosaic ID (ndet, nslits)'),
+                 'det': dict(otype=np.ndarray, atype=(int, np.integer),
+                             descr='Integer identifiers for the detector or mosaic (ndet, nslits)'),
                  'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
                  'slitid': dict(otype=np.ndarray, atype=np.floating, descr='Slit ID (nslits)'),
                  'mn_wv': dict(otype=np.ndarray, atype=np.floating,
@@ -895,25 +899,16 @@ class MultiSlitFlexure(DataContainer):
         #self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
         self['maskdef_id'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_ID']
 
-        # Fill in 2D
-        #for new_key, key, dtype in zip(['objname', 'det'],
-        #                        ['NAME', 'DET'],
-        #                        [str, int]): 
-#        for new_key, key, dtype in zip(['det'], ['DET'], [int]): 
-#            # Init
-#            if self.datamodel[new_key]['atype'] == np.str:
-#                slist = []
-#                for det in range(self.ndet):
-#                    slist.append(self.specobjs[self.sobj_idx[det]][key])
-#                self[new_key] = np.array(slist)
-#            else:
-#                self[new_key] = np.zeros((self.ndet, self.nslits), dtype=dtype)
-#                for det in range(self.ndet):
-#                    self[new_key][det] = self.specobjs[self.sobj_idx[det]][key]
-        # Save the detector numbers
-        self.det = np.zeros((self.ndet, self.nslits), dtype=object)
-        for det in range(self.ndet):
-            self.det[det] = self.specobjs[self.sobj_idx[det]].DET
+        # Compile the list of detector *names* once
+        DETs = self.specobjs.DET
+        # Find which ones are actually mosaics
+        is_msc = np.array([Mosaic.name_prefix in d for d in DETs]).astype(np.uint16)
+        # Use the relevant parser to get the integer identifier
+        det_msc_num = np.array([Mosaic.parse_name(d) if m else DetectorContainer.parse_name(d) 
+                                    for d,m in zip(DETs, is_msc)])
+        # Then assign the attributes
+        self.is_msc = np.vstack(tuple(is_msc[self.sobj_idx[det]] for det in range(self.ndet)))
+        self.det = np.vstack(tuple(det_msc_num[self.sobj_idx[det]] for det in range(self.ndet)))
 
         # S/N and mn_wv from the spectra
         self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
@@ -1232,3 +1227,6 @@ class MultiSlitFlexure(DataContainer):
 
         
         pdf.close()
+
+
+

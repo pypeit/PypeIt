@@ -100,7 +100,11 @@ class SpecObjs:
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
+            try:
+                sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
+            except:
+                embed()
+                exit()
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
@@ -268,14 +272,6 @@ class SpecObjs:
                 SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
-
-#            # TODO: Hack this for now, but revisit once mosaicing has been
-#            # implemented for DEIMOS.  I.e., does it make sense to keep this?
-#            if multi_spec_det is not None and isinstance(self.DETECTOR[0], Mosaic):
-#                msc = [d.det for d in self.DETECTOR[0].detectors]
-#                _multi_spec_det = None if multi_spec_det == msc else multi_spec_det
-#            else:
-#                _multi_spec_det = multi_spec_det
 
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:

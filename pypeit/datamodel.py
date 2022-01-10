@@ -1409,7 +1409,11 @@ class DataContainer:
         # derived class and we need to use the `__init__` of the base class
         # instead.  Instead, `d` is passed to `cls.from_dict`, which initiates
         # everything correctly.
-        return cls.from_dict(d=d)
+        try:
+            return cls.from_dict(d=d)
+        except:
+            embed()
+            exit()
 
     @classmethod
     def from_dict(cls, d=None):

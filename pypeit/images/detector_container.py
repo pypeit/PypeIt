@@ -104,6 +104,11 @@ class DetectorContainer(datamodel.DataContainer):
                  'binning': dict(otype=str,
                                  descr='Binning in PypeIt orientation (not the original)')}
 
+    name_prefix = 'DET'
+    """
+    Prefix for the name of the detector.
+    """
+
     def __init__(self, dataext, specaxis, specflip, spatflip, platescale, saturation,
                  mincounts, nonlinear, numamplifiers, gain, ronoise, det,
                  binning,  # Up to here are required
@@ -171,7 +176,7 @@ class DetectorContainer(datamodel.DataContainer):
         Returns:
             :obj:`str`: Detector name.
         """
-        return f'DET{DetectorContainer.get_det_str(det)}'
+        return f'{DetectorContainer.name_prefix}{DetectorContainer.get_det_str(det)}'
 
     @staticmethod
     def parse_name(name):
@@ -187,7 +192,7 @@ class DetectorContainer(datamodel.DataContainer):
             :obj:`int`: The parsed detector number.  For example, returns 2 when
             the name is ``DET02``.
         """
-        return int(name[3:])
+        return int(name[len(DetectorContainer.name_prefix):])
 
     def nonlinear_counts(self, datasec_img=None, apply_gain=True):
         """

@@ -1518,7 +1518,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, fwhm, s
     """
 
     # grab corresponding detectors
-    calib_dets = np.array([ss.detid for ss in calib_slits])
+    calib_dets = np.array([ss.detname for ss in calib_slits])
     for i in range(calib_dets.size):
         msgs.info('DET: {}'.format(calib_dets[i]))
         # Select the edges to use

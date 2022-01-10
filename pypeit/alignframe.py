@@ -191,8 +191,8 @@ class TraceAlignment:
         align_prof = dict({})
         # Go through the slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            specobj_dict = {'SLITID': slit_idx, 'DET': self.det, 'OBJTYPE': "align_profile",
-                            'PYPELINE': self.spectrograph.pypeline}
+            specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
+                            'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
             align_traces, _ = extract.objfind(
                 self.rawalignimg.image, slitid_img_init == slit_spat,

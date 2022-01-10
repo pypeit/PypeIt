@@ -49,6 +49,11 @@ class Mosaic(datamodel.DataContainer):
                                descr='The full transformation matrix for each detector used to '
                                      'construct the mosaic.')}
 
+    name_prefix = 'MSC'
+    """
+    Prefix for the name of the mosaic.
+    """
+
     def __init__(self, id, detectors, shape, shift, rot, tform):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -187,14 +192,14 @@ class Mosaic(datamodel.DataContainer):
         """
         Return a name for the mosaic.
         """
-        return f'MSC{Mosaic.get_id_str(mosaic_id)}'
+        return f'{Mosaic.name_prefix}{Mosaic.get_id_str(mosaic_id)}'
 
     @staticmethod
     def parse_name(name):
         """
         Parse the numerical identifier of the mosaic from its name.
         """
-        return int(name[3:])
+        return int(name[len(Mosaic.name_prefix):])
 
 
 
