@@ -39,7 +39,7 @@ class FlatImages(datamodel.DataContainer):
 
     """
     minimum_version = '1.1.0'
-    version = '1.1.x'
+    version = '1.1.1'  # This patch adds pixelflat_waveimg to output; no conflict with 1.1.0
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -628,7 +628,7 @@ class FlatField(object):
                                            flexure=self.wavetilts.spat_flexure)
         waveimg = self.wv_calib.build_waveimg(
             tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
-        # Save to class attribute
+        # Save to class attribute for inclusion in MasterFlat
         self.waveimg = waveimg
 
         # Setup images
