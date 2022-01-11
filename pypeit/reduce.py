@@ -451,30 +451,29 @@ class Reduce:
                                         if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                         skymask[thismask] = skymask_fwhm[thismask]
 
-        # ##################################################
-        # Global sky subtraction second pass. Uses skymask from object finding
-        if ((not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not usersky)) \
-                or (self.par['reduce']['slitmask']['extract_missing_objs']):
-            self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
-                                                 previous_sky=self.initial_sky)
-
         self.sobjs_obj = sobjs_obj
         self.skymask = skymask
         self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
-            # Apply a global flexure correction to each slit
-            # provided it's not a standard star
-            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(mode='global')
+            # Global sky subtraction second pass. Uses skymask from 2nd object finding and maskdef_extracted objects
+            if ((not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not usersky)) \
+                    or (self.par['reduce']['slitmask']['extract_missing_objs']):
+                self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
+                                                     previous_sky=self.initial_sky)
 
-            # Extract + Return
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                = self.extract(self.global_sky, self.sobjs_obj)
+                # Apply a global flexure correction to each slit
+                # provided it's not a standard star
+                if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+                    self.spec_flexure_correct(mode='global')
 
-            if self.find_negative:
-                self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
+                # Extract + Return
+                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
+                    = self.extract(self.global_sky, self.sobjs_obj)
+
+                if self.find_negative:
+                    self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
