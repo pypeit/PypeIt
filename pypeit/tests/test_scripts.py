@@ -590,7 +590,7 @@ def test_collate_1d(tmp_path, monkeypatch):
 @cooked_required
 def test_parse_slits():
     slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                              'MasterSlits_A_1_01.fits.gz')
+                              'MasterSlits_A_1_DET01.fits.gz')
     spec2d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                               'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
 
@@ -601,7 +601,7 @@ def test_parse_slits():
     # Spec2d
     pargs = parse_slits.ParseSlits.parse_args([spec2d_file])
     parse_slits.ParseSlits.main(pargs)
-    
+
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

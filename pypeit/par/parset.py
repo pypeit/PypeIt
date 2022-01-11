@@ -343,7 +343,6 @@ class ParSet:
         row_string[-1] = row_string[0]
         return '\n'.join(row_string)+'\n'
 
-
     @staticmethod
     def _data_string(data, use_repr=True, verbatim=False):
         """
@@ -368,9 +367,9 @@ class ParSet:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            if len(data) == 0:
-                return '..'
-            return data if not verbatim else '``' + data + '``'
+            if verbatim:
+                return '..' if len(data) == 0 else '``' + data + '``'
+            return data
         if isinstance(data, list):
             # TODO: When the list is empty, should the return include the
             # brackets?

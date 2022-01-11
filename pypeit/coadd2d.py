@@ -464,8 +464,12 @@ class CoAdd2D:
 
         # Manual extraction
         if len(self.par['coadd2d']['manual'].strip()) > 0:
-            manual_obj = ManualExtractionObj.by_fitstbl_input(
-                'None', self.par['coadd2d']['manual']) 
+            try:
+                manual_obj = ManualExtractionObj.by_fitstbl_input(
+                    'None', self.par['coadd2d']['manual']) 
+            except:
+                embed()
+                exit()
             manual_dict = manual_obj.dict_for_objfind()
         else:
             manual_dict = None

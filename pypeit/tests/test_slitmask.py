@@ -125,8 +125,10 @@ def test_assign_maskinfo_add_missing():
 @cooked_required
 def test_dith_obs():
     instr_names = ['keck_deimos']
-    flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_M_9000_dither', ifile)
-                for ifile in ['DE.20141022.12107.fits', 'DE.20141022.12185.fits', 'DE.20141022.12263.fits']]
+    flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos',
+                              '830G_M_9000_dither', ifile) 
+                    for ifile in ['DE.20141022.12107.fits', 'DE.20141022.12185.fits',
+                                  'DE.20141022.12263.fits']]
     for name in instr_names:
         # Spectrograph
         instrument = load_spectrograph(name)
@@ -146,7 +148,7 @@ def test_dith_obs():
 
         # Run edge trace
         edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'],
-                                       auto=True, debug=False, show_stages=False,qa_path=None)
+                                       auto=True, debug=False, show_stages=False, qa_path=None)
         slits = edges.get_slits()
 
         # Test that the maskfile is saved properly
@@ -202,3 +204,5 @@ def test_deimosslitmask():
     spec = KeckDEIMOSSpectrograph()
     spec.get_slitmask(f)
     assert spec.slitmask.nslits == 106, 'Incorrect number of slits read!'
+
+

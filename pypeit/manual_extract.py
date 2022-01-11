@@ -3,8 +3,11 @@ Implements an object to handle manual object extraction.
 
 .. include:: ../include/links.rst
 """
-import numpy as np
 import inspect
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import datamodel 
 
