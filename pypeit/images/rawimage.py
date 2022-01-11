@@ -564,10 +564,10 @@ class RawImage:
         if self.steps[step] and not force:
             # Already field flattened
             msgs.warn('Spatial flexure shift already calculated.')
-            return self.spat_flexure_shift 
         else:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
             self.steps[step] = True
+
         # Return
         return self.spat_flexure_shift 
 
