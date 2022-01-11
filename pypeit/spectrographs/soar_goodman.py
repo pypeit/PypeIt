@@ -111,7 +111,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
 class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
     name = 'soar_goodman_red'
     camera = 'red'
-    comment = 'Supported gratings: M1, M2 and 2x2 binning'
+    comment = 'Supported gratings: M2 and 2x2 binning'
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -238,6 +238,36 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
                 = os.path.join(par['sensfunc']['IR'].default_root,
                                'TelFit_LasCampanas_3100_26100_R20000.fits')
 
+        return par
+
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the ``PypeIt`` parameters to hard-wired values used for
+        specific instrument configurations.
+
+        Args:
+            scifile (:obj:`str`):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`~pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`~pypeit.par.parset.ParSet`: The PypeIt parameter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super().config_specific_par(scifile, inp_par=inp_par)
+
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == '400_SYZY' and (
+            self.get_meta_value(scifile, 'dispangle') > 7.):
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_m2_400_SYZY.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # Return
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):
