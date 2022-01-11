@@ -7,6 +7,8 @@
   It now uses by default the stars in the alignment boxes.
 - Introduces pypeit_parse_calib_id script
 - Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
 
 1.7.0 (19 Nov 2021)
 -------------------
@@ -149,8 +151,6 @@
 - Add LDT/DeVeny spectrograph
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
-- GMOS doc updates
-- Fixed 2Dcoadd spec bugs for central wavelength dithers.
 - GMOS doc updates
 
 
