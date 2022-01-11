@@ -4,6 +4,6 @@
 Print slit info summary to the screen for a given spec2D file
 """
 
-from pypeit.scripts import chk_2dslits
+from pypeit.scripts import parse_slits
 if __name__ == '__main__':
-    chk_2dslits.main(chk_2dslits.parse_args())
+    parse_slits.main(parse_slits.parse_args())

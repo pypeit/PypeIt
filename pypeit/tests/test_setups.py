@@ -69,7 +69,7 @@ def test_setup_made_pypeit_file():
     This test depends on the one above
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
+    cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
     # Test
     assert len(data_files) == 8
     assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
@@ -276,7 +276,7 @@ def test_setup_keck_deimos_multiconfig():
         # be put into a function.
 
         # Read the pypeit file
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(f, runtime=True)
+        cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, runtime=True)
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph = load_spectrograph(cfg['rdx']['spectrograph'])
