@@ -111,7 +111,7 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
 class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
     name = 'soar_goodman_red'
     camera = 'red'
-    comment = 'Supported gratings: M2 and 2x2 binning'
+    comment = 'Supported gratings: 400_SYZY at M1 and M2 tilts'
     supported = True
 
     def get_detector_par(self, det, hdu=None):
@@ -262,9 +262,8 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par = super().config_specific_par(scifile, inp_par=inp_par)
 
         # Wavelength calibrations
-        if self.get_meta_value(scifile, 'dispname') == '400_SYZY' and (
-            self.get_meta_value(scifile, 'dispangle') > 7.):
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_m2_400_SYZY.fits'
+        if self.get_meta_value(scifile, 'dispname') == '400_SYZY':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'soar_goodman_400_SYZY.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
 
         # Return
