@@ -38,8 +38,8 @@ class FlatImages(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.1.0'
-    version = '1.1.0'
+    minimum_version = '1.1.1'
+    version = '1.1.1'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -324,7 +324,7 @@ class FlatImages(datamodel.DataContainer):
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2), (0.9, 1.1), None])
         # Display frames
-        show_flats(image_list, wcs_match=wcs_match, slits=slits)
+        show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
 
 
@@ -499,7 +499,7 @@ class FlatField(object):
         image_list = zip([self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model],
                          ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],
                          [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
-        show_flats(image_list, wcs_match=wcs_match, slits=self.slits)
+        show_flats(image_list, wcs_match=wcs_match, slits=self.slits, waveimg=self.waveimg)
 
     def fit(self, spat_illum_only=False, debug=False):
         """
@@ -1219,7 +1219,7 @@ class FlatField(object):
                                       flexure=flex)
 
 
-def show_flats(image_list, wcs_match=True, slits=None):
+def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
     """
     Interface to ginga to show a set of flat images
 
@@ -1231,6 +1231,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
         spec_illum (`numpy.ndarray`_ or None):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+        waveimg (`numpy.ndarray`_ or None):
 
     Returns:
 
@@ -1247,7 +1248,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = display.show_image(img, chname=name, cuts=cut, wcs_match=wcs_match,
-                                        clear=clear)
+                                        waveimg=waveimg, clear=clear)
         if slits is not None:
             display.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
                                slit_ids=slits.spat_id[gpm])
