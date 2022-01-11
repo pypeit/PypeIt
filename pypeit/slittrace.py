@@ -15,6 +15,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
+from numpy.lib.arraysetops import isin
 from scipy.interpolate import RegularGridInterpolator, interp1d
 try:
     from skimage import transform as skimageTransform
@@ -1379,7 +1380,7 @@ def parse_slitspatnum(slitspatnum):
     """
     dets = []
     spat_ids = []
-    if type(slitspatnum)==list:
+    if isinstance(slitspatnum,list):
         slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
@@ -1391,7 +1392,7 @@ def parse_slitspatnum(slitspatnum):
 
 def get_maskdef_objpos_offset_alldets(
     sobjs, calib_slits, spat_flexure, platescale, 
-    bin_spat, det_buffer, slitmask_par, dither_off=None):
+    det_buffer, slitmask_par, dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
@@ -1402,7 +1403,6 @@ def get_maskdef_objpos_offset_alldets(
         calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
         spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
         platescale (:obj:`list`): List of platescale for every detector
-        bin_spat (:obj:`int`): Binning of the detector in the spatial dimension
         det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
         dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations

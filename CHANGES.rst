@@ -7,6 +7,7 @@
   It now uses by default the stars in the alignment boxes.
 - Introduces pypeit_parse_calib_id script
 - Refactor manual extraction
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
 
 1.7.0 (19 Nov 2021)
 -------------------

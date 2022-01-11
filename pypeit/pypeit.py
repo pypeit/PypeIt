@@ -601,7 +601,6 @@ class PypeIt:
                 dither_off = None
             calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale, 
-                bin_spat,
                 self.par['calibrations']['slitedges']['det_buffer'], 
                 self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors

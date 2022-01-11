@@ -4127,7 +4127,6 @@ class EdgeTraceSet(DataContainer):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
-        debug=True
 
         # Remove any fully masked traces. Keeps any inserted or
         # box-slit traces.

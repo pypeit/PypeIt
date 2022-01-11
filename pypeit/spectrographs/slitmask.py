@@ -131,7 +131,7 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
-        mask_radec (:obj:`tuple`):
+        mask_radec (:obj:`tuple`, optional):
             RA, Dec (deg) of the pointing of the mask (approximate center)
         posx_pa (:obj:`float`):
             Sky PA that points to positive x (spatial) on the detector
@@ -928,6 +928,17 @@ def fuss_with_maskpa(pa:float):
     return pa, comp_pa
 
 def load_keck_deimoslris(filename:str, instr:str):
+    """ Load up the mask design info from the header
+    of the file provided
+
+    Args:
+        filename (str): 
+        instr (str): Name of spectrograph
+            Allowed are keck_lris_xxx, keck_deimos
+
+    Returns:
+        [type]: [description]
+    """
     # Open the file
     hdu = io.fits_open(filename)
 
@@ -958,8 +969,8 @@ def load_keck_deimoslris(filename:str, instr:str):
 
     # PA corresponding to positive x on detector (spatial)
     posx_pa = hdu['MaskDesign'].data['PA_PNT'][-1]
-    if posx_pa < 0.:
-        posx_pa += 360.
+    # Insure it is positive
+    posx_pa, _ = fuss_with_maskpa(posx_pa)
 
     # Instantiate the slit mask object and return it
     indices = numpy.arange(4) if instr == 'keck_deimos' else numpy.arange(4)+1 

@@ -5,16 +5,11 @@ Module for the Spec2DObj class
 .. include:: ../include/links.rst
 
 """
-import enum
 import os
 import inspect
 import datetime
-from IPython import embed
 
 from copy import deepcopy
-from PIL.Image import new
-
-
 
 import numpy as np
 
@@ -28,6 +23,7 @@ from pypeit import slittrace
 from pypeit.images import detector_container
 from pypeit.images import imagebitmask
 
+from IPython import embed
 
 def spec2d_hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
