@@ -162,7 +162,7 @@ Development Suite
 We have compiled a large suite of data from all instruments supported by
 ``PypeIt``.  These data are used to test that ``PypeIt`` is successful for *all*
 instruments *anytime* new features are developed.  For access to the shared
-Google TeamDrive, please contact `X Prochaska`_.
+Google TeamDrive, please request it on the Users Slack.
 
 To test PypeIt using the data from the Google Drive:
 

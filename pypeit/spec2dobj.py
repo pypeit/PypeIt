@@ -49,8 +49,6 @@ class Spec2DObj(datamodel.DataContainer):
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
     #                every exposure (i.e. it depneds on obstime, RA, DEC and the flexure incurred) it should be written out for
     #                each science frame.
-    # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
-    #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
     # Because we are including nested DataContainers, be careful not to
     # duplicate variable names!!
@@ -477,6 +475,9 @@ class AllSpec2DObj:
         # Header
         if pri_hdr is not None:
             prihdu.header = pri_hdr
+
+        # Add class name
+        prihdu.header['PYP_CLS'] = self.__class__.__name__
 
         # Add meta to Primary Header
         for key in self['meta']:
