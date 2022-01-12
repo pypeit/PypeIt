@@ -635,6 +635,63 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
+def save_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
+                  overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False, specname="PYP_SPEC", debug=False):
+    """
+    Save a datacube using the Nearest Grid Point (NGP) algorithm.
+
+    Args:
+        outfile (`str`):
+            Filename to be used to save the datacube
+        hdr ():
+            Header of the output datacube (must contain WCS)
+        all_sci (`numpy.ndarray`_):
+            1D flattened array containing the counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            1D flattened array containing the inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            1D flattened array containing the weights of each pixel to be used in the combination
+        pix_coord (`numpy.ndarray`_):
+
+        bins (tuple):
+            A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
+        blaze_wave (`numpy.ndarray`_):
+
+        blaze_spec (`numpy.ndarray`_):
+
+        fluxcal (bool):
+            Are the data flux calibrated?
+        specname (str):
+            Name of the spectrograph
+        debug (bool):
+            Debug the code by writing out a residuals cube?
+    """
+    # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
+    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
+    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+    norm_cube = (norm > 0) / (norm + (norm == 0))
+    datacube *= norm_cube
+    # Create the variance cube, including weights
+    msgs.info("Generating variance cube")
+    all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
+    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    var_cube *= norm_cube**2
+
+    # Save the datacube
+    if debug:
+        datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
+        norm, edges = np.histogramdd(pix_coord, bins=bins)
+        norm_cube = (norm > 0) / (norm + (norm == 0))
+        outfile = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile))
+        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
+        hdu.writeto(outfile, overwrite=overwrite)
+
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
+    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
+
+
 def coadd_cube(files, parset, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
@@ -659,13 +716,27 @@ def coadd_cube(files, parset, overwrite=False):
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
 
-    # Check the output file
-    outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename']+".fits"
+    # prep
+    numfiles = len(files)
+    combine = cubepar['combine']
+
+    # Check the output files don't exist
+    outfile = cubepar['output_filename'] if ".fits" in cubepar['output_filename'] else cubepar['output_filename'] + ".fits"
     out_whitelight = outfile.replace(".fits", "_whitelight.fits")
-    if os.path.exists(outfile) and not overwrite:
-        msgs.error("Output filename already exists:"+msgs.newline()+outfile)
-    elif os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
-        msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
+    if combine:
+        if os.path.exists(outfile) and not overwrite:
+            msgs.error("Output filename already exists:"+msgs.newline()+outfile)
+        if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
+            msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
+    else:
+        for ff in range(numfiles):
+            outfile = files[ff].replace("spec2d_", "spec3d_")
+            out_whitelight = outfile.replace(".fits", "_whitelight.fits")
+            if os.path.exists(outfile) and not overwrite:
+                msgs.error("Output filename already exists:" + msgs.newline() + outfile)
+            if os.path.exists(out_whitelight) and cubepar['save_whitelight'] and not overwrite:
+                msgs.error("Output filename already exists:" + msgs.newline() + out_whitelight)
+
     # Check the reference cube and image exist, if requested
     fluxcal = False
     blaze_wave, blaze_spec = None, None
@@ -701,14 +772,11 @@ def coadd_cube(files, parset, overwrite=False):
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
 
-    # prep
-    numfiles = len(files)
-    combine = cubepar['combine']
-
+    # Initialise arrays for storage
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
     all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
     all_wcs = []
-    dspat = None if cubepar['spatial_delta'] is None else  cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
+    dspat = None if cubepar['spatial_delta'] is None else cubepar['spatial_delta']/3600.0  # binning size on the sky (/3600 to convert to degrees)
     dwv = cubepar['wave_delta']       # binning size in wavelength direction (in Angstroms)
     wave_ref = None
     whitelight_img = None  # This is the whitelight image based on all input spec2d frames
@@ -741,7 +809,8 @@ def coadd_cube(files, parset, overwrite=False):
 
         wave0 = waveimg[waveimg != 0.0].min()
         diff = waveimg[1:, :] - waveimg[:-1, :]
-        dwv = float(np.median(diff[diff != 0.0]))
+        dwv = float(np.median(diff[diff != 0.0])) if cubepar['wave_delta'] is None else cubepar['wave_delta']
+
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
         msgs.info("Constructing slit image")
@@ -871,14 +940,43 @@ def coadd_cube(files, parset, overwrite=False):
         # Correct for extinction
         flux_sav = flux_ext[wvsrt] * ext_corr
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
+
+        # Convert units to Counts/s/Ang/arcsec2
+        scl_units = dwv * 3600.0 * 3600.0 * dspat * dspat
+        flux_sav /= scl_units
+        all_ivar *= scl_units ** 2
+
         # sort back to the original ordering
         resrt = np.argsort(wvsrt)
+        numpix = raimg[onslit_gpm].size
 
         # Calculate the weights relative to the zeroth cube
         weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
+        # If individual frames are to be output, there's no need to store information, just make the cubes now
+        if not combine:
+            outfile = fil.replace("spec2d_", "spec3d_")
+            if cubepar['save_whitelight']:
+                # Generate individual whitelight images of each spec2d file
+                out_whitelight = outfile.replace(".fits", "_whitelight.fits")
+                whitelight_img, _, wlwcs = make_whitelight(raimg[onslit_gpm], decimg[onslit_gpm], wave_ext,
+                                                           flux_sav[resrt], np.ones(numpix), np.zeros(numpix), dspat)
+                msgs.info("Saving white light image as: {0:s}".format(out_whitelight))
+                img_hdu = fits.PrimaryHDU(whitelight_img.T, header=wlwcs.to_header())
+                img_hdu.writeto(out_whitelight, overwrite=overwrite)
+
+            slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+            numwav = int((np.max(waveimg) - wave0) / dwv)
+            bins = spec.get_datacube_bins(slitlength, minmax, numwav)
+            msgs.info("Generating pixel coordinates")
+            pix_coord = wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
+            hdr = frame_wcs.to_header()
+            save_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
+                          overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                          fluxcal=fluxcal, specname=specname)
+            continue
+
         # Store the information
-        numpix = raimg[onslit_gpm].size
         all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
         all_dec = np.append(all_dec, decimg[onslit_gpm].copy())
         all_wave = np.append(all_wave, wave_ext.copy())
@@ -887,59 +985,63 @@ def coadd_cube(files, parset, overwrite=False):
         all_idx = np.append(all_idx, ff*np.ones(numpix))
         all_wghts = np.append(all_wghts, weights[ff]*np.ones(numpix)/weights[0])
 
+    # No need to continue if we are not combining frames
+    if not combine:
+        return
+
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
-    # Register spatial offsets between all frames if several frames are being combined
-    if combine:
-        # Check if a reference whitelight image should be used to register the offsets
-        if cubepar["reference_image"] is None:
-            # Generate white light images
-            whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
-            # ref_idx will be the index of the cube with the highest S/N
-            ref_idx = np.argmax(weights)
-            reference_image = whitelight_imgs[:, :, ref_idx].copy()
-            msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
-        else:
-            ref_idx = -1  # Don't use an index
-            # Load reference information
-            reference_image, whitelight_imgs, wlwcs = \
-                make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
-                                        cubepar['reference_image'])
-            msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
-        # Calculate the image offsets - check the reference is a zero shift
-        ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
-        for ff in range(numfiles):
-            # Don't correlate the reference image with itself
-            if ff == ref_idx:
-                continue
-            # Calculate the shift
-            ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], reference_image.copy())
-            # Convert to reference
-            ra_shift -= ra_shift_ref
-            dec_shift -= dec_shift_ref
-            # Convert pixel shift to degress shift
-            ra_shift *= dspat/cosdec
-            dec_shift *= dspat
-            msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
-            # Apply the shift
-            all_ra[all_idx == ff] += ra_shift
-            all_dec[all_idx == ff] += dec_shift
+    # Register spatial offsets between all frames
+    # Check if a reference whitelight image should be used to register the offsets
+    if cubepar["reference_image"] is None:
+        # Generate white light images
+        whitelight_imgs, _, _ = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat)
+        # ref_idx will be the index of the cube with the highest S/N
+        ref_idx = np.argmax(weights)
+        reference_image = whitelight_imgs[:, :, ref_idx].copy()
+        msgs.info("Calculating spatial translation of each cube relative to cube #{0:d})".format(ref_idx+1))
+    else:
+        ref_idx = -1  # Don't use an index
+        # Load reference information
+        reference_image, whitelight_imgs, wlwcs = \
+            make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspat,
+                                    cubepar['reference_image'])
+        msgs.info("Calculating the spatial translation of each cube relative to user-defined 'reference_image'")
 
-        # Generate a white light image of *all* data
-        msgs.info("Generating global white light image")
-        if cubepar["reference_image"] is None:
-            whitelight_img, _, wlwcs = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
-                                                       np.zeros(all_ra.size), dspat)
-        else:
-            _, whitelight_img, wlwcs = \
-                make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
-                                        dspat, cubepar['reference_image'])
+    # Calculate the image offsets - check the reference is a zero shift
+    ra_shift_ref, dec_shift_ref = calculate_image_offset(reference_image.copy(), reference_image.copy())
+    for ff in range(numfiles):
+        # Don't correlate the reference image with itself
+        if ff == ref_idx:
+            continue
+        # Calculate the shift
+        ra_shift, dec_shift = calculate_image_offset(whitelight_imgs[:, :, ff], reference_image.copy())
+        # Convert to reference
+        ra_shift -= ra_shift_ref
+        dec_shift -= dec_shift_ref
+        # Convert pixel shift to degress shift
+        ra_shift *= dspat/cosdec
+        dec_shift *= dspat
+        msgs.info("Spatial shift of cube #{0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+        # Apply the shift
+        all_ra[all_idx == ff] += ra_shift
+        all_dec[all_idx == ff] += dec_shift
 
-        # Calculate the relative spectral weights of all pixels
-        all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
-                                    whitelight_img[:, :, 0], dspat, dwv,
-                                    relative_weights=cubepar['relative_weights'])
+    # Generate a white light image of *all* data
+    msgs.info("Generating global white light image")
+    if cubepar["reference_image"] is None:
+        whitelight_img, _, wlwcs = make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts,
+                                                   np.zeros(all_ra.size), dspat)
+    else:
+        _, whitelight_img, wlwcs = \
+            make_whitelight_fromref(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
+                                    dspat, cubepar['reference_image'])
+
+    # Calculate the relative spectral weights of all pixels
+    all_wghts = compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx,
+                                whitelight_img[:, :, 0], dspat, dwv,
+                                relative_weights=cubepar['relative_weights'])
 
     # Check if a whitelight image should be saved
     if cubepar['save_whitelight']:
@@ -967,6 +1069,7 @@ def coadd_cube(files, parset, overwrite=False):
     wav_min = cubepar['wave_min'] if cubepar['wave_min'] is not None else np.min(all_wave)
     wav_max = cubepar['wave_max'] if cubepar['wave_max'] is not None else np.max(all_wave)
     if cubepar['wave_delta'] is not None: dwv = cubepar['wave_delta']
+
     # Generate a master WCS to register all frames
     coord_min = [ra_min, dec_min, wav_min]
     coord_dlt = [dspat, dspat, dwv]
@@ -981,56 +1084,20 @@ def coadd_cube(files, parset, overwrite=False):
               msgs.newline() + "-" * 40)
 
     # Generate the output binning
-    # TODO :: If multiple frames are provided, and the user does not want to combine, output N cubes.
-    # TODO :: if combine=False, the wave_delta value supplied by the user is ignored
-    if combine:
-        numra = int((ra_max-ra_min) * cosdec / dspat)
-        numdec = int((dec_max-dec_min)/dspat)
-        numwav = int((wav_max-wav_min)/dwv)
-        xbins = np.arange(1+numra)-0.5
-        ybins = np.arange(1+numdec)-0.5
-        spec_bins = np.arange(1+numwav)-0.5
-    else:
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-        numwav = int((np.max(waveimg) - wave0) / dwv)
-        xbins, ybins, spec_bins = spec.get_datacube_bins(slitlength, minmax, numwav)
+    numra = int((ra_max-ra_min) * cosdec / dspat)
+    numdec = int((dec_max-dec_min)/dspat)
+    numwav = int((wav_max-wav_min)/dwv)
+    xbins = np.arange(1+numra)-0.5
+    ybins = np.arange(1+numdec)-0.5
+    spec_bins = np.arange(1+numwav)-0.5
+    bins = (xbins, ybins, spec_bins)
 
     # Make the cube
     msgs.info("Generating pixel coordinates")
-    if combine:
-        pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
-        hdr = masterwcs.to_header()
-    else:
-        pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
-        hdr = frame_wcs.to_header()
+    pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
+    hdr = masterwcs.to_header()
 
     # Find the NGP coordinates for all input pixels
     msgs.info("Generating data cube")
-    # Convert the cube to counts/s/Ang/arcsec2
-    scl_units = dwv * 3600.0 * 3600.0 * dspat * dspat
-    bins = (xbins, ybins, spec_bins)
-    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts/scl_units)
-    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    norm_cube = (norm > 0) / (norm + (norm == 0))
-    datacube *= norm_cube
-    # Create the variance cube, including weights
-    msgs.info("Generating variance cube")
-    all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
-    var_cube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * (all_wghts/scl_units)**2)
-    var_cube *= norm_cube**2
-
-    # Save the datacube
-    debug = False
-    if debug:
-        datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*np.sqrt(all_ivar))
-        norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins))
-        norm_cube = (norm > 0) / (norm + (norm == 0))
-        outfile = "datacube_resid.fits"
-        msgs.info("Saving datacube as: {0:s}".format(outfile))
-        hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=masterwcs.to_header())
-        hdu.writeto(outfile, overwrite=overwrite)
-
-    msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
-    final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
-
+    save_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
+                  blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)

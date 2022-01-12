@@ -1227,11 +1227,14 @@ class CubePar(ParSet):
         defaults['combine'] = True
         dtypes['combine'] = [bool]
         descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate' \
-                           'datacube will be generated for each input spec2d file.'
+                           'datacube will be generated for each input spec2d file, and will be saved as' \
+                           'a spec3d file.'
 
         defaults['output_filename'] = "datacube.fits"
         dtypes['output_filename'] = str
-        descr['output_filename'] = 'Output filename of the combined datacube.'
+        descr['output_filename'] = 'If combining multiple frames, this string sets the output filename of' \
+                                   'the combined datacube. If combine=False, the output filenames will be' \
+                                   'prefixed with "spec3d_"'
 
         defaults['standard_cube'] = None
         dtypes['standard_cube'] = str
@@ -1251,7 +1254,8 @@ class CubePar(ParSet):
                                    'will be given by the "output_filename" variable with a suffix "_whitelight".' \
                                    'Note that the white light image collapses the flux along the wavelength axis,' \
                                    'so some spaxels in the 2D white light image may have different wavelength' \
-                                   'ranges.'
+                                   'ranges. If combine=False, the individual spec3d files will have a suffix' \
+                                   '"_whitelight".'
 
         defaults['ra_min'] = None
         dtypes['ra_min'] = float
