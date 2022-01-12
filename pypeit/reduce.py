@@ -1501,7 +1501,7 @@ class IFUReduce(MultiSlitReduce):
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, save_objfindQA=False, debug=False,
+                              show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
         """
         See MultiSlitReduce for slit-based IFU reductions
@@ -1509,7 +1509,8 @@ class IFUReduce(MultiSlitReduce):
         if self.par['reduce']['cube']['slit_spec']:
             return super().find_objects_pypeline(image, std_trace=std_trace,
                                                  show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                                 show=show, debug=debug, manual_extract_dict=manual_extract_dict)
+                                                 show=show, save_objfindQA=save_objfindQA, neg=neg,
+                                                 debug=debug, manual_extract_dict=manual_extract_dict)
         else:
             return None, None, None
 
