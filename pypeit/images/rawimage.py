@@ -927,9 +927,11 @@ class RawImage:
 
         # Include the deviations from the tabulated value as determined by an
         # observed dark image.
-        if self.image.shape != dark_image.shape:
+        _dark = dark_image.image if self.nimg > 1 else np.expand_dims(dark_image.image, 0)
+        if self.image.shape != _dark.shape:
             # Shapes must match
-            msgs.error('Shape mismatch with dark image!')
+            msgs.error(f'Dark image shape mismatch; expected {self.image.shape}, '
+                       f'found {_dark.shape}.')
 
         # Scale the observed dark counts by the ratio of the exposure times.
         # TODO: Include a warning when the scaling is "significant"?
@@ -938,7 +940,7 @@ class RawImage:
         # Warn the user if the counts in the dark image are significantly
         # different from the tabulated value.  The 50% difference is not
         # well justified but, for now, hard-coded.
-        med_dark = np.median(scale * dark_image.image, axis=(1,2))
+        med_dark = np.median(scale * _dark, axis=(1,2))
         large_signal = np.absolute(med_dark) > 0.5*self.dark
         if any(large_signal):
             med_str = np.array2string(med_dark, formatter={'float_kind':lambda x: "%.2f" % x},
@@ -950,10 +952,11 @@ class RawImage:
 
         # Combine the tabulated and observed dark values
         # NOTE: This converts self.dark from a vector to an array
-        self.dark = scale * dark_image.image + self.dark[:,None,None]
+        self.dark = scale * _dark + self.dark[:,None,None]
         if dark_image.ivar is not None:
+            _dark_ivar = dark_image.ivar if self.nimg > 1 else np.expand_dims(dark_image.ivar, 0)
             # Include the scaling in the error, if available
-            self.dark_var = scale**2 * utils.inverse(dark_image.ivar)
+            self.dark_var = scale**2 * utils.inverse(_dark_ivar)
 
     def subtract_dark(self, force=False):
         """

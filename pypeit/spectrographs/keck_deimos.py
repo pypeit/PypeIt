@@ -1367,6 +1367,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
                 #n=n+1
             elif np.sum(mtc)>1:
+                embed()
+                exit()
                 msgs.error("Multiple RA matches?!  No good..")
 
             # TODO - confirm with Marla this block is NG

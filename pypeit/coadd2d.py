@@ -235,6 +235,9 @@ class CoAdd2D:
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
+            embed()
+            exit()
+
             flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
             ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
             wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
@@ -464,12 +467,8 @@ class CoAdd2D:
 
         # Manual extraction
         if len(self.par['coadd2d']['manual'].strip()) > 0:
-            try:
-                manual_obj = ManualExtractionObj.by_fitstbl_input(
+            manual_obj = ManualExtractionObj.by_fitstbl_input(
                     'None', self.par['coadd2d']['manual']) 
-            except:
-                embed()
-                exit()
             manual_dict = manual_obj.dict_for_objfind()
         else:
             manual_dict = None
