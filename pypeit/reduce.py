@@ -463,17 +463,17 @@ class Reduce:
                 self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
                                                      previous_sky=self.initial_sky)
 
-                # Apply a global flexure correction to each slit
-                # provided it's not a standard star
-                if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                    self.spec_flexure_correct(mode='global')
+            # Apply a global flexure correction to each slit
+            # provided it's not a standard star
+            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+                self.spec_flexure_correct(mode='global')
 
-                # Extract + Return
-                self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
-                    = self.extract(self.global_sky, self.sobjs_obj)
+            # Extract + Return
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
+                = self.extract(self.global_sky, self.sobjs_obj)
 
-                if self.find_negative:
-                    self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
+            if self.find_negative:
+                self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
