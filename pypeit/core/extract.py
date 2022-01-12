@@ -613,7 +613,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        embed()
+        msgs.error("Bad Fitting in extract:fit_profile..")
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -1035,58 +1035,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma, title = title_string)
 
     return (profile_model, xnew, fwhmfit, med_sn2)
-
-
-def parse_hand_dict(hand_extract_dict):
-    """ Utility routine for objfind to parse the hand_extract_dict dictionary for hand selected apertures
-
-    Parameters
-    ----------
-    hand_extract_dict:   dictionary
-
-    Returns
-    -------
-    hand_spec:  spectral pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_spat:  spatial pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_det:   Detector for hand apertures. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    Notes
-    -----
-    Revision History
-        - 23-June-2018  Written by J. Hennawi
-
-    """
-
-
-    if ('hand_extract_spec' not in hand_extract_dict.keys() | 'hand_extract_spat' not in hand_extract_dict.keys()):
-        msgs.error('hand_extract_spec and hand_extract_spat must be set in the hand_extract_dict')
-
-    hand_extract_spec=np.asarray(hand_extract_dict['hand_extract_spec'])
-    hand_extract_spat=np.asarray(hand_extract_dict['hand_extract_spat'])
-    hand_extract_det = np.asarray(hand_extract_dict['hand_extract_det'])
-    if(hand_extract_spec.size == hand_extract_spat.size == hand_extract_det.size) == False:
-        msgs.error('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
-    nhand = hand_extract_spec.size
-
-    hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
-    # hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
-    # if hand_extract_fwhm is not None:
-    #     hand_extract_fwhm = np.asarray(hand_extract_fwhm)
-    #     if(hand_extract_fwhm.size==hand_extract_spec.size):
-    #         pass
-    #     elif (hand_extract_fwhm.size == 1):
-    #         hand_extract_fwhm = np.full(nhand, hand_extract_fwhm)
-    #     else:
-    #         raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
-    # else:
-    #     hand_extract_fwhm = np.full(nhand, None)
-    return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
 
 
 def create_skymask_fwhm(sobjs, thismask, box_pix=None):
@@ -1643,7 +1591,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
+            hand_extract_dict[key] for key in ['spec', 'spat', 'det', 'fwhm']]
+
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))[0]
@@ -2018,9 +1968,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
         f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                              hand_extract_dict['hand_extract_spat'],
-                              hand_extract_dict['hand_extract_spec']):
+        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
+                              hand_extract_dict['spat'],
+                              hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
             ispat = int(np.clip(np.round(spat),0,nspec-1))

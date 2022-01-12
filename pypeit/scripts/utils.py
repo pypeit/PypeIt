@@ -20,6 +20,7 @@ from pypeit.core import procimg
 from pypeit import msgs
 from pypeit import slittrace
 from pypeit import masterframe
+from pypeit.pypeitsetup import PypeItSetup
 
 
 class Utilities:
@@ -55,16 +56,26 @@ class Utilities:
         setups (:obj:`list`):
             List of setup lines
     """
-    def __init__(self, pypeit_file, det=0):
-        self.pypeit_file = pypeit_file
+    def __init__(self, spectrograph, pypeit_file=None, det=0):
         self.det = det
         self.iFile = None  # if a single frame is being used, set the index, otherwise None
-        self.spectrograph = None
+        if spectrograph is not None:
+            self.spectrograph = load_spectrograph(spectrograph)
+        else:
+            self.spectrograph = None
         self.par = None
+        self.pypeit_file = pypeit_file
+        if pypeit_file is not None:
+            self.load_pypeit()
 
+    def load_pypeit(self, pypeit_file=None):
         # Load the pypeit file
-        self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups =\
-            parse_pypeit_file(pypeit_file, runtime=False)
+        if pypeit_file is None:
+            pypeit_file = self.pypeit_file
+        msgs.info("Loading the PypeIt file: {}".format(pypeit_file))
+        if self.pypeit_file is not None:
+            self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups, self.sdict =\
+                parse_pypeit_file(pypeit_file, runtime=False)
 
     def check_index(self, iFile):
         if self.iFile is None and iFile is None:
@@ -127,6 +138,33 @@ class Utilities:
         # Load the parset
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=self.cfg_lines)
         return
+
+    def run_setup(self, root, extension=None, **kwargs):
+        """
+        Generate a PypeItSetup instance and run it
+
+        Args:
+            root (str):
+            extension (str, optional):
+            **kwargs:
+                Passed to ps.run()
+
+        Returns:
+            tuple: PypeItSetup, setups, indx
+
+        """
+        # Initialize PypeItSetup based on the arguments
+        ps = PypeItSetup.from_file_root(root, self.spectrograph.name,
+                                        extension=extension)
+
+        # Run the setup
+        ps.run(setup_only=True, **kwargs)  # , write_bkg_pairs=args.background)
+
+        # Unique configurations
+        setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
+
+        # Return
+        return ps, setups, indx
 
     def select_science_frame(self, use_first=False, standard=False):
         """Find all of the indices that correspond to science frames

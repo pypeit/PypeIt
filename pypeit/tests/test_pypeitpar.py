@@ -50,9 +50,6 @@ def test_sensfuncuvis():
 def test_telluric():
     pypeitpar.TelluricPar()
 
-def test_manualextraction():
-    pypeitpar.ManualExtractionPar()
-
 # TODO: Valid spectrographs are not longer read by pypeit.pypeitpar; it causes
 # a circular import.
 #def test_spectrographs():
@@ -148,7 +145,7 @@ def test_sync():
 
 def test_pypeit_file():
     # Read the PypeIt file
-    cfg, data, frametype, usrdata, setups \
+    cfg, data, frametype, usrdata, setups, _ \
             = parse_pypeit_file(data_path('example_pypeit_file.pypeit'), file_check=False)
     # Long-winded way of getting the spectrograph name
     name = pypeitpar.PypeItPar.from_cfg_lines(merge_with=cfg)['rdx']['spectrograph']
