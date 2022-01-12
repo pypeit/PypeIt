@@ -158,13 +158,16 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
             # TODO: Does this need to be globbed? Why isn't the file
             # name exact?
-            fil = glob.glob(std_dict['cal_file'] + '*')
-            if len(fil) == 0:
-                # TODO: Error or warn?
-                msgs.error("No standard star file: {:s}".format(std_dict['cal_file']))
+            if sset == "blackbody":
+                msgs.info("Blackbody standard star template will be generated")
+            else:
+                fil = glob.glob(std_dict['cal_file'] + '*')
+                if len(fil) == 0:
+                    # TODO: Error or warn?
+                    msgs.error("No standard star file: {:s}".format(std_dict['cal_file']))
+                fil = fil[0]
+                msgs.info("Loading standard star file: {:s}".format(fil))
 
-            fil = fil[0]
-            msgs.info("Loading standard star file: {:s}".format(fil))
             # TODO: Put this stuf in a method, like `read_standard`
             if sset == 'xshooter':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
@@ -238,6 +241,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                + "Closest standard was {:s} at separation {:g}".format(closest['name'], closest['sep'].to('arcmin')))
 
     return None
+
 
 def stellar_model(V, sptype):
     """
@@ -513,6 +517,7 @@ def find_standard(specobj_list):
     # Return
     return mxix
 
+
 #def apply_standard_sens(spec_obj, sens_dict, airmass, exptime, extinct_correct=True, telluric_correct = False,
 #                        longitude=None, latitude=None):
 #    """ Apply the sensitivity function to the data
@@ -534,6 +539,7 @@ def find_standard(specobj_list):
 #        latitude in degree for observatory. Used for extinction
 #        correction
 #    """
+
 
 def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
              mask_abs_lines=True, polyorder=4, balm_mask_wid=10.0, nresln=20., resolution=3000.,

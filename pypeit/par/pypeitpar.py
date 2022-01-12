@@ -1192,7 +1192,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, relative_weights=None, combine=None, output_filename=None,
-                 standard_cube=None, flux_calibrate=None, reference_image=None, save_whitelight=None,
+                 standard_cube=None, reference_image=None, save_whitelight=None,
                  ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
                  spatial_delta=None, wave_delta=None, astrometric=None, grating_corr=None):
 
@@ -1238,11 +1238,6 @@ class CubePar(ParSet):
         descr['standard_cube'] = 'Filename of a standard star datacube. This cube will be used to correct' \
                                  'the relative scales of the slits, and to flux calibrate the science' \
                                  'datacube.'
-
-        defaults['flux_calibrate'] = False
-        dtypes['flux_calibrate'] = bool
-        descr['flux_calibrate'] = 'Flux calibrate the data? If True, you must also provide a standard star' \
-                                  'cube using the standard_cube parameter.'
 
         defaults['reference_image'] = None
         dtypes['reference_image'] = str
@@ -1302,11 +1297,12 @@ class CubePar(ParSet):
         dtypes['astrometric'] = bool
         descr['astrometric'] = 'If true, an astrometric correction will be applied using the alignment frames.'
 
-        defaults['grating_corr'] = False
+        defaults['grating_corr'] = True
         dtypes['grating_corr'] = bool
-        descr['grating_corr'] = 'Set to True if the grating angle is (even slightly) different for any input frames,' \
-                                'or if the standard star was taken with a slightly different setup. This correction' \
-                                'divides the standard star and the science frames by a spectrum of the pixelflat.'
+        descr['grating_corr'] = 'This option performs a small correction for the relative blaze function of all' \
+                                'input frames that have (even slightly) different grating angles, or if you are' \
+                                'flux calibrating your science data with a standard star that was observed with' \
+                                'a slightly different setup.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1322,7 +1318,7 @@ class CubePar(ParSet):
         k = np.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'flux_calibrate', 'reference_image',
+        parkeys = ['slit_spec', 'output_filename', 'standard_cube', 'reference_image',
                    'save_whitelight', 'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
                    'spatial_delta', 'wave_delta', 'relative_weights', 'combine', 'astrometric', 'grating_corr']
 

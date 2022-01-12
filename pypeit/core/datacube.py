@@ -18,7 +18,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import spec2dobj, alignframe, flatfield
-from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum
+from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 from pypeit.core.procimg import grow_masked
@@ -57,10 +57,12 @@ class DataCube(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.1'
+    version = '1.0.2'
 
     datamodel = {'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux array in units of counts/s/Ang or 10^-17 erg/s/cm^2/Ang'),
                  'variance': dict(otype=np.ndarray, atype=np.floating, descr='Variance array (matches units of flux)'),
+                 'blaze_wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array of the spectral blaze function'),
+                 'blaze_spec': dict(otype=np.ndarray, atype=np.floating, descr='The spectral blaze function'),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
                  'fluxed': dict(otype=bool, descr='Boolean indicating if the datacube is fluxed.')}
 
@@ -84,7 +86,7 @@ class DataCube(datamodel.DataContainer):
         slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
         return slf
 
-    def __init__(self, flux, variance, PYP_SPEC, fluxed=None):
+    def __init__(self, flux, variance, PYP_SPEC, blaze_wave, blaze_spec, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -335,15 +337,25 @@ def extract_standard_spec(stdcube, subsample=20):
     mask[ww] = 1
     mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
 
+    # Subtract the residual sky
+    skymask = (varcube != 0.0) * (1-mask)
+    skycube = flxcube * skymask
+    skyspec = skycube.sum(0).sum(0)
+    skyspec /= skymask.sum(0).sum(0)
+    flxcube -= skyspec.reshape((1, 1, flxcube.shape[2]))
     # Extract boxcar
-    cntmask = (flxcube != 0.0) * mask
-    scimask = flxcube * mask
-    varmask = varcube * mask
-    cnt_spec = cntmask.sum(0).sum(0)
+    cntmask = (varcube != 0.0) * mask
+    scimask = flxcube * cntmask
+    varmask = varcube * cntmask
+    cnt_spec = cntmask.sum(0).sum(0) / mask.sum()
     box_flux = scimask.sum(0).sum(0) / cnt_spec
-    box_var = varmask.sum(0).sum(0) / cnt_spec
+    box_var = varmask.sum(0).sum(0) / cnt_spec**2
     box_gpm = np.ones(box_flux.size, dtype=np.bool)
-
+    # Convert to counts/s/A
+    arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
+    box_flux *= arcsecSQ
+    box_var *= arcsecSQ**2
+    # Return the box extraction results
     return wave, box_flux, 1/box_var, box_gpm
 
 
@@ -656,13 +668,19 @@ def coadd_cube(files, parset, overwrite=False):
         msgs.error("Output filename already exists:"+msgs.newline()+out_whitelight)
     # Check the reference cube and image exist, if requested
     fluxcal = False
+    blaze_wave, blaze_spec = None, None
+    blaze_spline, flux_spline = None, None
     if cubepar['standard_cube'] is not None:
         if not os.path.exists(cubepar['standard_cube']):
             msgs.error("Standard cube does not exist:" + msgs.newline() + cubepar['reference_cube'])
         fluxcal = True
         senspar = parset['sensfunc']
+        # Load the standard star cube and retrieve its RA + DEC
         stdcube = fits.open(cubepar['standard_cube'])
         star_ra, star_dec = stdcube[1].header['CRVAL1'], stdcube[1].header['CRVAL2']
+        # Extract the information about the blaze
+        blaze_wave, blaze_spec = stdcube['BLAZE_WAVE'].data, stdcube['BLAZE_SPEC'].data
+        blaze_spline = interp1d(blaze_wave, blaze_spec, kind='linear', bounds_error=False, fill_value="extrapolate")
         # Extract a spectrum of the standard star
         wave, Nlam_star, Nlam_ivar_star, gpm_star = extract_standard_spec(stdcube)
         # Read in some information above the standard star
@@ -671,19 +689,17 @@ def coadd_cube(files, parset, overwrite=False):
                                          ra=star_ra, dec=star_dec)
         # Calculate the sensitivity curve
         zeropoint_data, zeropoint_data_gpm, zeropoint_fit, zeropoint_fit_gpm =\
-            fit_zeropoint(wave, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
+            fit_zeropoint(wave.value, Nlam_star, Nlam_ivar_star, gpm_star, std_dict,
                           mask_abs_lines=senspar['mask_abs_lines'], balm_mask_wid=senspar['UVIS']['balm_mask_wid'],
                           nresln=senspar['UVIS']['nresln'], resolution=senspar['UVIS']['resolution'],
                           trans_thresh=senspar['UVIS']['trans_thresh'], polyorder=senspar['polyorder'],
                           polycorrect=senspar['UVIS']['polycorrect'], polyfunc=senspar['UVIS']['polyfunc'])
         wgd = np.where(zeropoint_fit_gpm)
-        flux_spline = interp1d(wave[wgd], zeropoint_fit[wgd], kind='linear', bounds_error=False, fill_value="extrapolate")
+        sens = np.power(10.0, -0.4 * (zeropoint_fit[wgd] - ZP_UNIT_CONST)) / np.square(wave[wgd])
+        flux_spline = interp1d(wave[wgd], sens, kind='linear', bounds_error=False, fill_value="extrapolate")
     if cubepar['reference_image'] is not None:
         if not os.path.exists(cubepar['reference_image']):
             msgs.error("Reference cube does not exist:" + msgs.newline() + cubepar['reference_image'])
-    if cubepar['flux_calibrate']:
-        msgs.error("Flux calibration is not currently implemented" + msgs.newline() +
-                   "Please set 'flux_calibrate = False'")
 
     # prep
     numfiles = len(files)
@@ -795,7 +811,7 @@ def coadd_cube(files, parset, overwrite=False):
         ivar_ext = ivar[onslit_gpm].copy()
 
         # Correct for sensitivity as a function of grating angle
-        # (this assumes the flatfield lamp has the same shape for all setups)
+        # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
         flatfile = "{0:s}/Master{1:s}_{2:s}_01.{3:s}".format(hdr['PYPMFDIR'], flatfield.FlatImages.master_type,
                                                              hdr['FLATMKEY'], flatfield.FlatImages.master_file_format)
         if cubepar['grating_corr'] and flatfile not in flat_splines.keys():
@@ -818,6 +834,12 @@ def coadd_cube(files, parset, overwrite=False):
             wave_spl = 0.5 * (wavebins[1:] + wavebins[:-1])
             flat_splines[flatfile] = interp1d(wave_spl, spec_spl, kind='linear',
                                               bounds_error=False, fill_value="extrapolate")
+            # Check if a reference blaze spline exists (either from a standard star if fluxing or from a previous
+            # exposure in this for loop)
+            if blaze_spline is None:
+                blaze_wave, blaze_spec = wave_spl, spec_spl
+                blaze_spline = interp1d(wave_spl, spec_spl, kind='linear',
+                                        bounds_error=False, fill_value="extrapolate")
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
@@ -828,12 +850,21 @@ def coadd_cube(files, parset, overwrite=False):
         # extinction_correction requires the wavelength is sorted
         wvsrt = np.argsort(wave_ext)
         ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
-        # Sensitivity function
+        # Grating correction
         grat_corr = 1.0
         if cubepar['grating_corr']:
-            grat_corr = flat_splines[flatfile](wave_ext[wvsrt])
+            msgs.info("Calculating the grating correction")
+            grat_corr_tmp = flat_splines[flatfile](wave_ext[wvsrt]) / blaze_spline(wave_ext[wvsrt])
+            # Fit a low order polynomial to this correction
+            minw, maxw = max(np.min(wave_spl), np.min(blaze_wave)), max(np.min(wave_spl), np.max(blaze_wave))
+            wblz = np.where((wave_ext[wvsrt] > minw) & (wave_ext[wvsrt] < maxw))
+            wave_corr = (wave_ext[wvsrt] - minw) / (maxw - minw)
+            coeff_gratcorr = np.polyfit(wave_corr[wblz], grat_corr_tmp[wblz], 2)
+            grat_corr = np.polyval(coeff_gratcorr, wave_corr)
+        # Sensitivity function
         sens_func = 1.0
         if fluxcal:
+            msgs.info("Calculating the sensitivity function")
             sens_func = flux_spline(wave_ext[wvsrt])
         # Convert the flux_sav to counts/s,  correct for the relative sensitivity of different setups
         ext_corr *= sens_func / (exptime * grat_corr)
@@ -950,7 +981,8 @@ def coadd_cube(files, parset, overwrite=False):
               msgs.newline() + "-" * 40)
 
     # Generate the output binning
-    # TODO :: If multiple frames are provided, and the user does not want to combine, output N frames.
+    # TODO :: If multiple frames are provided, and the user does not want to combine, output N cubes.
+    # TODO :: if combine=False, the wave_delta value supplied by the user is ignored
     if combine:
         numra = int((ra_max-ra_min) * cosdec / dspat)
         numdec = int((dec_max-dec_min)/dspat)
@@ -999,6 +1031,6 @@ def coadd_cube(files, parset, overwrite=False):
         hdu.writeto(outfile, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    final_cube = DataCube(datacube.T, var_cube.T, specname, fluxed=cubepar['flux_calibrate'])
+    final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
