@@ -471,7 +471,7 @@ class CoAdd2D:
                     'None', self.par['coadd2d']['manual']) 
             uniq_dets = np.unique(manual_obj.det)
             if uniq_dets.size > 1:
-                raise NotImplementedError('Cannot handles multiple detectors!')
+                raise NotImplementedError('Cannot handle multiple detectors!')
             manual_dict = manual_obj.dict_for_objfind(uniq_dets[0])
         else:
             manual_dict = None
