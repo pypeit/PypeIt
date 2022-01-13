@@ -303,8 +303,8 @@ def extract_standard_spec(stdcube, subsample=20):
         gpm_star (`numpy.ndarray`_): good pixel mask for Nlam_star
     """
     # Extract some information from the HDU list
-    flxcube = stdcube['FLUX'].data.T
-    varcube = stdcube['VARIANCE'].data.T
+    flxcube = stdcube['FLUX'].data.T.copy()
+    varcube = stdcube['VARIANCE'].data.T.copy()
     numwave = flxcube.shape[2]
 
     # Setup the WCS
@@ -324,8 +324,9 @@ def extract_standard_spec(stdcube, subsample=20):
     idx_max = np.unravel_index(np.argmax(wl_img), wl_img.shape)
     initial_guess = (np.max(wl_img), idx_max[1], idx_max[0], 2, 2, 0, 0)
     wlscl = np.max(wl_img)  # Need to make sure the value is of order 1, so it's the same order of magnitude as the other parameters
-    popt, pcov = opt.curve_fit(twoD_Gaussian, (xx, yy), wl_img.ravel()/wlscl,
-                               bounds=([0, 0, 0, 0.5, 0.5, -np.pi, -np.pi], np.inf), p0=initial_guess)
+    bounds = ([0, 0, 0, 0.5, 0.5, -np.pi, -np.inf],
+              [np.inf,wl_img.shape[1],wl_img.shape[0],wl_img.shape[1],wl_img.shape[0],np.pi,np.inf])
+    popt, pcov = opt.curve_fit(twoD_Gaussian, (xx, yy), wl_img.ravel()/wlscl, bounds=bounds, p0=initial_guess)
     wid = max(popt[3], popt[4])
 
     # Setup the coordinates of the mask
@@ -342,18 +343,20 @@ def extract_standard_spec(stdcube, subsample=20):
     mask = rebinND(mask, (flxcube.shape[0], flxcube.shape[1])).reshape(flxcube.shape[0], flxcube.shape[1], 1)
 
     # Subtract the residual sky
-    skymask = (varcube != 0.0) * (1-mask)
+    skymask = (varcube > 0.0) * (1-mask)
     skycube = flxcube * skymask
     skyspec = skycube.sum(0).sum(0)
-    skyspec /= skymask.sum(0).sum(0)
+    nrmsky = skymask.sum(0).sum(0)
+    skyspec *= (nrmsky!=0)/(nrmsky + (nrmsky==0))
     flxcube -= skyspec.reshape((1, 1, flxcube.shape[2]))
     # Extract boxcar
-    cntmask = (varcube != 0.0) * mask
+    cntmask = (varcube > 0.0) * mask
     scimask = flxcube * cntmask
     varmask = varcube * cntmask
     cnt_spec = cntmask.sum(0).sum(0) / mask.sum()
-    box_flux = scimask.sum(0).sum(0) / cnt_spec
-    box_var = varmask.sum(0).sum(0) / cnt_spec**2
+    nrmcnt = (cnt_spec!=0)/(cnt_spec + (cnt_spec==0))
+    box_flux = scimask.sum(0).sum(0) * nrmcnt
+    box_var = varmask.sum(0).sum(0) * nrmcnt**2
     box_gpm = np.ones(box_flux.size, dtype=np.bool)
     # Convert to counts/s/A
     arcsecSQ = 3600.0*3600.0*(stdwcs.wcs.cdelt[0]*stdwcs.wcs.cdelt[1])
@@ -634,7 +637,6 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
         ww = (all_idx == ff)
         all_wghts[ww] = interp1d(wave_spec, weights[:, ff], kind='cubic',
                                  bounds_error=False, fill_value="extrapolate")(all_wave[ww])
-
     msgs.info("Optimal weighting complete")
     return all_wghts
 
@@ -674,7 +676,10 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
             Debug the code by writing out a residuals cube?
     """
     # Add the unit of flux to the header
-    hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    if fluxcal:
+        hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
+    else:
+        hdr['FLUXUNIT'] = (1, "Flux units -- counts/s/Angstrom/arcsec^2")
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
