@@ -635,15 +635,16 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
     return all_wghts
 
 
-def save_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
-                  overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False, specname="PYP_SPEC", debug=False):
+def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
+                      overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
+                      specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the Nearest Grid Point (NGP) algorithm.
 
     Args:
         outfile (`str`):
             Filename to be used to save the datacube
-        hdr ():
+        hdr (`astropy.io.fits.header_`):
             Header of the output datacube (must contain WCS)
         all_sci (`numpy.ndarray`_):
             1D flattened array containing the counts of each pixel from all spec2d files
@@ -652,13 +653,15 @@ def save_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
         all_wghts (`numpy.ndarray`_):
             1D flattened array containing the weights of each pixel to be used in the combination
         pix_coord (`numpy.ndarray`_):
-
+            The NGP pixel coordinates corresponding to the RA,DEC,WAVELENGTH of each individual
+            pixel in the processed spec2d frames. After setting up an astropy WCS, pix_coord is
+            returned by the function: `astropy.wcs.WCS.wcs_world2pix_`
         bins (tuple):
             A 3-tuple (x,y,z) containing the histogram bin edges in x,y spatial and z wavelength coordinates    :param overwrite:
         blaze_wave (`numpy.ndarray`_):
-
+            Wavelength array of the spectral blaze function
         blaze_spec (`numpy.ndarray`_):
-
+            Spectral blaze function
         fluxcal (bool):
             Are the data flux calibrated?
         specname (str):
@@ -969,11 +972,11 @@ def coadd_cube(files, parset, overwrite=False):
             numwav = int((np.max(waveimg) - wave0) / dwv)
             bins = spec.get_datacube_bins(slitlength, minmax, numwav)
             msgs.info("Generating pixel coordinates")
-            pix_coord = wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
+            pix_coord = frame_wcs.wcs_world2pix(np.vstack((raimg[onslit_gpm], decimg[onslit_gpm], wave_ext * 1.0E-10)).T, 0)
             hdr = frame_wcs.to_header()
-            save_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
-                          overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
-                          fluxcal=fluxcal, specname=specname)
+            generate_cube_ngp(outfile, hdr, flux_sav[resrt], ivar_sav[resrt], np.ones(numpix), pix_coord, bins,
+                              overwrite=overwrite, blaze_wave=blaze_wave, blaze_spec=blaze_spec,
+                              fluxcal=fluxcal, specname=specname)
             continue
 
         # Store the information
@@ -1099,5 +1102,5 @@ def coadd_cube(files, parset, overwrite=False):
 
     # Find the NGP coordinates for all input pixels
     msgs.info("Generating data cube")
-    save_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
-                  blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)
+    generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins, overwrite=overwrite,
+                      blaze_wave=blaze_wave, blaze_spec=blaze_spec, fluxcal=fluxcal, specname=specname)

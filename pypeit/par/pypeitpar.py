@@ -1224,7 +1224,7 @@ class CubePar(ParSet):
                                     'view of all input observations, and is generally only required if high' \
                                     'relative precision is desired.'
 
-        defaults['combine'] = True
+        defaults['combine'] = False
         dtypes['combine'] = [bool]
         descr['combine'] = 'If set to True, the input frames will be combined. Otherwise, a separate' \
                            'datacube will be generated for each input spec2d file, and will be saved as' \
