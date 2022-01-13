@@ -641,7 +641,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
-                      specname="PYP_SPEC", debug=True):
+                      specname="PYP_SPEC", debug=False):
     """
     Save a datacube using the Nearest Grid Point (NGP) algorithm.
 
