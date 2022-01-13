@@ -1982,12 +1982,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # not one at every location on the order            
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                                      hand_extract_dict['hand_extract_spat'],
-                                      hand_extract_dict['hand_extract_spec'], f_spats):
+            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
+                                      hand_extract_dict['spat'],
+                                      hand_extract_dict['spec'], f_spats):
                 ispec = int(spec)
-                new_hand_extract_dict['hand_extract_spec'][ss] = ispec
-                new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
+                new_hand_extract_dict['spec'][ss] = ispec
+                new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
                     slit_righ[ispec,iord]-slit_left[ispec,iord])
         else:
             new_hand_extract_dict = None
