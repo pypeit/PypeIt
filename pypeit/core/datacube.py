@@ -18,7 +18,7 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import spec2dobj, alignframe, flatfield
-from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST
+from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 from pypeit.core.procimg import grow_masked
@@ -41,6 +41,10 @@ class DataCube(datamodel.DataContainer):
             The science datacube (nwave, nspaxel_y, nspaxel_x)
         variance (`numpy.ndarray`_):
             The variance datacube (nwave, nspaxel_y, nspaxel_x)
+        blaze_wave (`numpy.ndarray`_):
+            Wavelength array of the spectral blaze function
+        blaze_spec (`numpy.ndarray`_):
+            The spectral blaze function
         PYP_SPEC (str):
             Name of the PypeIt Spectrograph
         fluxed (bool):
@@ -669,6 +673,8 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         debug (bool):
             Debug the code by writing out a residuals cube?
     """
+    # Add the unit of flux to the header
+    hdr['FLUXUNIT'] = (PYPEIT_FLUX_SCALE, "Flux units -- erg/s/cm^2/Angstrom/arcsec^2")
     # Use NGP to generate the cube - this ensures errors between neighbouring voxels are not correlated
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci * all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
@@ -945,7 +951,7 @@ def coadd_cube(files, parset, overwrite=False):
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
 
         # Convert units to Counts/s/Ang/arcsec2
-        scl_units = dwv * 3600.0 * 3600.0 * dspat * dspat
+        scl_units = dwv * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
         flux_sav /= scl_units
         all_ivar *= scl_units ** 2
 
