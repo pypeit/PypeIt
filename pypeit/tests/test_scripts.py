@@ -369,7 +369,7 @@ def test_compare_sky():
 def test_collate_1d(tmp_path, monkeypatch):
 
     # Build up arguments for testing command line parsing
-    args = ['--dry_run', '--archive_dir', '/archive', '--outdir', '/outdir2', '--pypeit_file', 'file.pypeit', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
+    args = ['--dry_run', '--archive_dir', '/archive', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--pypeit_file', 'file.pypeit', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
@@ -386,7 +386,9 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("ex_value = BOX", file=f)
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
+        print("flux = False", file=f)
         print("outdir = /outdir", file=f)
+        print("ignore_flux = False", file=f)
         print("pypeit_file = otherfile.pypeit", file=f)
         print("archive_root = /foo/bar", file=f)
         print("tolerance = 4.0", file=f)
@@ -437,6 +439,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/foo/bar'
     assert params['collate1d']['outdir'] == '/outdir'
     assert params['collate1d']['pypeit_file'] == 'otherfile.pypeit'
+    assert params['collate1d']['ignore_flux'] == False
+    assert params['collate1d']['flux'] == False
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
@@ -453,6 +457,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     assert params['collate1d']['archive_root'] == '/archive'
     assert params['collate1d']['outdir'] == '/outdir2'
     assert params['collate1d']['pypeit_file'] == 'file.pypeit'
+    assert params['collate1d']['ignore_flux'] == True
+    assert params['collate1d']['flux'] == True
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']

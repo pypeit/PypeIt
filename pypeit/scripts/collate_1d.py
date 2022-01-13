@@ -386,7 +386,6 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
     if spectrograph.name not in SensFileArchive.supported_spectrographs():
         msgs.error(f"Flux calibrating {spectrograph.name} with an archived sensfunc is not supported.")
 
-    par['fluxcalib']['use_archived_sens'] = True
     par['fluxcalib']['extrap_sens'] = True
 
     sf_archive = SensFileArchive.get_instance(spectrograph.name)
@@ -405,6 +404,7 @@ def flux(par, spectrograph, spec1d_files, failed_fluxing_msgs):
             
         # Flux calibrate the spec1d file
         try:
+            msgs.info(f"Running flux calibrate on {spec1d_file}")
             FxCalib = fluxcalibrate.FluxCalibrate.get_instance([spec1d_file], [sens_file],
                                                                 par=par['fluxcalib'])
             flux_calibrated_files.append(spec1d_file)
