@@ -641,7 +641,7 @@ def compute_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_idx, white
 
 def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bins,
                       overwrite=False, blaze_wave=None, blaze_spec=None, fluxcal=False,
-                      specname="PYP_SPEC", debug=False):
+                      specname="PYP_SPEC", debug=True):
     """
     Save a datacube using the Nearest Grid Point (NGP) algorithm.
 
@@ -691,10 +691,10 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
         datacube_resid, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*np.sqrt(all_ivar))
         norm, edges = np.histogramdd(pix_coord, bins=bins)
         norm_cube = (norm > 0) / (norm + (norm == 0))
-        outfile = "datacube_resid.fits"
-        msgs.info("Saving datacube as: {0:s}".format(outfile))
+        outfile_resid = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile_resid))
         hdu = fits.PrimaryHDU((datacube_resid*norm_cube).T, header=hdr)
-        hdu.writeto(outfile, overwrite=overwrite)
+        hdu.writeto(outfile_resid, overwrite=overwrite)
 
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     final_cube = DataCube(datacube.T, var_cube.T, specname, blaze_wave, blaze_spec, fluxed=fluxcal)
@@ -953,7 +953,7 @@ def coadd_cube(files, parset, overwrite=False):
         # Convert units to Counts/s/Ang/arcsec2
         scl_units = dwv * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
         flux_sav /= scl_units
-        all_ivar *= scl_units ** 2
+        ivar_sav *= scl_units ** 2
 
         # sort back to the original ordering
         resrt = np.argsort(wvsrt)
