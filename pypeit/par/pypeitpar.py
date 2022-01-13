@@ -4670,7 +4670,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
+    def __init__(self, tolerance=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4706,11 +4706,6 @@ class Collate1DPar(ParSet):
         dtypes['outdir'] = str
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
-        # .pypeit file to archive.
-        defaults['pypeit_file'] = None
-        dtypes['pypeit_file'] = str
-        descr['pypeit_file'] = "A .pypeit file to place into the archive. Only used if archive_root is specified. Defaults to looking in the parent directory of the spec1d files."
-
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
         dtypes['exclude_slit_trace_bm'] = [list, str]
@@ -4738,7 +4733,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
+        parkeys = ['tolerance', 'dry_run', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
