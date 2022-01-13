@@ -363,7 +363,8 @@ def gen_mf_html(pypeit_file, qa_path):
         else:
             cbsets.append(key)
     # TODO -- Read in spectograph from .pypeit file and then use spectrograph.ndet
-    dets = (1+np.arange(99)).tolist()
+    dets = (1+np.arange(20)).tolist()
+    mscs = (1+np.arange(5)).tolist()
     # Generate MF file
     MF_filename = os.path.join('{:s}'.format(qa_path), 'MF_{:s}.html'.format(setup))
     body = ''
@@ -374,7 +375,14 @@ def gen_mf_html(pypeit_file, qa_path):
         for cbset in cbsets:
             for det in dets:
                 # Run
-                idval = '{:s}_{:d}_{:02d}'.format(setup, cbset, det)
+                idval = '{:s}_{:d}_DET{:02d}'.format(setup, cbset, det)
+                new_links, new_body = html_mf_pngs(idval)
+                # Save
+                links += new_links
+                body += new_body
+            for msc in mscs:
+                # Run
+                idval = '{:s}_{:d}_MSC{:02d}'.format(setup, cbset, msc)
                 new_links, new_body = html_mf_pngs(idval)
                 # Save
                 links += new_links

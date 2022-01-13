@@ -472,7 +472,7 @@ class CoAdd2D:
             uniq_dets = np.unique(manual_obj.det)
             if uniq_dets.size > 1:
                 msgs.error('2D co-adding does not support extractions from multiple detectors. '
-                           'Peform the co-adding for each detector separately.')
+                           'Perform the co-adding for each detector separately.')
             # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
             manual_dict = manual_obj.dict_for_objfind(uniq_dets[0])
         else:
