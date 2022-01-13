@@ -9,6 +9,7 @@
 - Set DEMIOS FWHM default to 10 pixels
 - Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
   slit dependent lists.
+- Implemented flux calibration and grating correction for datacubes.
 
 
 1.6.0 (1 Oct 2021)
