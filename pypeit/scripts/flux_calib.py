@@ -50,7 +50,7 @@ def read_fluxfile(ifile):
     if s >= 0 and e < 0:
         msgs.error("Missing 'flux end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.error("Missing flux block in in {0}. Check the input format for the .flux file".format(ifile))
+        msgs.error("Missing flux block in {0}. Check the input format for the .flux file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
@@ -152,5 +152,5 @@ class FluxCalib(scriptbase.ScriptBase):
         FxCalib = fluxcalibrate.FluxCalibrate.get_instance(spec1dfiles, sensfiles,
                                                            par=par['fluxcalib'], debug=args.debug)
         msgs.info('Flux calibration complete')
-
+        return 0
 
