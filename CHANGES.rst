@@ -7,7 +7,10 @@
   It now uses by default the stars in the alignment boxes.
 - Introduces pypeit_parse_calib_id script
 - Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
 - Include sky model in 2nd pass of global sky subtraction (not for IR redux)
+
 
 1.7.0 (19 Nov 2021)
 -------------------
