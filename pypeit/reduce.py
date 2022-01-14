@@ -260,7 +260,10 @@ class Reduce:
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
-                box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+                if sobj.MASKDEF_EXTRACT is True:
+                    box_rad = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
+                else:
+                    box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
                                        global_sky, box_rad, sobj, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
@@ -1241,6 +1244,7 @@ class MultiSlitReduce(Reduce):
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
             box_rad = self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None)
+            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
             sigrej = self.par['reduce']['skysub']['sky_sigrej']
             bsp = self.par['reduce']['skysub']['bspline_spacing']
             force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
@@ -1258,6 +1262,7 @@ class MultiSlitReduce(Reduce):
                                                   self.sobjs[thisobj], ingpm=ingpm,
                                                   spat_pix=spat_pix,
                                                   model_full_slit=model_full_slit, box_rad=box_rad,
+                                                  box_rad_maskdef_extract= box_rad_maskdef_extract,
                                                   sigrej=sigrej, model_noise=model_noise,
                                                   std=self.std_redux, bsp=bsp,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
@@ -1455,6 +1460,7 @@ class EchelleReduce(Reduce):
         bsp = self.par['reduce']['skysub']['bspline_spacing']
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
@@ -1468,7 +1474,8 @@ class EchelleReduce(Reduce):
                                                   self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
-                                                  box_rad_order=box_rad_order, sigrej=sigrej,
+                                                  box_rad_order=box_rad_order,
+                                                  box_rad_maskdef_extract= box_rad_maskdef_extract, sigrej=sigrej,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,

@@ -474,7 +474,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, slit_left,
                          slit_righ, sobjs, ingpm=None, spat_pix=None, adderr=0.01, bsp=0.6,
                          trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
-                         extract_good_frac=0.005, box_rad=7, sigrej=3.5, bkpts_optimal=True,
+                         extract_good_frac=0.005, box_rad=7, box_rad_maskdef_extract=1.5, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                          model_noise=True, show_profile=False, show_resids=False,
                          use_2dmodel_mask=True, no_local_sky=False, base_var=None,
@@ -546,6 +546,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         optimal extraction
     box_rad : int or float, default = 7
         Boxcar radius in *pixels* used for boxcar extraction.
+    box_rad_maskdef_extract: float
+        boxcar radius for maskdef_extract objects (pixels)
     sigrej : :obj:`float`, optional
         Outlier rejection threshold for sky and object fitting
         Set by par['scienceimage']['skysub']['sky_sigrej']
@@ -742,6 +744,10 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             img_minsky = sciimg - skyimage
             for ii in range(objwork):
                 iobj = group[ii]
+                # boxcar radius
+                box_rad_iobj = box_rad
+                if sobjs[iobj].MASKDEF_EXTRACT is True:
+                    box_rad_iobj = box_rad_maskdef_extract
                 if iiter == 1:
                     # If this is the first iteration, print status message. Initiate profile fitting with a simple
                     # boxcar extraction.
@@ -751,7 +757,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage, box_rad,
+                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage, box_rad_iobj,
                                            sobjs[iobj], base_var=base_var, count_scale=count_scale,
                                            noise_floor=adderr)
                     flux = sobjs[iobj].BOX_COUNTS
@@ -761,14 +767,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = sobjs[iobj].TRACE_SPAT[:, None]
-                    objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
+                    objmask = ((spat_img >= (trace - 2.0 * box_rad_iobj)) & (spat_img <= (trace + 2.0 * box_rad_iobj)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask), waveimg,
-                                           skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                           skyimage, box_rad_iobj, sobjs[iobj], base_var=base_var,
                                            count_scale=count_scale, noise_floor=adderr)
                     # Optimal
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg,
-                                            skyimage, thismask, last_profile, box_rad, sobjs[iobj],
+                                            skyimage, thismask, last_profile, box_rad_iobj, sobjs[iobj],
                                             base_var=base_var, count_scale=count_scale,
                                             noise_floor=adderr)
                     # If the extraction is bad do not update
@@ -889,20 +895,24 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
         # loop over the objwork objects in this grouping and perform the final extractions.
         for ii in range(objwork):
             iobj = group[ii]
+            # boxcar radius
+            box_rad_iobj = box_rad
+            if sobjs[iobj].MASKDEF_EXTRACT is True:
+                box_rad_iobj = box_rad_maskdef_extract
             msgs.info('Extracting obj # {:d}'.format(iobj + 1) + ' of {:d}'.format(nobj) +
                       ' with objid = {:d}'.format(sobjs[iobj].OBJID) + ' on slit # {:d}'.format(sobjs[iobj].slit_order) +
                       ' at x = {:5.2f}'.format(sobjs[iobj].SPAT_PIXPOS))
             this_profile = obj_profiles[:, :, ii]
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
-            objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
+            objmask = ((spat_img >= (trace - 2.0 * box_rad_iobj)) & (spat_img <= (trace + 2.0 * box_rad_iobj)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
-                                    waveimg, skyimage, thismask, this_profile, box_rad, sobjs[iobj],
+                                    waveimg, skyimage, thismask, this_profile, box_rad_iobj, sobjs[iobj],
                                     base_var=base_var, count_scale=count_scale,
                                     noise_floor=adderr)
             # Boxcar
             extract.extract_boxcar(sciimg, modelivar*thismask, (outmask_extract & objmask),
-                                   waveimg, skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                   waveimg, skyimage, box_rad_iobj, sobjs[iobj], base_var=base_var,
                                    count_scale=count_scale, noise_floor=adderr)
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
@@ -953,7 +963,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, left, right,
                              slitmask, sobjs, order_vec, spat_pix=None, fit_fwhm=False,
                              min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
-                             niter=4, box_rad_order=7, sigrej=3.5, bkpts_optimal=True,
+                             niter=4, box_rad_order=7, box_rad_maskdef_extract=1.5, sigrej=3.5, bkpts_optimal=True,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
@@ -993,6 +1003,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     niter:
     box_rad_order : int
         Code assumes an np.ndarray even though the default value is int!!
+    box_rad_maskdef_extract: float
+        boxcar radius for maskdef_extract objects (pixels)
     sigrej:
     bkpts_optimal:
     force_gauss : bool, default = False
@@ -1176,7 +1188,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
-                                       box_rad=box_rad_order[iord], sigrej=sigrej,
+                                       box_rad=box_rad_order[iord], box_rad_maskdef_extract=box_rad_maskdef_extract,
+                                       sigrej=sigrej,
                                        bkpts_optimal=bkpts_optimal, force_gauss=force_gauss,
                                        sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,

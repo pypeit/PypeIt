@@ -1660,7 +1660,7 @@ class SlitMaskPar(ParSet):
     """
     def __init__(self, obj_toler=None, assign_obj=None, skip_serendip=None, nsig_thrshd=None,
                  slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
-                 missing_objs_fwhm=None, use_alignbox=None):
+                 missing_objs_fwhm=None, missing_objs_boxcar_rad=None, use_alignbox=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1739,6 +1739,10 @@ class SlitMaskPar(ParSet):
                                      'parameter ``use_user_fwhm`` in ``ExtractionPar`` to True. ' \
                                      'If ``missing_objs_fwhm`` is ``None`` (which is the default) PypeIt will use ' \
                                      'the median FWHM of all the detected objects.'
+        defaults['missing_objs_boxcar_rad'] = 1.0
+        dtypes['missing_objs_boxcar_rad'] = [int, float]
+        descr['missing_objs_boxcar_rad'] = 'Indicates the boxcar radius in arcsec for the force ' \
+                                           'extraction of undetected objects. '
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1752,7 +1756,8 @@ class SlitMaskPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['obj_toler', 'assign_obj', 'skip_serendip', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
-                   'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'use_alignbox']
+                   'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'missing_objs_boxcar_rad',
+                   'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
