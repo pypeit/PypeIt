@@ -129,6 +129,9 @@ def test_run_pypeit():
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-m', '-r', configdir])
     RunPypeIt.main(pargs)
 
+    # TODO: Add some code that will try to open the QA HTML and check that it
+    # has the correct PNGs in it.
+
     # #########################################################
     # Test!!
     # Files exist
@@ -154,7 +157,6 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
-
 
 
 
