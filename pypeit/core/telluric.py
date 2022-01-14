@@ -567,9 +567,9 @@ def unpack_orders(sobjs, ret_flam=False):
     # Read in the spec1d file
     norders = len(sobjs) # ToDO: This is incorrect if you have more than one object in the sobjs
     if ret_flam:
-        nspec = sobjs[0].optimal['FLAM'].size
+        nspec = sobjs[0].OPT_FLAM.size
     else:
-        nspec = sobjs[0].optimal['COUNTS'].size
+        nspec = sobjs[0].OPT_COUNTS.size
     # Allocate arrays and unpack spectrum
     wave = np.zeros((nspec, norders))
     #wave_mask = np.zeros((nspec, norders),dtype=bool)
@@ -577,17 +577,17 @@ def unpack_orders(sobjs, ret_flam=False):
     flam_ivar = np.zeros((nspec, norders))
     flam_mask = np.zeros((nspec, norders),dtype=bool)
     for iord in range(norders):
-        wave[:,iord] = sobjs[iord].optimal['WAVE']
+        wave[:, iord] = sobjs[iord].OPT_WAVE
         #wave_mask[:,iord] = sobjs[iord].optimal['WAVE'] > 0.0
-        flam_mask[:,iord] = sobjs[iord].optimal['MASK']
+        flam_mask[:, iord] = sobjs[iord].OPT_MASK
         if ret_flam:
-            flam[:,iord] = sobjs[iord].optimal['FLAM']
-            flam_ivar[:,iord] = sobjs[iord].optimal['FLAM_IVAR']
+            flam[:, iord] = sobjs[iord].OPT_FLAM
+            flam_ivar[:, iord] = sobjs[iord].OPT_FLAM_IVAR
         else:
-            flam[:,iord] = sobjs[iord].optimal['COUNTS']
-            flam_ivar[:,iord] = sobjs[iord].optimal['COUNTS_IVAR']
+            flam[:, iord] = sobjs[iord].OPT_COUNTS
+            flam_ivar[:,iord] = sobjs[iord].OPT_COUNTS_IVAR
 
-    return wave, flam, flam_ivar, flam_mask
+    return wave.squeeze(), flam.squeeze(), flam_ivar.squeeze(), flam_mask.squeeze()
 
 
 # TODO: This function needs to be revisited.  Better yet, it would useful to
@@ -612,7 +612,7 @@ def general_spec_reader(specfile, ret_flam=False):
 
     # Place holder routine that provides a generic spectrum reader
     bonus = {}
-    try:
+    try: #TODO JFH Please fix this try except issue. Can we determine datatype from file header?
         # Read in the standard spec1d file produced by Pypeit
         #sobjs, head = load.load_specobjs(specfile)
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile, chk_version=False)
@@ -620,16 +620,18 @@ def general_spec_reader(specfile, ret_flam=False):
             raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
         wave, counts, counts_ivar, counts_gpm = unpack_orders(sobjs, ret_flam=ret_flam)
-        if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1):
+        # Made a change to the if statement to account for unpack_orders now squeezing returned arrays
+        #if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1)
+        if (head['PYPELINE'] !='Echelle') and (wave.ndim>1):
             idx = flux_calib.find_standard(sobjs)
             npix = head['NPIX']
             wave, counts = np.reshape(wave[:,idx],(npix,1)), np.reshape(counts[:,idx],(npix,1))
             counts_ivar = np.reshape(counts_ivar[:,idx],(npix,1))
             counts_gpm = np.reshape(counts_gpm[:,idx],(npix,1))
-        bonus['ECH_ORDER'] = (sobjs.ECH_ORDER).astype(int)
-        bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
-        bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
-        bonus['NORDERS'] = wave.shape[1]
+        bonus['ECH_ORDER']  = sobjs.ECH_ORDER if sobjs.ECH_ORDER[0] is None else (sobjs.ECH_ORDER).astype(int)
+        bonus['ECH_ORDERINDX']  = sobjs.ECH_ORDERINDX if sobjs.ECH_ORDERINDX[0] is None else (sobjs.ECH_ORDERINDX).astype(int)
+        bonus['ECH_SNR']  = sobjs.ech_snr if sobjs.ech_snr[0] is None else (sobjs.ech_snr).astype(int)
+        bonus['NORDERS'] = 1 if wave.ndim == 1 else wave.shape[1] # Again accounting for unpack_orders squeeze
         try:
             spectrograph = load_spectrograph(head['INSTRUME'])
         except:
