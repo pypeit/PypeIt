@@ -448,7 +448,7 @@ class Reduce:
                 slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
                 thismask = self.slitmask == slit_spat
                 # sobj index of maskdef_extract
-                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0]
+                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
                 if maskdef_extract.size > 0:
                     skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
                             box_pix=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None) \

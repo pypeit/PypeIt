@@ -204,9 +204,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Lower value of tracethresh
         par['calibrations']['tilts']['tracethresh'] = 10
 
-        # Extraction
-        #par['reduce']['skysub']['bspline_spacing'] = 0.8
-
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -268,8 +265,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            # model_full_slit when multi-slit observations (generally DEIMOS has short slits)
-            #par['reduce']['extraction']['model_full_slit'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
