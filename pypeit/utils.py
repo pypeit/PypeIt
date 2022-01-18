@@ -1405,3 +1405,41 @@ def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
             neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
             for neighbor in neighbors:
                 stack.append(neighbor)
+
+def list_of_spectral_lines():
+    ## spectral features
+    Lyalphanam, Lyalphawav='Lyalpha', 1215.7
+    OIInam, OIIwav='[OII]', 3727.5 #average between 3726,3729
+    OIIInam1, OIIIwav1='[OIII]', 5007.
+    OIIInam2, OIIIwav2='[OIII]', 4959.
+    OIIInam3, OIIIwav3='[OIII]', 4363.
+    Halphanam, Halphawav='Halpha', 6563.
+    Hbetanam, Hbetawav='Hbeta', 4861.
+    Hdeltanam, Hdeltawav='Hdelta', 4101.
+    Hgammanam, Hgammawav='Hgamma', 4341.
+
+    NeIIInam, NeIIIwav = '[NeIII]', 3869.
+    NeVnam, NeVwav = '[NeV]', 3426.
+    SIInam, SIIwav = '[SII]', 6724. #average between 6717,6731
+
+
+    ##absorption 
+    H13nam, H13wav = 'H13', 3734.
+    H12nam, H12wav = 'H12', 3750.
+    H11nam, H11wav = 'H11', 3771.
+    H10nam, H10wav = 'H10', 3798.
+    H9nam, H9wav = 'H9', 3835.
+    H8nam, H8wav = 'H8', 3889.
+    HeInam, HeIwav = 'HeI', 3889.
+
+    CAII_Knam, CaII_Kwav = 'CaK', 3934. 
+    CAII_Hnam, CaII_Hwav = 'CaH', 3968.
+
+    Gbandnam, Gbandwav = 'Gband', 4305.
+
+    line_names=np.array([Lyalphanam, OIInam, OIIInam1, OIIInam2, OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,SIInam, H13nam, H12nam, H11nam, H10nam, 
+                            H9nam, HeInam, CAII_Knam, CAII_Hnam, Gbandnam,])
+
+    line_wav=np.array([Lyalphawav, OIIwav, OIIIwav1, OIIIwav2, OIIIwav3, Halphawav, Hbetawav,Hdeltawav, Hgammawav, NeIIIwav, NeVwav, SIIwav, H13wav,H12wav, H11wav, H10wav, 
+                        H9wav, HeIwav,CaII_Kwav, CaII_Hwav, Gbandwav])
+    return line_names, line_wav

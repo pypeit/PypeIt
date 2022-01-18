@@ -13,11 +13,11 @@ import os
 from matplotlib import pyplot as plt
 from astropy.stats import sigma_clip, mad_std
 from astropy.modeling.models import Gaussian1D
-from astropy.table import Table
 import argparse
 
 from pypeit import spec2dobj
 from pypeit import msgs
+from pypeit import io
 from pypeit.scripts import scriptbase
 
 from IPython import embed
@@ -110,7 +110,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument('files', type = str, nargs='*', help = 'PypeIt spec2d file(s)')
-        parser.add_argument('--det', default=1, type=int, help='Detector number [default: 1]')
+        parser.add_argument('--det', default=1, type=int, help='Detector number')
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
         parser.add_argument('--maskdef_id', default=None, type=int, help='MASKDEF_ID of the slit that you want to plot')
         parser.add_argument('--pypeit_id', default=None, type=int, help='PypeIt ID of the slit that you want to plot')
@@ -118,7 +118,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
         parser.add_argument('--aspect_ratio', default=3, type=int, help='Aspect ratio when plotting the spec2d')
         parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting a region of the spectrum to analyze.')
         parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting a region of the spectrum to analyze.')
-        parser.add_argument('--mode', default='plot', type=str, help='Do you want to save to disk or open a plot in a mpl window. If you choose save, a folder called spec2d*_noisecheck will be created and all the relevant plot will be placed there.')
+        parser.add_argument('--plot_or_save', default='plot', type=str, help='Do you want to save to disk or open a plot in a mpl window. If you choose save, a folder called spec2d*_noisecheck will be created and all the relevant plot will be placed there.')
         #parser.add_argument('--det', default=1, type=int, help='Detector number')
         return parser
 
@@ -140,9 +140,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             # reinitialize lines wave
             line_wav_z=line_wav.copy()
 
-            # Load 2D object
             file = files[i]
-            spec2DObj = spec2dobj.Spec2DObj.from_file(file, args.det, chk_version=False)
 
             # Deal with redshifts
             if args.z is not None:
@@ -152,18 +150,12 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 z = None
 
             # Save?
-            if args.mode == 'save':
+            if args.plot_or_save == 'save':
                 folder = '{}_noisecheck'.format(file.split('.fits')[0])
                 if not os.path.exists(folder): os.makedirs(folder)
-            elif args.mode == 'print':
-                # Generate a Table for pretty printing
-                tbl = Table()
-                tbl['Slit'] = spec2DObj.slits.slitord_id
-                tbl['med_chis'] = spec2DObj.med_chis
-                tbl['std_chis'] = spec2DObj.std_chis
-                print('')
-                print(tbl)
-                return
+
+            # Load 2D object
+            spec2DObj = spec2dobj.Spec2DObj.from_file(file, args.det, chk_version=False)
 
             # Generate chi image
             chi = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
@@ -186,9 +178,15 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 if args.maskdef_id is not None and args.maskdef_id in all_maskdef_ids:
                     pypeit_id = all_pypeit_ids[all_maskdef_ids==args.maskdef_id][0]
                     slitidx = np.where(all_maskdef_ids==args.maskdef_id)[0][0]
+                    #filename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, args.maskdef_id, pypeit_id)
                 elif args.pypeit_id is not None and args.pypeit_id in all_pypeit_ids:
                     pypeit_id = args.pypeit_id
                     slitidx = np.where(all_pypeit_ids==args.pypeit_id)[0][0]
+                    #slit_select = spec2DObj.slits.slit_img(pad=args.pad, slitidx=slitidx)
+                    #if all_maskdef_ids is not None:
+                    #    filename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, all_maskdef_ids[all_pypeit_ids==args.pypeit_id][0], args.pypeit_id)
+                    #else:
+                    #    filename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, args.pypeit_id)
                 show_slits = range(slitidx, slitidx+1)
             else:
                 show_slits = range(all_pypeit_ids.size)
@@ -277,6 +275,6 @@ class ChkNoise2D(scriptbase.ScriptBase):
                     lbda, lbda_min, lbda_max, 
                     args.aspect_ratio, chi_select, flux_select, 
                     err_select, filename)
-                if args.mode == 'plot': plt.show()
-                if args.mode == 'save': plt.savefig('{}/noisecheck_{}.png'.format(folder, filename), bbox_inches='tight', dpi=400)
+                if args.plot_or_save == 'plot': plt.show()
+                if args.plot_or_save == 'save': plt.savefig('{}/noisecheck_{}.png'.format(folder, filename), bbox_inches='tight', dpi=400)
                 plt.close()

@@ -89,9 +89,9 @@ class Spec2DObj(datamodel.DataContainer):
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  'med_chis': dict(otype=np.ndarray, atype=np.floating,
-                               descr='Median of the chi^2 image for each slit/order'),
+                               descr='Median of the chi image for each slit/order'),
                  'std_chis': dict(otype=np.ndarray, atype=np.floating,
-                               descr='std of the chi^2 image for each slit/order'),
+                               descr='std of the chi image for each slit/order'),
                  'detector': dict(otype=detector_container.DetectorContainer,
                                   descr='Detector DataContainer'),
                  'det': dict(otype=int, descr='Detector index')}
@@ -242,11 +242,27 @@ class Spec2DObj(datamodel.DataContainer):
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
     def calc_chi_slit(self, slitidx:int, pad:int=None):
+        """ Calculate a chi map and run some stats on it
+        for a given slit/order
+
+        Args:
+            slitidx (int): Given slit/order
+            pad (int, optional):  Ignore pixels within pad of edges. 
+                Defaults to None.
+
+        Returns:
+            tuple: np.ndarray (chi image), median, std
+        """
         slit_select = self.slits.slit_img(pad=pad, slitidx=slitidx)
         chi = (self.sciimg - self.skymodel) * np.sqrt(
             self.ivarmodel) * (self.bpmmask == 0)
         chi_slit = chi * (slit_select == self.slits.slitord_id[slitidx]) * (
             self.bpmmask == 0)
+
+        # All bad?
+        if np.all(chi_slit == 0):
+            return None, 0., 0.
+        
         # Stats
         median = np.median(chi_slit[chi_slit!=0]) 
         std = mad_std(chi_slit[chi_slit!=0])
@@ -254,6 +270,11 @@ class Spec2DObj(datamodel.DataContainer):
         return chi_slit, median, std
 
     def gen_qa(self):
+        """ Generate QA for the slits/orders 
+
+        Saved to the DataContainer
+        """
+
         # Loop on slits to generate stats on chi^2
         med_chis = []
         std_chis = []
