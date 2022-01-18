@@ -59,7 +59,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                  'Ginga viewer.  Run above the Science/ folder',
                                     width=width)
 
-        parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
+        parser.add_argument('file', type = str, default = None, help = 'PypeIt spec2d file')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
         parser.add_argument('--det', default=1, type=int, help='Detector number')

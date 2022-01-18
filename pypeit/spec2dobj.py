@@ -15,6 +15,7 @@ from IPython import embed
 import numpy as np
 
 from astropy.io import fits
+from astropy.stats import mad_std
 import astropy
 
 from pypeit import msgs
@@ -236,6 +237,17 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
+    def calc_chi_slit(self, slitidx:int, pad:int=None):
+        slit_select = self.slits.slit_img(pad=pad, slitidx=slitidx)
+        chi = (self.sciimg - self.skymodel) * np.sqrt(
+            self.ivarmodel) * (self.bpmmask == 0)
+        chi_slit = chi * (slit_select == self.slits.slitord_id[slitidx]) * (
+            self.bpmmask == 0)
+        # Stats
+        median = np.median(chi_slit[chi_slit!=0]) 
+        std = mad_std(chi_slit[chi_slit!=0])
+        #
+        return chi_slit, median, std
 
 class AllSpec2DObj:
     """
