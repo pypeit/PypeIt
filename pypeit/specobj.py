@@ -96,7 +96,6 @@ class SpecObj(datamodel.DataContainer):
                                             'used for this extraction'),
                  'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
-                 # TODO -- Confirm BOX_NPIX should be a float and not int!
                  'BOX_NPIX': dict(otype=np.ndarray, atype=float,
                                   descr='Number of pixels used for the boxcar extraction; can be '
                                         'fractional'),
