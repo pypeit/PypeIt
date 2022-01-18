@@ -242,7 +242,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                     filename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, pypeit_id)
 
                 # Chi
-                chi_slit, _, _ = spec2DObj.calc_chi_slit(slitidx, pad=args.pad)
+                chi_slit, _, _ = spec2DObj.calc_chi_slit(i, pad=args.pad)
 
                 # Cut down
                 chi_select = chi_slit * input_mask

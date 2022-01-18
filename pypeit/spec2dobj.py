@@ -44,7 +44,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.3'
+    version = '1.0.4'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -88,6 +88,10 @@ class Spec2DObj(datamodel.DataContainer):
                                                    'Current list: observed, heliocentric, barycentric'),
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
+                 'med_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Median of the chi^2 image for each slit/order'),
+                 'std_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='std of the chi^2 image for each slit/order'),
                  'detector': dict(otype=detector_container.DetectorContainer,
                                   descr='Detector DataContainer'),
                  'det': dict(otype=int, descr='Detector index')}
@@ -248,6 +252,19 @@ class Spec2DObj(datamodel.DataContainer):
         std = mad_std(chi_slit[chi_slit!=0])
         #
         return chi_slit, median, std
+
+    def gen_qa(self):
+        # Loop on slits to generate stats on chi^2
+        med_chis = []
+        std_chis = []
+        for slitidx in range(self.slits.nslits):
+            _, med, std = self.calc_chi_slit(slitidx)
+            med_chis.append(med)
+            std_chis.append(std)
+        # Save
+        self.med_chis = np.array(med_chis)
+        self.std_chis = np.array(std_chis)
+        return
 
 class AllSpec2DObj:
     """

@@ -340,8 +340,6 @@ class SlitTraceSet(datamodel.DataContainer):
                     if self.maskdef_id is None else np.vstack([info, self.maskdef_id])
         return info.astype(int).T
 
-    # TODO: Do we need both of these? I.e., can the 'spat_id' for
-    # echelle spectrographs just be the echelle order?
     @property
     def slitord_id(self):
         """
