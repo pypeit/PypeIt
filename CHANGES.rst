@@ -5,6 +5,12 @@
 - Fixed a bug about how `maskdef_offset` is assigned to each detector
 - Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
   It now uses by default the stars in the alignment boxes.
+- Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include wavelength
+  calibration in pypeit_chk_flat ginga display.
 
 1.7.0 (19 Nov 2021)
 -------------------
@@ -15,6 +21,8 @@
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc
   lamps from the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
 - Set DEIMOS FWHM default to 10 pixels
 - Fixed a bug in HolyGrail that did not allow for sigdetect and
   rms_wavelength to be slit dependent lists.
@@ -27,7 +35,9 @@
       slitmask_offset, but the user can provide the maskdef_id of a slit
       with a bright object that can trace the offset.
     - improvements in the frame typing
-- Implements new Mark4 detector for Keck/LRISr (aka keck_lris_red_mark4)
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
+- QL script for Keck/DEIMOS
+
 
 1.6.0 (1 Oct 2021)
 ------------------
@@ -143,8 +153,6 @@
 - Add LDT/DeVeny spectrograph
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
-- GMOS doc updates
-- Fixed 2Dcoadd spec bugs for central wavelength dithers.
 - GMOS doc updates
 
 

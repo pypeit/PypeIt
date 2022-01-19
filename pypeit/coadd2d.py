@@ -25,6 +25,7 @@ from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
+from pypeit.manual_extract import ManualExtractionObj
 
 
 class CoAdd2D:
@@ -493,7 +494,7 @@ class CoAdd2D:
                     waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
-    def reduce(self, pseudo_dict, show=None, show_peaks=None):
+    def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
         ..todo.. Please document me
 
@@ -521,24 +522,34 @@ class CoAdd2D:
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-        #parcopy['calibrations']['save_masters'] = False
-        #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
+        # Manual extraction
+        if len(self.par['coadd2d']['manual'].strip()) > 0:
+            manual_obj = ManualExtractionObj.by_fitstbl_input(
+                    'None', self.par['coadd2d']['manual'])
+            uniq_dets = np.unique(manual_obj.det)
+            if uniq_dets.size > 1:
+                msgs.error('2D co-adding does not support extractions from multiple detectors. '
+                           'Peform the co-adding for each detector separately.')
+            # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
+            manual_dict = manual_obj.dict_for_objfind(uniq_dets[0])
+        else:
+            manual_dict = None
 
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux, find_negative=self.find_negative,
                                          det=self.det, show=show)
-        #redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
-        #                                 None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
         redux.tilts = pseudo_dict['tilts']
         redux.waveimg = pseudo_dict['waveimg']
         redux.binning = self.binning
+        redux.basename = basename
 
         # Masking
         #  TODO: Treat the masking of the slits objects
@@ -559,8 +570,8 @@ class CoAdd2D:
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
-            sciImage.image, show_peaks=show_peaks,
-            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind(self.det))
+            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
+            manual_extract_dict=manual_dict)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
