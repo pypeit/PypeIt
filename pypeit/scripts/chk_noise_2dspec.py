@@ -106,7 +106,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
     @classmethod
     def get_parser(cls, width=None):
-        parser = super().get_parser(description='Examine the noise in a PypeIt slit or spectrum',
+        parser = super().get_parser(description='Examine the noise in a PypeIt slit/order',
                                     width=width)
 
         parser.add_argument('files', type = str, nargs='*', help = 'PypeIt spec2d file(s)')
@@ -163,6 +163,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 tbl['std_chis'] = spec2DObj.std_chis
                 print('')
                 print(tbl)
+                print('-----------------------------------------------------')
                 return
 
             # Generate chi image
