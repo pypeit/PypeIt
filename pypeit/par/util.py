@@ -14,7 +14,7 @@ from astropy.table import Table
 
 from configobj import ConfigObj
 
-from pypeit import msgs
+from pypeit import msgs, __version__
 
 
 #-----------------------------------------------------------------------
@@ -637,7 +637,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
 
     # Here we go
     with open(pypeit_file, 'w') as f:
-        f.write('# Auto-generated PypeIt file\n')
+        f.write('# Auto-generated PypeIt file using PypeIt version: {}\n'.format(__version__))
         #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
         f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
         f.write("\n")
