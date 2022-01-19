@@ -18,6 +18,7 @@ from astropy.table import Table
 
 from pypeit.scripts import scriptbase
 from pypeit import utils
+from pypeit import msgs
 
 from IPython import embed
 
@@ -74,11 +75,13 @@ def plot(args, line_wav_z, line_names, flux, err, mask, input_mask,
     ax2.text(0.99, 0.90, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(np.median(ratio), mad_std(ratio)), color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
     ax2.legend(loc=2)
     plt.tight_layout()
+
+    # Finish
     if args.plot_or_save == 'plot': 
         plt.show()
-    if args.plot_or_save == 'save': 
+    elif args.plot_or_save == 'save': 
         plt.savefig('{}/noisecheck_{}.png'.format(folder, filename), 
-                    bbox_inches='tight', dpi=400)
+                    bbox_inches='tight', dpi=200)
     plt.close()
 
 
@@ -90,7 +93,7 @@ class ChkNoise1D(scriptbase.ScriptBase):
                                     width=width)
         parser.add_argument('files', type = str, nargs='*', help = 'PypeIt spec1d file(s)')
         parser.add_argument('--fileformat', default='spec1d', type=str, help='Is this coadd1d or spec1d?')
-        parser.add_argument('--extraction', default='opt', type=str, help='If spec1d, which extraction? OPT or BOX')
+        parser.add_argument('--extraction', default='opt', type=str, help='If spec1d, which extraction? opt or box [default: opt]')
         parser.add_argument('--ploterr', default=False, help='Plot noise spectrum',action='store_true')
         parser.add_argument('--step', default=False, help='Use `steps-mid` as linestyle',action='store_true')
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
@@ -167,6 +170,7 @@ class ChkNoise1D(scriptbase.ScriptBase):
                                 mask = data['OPT_MASK']
                                 extraction = 'OPT'
                             except KeyError:
+                                msgs.info("Showing the BOX extraction as OPT doesn't exist!")
                                 lbda = data['BOX_WAVE'].data
                                 flux = data['BOX_COUNTS'].data     # counts
                                 err = data['BOX_COUNTS_SIG']
