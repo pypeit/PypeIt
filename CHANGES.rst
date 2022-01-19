@@ -9,6 +9,8 @@
 - Refactor manual extraction
 - Fixed 2Dcoadd spec bugs for central wavelength dithers.
 - GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include wavelength
+  calibration in pypeit_chk_flat ginga display.
 - Introduce mosaicing
     - `det` arguments can now be tuples with a list of detectors to
       combine into a mosaic.  Mosaics can now be defined in the pypeit

@@ -38,8 +38,8 @@ class FlatImages(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.1.0'
-    version = '1.1.0'
+    minimum_version = '1.1.1'
+    version = '1.1.1'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -60,6 +60,8 @@ class FlatImages(datamodel.DataContainer):
                                        descr='Mirrors SlitTraceSet mask for Flat-specific flags'),
                  'pixelflat_spec_illum': dict(otype=np.ndarray, atype=np.floating,
                                               descr='Relative spectral illumination'),
+                 'pixelflat_waveimg': dict(otype=np.ndarray, atype=np.floating,
+                                           descr='Waveimage for pixel flat'),
                  'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
                                        descr='Processed, combined illum flats'),
                  'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
@@ -71,8 +73,8 @@ class FlatImages(datamodel.DataContainer):
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
-                 illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
-                 PYP_SPEC=None, spat_id=None):
+                 pixelflat_waveimg=None, illumflat_raw=None, illumflat_spat_bsplines=None,
+                 illumflat_bpm=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -322,7 +324,7 @@ class FlatImages(datamodel.DataContainer):
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2), (0.9, 1.1), None])
         # Display frames
-        show_flats(image_list, wcs_match=wcs_match, slits=slits)
+        show_flats(image_list, wcs_match=wcs_match, slits=slits, waveimg=self.pixelflat_waveimg)
 
 
 
@@ -397,6 +399,7 @@ class FlatField:
         self.list_of_spat_bsplines = None
         self.spat_illum_only = spat_illum_only
         self.spec_illum = None      # Relative spectral illumination image
+        self.waveimg = None
 
         # Completed steps
         self.steps = []
@@ -467,6 +470,7 @@ class FlatField:
                               pixelflat_model=self.flat_model,
                               pixelflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
                               pixelflat_bpm=bpmflats, pixelflat_spec_illum=self.spec_illum,
+                              pixelflat_waveimg=self.waveimg,
                               PYP_SPEC=self.spectrograph.name, spat_id=self.slits.spat_id)
 
     def build_mask(self):
@@ -495,7 +499,7 @@ class FlatField:
         image_list = zip([self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model],
                          ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],
                          [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
-        show_flats(image_list, wcs_match=wcs_match, slits=self.slits)
+        show_flats(image_list, wcs_match=wcs_match, slits=self.slits, waveimg=self.waveimg)
 
     def fit(self, spat_illum_only=False, debug=False):
         """
@@ -624,6 +628,8 @@ class FlatField:
                                            flexure=self.wavetilts.spat_flexure)
         waveimg = self.wv_calib.build_waveimg(
             tilts, self.slits, spat_flexure=self.wavetilts.spat_flexure)
+        # Save to class attribute for inclusion in MasterFlat
+        self.waveimg = waveimg
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -1220,7 +1226,7 @@ class FlatField:
                                       flexure=flex)
 
 
-def show_flats(image_list, wcs_match=True, slits=None):
+def show_flats(image_list, wcs_match=True, slits=None, waveimg=None):
     """
     Interface to ginga to show a set of flat images
 
@@ -1232,6 +1238,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
         spec_illum (`numpy.ndarray`_ or None):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+        waveimg (`numpy.ndarray`_ or None):
 
     Returns:
 
@@ -1248,7 +1255,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = display.show_image(img, chname=name, cuts=cut, wcs_match=wcs_match,
-                                        clear=clear)
+                                        waveimg=waveimg, clear=clear)
         if slits is not None:
             display.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
                                slit_ids=slits.spat_id[gpm])
