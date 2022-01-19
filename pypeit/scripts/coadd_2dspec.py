@@ -175,6 +175,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict['meta']['ir_redux'] = ir_redux
         sci_dict['meta']['find_negative'] = find_negative
 
+        # Make QA coadd directory
+        parset['rdx']['qadir'] += '_coadd'
+        qa_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['qadir'], 'PNGs')
+        if not os.path.isdir(qa_path):
+            os.makedirs(qa_path)
 
         # Find the detectors to reduce
 #        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
@@ -220,7 +225,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                 sci_dict[coadd.detname]['specobjs'], sci_dict[coadd.detname]['detector'], \
                 sci_dict[coadd.detname]['slits'], sci_dict[coadd.detname]['tilts'], \
                 sci_dict[coadd.detname]['waveimg'] \
-                    = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks)
+                    = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks, basename=basename)
 
             # Save pseudo image master files
             #coadd.save_masters()

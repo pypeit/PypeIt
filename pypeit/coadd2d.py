@@ -440,7 +440,7 @@ class CoAdd2D:
                     waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
-    def reduce(self, pseudo_dict, show=None, show_peaks=None):
+    def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
         ..todo.. Please document me
 
@@ -495,6 +495,7 @@ class CoAdd2D:
         redux.tilts = pseudo_dict['tilts']
         redux.waveimg = pseudo_dict['waveimg']
         redux.binning = self.binning
+        redux.basename = basename
 
         # Masking
         #  TODO: Treat the masking of the slits objects
@@ -515,7 +516,7 @@ class CoAdd2D:
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
-            sciImage.image, show_peaks=show_peaks,
+            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
             manual_extract_dict=manual_dict)
 
         # Local sky-subtraction
