@@ -508,7 +508,7 @@ class Reduce:
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
-                     show_trace=False, show=False, 
+                     show_trace=False, show=False,
                      manual_extract_dict=None,
                      debug=False):
         """
