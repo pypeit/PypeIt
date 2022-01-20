@@ -7,6 +7,7 @@ Coadding module.
 """
 
 import os
+import sys
 from pkg_resources import resource_filename
 
 from IPython import embed
@@ -162,7 +163,10 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     elif 'square' in model:
         ymult = (fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)) ** 2
     elif 'exp' in model:
-        ymult = np.exp(fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max))
+        # Clipping to avoid overflow.
+        ymult = np.exp(np.clip(fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
+                               , None, 0.8 * np.log(sys.float_info.max)))
+
     else:
         msgs.error('Unrecognized value of model requested')
 
