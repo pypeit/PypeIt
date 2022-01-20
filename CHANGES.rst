@@ -7,6 +7,10 @@
   It now uses by default the stars in the alignment boxes.
 - Introduces pypeit_parse_calib_id script
 - Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include wavelength
+  calibration in pypeit_chk_flat ginga display.
 
 1.7.0 (19 Nov 2021)
 -------------------
