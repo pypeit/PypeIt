@@ -441,21 +441,21 @@ class SpecObjs:
 
     def slitorder_objid_indices(self, slitorder, objid, toler=5):
         """
-        Return the set of indices matching the input slit/order and the input objid
+        Return the set of indices matching the input slit/order and the input
+        objid
         
         Args:
-        ----------
             slitorder (int):
                 Order/Spatial pixel value for slit of interest.
             objid (int):
                 ID value for object of interest.
             toler (int, optional):
-                Tolerance for slit spatial pixel values used for slit identification. Default = 5
+                Tolerance for slit spatial pixel values used for slit
+                identification. Default = 5
 
         Returns:
-        -------
-            indx (int):
-               Index value for input slit/order and object ID values for specobjs object.
+            :obj:`int`: Index value for input slit/order and object ID values
+            for specobjs object.
 
         """
 

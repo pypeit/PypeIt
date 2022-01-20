@@ -2127,9 +2127,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None,
                    qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
-
-    '''
-    Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
+    """
+    Routine for coadding longslit/multi-slit spectra. Calls combspec which is
+    the main stacking algorithm.
 
     Args:
         waves (ndarray):
@@ -2211,27 +2211,28 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         show (bool): optional, default=False,
              Show key QA plots or not
 
-        Returns:
-            tuple: Returns the following:
-            - wave_grid_mid: ndarray, (ngrid,)
-                Wavelength grid (in Angstrom) evaluated at the bin centers,
-                uniformly-spaced either in lambda or log10-lambda/velocity.
-                See core.wavecal.wvutils.py for more.
-            - wave_stack: ndarray, (ngrid,)
-                 Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
-                 of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
-                 elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
-                 wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
-            - flux_stack: ndarray, (ngrid,)
-                 Final stacked spectrum on wave_stack wavelength grid
-            - ivar_stack: ndarray, (ngrid,)
-                 Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
-                 masking.
-            - mask_stack: ndarray, bool, (ngrid,)
-                 Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
-    '''
+    Returns:
+        :obj:`tuple`: Returns the following:
 
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or
+              log10-lambda/velocity.  See core.wavecal.wvutils.py for more.
+            - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
+              spectrum. As discussed above, this is the weighted average of the
+              wavelengths of each spectrum that contriuted to a bin in the input
+              wave_grid wavelength grid. It thus has ngrid elements, whereas
+              wave_grid has ngrid+1 elements to specify the ngrid total number
+              of bins. Note that wave_stack is NOT simply the wave_grid bin
+              centers, since it computes the weighted average.
+            - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
+              wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on
+              wave_stack wavelength grid. Erors are propagated according to
+              weighting and masking.
+            - mask_stack: ndarray, bool, (ngrid,): Mask for stacked spectrum on
+              wave_stack wavelength grid. True=Good.
 
+    """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
         nspec, nexp = waves.shape
