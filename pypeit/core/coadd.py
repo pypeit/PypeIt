@@ -2738,7 +2738,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, maskdef_dict, wave_grid, spat_samp_fact=1.0,
+                    thismask_stack, waveimg_stack, maskdef_dict, maskdef_designtab_list,
+                    wave_grid, spat_samp_fact=1.0,
                     weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -2763,7 +2764,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slitcen appropriately shifted with the dither pattern,
             or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
-            images.  Shape is (nimgs, nspec).
+            images.  Shape is (nspec, nimgs).
         sciimg_stack (`numpy.ndarray`_):
             Stack of science images.  Shape is (nimgs, nspec, nspat).
         sciivar_stack (`numpy.ndarray`_):

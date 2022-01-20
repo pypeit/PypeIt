@@ -192,6 +192,14 @@ class CoAdd2D:
 
     @property
     def nslits_coadded(self):
+        """
+        This gives the number of slits of the coadded frame.
+        `self.good_slits` must be defined first.
+
+        Returns:
+            :obj:`float`: Number of slits of the coadded frame
+
+        """
         # this is the number of slits of the coadded frame
         if self.good_slits is None:
             msgs.error('Cannot determine nslits_coadded because `self.good_slits` is `None`. '
@@ -216,9 +224,11 @@ class CoAdd2D:
 
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
+        # bpm for the first frame
         reduce_bpm = (slits0.mask > 0) & (np.invert(slits0.bitmask.flagged(slits0.mask,
                                                                            flag=slits0.bitmask.exclude_for_reducing)))
         for i in range(1, self.nexp):
+            # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
             reduce_bpm & (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
                                                                              flag=slits.bitmask.exclude_for_reducing)))
@@ -337,6 +347,13 @@ class CoAdd2D:
             imaskdef_slitcen = self.stack_dict['slits_list'][0].maskdef_slitcen[:, slit_idx] if \
                 self.stack_dict['slits_list'][0].maskdef_slitcen is not None else None
 
+            # maskdef_designtab info for only this slit
+            if self.stack_dict['maskdef_designtab_list'][0] is not None:
+                this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
+                this_maskdef_designtab= self.stack_dict['maskdef_designtab_list'][0][this_idx]
+            else:
+                this_maskdef_designtab = None
+
             maskdef_dict = dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos, maskdef_slitcen=imaskdef_slitcen)
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
@@ -355,6 +372,7 @@ class CoAdd2D:
                                                thismask_stack,
                                                self.stack_dict['waveimg_stack'],
                                                maskdef_dict,
+                                               this_maskdef_designtab,
                                                self.wave_grid, self.spat_samp_fact,
                                                weights=weights, interp_dspat=interp_dspat)
             #TODO Add a tag to this dictionary here with the maskdef information
@@ -769,6 +787,7 @@ class CoAdd2D:
         slits_list = []
         nfiles =len(spec2d)
         detectors_list = []
+        maskdef_designtab_list = []
         for ifile, f in enumerate(spec2d):
             if isinstance(f, spec2dobj.Spec2DObj):
                 # If spec2d is a list of objects
@@ -784,6 +803,7 @@ class CoAdd2D:
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)
             detectors_list.append(s2dobj.detector)
+            maskdef_designtab_list.append(s2dobj.maskdef_designtab)
 
             if ifile == 0:
                 sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
@@ -807,7 +827,6 @@ class CoAdd2D:
             #_tilt_flexure_shift = _spat_flexure - spec2DObj.tilts.spat_flexure if spec2DObj.tilts.spat_flexure is not None else _spat_flexure
             tilts_stack[ifile,:,:] = s2dobj.tilts #.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
 
-
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
@@ -816,7 +835,8 @@ class CoAdd2D:
                     redux_path=redux_path,
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,
-                    pypeline=self.spectrograph.pypeline)
+                    pypeline=self.spectrograph.pypeline,
+                    maskdef_designtab_list=maskdef_designtab_list)
 
 
     def parse_weights(self, weights):
