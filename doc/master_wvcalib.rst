@@ -16,11 +16,13 @@ See :ref:`masters:Masters Naming` for the naming convention.
 Inspecting
 ==========
 
+.. _pypeit-chk-wavecalib:
+
 pypeit_chk_wavecalib
 --------------------
 
 You can print a set of simple diagnostics to the screen
-with the *pypeit_chk_wavecalib* sciprt, e.g. ::
+with the *pypeit_chk_wavecalib* script, e.g. ::
 
      pypeit_chk_wavecalib Masters/MasterWaveCalib_A_1_03.fits
      #

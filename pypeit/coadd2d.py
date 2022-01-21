@@ -25,6 +25,7 @@ from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
+from pypeit.manual_extract import ManualExtractionObj
 
 
 class CoAdd2D:
@@ -172,6 +173,12 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
+        # maskdef info
+        self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
+        self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
+        self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
+        self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
+
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
         Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
@@ -238,6 +245,7 @@ class CoAdd2D:
            Interpolate in the spatial coordinate image to faciliate running
            through core.extract.local_skysub_extract.  Default=True
 
+
         Returns
         -------
         coadd_list : list
@@ -264,7 +272,8 @@ class CoAdd2D:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
                                                          objid=self.objid_bri)
-            thismask_stack = self.stack_dict['slitmask_stack'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
+            thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler']
+
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -404,7 +413,7 @@ class CoAdd2D:
                     waveimg=waveimg_pseudo, spat_img=spat_img_pseudo, slits=slits_pseudo,
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
-    def reduce(self, pseudo_dict, show=None, show_peaks=None):
+    def reduce(self, pseudo_dict, show=None, show_peaks=None, basename=None):
         """
         ..todo.. Please document me
 
@@ -432,24 +441,34 @@ class CoAdd2D:
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-        #parcopy['calibrations']['save_masters'] = False
-        #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
 
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
+        # Manual extraction
+        if len(self.par['coadd2d']['manual'].strip()) > 0:
+            manual_obj = ManualExtractionObj.by_fitstbl_input(
+                    'None', self.par['coadd2d']['manual'])
+            uniq_dets = np.unique(manual_obj.det)
+            if uniq_dets.size > 1:
+                msgs.error('2D co-adding does not support extractions from multiple detectors. '
+                           'Peform the co-adding for each detector separately.')
+            # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
+            manual_dict = manual_obj.dict_for_objfind(uniq_dets[0])
+        else:
+            manual_dict = None
 
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux, find_negative=self.find_negative,
                                          det=self.det, show=show)
-        #redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
-        #                                 None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
         redux.tilts = pseudo_dict['tilts']
         redux.waveimg = pseudo_dict['waveimg']
         redux.binning = self.binning
+        redux.basename = basename
 
         # Masking
         #  TODO: Treat the masking of the slits objects
@@ -470,8 +489,8 @@ class CoAdd2D:
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
         sobjs_obj, nobj, skymask_init = redux.find_objects(
-            sciImage.image, show_peaks=show_peaks,
-            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
+            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
+            manual_extract_dict=manual_dict)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -640,7 +659,7 @@ class CoAdd2D:
                                                                 **kwargs_wave)
         return wave_grid, wave_grid_mid, dsamp
 
-    def load_coadd2d_stacks(self, spec2d):
+    def load_coadd2d_stacks(self, spec2d, chk_version=False):
         """
         Routine to read in required images for 2d coadds given a list of spec2d files.
 
@@ -674,15 +693,16 @@ class CoAdd2D:
                 s2dobj = f
             else:
                 # If spec2d is a list of files, option to also use spec1ds
-                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det)
+                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det, chk_version=chk_version)
                 spec1d_file = f.replace('spec2d', 'spec1d')
                 if os.path.isfile(spec1d_file):
-                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file, chk_version=chk_version)
                     this_det = sobjs.DET == self.det
                     specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
             slits_list.append(s2dobj.slits)
             detectors_list.append(s2dobj.detector)
+
             if ifile == 0:
                 sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
                 waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
@@ -804,6 +824,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         #  1) offsets is None -- auto compute offsets from brightest object, so then default to auto_weights=True
         #  2) offsets not None, weights = None (uniform weighting) or weights is not None (input weights)
         #  3) offsets not None, auto_weights=True (Do not support)
+        #  4) offsets == 'maskdef_offsets', weights = None (uniform weighting) or weights is not None (input weights)
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
@@ -811,6 +832,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         if offsets is None:
             self.objid_bri, self.spatid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
+
+        elif offsets == 'maskdef_offsets':
+            if self.maskdef_offset is not None:
+                self.offsets = self.compute_offsets_from_maskdef()
+            else:
+                msgs.error('No maskdef_offsets available.')
 
         self.use_weights = self.parse_weights(weights)
 
@@ -828,6 +855,22 @@ class MultiSlitCoAdd2D(CoAdd2D):
         else:
             msgs.error('Unrecognized format for weights')
 
+    def compute_offsets_from_maskdef(self):
+
+        msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+
+        offsets = self.maskdef_offset[0] - self.maskdef_offset
+        # Print out a report on the offsets
+        msg_string = msgs.newline() + '---------------------------------------------'
+        msg_string += msgs.newline() + ' Summary of offsets from maskdef_offset   '
+        msg_string += msgs.newline() + '---------------------------------------------'
+        msg_string += msgs.newline() + '           exp#      offset                  '
+        for iexp, off in enumerate(offsets):
+            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
+        msg_string += msgs.newline() + '-----------------------------------------------'
+        msgs.info(msg_string)
+        return offsets
+
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
     # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
@@ -838,7 +881,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         objid_bri, slitidx_bri, spatid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'],
                                                                     self.spat_ids)
         msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(spatid_bri,np.mean(snr_bar_bri)))
-        thismask_stack = self.stack_dict['slitmask_stack'] == spatid_bri
+        thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - spatid_bri) <= self.par['coadd2d']['spat_toler']
         trace_stack_bri = np.zeros((self.nspec, self.nexp))
         # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
         for iexp in range(self.nexp):
@@ -934,7 +977,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         for iexp, sobjs in enumerate(specobjs_list):
             msgs.info("Working on exposure {}".format(iexp))
             for islit, spat_id in enumerate(spat_ids):
-                ithis = sobjs.SLITID == spat_id
+                ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 nobj_slit = np.sum(ithis)
                 if np.any(ithis):
                     objid_this = sobjs[ithis].OBJID
@@ -961,8 +1004,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
                        'ratio on the same slit of every exposure')
 
-        self.snr_report(snr_bar, slitid=slitid)
-
+        self.snr_report(snr_bar, slitid=spat_ids[slitid])
         return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is

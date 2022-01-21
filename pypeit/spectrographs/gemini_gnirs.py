@@ -24,6 +24,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
     ndet = 1
     name = 'gemini_gnirs'
     camera = 'GNIRS'
+    header_name = 'GNIRS'
     telescope = telescopes.GeminiNTelescopePar()
     pypeline = 'Echelle'
     supported = True
@@ -230,6 +231,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='COVER')
         self.meta['dispangle'] = dict(ext=0, card='GRATTILT', rtol=1e-4)
         self.meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def configuration_keys(self):
         """

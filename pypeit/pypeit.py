@@ -27,6 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
+from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -35,6 +36,7 @@ from pypeit.history import History
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
+from pypeit.manual_extract import ManualExtractionObj
 
 from linetools import utils as ltu
 
@@ -90,7 +92,7 @@ class PypeIt:
         self.msgs_reset()
         
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups \
+        cfg_lines, data_files, frametype, usrdata, setups, _ \
                 = parse_pypeit_file(pypeit_file, runtime=True)
         self.calib_only = calib_only
 
@@ -139,6 +141,8 @@ class PypeIt:
         #   - Interpret automated or user-provided data from the PypeIt
         #   file
         self.fitstbl.finalize_usr_build(frametype, setups[0])
+
+        
         # --------------------------------------------------------------
         #   - Write .calib file (For QA naming amongst other things)
         calib_file = pypeit_file.replace('.pypeit', '.calib')
@@ -289,7 +293,9 @@ class PypeIt:
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
                     self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                    show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                    show=self.show,
+                    user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                                         self.par['rdx']['maskIDs']))
                 # Do it
                 # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
@@ -554,6 +560,7 @@ class PypeIt:
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
         for self.det in detectors:
+            msgs.info("Working on detector {0}".format(self.det))
             # run calibration
             self.caliBrate = self.calib_one(frames, self.det)
             if not self.caliBrate.success:
@@ -569,8 +576,8 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
-                                                                      std_outfile=std_outfile)
+            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(
+                frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
@@ -578,19 +585,29 @@ class PypeIt:
             sciImg_list.append(sciImg)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             platescale = np.array([ss.detector.platescale for ss in sciImg_list])
-            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                                                                      self.par['calibrations']['slitedges']['det_buffer'],
-                                                                      self.par['reduce']['slitmask'])
+            # get the dither offset if available
+            if self.par['reduce']['slitmask']['use_dither_offset']:
+                dither = self.spectrograph.parse_dither_pattern(
+                    [self.fitstbl.frame_paths(frames[0])])
+                dither_off = dither[2][0] if dither is not None else None
+            else:
+                dither_off = None
+            calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale,
+                self.par['calibrations']['slitedges']['det_buffer'],
+                self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
-            calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0])
+            calib_slits = slittrace.average_maskdef_offset(
+                calib_slits, platescale[0], self.spectrograph.list_detectors())
             # slitmask design matching and add undetected objects
-            all_specobjs_objfind = slittrace.assign_addobjs_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                                                                      self.par['reduce']['findobj']['find_fwhm'],
-                                                                      self.par['reduce']['slitmask'])
+            all_specobjs_objfind = slittrace.assign_addobjs_alldets(
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale,
+                self.par['reduce']['findobj']['find_fwhm'],
+                self.par['reduce']['slitmask'])
 
         # Extract
         for i, self.det in enumerate(calibrated_det):
@@ -710,8 +727,12 @@ class PypeIt:
         # Instantiate Calibrations class
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
-            self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-            show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            self.calibrations_path, qadir=self.qa_path, 
+            reuse_masters=self.reuse_masters,
+            show=self.show, 
+            user_slits=slittrace.merge_user_slit(
+                self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
+            #slitspat_num=self.par['rdx']['slitspatnum'])
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
         caliBrate.run_the_steps()
@@ -785,6 +806,11 @@ class PypeIt:
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
+        # Deal with manual extraction
+        row = self.fitstbl[frames[0]]
+        manual_obj = ManualExtractionObj.by_fitstbl_input(
+            row['filename'], row['manual']) if len(row['manual'].strip()) > 0 else None
+
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
@@ -792,6 +818,7 @@ class PypeIt:
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
+                                                manual=manual_obj,
                                                 find_negative=self.find_negative,
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
@@ -860,14 +887,13 @@ class PypeIt:
                                                 det=det, binning=self.binning,
                                                 basename=self.basename)
 
-        # Prepare some masks and the tilts
-        self.redux.prepare_extraction()
-
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
                 global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
                 obstime=self.obstime)
         else:
+            # Although exrtaction is not performed, still need to prepare some masks and the tilts
+            self.redux.prepare_extraction(global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = self.redux.initial_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)
@@ -949,6 +975,8 @@ class PypeIt:
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            # TODO
+            #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
                                        slitspatnum=self.par['rdx']['slitspatnum'],

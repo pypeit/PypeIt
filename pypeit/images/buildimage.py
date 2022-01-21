@@ -174,7 +174,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
 
     # Do it
-    combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
+    combineImage = combineimage.CombineImage(spectrograph, det, 
+                                             frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
                                    sigma_clip=frame_par['process']['clip'],
                                    sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
