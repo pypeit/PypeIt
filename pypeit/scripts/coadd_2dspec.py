@@ -192,6 +192,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         else:
             only_slits = None
 
+        # container for specobjs
+        all_specobjs = specobjs.SpecObjs()
+        # container for spec2dobj
+        all_spec2d = spec2dobj.AllSpec2DObj()
+        # set some meta
+        all_spec2d['meta']['ir_redux'] = ir_redux
+        all_spec2d['meta']['find_negative'] = find_negative
+
         # Loop on detectors
         for det in detectors:
             msgs.info("Working on detector {0}".format(det))
@@ -234,44 +242,15 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                 # iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
                 # sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
-            # Save pseudo image master files
-            #coadd.save_masters()
-
-        # Make the new Science dir
-        # TODO: This needs to be defined by the user
-        scipath = os.path.join(redux_path, 'Science_coadd')
-        if not os.path.isdir(scipath):
-            msgs.info('Creating directory for Science output: {0}'.format(scipath))
-            os.makedirs(scipath)
-
-        # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
-
-        # TODO -- These lines should be above once reduce() passes back something sensible
-        all_specobjs = specobjs.SpecObjs()
-        for det in detectors:
+            # fill the specobjs container
             all_specobjs.add_sobj(sci_dict[det]['specobjs'])
 
-        # Write
-        outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
-        subheader = spectrograph.subheader_for_spec(head2d, head2d)
-        all_specobjs.write_to_fits(subheader, outfile1d)
-
-        # Info
-        outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
-        sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
-        sobjs.write_info(outfiletxt, spectrograph.pypeline)
-
-        # 2D spectra
-        # TODO -- These lines should be above once reduce() passes back something sensible
-        all_spec2d = spec2dobj.AllSpec2DObj()
-        all_spec2d['meta']['ir_redux'] = ir_redux
-        all_spec2d['meta']['find_negative'] = find_negative
-        for det in detectors:
-            # remove maskdef_designtab from sci_dict[det]['slits']
+            # fill the spec2dobj container but first ...
+            # extract maskdef_designtab from sci_dict[det]['slits']
             maskdef_designtab = sci_dict[det]['slits'].maskdef_designtab
             slits = copy.deepcopy(sci_dict[det]['slits'])
             slits.maskdef_designtab = None
-
+            # fill up
             all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
                                                   sciimg=sci_dict[det]['sciimg'],
                                                   ivarraw=sci_dict[det]['sciivar'],
@@ -289,14 +268,39 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                   vel_corr=None,
                                                   vel_type=None,
                                                   maskdef_designtab=maskdef_designtab)
-        # Build header
+
+            # Save pseudo image master files
+            #coadd.save_masters()
+
+        # SAVE TO DISK
+
+        # Make the new Science dir
+        # TODO: This needs to be defined by the user
+        scipath = os.path.join(redux_path, 'Science_coadd')
+        if not os.path.isdir(scipath):
+            msgs.info('Creating directory for Science output: {0}'.format(scipath))
+            os.makedirs(scipath)
+
+        # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
+        subheader = spectrograph.subheader_for_spec(head2d, head2d)
+        # Write spec1D
+        if all_specobjs.nobj > 0:
+            outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
+            all_specobjs.write_to_fits(subheader, outfile1d)
+
+            # Info
+            outfiletxt = os.path.join(scipath, 'spec1d_{:s}.txt'.format(basename))
+            sobjs = specobjs.SpecObjs.from_fitsfile(outfile1d, chk_version=False)
+            sobjs.write_info(outfiletxt, spectrograph.pypeline)
+
+        # Build header for spec2d
         outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
                                                subheader=subheader,
                                                # TODO -- JFH :: Decide if we need any of these
                                                redux_path=None, master_key_dict=None,
                                                master_dir=None)
-        # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
+        # Write spec2d
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=parset['rdx']['detnum'])
 
 

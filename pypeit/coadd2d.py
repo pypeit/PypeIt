@@ -539,18 +539,21 @@ class CoAdd2D:
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
-        # Manual extraction
-        if len(self.par['coadd2d']['manual'].strip()) > 0:
-            manual_obj = ManualExtractionObj.by_fitstbl_input(
-                    'None', self.par['coadd2d']['manual'])
-            uniq_dets = np.unique(manual_obj.det)
-            if uniq_dets.size > 1:
-                msgs.error('2D co-adding does not support extractions from multiple detectors. '
-                           'Peform the co-adding for each detector separately.')
-            # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
-            manual_dict = manual_obj.dict_for_objfind(uniq_dets[0])
-        else:
-            manual_dict = None
+        # Manual extraction. Select only the manual extractions input by the user that match the current detector
+        manual_dict = None
+        if self.par['coadd2d']['manual'] is not None:
+            manual_string = ','.join(np.atleast_1d(self.par['coadd2d']['manual']))
+            if len(manual_string.strip()) > 0:
+                manual_obj = ManualExtractionObj.by_fitstbl_input('None', manual_string)
+                # manual_obj indx for this det
+                thisdet = np.where(manual_obj.det == sciImage.detector.det)[0]
+                manual_obj.det = manual_obj.det[thisdet]
+                manual_obj.spec = manual_obj.spec[thisdet]
+                manual_obj.spat = manual_obj.spat[thisdet]
+                manual_obj.fwhm = manual_obj.fwhm[thisdet]
+                if manual_obj.det.size > 0:
+                    # TODO: Leaving `neg=False`, the default, consider changing to neg=self.find_negative.
+                    manual_dict = manual_obj.dict_for_objfind(manual_obj.det[0])
 
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux, find_negative=self.find_negative,
@@ -588,7 +591,7 @@ class CoAdd2D:
         # maskdef stuff
         # Select the edges to use
         slits_left, slits_right, _ = slits.select_edges(flexure=None)
-        platescale = self.spectrograph.get_detector_par(1).platescale/self.spat_samp_fact
+        platescale = sciImage.detector.platescale * self.spat_samp_fact
         # Assign slitmask design information to detected objects
         slits.assign_maskinfo(sobjs_obj, platescale, slits_left, TOLER=1.)
 
