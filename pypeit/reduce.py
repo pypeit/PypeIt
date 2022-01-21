@@ -1111,8 +1111,9 @@ class MultiSlitReduce(Reduce):
                     basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
                 else:
                     basename = self.basename
+                detname = self.spectrograph.get_det_name(self.det)
                 objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=self.det, out_dir=out_dir)
+                                                        det=detname, out_dir=out_dir)
 
             sobjs_slit, skymask[thismask] = \
                     extract.objfind(image, thismask,
@@ -1378,8 +1379,9 @@ class EchelleReduce(Reduce):
                 basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
             else:
                 basename = self.basename
+            detname = self.spectrograph.get_det_name(self.det)
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=self.det, out_dir=out_dir)
+                                                    det=detname, out_dir=out_dir)
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,

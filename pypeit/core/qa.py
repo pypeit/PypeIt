@@ -23,7 +23,8 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
       Root name
     method : str
       Describes the QA routine
-    det : int, optional
+    det : str, optional
+        The name of the detector or mosaic (e.g., DET01)
     slit : int, optional
     prefix : str, optional
       start the name of the QA file
@@ -70,9 +71,9 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
     elif method == 'plot_orderfits_Blaze':  # This is root for multiple PNGs
         outfile = 'QA/PNGs/Blaze_{:s}_'.format(root)
     elif method == 'obj_trace_qa':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(root, det)
+        outfile = 'QA/PNGs/{:s}_{:s}_obj_trace.png'.format(root, det)
     elif method == 'obj_profile_qa':
-        outfile = 'PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
+        outfile = 'PNGs/{:s}_{:s}_S{:04d}_obj_prof.png'.format(root, det, slit)
     elif method == 'spec_flexure_qa_corr':
 #        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
         outfile = 'PNGs/{:s}_S{:04d}_spec_flex_corr.png'.format(root, slit)
