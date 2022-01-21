@@ -6,6 +6,7 @@ Script for performing 2d coadds of PypeIt data.
 """
 import os
 import glob
+import copy
 from collections import OrderedDict
 
 from IPython import embed
@@ -266,6 +267,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         all_spec2d['meta']['ir_redux'] = ir_redux
         all_spec2d['meta']['find_negative'] = find_negative
         for det in detectors:
+            # remove maskdef_designtab from sci_dict[det]['slits']
+            maskdef_designtab = sci_dict[det]['slits'].maskdef_designtab
+            slits = copy.deepcopy(sci_dict[det]['slits'])
+            slits.maskdef_designtab = None
+
             all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
                                                   sciimg=sci_dict[det]['sciimg'],
                                                   ivarraw=sci_dict[det]['sciivar'],
@@ -275,14 +281,14 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                   scaleimg=np.array([1.0], dtype=np.float),
                                                   bpmmask=sci_dict[det]['outmask'],
                                                   detector=sci_dict[det]['detector'],
-                                                  slits=sci_dict[det]['slits'],
+                                                  slits=slits,
                                                   waveimg=sci_dict[det]['waveimg'],
                                                   tilts=sci_dict[det]['tilts'],
                                                   sci_spat_flexure=None,
                                                   sci_spec_flexure=None,
                                                   vel_corr=None,
                                                   vel_type=None,
-                                                  maskdef_designtab=None)
+                                                  maskdef_designtab=maskdef_designtab)
         # Build header
         outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
         pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,

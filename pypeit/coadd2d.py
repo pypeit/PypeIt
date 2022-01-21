@@ -12,6 +12,7 @@ from IPython import embed
 import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
+from astropy.table import Table, vstack
 
 from pypeit import msgs
 from pypeit import specobjs
@@ -154,6 +155,7 @@ class CoAdd2D:
         self.use_weights = None
         self.wave_grid = None
         self.good_slits = None
+        self.maskdef_offset = None
 
 
         # Load the stack_dict
@@ -303,6 +305,10 @@ class CoAdd2D:
                                            const_weights=const_weights)
         return rms_sn, weights.T
 
+    def get_maskdef_dict(self, slit_idx, ref_trace_stack):
+
+        return dict(maskdef_id=None, maskdef_objpos=None, maskdef_designtab=None)
+
     def coadd(self, only_slits=None, interp_dspat=True):
         """
         Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -340,21 +346,7 @@ class CoAdd2D:
             thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.stack_dict['slits_list'][0].spat_id[slit_idx]) <= self.par['coadd2d']['spat_toler']
 
             # maskdef info
-            imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx] if \
-                self.stack_dict['slits_list'][0].maskdef_id is not None else None
-            imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx] if \
-                self.stack_dict['slits_list'][0].maskdef_objpos is not None else None
-            imaskdef_slitcen = self.stack_dict['slits_list'][0].maskdef_slitcen[:, slit_idx] if \
-                self.stack_dict['slits_list'][0].maskdef_slitcen is not None else None
-
-            # maskdef_designtab info for only this slit
-            if self.stack_dict['maskdef_designtab_list'][0] is not None:
-                this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
-                this_maskdef_designtab= self.stack_dict['maskdef_designtab_list'][0][this_idx]
-            else:
-                this_maskdef_designtab = None
-
-            maskdef_dict = dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos, maskdef_slitcen=imaskdef_slitcen)
+            maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -372,7 +364,6 @@ class CoAdd2D:
                                                thismask_stack,
                                                self.stack_dict['waveimg_stack'],
                                                maskdef_dict,
-                                               this_maskdef_designtab,
                                                self.wave_grid, self.spat_samp_fact,
                                                weights=weights, interp_dspat=interp_dspat)
             #TODO Add a tag to this dictionary here with the maskdef information
@@ -425,9 +416,8 @@ class CoAdd2D:
 
         # maskdef info
         imaskdef_id = np.zeros(self.nslits_coadded, dtype=int)
-        # may not need this in pseudo or need to be adjusted
-        # imaskdef_objpos = np.zeros(self.nslits_coadded)
-        # imaskdef_slitcen = np.zeros((nspec_pseudo, self.nslits_coadded))
+        imaskdef_objpos = np.zeros(self.nslits_coadded)
+        imaskdef_designtab = Table()
 
         nspec_grid = self.wave_grid_mid.size
         for islit, coadd_dict in enumerate(coadd_list):
@@ -462,20 +452,21 @@ class CoAdd2D:
 
             # maskdef info
             imaskdef_id[islit] = coadd_dict['maskdef_id']
-            # imaskdef_objpos[islit] = coadd_dict['maskdef_objpos']
-            # imaskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
+            imaskdef_objpos[islit] = coadd_dict['maskdef_objpos']
+            if coadd_dict['maskdef_designtab'] is not None:
+                imaskdef_designtab = vstack([imaskdef_designtab, coadd_dict['maskdef_designtab']])
 
         maskdef_id = imaskdef_id if None not in imaskdef_id else None
-        # maskdef_objpos = imaskdef_objpos if None not in imaskdef_id else None
-        # maskdef_slitcen = imaskdef_slitcen if None not in imaskdef_id else None
+        maskdef_objpos = imaskdef_objpos if None not in imaskdef_id else None
+        maskdef_designtab = imaskdef_designtab if None not in imaskdef_id else None
 
         #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
         # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.name, specmin=spec_min1, specmax=spec_max1,
-                                         maskdef_id=maskdef_id, maskdef_objpos=None,
-                                         maskdef_slitcen=None)
+                                         maskdef_id=maskdef_id, maskdef_objpos=maskdef_objpos,
+                                         maskdef_designtab=None)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
         # assign ech_order if exist
@@ -1137,6 +1128,46 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
 
         return self.offset_slit_cen(slitid, offsets)
+
+    def get_maskdef_dict(self, slit_idx, ref_trace_stack):
+        """
+
+        Args:
+            slit_idx:
+            ref_trace_stack:
+
+        Returns:
+
+        """
+        # maskdef info
+        if (self.stack_dict['slits_list'][0].maskdef_id is not None) and \
+                (self.stack_dict['slits_list'][0].maskdef_objpos is not None) and \
+                (self.stack_dict['maskdef_designtab_list'][0] is not None):
+            # maskdef_designtab info for only this slit
+            this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
+            this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
+
+            # maskdef_id for this slit
+            imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx]
+
+            # expected position of the targeted object from slitmask design (as distance from left slit edge)
+            imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx]
+
+            # find left edge
+            slits_left, _, _ = self.stack_dict['slits_list'][0].select_edges(flexure=None)  #TODO add flexure
+            # targeted object spat pix
+            maskdef_obj_spat_pos = imaskdef_objpos + self.maskdef_offset + slits_left[self.nspec//2, slit_idx]
+            # binned expected object position with respect to the center of the slit in ref_trace_stack
+            # this value should be the same for each exposure, but in case there are differences we take the mean value
+            imaskdef_objpos_dspat = np.mean((maskdef_obj_spat_pos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
+
+        else:
+            this_maskdef_designtab = None
+            imaskdef_id = None
+            imaskdef_objpos_dspat = None
+
+        return dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos_dspat,
+                    maskdef_designtab=this_maskdef_designtab)
 
 
 class EchelleCoAdd2D(CoAdd2D):

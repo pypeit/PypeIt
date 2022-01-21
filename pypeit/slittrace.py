@@ -1154,8 +1154,6 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if self.maskdef_objpos is None:
             msgs.error('An array of object positions predicted by the slitmask design must be provided.')
-        if self.maskdef_slitcen is None:
-            msgs.error('An array of slit centers predicted by the slitmask design must be provided.')
 
         # If slitmask offset provided by the user, just save it and return
         if slitmask_off is not None:

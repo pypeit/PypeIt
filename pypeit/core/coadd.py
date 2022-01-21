@@ -2738,7 +2738,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, maskdef_dict, maskdef_designtab_list,
+                    thismask_stack, waveimg_stack, maskdef_dict,
                     wave_grid, spat_samp_fact=1.0,
                     weights='uniform', interp_dspat=True):
     """
@@ -2917,7 +2917,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
                 maskdef_id=maskdef_dict['maskdef_id'], maskdef_objpos=maskdef_dict['maskdef_objpos'],
-                maskdef_slitcen=maskdef_dict['maskdef_slitcen'])
+                maskdef_designtab=maskdef_dict['maskdef_designtab'])
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
