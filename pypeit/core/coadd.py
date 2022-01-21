@@ -2912,11 +2912,21 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         dspat_img_fake = spat_img_coadd + dspat_mid[0]
         dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
+    # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
+    new_maskdef_objpos = None
+    new_maskdef_slitcen = None
+    if (maskdef_dict['maskdef_objpos'] is not None) and (maskdef_dict['maskdef_slitcen']):
+        new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
+        slitcen_pixpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
+        # maskdef_slitcen is supposed to be trace the center of the slit at each wavelength
+        new_maskdef_slitcen = np.full(nspec_coadd, slitcen_pixpos)
+
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
-                maskdef_id=maskdef_dict['maskdef_id'], maskdef_objpos=maskdef_dict['maskdef_objpos'],
+                maskdef_id=maskdef_dict['maskdef_id'], maskdef_slitcen=new_maskdef_slitcen,
+                maskdef_objpos=new_maskdef_objpos,
                 maskdef_designtab=maskdef_dict['maskdef_designtab'])
 
 

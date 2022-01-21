@@ -417,6 +417,7 @@ class CoAdd2D:
         # maskdef info
         imaskdef_id = np.zeros(self.nslits_coadded, dtype=int)
         imaskdef_objpos = np.zeros(self.nslits_coadded)
+        imaskdef_slitcen = np.zeros((nspec_pseudo, self.nslits_coadded))
         imaskdef_designtab = Table()
 
         nspec_grid = self.wave_grid_mid.size
@@ -453,20 +454,22 @@ class CoAdd2D:
             # maskdef info
             imaskdef_id[islit] = coadd_dict['maskdef_id']
             imaskdef_objpos[islit] = coadd_dict['maskdef_objpos']
+            imaskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
             if coadd_dict['maskdef_designtab'] is not None:
                 imaskdef_designtab = vstack([imaskdef_designtab, coadd_dict['maskdef_designtab']])
 
         maskdef_id = imaskdef_id if None not in imaskdef_id else None
         maskdef_objpos = imaskdef_objpos if None not in imaskdef_id else None
+        maskdef_slitcen = imaskdef_slitcen if None not in imaskdef_id else None
         maskdef_designtab = imaskdef_designtab if None not in imaskdef_id else None
 
         #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
         # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
-                = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
+                = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, det=self.det, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.name, specmin=spec_min1, specmax=spec_max1,
-                                         maskdef_id=maskdef_id, maskdef_objpos=maskdef_objpos,
-                                         maskdef_designtab=None)
+                                         maskdef_id=maskdef_id, maskdef_objpos=maskdef_objpos, maskdef_offset=0.,
+                                         maskdef_slitcen=maskdef_slitcen, maskdef_designtab=maskdef_designtab)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
         # assign ech_order if exist
@@ -582,6 +585,14 @@ class CoAdd2D:
             sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
             manual_extract_dict=manual_dict)
 
+        # maskdef stuff
+        # Select the edges to use
+        slits_left, slits_right, _ = slits.select_edges(flexure=None)
+        platescale = self.spectrograph.get_detector_par(1).platescale/self.spat_samp_fact
+        # Assign slitmask design information to detected objects
+        slits.assign_maskinfo(sobjs_obj, platescale, slits_left, TOLER=1.)
+
+
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs \
@@ -601,7 +612,7 @@ class CoAdd2D:
         self.pseudo_dict=pseudo_dict
 
         return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
-               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits'], \
+               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, slits, \
                pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
@@ -1150,24 +1161,32 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # maskdef_id for this slit
             imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx]
 
+            # maskdef_slitcenters. This trace the slit center along the spectral direction.
+            # But here we take only the value at the mid point
+            maskdef_slitcen_pixpos = self.stack_dict['slits_list'][0].maskdef_slitcen[self.nspec//2, slit_idx] + self.maskdef_offset
+            # binned maskdef_slitcenters position with respect to the center of the slit in ref_trace_stack
+            # this value should be the same for each exposure, but in case there are differences we take the mean value
+            imaskdef_slitcen_dspat = np.mean((maskdef_slitcen_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
+
             # expected position of the targeted object from slitmask design (as distance from left slit edge)
             imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx]
 
             # find left edge
             slits_left, _, _ = self.stack_dict['slits_list'][0].select_edges(flexure=None)  #TODO add flexure
             # targeted object spat pix
-            maskdef_obj_spat_pos = imaskdef_objpos + self.maskdef_offset + slits_left[self.nspec//2, slit_idx]
+            maskdef_obj_pixpos = imaskdef_objpos + self.maskdef_offset + slits_left[self.nspec//2, slit_idx]
             # binned expected object position with respect to the center of the slit in ref_trace_stack
             # this value should be the same for each exposure, but in case there are differences we take the mean value
-            imaskdef_objpos_dspat = np.mean((maskdef_obj_spat_pos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
+            imaskdef_objpos_dspat = np.mean((maskdef_obj_pixpos - ref_trace_stack[self.nspec//2, :])/self.spat_samp_fact)
 
         else:
             this_maskdef_designtab = None
             imaskdef_id = None
+            imaskdef_slitcen_dspat = None
             imaskdef_objpos_dspat = None
 
         return dict(maskdef_id=imaskdef_id, maskdef_objpos=imaskdef_objpos_dspat,
-                    maskdef_designtab=this_maskdef_designtab)
+                    maskdef_slitcen=imaskdef_slitcen_dspat, maskdef_designtab=this_maskdef_designtab)
 
 
 class EchelleCoAdd2D(CoAdd2D):
