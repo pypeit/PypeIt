@@ -463,8 +463,6 @@ class CoAdd2D:
         maskdef_slitcen = imaskdef_slitcen if None not in imaskdef_id else None
         maskdef_designtab = imaskdef_designtab if None not in imaskdef_id else None
 
-        #TODO Add a hook here to check and see if that maskdef information is in the coadd2d_dict, and if it is
-        # populate the SlitTraceSet with the transformed maskdef information.
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, det=self.det, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.name, specmin=spec_min1, specmax=spec_max1,
@@ -472,6 +470,12 @@ class CoAdd2D:
                                          maskdef_slitcen=maskdef_slitcen, maskdef_designtab=maskdef_designtab)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
+
+        # change value of spat_id in maskdef_designtab
+        # needs to be done here because spat_id is computed in slittrace
+        if imaskdef_designtab is not None:
+            imaskdef_designtab['SPAT_ID'] = slits_pseudo.spat_id
+
         # assign ech_order if exist
         slits_pseudo.ech_order = self.stack_dict['slits_list'][0].ech_order[self.good_slits] \
             if self.stack_dict['slits_list'][0].ech_order is not None else None
@@ -589,12 +593,19 @@ class CoAdd2D:
             manual_extract_dict=manual_dict)
 
         # maskdef stuff
-        # Select the edges to use
-        slits_left, slits_right, _ = slits.select_edges(flexure=None)
-        platescale = sciImage.detector.platescale * self.spat_samp_fact
-        # Assign slitmask design information to detected objects
-        slits.assign_maskinfo(sobjs_obj, platescale, slits_left, TOLER=1.)
+        if parcopy['reduce']['slitmask']['assign_obj'] is True and slits.maskdef_designtab is not None:
+            # Select the edges to use
+            slits_left, slits_right, _ = slits.select_edges(flexure=None)
+            platescale = sciImage.detector.platescale * self.spat_samp_fact
 
+            # Assign slitmask design information to detected objects
+            slits.assign_maskinfo(sobjs_obj, platescale, slits_left, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+            if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
+                # Set the FWHM for the extraction of missing objects
+                fwhm = slits.get_maskdef_extract_fwhm(sobjs_obj, platescale,
+                                                      parcopy['reduce']['slitmask']['missing_objs_fwhm'])
+                # Assign undetected objects
+                sobjs_obj = slits.mask_add_missing_obj(sobjs_obj, fwhm, slits_left, slits_right)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -935,11 +946,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
         #  4) offsets == 'maskdef_offsets', weights = None (uniform weighting) or weights is not None (input weights)
 
 
-        # maskdef info
-        # self.maskdef_id = np.array([slits.maskdef_id for slits in self.stack_dict['slits_list']])
+        # maskdef offset
         self.maskdef_offset = np.array([slits.maskdef_offset for slits in self.stack_dict['slits_list']])
-        # self.maskdef_objpos = np.array([slits.maskdef_objpos for slits in self.stack_dict['slits_list']])
-        # self.maskdef_slitcen = np.array([slits.maskdef_slitcen for slits in self.stack_dict['slits_list']])
 
         # Default wave_method for Multislit is linear
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
@@ -1154,12 +1162,18 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         """
         # maskdef info
-        if (self.stack_dict['slits_list'][0].maskdef_id is not None) and \
+        if (self.par['calibrations']['slitedges']['use_maskdesign'] is True) and \
+                (self.stack_dict['slits_list'][0].maskdef_id is not None) and \
                 (self.stack_dict['slits_list'][0].maskdef_objpos is not None) and \
                 (self.stack_dict['maskdef_designtab_list'][0] is not None):
             # maskdef_designtab info for only this slit
             this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
             this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
+            # remove columns that that are irrelevant in the coadd2d frames
+            this_maskdef_designtab.remove_columns(['TRACEID', 'TRACESROW', 'TRACELPIX', 'TRACERPIX',
+                                                   'SLITLMASKDEF', 'SLITRMASKDEF'])
+            this_maskdef_designtab.meta['MASKRMSL'] = 0.
+            this_maskdef_designtab.meta['MASKRMSR'] = 0.
 
             # maskdef_id for this slit
             imaskdef_id = self.stack_dict['slits_list'][0].maskdef_id[slit_idx]

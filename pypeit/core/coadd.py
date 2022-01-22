@@ -2918,7 +2918,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     if (maskdef_dict['maskdef_objpos'] is not None) and (maskdef_dict['maskdef_slitcen']):
         new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
         slitcen_pixpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
-        # maskdef_slitcen is supposed to be trace the center of the slit at each wavelength
+        # maskdef_slitcen is the trace the old slit center at each wavelength
         new_maskdef_slitcen = np.full(nspec_coadd, slitcen_pixpos)
 
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,

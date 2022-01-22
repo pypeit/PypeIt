@@ -86,9 +86,11 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # the PypeIt run that extracted the objects?  Why are we not
             # just passing the pypeit file?
             # JFH: The reason is that the coadd2dfile may want different reduction parameters
-            spectrograph_def_par = spectrograph.default_pypeit_par()
-            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                                    merge_with=config_lines)
+            # DP: I think config_specific_par() is more appropriate here. default_pypeit_par()
+            # is included in config_specific_par()
+            spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=config_lines)
+
         elif args.obj is not None:
             # TODO: We should probably be reading the pypeit file and using
             # those parameters here rather than using the default parset.
@@ -98,15 +100,10 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             head0 = fits.getheader(spec2d_files[0])
             spectrograph_name = head0['PYP_SPEC']
             spectrograph = load_spectrograph(spectrograph_name)
-            parset = spectrograph.default_pypeit_par()
+            spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
+            parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
         else:
-            msgs.error('You must provide either a coadd2d file (--file) or an object name (--obj)')
-
-        # Update with configuration specific parameters (which requires science
-        # file) and initialize spectrograph
-        spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
-        parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
-                                              merge_with=parset.to_config())
+            return msgs.error('You must provide either a coadd2d file (--file) or an object name (--obj)')
 
         # If detector was passed as an argument override whatever was in the coadd2d_file
         if args.det is not None:
@@ -139,7 +136,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Write the par to disk
         par_outfile = basename+'_coadd2d.par'
         print("Writing the parameters to {}".format(par_outfile))
-        parset.to_config(par_outfile)
+        parset.to_config(par_outfile, exclude_defaults=True, include_descr=False)
 
         # Now run the coadds
 
