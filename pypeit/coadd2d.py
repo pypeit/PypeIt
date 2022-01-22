@@ -129,14 +129,13 @@ class CoAdd2D:
         #  1) offsets is None -- auto compute offsets from brightest object, so then default to auto_weights=True
         #  2) offsets not None, weights = None (uniform weighting) or weights is not None (input weights)
         #  3) offsets not None, auto_weights=True (Do not support)
-        if offsets is not None and 'auto' in weights:
-            msgs.error("Automatic weights cannot be computed for input offsets. "
-                       "Set weights='uniform' or input an array of weights with shape (nexp,)")
+        # if offsets is not None and 'auto' in weights:
+        #     msgs.error("Automatic weights cannot be computed for input offsets. "
+        #                "Set weights='uniform' or input an array of weights with shape (nexp,)")
         self.spec2d = spec2d
         self.spectrograph = spectrograph
         self.par = par
         self.det = det
-        self.offsets = offsets
         self.weights = weights
         self.spec_samp_fact = spec_samp_fact
         self.spat_samp_fact = spat_samp_fact
@@ -146,6 +145,7 @@ class CoAdd2D:
         self.show_peaks = show_peaks
         self.debug_offsets = debug_offsets
         self.debug = debug
+        self.offsets = None
         self.stack_dict = None
         self.pseudo_dict = None
 
@@ -305,10 +305,6 @@ class CoAdd2D:
                                            const_weights=const_weights)
         return rms_sn, weights.T
 
-    def get_maskdef_dict(self, slit_idx, ref_trace_stack):
-
-        return dict(maskdef_id=None, maskdef_objpos=None, maskdef_designtab=None)
-
     def coadd(self, only_slits=None, interp_dspat=True):
         """
         Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -339,7 +335,6 @@ class CoAdd2D:
 
         coadd_list = []
         for slit_idx in self.good_slits:
-            slitord_id = self.stack_dict['slits_list'][0].slitord_id[slit_idx]
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(slit_idx, self.nslits_single - 1))
             ref_trace_stack = self.reference_trace_stack(slit_idx, offsets=self.offsets,
                                                          objid=self.objid_bri)
@@ -347,12 +342,10 @@ class CoAdd2D:
 
             # maskdef info
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
-            # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
-            # (nslit, nexp) array?
-            # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
-            # would need to copy this method twice in the subclasses
-            if 'auto_echelle' in self.use_weights:
-                rms_sn, weights = self.optimal_weights(slitord_id, self.objid_bri)
+
+            # weights
+            if self.pypeline == 'Echelle':
+                weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
             # Perform the 2d coadd
@@ -600,6 +593,7 @@ class CoAdd2D:
 
             # Assign slitmask design information to detected objects
             slits.assign_maskinfo(sobjs_obj, platescale, slits_left, TOLER=parcopy['reduce']['slitmask']['obj_toler'])
+
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects
                 fwhm = slits.get_maskdef_extract_fwhm(sobjs_obj, platescale,
@@ -671,6 +665,28 @@ class CoAdd2D:
 
         msg_string += msgs.newline() + '-------------------------------------'
         msgs.info(msg_string)
+
+    def offsets_report(self, offsets, offsets_method):
+        """
+        Print out a report on the offsets
+
+        Args:
+            offsets:
+            offsets_method:
+
+        Returns:
+
+        """
+
+        if (offsets_method is not None) and (offsets is not None):
+            msg_string = msgs.newline() + '---------------------------------------------'
+            msg_string += msgs.newline() + ' Summary of offsets from {}     '.format(offsets_method)
+            msg_string += msgs.newline() + '---------------------------------------------'
+            msg_string += msgs.newline() + '           exp#      offset                  '
+            for iexp, off in enumerate(offsets):
+                msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
+            msg_string += msgs.newline() + '-----------------------------------------------'
+            msgs.info(msg_string)
 
     # DP: replaced by good_slitindx
     # def get_good_slits(self, only_slits):
@@ -854,30 +870,35 @@ class CoAdd2D:
                     pypeline=self.spectrograph.pypeline,
                     maskdef_designtab_list=maskdef_designtab_list)
 
-
-    def parse_weights(self, weights):
+    def parse_input(self, input, type='weights'):
         """
-        Dummy method to parse weights. Overloaded by child methods
+        Check that the number of input values (weights or offsets) is the same as the number of exposures
+        Args:
+            input (:obj:`list` or `numpy.ndarray`_): User input values (e.g., weights or offsets)
+            type (:obj:`str`): String defining what the quantities are
 
+        Returns:
+            :obj:`list` or `numpy.ndarray`_: User input values
+        """
+        if isinstance(input, (list, np.ndarray)):
+            if len(input) != self.nexp:
+                msgs.error(f'If {type} are input it must be a list/array with same number of elements as exposures')
+            return np.atleast_1d(input)
+        else:
+            msgs.error(f'Unrecognized format for {type}')
 
-        Parameters
-        ----------
-        weights
+    def compute_offsets_and_weights(self, weights, offsets):
+        """
+         Dummy method to compute offsets and weights. Overloaded by child methods.
 
-        Returns
-        -------
+        Args:
+            weights:
+            offsets:
+
+        Returns:
 
         """
-        pass
 
-    def compute_offsets(self):
-        """
-        Dummy method to compute offsets. Overloaded by child methods.
-
-        Returns
-        -------
-
-        """
         pass
 
     def get_brightest_object(self, specobjs_list, spat_ids):
@@ -908,6 +929,20 @@ class CoAdd2D:
 
         """
         pass
+
+    def get_maskdef_dict(self, slit_idx, ref_trace_stack):
+        """
+        Dummy method to get maskdef info. Overloaded by child methods.
+
+        Args:
+            slit_idx:
+            ref_trace_stack:
+
+        Returns:
+
+        """
+
+        return dict(maskdef_id=None, maskdef_objpos=None, maskdef_designtab=None)
 
 
 # Multislit can coadd with:
@@ -953,125 +988,121 @@ class MultiSlitCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
-        # TODO Streamline compute_offsets and parse_weights to call a single function that returns the offsets and weights
-        # for the various usage cases (i.e. bright star as reference object, box slits as references, maskdef offsets, etc.)
-
-        # TODO Add typing and error checking for offsets
-        if offsets is None:
-            self.objid_bri, self.spatid_bri, self.snr_bar_bri, self.offsets = self.compute_offsets()
-
-        elif offsets == 'maskdef_offsets':
-            if self.maskdef_offset is not None:
-                self.offsets = self.compute_offsets_from_maskdef()
-            else:
-                msgs.error('No maskdef_offsets available.')
-
-        self.use_weights = self.parse_weights(weights)
-
-    def parse_weights(self, weights):
-
-        if 'auto' in weights:
-            rms_sn, use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
-            return use_weights
-        elif 'uniform' in weights:
-            return 'uniform'
-        elif isinstance(weights, (list, np.ndarray)):
-            if len(weights) != self.nexp:
-                msgs.error('If weights are input it must be a list/array with same number of elements as exposures')
-            return weights
-        else:
-            msgs.error('Unrecognized format for weights')
-
-    def compute_offsets_from_maskdef(self):
-
-        msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
-
-        offsets = self.maskdef_offset[0] - self.maskdef_offset
-        # Print out a report on the offsets
-        msg_string = msgs.newline() + '---------------------------------------------'
-        msg_string += msgs.newline() + ' Summary of offsets from maskdef_offset   '
-        msg_string += msgs.newline() + '---------------------------------------------'
-        msg_string += msgs.newline() + '           exp#      offset                  '
-        for iexp, off in enumerate(offsets):
-            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
-        msg_string += msgs.newline() + '-----------------------------------------------'
-        msgs.info(msg_string)
-        return offsets
+        # get offsets and weights
+        self.compute_offsets_and_weights(weights, offsets)
 
     # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
     # and another time to weighted_combine the images in compute2d. This could be sped up
     # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
     # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
     # reference objects into the same frame without first rebinning them onto the same grid.
-    def compute_offsets(self):
+    def compute_offsets_and_weights(self, weights, offsets):
+        """
 
-        objid_bri, slitidx_bri, spatid_bri, snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'],
-                                                                    self.spat_ids)
-        msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(spatid_bri,np.mean(snr_bar_bri)))
-        thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - spatid_bri) <= self.par['coadd2d']['spat_toler']
-        trace_stack_bri = np.zeros((self.nspec, self.nexp))
-        # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
-        for iexp in range(self.nexp):
-            trace_stack_bri[:,iexp] = self.stack_dict['slits_list'][iexp].center[:,slitidx_bri]
-#            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
-#                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
-        # Determine the wavelength grid that we will use for the current slit/order
+        Args:
+            weights (:obj:`list` or :obj:`str`): Value that guides the determination of the weights.
+            It could be a list of weights or a string. If 'auto' the weight will be computed using
+            the brightest trace, if 'uniform' uniform weights will be used.
+            offsets (:obj:`list` or :obj:`str`): Value that guides the determination of the offsets.
+            It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
+            offsets computed during the slitmask design matching will be used.
 
-        ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
-        ## compute offsets at full resolution??
-        wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
-        dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
+        """
 
-        sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
-        var_list = []
+        self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
+            self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
 
-        msgs.info('Rebinning Images')
-        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
-            wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
-            (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
-        thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
-        nspec_pseudo, nspat_pseudo = thismask.shape
-        slit_left = np.full(nspec_pseudo, 0.0)
-        slit_righ = np.full(nspec_pseudo, nspat_pseudo)
-        inmask = norm_rebin_stack > 0
-        traces_rect = np.zeros((nspec_pseudo, self.nexp))
-        sobjs = specobjs.SpecObjs()
-        #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
-        #                'pypeline': 'MultiSLit' + '_coadd_2d'}
-        for iexp in range(self.nexp):
-            sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
-                                           inmask=inmask[iexp,:,:], has_negative=self.find_negative,
-                                           fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                           trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-                                           npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
-                                           maxdev=self.par['reduce']['findobj']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
-                                           find_min_max=self.par['reduce']['findobj']['find_min_max'],
-                                           show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
-            sobjs.add_sobj(sobjs_exp)
-            traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
-        # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
-        med_traces_rect = np.median(traces_rect,axis=0)
-        offsets = med_traces_rect[0] - med_traces_rect
-        # Print out a report on the offsets
-        msg_string = msgs.newline()  + '---------------------------------------------'
-        msg_string += msgs.newline() + ' Summary of offsets for highest S/N object   '
-        msg_string += msgs.newline() + '         found on slitid = {:d}              '.format(spatid_bri)
-        msg_string += msgs.newline() + '---------------------------------------------'
-        msg_string += msgs.newline() + '           exp#      offset                  '
-        for iexp, off in enumerate(offsets):
-            msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
+        if (self.objid_bri is None) and (offsets is None):
+            msgs.error('Offsets cannot be computed because no unique reference object '
+                              'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
-        msg_string += msgs.newline() + '-----------------------------------------------'
-        msgs.info(msg_string)
-        if self.debug_offsets:
+        # Weights
+        if ((self.objid_bri is None) and (weights in ['auto, uniform'])) or \
+                ((self.objid_bri is not None) and (weights == 'uniform')):
+            self.use_weights = 'uniform'
+            if weights == 'auto':
+                msgs.warn('Weights cannot be computed because no unique reference object '
+                          'with the highest S/N was found. Using uniform weights')
+            if weights == 'uniform':
+                msgs.info('Using uniform weights')
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
+            msgs.info('Computing weights using a unique reference object with the highest S/N')
+        else:
+            self.use_weights = self.parse_input(weights, type='weights')
+            msgs.info('Using user input weights')
+
+        # offsets
+        offsets_method = None
+        if offsets == 'maskdef_offsets':
+            if self.maskdef_offset is not None:
+                msgs.info('Determining offsets using maskdef_offset recoded in SlitTraceSet')
+                self.offsets = self.maskdef_offset[0] - self.maskdef_offset
+                offsets_method = 'maskdef_offset'
+            else:
+                msgs.error('No maskdef_offset recoded in SlitTraceSet')
+        elif offsets is not None:
+            msgs.info('Using user input offsets')
+            self.offsets = self.parse_input(offsets, type='offsets')
+            offsets_method = 'user input'
+        else:
+            offsets_method = 'highest S/N object found on slitid = {:d}'.format(self.spatid_bri)
+            msgs.info('Determining offsets using brightest object on slit: {:d} with avg SNR={:5.2f}'.format(self.spatid_bri,np.mean(self.snr_bar_bri)))
+            thismask_stack = np.abs(self.stack_dict['slitmask_stack'] - self.spatid_bri) <= self.par['coadd2d']['spat_toler']
+            trace_stack_bri = np.zeros((self.nspec, self.nexp))
+            # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
             for iexp in range(self.nexp):
-                plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')
-                plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
-                plt.legend()
-            plt.show()
+                trace_stack_bri[:,iexp] = self.stack_dict['slits_list'][iexp].center[:,self.slitidx_bri]
+    #            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
+    #                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
+            # Determine the wavelength grid that we will use for the current slit/order
 
-        return objid_bri, spatid_bri, snr_bar_bri, offsets
+            ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
+            ## compute offsets at full resolution??
+            wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
+            dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
+
+            sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
+            var_list = []
+
+            msgs.info('Rebinning Images')
+            sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
+                wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
+                (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
+            thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
+            nspec_pseudo, nspat_pseudo = thismask.shape
+            slit_left = np.full(nspec_pseudo, 0.0)
+            slit_righ = np.full(nspec_pseudo, nspat_pseudo)
+            inmask = norm_rebin_stack > 0
+            traces_rect = np.zeros((nspec_pseudo, self.nexp))
+            sobjs = specobjs.SpecObjs()
+            #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
+            #                'pypeline': 'MultiSLit' + '_coadd_2d'}
+            for iexp in range(self.nexp):
+                sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
+                                               inmask=inmask[iexp,:,:], has_negative=self.find_negative,
+                                               fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                                               npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
+                                               maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                               ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
+                                               find_min_max=self.par['reduce']['findobj']['find_min_max'],
+                                               show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
+                sobjs.add_sobj(sobjs_exp)
+                traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
+            # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
+            med_traces_rect = np.median(traces_rect,axis=0)
+            offsets = med_traces_rect[0] - med_traces_rect
+            if self.debug_offsets:
+                for iexp in range(self.nexp):
+                    plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')
+                    plt.plot(traces_rect[:, iexp] + offsets[iexp], label='shifted traces')
+                    plt.legend()
+                plt.show()
+
+            self.offsets = offsets
+
+        self.offsets_report(self.offsets, offsets_method)
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
 
@@ -1128,11 +1159,12 @@ class MultiSlitCoAdd2D(CoAdd2D):
         snr_bar = slit_snr_max[slitid, :]
         objid = objid_max[slitid, :]
         if (snr_bar_mean == -np.inf):
-            msgs.error('You do not appear to have a unique reference object that was traced as the highest S/N '
+            msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
                        'ratio on the same slit of every exposure')
-
-        self.snr_report(snr_bar, slitid=spat_ids[slitid])
-        return objid, slitid, spat_ids[slitid], snr_bar
+            return None, None, None, None
+        else:
+            self.snr_report(snr_bar, slitid=spat_ids[slitid])
+            return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
     # single slit???
@@ -1155,10 +1187,15 @@ class MultiSlitCoAdd2D(CoAdd2D):
         """
 
         Args:
-            slit_idx:
-            ref_trace_stack:
+            slit_idx (:obj:`int`): index of a slit in the uncoadded frames
+            ref_trace_stack(`numpy.ndarray`_): Stack of reference traces about
+             which the images are rectified and coadded.  It is the slitcen appropriately
+            shifted according the frames offsets. Shape is (nspec, nimgs).
 
         Returns:
+            :obj:`dict`: Dictionary containing all the maskdef info. The quantities saved
+            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
+            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
         """
         # maskdef info
@@ -1238,29 +1275,64 @@ class EchelleCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
-        self.objid_bri = None
-        self.slitid_bri  = None
-        self.snr_bar_bri = None
-        if offsets is None:
-            self.objid_bri, self.slitid_bri, self.snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
+        # get offsets and weights
+        self.compute_offsets_and_weights(weights, offsets)
+
+    def compute_offsets_and_weights(self, weights, offsets):
+        """
+
+        Args:
+            weights (:obj:`list` or :obj:`str`): Value that guides the determination of the weights.
+            It could be a list of weights or a string. If 'auto' the weight will be computed using
+            the brightest trace, if 'uniform' uniform weights will be used.
+            offsets (:obj:`list` or :obj:`str`): Value that guides the determination of the offsets.
+            It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
+            offsets computed during the slitmask design matching will be used.
+
+        """
+
+        self.objid_bri, self.slitid_bri, self.snr_bar_bri = \
+            self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
+
+        if (self.objid_bri is None) and (offsets is None):
+            msgs.error('Offsets cannot be computed because no unique reference object '
+                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
+
+        # Weights
+        if ((self.objid_bri is None) and (weights in ['auto, uniform'])) or \
+                ((self.objid_bri is not None) and (weights == 'uniform')):
+            self.use_weights = 'uniform'
+            if weights == 'auto':
+                msgs.warn('Weights cannot be computed because no unique reference object '
+                          'with the highest S/N was found. Using uniform weights')
+            if weights == 'uniform':
+                msgs.info('Using uniform weights')
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            # computing a list of weights for all the slitord_ids that we than parse in coadd
+            slitord_ids = self.stack_dict['slits_list'][0].slitord_id
+            self.use_weights = np.array([])
+            for id in slitord_ids:
+                _, iweights = self.optimal_weights(id, self.objid_bri)
+                self.use_weights = np.append(self.use_weights, iweights)
+            msgs.info('Computing weights using a unique reference object with the highest S/N')
         else:
-            # TODO -- Check the input offsets list matches the science images
-            pass
+            self.use_weights = self.parse_input(weights, type='weights')
+            msgs.info('Using user input weights')
 
-        self.use_weights = self.parse_weights(weights)
-
-    def parse_weights(self, weights):
-
-        if 'auto' in weights:
-            return 'auto_echelle'
-        elif 'uniform' in weights:
-            return 'uniform'
-        elif isinstance(weights, (list, np.ndarray)):
-            if len(weights) != self.nexp:
-                msgs.error('If weights are input it must be a list/array with same number of elements as exposures')
-            return weights
+        # offsets
+        offsets_method = None
+        if offsets is not None:
+            msgs.info('Using user input offsets')
+            self.offsets = self.parse_input(offsets, type='offsets')
+            # if the user input the offsets, objid_bri cannot be used to compute the reference stack,
+            # so it needs to be None
+            self.objid_bri = None
+            offsets_method = 'user input'
         else:
-            msgs.error('Unrecognized format for weights')
+            msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
+            self.offsets = None
+
+        self.offsets_report(self.offsets, offsets_method)
 
     def get_brightest_obj(self, specobjs_list, nslits):
         """
@@ -1302,10 +1374,13 @@ class EchelleCoAdd2D(CoAdd2D):
             snr_bar_vec = np.mean(order_snr, axis=0)
             objid[iexp] = uni_objid[snr_bar_vec.argmax()]
             snr_bar[iexp] = snr_bar_vec[snr_bar_vec.argmax()]
-
-        self.snr_report(snr_bar)
-
-        return objid, None, snr_bar
+        if 0 in snr_bar:
+            msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
+                      'ratio for every exposure')
+            return None, None, None
+        else:
+            self.snr_report(snr_bar)
+            return objid, None, snr_bar
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
         """

@@ -2807,6 +2807,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         wave_grid (`numpy.ndarray`_, optional):
             Same as `loglam_grid` but in angstroms instead of
             log(angstroms). (TODO: Check units...)
+        maskdef_dict (:obj:`dict`:) Dictionary containing all the maskdef info. The quantities saved
+            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
+            they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
     Returns:
         tuple: Returns the following (TODO: This needs to be updated):

@@ -606,7 +606,6 @@ class PypeIt:
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                self.par['reduce']['findobj']['find_fwhm'],
                 self.par['reduce']['slitmask'])
 
         # Extract
@@ -916,7 +915,7 @@ class PypeIt:
         spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
         spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
 
-        # extract maskdef_designtab from caliBrate.slits
+        # pull out maskdef_designtab from caliBrate.slits
         maskdef_designtab = self.caliBrate.slits.maskdef_designtab
         slits = copy.deepcopy(self.caliBrate.slits)
         slits.maskdef_designtab = None

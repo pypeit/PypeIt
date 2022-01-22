@@ -243,7 +243,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             all_specobjs.add_sobj(sci_dict[det]['specobjs'])
 
             # fill the spec2dobj container but first ...
-            # extract maskdef_designtab from sci_dict[det]['slits']
+            # pull out maskdef_designtab from sci_dict[det]['slits']
             maskdef_designtab = sci_dict[det]['slits'].maskdef_designtab
             slits = copy.deepcopy(sci_dict[det]['slits'])
             slits.maskdef_designtab = None
