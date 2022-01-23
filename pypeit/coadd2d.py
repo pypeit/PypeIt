@@ -408,10 +408,17 @@ class CoAdd2D:
         spec_max1 = np.zeros(self.nslits_coadded)
 
         # maskdef info
-        imaskdef_id = np.zeros(self.nslits_coadded, dtype=int)
-        imaskdef_objpos = np.zeros(self.nslits_coadded)
-        imaskdef_slitcen = np.zeros((nspec_pseudo, self.nslits_coadded))
-        imaskdef_designtab = Table()
+        all_maskdef_ids = np.array([cc['maskdef_id'] for cc in coadd_list])
+        if None not in all_maskdef_ids:
+            maskdef_id = np.zeros(self.nslits_coadded, dtype=int)
+            maskdef_objpos = np.zeros(self.nslits_coadded)
+            maskdef_slitcen = np.zeros((nspec_pseudo, self.nslits_coadded))
+            maskdef_designtab = Table()
+        else:
+            maskdef_id = None
+            maskdef_objpos = None
+            maskdef_slitcen = None
+            maskdef_designtab = None
 
         nspec_grid = self.wave_grid_mid.size
         for islit, coadd_dict in enumerate(coadd_list):
@@ -445,16 +452,12 @@ class CoAdd2D:
             spat_left = spat_righ + nspat_pad
 
             # maskdef info
-            imaskdef_id[islit] = coadd_dict['maskdef_id']
-            imaskdef_objpos[islit] = coadd_dict['maskdef_objpos']
-            imaskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
-            if coadd_dict['maskdef_designtab'] is not None:
-                imaskdef_designtab = vstack([imaskdef_designtab, coadd_dict['maskdef_designtab']])
-
-        maskdef_id = imaskdef_id if None not in imaskdef_id else None
-        maskdef_objpos = imaskdef_objpos if None not in imaskdef_id else None
-        maskdef_slitcen = imaskdef_slitcen if None not in imaskdef_id else None
-        maskdef_designtab = imaskdef_designtab if None not in imaskdef_id else None
+            if None not in all_maskdef_ids:
+                maskdef_id[islit] = coadd_dict['maskdef_id']
+                maskdef_objpos[islit] = coadd_dict['maskdef_objpos']
+                maskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
+                if coadd_dict['maskdef_designtab'] is not None:
+                    maskdef_designtab = vstack([maskdef_designtab, coadd_dict['maskdef_designtab']])
 
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, det=self.det, nspat=nspat_pseudo,
@@ -466,8 +469,8 @@ class CoAdd2D:
 
         # change value of spat_id in maskdef_designtab
         # needs to be done here because spat_id is computed in slittrace
-        if imaskdef_designtab is not None:
-            imaskdef_designtab['SPAT_ID'] = slits_pseudo.spat_id
+        if maskdef_designtab is not None:
+            slits_pseudo.maskdef_designtab['SPAT_ID'] = slits_pseudo.spat_id
 
         # assign ech_order if exist
         slits_pseudo.ech_order = self.stack_dict['slits_list'][0].ech_order[self.good_slits] \
@@ -1310,10 +1313,11 @@ class EchelleCoAdd2D(CoAdd2D):
         elif (self.objid_bri is not None) and (weights == 'auto'):
             # computing a list of weights for all the slitord_ids that we than parse in coadd
             slitord_ids = self.stack_dict['slits_list'][0].slitord_id
-            self.use_weights = np.array([])
+            use_weights = []
             for id in slitord_ids:
                 _, iweights = self.optimal_weights(id, self.objid_bri)
-                self.use_weights = np.append(self.use_weights, iweights)
+                use_weights.append(iweights)
+            self.use_weights = np.array(use_weights)
             msgs.info('Computing weights using a unique reference object with the highest S/N')
         else:
             self.use_weights = self.parse_input(weights, type='weights')
