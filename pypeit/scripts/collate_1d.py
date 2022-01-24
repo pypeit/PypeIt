@@ -366,8 +366,8 @@ def create_report_archive(par):
     COADDED_SPEC1D_HEADER_KEYS  = ['DISPNAME', 'DECKER',   'BINNING', 'MJD', 'AIRMASS', 'EXPTIME','GUIDFWHM', 'PROGPI', 'SEMESTER', 'PROGID']
     COADDED_SPEC1D_COLUMN_NAMES = ['dispname', 'slmsknam', 'binning', 'mjd', 'airmass', 'exptime','guidfwhm', 'progpi', 'semester', 'progid']
 
-    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'DET', 'RA',    'DEC',    'med_s2n', 'WAVE_RMS']
-    COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'det', 'objra', 'objdec', 'med_s2n', 'wave_rms']
+    COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'med_s2n', 'MASKDEF_EXTRACT', 'WAVE_RMS']
+    COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 's2n',     'maskdef_extract', 'wave_rms']
 
 
     report_names = ['filename'] + \
@@ -449,7 +449,12 @@ class Collate1D(scriptbase.ScriptBase):
         if args.par_outfile is None:
             args.par_outfile = os.path.join(outdir, 'collate1d.par')
         print("Writing the parameters to {}".format(args.par_outfile))
-        par.to_config(args.par_outfile)
+        # Gather up config lines for the sections relevant to collate_1d
+        config_lines = par['collate1d'].to_config(section_name='collate1d') + ['']
+        config_lines += par['coadd1d'].to_config(section_name='coadd1d')
+        with open(args.par_outfile, "a") as f:
+            for line in config_lines:
+                print (line, file=f)
 
         # Parse the tolerance based on the match type
         if par['collate1d']['match_using'] == 'pixel':

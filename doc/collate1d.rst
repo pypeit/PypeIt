@@ -106,13 +106,6 @@ followed by a list of spec1d files. An example configuration file is shown below
     # Where to place coadded files and report files. Defaults to
     # current directory.
     #outdir = /work/output
-
-    # Where to look for .pypeit files when building an archive.
-    # This only takes effect when archive_root is specified. If
-    # not given the archiving code will look in the parent directory
-    # of each spec1d.
-    #pypeit_file = /work/pypeit_files
-
     
     # A list of the spec1d files. Wildcards are allowed.
     spec1d read
@@ -154,9 +147,9 @@ file: one row per extracted spectra that was coadded to create the file. Below i
 | objdec          | The DEC of the source object, determined from the mask    |
 |                 | definition.                                               |
 +-----------------+-----------------------------------------------------------+
-| med_s2n         | The signal to noise ratio of the extracted object.        |
+| s2n             | The signal to noise ratio of the extracted object.        |
 +-----------------+-----------------------------------------------------------+
-| wave_rms         | The RMS in pixels of the wavelength solution.            |
+| wave_rms        | The RMS in pixels of the wavelength solution.             |
 +-----------------+-----------------------------------------------------------+
 | spec1d_filename | The name of the spec1d file containing the spectrum.      |
 +-----------------+-----------------------------------------------------------+
