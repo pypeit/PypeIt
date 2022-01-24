@@ -921,7 +921,7 @@ class Coadd1DPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
-                 sn_smooth_npix=None, wave_method=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sn_smooth_npix=None, wave_method=None, dv=None, wave_grid_min=None, wave_grid_max=None, spec_samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
                  mag_type=None, filter=None, filter_mag=None, filter_mask=None):
@@ -975,6 +975,19 @@ class Coadd1DPar(ParSet):
                                "'log10' -- Grid is uniform in log10(wave).This is the same as velocity." \
                                "'linear' -- Grid is uniform in lamba." \
                                "'concatenate' -- Meld the input wavelength arrays"
+
+        defaults['dv'] = None
+        dtypes['dv'] = [int, float]
+        descr['dv'] = "Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option)," \
+                    "otherwise a median value is computed from the data."
+
+        defaults['wave_grid_min'] = None
+        dtypes['wave_grid_min'] = [int, float]
+        descr['wave_grid_min'] = "Used in case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data"
+
+        defaults['wave_grid_max'] = None
+        dtypes['wave_grid_max'] = [int, float]
+        descr['wave_grid_max'] = "Used in case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data"
 
         defaults['spec_samp_fact'] = 1.0
         dtypes['spec_samp_fact'] = float
@@ -1088,7 +1101,7 @@ class Coadd1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method',
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method', 'dv', 'wave_grid_min', 'wave_grid_max',
                    'spec_samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
@@ -1124,7 +1137,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None,
+    def __init__(self, offsets=None, spat_toler=None, weights=None, use_slits4wvgrid=None,
                  manual=None):
 
         # Grab the parameter names and values from the function
@@ -1140,8 +1153,15 @@ class Coadd2DPar(ParSet):
 
         # Offsets
         defaults['offsets'] = None
-        dtypes['offsets'] = list
-        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels).'
+        dtypes['offsets'] = [list, str]
+        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels). ' \
+                           'Use ``maskdef_offsets`` to use the offsets computed during the slitmask ' \
+                           'design matching (currently available for DEIMOS and MOSFIRE only).'
+
+        defaults['spat_toler'] = 5
+        dtypes['spat_toler'] = int
+        descr['spat_toler'] = 'This parameter provides the desired tolerance in spatial pixel used ' \
+                              'to identify slits in different exposures'
 
         # Offsets
         defaults['use_slits4wvgrid'] = False
@@ -1170,7 +1190,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['offsets', 'weights', 'use_slits4wvgrid', 'manual']
+        parkeys = ['offsets', 'spat_toler', 'weights', 'use_slits4wvgrid', 'manual']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
