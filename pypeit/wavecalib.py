@@ -50,10 +50,11 @@ class WaveCalib(datamodel.DataContainer):
                                 descr='Total number of slits.  This can include masked slits'),
                  'spat_ids': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_ids. Named distinctly from that in WaveFit '),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
-                 'strpar': dict(otype=str, descr='Parameters as a string')}
+                 'strpar': dict(otype=str, descr='Parameters as a string'),
+                 'lamps': dict(otype=str, descr='List of arc lamps used for the wavelength calibration')}
 
     def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
-                 strpar=None, wv_fit2d=None, arc_spectra=None):
+                 strpar=None, wv_fit2d=None, arc_spectra=None, lamps=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -287,15 +288,15 @@ class BuildWaveCalib:
     Class to guide wavelength calibration
 
     Args:
-        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage`):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
             Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
+        par (:class:`pypeit.par.pypeitpar.WaveSolutionPar`):
             The parameters used for the wavelength solution
             Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
@@ -327,20 +328,29 @@ class BuildWaveCalib:
 
     frametype = 'wv_calib'
 
-    def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
+    def __init__(self, msarc, slits, spectrograph, par, lamps, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
-        # Required parameters (but can be None)
+        # TODO: This should be a stop-gap to avoid instantiation of this with
+        # any Nones.
+        if None in [msarc, slits, spectrograph, par, lamps]:
+            msgs.error('CODING ERROR: Cannot instantiate BuildWaveCalib with Nones.')
+
+        # Required parameters
         self.msarc = msarc
         self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
+        self.lamps = lamps
 
         # Optional parameters
-        self.bpm = msbpm
-        if self.bpm is None and msarc is not None:
-            # msarc can be None for load;  will remove this for DataContainer
-            self.bpm = msarc.bpm
+        self.bpm = self.msarc.select_flag(flag='BPM') if msbpm is None else msbpm.astype(bool)
+        if self.bpm.shape != self.msarc.shape:
+            msgs.error('Bad-pixel mask is not the same shape as the arc image.')
+#        self.bpm = msbpm
+#        if self.bpm is None and msarc is not None:
+#            # msarc can be None for load;  will remove this for DataContainer
+#            self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -352,8 +362,14 @@ class BuildWaveCalib:
         self.arccen = None  # central arc spectrum
 
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.msarc.detector)
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+#            else self.spectrograph.nonlinear_counts(self.msarc.detector)
             #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
@@ -431,8 +447,7 @@ class BuildWaveCalib:
 
         # Obtain calibration for all slits
         if method == 'simple':
-            lines = self.par['lamps']
-            line_lists = waveio.load_line_lists(lines)
+            line_lists = waveio.load_line_lists(self.lamps)
 
             final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
                                                     n_final=self.par['n_final'],
@@ -441,7 +456,7 @@ class BuildWaveCalib:
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, 
+            arcfitter = autoid.HolyGrail(arccen, self.lamps, par=self.par, ok_mask=ok_mask_idx,
                                          nonlinear_counts=self.nonlinear_counts,
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
@@ -451,7 +466,7 @@ class BuildWaveCalib:
             msgs.info("Initializing the wavelength calibration tool")
             embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
-                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
+                arcfitter = Identify.initialise(arccen, self.lamps, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
                 arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
                                          specname=self.spectrograph.name,
@@ -459,7 +474,7 @@ class BuildWaveCalib:
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask_idx,
+            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.lamps, self.par, ok_mask=ok_mask_idx,
                                            #slit_spat_pos=self.spat_coo,
                                            orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
@@ -470,10 +485,11 @@ class BuildWaveCalib:
                 msgs.error("You must specify binspectral for the full_template method!")
             if self.slits.maskdef_designtab is not None:
                 msgs.info("Slit widths (arcsec): {}".format(np.round(self.slits.maskdef_designtab['SLITWID'].data,2)))
-            final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
+            final_fit = autoid.full_template(arccen, self.lamps, self.par, ok_mask_idx, self.det,
                                              self.binspectral,
                                              nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
+                                             #debug=True, debug_reid=True, debug_xcorr=True)
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
@@ -493,7 +509,7 @@ class BuildWaveCalib:
                                   nslits=self.slits.nslits,
                                   spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.name,
-                                  )
+                                  lamps=','.join(self.lamps))
 
         # Update mask
         self.update_wvmask()

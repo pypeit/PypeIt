@@ -25,44 +25,69 @@ from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
 from pypeit.core import fitting
+from pypeit.core import procimg
+from pypeit.core import qa
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
 
-def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
-                    min_frac_use = 0.05):
+def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_radius,
+                    spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
-    """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
+    """
+    Calculate the spatial FWHM from an object profile. Utility routine for
+    fit_profile
 
-    Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
-    with the extraction parameters.
+    The specobj object is changed in place with the boxcar and optimal
+    dictionaries being filled with the extraction parameters.
 
-    Args:
-        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
-           Science frame
-        ivar (np.ndarray): float ndarray shape (nspec, nspat)
-           inverse variance of science frame. Can be a model or deduced from the image itself.
-        mask (np.ndarray): boolean ndarray
-           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-        waveimg  (np.ndarray):  float ndarray
-            Wavelength image. float 2-d array with shape (nspec, nspat)
-        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing our model of the sky
-        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
-            Image indicating which pixels are on the slit/order in question. True=Good.
-        oprof (np.ndarray): float ndarray shape (nspec, nspat)
-            Image containing the profile of the object that we are extracting
-        box_radius (float):
-            Size of boxcar window in floating point pixels in the spatial direction.
-        spec (:class:`pypeit.specobj.SpecObj`):
-             This is the container that holds object, trace,
-             and extraction information for the object in question. This routine operates one object at a time.
-        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
-               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-               object profile has been masked
-
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself.
+    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False
+    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Wavelength image.
+    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing our model of the sky
+    thismask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Image indicating which pixels are on the slit/order in question.
+        True=Good.
+    oprof : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing the profile of the object that we are extracting.
+    box_radius : :obj:`float`
+        Size of boxcar window in floating point pixels in the spatial direction.
+    spec : :class:`~pypeit.specobj.SpecObj`
+        This is the container that holds object, trace, and extraction
+        information for the object in question. This routine operates one object
+        at a time.  **This object is altered in place!**
+    min_frac_use : :obj:`float`, optional
+        If the sum of object profile across the spatial direction are less than
+        this value, the optimal extraction of this spectral pixel is masked
+        because the majority of the object profile has been masked.
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
+    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        A scale factor, :math:`s`, that *has already been applied* to the
+        provided science image.  For example, if the image has been flat-field
+        corrected, this is the inverse of the flat-field counts.  If None, set
+        to 1.  If a single float, assumed to be constant across the full image.
+        If an array, the shape must match ``base_var``.  The variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
+        of the components needed to construct the model variance; see
+        ``model_noise``.
+    noise_floor : :obj:`float`, optional
+        A fraction of the counts to add to the variance, which has the effect of
+        ensuring that the S/N is never greater than ``1/noise_floor``; see
+        :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
+        added.
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -73,15 +98,16 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spat_vec = np.arange(nspat)
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
-    # TODO: This needs to be corrected for new noise model approach.
-    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+    var_no = None if base_var is None \
+                else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
+                                            noise_floor=noise_floor)
 
     ispec, ispat = np.where(oprof > 0.0)
 
     # Exit gracefully if we have no positive object profiles, since that means something was wrong with object fitting
     if not np.any(oprof > 0.0):
         msgs.warn('Object profile is zero everywhere. This aperture is junk.')
-        return None
+        return
 
     mincol = np.min(ispat)
     maxcol = np.max(ispat) + 1
@@ -91,9 +117,9 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     thismask_sub = thismask[:, mincol:maxcol]
     wave_sub = waveimg[:,mincol:maxcol]
     ivar_sub = np.fmax(ivar[:,mincol:maxcol],0.0) # enforce positivity since these are used as weights
-    vno_sub = np.fmax(var_no[:,mincol:maxcol],0.0)
+    vno_sub = None if var_no is None else np.fmax(var_no[:,mincol:maxcol],0.0)
 
-    rn2_sub = rn2_img[:,mincol:maxcol]
+    base_sub = None if base_var is None else base_var[:,mincol:maxcol]
     img_sub = imgminsky[:,mincol:maxcol]
     sky_sub = skyimg[:,mincol:maxcol]
     oprof_sub = oprof[:,mincol:maxcol]
@@ -113,13 +139,21 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     # are only weighting by the profile (ivar_sub=1) because
     # otherwise the result depends on the signal (bad).
     nivar_num = np.nansum(mask_sub*oprof_sub**2, axis=1) # Uses unit weights
-    nvar_opt = ivar_denom*((mask_sub*vno_sub*oprof_sub**2).sum(axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    nivar_opt = 1.0/(nvar_opt + (nvar_opt == 0.0))
+    if vno_sub is None:
+        nivar_opt = None
+    else:
+        nvar_opt = ivar_denom * np.nansum(mask_sub * vno_sub * oprof_sub**2, axis=1) \
+                            / (nivar_num**2 + (nivar_num**2 == 0.0))
+        nivar_opt = 1.0/(nvar_opt + (nvar_opt == 0.0))
     # Optimally extract sky and (read noise)**2 in a similar way
     sky_opt = ivar_denom*(np.nansum(mask_sub*sky_sub*oprof_sub**2, axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    rn2_opt = ivar_denom*(np.nansum(mask_sub*rn2_sub*oprof_sub**2, axis=1))/(nivar_num**2 + (nivar_num**2 == 0.0))
-    rn_opt = np.sqrt(rn2_opt)
-    rn_opt[np.isnan(rn_opt)]=0.0
+    if base_var is None:
+        base_opt = None
+    else:
+        base_opt = ivar_denom * np.nansum(mask_sub * base_sub * oprof_sub**2, axis=1) \
+                        / (nivar_num**2 + (nivar_num**2 == 0.0))
+        base_opt = np.sqrt(base_opt)
+        base_opt[np.isnan(base_opt)]=0.0
 
     tot_weight = np.nansum(mask_sub*ivar_sub*oprof_sub, axis=1)
     prof_norm = np.nansum(oprof_sub, axis=1)
@@ -162,38 +196,56 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.OPT_COUNTS_NIVAR = nivar_opt  # Optimally extracted noise variance (sky + read noise) only
     spec.OPT_MASK = mask_opt    # Mask for optimally extracted flux
     spec.OPT_COUNTS_SKY = sky_opt      # Optimally extracted sky
-    spec.OPT_COUNTS_RN = rn_opt        # Square root of optimally extracted read noise squared
+    spec.OPT_COUNTS_SIG_DET = base_opt      # Square root of optimally extracted read noise squared
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
-    return
 
-
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_var=None,
+                   count_scale=None, noise_floor=None):
     """
     Perform boxcar extraction for a single SpecObj
 
     SpecObj is filled in place
 
-    Args:
-        sciimg (np.ndarray):
-            Science image
-        ivar (np.ndarray):
-            inverse variance of science frame. Can be a model or deduced from the image itself.
-        mask (np.ndarray):
-            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-        waveimg (np.ndarray):
-            Wavelength image. float 2-d array with shape (nspec, nspat)
-        skyimg (np.ndarray):
-            Image containing our model of the sky
-        rn2_img (np.ndarray):
-            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-        box_radius (float):
-            Size of boxcar window in floating point pixels in the spatial direction.
-        spec (:class:`pypeit.specobj.SpecObj`):
-            This is the container that holds object, trace,
-            and extraction information for the object in question.
-            This routine operates one object at a time.
+    Parameters
+    ----------
+    sciimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Science frame
+    ivar : float `numpy.ndarray`_, shape (nspec, nspat)
+        Inverse variance of science frame. Can be a model or deduced from the
+        image itself.
+    mask : boolean `numpy.ndarray`_, shape (nspec, nspat)
+        Good-pixel mask, indicating which pixels are should or should not be
+        used. Good pixels = True, Bad Pixels = False
+    waveimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Wavelength image.
+    skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
+        Image containing our model of the sky
+    box_radius : :obj:`float`
+        Size of boxcar window in floating point pixels in the spatial direction.
+    spec : :class:`~pypeit.specobj.SpecObj`
+        This is the container that holds object, trace, and extraction
+        information for the object in question. This routine operates one object
+        at a time.  **This object is altered in place!**
+    base_var : `numpy.ndarray`_, shape is (nspec, nspat), optional
+        The "base-level" variance in the data set by the detector properties and
+        the image processing steps.  See
+        :func:`~pypeit.core.procimg.base_variance`.
+    count_scale : :obj:`float`, `numpy.ndarray`_, optional
+        A scale factor, :math:`s`, that *has already been applied* to the
+        provided science image.  For example, if the image has been flat-field
+        corrected, this is the inverse of the flat-field counts.  If None, set
+        to 1.  If a single float, assumed to be constant across the full image.
+        If an array, the shape must match ``base_var``.  The variance will be 0
+        wherever :math:`s \leq 0`, modulo the provided ``adderr``.  This is one
+        of the components needed to construct the model variance; see
+        ``model_noise``.
+    noise_floor : :obj:`float`, optional
+        A fraction of the counts to add to the variance, which has the effect of
+        ensuring that the S/N is never greater than ``1/noise_floor``; see
+        :func:`~pypeit.core.procimg.variance_model`.  If None, no noise floor is
+        added.
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -206,8 +258,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
         spec.trace_spec = spec_vec
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
-    # TODO: This needs to be corrected for new noise model approach.
-    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+    var_no = None if base_var is None \
+                else procimg.variance_model(base_var, counts=skyimg, count_scale=count_scale,
+                                            noise_floor=noise_floor)
 
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
@@ -218,12 +271,16 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
                         row=spec.trace_spec)[0] / (box_denom + (box_denom == 0.0))
     varimg = 1.0/(ivar + (ivar == 0.0))
     var_box = moment1d(varimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    nvar_box = moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+    nvar_box = None if var_no is None \
+                else moment1d(var_no*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     sky_box = moment1d(skyimg*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    rn2_box = moment1d(rn2_img*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
-    rn_posind = (rn2_box > 0.0)
-    rn_box = np.zeros(rn2_box.shape,dtype=float)
-    rn_box[rn_posind] = np.sqrt(rn2_box[rn_posind])
+    if base_var is None:
+        base_box = None
+    else:
+        _base_box = moment1d(base_var*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
+        base_posind = (_base_box > 0.0)
+        base_box = np.zeros(_base_box.shape, dtype=float)
+        base_box[base_posind] = np.sqrt(_base_box[base_posind])
     pixtot = moment1d(ivar*0 + 1.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
@@ -235,17 +292,17 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
         wave_box[bad_box] = f_wave(spec.trace_spec[bad_box], spec.TRACE_SPAT[bad_box], grid=False)
 
     ivar_box = 1.0/(var_box + (var_box == 0.0))
-    nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
+    nivar_box = None if nvar_box is None else 1.0/(nvar_box + (nvar_box == 0.0))
 
     # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
     spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    spec.BOX_COUNTS_NIVAR = None if nivar_box is None else nivar_box*mask_box
     spec.BOX_MASK = mask_box
     spec.BOX_COUNTS_SKY = sky_box
-    spec.BOX_COUNTS_RN = rn_box
+    spec.BOX_COUNTS_SIG_DET = base_box
     spec.BOX_RADIUS = box_radius
     # TODO - Confirm this should be float, not int
     spec.BOX_NPIX = pixtot-pixmsk
@@ -556,7 +613,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        embed()
+        msgs.error("Bad Fitting in extract:fit_profile..")
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -980,58 +1037,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
-def parse_hand_dict(hand_extract_dict):
-    """ Utility routine for objfind to parse the hand_extract_dict dictionary for hand selected apertures
-
-    Parameters
-    ----------
-    hand_extract_dict:   dictionary
-
-    Returns
-    -------
-    hand_spec:  spectral pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_spat:  spatial pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_det:   Detector for hand apertures. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    Notes
-    -----
-    Revision History
-        - 23-June-2018  Written by J. Hennawi
-
-    """
-
-
-    if ('hand_extract_spec' not in hand_extract_dict.keys() | 'hand_extract_spat' not in hand_extract_dict.keys()):
-        msgs.error('hand_extract_spec and hand_extract_spat must be set in the hand_extract_dict')
-
-    hand_extract_spec=np.asarray(hand_extract_dict['hand_extract_spec'])
-    hand_extract_spat=np.asarray(hand_extract_dict['hand_extract_spat'])
-    hand_extract_det = np.asarray(hand_extract_dict['hand_extract_det'])
-    if(hand_extract_spec.size == hand_extract_spat.size == hand_extract_det.size) == False:
-        msgs.error('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
-    nhand = hand_extract_spec.size
-
-    hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
-    # hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
-    # if hand_extract_fwhm is not None:
-    #     hand_extract_fwhm = np.asarray(hand_extract_fwhm)
-    #     if(hand_extract_fwhm.size==hand_extract_spec.size):
-    #         pass
-    #     elif (hand_extract_fwhm.size == 1):
-    #         hand_extract_fwhm = np.full(nhand, hand_extract_fwhm)
-    #     else:
-    #         raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
-    # else:
-    #     hand_extract_fwhm = np.full(nhand, None)
-    return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
-
-
 def create_skymask_fwhm(sobjs, thismask, box_pix=None):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
@@ -1087,7 +1092,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             boxcar_rad_skymask=None, cont_sig_thresh=2.0,
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
-            qa_title='objfind'):
+            qa_title='objfind', objfindQA_filename=None):
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
@@ -1207,8 +1212,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'SLITID': 999, 'det': 1,
-                                'objtype': 'unknown', 'pypeline': 'unknown'}
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+
+        objfindQA_filename: (str, optional), default = None
+            Directory + filename of the object profile QA
 
     Returns:
         tuple: Returns the following:
@@ -1233,7 +1241,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1444,7 +1452,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         nobj_reg = 0
 
     # ToDo Also plot the edge trimming boundaries on the QA here.
-    if show_peaks:
+    if show_peaks or objfindQA_filename is not None:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
         # Define the plotting function
@@ -1462,9 +1470,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
-        plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
-        viewer, ch = display.show_image(image*(thismask*inmask))
-        plt.show()
+        # plt.title(qa_title + ': Slit# {:d}'.format(objfindQA_dict['SLITORD_ID']))
+        plt.title(qa_title)
+        if objfindQA_filename is not None:
+            plt.savefig(objfindQA_filename, dpi=400)
+        if show_peaks:
+            viewer, ch = display.show_image(image*(thismask*inmask))
+            plt.show()
+        plt.close('all')
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1569,7 +1582,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
+            hand_extract_dict[key] for key in ['spec', 'spat', 'det', 'fwhm']]
+
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))
@@ -1752,14 +1767,15 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
-                inmask=None, spec_min_max=None,
-                fof_link=1.5, plate_scale=0.2, has_negative=False,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
-                trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
+                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
+                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0,
+                cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
-                debug_all=False, skymask_by_boxcar=False, boxcar_rad=None):
+                debug_all=False, skymask_by_boxcar=False, boxcar_rad=None, objfindQA_filename=None):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -1866,6 +1882,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             If True, use the boxcar radius in the skymask
         boxcar_rad: float, optional
             Boxcar radius in arcsec
+        objfindQA_filename: (str, optional), default = None
+            Directory + filename of the object profile QA
 
     Returns:
         tuple: Returns the following:
@@ -1941,9 +1959,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
         f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                              hand_extract_dict['hand_extract_spat'],
-                              hand_extract_dict['hand_extract_spec']):
+        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
+                                  hand_extract_dict['spat'],
+                                  hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
             ispat = int(np.clip(np.round(spat),0,nspec-1))
@@ -1961,7 +1979,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up SLITID and orderindx!
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
-        msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
+        qa_title = 'Finding objects on order # {:d}'.format(order_vec[iord])
+        msgs.info(qa_title)
         thisslit_gpm = slitmask == gdslit_spat[iord]
         inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = gdslit_spat[iord]
@@ -1976,18 +1995,22 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # not one at every location on the order            
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                                      hand_extract_dict['hand_extract_spat'],
-                                      hand_extract_dict['hand_extract_spec'], f_spats):
+            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
+                                              hand_extract_dict['spat'],
+                                              hand_extract_dict['spec'], f_spats):
                 ispec = int(spec)
-                new_hand_extract_dict['hand_extract_spec'][ss] = ispec
-                new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
+                new_hand_extract_dict['spec'][ss] = ispec
+                new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
                     slit_righ[ispec,iord]-slit_left[ispec,iord])
         else:
             new_hand_extract_dict = None
 
         # Masking
         boxcar_rad_skymask = boxcar_rad/plate_scale_ord[iord] if skymask_by_boxcar else None
+
+        # Get SLTIORD_ID for the objfind QA
+        ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
+            if objfindQA_filename is not None else None
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
@@ -1998,8 +2021,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
-                    boxcar_rad_skymask=boxcar_rad_skymask,
-                    specobj_dict=specobj_dict )
+                    boxcar_rad_skymask=boxcar_rad_skymask, qa_title=qa_title,
+                    specobj_dict=specobj_dict, objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)

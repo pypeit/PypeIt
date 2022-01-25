@@ -9,7 +9,9 @@ Basic Image Processing
 Here we describe the basic image processing steps performed by ``PypeIt``,
 specifically their order, salient details, and how to toggle specific steps
 using the :ref:`pypeit_file`.  This description is meant to be general to *all*
-spectrographs.  For instrument-specific advice, see :ref:`spec_details`.
+spectrographs.  For instrument-specific advice, see :ref:`spec_details`.  Also
+note that some spectrographs enable processing of detector mosaics instead of
+the individual detectors; see :ref:`mosaic`.
 
 Unless otherwise stated, the relevant parameters governing basic image
 processing are kept by :class:`~pypeit.par.pypeitpar.ProcessImagesPar`; see
@@ -24,38 +26,42 @@ Overview
 
 We provide a very general approach to image processing with hooks to toggle each
 step, as appropriate for different frame types and/or different instruments.
-Generally, we treat pixel values, :math:`p`, in an observed frame as containing
+Generally, we treat pixel values, :math:`p`, in an astronimcal image (in units of ADU) as containing
 the following components:
 
 .. math::
 
-    p = O + B + (C + D\ t_{\rm exp}) / \gamma
+    p = O + B + (C + N_{\rm bin}\ D\ t_{\rm exp}) / g
 
 where:
 
     - :math:`O` is a frame-dependent bias estimate (in ADU) using image overscan
       regions,
-    - :math:`B` is a longer-term pixel-by-pixel bias estimate (in ADU) using
-      bias images,
+    - :math:`B` is a longer-term pixel-by-pixel bias estimate (in ADU after
+      overscan subtraction) using bias images,
     - the quantity :math:`C=c/s` is the number of electron counts excited by
       photons hitting the detector,
     - :math:`1/s` is an efficiency factor (one of many) that accounts for relative
       throughput factors (see below) that can be measured from flat-field frames,
-    - :math:`D` is the rate at which the detector generates thermal electrons (in e-/s),
+    - :math:`D` is the dark-current, i.e., the rate at which the detector
+      generates thermal electrons, in e-/pixel/s,
+    - :math:`N_{\rm bin}` is the number of pixels in a binned pixel,
     - :math:`t_{\rm exp}` is the exposure time in seconds, and
-    - :math:`\gamma` is the amplifier gain in e- per ADU.
+    - :math:`g` is the amplifier gain in e- per ADU.
 
 By "relative throughput," we mean the aggregate of relative (to, say, the center
 of the field) telescope+instrument+detector efficiency factors that can be
-measured from flat-field images, like pixel-to-pixel differences in quantum
-efficiency, vignetting, and the wavelength-dependent grating efficiency.  The
+measured from flat-field images (see :ref:_flat_fielding), like pixel-to-pixel differences in quantum
+efficiency (known as the pixelflat), spatial variations in slit illumination
+as a result of vignetting or instrument optics (known as the illumflat),
+and variations in slit illumination in the spectral direction (known as specillumflat).  The
 goal of the basic image processing is to solve for :math:`c` in a set of science
 and calibration frames using a set of frames that isolate the detector bias,
 dark current, and relative throughput, to find:
 
 .. math::
 
-    c = s\ \left[ \gamma (p - O - B) - D\ t_{\rm exp} \right]
+    c = s\ \left[ g\ (p - O - B) - N_{\rm bin}\ D\ t_{\rm exp} \right]
 
 During this process, we also generate a noise model for the result of the image
 processing, calculated using :func:`~pypeit.core.procimg.variance_model`.  The
@@ -63,7 +69,7 @@ full variance model, :math:`V`, is:
 
 .. math::
 
-    V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} +
+    V = s^2\ \left[ {\rm max}(0, C) + N_{\rm bin}\ D\ t_{\rm exp} +
             V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
 
 where
@@ -81,7 +87,9 @@ Poisson error in the observed counts.  This estimate systematically
 overestimates the variance toward low counts (:math:`\lesssim 2 \sigma_{\rm
 rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm rn}` for :math:`C=0`
 (i.e., about 20% for a readnoise of 2 e-) and less than 10% (for any readnoise)
-when :math:`C\geq1`.  The model variance is typically updated during the
+when :math:`C\geq1`.  The reason for this bias is that one is trying to estimate the
+variance of a Poisson process from a noisy realization of the true underlying count
+rate. To mitigate this bias, the variance model is typically updated during the
 sky-subtraction and object-extraction procedures.
 
 .. _proc_algorithm:
@@ -131,7 +139,7 @@ Read and Digitization Noise
 
 Readnoise variance, :math:`V_{\rm rn}`, is calculated by
 :func:`~pypeit.core.procimg.rn2_frame`.  The calculation requires the detector
-readnoise (RN in elections, e-) and, possibly, gain (:math:`\gamma` in e-/ADU)
+readnoise (RN in elections, e-) and, possibly, gain (:math:`g` in e-/ADU)
 for each amplifier, which are provided for each amplifier by the
 :class:`~pypeit.images.detector_container.DetectorContainer` object defined for
 each detector in each :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
@@ -219,12 +227,15 @@ Dark Subtraction
 
 In addition to readnoise and gain, our instrument-specific
 :class:`~pypeit.images.detector_container.DetectorContainer` objects also
-provide the expected dark current; see :ref:`detectors`.  As of version X.X.X,
-this tabulated dark current (scaled by the frame exposure time) is *always*
-subtracted from the observed images (i.e., there is currently no parameter that
-will turn this off).  This is primarily due to how we account for dark current
-in our image variance model (see above); i.e., the :math:`D` term is assumed to
-be the same for all images taken with a given instrument.
+provide the expected dark current; see :ref:`detectors`.  The tabulated dark
+current must be in elections per pixel per hour; note that "per pixel" means per
+*unbinned* pixel; dark current in a binned pixel is :math:`N_{\rm bin}` higher
+than in an unbinned pixel.  As of version 1.6.0, this tabulated dark current
+(scaled by the frame exposure time and the binning) is *always* subtracted from
+the observed images (i.e., there is currently no parameter that will turn this
+off).  This is primarily due to how we account for dark current in our image
+variance model (see above); i.e., the :math:`D` term is assumed to be the same
+for all images taken with a given instrument.
 
 Importantly, ``PypeIt`` also subtracts this tabulated dark-current value from
 any provided dark frames.  This means that dark frames, combined into the
@@ -255,6 +266,13 @@ counts/s measured by the master dark frame.
     always be at least as long as your longest exposure time in the same
     calibration group.  Calibration groups are discussed by :ref:`setup_doc`,
     :ref:`a-b_differencing`, and :ref:`2d_combine`.
+
+Build Detector Mosaic
+---------------------
+
+If requested and applicable for the instrument data being reduced, ``PypeIt``
+then uses hard-coded detector geometries to construct a mosaic of the image data
+from multiple detectors.  See more information regarding the :ref:`mosaic`.
 
 Spatial Flexure Shift
 ---------------------
@@ -319,7 +337,7 @@ Workflow Flexibility
 ====================
 
 The main parameters dictating the image processing workflow are provided in the
-table below.  The first column gives the parameter, ordered by their affect on
+table below.  The first column gives the parameter, ordered by their effect on
 the algorithm above, and the second column gives its default value, independent
 of the frame type.  The subsequent columns give generic changes to those defaults
 made for each frame type; empty cells in these columns mean the parameter has
@@ -342,6 +360,24 @@ the ``PypeIt`` convention.
     for their specific data via the :doc:`pypeit_file`.  See :ref:`pypeitpar`.
 
 .. include:: include/imgproc_defaults_table.rst
+
+.. warning::
+
+    The basic image processing workflow is largely independent for each frame
+    type.  In particular, there's no intelligent automated checking in place for
+    how master frames are processed and whether it is correct to apply those
+    masters to other frames.  For example, if you overscan subtract your bias
+    frames, you should also overscan subtract all other frames before performing
+    bias subtraction, and vice versa.  When altering the processing workflow, it
+    is up to the user to make sure that the processing of images is appropriate
+    across all frame types.
+
+Masking
+=======
+
+``PypeIt`` uses bitmasks to flag pixels for various reasons.  See
+:ref:`out_masks` for a description of these masks and how to use/parse them.
+
 
 .. [1] `Newberry (1991, PASP, 103, 122) <https://ui.adsabs.harvard.edu/abs/1991PASP..103..122N/abstract>`_
 .. [2] `Merline & Howell (1995, ExA, 6, 163) <https://ui.adsabs.harvard.edu/abs/1995ExA.....6..163M/abstract>`_

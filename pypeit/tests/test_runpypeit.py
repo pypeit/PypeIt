@@ -5,6 +5,7 @@ import os
 import sys
 import glob
 import shutil
+from IPython.terminal.embed import embed
 
 from configobj import ConfigObj
 
@@ -15,15 +16,12 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
+from pypeit.scripts.parse_calib_id import ParseCalibID
 from pypeit.scripts.setup import Setup
 from pypeit.scripts.run_pypeit import RunPypeIt
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, data_path
 from pypeit import specobjs
 
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 @dev_suite_required
 def test_run_pypeit_calib_only():
@@ -31,23 +29,30 @@ def test_run_pypeit_calib_only():
     rawdir = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'shane_kast_blue', '600_4310_d55')
     assert os.path.isdir(rawdir), 'Incorrect raw directory'
 
+    master_key = 'A_1_DET01'
+
     # File list
     all_files = {
         'arcs': ['b1.fits.gz'],
         'flats': ['b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz'],
         'bias': ['b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz'],
     }
-    all_masters = ['MasterArc_A_1_01.fits', 'MasterTiltimg_A_1_01.fits',
-                   'MasterBias_A_1_01.fits',
-                   'MasterTilts_A_1_01.fits', 'MasterEdges_A_1_01.fits.gz',
-                   'MasterFlat_A_1_01.fits',
-                   'MasterWaveCalib_A_1_01.fits']
+    all_masters = [f'MasterArc_{master_key}.fits',
+                   f'MasterTiltimg_{master_key}.fits',
+                   f'MasterBias_{master_key}.fits',
+                   f'MasterTilts_{master_key}.fits',
+                   f'MasterEdges_{master_key}.fits.gz',
+                   f'MasterFlat_{master_key}.fits',
+                   f'MasterWaveCalib_{master_key}.fits']
 
     # Just get a few files
     for ss, sub_files, masters in zip(range(3),
-            [['arcs', 'flats', 'bias'], ['arcs', 'bias'], ['flats', 'bias']],
-            [all_masters, ['MasterArc_A_1_01.fits', 'MasterTiltimg_A_1_01.fits'],
-             ['MasterEdges_A_1_01.fits.gz']]):
+            [['arcs', 'flats', 'bias'],
+             ['arcs', 'bias'],
+             ['flats', 'bias']],
+            [all_masters,
+             [f'MasterArc_{master_key}.fits', f'MasterTiltimg_{master_key}.fits'],
+             [f'MasterEdges_{master_key}.fits.gz']]):
         # Grab the subset
         files = []
         for sub_file in sub_files:
@@ -85,16 +90,24 @@ def test_run_pypeit_calib_only():
             assert os.path.isfile(os.path.join(configdir, 'Masters', master_file)
                                   ), 'Master File {:s} missing!'.format(master_file)
 
+        # Now test parse_calib_id
+        if ss == 0:
+            pargs2 = ParseCalibID.parse_args([pyp_file])
+            calib_dict = ParseCalibID.main(pargs2)
+            assert isinstance(calib_dict, dict)
+            assert len(calib_dict) > 0
+            assert calib_dict['1'][master_key]['arc']['raw_files'][0] == 'b1.fits.gz'
+
         # Clean-up
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
+
 
 def test_run_pypeit():
 
     # Just get a few files
     testrawdir = data_path('')
 
-    #outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
     outdir = data_path('REDUX_OUT_TEST')
 
     # For previously failed tests
@@ -116,14 +129,17 @@ def test_run_pypeit():
     pargs = RunPypeIt.parse_args([pyp_file, '-o', '-m', '-r', configdir])
     RunPypeIt.main(pargs)
 
+    # TODO: Add some code that will try to open the QA HTML and check that it
+    # has the correct PNGs in it.
+
     # #########################################################
     # Test!!
     # Files exist
-    assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits'))
+    spec1d_file = os.path.join(configdir, 'Science',
+                               'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
+    assert os.path.isfile(spec1d_file), 'spec1d file missing'
 
     # spec1d
-    spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     
     # Check RMS
@@ -141,5 +157,6 @@ def test_run_pypeit():
 
     # Clean-up
     shutil.rmtree(outdir)
+
 
 

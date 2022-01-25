@@ -1,10 +1,20 @@
 """
 Module to run tests on core.procimg functions.
 """
+import os
+
 from IPython import embed
+
 import numpy as np
 
+from astropy.convolution import convolve
+
+from pypeit.tests.tstutils import dev_suite_required
 from pypeit.core import procimg
+from pypeit.images.rawimage import RawImage
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.par.pypeitpar import ProcessImagesPar
+from pypeit import utils
 
 def test_replace_columns():
     y = np.zeros((10,3), dtype=float)
@@ -60,14 +70,14 @@ def test_sub_overscan():
     raw[oscan == 1] = 9.
     raw[oscan == 2] = 19.
 
-    raw_sub = procimg.subtract_overscan(raw, datasec, oscan, method='median')
+    raw_sub, _ = procimg.subtract_overscan(raw, datasec, oscan, method='median')
     assert np.array_equal(raw_sub[datasec > 0], np.ones(np.sum(datasec > 0), dtype=float)), \
             'Bad overscan subtraction'
 
     var = np.ones((10,10), dtype=float)
     raw_sub, var_sub = procimg.subtract_overscan(raw, datasec, oscan, method='median', var=var)
     assert np.array_equal(var_sub[datasec > 0],
-                          np.ones(np.sum(datasec > 0), dtype=float) + np.pi/2/15), \
+                          np.full(np.sum(datasec > 0), np.pi/2/15, dtype=float)), \
             'Bad variance calculation'
 
 def test_trim():
@@ -89,35 +99,79 @@ def test_var_model():
 
     rnvar = procimg.rn2_frame(datasec, rn)
 
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar)), \
+    assert np.array_equal(rnvar, procimg.base_variance(rnvar)), \
         'Variance model with only rnvar is just rnvar'
 
     counts = np.full(rnvar.shape, 10., dtype=float)
 
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar, counts=counts)), \
-        'Inclusion of shot-noise should default to False'
-    assert np.array_equal(rnvar, procimg.variance_model(rnvar, darkcurr=10.)), \
-        'Inclusion of shot-noise should default to False'
+    assert np.array_equal(rnvar, procimg.variance_model(rnvar)), \
+        'Variance model should just return input if no optional parameters are provided.'
 
-    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True) > rnvar), \
+    base = procimg.base_variance(rnvar, darkcurr=10.)
+    base_t = procimg.base_variance(rnvar, darkcurr=5., exptime=2.*3600)
+
+    assert np.all(procimg.variance_model(rnvar, counts=counts) > rnvar), \
         'Shot noise should increase the variance'
-    assert np.all(procimg.variance_model(rnvar, counts=counts, darkcurr=10.,
-                                         shot_noise=True) > rnvar), \
+    assert np.all(procimg.variance_model(base, counts=counts) > base), \
         'Shot noise should increase the variance'
     assert np.array_equal(
-                procimg.variance_model(rnvar, counts=counts, darkcurr=10., shot_noise=True),
-                procimg.variance_model(rnvar, counts=counts, darkcurr=5., exptime=2.*3600,
-                                       shot_noise=True)), \
+                procimg.variance_model(base, counts=counts),
+                procimg.variance_model(base_t, counts=counts)), \
         'Dark current should be equivalent'
-    assert np.all(procimg.variance_model(rnvar, proc_var=10.) > rnvar), \
+    assert np.all(procimg.base_variance(rnvar, proc_var=10.) > rnvar), \
         'Processing variance should increase the total variance'
 
-    assert np.all(procimg.variance_model(rnvar, counts=counts, shot_noise=True, count_scale=0.5) <
-                  procimg.variance_model(rnvar, counts=counts, shot_noise=True)), \
+    assert np.all(procimg.variance_model(rnvar, counts=counts, count_scale=0.5) <
+                  procimg.variance_model(rnvar, counts=counts)), \
         'Scaling should have decreased the noise.'
 
     assert np.all(procimg.variance_model(rnvar, counts=counts, noise_floor=0.1) > rnvar), \
         'Noise floor should have increased the variance.'
+
+
+def test_grow_mask():
+    mask = np.zeros((9,9), dtype=bool)
+    mask[4,4] = True
+    grw_msk = procimg.grow_mask(mask, 2.)
+    _grw_msk = np.zeros((9,9), dtype=bool)
+    _grw_msk[3:-3,3] = True
+    _grw_msk[2:-2,4] = True
+    _grw_msk[3:-3,5] = True
+    _grw_msk[3,3:-3] = True
+    _grw_msk[4,2:-2] = True
+    _grw_msk[5,3:-3] = True
+    assert np.array_equal(grw_msk, _grw_msk), 'Bad mask growth'
+
+
+def test_boxcar():
+    a = np.arange(100).reshape(10,10).astype(float)
+    arep = procimg.boxcar_replicate(a, 2)
+    assert np.array_equal(procimg.boxcar_average(arep, 2), a), 'Bad replicate/average'
+    assert np.array_equal(utils.rebin_evlist(arep, a.shape), a), 'Bad replicate/rebin'
+
+
+@dev_suite_required
+def test_lacosmic():
+    spec = load_spectrograph('keck_deimos')
+    file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '1200G_M_5500',
+                        'd0315_45929.fits')
+    par = ProcessImagesPar(use_biasimage=False, use_pixelflat=False, use_illumflat=False)
+    img = RawImage(file, spec, 1)
+    pimg = img.process(par)
+    test_img = pimg.image[:500,:500]
+    test_var = utils.inverse(pimg.ivar[:500,:500])
+    crmask = procimg.lacosmic(test_img, varframe=test_var, maxiter=1)
+    assert np.sum(crmask) == 1240, 'L.A.Cosmic changed'
+
+    _crmask = procimg.lacosmic(test_img, varframe=test_var, maxiter=2)
+    assert np.sum(_crmask) > np.sum(crmask), '2nd iteration should find more cosmics'
+
+    _crmask = procimg.lacosmic(test_img, saturation=6000., varframe=test_var, maxiter=1)
+    assert np.sum(_crmask) < np.sum(crmask), 'Should have flagged some pixels as saturated'
+
+    __crmask = procimg.lacosmic(test_img, saturation=np.full(test_img.shape, 6000.),
+                                    varframe=test_var, maxiter=1)
+    assert np.array_equal(__crmask, _crmask), 'Saturation array failed.'
 
 
 

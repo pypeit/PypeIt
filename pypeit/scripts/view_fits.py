@@ -19,20 +19,22 @@ class ViewFits(scriptbase.ScriptBase):
         parser.add_argument('spectrograph', type=str,
                             help='A valid spectrograph identifier: {0}'.format(
                                  ', '.join(available_spectrographs)))
-        parser.add_argument('file', type = str, default = None, help = 'FITS file')
-        parser.add_argument("--list", default=False, action="store_true",
-                            help="List the extensions only?")
-        parser.add_argument("--proc", default=False, action="store_true",
+        parser.add_argument('file', type=str, default=None, help='FITS file')
+        parser.add_argument('--list', default=False, action='store_true',
+                            help='List the extensions only?')
+        parser.add_argument('--proc', default=False, action='store_true',
                             help='Process the image (i.e. orient, overscan subtract, multiply by '
                                  'gain) using pypeit.images.buildimage. Note det=mosaic will not '
                                  'work with this option')
         parser.add_argument('--exten', type=int, default=None,
                             help='Show a FITS extension in the raw file. Note --proc and --mosaic '
                                  'will not work with this option.')
-        parser.add_argument('--det', type=str, default=1,
-                            help='Detector number. To mosaic keck_deimos or keck_lris images, '
-                                 'set equal to mosaic.')
-        parser.add_argument('--chname', type=str, default='Image', help="Name of Ginga tab")
+        parser.add_argument('--det', type=str, default='1', nargs='*',
+                            help='Detector(s) to show.  If more than one, the list of detectors '
+                                 'must be one of the allowed mosaics hard-coded for the selected '
+                                 'spectrograph.  Using "mosaic" for gemini_gmos, keck_deimos, or '
+                                 'keck_lris will show the mosaic of all detectors.')
+        parser.add_argument('--chname', type=str, default='Image', help='Name of Ginga tab')
         return parser
 
     @staticmethod
@@ -55,34 +57,57 @@ class ViewFits(scriptbase.ScriptBase):
 
         if args.proc and args.exten is not None:
             msgs.error('You cannot specify --proc and --exten, since --exten shows the raw image')
-        if args.proc and args.det == 'mosaic':
-            msgs.error('You cannot specify --proc and --det mosaic, since --mosaic can only '
-                       'display the raw image mosaic')
+#        if args.proc and args.det == 'mosaic':
+#            msgs.error('You cannot specify --proc and --det mosaic, since --mosaic can only '
+#                       'display the raw image mosaic')
         if args.exten is not None and args.det == 'mosaic':
             msgs.error('You cannot specify --exten and --det mosaic, since --mosaic displays '
                        'multiple extensions by definition')
 
-
         if args.exten is not None:
             hdu = io.fits_open(args.file)
             img = hdu[args.exten].data
+            hdu.close()
         else:
             spectrograph = util.load_spectrograph(args.spectrograph)
-            if args.proc:
-                # Use the arc FramePar since this does not do processing
-                par = spectrograph.default_pypeit_par()['calibrations']['arcframe']
-                par['process']['use_darkimage'] = False
-                par['process']['use_biasimage'] = False
-                par['process']['mask_cr'] = False
-                #par['process']['cr_sigrej'] = -1
-
-                img = buildimage.buildimage_fromlist(spectrograph, int(args.det), par,
-                                                     [args.file]).image
+            bad_read_message = 'Unable to construct image due to a read or image processing ' \
+                               'error.  Use case interpreted from command-line inputs requires ' \
+                               'a raw image, not an output image product from pypeit.  To show ' \
+                               'a pypeit output image, specify the extension using --exten.  ' \
+                               'Use --list to show the extension names.'
+            if 'mosaic' in args.det:
+                mosaic = True
+                _det = spectrograph.default_mosaic 
+                if _det is None:
+                    msgs.error(f'{args.spectrograph} does not have a known mosaic')
             else:
-                det = None if args.det == 'mosaic' else int(args.det)
-                img = spectrograph.get_rawimage(args.file, det)[1]
+                try:
+                    _det = tuple(int(d) for d in args.det)
+                except:
+                    msgs.error(f'Could not convert detector input to integer.')
+                mosaic = len(_det) > 1
+                if not mosaic:
+                    _det = _det[0]
+
+            if args.proc:
+                # Use the biasframe processing parameters because processing
+                # these frames is independent of any other frames (ie., does not
+                # perform bias subtraction or flat-fielding)
+                par = spectrograph.default_pypeit_par()['calibrations']['biasframe']
+                try:
+                    img = buildimage.buildimage_fromlist(spectrograph, _det, par,
+                                                         [args.file], mosaic=mosaic).image
+                except Exception as e:
+                    msgs.error(bad_read_message 
+                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
+            else:
+                try:
+                    img = spectrograph.get_rawimage(args.file, _det)[1]
+                except Exception as e:
+                    msgs.error(bad_read_message 
+                               + f'  Original exception -- {type(e).__name__}: {str(e)}')
 
         display.connect_to_ginga(raise_err=True, allow_new=True)
-        display.show_image(img,chname=args.chname)
+        display.show_image(img, chname=args.chname)
 
 

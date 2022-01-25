@@ -8,11 +8,13 @@ import os
 import io
 import string
 from copy import deepcopy
+import datetime
+
+from IPython import embed
 
 import numpy as np
 import yaml
 
-import datetime
 from astropy import table, coordinates, time, units
 
 from pypeit import msgs
@@ -25,7 +27,7 @@ from pypeit.io import dict_to_lines
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.bitmask import BitMask
-from IPython import embed
+
 
 # TODO: Turn this into a DataContainer
 # Initially tried to subclass this from astropy.table.Table, but that
@@ -93,7 +95,8 @@ class PypeItMetaData:
             The table with the relevant metadata for each fits file to
             use in the data reduction.
     """
-    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, strict=True):
+    def __init__(self, spectrograph, par, files=None, data=None, usrdata=None, 
+                 strict=True):
 
         if data is None and files is None:
             # Warn that table will be empty
@@ -109,18 +112,24 @@ class PypeItMetaData:
 
         # Build table
         self.table = table.Table(data if files is None 
-                                 else self._build(files, strict=strict, usrdata=usrdata))
+                                 else self._build(files, strict=strict, 
+                                                  usrdata=usrdata))
 
         # Merge with user data, if present
         if usrdata is not None:
             self.merge(usrdata)
 
         # Impose types on specific columns
-        self._impose_types(['comb_id', 'bkg_id'], [int, int])
+        self._impose_types(['comb_id', 'bkg_id', 'manual'], [int, int, str])
 
         # Initialize internal attributes
         self.configs = None
         self.calib_bitmask = None
+
+        # Initialize columns that the user might add
+        self.set_user_added_columns()
+        # Validate instrument name
+        self.spectrograph.vet_instrument(self.table)
 
     def _impose_types(self, columns, types):
         """
@@ -189,9 +198,10 @@ class PypeItMetaData:
 
             # Grab Meta
             for meta_key in self.spectrograph.meta.keys():
-                value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict,
-                                                         usr_row=usr_row, ignore_bad_header
-                                                            =self.par['rdx']['ignore_bad_headers'])
+                value = self.spectrograph.get_meta_value(headarr, meta_key, 
+                                                         required=strict,
+                                                         usr_row=usr_row, 
+                        ignore_bad_header = self.par['rdx']['ignore_bad_headers'])
                 if isinstance(value, str) and '#' in value:
                     value = value.replace('#', '')
                     msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
@@ -411,12 +421,15 @@ class PypeItMetaData:
         Args:
             row (:obj:`int`):
                 The 0-indexed row used to construct the key.
-            det (:obj:`int`, optional):
-                The 1-indexed detector.  Default is 1.
+            det (:obj:`int`, :obj:`tuple`, optional):
+                The 1-indexed detector number(s).  If a tuple, it must include
+                detectors designated as a viable mosaic for
+                :attr:`spectrograph`; see
+                :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
 
         Returns:
-            str: Master key with configuration, calibration group(s),
-            and detector.
+            :obj:`str`: Master key with configuration, calibration group(s), and
+            detector.
 
         Raises:
             PypeItError:
@@ -426,10 +439,8 @@ class PypeItMetaData:
         if 'setup' not in self.keys() or 'calibbit' not in self.keys():
             msgs.error('Cannot provide master key string without setup and calibbit; '
                        'run set_configurations and set_calibration_groups.')
-        if det <= 0 or det > self.spectrograph.ndet:
-            raise IndexError('{0} is not a valid detector for {1}!'.format(det,
-                             self.spectrograph.name))
-        return '{0}_{1}_{2}'.format(self['setup'][row], self['calibbit'][row], str(det).zfill(2))
+        det_name = self.spectrograph.get_det_name(det)
+        return f"{self['setup'][row]}_{self['calibbit'][row]}_{det_name}"
 
     def construct_obstime(self, row):
         """
@@ -469,6 +480,62 @@ class PypeItMetaData:
                                            self.spectrograph.camera,
                                            datetime.datetime.strftime(dtime, '%Y%m%dT'),
                                            tiso.value.split("T")[1].replace(':',''))
+
+    def get_setup(self, row, det=None, config_only=False):
+        """
+        Construct the setup dictionary.
+
+        .. todo::
+            - This is for backwards compatibility, but we should
+              consider reformatting it.  And it may be something to put
+              in the relevant spectrograph class.
+
+        Args:
+            row (:obj:`int`):
+                The 0-indexed row used to construct the setup.
+            det (:obj:`int`, optional):
+                The 1-indexed detector to include.  If None, all
+                detectors are included.
+            config_only (:obj:`bool`, optional):
+                Just return the dictionary with the configuration, don't
+                include the top-level designation of the configuration
+                itself.
+
+        Returns:
+            dict: The pypeit setup dictionary with the default format.
+
+        Raises:
+            PypeItError:
+                Raised if the 'setup' isn't been defined.
+        """
+        if 'setup' not in self.keys():
+            msgs.error('Cannot provide instrument setup without \'setup\' column; '
+                       'run set_configurations.')
+        dispname = 'none' if 'dispname' not in self.keys() else self['dispname'][row]
+        dispangle = 'none' if 'dispangle' not in self.keys() else self['dispangle'][row]
+        dichroic = 'none' if 'dichroic' not in self.keys() else self['dichroic'][row]
+        decker = 'none' if 'decker' not in self.keys() else self['decker'][row]
+        slitwid = 'none' if 'slitwid' not in self.keys() else self['slitwid'][row]
+        slitlen = 'none' if 'slitlen' not in self.keys() else self['slitlen'][row]
+        binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
+
+        skey = 'Setup {}'.format(self['setup'][row])
+        # Key names *must* match configuration_keys() for spectrographs
+        setup = {skey:
+                    {'--':
+                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
+                         'dichroic': dichroic,
+                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
+                         'binning': binning,  # PypeIt orientation binning of a science image
+                         }
+                     }
+                 }
+        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
+        #for d in _det:
+        #    setup[skey][str(d).zfill(2)] \
+        #            = {'binning': binning, 'det': d,
+        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
+        return setup[skey] if config_only else setup
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):
         """
@@ -644,7 +711,8 @@ class PypeItMetaData:
 
         # Configuration identifiers are iterations through the
         # upper-case letters: A, B, C, etc.
-        cfg_iter = string.ascii_uppercase
+        double_alphabet = [str_i + str_j for str_i in string.ascii_uppercase for str_j in string.ascii_uppercase]
+        cfg_iter = list(string.ascii_uppercase) + double_alphabet
         cfg_indx = 0
 
         # TODO: Placeholder: Allow an empty set of configuration keys
@@ -1228,7 +1296,7 @@ class PypeItMetaData:
         msgs.info("Typing completed!")
         return self.set_frame_types(type_bits, merge=merge)
 
-    def set_pypeit_cols(self, write_bkg_pairs=False):
+    def set_pypeit_cols(self, write_bkg_pairs=False, write_manual=False):
         """
         Generate the list of columns to be included in the fitstbl
         (nearly the complete list).
@@ -1237,6 +1305,9 @@ class PypeItMetaData:
             write_bkg_pairs (:obj:`bool`, optional):
                 Add additional ``PypeIt`` columns for calib, comb_id
                 and bkg_id
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
+
 
         Returns:
             `numpy.ndarray`_: Array of columns to be used in the fits
@@ -1245,12 +1316,17 @@ class PypeItMetaData:
         # Columns for output
         columns = self.spectrograph.pypeit_file_keys()
 
+        extras = []
+
         # comb, bkg columns
-        # TODO -- SHOULD BE RENAMED TO write_extras
         if write_bkg_pairs:
-            for key in ['calib', 'comb_id', 'bkg_id']:
-                if key not in columns:
-                    columns += [key]
+            extras += ['calib', 'comb_id', 'bkg_id']
+        # manual
+        if write_manual:
+            extras += ['manual']
+        for key in extras:
+            if key not in columns:
+                columns += [key]
 
         # Take only those present
         output_cols = np.array(columns)
@@ -1269,7 +1345,7 @@ class PypeItMetaData:
         unique integer.
 
         If the 'comb_id' or 'bkg_id' columns do not exist, they're set
-        to -1.
+        to -1.  
 
         Args:
             assign_objects (:obj:`bool`, optional):
@@ -1288,7 +1364,22 @@ class PypeItMetaData:
                                            self.find_frames('standard')], axis=0))[0]
             self['comb_id'][sci_std_idx] = np.arange(len(sci_std_idx), dtype=int) + 1
 
-    def write_sorted(self, ofile, overwrite=True, ignore=None, write_bkg_pairs=False):
+    def set_user_added_columns(self):
+        """
+        Set columns that the user *might* add
+
+        .. note::
+            :attr:`table` is edited in place.
+
+        This function can be used to initialize columns
+        that the user might add
+
+        """
+        if 'manual' not in self.keys():
+            self['manual'] = ''
+
+    def write_sorted(self, ofile, overwrite=True, ignore=None, 
+                     write_bkg_pairs=False, write_manual=False):
         """
         Write the sorted file.
 
@@ -1307,6 +1398,11 @@ class PypeItMetaData:
                 Overwrite any existing file with the same name.
             ignore (:obj:`list`, optional):
                 Ignore configurations in the provided list.
+            write_bkg_pairs (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for calib, comb_id
+                and bkg_id
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
 
         Raises:
             PypeItError:
@@ -1320,7 +1416,8 @@ class PypeItMetaData:
             msgs.error('{0} already exists.  Use ovewrite=True to overwrite.'.format(ofile))
 
         # Grab output columns
-        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
+                                           write_manual=write_manual)
 
         cfgs = self.unique_configurations(copy=ignore is not None)
         if ignore is not None:
@@ -1438,7 +1535,8 @@ class PypeItMetaData:
         ff.close()
 
     def write_pypeit(self, output_path=None, cfg_lines=None,
-                     write_bkg_pairs=False, configs=None):
+                     write_bkg_pairs=False, write_manual=False,
+                     configs=None):
         """
         Write a pypeit file in data-table format.
 
@@ -1463,6 +1561,8 @@ class PypeItMetaData:
                 :class:`pypeit.metadata.PypeItMetaData` object, include
                 two columns called `comb_id` and `bkg_id` that identify
                 object and background frame pairs.  
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             configs (:obj:`str`, :obj:`list`, optional):
                 One or more strings used to select the configurations
                 to include in the returned objects. If ``'all'``,
@@ -1470,6 +1570,7 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :attr:`configs`.
+
 
         Raises:
             PypeItError:
@@ -1497,7 +1598,8 @@ class PypeItMetaData:
             msgs.error('No setups to write!')
 
         # Grab output columns
-        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs)
+        output_cols = self.set_pypeit_cols(write_bkg_pairs=write_bkg_pairs,
+                                           write_manual=write_manual)
 
         # Write the pypeit files
         ofiles = [None]*len(cfg_keys)
@@ -1510,7 +1612,8 @@ class PypeItMetaData:
             # Create the output file name
             ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
             # Get the setup lines
-            setup_lines = dict_to_lines({'Setup {0}'.format(setup): cfg[setup]}, level=1)
+            setup_lines = dict_to_lines({'Setup {0}'.format(setup): 
+                utils.yamlify(cfg[setup])}, level=1)
             # Get the paths
             in_cfg = self['setup'] == setup
             if not np.any(in_cfg):

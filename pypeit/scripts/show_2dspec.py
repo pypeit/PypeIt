@@ -20,16 +20,31 @@ from pypeit import specobjs
 from pypeit import io
 
 from pypeit.display import display
-from pypeit.core.parse import get_dnum
 from pypeit.images.imagebitmask import ImageBitMask
+from pypeit.images.detector_container import DetectorContainer
 from pypeit import masterframe
 from pypeit import spec2dobj
 from pypeit.scripts import scriptbase
 
 
-# TODO: Document this function...
+# TODO: We should not be calling objects by the same names as modules we've
+# loaded.  I.e., we've loaded specobjs, and here we're passing specobjs to this
+# function...
 def show_trace(specobjs, det, viewer, ch):
+    """
+    Overplot the extracted object traces for this detector in the provided ginga
+    channel.
 
+    Args:
+        specobjs (:class:`~pypeit.specobjs.SpecObjs`):
+            Object holding the 1D spectral extractions.  If None, the function
+            doesn't do anything.
+        det (:obj:`str`):
+            The string identifier for the detector or mosaic used to select the
+            extractions to show.
+        viewer (?):
+        ch (?):
+    """
     if specobjs is None:
         return
     in_det = np.where(specobjs.DET == det)[0]
@@ -44,7 +59,7 @@ def show_trace(specobjs, det, viewer, ch):
         else:
             trc_name = obj_id
         if maskdef_extr_flag is not None and maskdef_extr_flag is True:
-            display.show_trace(viewer, ch, trace, trc_name, color='gold') #hdu.name)
+            display.show_trace(viewer, ch, trace, trc_name, color='#f0e442') #hdu.name)
         elif manual_extr_flag is True:
             display.show_trace(viewer, ch, trace, trc_name, color='#33ccff') #hdu.name)
         else:
@@ -62,7 +77,12 @@ class Show2DSpec(scriptbase.ScriptBase):
         parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
-        parser.add_argument('--det', default=1, type=int, help='Detector number')
+        # User can provide only '--det' or '--detname', not both
+        parser.add_argument('--det', default='1', type=str,
+                            help='Detector name or number.  If a number, the name is constructed '
+                                 'assuming the reduction is for a single detector.  If a string, '
+                                 'it must match the name of the detector object (e.g., DET01 for '
+                                 'a detector, MSC01 for a mosaic).')
         parser.add_argument('--showmask', default=False, help='Overplot masked pixels',
                             action='store_true')
         parser.add_argument('--removetrace', default=False, action="store_true",
@@ -77,6 +97,13 @@ class Show2DSpec(scriptbase.ScriptBase):
                                  'flux calibration')
         parser.add_argument('--channels', type=str,
                             help='Only show a subset of the channels (0-indexed), e.g. 1,3')
+        parser.add_argument('--prefix', type=str, default='',
+                            help="Channel name prefix [lets you display more than one set]")
+        parser.add_argument('--no_clear', dest='clear', default=True, 
+                            action="store_false",
+                            help='Do *not* clear all existing tabs')
+        parser.add_argument('-v', '--verbosity', type=int, default=2,
+                            help='Verbosity level between 0 [none] and 2 [all]')
         return parser
 
     @staticmethod
@@ -84,19 +111,24 @@ class Show2DSpec(scriptbase.ScriptBase):
 
         # List only?
         if args.list:
-            hdu = io.fits_open(args.file)
-            hdu.info()
+            io.fits_open(args.file).info()
             return
 
+        # Parse the detector name
+        try:
+            det = int(args.det)
+        except:
+            detname = args.det
+        else:
+            detname = DetectorContainer.get_name(det)
+
         # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
-        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, detname, chk_version=False)
+        # Use the appropriate class to get the "detector" number
+        det = spec2DObj.detector.parse_name(detname)
 
         # Setup for PypeIt imports
-        msgs.reset(verbosity=2)
-
-        # Init
-        # TODO: get_dnum needs to be deprecated...
-        sdet = get_dnum(args.det, prefix=False)
+        msgs.reset(verbosity=args.verbosity)
 
         # Find the set of channels to show
         if args.channels is not None:
@@ -137,7 +169,8 @@ class Show2DSpec(scriptbase.ScriptBase):
         mask_in = None
         if args.showmask:
             viewer, ch_mask = display.show_image(spec2DObj.bpmmask, chname="BPM",
-                                                 waveimg=spec2DObj.waveimg, clear=True)
+                                                 waveimg=spec2DObj.waveimg, 
+                                                 clear=args.clear)
 
         channel_names = []
         # SCIIMG
@@ -147,14 +180,15 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
-            chname_sci = 'sciimg-det{:s}'.format(sdet)
+            chname_sci = args.prefix+f'sciimg-{detname}'
             # Clear all channels at the beginning
             viewer, ch_sci = display.show_image(image, chname=chname_sci,
-                                                waveimg=spec2DObj.waveimg, clear=True,
+                                                waveimg=spec2DObj.waveimg, 
+                                                clear=args.clear,
                                                 cuts=(cut_min, cut_max))
 
             if sobjs is not None:
-                show_trace(sobjs, args.det, viewer, ch_sci)
+                show_trace(sobjs, detname, viewer, ch_sci)
             display.show_slits(viewer, ch_sci, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_sci)
@@ -172,13 +206,13 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
             cut_max = mean + 4.0 * sigma
-            chname_skysub = 'skysub-det{:s}'.format(sdet)
+            chname_skysub = args.prefix+f'skysub-{detname}'
             viewer, ch_skysub = display.show_image(image, chname=chname_skysub,
                                                    waveimg=spec2DObj.waveimg, bitmask=bitMask,
                                                    mask=mask_in, cuts=(cut_min, cut_max),
                                                    wcs_match=True)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, args.det, viewer, ch_skysub)
+                    show_trace(sobjs, detname, viewer, ch_skysub)
             display.show_slits(viewer, ch_skysub, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_skysub)
@@ -211,20 +245,20 @@ class Show2DSpec(scriptbase.ScriptBase):
                 gpm = (spec2DObj.bpmmask == 0) | (spec2DObj.bpmmask == 2**bitMask.bits['EXTRACT'])
             else:
                 gpm = spec2DObj.bpmmask == 0
-            chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
+            chname_skyresids = args.prefix+f'sky_resid-{detname}'
             image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * gpm
             viewer, ch_sky_resids = display.show_image(image, chname_skyresids,
                                                        waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                        bitmask=bitMask, mask=mask_in)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, args.det, viewer, ch_sky_resids)
+                    show_trace(sobjs, detname, viewer, ch_sky_resids)
             display.show_slits(viewer, ch_sky_resids, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_skyresids)
 
         # RESIDS
         if 3 in show_channels:
-            chname_resids = 'resid-det{:s}'.format(sdet)
+            chname_resids = args.prefix+f'resid-{detname}'
             # full model residual map
             image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) \
                         * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
@@ -232,7 +266,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                    waveimg=spec2DObj.waveimg, cuts=(-5.0, 5.0),
                                                    bitmask=bitMask, mask=mask_in, wcs_match=True)
             if not args.removetrace and sobjs is not None:
-                    show_trace(sobjs, args.det, viewer, ch_resids)
+                    show_trace(sobjs, detname, viewer, ch_resids)
             display.show_slits(viewer, ch_resids, left, right, slit_ids=slid_IDs,
                                maskdef_ids=maskdef_id)
             channel_names.append(chname_resids)

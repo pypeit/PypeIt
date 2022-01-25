@@ -112,7 +112,7 @@ What this version provides
   * Magellan/Fire
   * MDM/OSMOS
   * Keck/DEIMOS (600ZD, 830G, 1200G, 1200B, 900ZD)
-  * Keck/KCWI (BM, BH2)
+  * Keck/KCWI
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES
@@ -196,6 +196,7 @@ or have a feature request, please `submit an issue
    installing
    cookbook
    step-by-step
+   known_failure_modes
 
 ----
 
@@ -214,6 +215,17 @@ or have a feature request, please `submit an issue
    skysub
    extraction
    scripts
+   A-B_differencing
+   nir_example
+
+----
+
+.. toctree::
+   :caption: Processing Details
+   :maxdepth: 1
+
+   image_proc
+   mosaic
 
 ----
 
@@ -221,7 +233,6 @@ or have a feature request, please `submit an issue
    :caption: Standard outputs
    :maxdepth: 1
 
-   image_proc
    calibrations
    outputs
    qa
@@ -232,7 +243,6 @@ or have a feature request, please `submit an issue
    :caption: Further processing
    :maxdepth: 1
 
-   A-B_differencing
    fluxing
    coadd1d
    telluric

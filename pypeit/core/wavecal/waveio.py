@@ -59,13 +59,16 @@ def load_wavelength_calibration(filename):
     return wv_calib
 
 
-def load_template(arxiv_file, det):
+def load_template(arxiv_file, det, wvrng=None):
     """
     Load a full template file from disk
 
     Args:
         arxiv_file: str
         det: int
+        wvrng (list, optional):
+            min, max wavelength range for the arxiv
+
 
     Returns:
         wave: ndarray
@@ -85,8 +88,17 @@ def load_template(arxiv_file, det):
         idx = np.where(tbl['det'].data & 2**det)[0]
     else:
         idx = np.arange(len(tbl)).astype(int)
+    tbl_wv = tbl['wave'].data[idx]
+    tbl_fx = tbl['flux'].data[idx] 
+
+    # Cut down?
+    if wvrng is not None:
+        gd_wv = (tbl_wv >= wvrng[0]) & (tbl_wv <= wvrng[1])
+        tbl_wv = tbl_wv[gd_wv]
+        tbl_fx = tbl_fx[gd_wv]
+
     # Return
-    return tbl['wave'].data[idx], tbl['flux'].data[idx], tbl.meta['BINSPEC']
+    return tbl_wv, tbl_fx, tbl.meta['BINSPEC']
 
 
 def load_reid_arxiv(arxiv_file):
@@ -232,7 +244,7 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     return line_list
 
 
-def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
+def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
                     restrict_on_instr=None):
     """
     Loads a series of line list files
@@ -240,6 +252,8 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
     Parameters
     ----------
     lamps : list
+        List of arc lamps to be used for wavelength calibration.
+        E.g., ['ArI','NeI','KrI','XeI']
     unknown : bool, optional
     skip : bool, optional
         Skip missing line lists (mainly for building)
@@ -256,24 +270,25 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
     # All?
     if all:
         line_files = glob.glob(line_path+'*_lines.dat')
-        lines = []
+        lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
             i1 = line_file.rfind('_')
-            lines.append(line_file[i0+1:i1])
+            lamps.append(line_file[i0+1:i1])
 
+    msgs.info("Arc lamps used: {}".format(', '.join(lamps)))
     # Read standard files
     lists = []
-    for line in lines:
+    for lamp in lamps:
         if NIST:
-            line_file = nist_path+'{:s}_vacuum.ascii'.format(line)
+            line_file = nist_path+'{:s}_vacuum.ascii'.format(lamp)
         else:
-            line_file = line_path+'{:s}_lines.dat'.format(line)
+            line_file = line_path+'{:s}_lines.dat'.format(lamp)
         if not os.path.isfile(line_file):
             if not skip:
                 line_files = glob.glob(line_path + '*_lines.dat')
                 all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
-                msgs.warn("Input line {:s} is not included in arclines".format(line))
+                msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
                           ",".join(all_list))
                 import pdb; pdb.set_trace()
@@ -293,7 +308,7 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False,
         
     # Unknown
     if unknown:
-        unkn_lines = load_unknown_list(lines)
+        unkn_lines = load_unknown_list(lamps)
         unkn_lines.remove_column('line_flag')  # may wish to have this info
         # Stack
         line_lists = vstack([line_lists, unkn_lines])

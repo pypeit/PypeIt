@@ -7,6 +7,8 @@ import os
 from typing import List, Optional
 from pkg_resources import resource_filename
 
+from IPython import embed
+
 import numpy as np
 
 from astropy.io import fits
@@ -76,6 +78,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(card=None, rtol=1e-2, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='APERTURE')
         self.meta['idname'] = dict(ext=0, card='IMGTYPE')
+        self.meta['instrument'] = dict(ext=0, card='FPA')
         # Lamps
         self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
@@ -156,6 +159,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_blue'
     camera = 'DBSPb'
+    header_name = 'DBSP_BLUE'
     supported = True
     comment = 'Blue camera'
     
@@ -378,6 +382,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
     """
     name = 'p200_dbsp_red'
     camera = 'DBSPr'
+    header_name = 'DBSP_RED2'
     supported = True
     comment = 'Red camera'
     
@@ -617,7 +622,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         # Fill in bad pixels if a master bias frame is provided
         if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+            return self.bpm_frombias(msbias, bpm_img)
 
         # Red CCD detector defect is present in data taken 2020-05-22
         # and absent in data taken 2020-04-21
@@ -630,3 +635,5 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                 bpm_img[464 // spec_binning : 723 // spec_binning, :] = 1
 
         return bpm_img
+
+

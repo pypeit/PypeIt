@@ -65,10 +65,11 @@ def test_run_setup():
 
 def test_setup_made_pypeit_file():
     """ Test the .pypeit file(s) made by pypeit_setup
+
     This test depends on the one above
     """
     pypeit_file = data_path('shane_kast_blue_A/shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
+    cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(pypeit_file)
     # Test
     assert len(data_files) == 8
     assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
@@ -76,6 +77,26 @@ def test_setup_made_pypeit_file():
 
     # Cleanup
     shutil.rmtree(data_path('shane_kast_blue_A'))
+
+@dev_suite_required
+def test_setup_keck_lris_red_mark4():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red_mark4/long_400_8500')
+    droot += '/'
+    pargs = Setup.parse_args(['-r', droot, '-s', 'keck_lris_red_mark4'])
+    Setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_lris_red_mark4*'))
+    ext = [f.split('.')[-1] for f in files]
+    expected = expected_file_extensions()
+    assert np.all([e in ext for e in expected]), \
+            'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
 
 
 @dev_suite_required
@@ -255,7 +276,7 @@ def test_setup_keck_deimos_multiconfig():
         # be put into a function.
 
         # Read the pypeit file
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(f, runtime=True)
+        cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, runtime=True)
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph = load_spectrograph(cfg['rdx']['spectrograph'])

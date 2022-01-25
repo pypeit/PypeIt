@@ -36,7 +36,7 @@ def test_read_combid():
     shutil.rmtree(setup_dir)
 
     pypeit_file = os.path.join(config_dir, 'shane_kast_blue_A.pypeit')
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(pypeit_file)
+    cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(pypeit_file)
 
     # Get the spectrograph
     spectrograph = None
@@ -142,7 +142,7 @@ def test_lris_blue_pypeit_overwrite():
                      'pypeit_files/keck_lris_blue_long_400_3400_d560.pypeit')
     assert os.path.isfile(f), 'Could not find pypeit file.'
         
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(f, file_check=False)
+    cfg_lines, data_files, frametype, usrdata, setups, _ = parse_pypeit_file(f, file_check=False)
 
     # Change the dev path
     for i in range(len(data_files)):

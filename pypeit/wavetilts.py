@@ -197,13 +197,17 @@ class BuildWaveTilts:
         self.master_key = master_key
         self.spat_flexure = spat_flexure
 
-        # --------------------------------------------------------------
-        # TODO: Build another base class that does these things for both
-        # WaveTilts and WaveCalib?
-
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.mstilt.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        # Get the non-linear count level
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+#            else self.mstilt.detector.nonlinear_counts()
+##            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -215,9 +219,9 @@ class BuildWaveTilts:
         # TODO -- Discuss further with JFH
         all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
         # self.tilt_bpm = np.invert(mask == 0)
-        # We want to keep the 'BOXSLIT', for which mask value is 2. But we don't want to keep 'BOXSLIT'
-        # with other bad flag (for which the mask value would be > 2)
-        self.tilt_bpm = mask > 2
+        # At this point of the reduction the only bitmask flags that may have been generated are 'USERIGNORE',
+        # 'SHORTSLIT', 'BOXSLIT' and 'BADWVCALIB'. Here we use only 'USERIGNORE' and 'SHORTSLIT' to create the bpm mask
+        self.tilt_bpm = self.slits.bitmask.flagged(mask, flag=['SHORTSLIT', 'USERIGNORE'])
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
         # TODO -- Discuss further with JFH
@@ -591,6 +595,8 @@ class BuildWaveTilts:
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             if self.tilt_bpm[slit_idx]:
+                msgs.info('Skipping bad slit {0}/{1}'.format(slit_idx, self.slits.nslits))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')
                 continue
             #msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.slits.nslits-1))
             msgs.info('Computing tilts for slit {0}/{1}'.format(slit_idx, self.slits.nslits))

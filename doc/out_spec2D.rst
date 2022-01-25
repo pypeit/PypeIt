@@ -76,16 +76,18 @@ indicate traces for manually extracted objects.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
-pypeit_chk_2dslits
-------------------
+.. TODO: THE pypeit_chk_2dslits SCRIPT WAS REMOVED.  Check this!!
 
-This script prints to the screen a short summary of the slit
-information, detector by detector.
+.. pypeit_chk_2dslits
+.. ------------------
 
-The script usage can be displayed by calling the script with the
-``-h`` option:
+.. This script prints to the screen a short summary of the slit
+.. information, detector by detector.
 
-.. include:: help/pypeit_chk_2dslits.rst
+.. The script usage can be displayed by calling the script with the
+.. ``-h`` option:
+
+.. .. include:: help/pypeit_chk_2dslits.rst
 
 
 Identifying Slits

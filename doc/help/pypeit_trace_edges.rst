@@ -2,7 +2,7 @@
 
     $ pypeit_trace_edges -h
     usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
-                              [-d DETECTOR] [-s SPECTROGRAPH] [-b BINNING]
+                              [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
                               [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
                               [--show]
     
@@ -18,10 +18,12 @@
                             If providing a pypeit file, use the trace images for
                             this calibration group. If None, use the first
                             calibration group. (default: None)
-      -d DETECTOR, --detector DETECTOR
-                            Only analyze the specified detector; otherwise analyze
-                            all or detectors selected by the pypeit file, if
-                            provided. (default: None)
+      -d [DETECTOR ...], --detector [DETECTOR ...]
+                            Detector(s) to process. If more than one, the list of
+                            detectors must be one of the allowed mosaics hard-coded
+                            for the selected spectrograph. Using "mosaic" for
+                            gemini_gmos, keck_deimos, or keck_lris will use the
+                            default mosaic. (default: None)
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier, which is only used if
                             providing files directly: bok_bc, gemini_flamingos1,
@@ -29,17 +31,18 @@
                             gemini_gmos_north_ham, gemini_gmos_north_ham_ns,
                             gemini_gmos_south_ham, gemini_gnirs, gtc_osiris,
                             keck_deimos, keck_hires_red, keck_kcwi, keck_lris_blue,
-                            keck_lris_blue_orig, keck_lris_red, keck_lris_red_orig,
-                            keck_mosfire, keck_nires, keck_nirspec_low, lbt_luci1,
-                            lbt_luci2, lbt_mods1b, lbt_mods1r, lbt_mods2b,
-                            lbt_mods2r, ldt_deveny, magellan_fire,
-                            magellan_fire_long, magellan_mage, mdm_osmos_mdm4k,
-                            mmt_binospec, mmt_bluechannel, mmt_mmirs, not_alfosc,
-                            ntt_efosc2, p200_dbsp_blue, p200_dbsp_red, p200_tspec,
-                            shane_kast_blue, shane_kast_red, shane_kast_red_ret,
-                            soar_goodman_red, tng_dolores, vlt_fors2, vlt_sinfoni,
-                            vlt_xshooter_nir, vlt_xshooter_uvb, vlt_xshooter_vis,
-                            wht_isis_blue, wht_isis_red (default: None)
+                            keck_lris_blue_orig, keck_lris_red, keck_lris_red_mark4,
+                            keck_lris_red_orig, keck_mosfire, keck_nires,
+                            keck_nirspec_low, lbt_luci1, lbt_luci2, lbt_mods1b,
+                            lbt_mods1r, lbt_mods2b, lbt_mods2r, ldt_deveny,
+                            magellan_fire, magellan_fire_long, magellan_mage,
+                            mdm_osmos_mdm4k, mmt_binospec, mmt_bluechannel,
+                            mmt_mmirs, not_alfosc, ntt_efosc2, p200_dbsp_blue,
+                            p200_dbsp_red, p200_tspec, shane_kast_blue,
+                            shane_kast_red, shane_kast_red_ret, soar_goodman_red,
+                            tng_dolores, vlt_fors2, vlt_sinfoni, vlt_xshooter_nir,
+                            vlt_xshooter_uvb, vlt_xshooter_vis, wht_isis_blue,
+                            wht_isis_red (default: None)
       -b BINNING, --binning BINNING
                             Image binning in spectral and spatial directions. Only
                             used if providing files directly; default is 1,1.

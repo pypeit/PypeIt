@@ -1,4 +1,155 @@
 
+1.7.1dev
+--------
+
+- Fixed a bug about how `maskdef_offset` is assigned to each detector
+- Changed default behavior for how PypeIt computes `maskdef_offset` for DEIMOS.
+  It now uses by default the stars in the alignment boxes.
+- Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include wavelength
+  calibration in pypeit_chk_flat ginga display.
+- Introduce mosaicing
+    - `det` arguments can now be tuples with a list of detectors to
+      combine into a mosaic.  Mosaics can now be defined in the pypeit
+      file using `detnum`; e.g., `detnum=(1,2)` creates a mosaic of
+      detectors 1 and 2.
+    - The tuples must be one among an allowed set defined by each
+      spectrograph class; see `gemini_gmos.py`.
+    - `DETECTOR` extensions in output files can now be either a
+      `DetectorContainer` object or a `Mosaic` object.  Both are now
+      written using `astropy.table.Table` instances.  `Mosaic` objects
+      just have more columns.
+    - The `otype` of `DataContainer` data-model components can now be a
+      tuple of `DataContainer` subclasses indicating that the component
+      has an optional type.
+    - Added the `one_row_table` class attribute to `DataContainer`,
+      which will try to force all the elements of a datamodel into a
+      binary table extension with a single row.
+    - Started propagation of name changes from, e.g., `DET01` to
+      `MSC01`, where the latter indicates the reduction uses the first
+      mosaic option for the spectrograph.  Keys for master calibration
+      frames are now, e.g., `A_1_DET01` instead of `A_1_01`.
+    - Currently only implemented for `gemini_gmos`.
+    - During processing, bias and dark images are left as separate
+      detector images, whereas all other images are mosaiced for further
+      processing.  This means that `RawImage` is now *always* 3D, where
+      `PypeItImage` can be either 2D or 3D.
+    - Added a `det_img` to `PypeItImage` datamodel to keep track of the
+      parent detector for each pixel in a mosaic.
+    - Added a `amp_img` to `PypeItImage` datamodel to keep track of the
+      parent amplifier for each pixel in a mosaic; this is the result of
+      mosaicing the `datasec_img` objects for each detector.
+- Improve performance of L.A.Cosmic algorithm:
+    - Switch to using ndimage.binary_dilation for growing masked regions
+    - Switch to astropy convolution for Laplace convolution
+    - Added faster block replication algorithm
+    - Fix iteration logic
+- Intermediate update to BPM.  Preference given to pulling this from the
+  relevant `PypeItImage` calibration image instead of always building it
+  from scratch.  That latter complicated things for mosaics.
+- First steps toward more robust treatment of saturation.
+- Dark counts used for calculating the shot noise now includes measured
+  dark images if provided
+- `PypeIt` file parameters can now parse sets of tuples; e.g.,
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
+  (3,4)]`.
+- `PypeIt.select_detectors` has been moved to `Spectrograph`.
+
+
+1.7.0 (19 Nov 2021)
+-------------------
+
+- Introduces pypeit_parse_calib_id script
+- Throw a warning if the chosen spectrograph has a header which does not
+  match expectation
+- Pypeit can now read (currently for Keck DEIMOS only) the list of arc
+  lamps from the header and use it for wavelength calibration.
+- Allow one to restrict the wavelength range of the arxiv template
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
+- Set DEIMOS FWHM default to 10 pixels
+- Fixed a bug in HolyGrail that did not allow for sigdetect and
+  rms_wavelength to be slit dependent lists.
+- Improvements for MOSFIRE:
+    - uses slitmask info in the slit edge tracing
+    - associates RA, Dec and Object name to each extracted object
+    - extracts undetected objects using the predicted position from
+      slitmask info
+    - uses dither offeset recorded in the header as default
+      slitmask_offset, but the user can provide the maskdef_id of a slit
+      with a bright object that can trace the offset.
+    - improvements in the frame typing
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
+- QL script for Keck/DEIMOS
+
+
+1.6.0 (1 Oct 2021)
+------------------
+
+- Modifications to reduce header crashes
+- Added `image_proc.rst` doc, which includes a table with the primary parameters
+  that affect the control flow of the image processing.
+- Added exptime and units to the PypeItImage data model.
+- Made bias subtraction available to the dark image processing (i.e., if people
+  request bias subtraction for darks, the bias needs to be passed).  Similarly,
+  added dark to the buildimage calls in get_arc and get_tiltimage.
+- Streamlining of the operations in pypeit.core.flat.flatfield.
+- Digitization noise no longer added to readnoise calculation by default.
+- Include "processing error" in error budget.  Accounts for, e.g., readnoise in
+  dark image, etc.
+- Include error calculation in overscan subtraction.  The error estimate is the
+  standard error in the median, which will be an overestimate for the savgol
+  method.
+- Allow for pinhole and sky frames in buildimage_fromlist.
+- In pypeit.images.rawimage.RawImage:
+    - Conversion from ADU to counts is now the first step for all processing.
+    - Added an `empirical_rn` parameter that allows the users to use the
+      overscan region to estimate the detector readnoise for each image
+      processed, and this estimation of the readnoise is now in its own method.
+    - Subtraction of the dark is now done after the conversion of the image to
+      counts.
+    - Dark subtraction is now always performed using the tabulated values for
+      each detector.  A warning is thrown if the dark frames are provided and
+      the measured dark-current from a dark image is more than 50% different
+      from the tabulated value.
+    - Whether or not you add the shot noise and a noise floor to the variance
+      image are now optional and controlled by parameters in ProcessImagesPar.
+    - Changes to default ProcessImagesPar parameters: use_specillum = False for
+      all frame types; shot_noise = False and noise_floor = 0 for biases; and
+      use_overscan=True, use_biasimage=True, noise_floor=0., and mask_cr=True
+      for darks.  Adjustments propagated to individual spectrographs.
+    - BPM is not recalculated after applying the flat-field correction because
+      it is not longer changed by that function.
+    - The code keeps track of the image scaling via the flat-field correction,
+      and propagates this to the noise model.
+    - Compute and save a "base-level variance" that includes readnoise, dark
+      current, and processing error as part of the PypeItImage datamodel.
+    - Added `base_var` and `img_scale` to the datamodel of PypeItImage, as well
+      as the noise_floor and shot_noise booleans.  All of these are used by
+      pypeit.core.procimg.variance_model to construct the error model.
+    - Added BADSCALE bit to ImageBitMask to track when flat-field corrections
+      are <=0.
+- Added `update_mask` and `select_flag` methods to PypeItImage as convenience
+  methods used to update and extract information from the fullmask bitmask
+  attribute.
+- CombineImage now re-calculates the variance model using the stacked estimate
+  of the counts instead of propagating the estimates from the individual
+  exposures.
+- CombineImage performs a masked median when combine_method = 'median', and the
+  error is the standard error in the median.
+- Simplifies stacking of bits in CombineImage.
+- Calculation of the variance in processed images separated into two functions,
+  pypeit.core.procimg.base_variance and pypeit.core.procimg.variance_model.
+  These replace variance_frame.
+- Added a "detectors" doc, and an automatically generated table with relevant
+  detector parameters (including the dark current) used for instrument.
+- Improved fidelity of bspline timing tests using timeit.
+- Added inverse variance images to MasterBias and MasterDark frames so that they
+  are available for re-use.
+
 1.5.0 (11 Aug 2021)
 -------------------
 
@@ -49,8 +200,6 @@
 - Add LDT/DeVeny spectrograph
 - Add 6440.25A CdI line (LDT/DeVeny)
 - Modify SOAR to read their (truly) raw files
-- GMOS doc updates
-- Fixed 2Dcoadd spec bugs for central wavelength dithers.
 - GMOS doc updates
 
 

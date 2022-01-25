@@ -105,6 +105,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='HIERARCH ESO INS GRIS1 WLEN', rtol=2.0, required_ftypes=['science', 'standard'])
         self.meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         self.meta['detector'] = dict(ext=0, card='EXTNAME')
+        self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -210,6 +211,7 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
 
     name = 'vlt_fors2'
     camera = 'FORS2'
+    header_name = 'FORS2'
     supported = True
     comment = '300I, 300V gratings'
 

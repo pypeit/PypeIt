@@ -112,8 +112,9 @@ class PypeItSetup:
         steps (list):
             The steps run to provide the pypeit setup.
     """
-    def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
-                 cfg_lines=None, spectrograph_name=None, pypeit_file=None):
+    def __init__(self, file_list, path=None, frametype=None, usrdata=None, 
+                 setups=None, cfg_lines=None, spectrograph_name=None, 
+                 pypeit_file=None, setup_dict=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -128,6 +129,7 @@ class PypeItSetup:
         self.setups = setups
         self.pypeit_file = pypeit_file
         self.user_cfg = cfg_lines
+        self.setup_dict = setup_dict
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
@@ -150,7 +152,6 @@ class PypeItSetup:
 
         # Prepare internals for execution
         self.fitstbl = None
-        self.setup_dict = None
         self.steps = []
 
     @classmethod
@@ -167,9 +168,9 @@ class PypeItSetup:
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
+        cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(filename)
         return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
-                   cfg_lines=cfg_lines, pypeit_file=filename)
+                   cfg_lines=cfg_lines, pypeit_file=filename, setup_dict=setup_dict)
 
     @classmethod
     def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
@@ -279,7 +280,8 @@ class PypeItSetup:
             :attr:`fitstbl` which is a :obj:`PypeItMetaData` object
         """
         # Build and sort the table
-        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, files=self.file_list,
+        self.fitstbl = PypeItMetaData(self.spectrograph, par=self.par, 
+                                      files=self.file_list,
                                       usrdata=self.usrdata, strict=strict)
         # Sort by the time
         if 'time' in self.fitstbl.keys():
@@ -315,8 +317,10 @@ class PypeItSetup:
         # Include finished processing step
         self.steps.append(inspect.stack()[0][3])
 
-    def run(self, setup_only=False, calibration_check=False, sort_dir=None, write_bkg_pairs=False,
-            clean_config=True, groupings=True, obslog=False, write_files=True):
+    def run(self, setup_only=False, calibration_check=False, 
+            sort_dir=None, write_bkg_pairs=False, write_manual=False,
+            clean_config=True, groupings=True, obslog=False, 
+            write_files=True, no_write_sorted=False):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -346,6 +350,7 @@ class PypeItSetup:
                 success of the setup and how to proceed, and provides
                 warnings (instead of errors) for issues that may
                 cause the reduction itself to fail.
+                If True, this also allows for bad headers.
             calibration_check (obj:`bool`, optional):
                 Only check that the calibration frames are
                 appropriately setup and exist on disk. ``PypeIt`` is
@@ -358,6 +363,8 @@ class PypeItSetup:
                 Include columns with the (unassigned) background
                 image pairs. This is a convenience so that users can
                 more easily add/edit the background pair ID numbers.
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             clean_config (:obj:`bool`, optional):
                 Remove files with metadata that indicate an
                 instrument configuration that ``PypeIt`` cannot
@@ -366,6 +373,10 @@ class PypeItSetup:
             groupings (:obj:`bool`, optional):
                 Group frames into instrument configurations and calibration
                 sets, and add the default combination-group columns.
+            write_files (:obj:`bool`, optional):
+                Write the standard files
+            no_write_sorted (:obj:`bool`, optional):
+                Do not write the .sorted file
 
         Returns:
             :obj:`tuple`: Returns, respectively, the
@@ -408,13 +419,16 @@ class PypeItSetup:
         # Write the output files
         if write_files:
             self.write(output_path=sort_dir, setup_only=setup_only,
-                       calibration_check=calibration_check, write_bkg_pairs=write_bkg_pairs,
-                       obslog=obslog)
+                       calibration_check=calibration_check, 
+                       write_bkg_pairs=write_bkg_pairs,
+                       write_manual=write_manual,
+                       obslog=obslog, no_write_sorted=no_write_sorted)
 
         return (None, None, None) if setup_only else (self.par, self.spectrograph, self.fitstbl)
 
     def write(self, output_path=None, setup_only=False, calibration_check=False, 
-              write_bkg_pairs=False, obslog=False):
+              write_bkg_pairs=False, obslog=False, write_manual=False,
+              no_write_sorted=False):
         """
         Write the set of pypeit setup files.
 
@@ -440,6 +454,8 @@ class PypeItSetup:
                 Include columns with the (unassigned) background
                 image pairs. This is a convenience so that users can
                 more easily add/edit the background pair ID numbers.
+            write_manual (:obj:`bool`, optional):
+                Add additional ``PypeIt`` columns for manual extraction
             clean_config (:obj:`bool`, optional):
                 Remove files with metadata that indicate an
                 instrument configuration that ``PypeIt`` cannot
@@ -448,6 +464,8 @@ class PypeItSetup:
             groupings (:obj:`bool`, optional):
                 Group frames into instrument configurations and calibration
                 sets, and add the default combination-group columns.
+            no_write_sorted (:obj:`bool`, optional):
+                Do not write the .sorted file
         """
         pypeit_file = self.spectrograph.name + '.pypeit' \
                             if self.pypeit_file is None or len(self.pypeit_file) == 0 \
@@ -457,9 +475,13 @@ class PypeItSetup:
 
         if setup_only:
             # Collate all matching files and write .sorted Table (on pypeit_setup only)
+            #if sort_dir is not None:
+            #    sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
             sorted_file = pypeit_file.replace('.pypeit', '.sorted')
             sorted_file = os.path.join(_output_path, os.path.split(sorted_file)[1])
-            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+            if not no_write_sorted:
+                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs,
+                                      write_manual=write_manual)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
         else:
             # Write the calib file
@@ -483,9 +505,6 @@ class PypeItSetup:
             msgs.info("*********************************************************")
 
         if setup_only:
-#            for idx in np.where(self.fitstbl['failures'])[0]:
-#                msgs.warn("No Arc found: Skipping object {:s} with file {:s}".format(
-#                            self.fitstbl['target'][idx],self.fitstbl['filename'][idx]))
             msgs.info("Setup is complete.")
             msgs.info("Inspect the .sorted file")
 

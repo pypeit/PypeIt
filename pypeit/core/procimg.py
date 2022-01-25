@@ -9,169 +9,365 @@ import numpy as np
 from scipy import signal, ndimage
 from scipy.optimize import curve_fit
 
+from astropy.convolution import convolve, Box2DKernel
+
 from pypeit import msgs
 from pypeit import utils
 from pypeit.core import parse
 
 
-def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
-             remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
+# NOTE: This is slower than utils.rebin_evlist by a factor of ~2, but avoids an
+# error when the shape of arr is not an integer multiple of boxcar.
+def boxcar_average(arr, boxcar):
     """
-    Identify cosmic rays using the L.A.Cosmic algorithm
-    U{http://www.astro.yale.edu/dokkum/lacosmic/}
-    (article : U{http://arxiv.org/abs/astro-ph/0108003})
-    This routine is mostly courtesy of Malte Tewes
+    Boxcar average an array.
+
+    The dimensionality of the boxcar matches the dimensionality of the provided
+    array.  Averages are only performed over the valid region of the array; see
+    the return description.  In contrast with a boxcar smoothing algorithm, the
+    step between each boxcar average is the size of the box, not one pixel.
 
     Args:
-        sciframe:
-        saturation:
-        nonlinear:
-        varframe:
-        maxiter:
-        grow:
-        remove_compact_obj:
-        sigclip (float):
-            Threshold for identifying a CR
-        sigfrac:
-        objlim:
+        arr (`numpy.ndarray`_):
+            Array to average.  Can be any shape and dimensionality.
+        boxcar (:obj:`int`, :obj:`tuple`):
+            Integer number of pixels to average.  If a single integer,
+            all axes are averaged with the same size box.  If a
+            :obj:`tuple`, the integer is defined separately for each
+            array axis; length of tuple must match the number of array
+            dimensions.
 
     Returns:
-        ndarray: mask of cosmic rays (0=no CR, 1=CR)
+        `numpy.ndarray`_: The averaged array.  If boxcar is a single
+        integer, the returned array shape is::
+            
+            tuple([s//boxcar for s in arr.shape])
 
+        A similar operation gives the shape when boxcar has elements
+        defined for each array dimension.  If the input array is not an
+        integer number of boxcar pixels along a given dimension, the
+        remainder of the array elements along that dimension are ignored
+        (i.e., pixels within the modulus of the array shape and boxcar
+        of the end of the array dimension are ignored).
     """
+    # Check and configure the input
+    _boxcar = (boxcar,)*arr.ndim if isinstance(boxcar, int) else boxcar
+    if not isinstance(_boxcar, tuple):
+        raise TypeError('Input `boxcar` must be an integer or a tuple.')
+    if len(_boxcar) != arr.ndim:
+        raise ValueError('Must provide an integer or tuple with one number per array dimension.')
+
+    # Perform the boxcar average over each axis and return the result
+    _arr = arr.copy()
+    for axis, box in zip(range(arr.ndim), _boxcar):
+        _arr = np.add.reduceat(_arr, np.arange(0, _arr.shape[axis], box), axis=axis)/box
+    return _arr
+
+
+# NOTE: This is faster than utils.subsample by a factor of 2-3.
+def boxcar_replicate(arr, boxcar):
+    """
+    Boxcar replicate an array.
+
+    Args:
+        arr (`numpy.ndarray`_):
+            Array to replicate.  Can be any shape and dimensionality.
+        boxcar (:obj:`int`, :obj:`tuple`):
+            Integer number of times to replicate each pixel. If a
+            single integer, all axes are replicated the same number
+            of times. If a :obj:`tuple`, the integer is defined
+            separately for each array axis; length of tuple must
+            match the number of array dimensions.
+
+    Returns:
+        `numpy.ndarray`_: The block-replicated array.
+    """
+    # Check and configure the input
+    _boxcar = (boxcar,)*arr.ndim if isinstance(boxcar, int) else boxcar
+    if not isinstance(_boxcar, tuple):
+        raise TypeError('Input `boxcar` must be an integer or a tuple.')
+    if len(_boxcar) != arr.ndim:
+        raise ValueError('Must provide an integer or tuple with one number per array dimension.')
+
+    # Perform the boxcar replication over each axis and return the result
+    _arr = arr.copy()
+    for axis, box in zip(range(arr.ndim), _boxcar):
+        _arr = np.repeat(_arr, box, axis=axis)
+    return _arr
+
+
+def lacosmic(sciframe, saturation=None, nonlinear=1., bpm=None, varframe=None, maxiter=1, grow=1.5,
+             remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0, rm_false_pos=True):
+    r"""
+    Identify cosmic rays using the L.A.Cosmic algorithm.
+
+    See Peter van Dokkum's `L.A.Cosmic`_ website and `van Dokkum (2001, PASP,
+    113, 1420)`_.
+
+    This routine is mostly courtesy of Malte Tewes with some updates/alterations
+    by the ``PypeIt`` developers.
+
+    Args:
+        sciframe (`numpy.ndarray`_):
+            Science frame to process.
+        saturation (:obj:`float`, `numpy.ndarray`_, optional):
+            The saturation level of the detector in units that match the
+            provided frame.  This is used to flag pixels to ignore.  Can be a
+            single value or an array; if the latter, the shape must match
+            ``sciframe``.  If None, no pixels are flagged as being saturated.
+        nonlinear (:obj:`float`, `numpy.ndarray`_, optional):
+            The fraction of the saturation level at which the detector response
+            becomes non-linear.  Can be a single value or an array; if the
+            latter, the shape must match ``sciframe``.
+        bpm (`numpy.ndarray`_, optional):
+            Bad-pixel mask for the input science frame.  If None, all pixels are
+            considered available to be flagged as cosmic rays.  Shape must match
+            ``sciframe``.
+        varframe (`numpy.ndarray`_, optional):
+            The variance in the science frame to process.  If None, the variance
+            is estimated by the absolute value of a :math:`5\times 5` boxcar
+            median filter of the image.
+        maxiter (:obj:`int`, optional):
+            Maximum number of detection iterations.
+        grow (:obj:`float`, optional):
+            The radius (in pixels) used to grow the region masked around
+            detected cosmic rays.  See :func:`grow_mask`.  If :math:`\leq 0`,
+            the cosmic-ray mask regions are not grown.
+        remove_compact_obj (:obj:`bool`, optional):
+            Remove likely compact objects from the set of detected cosmic rays.
+            This is performed by default here and in the original L.A.Cosmic
+            algorithm.
+        sigclip (:obj:`float`, optional):
+            Threshold for identifying a cosmic ray
+        sigfrac (:obj:`float`, optional):
+            Fraction of ``sigclip`` used to define the lower threshold used for
+            pixels neighboring identified cosmic-rays.
+        objlim (:obj:`float`, optional):
+            Contrast limit between a cosmic-ray and an underlying object
+        rm_false_pos (:obj:`bool`, optional):
+            Apply algorithm to detect and remove false positives.  This is not a
+            traditional component of the L.A.Cosmic algorithm.
+
+    Returns:
+        `numpy.ndarray`_: Boolean array flagging pixels with detected cosmic
+        rays; True means the pixel has a cosmic ray.
+    """
+    # Check input
+    if saturation is not None and isinstance(saturation, np.ndarray) \
+            and saturation.shape != sciframe.shape:
+        msgs.error('Detector pixel saturation array has incorrect shape.')
+    if isinstance(nonlinear, np.ndarray) and nonlinear.shape != sciframe.shape:
+        msgs.error('Detector nonlinear pixel scale array has incorrect shape.')
+    if bpm is not None and bpm.shape != sciframe.shape:
+        msgs.error('Bad-pixel mask must match shape of science frame.')
+    if varframe is not None and varframe.shape != sciframe.shape:
+        msgs.error('Variance frame must match shape of science frame.')
+
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
-#    msgs.work("Include these parameters in the settings files to be adjusted by the user")
-    # Set the settings
-    scicopy = sciframe.copy()
-    crmask = np.cast['bool'](np.zeros(sciframe.shape))
+
+    # Setup
+    # NOTE: We only need a copy of the image if we're performing more than one
+    # iteration
+    _sciframe = sciframe.copy() if maxiter > 1 else sciframe
+    crmask = np.zeros(sciframe.shape, dtype=bool)
     sigcliplow = sigclip * sigfrac
 
+    # Pixels flagged as bad for other reasons are excluded from the list of
+    # returned cosmic rays
+    _bpm = None if bpm is None else bpm.copy()
+    # Include pixel saturation in bad pixel mask if provided
     # Determine if there are saturated pixels
-    satpix = np.zeros_like(sciframe)
-#    satlev = settings_det['saturation']*settings_det['nonlinear']
-    satlev = saturation*nonlinear
-    wsat = np.where(sciframe >= satlev)
-    if wsat[0].size == 0: satpix = None
-    else:
-        satpix[wsat] = 1.0
-        satpix = np.cast['bool'](satpix)
+    if saturation is not None:
+        satpix = sciframe >= saturation*nonlinear
+        if np.any(satpix):
+            _bpm = satpix if _bpm is None else _bpm & satpix
+
+    # TODO: Should we be executing boxcar_fill here before the first iteration
+    # to remove bad pixels?
+
+    # Initialize the noise model
+    if varframe is not None:
+        noise = np.sqrt(varframe)
+        # NOTE: Inverting the error avoids division by 0 errors
+        _inv_err = utils.inverse(noise)
 
     # Define the kernels
-    laplkernel = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])  # Laplacian kernal
-    growkernel = np.ones((3,3))
-    for i in range(1, maxiter+1):
-        msgs.info("Convolving image with Laplacian kernel")
-        # Subsample, convolve, clip negative values, and rebin to original size
-        subsam = utils.subsample(scicopy)
-        conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
-        cliped = conved.clip(min=0.0)
-        lplus = utils.rebin_evlist(cliped, np.array(cliped.shape)/2.0)
+    # - Laplacian kernel
+    laplkernel = np.array([[0.0, -1.0, 0.0],
+                           [-1.0, 4.0, -1.0],
+                           [0.0, -1.0, 0.0]])
+    # - Growth kernel
+    growkernel = np.ones((3,3), dtype=bool)
+    for i in range(maxiter):
 
-        msgs.info("Creating noise model")
-        # Build a custom noise map, and compare  this to the laplacian
-        m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
         if varframe is None:
-            noise = np.sqrt(np.abs(m5))
-        else:
-            noise = np.sqrt(varframe)
-        msgs.info("Calculating Laplacian signal to noise ratio")
+            msgs.info("Updating the noise model")
+            m5 = ndimage.filters.median_filter(_sciframe, size=5, mode='mirror')
+            noise = np.sqrt(np.absolute(m5))
+            # NOTE: Inverting the error avoids division by 0 errors
+            _inv_err = utils.inverse(noise)
 
-        # Laplacian S/N
-        s = lplus / (2.0 * noise)  # Note that the 2.0 is from the 2x2 subsampling
+        # Use the Laplacian transform to construct the image 2nd derivative and
+        # get its S/N.  NOTE: the division by 2 in the S/N calculation is from
+        # the 2x2 subsampling.  astropy.convolution.convolve gives the same
+        # result as scipy.signal.convolve2d, but is nearly a factor of 2 faster.
+        msgs.info("Convolving image with Laplacian kernel")
+        deriv = convolve(boxcar_replicate(_sciframe, 2), laplkernel, normalize_kernel=False,
+                         boundary='extend')
+        s = utils.rebin_evlist(np.clip(deriv, 0, None), _sciframe.shape) * _inv_err / 2.0 
 
         # Remove the large structures
         sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
 
-        msgs.info("Selecting candidate cosmic rays")
-        # Candidate cosmic rays (this will include HII regions)
-        candidates = sp > sigclip
-        nbcandidates = np.sum(candidates)
+        # Candidate cosmic rays
+        cosmics = sp > sigclip
+        ncr = np.sum(cosmics)
+        msgs.info(f'Found {ncr} candidate cosmic-ray pixels')
 
-        msgs.info("{0:5d} candidate pixels".format(nbcandidates))
-
-        # At this stage we use the saturated stars to mask the candidates, if available :
-        if satpix is not None:
-            msgs.info("Masking saturated pixels")
-            candidates = np.logical_and(np.logical_not(satpix), candidates)
-            nbcandidates = np.sum(candidates)
-
-            msgs.info("{0:5d} candidate pixels not part of saturated stars".format(nbcandidates))
-
-        msgs.info("Building fine structure image")
-
-        # We build the fine structure image :
-        m3 = ndimage.filters.median_filter(scicopy, size=3, mode='mirror')
-        m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
-        f = m3 - m37
-        f /= noise
-        f = f.clip(min=0.01)
-
-        msgs.info("Removing suspected compact bright objects")
-
-        # Now we have our better selection of cosmics :
+        if _bpm is not None:
+            # Remove known bad pixels
+            cosmics &= np.logical_not(_bpm)
+            ncr = np.sum(cosmics)
+            msgs.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
 
         if remove_compact_obj:
-            cosmics = np.logical_and(candidates, sp/f > objlim)
-        else:
-            cosmics = candidates
-        nbcosmics = np.sum(cosmics)
+            # Build the fine structure image
+            m3 = ndimage.filters.median_filter(_sciframe, size=3, mode='mirror')
+            m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
+            # TODO: How does clip treat NaNs?
+            f = np.clip((m3 - m37) * _inv_err, 0.01, None)
+            # Require cosmics to have significant contrast
+            cosmics &= sp/f > objlim
+            ncr = np.sum(cosmics)
+            msgs.info(f'Reduced to {ncr} candidates after excluding compact objects.')
 
-        msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
-
-        # What follows is a special treatment for neighbors, with more relaxed constains.
-
+        # What follows is a special treatment for neighbors, with more relaxed
+        # constraints.
         msgs.info("Finding neighboring pixels affected by cosmic rays")
-
-        # We grow these cosmics a first time to determine the immediate neighborhod  :
-        growcosmics = np.cast['bool'](signal.convolve2d(np.cast['float32'](cosmics), growkernel, mode="same", boundary="symm"))
-
-        # From this grown set, we keep those that have sp > sigmalim
-        # so obviously not requiring sp/f > objlim, otherwise it would be pointless
-        growcosmics = np.logical_and(sp > sigclip, growcosmics)
+        # We grow these cosmics a first time to determine the immediate
+        # neighborhod, keeping those that also meet the S/N requirement
+        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics &= sp > sigclip
 
         # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
+        cosmics = ndimage.binary_dilation(cosmics, structure=growkernel)
+        cosmics &= sp > sigcliplow
+        ncr = np.sum(cosmics)
+        msgs.info(f'Changed to {ncr} candidates after evaluating neighboring pixels.')
 
-        finalsel = np.cast['bool'](signal.convolve2d(np.cast['float32'](growcosmics), growkernel, mode="same", boundary="symm"))
-        finalsel = np.logical_and(sp > sigcliplow, finalsel)
+        if _bpm is not None:
+            # Remove known bad pixels
+            cosmics &= np.logical_not(_bpm)
+            ncr = np.sum(cosmics)
+            msgs.info(f'Reduced to {ncr} candidates after excluding known bad pixels.')
 
-        # Unmask saturated pixels:
-        if satpix is not None:
-            msgs.info("Masking saturated stars")
-            finalsel = np.logical_and(np.logical_not(satpix), finalsel)
-
-        ncrp = np.sum(finalsel)
-
-        msgs.info("{0:5d} pixels detected as cosmics".format(ncrp))
-
-        # We find how many cosmics are not yet known :
-        newmask = np.logical_and(np.logical_not(crmask), finalsel)
-        nnew = np.sum(newmask)
-
-        # We update the mask with the cosmics we have found :
-        crmask = np.logical_or(crmask, finalsel)
-
-        msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
-        if ncrp == 0:
+        # Determine how many new cosmics were found
+        nnew = np.sum(np.logical_not(crmask) & cosmics)
+        crmask |= cosmics
+        msgs.info(f'Iteration {i+1}: {np.sum(crmask)} pixels identified as cosmic rays '
+                  f'({nnew} are new)')
+        if nnew == 0 or i == maxiter - 1:
+            # TODO: Warn the user if the maximum number of iterations was
+            # reached (and maxiter!=1)?
             break
+
+        # Prepare for the next iteration
+        msgs.info('Preparing for next iteration')
+        _sciframe = boxcar_fill(_sciframe, 5, bpm=crmask if _bpm is None else crmask | _bpm)
+
+    if not rm_false_pos:
+        return grow_mask(crmask, grow) if grow > 0 else crmask
 
     # Additional algorithms (not traditionally implemented by LA cosmic) to
     # remove some false positives.
-    msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
+    #msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
     filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
-    filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
-    filty[np.where(np.isnan(filty))]=0.0
+    _inv_mad = utils.inverse(np.sqrt(np.abs(sciframe))) # Avoid divisions by 0
+    filty = ndimage.sobel(filt * _inv_mad, axis=0, mode='constant')
+    # TODO: Can we skip this now that we're not dividing by 0?
+    filty[np.isnan(filty)] = 0.0
 
     sigimg = cr_screen(filty)
 
-    sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
-    sigsmth[np.where(np.isnan(sigsmth))]=0.0
-    sigmask = np.cast['bool'](np.zeros(sciframe.shape))
-    sigmask[np.where(sigsmth>sigclip)] = True
-    crmask = np.logical_and(crmask, sigmask)
-    msgs.info("Growing cosmic ray mask by 1 pixel")
-    crmask = grow_masked(crmask.astype(np.float), grow, 1.0)
+    sigsmth = ndimage.filters.gaussian_filter(sigimg, 1.5)
+    sigsmth[np.isnan(sigsmth)] = 0.0
 
-    return crmask.astype(bool)
+    crmask &= sigsmth > sigclip
+    msgs.info(f'{np.sum(crmask)} pixels identified as cosmic rays after removing false positives')
+    return grow_mask(crmask, grow) if grow > 0 else crmask
+
+
+def boxcar_fill(img, width, bpm=None, maxiter=None, fill_value=np.nan):
+    """
+    Use convolution with a boxcar kernel to iteratively fill masked regions of
+    an image.
+
+    .. warning::
+        
+        Depending the size of the kernel, the masked regions, and the maximum
+        number of iterations, the procedure may not be able to fill all masked
+        pixels.  Any left-over masked pixels are returned with the provided
+        ``fill_value``.
+
+    Args:
+        img (`numpy.ndarray`_, `numpy.ma.MaskedArray`_):
+            Image to fill.  Must be 2D.  If an unmasked array, function will
+            simply return ``img`` if ``mask`` is not provided.
+        width (:obj:`int`):
+            Width of the square box to use for the convolution kernel.  Must be
+            odd.
+        bpm (`numpy.ndarray`_, optional):
+            Image bad-pixel mask.  If ``img`` is a masked array, this mask is
+            combined with the ``img`` mask attribute.
+        maxiter (:obj:`int`, optional):
+            The maximum number of fill iterations.  If None, iterations continue
+            until all masked pixels are filled.
+        fill_value (:obj:`float`, optional):
+            If the number of allowed iterations are insufficient to fill the
+            array, replace masked pixels with this value.
+
+    Returns:
+        `numpy.ndarray`_: Array with the same shape as ``img`` with the masked
+        pixels filled by the average of the unmasked pixels in the boxcar
+        kernel.
+    """
+    # TODO: A 2D median filter that accounts for masked pixels may be better,
+    # but I couldn't find a canned algorithm.  Could also imagine using
+    # different kernels (e.g., a Gaussian).  See: 
+    #   https://docs.astropy.org/en/stable/convolution/index.html
+
+    # Check input
+    if isinstance(img, np.ndarray) and bpm is None:
+        return img
+    # Handle masked array input
+    if isinstance(img, np.ma.MaskedArray):
+        _msk = np.ma.getmaskarray(img).copy()
+        if bpm is not None:
+            _msk |= bpm
+        _img = img.data.copy()
+    else:
+        _img = img.copy()
+        _msk = bpm.copy()
+
+    # Construct the convolution kernel
+    fillkernel = Box2DKernel(width)
+
+    # Replace masked pixels with np.nan so that astropy.convolution.convolve
+    # ignores them.
+    _img[_msk] = np.nan
+
+    # Iteratively fill the masked pixels
+    filliter = 0
+    while np.any(_msk) and (maxiter is None or filliter < maxiter):
+        # TODO: Suppress the astropy warning when the returned array still has
+        # NaNs in it.
+        _img[_msk] = convolve(_img, fillkernel)[_msk]
+        _msk = np.isnan(_img)
+        filliter += 1
+    if np.any(_msk):
+        # Fill any left-over masked pixels
+        _img[_msk] = fill_value
+    return _img
 
 
 def cr_screen(a, mask_value=0.0, spatial_axis=1):
@@ -214,32 +410,33 @@ def cr_screen(a, mask_value=0.0, spatial_axis=1):
     return np.ma.divide(d, mada[:,None]).filled(mask_value)
 
 
-def grow_masked(img, grow, growval):
+# NOTE: This is a factor of a few times faster than the previous version.  The
+# speed improvement is better for smaller images.  For larger images (e.g.,
+# 2048x2048), the improvement is about a factor of 3.
+def grow_mask(mask, radius):
+    """
+    Grow pixels flagged as True in a boolean mask by the provided radius.
 
-    if not np.any(img == growval):
-        return img
+    This is largely a convience wrapper for `scipy.ndimage.binary_dilation`_.
 
-    _img = img.copy()
-    sz_x, sz_y = img.shape
-    d = int(1+grow)
-    rsqr = grow*grow
+    Args:
+        mask (`numpy.ndarray`_):
+            Boolean mask to process.  Pixels flagged as True are expanded into
+            circles with the provided radius.
+        radius (scalar-like):
+            Radius in pixels to grow the mask.
 
-    # Grow any masked values by the specified amount
-    for x in range(sz_x):
-        for y in range(sz_y):
-            if img[x,y] != growval:
-                continue
-
-            mnx = 0 if x-d < 0 else x-d
-            mxx = x+d+1 if x+d+1 < sz_x else sz_x
-            mny = 0 if y-d < 0 else y-d
-            mxy = y+d+1 if y+d+1 < sz_y else sz_y
-
-            for i in range(mnx,mxx):
-                for j in range(mny, mxy):
-                    if (i-x)*(i-x)+(j-y)*(j-y) <= rsqr:
-                        _img[i,j] = growval
-    return _img
+    Returns:
+        `numpy.ndarray`_: The boolean mask grown with the masked region grown by
+        the provided radius.
+    """
+    # Prep for the dilation structure
+    size = int(radius*2+1)
+    if size % 2 == 0:
+        size += 1
+    x, y = np.meshgrid(np.arange(size) - size//2, np.arange(size) - size//2)
+    # Dilate the mask
+    return ndimage.binary_dilation(mask, structure=x**2 + y**2 <= radius**2)
 
 
 def gain_frame(amp_img, gain):
@@ -259,13 +456,10 @@ def gain_frame(amp_img, gain):
     """
     # TODO: Remove this or actually do it.
     # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
-
-    # Build the gain image
+    # Build and return the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
     for i,_gain in enumerate(gain):
         gain_img[amp_img == i+1] = _gain
-
-    # Return the image, trimming if requested
     return gain_img
 
 
@@ -329,6 +523,10 @@ def rn2_frame(datasec_img, ronoise, units='e-', gain=None, digitization=False):
     # Determine the number of amplifiers from the datasec image
     _datasec_img = datasec_img.astype(int)
     numamplifiers = np.amax(_datasec_img)
+    if numamplifiers == 0:
+        msgs.error('Amplifier identification image (datasec_img) does not have any values larger '
+                   'than 0!  The image should indicate the 1-indexed integer of the amplifier '
+                   'used to read each pixel.')
 
     # Check the number of RN values
     _ronoise = np.atleast_1d(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
@@ -392,7 +590,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
 
     Args:
         rawframe (`numpy.ndarray`_):
-            Frame from which to subtract overscan
+            Frame from which to subtract overscan.  Must be 2d.
         datasec_img (`numpy.ndarray`_):
             An array the same shape as ``rawframe`` that identifies the pixels
             associated with the data on each amplifier; 0 for no data, 1 for
@@ -410,26 +608,35 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             for ``method=savgol``, set ``params`` to the order and window size;
             for ``method=median``, ``params`` are ignored.
         var (`numpy.ndarray`_, optional):
-            Variance in the raw frame.  If None, ignored.  If provided, an
-            estimate of the error in the overscan correction is included and an
-            updated variance image is returned.  The estimated error is the
-            standard error in the median for the pixels included in the overscan
-            correction.  This estimate is also used for the ``'savgol'`` method
-            as an upper limit.
+            Variance in the raw frame.  If provided, must have the same shape as
+            ``rawframe`` and used to estimate the error in the overscan
+            subtraction.  The estimated error is the standard error in the
+            median for the pixels included in the overscan correction.  This
+            estimate is also used for the ``'savgol'`` method as an upper limit.
+            If None, no variance in the overscan subtraction is calculated, and
+            the 2nd object in the returned tuple is None.
 
     Returns:
-        `numpy.ndarray`_, :obj:`tuple`: The input frame with the overscan region
-        subtracted.  If ``var`` is provided, the returned object is a tuple with
-        an estimate of the propagated variance in the overscan-subtracted image
-        as the second item.
+        :obj:`tuple`: The input frame with the overscan region subtracted and an
+        estimate of the variance in the overscan subtraction; both have the same
+        shape as the input ``rawframe``.  If ``var`` is no provided, the 2nd
+        returned object is None.
     """
     # Check input
     if method.lower() not in ['polynomial', 'savgol', 'median']:
         msgs.error(f'Unrecognized overscan subtraction method: {method}')
+    if rawframe.ndim != 2:
+        msgs.error('Input raw frame must be 2D.')
+    if datasec_img.shape != rawframe.shape:
+        msgs.error('Datasec image must have the same shape as the raw frame.')
+    if oscansec_img.shape != rawframe.shape:
+        msgs.error('Overscan section image must have the same shape as the raw frame.')
+    if var is not None and var.shape != rawframe.shape:
+        msgs.error('Variance image must have the same shape as the raw frame.')
 
     # Copy the data so that the subtraction is not done in place
     no_overscan = rawframe.copy()
-    _var = None if var is None else var.copy()
+    _var = None if var is None else np.zeros(var.shape, dtype=float)
 
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
@@ -471,18 +678,18 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img, method='savgol', para
             # Subtract scalar and continue
             no_overscan[data_slice] -= osfit
             if var is not None:
-                _var[data_slice] += osvar
+                _var[data_slice] = osvar
             continue
 
         # Subtract along the appropriate axis
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
         if var is not None:
-            _var[data_slice] += (osvar[:,None] if compress_axis == 1 else osvar[None,:])
+            _var[data_slice] = (osvar[:,None] if compress_axis == 1 else osvar[None,:])
 
-    return no_overscan if var is None else (no_overscan, _var)
+    return no_overscan, _var
 
 
-def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1, debug=False):
+def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1): #, debug=False):
     """
     Subtract a sinusoidal pattern from the input rawframe. The algorithm
     calculates the frequency of the signal, generates a model, and subtracts
@@ -510,8 +717,6 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             will be determined from the overscan region.
         axis (:obj:`int`, optional):
             Which axis should the pattern subtraction be applied?
-        debug (:obj:`bool`, optional):
-            Debug the code (True means yes)
 
     Returns:
         `numpy.ndarray`_: The input frame with the pattern subtracted
@@ -607,16 +812,18 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
         outframe[osd_slice] -= model_pattern
 
-    debug = False
-    if debug:
-        embed()
-        import astropy.io.fits as fits
-        hdu = fits.PrimaryHDU(rawframe)
-        hdu.writeto("tst_raw.fits", overwrite=True)
-        hdu = fits.PrimaryHDU(outframe)
-        hdu.writeto("tst_sub.fits", overwrite=True)
-        hdu = fits.PrimaryHDU(rawframe - outframe)
-        hdu.writeto("tst_mod.fits", overwrite=True)
+#    debug = False
+#        debug (:obj:`bool`, optional):
+#            Debug the code (True means yes)
+#    if debug:
+#        embed()
+#        import astropy.io.fits as fits
+#        hdu = fits.PrimaryHDU(rawframe)
+#        hdu.writeto("tst_raw.fits", overwrite=True)
+#        hdu = fits.PrimaryHDU(outframe)
+#        hdu.writeto("tst_sub.fits", overwrite=True)
+#        hdu = fits.PrimaryHDU(rawframe - outframe)
+#        hdu.writeto("tst_mod.fits", overwrite=True)
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
@@ -922,29 +1129,23 @@ def trim_frame(frame, mask):
     return frame[np.logical_not(np.all(mask,axis=1)),:][:,np.logical_not(np.all(mask,axis=0))]
 
 
-# TODO: Note that (now that we're not using the previous correction based on the
-# value of the read-noise variance) rn_var and proc_var are entirely
-# degenerate; i.e., you could just subsume one into the other and you get the
-# same answer.  So should we just do that (i.e., redefine the parameter to be
-# the sum of both)?
-def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=None,
-                   count_scale=None, noise_floor=None, shot_noise=False):
+def base_variance(rn_var, darkcurr=None, exptime=None, proc_var=None, count_scale=None):
     r"""
-    Calculate the expected variance in an image.
+    Calculate the "base-level" variance in a processed image driven by the
+    detector properties and the additive noise from the image processing steps.
 
-    The full variance model, :math:`V`, is:
+    The full variance model (see :func:`variance_model`), :math:`V`, is:
 
     .. math::
 
         V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} / 3600 +
-                V_{\rm rn} + V_{\rm proc} \right] + \epsilon^2 {\rm max}(0, c)^2
+                V_{\rm rn} + V_{\rm proc} \right] 
+                + \epsilon^2 {\rm max}(0, c)^2
 
     where:
 
-        - :math:`c=s\ C` are the rescaled counts, which when a scaling has been
-          applied (see ``count_scale``) is what should be provided as ``counts``,
-        - :math:`C` is the observed number of image counts (see ``counts`` and
-          ``count_scale``),
+        - :math:`c=s\ C` are the rescaled observed sky + object counts,
+        - :math:`C` is the observed number of sky + object counts,
         - :math:`s` is a scale factor derived from the (inverse of the)
           flat-field frames (see ``count_scale``),
         - :math:`D` is the dark current in electrons per **hour** (see
@@ -956,39 +1157,56 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         - :math:`V_{\rm proc}` is added variance from image processing (e.g.,
           bias subtraction; see ``proc_var``), and
         - :math:`\epsilon` is an added error term that imposes a maximum
-          signal-to-noise on the observed counts (see ``noise_floor``).
+          signal-to-noise on the observed counts.
 
-    We emphasize that this is a *model* for the per-pixel image variance.  In
-    real data, the as-observed pixel values are used to estimate the Poisson
-    error in the observed counts.  Because of the variance in the image, this
-    systematically overestimates the variance toward low counts (:math:`\lesssim
-    2 \sigma_{\rm rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm
-    rn}` for :math:`C=0` (i.e., about 20% for a readnoise of 2 e-) and less than
-    10% for :math:`C=1`.
+    This function consolidates terms that do not change with the forward
+    modeling of the sky + object counts.  That is, this function calculates
 
-    .. note::
+    .. math::
 
-        If :math:`s` (``count_scale``) is provided, the variance will be 0
-        wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
+        V_{\rm base} = s^2\ \left[ D t_{\rm exp} / 3600 + V_{\rm rn} + V_{\rm
+        proc} \right]
+
+    such that the first equation can be re-written as
+
+    .. math::
+
+        V = s {\rm max}(0,c) + V_{\rm base} + \epsilon^2 {\rm max}(0, c)^2.
+
+    .. warning::
+
+        - If :math:`s` (``count_scale``) is provided, the variance will be 0
+          wherever :math:`s \leq 0`.
+
+        - Note that dark current is typically given in electrons per second *per
+          pixel*.  If on-chip binning was used for the detector readout, each
+          binned pixel will have accummulated the expected dark-current (in
+          e-/s/pixel) multiplied by the number of binned pixels.  Beware the
+          units of ``darkcurr``, both in that it is dark-current per *hour* and
+          that it is the dark-current expected in the *binned* pixel.  For
+          example, see the calling function
+          :func:`pypeit.images.rawimage.RawImage.build_ivar`.
+        
+        - The input arrays can have any dimensionality (i.e., they can be single
+          2D images or a 3D array containing multiple 2D images); however, the
+          exposure time must be a scalar applied to all array values.
 
     Args:
         rn_var (`numpy.ndarray`_):
-            A 2D array with the read-noise variance from the instrument
-            detector.  This should include digitization noise and any difference
-            in the readnoise across the detector due to the use of multiple
-            amplifiers.
-        counts (`numpy.ndarray`_, optional):
-            A 2D array with the number of source-plus-sky counts, possibly
-            rescaled by a relative throughput.  Because this is used to
-            calculate (part of) the Poisson statistics for the electon counts
-            and the noise floor, this *must* be provided if ``noise_floor`` is
-            not None or ``shot_noise`` is True.  Shape must match ``rn_var``.
+            A 2D array with the readnoise variance (i.e., readnoise squared)
+            from the instrument detector; see :func:`rn2_frame`.  This should
+            include digitization noise and any difference in the readnoise
+            across the detector due to the use of multiple amplifiers.
+            Readnoise should be in e-, meaning this is in elections squared.
         darkcurr (:obj:`float`, `numpy.ndarray`_, optional):
             Dark current in electrons per **hour** (as is the convention for the
             :class:`~pypeit.images.detector_container.DetectorContainer` object)
-            if the exposure time is provided, otherwise in electrons.  If None,
-            set to 0.  If a single float, assumed to be constant across the full
-            image.  If an array, the shape must match ``rn_var``.
+            if the exposure time is provided, otherwise in electrons.  Note that
+            this is the dark-current in each read pixel, meaning you likely need
+            to multiply the quoted detector dark-current by the number of pixels
+            in a bin (e.g., 4 for 2x2 binning) for binned data.  If None, set to
+            0.  If a single float, assumed to be constant across the full image.
+            If an array, the shape must match ``rn_var``.
         exptime (:obj:`float`, optional):
             Exposure time in seconds.  If None, dark current *must* be
             in electrons.
@@ -1004,27 +1222,12 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
             If a single float, assumed to be constant across the full image.  If
             an array, the shape must match ``rn_var``.  The variance will be 0
             wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
-        noise_floor (:obj:`float`, optional):
-            A fraction of the counts to add to the variance, which has the
-            effect of ensuring that the S/N is never greater than
-            ``1/noise_floor``.  If None, no noise floor is added.  If not None,
-            ``counts`` *must* be provided.
-        shot_noise (:obj:`bool`, optional):
-            Include the shot noise terms, the photon counts from the sky and the
-            dark current, in the calculation.  If True, ``counts``
-            *must* be provided.
 
     Returns:
-        `numpy.ndarray`_: Variance image computed via the equation above with
-        the same shape as ``counts``.
+        `numpy.ndarray`_: Base-level variance image computed via the equation
+        above with the same shape as ``rn_var``.
     """
     # Check input
-    if noise_floor is not None and noise_floor > 0. and counts is None:
-        msgs.error('To impose a noise floor, must provide counts.')
-    if shot_noise and counts is None:
-        msgs.error('To include shot noise, must provide counts.')
-    if counts is not None and counts.shape != rn_var.shape:
-        msgs.error('Counts image and readnoise variance have different shape.')
     if count_scale is not None and isinstance(count_scale, np.ndarray) \
             and count_scale.shape != rn_var.shape:
         msgs.error('Count scale and readnoise variance have different shape.')
@@ -1036,36 +1239,138 @@ def variance_model(rn_var, counts=None, darkcurr=None, exptime=None, proc_var=No
         msgs.error('Dark image and readnoise variance have different shape.')
 
     # Build the variance
-    #   - First term is 0 if counts not provided or if shot noise shouldn't be
-    #     included, set to the clipped count values otherwise.
-    var = np.zeros(rn_var.shape, dtype=float) if counts is None or not shot_noise \
-            else np.clip(counts, 0., None)
-    #   - Convert (revert) from scaled counts to observed counts
-    if count_scale is not None:
-        # Check the input type
-        _count_scale = count_scale.copy() if isinstance(count_scale, np.ndarray) \
-                        else np.full(var.shape, count_scale, dtype=float)
-        # TODO: Should this instead be np.logical_not(np.absolute(count_scale) > 0)?
-        indx = count_scale > 0.
-        _count_scale[np.logical_not(indx)] = 0.
-        if counts is not None:
-            # Convert (revert) from scaled counts to observed counts
-            var[indx] /= _count_scale[indx]
-    #   - Add the dark current
-    if shot_noise and darkcurr is not None:
-        var += darkcurr if exptime is None else darkcurr * exptime / 3600
-    #   - Add the readnoise
-    var += rn_var
+    #   - First term is the read-noise
+    var = rn_var.copy()
     #   - Add the processing noise
     if proc_var is not None:
         var += proc_var
-    #   - Propagate the scaling to the variance
+    #   - Add the dark current
+    if darkcurr is not None:
+        var += darkcurr if exptime is None else darkcurr * exptime / 3600
+    #   - Include the rescaling
     if count_scale is not None:
-        # NOTE: This means the variance will be 0 where count_scale <= 0.
+        _count_scale = count_scale.copy() if isinstance(count_scale, np.ndarray) \
+                        else np.full(var.shape, count_scale, dtype=float)
         var *= _count_scale**2
-    #   - Add the noise floor
-    if counts is not None and noise_floor is not None and noise_floor > 0.:
-        var += (noise_floor * np.clip(counts, 0., None))**2
+    # Done
+    return var
+
+
+def variance_model(base, counts=None, count_scale=None, noise_floor=None):
+    r"""
+    Calculate the expected variance in an image.
+
+    The full variance model (see :func:`variance_model`), :math:`V`, is:
+
+    .. math::
+
+        V = s^2\ \left[ {\rm max}(0, C) + D t_{\rm exp} / 3600 +
+                V_{\rm rn} + V_{\rm proc} \right] 
+                + \epsilon^2 {\rm max}(0, c)^2
+
+    where:
+
+        - :math:`c=s\ C` are the rescaled observed sky + object counts (see
+          ``counts``),
+        - :math:`C` is the observed number of sky + object counts,
+        - :math:`s` is a scale factor derived from the (inverse of the)
+          flat-field frames (see ``count_scale``),
+        - :math:`D` is the dark current in electrons per **hour**,
+        - :math:`t_{\rm exp}` is the effective exposure time in seconds,
+        - :math:`V_{\rm rn}` is the detector readnoise variance (i.e.,
+          read-noise squared),
+        - :math:`V_{\rm proc}` is added variance from image processing (e.g.,
+          bias subtraction), and
+        - :math:`\epsilon` is an added error term that imposes a maximum
+          signal-to-noise on the observed counts (see ``noise_floor``).
+
+    The function :func:`base_variance` consolidates all terms
+    that do not change with the forward
+    modeling of the sky + object counts into a single "base-level" variance
+
+    .. math::
+
+        V_{\rm base} = s^2\ \left[ D t_{\rm exp} / 3600 + V_{\rm rn} + V_{\rm
+        proc} \right]
+
+    such that the first equation can be re-written as
+
+    .. math::
+
+        V = s {\rm max}(0,c) + V_{\rm base} + \epsilon^2 {\rm max}(0, c)^2,
+
+    which is the quantity returned by this function.
+
+    We emphasize that this is a *model* for the per-pixel image variance.  In
+    real data, the as-observed pixel values are used to estimate the Poisson
+    error in the observed counts.  Because of the variance in the image, this
+    systematically overestimates the variance toward low counts (:math:`\lesssim
+    2 \sigma_{\rm rn}`), with a bias of approximately :math:`1.4/\sigma_{\rm
+    rn}` for :math:`C=0` (i.e., about 20% for a readnoise of 2 e-) and less than
+    10% for :math:`C=1`.
+
+    .. warning::
+
+        - If :math:`s` (``count_scale``) is provided, the variance will be 0
+          wherever :math:`s \leq 0`, modulo the provided ``noise_floor``.
+
+        - The input arrays can have any dimensionality (i.e., they can be single
+          2D images or a 3D array containing multiple 2D images); however,
+          currently the noise floor must be a single scalar applied to all array
+          values.
+
+    Args:
+        base (`numpy.ndarray`_):
+            The "base-level" variance in the data set by the detector properties
+            and the image processing steps.  See :func:`base_variance`;
+            :math:`V_{\rm base}` in the equations above.
+        counts (`numpy.ndarray`_, optional):
+            An array with the number of source-plus-sky counts, possibly
+            rescaled by a relative throughput; see :math:`c` in the equations
+            above.  Because this is used to calculate the noise floor, this
+            *must* be provided if ``noise_floor`` is not None.  Shape must match
+            ``base``.  Shape must match ``base``.
+        count_scale (:obj:`float`, `numpy.ndarray`_, optional):
+            A scale factor that *has already been applied* to the provided
+            counts; see :math:`s` in the equations above.  For example, if the
+            image has been flat-field corrected, this is the inverse of the
+            flat-field counts.  If None, no scaling is expected, meaning
+            ``counts`` are exactly the observed detector counts.  If a single
+            float, assumed to be constant across the full image.  If an array,
+            the shape must match ``base``.  The variance will be 0 wherever
+            :math:`s \leq 0`, modulo the provided ``noise_floor``.
+        noise_floor (:obj:`float`, optional):
+            A fraction of the counts to add to the variance, which has the
+            effect of ensuring that the S/N is never greater than
+            ``1/noise_floor``; see :math:`epsilon` in the equations above.  If
+            None, no noise floor is added.  If not None, ``counts`` *must* be
+            provided.
+
+    Returns:
+        `numpy.ndarray`_: Variance image computed via the equation above with
+        the same shape as ``base``.
+    """
+    # Check input
+    if noise_floor is not None and noise_floor > 0. and counts is None:
+        msgs.error('To impose a noise floor, must provide counts.')
+    if counts is not None and counts.shape != base.shape:
+        msgs.error('Counts image and base-level variance have different shape.')
+    if count_scale is not None and isinstance(count_scale, np.ndarray) \
+            and count_scale.shape != base.shape:
+        msgs.error('Count scale and base-level variance have different shape.')
+
+    # Clip the counts
+    _counts = None if counts is None else np.clip(counts, 0, None)
+
+    # Build the variance
+    #   - Start with the base-level variance
+    var = base.copy()
+    #   - Add the sky + object counts
+    if counts is not None:
+        var += _counts if count_scale is None else count_scale * _counts
+        #   - Add the noise floor
+        if noise_floor is not None and noise_floor > 0.:
+            var += (noise_floor * _counts)**2
     # Done
     return var
 

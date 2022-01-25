@@ -3,35 +3,32 @@ Module to run tests on SpecObjs
 """
 import os
 
-import numpy as np
+from IPython import embed
+
 import pytest
+
+import numpy as np
 
 from astropy.io import fits
 
-from pypeit import msgs
 from pypeit import specobjs
 from pypeit import specobj
 from pypeit import io
 from pypeit.tests import tstutils
 
-msgs.reset(verbosity=2)
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 @pytest.fixture
 def sobj1():
-    return specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    return specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
 @pytest.fixture
 def sobj2():
-    return specobj.SpecObj('MultiSlit', 2, SLITID=1)
+    return specobj.SpecObj('MultiSlit', 'DET02', SLITID=1)
 @pytest.fixture
 def sobj3():
-    return specobj.SpecObj('MultiSlit', 3, SLITID=0)
+    return specobj.SpecObj('MultiSlit', 'DET03', SLITID=0)
 @pytest.fixture
 def sobj4():
-    return specobj.SpecObj('MultiSlit', 1, SLITID=10)
+    return specobj.SpecObj('MultiSlit', 'DET01', SLITID=10)
 
 
 def test_init(sobj1, sobj2):
@@ -68,15 +65,15 @@ def test_add_rm(sobj1, sobj2, sobj3):
 def test_set(sobj1, sobj2, sobj3):
     sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
     # All
-    sobjs.DET = 3
-    assert np.all(sobjs[:].DET == np.array([3,3,3]))
-    sobjs[:].DET = 4
-    assert np.all(sobjs[:].DET == np.array([4,4,4]))
+    sobjs.DET = 'DET03'
+    assert np.all(sobjs[:].DET == np.array(['DET03','DET03','DET03']))
+    sobjs[:].DET = 'DET04'
+    assert np.all(sobjs[:].DET == np.array(['DET04','DET04','DET04']))
     # Slice
-    sobjs[1:2].DET = 2
-    assert sobjs.DET[1] == 2
+    sobjs[1:2].DET = 'DET02'
+    assert sobjs.DET[1] == 'DET02'
     # With logic
-    det2 = sobjs.DET == 2
+    det2 = sobjs.DET == 'DET02'
     sobjs[det2].PYPELINE = 'BLAH'
     assert sobjs.PYPELINE[1] == 'BLAH'
     assert sobjs.PYPELINE[0] == 'MultiSlit'
@@ -99,7 +96,7 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     # Write
     header = fits.PrimaryHDU().header
     header['TST'] = 'TEST'
-    ofile = data_path('tst_specobjs.fits')
+    ofile = tstutils.data_path('tst_specobjs.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     sobjs.write_to_fits(header, ofile, overwrite=False)
@@ -125,10 +122,13 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     sobjs[0]['BOX_WAVE'] = np.arange(2000).astype(float)
     sobjs1[0]['DETECTOR'] = tstutils.get_kastb_detector()
     header1 = fits.PrimaryHDU().header
-    sobjs1.write_to_fits(header1, ofile, overwrite=True, update_det=1)
+    sobjs1.write_to_fits(header1, ofile, overwrite=True, update_det='DET01')
 
     # Test
     _sobjs1 = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs1.nobj == 3
     assert _sobjs1[2].BOX_WAVE.size == 2000
     os.remove(ofile)
+
+
+
