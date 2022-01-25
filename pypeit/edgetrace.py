@@ -124,6 +124,7 @@ from pypeit import sampling
 from pypeit import masterframe
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
+from pypeit.images.mosaic import Mosaic
 from pypeit.bitmask import BitMask
 from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
@@ -250,10 +251,9 @@ class EdgeTraceSet(DataContainer):
 
     Args:
         traceimg (:class:`pypeit.images.buildcalibration.TraceImage`):
-            Two-dimensional image used to trace slit edges. If a
-            :class:`pypeit.images.buildcalibration.TraceImage` is provided, the
-            raw files used to construct the image are saved.
-            This includes detector info (e.g. binning, platescale)
+            Two-dimensional image used to trace slit edges.  The object provides
+            the image, the bad-pixel mask, the detector information, and (one
+            of) the original raw file name when matching slits to a design file.
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The object that sets the instrument used to take the
             observations. Used to set :attr:`spectrograph`.
@@ -268,10 +268,6 @@ class EdgeTraceSet(DataContainer):
         qa_path (:obj:`str`, optional):
             Directory for QA output. If None, no QA plots are
             provided.
-        bpm (`numpy.ndarray`_, optional):
-            Bad-pixel boolean mask for the trace image. Must have the
-            same shape as `img`. If None, all pixels are assumed to
-            be valid.
         auto (:obj:`bool`, optional):
             Find the edge traces using :func:`auto_trace`. If False,
             the trace data will only be the result of running
@@ -299,8 +295,6 @@ class EdgeTraceSet(DataContainer):
             :class:`pypeit.images.buildcalibration.TraceImage` object.
         img (`numpy.ndarray`_):
             Convenience for now.
-        bpm (`numpy.ndarray`_):
-            See argument list.
         det (:obj:`int`):
             See argument list.
         sobelsig (`numpy.ndarray`_)):
@@ -456,16 +450,11 @@ class EdgeTraceSet(DataContainer):
                                        'the PCA (center or fit)')}
     """DataContainer datamodel."""
 
-    def __init__(self, traceimg, spectrograph, par, bpm=None, qa_path=None, auto=False,
-                 debug=False, show_stages=False):
+    def __init__(self, traceimg, spectrograph, par, qa_path=None, auto=False, debug=False,
+                 show_stages=False):
 
         # Instantiate as an empty DataContainer
         super(EdgeTraceSet, self).__init__()
-
-        # TODO: TraceImage has a bad-pixel mask. Why isn't the
-        # traceimg.bpm the same as the keyword argument bpm? Currently,
-        # the traceimg.bpm array is not used. Should this be combined
-        # with the provided bpm?
 
         # Check input types
         if not isinstance(traceimg, TraceImage):
@@ -492,10 +481,10 @@ class EdgeTraceSet(DataContainer):
         # None.
         if auto:
             # Run the automatic tracing
-            self.auto_trace(bpm=bpm, debug=debug, show_stages=show_stages)
+            self.auto_trace(debug=debug, show_stages=show_stages)
         else:
             # Only get the initial trace
-            self.initial_trace(bpm=bpm)
+            self.initial_trace()
 
     def _init_internals(self):
         """Add any attributes that are *not* part of the datamodel."""
@@ -944,9 +933,9 @@ class EdgeTraceSet(DataContainer):
 
         # TODO: Put in some checks that makes sure the relevant image
         # attributes are not None?
-
-        self.tracebpm = np.zeros((self.nspec, self.nspat), dtype=bool) \
-                            if bpm is None else bpm.astype(bool)
+        # TODO: Construct the default bpm using *any* pixel that is masked, not
+        # just the ones flagged as BPM?
+        self.tracebpm = self.traceimg.select_flag(flag='BPM') if bpm is None else bpm.astype(bool)
         if self.tracebpm.shape != self.traceimg.shape:
             msgs.error('Mask is not the same shape as the trace image.')
 
@@ -1823,7 +1812,8 @@ class EdgeTraceSet(DataContainer):
         # here so that they don't have to be generated multiple times.
         # TODO: Keep these as work space as class attributes?
         ivar = np.ones_like(self.sobelsig, dtype=float)
-        _bpm = np.zeros_like(self.sobelsig, dtype=bool) \
+#        _bpm = np.zeros_like(self.sobelsig, dtype=bool) \
+        _bpm = self.traceimg.select_flag(flag='BPM') \
                     if self.tracebpm is None else self.tracebpm
         fwgt = np.ones_like(self.sobelsig, dtype=float)
 
@@ -1859,14 +1849,15 @@ class EdgeTraceSet(DataContainer):
 
             if follow:
                 # Find the bad trace positions
-                bpm = self.bitmask.flagged(self.edge_msk, flag=self.bitmask.bad_flags)
+                bad_trace_pixels = self.bitmask.flagged(self.edge_msk, flag=self.bitmask.bad_flags)
                 untraced = indx.copy()
                 while np.any(untraced):
                     # Get the starting row
-                    _start_indx = trace.most_common_trace_row(bpm[:,untraced], valid_frac=1.) \
+                    _start_indx = trace.most_common_trace_row(bad_trace_pixels[:,untraced],
+                                                              valid_frac=1.) \
                                         if start_indx is None else start_indx
                     # Select the edges to follow
-                    to_trace = untraced & np.logical_not(bpm[_start_indx,:])
+                    to_trace = untraced & np.logical_not(bad_trace_pixels[_start_indx,:])
                     if not np.any(to_trace):
                         # Something has gone wrong
                         # TODO: Get rid of this when convinced it won't
@@ -2936,7 +2927,7 @@ class EdgeTraceSet(DataContainer):
         # have to be generated multiple times.
         # TODO: Keep these as work space as class attributes?
         ivar = np.ones_like(self.sobelsig, dtype=float)
-        bpm = np.zeros_like(self.sobelsig, dtype=bool) if self.tracebpm is None else self.tracebpm
+        bpm = self.traceimg.select_flag(flag='BPM') if self.tracebpm is None else self.tracebpm
 
         # Initialize arrays
         fit = np.zeros_like(self.edge_cen, dtype=float)
@@ -3387,7 +3378,7 @@ class EdgeTraceSet(DataContainer):
         # TODO: Keep these as work space as class attributes? so that
         # they don't need to be reinstantiated.
         ivar = np.ones_like(self.sobelsig, dtype=float)
-        bpm = np.zeros_like(self.sobelsig, dtype=bool) if self.tracebpm is None else self.tracebpm
+        bpm = self.traceimg.select_flag(flag='BPM') if self.tracebpm is None else self.tracebpm
 
         # Treatment is different if the PCA was done for all traces or
         # separately for left and right traces
@@ -3425,8 +3416,7 @@ class EdgeTraceSet(DataContainer):
                     nleft = nside
         else:
             # Get the image relevant to tracing
-            _sobelsig = trace.prepare_sobel_for_trace(self.sobelsig, bpm=self.tracebpm, boxcar=5,
-                                                      side=None)
+            _sobelsig = trace.prepare_sobel_for_trace(self.sobelsig, bpm=bpm, boxcar=5, side=None)
 
             # Find and trace both peaks and troughs in the image. The
             # input trace data (`trace` argument) is the PCA prediction
@@ -5099,10 +5089,12 @@ class EdgeTraceSet(DataContainer):
 
         # Instantiate and return
         return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline,
-                                      det=self.traceimg.detector.det, nspat=self.nspat,
+                                      detname=self.traceimg.detector.name, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.name, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
                                       maskdef_id=_maskdef_id, maskdef_designtab=_merged_designtab,
                                       maskdef_posx_pa=_posx_pa, maskfile=self.maskfile,
                                       ech_order=ech_order)
+
+

@@ -56,6 +56,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'files')
     return os.path.join(data_dir, filename)
 
+
 def get_kastb_detector():
     """
     Pass back a shane_kast_blue detector when any old one will do
@@ -64,9 +65,7 @@ def get_kastb_detector():
         :class:`pypeit.images.detector_container.DetectorContainer`:
 
     """
-    spectrograph = load_spectrograph('shane_kast_blue')
-    hdul = fits.HDUList([])
-    return spectrograph.get_detector_par(1, hdu=hdul)
+    return load_spectrograph('shane_kast_blue').get_detector_par(1)
 
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
@@ -184,7 +183,7 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
     # Load up the Masters
     ret = []
 
-    master_key = 'A_1_01'
+    master_key = 'A_1_DET01'
     if aimg:
         arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
         AImg = buildimage.ArcImage.from_file(arc_file)
@@ -226,3 +225,5 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
 
     # Return
     return ret
+
+

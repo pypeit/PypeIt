@@ -1,5 +1,5 @@
 
-Version 1.1.0
+Version 1.1.1
 
 ===========================  ========  ==========  =================================================
 HDU Name                     Obj Type  Array Type  Description                                      
@@ -14,5 +14,6 @@ HDU Name                     Obj Type  Array Type  Description
 ``PIXELFLAT_RAW``            ndarray   floating    Processed, combined pixel flats                  
 ``PIXELFLAT_SPAT_BSPLINES``  ndarray   bspline     B-spline models for pixel flat                   
 ``PIXELFLAT_SPEC_ILLUM``     ndarray   floating    Relative spectral illumination                   
+``PIXELFLAT_WAVEIMG``        ndarray   floating    Waveimage for pixel flat                         
 ``SPAT_ID``                  ndarray   integer     Slit spat_id                                     
 ===========================  ========  ==========  =================================================

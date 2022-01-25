@@ -27,7 +27,6 @@ def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
       A 3D array containing the x center, y center, x width and y width of each pixel.
       The returned array has a shape:   frame.shape + (4,)
     """
-    #dnum = settings.get_dnum(det)
     msgs.info("Deriving physical pixel locations on the detector")
     locations = np.zeros((frame_shape[0],frame_shape[1],4))
     if gen:
@@ -80,56 +79,56 @@ def phys_to_pix(array, pixlocn, axis):
     return pix.ravel() if doravel else pix
 
 
-def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
-    """ Generate a frame that identifies each pixel to an amplifier,
-    and then trim it to the data sections.
-    This frame can be used to later identify which trimmed pixels
-    correspond to which amplifier
-
-    Parameters
-    ----------
-    naxis0 : int
-    naxis1 : int
-    datasec : list
-    numamplifiers : int
-
-    Returns
-    -------
-    retarr : ndarray
-      Frame assigning pixels to amplifiers
-
-    """
-    # For convenience
-    # Initialize the returned array
-    retarr = np.zeros((naxis0, naxis1))
-    for i in range(numamplifiers):
-        #datasec = "datasec{0:02d}".format(i+1)
-        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
-        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
-        x0, x1 = datasec[i][0][0], datasec[i][0][1]
-        y0, y1 = datasec[i][1][0], datasec[i][1][1]
-        if x0 < 0: x0 += naxis0
-        if x1 <= 0: x1 += naxis0
-        if y0 < 0: y0 += naxis1
-        if y1 <= 0: y1 += naxis1
-        # Fill in the pixels for this amplifier
-        xv = np.arange(x0, x1)
-        yv = np.arange(y0, y1)
-        w = np.ix_(xv, yv)
-        try:
-            retarr[w] = i+1
-        except IndexError:
-            embed()
-        # Save these locations for trimming
-        if i == 0:
-            xfin = xv.copy()
-            yfin = yv.copy()
-        else:
-            xfin = np.unique(np.append(xfin, xv.copy()))
-            yfin = np.unique(np.append(yfin, yv.copy()))
-    # Construct and array with the rows and columns to be extracted
-    w = np.ix_(xfin, yfin)
-    return retarr[w]
+#def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
+#    """ Generate a frame that identifies each pixel to an amplifier,
+#    and then trim it to the data sections.
+#    This frame can be used to later identify which trimmed pixels
+#    correspond to which amplifier
+#
+#    Parameters
+#    ----------
+#    naxis0 : int
+#    naxis1 : int
+#    datasec : list
+#    numamplifiers : int
+#
+#    Returns
+#    -------
+#    retarr : ndarray
+#      Frame assigning pixels to amplifiers
+#
+#    """
+#    # For convenience
+#    # Initialize the returned array
+#    retarr = np.zeros((naxis0, naxis1))
+#    for i in range(numamplifiers):
+#        #datasec = "datasec{0:02d}".format(i+1)
+#        #x0, x1 = settings.spect[dnum][datasec][0][0], settings.spect[dnum][datasec][0][1]
+#        #y0, y1 = settings.spect[dnum][datasec][1][0], settings.spect[dnum][datasec][1][1]
+#        x0, x1 = datasec[i][0][0], datasec[i][0][1]
+#        y0, y1 = datasec[i][1][0], datasec[i][1][1]
+#        if x0 < 0: x0 += naxis0
+#        if x1 <= 0: x1 += naxis0
+#        if y0 < 0: y0 += naxis1
+#        if y1 <= 0: y1 += naxis1
+#        # Fill in the pixels for this amplifier
+#        xv = np.arange(x0, x1)
+#        yv = np.arange(y0, y1)
+#        w = np.ix_(xv, yv)
+#        try:
+#            retarr[w] = i+1
+#        except IndexError:
+#            embed()
+#        # Save these locations for trimming
+#        if i == 0:
+#            xfin = xv.copy()
+#            yfin = yv.copy()
+#        else:
+#            xfin = np.unique(np.append(xfin, xv.copy()))
+#            yfin = np.unique(np.append(yfin, yv.copy()))
+#    # Construct and array with the rows and columns to be extracted
+#    w = np.ix_(xfin, yfin)
+#    return retarr[w]
 
 
 # ToDO rewrite this function to use images rather than loops as in flat_fit.py

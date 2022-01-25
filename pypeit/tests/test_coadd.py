@@ -16,20 +16,14 @@ from pypeit.core.datacube import coadd_cube
 from pypeit import msgs
 from pypeit import utils
 from IPython import embed
-from pypeit.tests.tstutils import cooked_required
-
-kast_blue = load_spectrograph('shane_kast_blue')
+from pypeit.tests.tstutils import cooked_required, data_path
 
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 
 # TODO: Need to rewrite the test for coadd1d. FW commented out most tests at this moment.
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
-#@pytest.fixture -- Crashes in pytest 4.0.0 as we call this from inside the test, not the call to the test
 def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     """
     Parameters
@@ -57,7 +51,7 @@ def dummy_spectrum(s2n=10., rstate=None, seed=1234, wave=None):
     ivar = utils.inverse(sig**2)
     return flux, ivar, mask
 
-#@pytest.fixture
+
 def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
     """ Generate a set of normalized spectra with varying wavelength
     and noise
@@ -116,11 +110,12 @@ def dummy_spectra(s2n=10., seed=1234, wvmnx=None, npix=None):
 @cooked_required
 def test_coadd_datacube():
     """ Test the coaddition of spec2D files into datacubes """
-    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
-    spec2d_file1 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits')
-    spec2d_file2 = os.path.join(droot, 'Science', 'spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits')
-    files = [spec2d_file1, spec2d_file2]
-    coadd_cube(files, None, overwrite=True)
+    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science')
+    files = [os.path.join(droot,
+                          'spec2d_KB.20191219.56886-BB1245p4238_KCWI_20191219T154806.538.fits'),
+             os.path.join(droot,
+                          'spec2d_KB.20191219.57662-BB1245p4238_KCWI_20191219T160102.755.fits')]
+    coadd_cube(files, overwrite=True)
     os.remove('datacube.fits')
 
 

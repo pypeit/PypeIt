@@ -22,7 +22,8 @@ def link_string(p):
 
 def build_tbl(obj):
 
-    data_model = obj.full_datamodel(include_children=False)
+#    data_model = obj.full_datamodel(include_children=False)
+    data_model = obj.datamodel
     keys = list(data_model.keys())
     keys.sort()
 

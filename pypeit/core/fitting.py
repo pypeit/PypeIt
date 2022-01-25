@@ -623,7 +623,7 @@ def moffat(x,p0,p1,p2):
     return p0 / (1+(x/p1)**2)**p2
 
 
-def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3):
+def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3, maxfev=0):
     """
     Fit a 3 or 4 parameter gaussian
 
@@ -637,6 +637,10 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3):
         nparam (int, optional):
             Number of parameters in the Gaussian
             Only options are 3 or 4
+        maxfev (:obj:`int`, optional):
+            Maximum number of function evaluations.  Passed directly to
+            `scipy.optimize.curve_fit`_.  Note that setting ``maxfev`` to 0 uses
+            the default value set by `scipy.optimize.leastsq`_.
 
     Returns:
         tuple: Fit coefficients, fit covariance
@@ -660,7 +664,7 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None, nparam=3):
         p0 = [floor] + p0
         func = gauss_4deg
 
-    return curve_fit(func, x_out, y_out, p0=p0, sigma=sig_y)
+    return curve_fit(func, x_out, y_out, p0=p0, sigma=sig_y, maxfev=maxfev)
 
 
 def gauss_2deg(x,ampl,sigm):
