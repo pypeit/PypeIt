@@ -15,6 +15,7 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
+from numpy.lib.arraysetops import isin
 from scipy.interpolate import RegularGridInterpolator, interp1d
 try:
     from skimage import transform as skimageTransform
@@ -1296,28 +1297,32 @@ class SlitTraceSet(datamodel.DataContainer):
 
         return
 
-    def user_mask(self, det, slitspatnum):
+
+    def user_mask(self, det, user_slits):
         """
         Mask all but the input slit
 
         Args:
             det (:obj:`int`): Detector number
-            slitspatnum (:obj:`str` or :obj:`list`):
+            user_slits (:obj:`dict`):
         """
-        # Parse
-        dets, spat_ids = parse_slitspatnum(slitspatnum)
-        if det not in dets:
-            return
-        # Cut down for convenience
-        indet = dets == det
-        spat_ids = spat_ids[indet]
-        #
-        msk = np.ones(self.nslits, dtype=bool)
-        for slit_spat in spat_ids:
-            #TODO -- Consider putting in a tolerance which if not met causes a crash
-            idx = np.argmin(np.abs(self.spat_id - slit_spat))
-            msk[idx] = False
-        self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+        if user_slits['method'] == 'slitspat':
+            # Parse
+            dets, spat_ids = parse_slitspatnum(user_slits['slit_info'])
+            if det not in dets:
+                return
+            # Cut down for convenience
+            indet = dets == det
+            spat_ids = spat_ids[indet]
+            #
+            msk = np.ones(self.nslits, dtype=bool)
+            for slit_spat in spat_ids:
+                #TODO -- Consider putting in a tolerance which if not met causes a crash
+                idx = np.argmin(np.abs(self.spat_id - slit_spat))
+                msk[idx] = False
+            self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+        elif user_slits['method'] == 'maskIDs':
+            raise NotImplementedError("Not ready for maskID yet")
 
     def mask_flats(self, flatImages):
         """
@@ -1362,7 +1367,6 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
-# TODO: Provide a better description for slitspatnum!
 def parse_slitspatnum(slitspatnum):
     """
     Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
@@ -1379,7 +1383,7 @@ def parse_slitspatnum(slitspatnum):
     """
     dets = []
     spat_ids = []
-    if type(slitspatnum)==list:
+    if isinstance(slitspatnum,list):
         slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
@@ -1389,9 +1393,27 @@ def parse_slitspatnum(slitspatnum):
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
 
+def merge_user_slit(slitspatnum, maskIDs):
+    # Not set?
+    if slitspatnum is None and maskIDs is None:
+        return None
+    #
+    if slitspatnum is not None and maskIDs is not None:
+        msgs.error("These should not both have been set")
+    # MaskIDs
+    user_slit_dict = {}
+    if maskIDs is not None:
+        user_slit_dict['method'] = 'maskIDs'
+        user_slit_dict['slit_info'] = maskIDs
+    else:
+        user_slit_dict['method'] = 'slitspat'
+        user_slit_dict['slit_info'] = slitspatnum
+    # Return
+    return user_slit_dict
+
 def get_maskdef_objpos_offset_alldets(
     sobjs, calib_slits, spat_flexure, platescale, 
-    bin_spat, det_buffer, slitmask_par, dither_off=None):
+    det_buffer, slitmask_par, dither_off=None):
     """
     Loop around all the calibrated detectors to extract information on the object positions
     expected by the slitmask design and the offsets between the expected and measure slitmask position.
@@ -1402,7 +1424,6 @@ def get_maskdef_objpos_offset_alldets(
         calib_slits (:obj:`list`): List of `SlitTraceSet` with information on the traced slit edges
         spat_flexure (:obj:`list`): List of shifts, in spatial pixels, between this image and SlitTrace
         platescale (:obj:`list`): List of platescale for every detector
-        bin_spat (:obj:`int`): Binning of the detector in the spatial dimension
         det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
         slitmask_par (:class:`pypeit.par.pypeitpar.PypeItPar`): slitmask PypeIt parameters
         dither_off (:obj:`float`, optional): dither offset recorded in the header of the observations

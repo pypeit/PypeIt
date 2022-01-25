@@ -361,7 +361,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
         # First read over the header info to determine the size of the output array...
-        #n_ext = len(hdu) - 1  # Number of extensions (usually 4)
         extensions = []
         for kk, ihdu in enumerate(hdu):
             if 'VidInp' in ihdu.name:
@@ -372,7 +371,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         ymax = 0
         xmin = 10000
         ymin = 10000
-        #for i in np.arange(1, n_ext + 1):
+
         for i in extensions:
             theader = hdu[i].header
             detsec = theader['DETSEC']
@@ -551,10 +550,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         platescale = self.get_detector_par(det=1)['platescale']
 
-        # Where do we start??
+
         hdu = fits.open(filename)
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-        bin_spec, bin_spat = parse.parse_binning(binning)
+        _, bin_spat = parse.parse_binning(binning)
 
         # Slit center
         slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
@@ -586,7 +585,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Trim down by detector
         # TODO -- Deal with Mark4
-        # TODO -- Are blue and red side cameras slightly different?  Probably
         max_spat = 2048//bin_spat
         if ccdnum == 1:
             if self.name == 'keck_lris_red':
@@ -594,8 +592,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
             elif self.name == 'keck_lris_blue':
                 good = centers < 0.
-                # TODO -- Check if 30 is okay for blue. This is just a guess.
-                xstart = max_spat + 30//bin_spat  # The 160 is for the chip gap
+                xstart = max_spat + 30//bin_spat  
             else:
                 msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
         else:
@@ -612,7 +609,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         keep = left_edges < max_spat
         left_edges[~keep] = -1
 
-            #self.slitmask.onsky[x_order,2]/(platescale*bin_spat)).astype(int)
         right_edges[left_edges == -1] = -1
         # Deal with right edge off the detector
         for islit in range(self.slitmask.nslits):
@@ -628,39 +624,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         x_order = np.argsort(self.slitmask.corners[:,1,0])
         sortindx = x_order[::-1]
 
-        '''
-        # This print a QA table with info on the slits sorted from left to right.
-        if not debug:
-            num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 18)
-            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'Slit_Number'))
-            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 13))
-            for i in range(sortindx.shape[0]):
-                msgs.info('{0:^6d} {1:^12d}'.format(num, self.slitmask.slitid[sortindx][i]))
-                num += 1
-            msgs.info('*' * 18)
-
-        # If instead we run this method in debug mode, we print more info
-        if debug:
-            num = 0
-            msgs.info('Expected slits')
-            msgs.info('*' * 92)
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^16s}'.format('N.', 'Slit_Number',
-                                                                                    'slitLen(arcsec)',
-                                                                                    'slitWid(arcsec)',
-                                                                                    'top_edges(pix)',
-                                                                                    'bot_edges(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^16s} {5:^14s}'.format('-' * 4, '-' * 13, '-' * 11,
-                                                                                    '-' * 11, '-' * 18, '-' * 15))
-            for i in range(sortindx.size):
-                msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f}    {4:^16.2f} {5:^14.2f}'.format(num,
-                            self.slitmask.slitid[sortindx][i], self.slitmask.onsky[:,2][sortindx][i],
-                            self.slitmask.onsky[:,3][sortindx][i], top_edges[sortindx][i], bot_edges[sortindx][i]))
-                num += 1
-            msgs.info('*' * 92)
-        '''
-
+        # Return
         return left_edges.astype(float), right_edges.astype(float), sortindx, self.slitmask
 
 

@@ -2069,7 +2069,8 @@ class ReduxPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
-                 qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None):
+                 qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None,
+                 maskIDs=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2104,6 +2105,11 @@ class ReduxPar(ParSet):
                                'Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, ' \
                                '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' \
                                'This cannot (and should not) be used with detnum'
+
+        dtypes['maskIDs'] = [str, int, list]
+        descr['maskIDs'] = 'Restrict reduction to a set of slitmask IDs' \
+                               'Example syntax -- maskIDs = 818006,818015 ' \
+                               'This must be used with detnum (for now).'
 
         dtypes['sortroot'] = str
         descr['sortroot'] = 'A filename given to output the details of the sorted files.  If ' \
@@ -2150,7 +2156,7 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers', 'slitspatnum']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum', 'maskIDs']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -2170,7 +2176,18 @@ class ReduxPar(ParSet):
 #        return available_spectrographs
 
     def validate(self):
-        pass
+        if self.data['slitspatnum'] is not None:
+            if self.data['maskIDs'] is not None:
+                raise ValueError("You cannot assign both splitspatnum and maskIDs")
+            if self.data['detnum'] is not None:
+                raise ValueError("You cannot assign both splitspatnum and detnum")
+        if self.data['maskIDs'] is not None:
+            if self.data['detnum'] is None:
+                raise ValueError("You must assign detnum with maskIDs (for now)")
+            # Recast as a list
+            if not isinstance(self.data['maskIDs'], list):
+                self.data['maskIDs'] = [self.data['maskIDs']]
+
 
 
 class WavelengthSolutionPar(ParSet):

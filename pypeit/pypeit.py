@@ -92,7 +92,7 @@ class PypeIt:
         self.msgs_reset()
         
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups \
+        cfg_lines, data_files, frametype, usrdata, setups, _ \
                 = parse_pypeit_file(pypeit_file, runtime=True)
         self.calib_only = calib_only
 
@@ -293,7 +293,9 @@ class PypeIt:
                 self.caliBrate = calibrations.Calibrations.get_instance(
                     self.fitstbl, self.par['calibrations'], self.spectrograph,
                     self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-                    show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                    show=self.show,
+                    user_slits=slittrace.merge_user_slit(self.par['rdx']['slitspatnum'],
+                                                         self.par['rdx']['maskIDs']))
                 # Do it
                 # TODO: Why isn't set_config part of the Calibrations.__init__ method?
                 self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
@@ -563,6 +565,7 @@ class PypeIt:
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
         for self.det in detectors:
+            msgs.info("Working on detector {0}".format(self.det))
             # run calibration
             self.caliBrate = self.calib_one(frames, self.det)
             if not self.caliBrate.success:
@@ -578,8 +581,8 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(frames, self.det, bg_frames,
-                                                                      std_outfile=std_outfile)
+            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(
+                frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             skymask_list.append(skymask)
@@ -587,7 +590,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj']:
+        if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning
@@ -595,21 +598,24 @@ class PypeIt:
             platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
             # get the dither offset if available
             if self.par['reduce']['slitmask']['use_dither_offset']:
-                dither = self.spectrograph.parse_dither_pattern([self.fitstbl.frame_paths(frames[0])])
+                dither = self.spectrograph.parse_dither_pattern(
+                    [self.fitstbl.frame_paths(frames[0])])
                 dither_off = dither[2][0] if dither is not None else None
             else:
                 dither_off = None
             calib_slits = slittrace.get_maskdef_objpos_offset_alldets(
-                all_specobjs_objfind, calib_slits, spat_flexure, platescale, 
-                bin_spat,
-                self.par['calibrations']['slitedges']['det_buffer'], 
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale,
+                self.par['calibrations']['slitedges']['det_buffer'],
                 self.par['reduce']['slitmask'], dither_off=dither_off)
             # determine if slitmask offsets exist and compute an average offsets over all the detectors
-            calib_slits = slittrace.average_maskdef_offset(calib_slits, platescale[0], self.spectrograph.list_detectors())
+            calib_slits = slittrace.average_maskdef_offset(
+                calib_slits, platescale[0], self.spectrograph.list_detectors())
             # slitmask design matching and add undetected objects
-            all_specobjs_objfind = slittrace.assign_addobjs_alldets(all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                                                                      self.par['reduce']['findobj']['find_fwhm'],
-                                                                      self.par['reduce']['slitmask'])
+            all_specobjs_objfind = slittrace.assign_addobjs_alldets(
+                all_specobjs_objfind, calib_slits, spat_flexure, platescale,
+                self.par['reduce']['findobj']['find_fwhm'],
+                self.par['reduce']['slitmask'])
+
         # Extract
         for i, self.det in enumerate(calibrated_det):
             # re-run (i.e., load) calibrations
@@ -728,8 +734,12 @@ class PypeIt:
         # Instantiate Calibrations class
         caliBrate = calibrations.Calibrations.get_instance(
             self.fitstbl, self.par['calibrations'], self.spectrograph,
-            self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
-            show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            self.calibrations_path, qadir=self.qa_path, 
+            reuse_masters=self.reuse_masters,
+            show=self.show, 
+            user_slits=slittrace.merge_user_slit(
+                self.par['rdx']['slitspatnum'], self.par['rdx']['maskIDs']))
+            #slitspat_num=self.par['rdx']['slitspatnum'])
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
         caliBrate.run_the_steps()
@@ -972,6 +982,8 @@ class PypeIt:
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            # TODO
+            #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
                                        slitspatnum=self.par['rdx']['slitspatnum'],
