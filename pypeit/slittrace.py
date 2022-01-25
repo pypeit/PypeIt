@@ -957,10 +957,10 @@ class SlitTraceSet(datamodel.DataContainer):
             cut_sobjs = sobjs[on_det]
             if cut_sobjs.nobj == 0:
                 msgs.warn('NO detected objects.')
-                return
+                return sobjs
         else:
             msgs.warn('NO detected objects.')
-            return
+            return sobjs
 
         msgs.info('Assign slitmask design info to detected objects. '
                   'Matching tolerance includes user-provided tolerance, slit tracing uncertainties and object size.')
