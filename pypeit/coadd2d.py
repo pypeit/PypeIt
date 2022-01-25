@@ -241,9 +241,6 @@ class CoAdd2D:
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
-            embed()
-            exit()
-
             flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
             ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
             wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
