@@ -35,6 +35,7 @@ Submodules
    pypeit.fluxcalibrate
    pypeit.history
    pypeit.io
+   pypeit.manual_extract
    pypeit.masterframe
    pypeit.metadata
    pypeit.onespec

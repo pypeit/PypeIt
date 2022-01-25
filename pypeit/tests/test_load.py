@@ -6,11 +6,9 @@ import pytest
 from pypeit import specobjs
 from pypeit import specobj
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import data_path
 
-
+# TODO: Why is this not part of cooked?
 # IF THIS TEST IS FAILING BECAUSE THE SPEC1D DATAMODEL UPDATED,
 #   RUN source copy_cooked_files.src in files/
 #   *After* you have run the Dev Suite tests
@@ -23,4 +21,5 @@ def test_load_specobjs():
     assert len(sobjs[0].BOX_COUNTS) == 1200
 
     assert isinstance(sobjs[0], specobj.SpecObj)
+
 

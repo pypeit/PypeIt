@@ -5,7 +5,6 @@
                       [-d DETECTOR] [-c]
                       pypeit_file
     
-
     ##  [1;37;42mPypeIt : The Python Spectroscopic Data Reduction Pipeline v1.6.1.dev77+gd460d041b.d20211118[0m
     ##  
     ##  Available spectrographs include:

@@ -476,25 +476,27 @@ def prepare_sobel_for_trace(sobel_sig, bpm=None, boxcar=5, side='left'):
 
     This method:
         - Flips and/or truncates the pixel values based on the edge
-          side to be traced (see `side`).
+          side to be traced (see ``side``).
         - Smooths along rows (spatially)
 
     Args:           
         sobel_sig (`numpy.ndarray`_):
             Image with the significance of the edge detection; see
             :func:`detect_slit_edges`.
+        bpm (`numpy.ndarray`_, optional):
+            Boolean bad-pixel mask (bad pixels are True).  If None, all pixels
+            are considered good.  Must have the same shape as ``sobel_sig``.
         boxcar (:obj:`int`, optional):
-            Boxcar smooth the detection image along rows before
-            recentering the edge centers; see
-            :func:`pypeit.utils.boxcar_smooth_rows`. If `boxcar` is
-            less than 1, no smoothing is performed.
+            Boxcar smooth the detection image along rows before recentering the
+            edge centers; see :func:`~pypeit.utils.boxcar_smooth_rows`. If less
+            than 1, no smoothing is performed.
         side (:obj:`str`, optional):
-            The side that the image will be used to trace. In the
-            Sobel image, positive values are for left traces,
-            negative for right traces. If 'left', the image is
-            clipped at a minimum value of -0.1. If 'right', the image
-            sign is flipped and then clipped at a minimum of -0.1. If
-            None, the image is not flipped or clipped, only smoothed.
+            The side that the image will be used to trace. In the Sobel image,
+            positive values are for left traces, negative for right traces. If
+            ``'left'``, the image is clipped at a minimum value of -0.1. If
+            ``'right'``, the image sign is flipped and then clipped at a minimum
+            of -0.1. If None, the image is not flipped or clipped, only
+            smoothed.
 
     Returns:
         `numpy.ndarray`_: The smoothed image.
@@ -508,7 +510,7 @@ def prepare_sobel_for_trace(sobel_sig, bpm=None, boxcar=5, side='left'):
     # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
     img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
-    wgt = None if bpm is None else np.invert(bpm)
+    wgt = None if bpm is None else np.logical_not(bpm).astype(float)
     return utils.boxcar_smooth_rows(img, boxcar, wgt=wgt, replace='zero')
 
 

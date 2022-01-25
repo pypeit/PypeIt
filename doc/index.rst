@@ -221,10 +221,18 @@ or have a feature request, please `submit an issue
 ----
 
 .. toctree::
-   :caption: Standard outputs
+   :caption: Processing Details
    :maxdepth: 1
 
    image_proc
+   mosaic
+
+----
+
+.. toctree::
+   :caption: Standard outputs
+   :maxdepth: 1
+
    calibrations
    outputs
    qa

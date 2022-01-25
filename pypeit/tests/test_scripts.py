@@ -28,7 +28,6 @@ from pypeit.pypeitsetup import PypeItSetup
 from pypeit.pypmsgs import PypeItError
 
 
-
 @dev_suite_required
 def test_quicklook():
     # The following needs the LRISb calibration files to be
@@ -90,7 +89,7 @@ def test_trace_edges():
             scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
-    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_DET01.fits.gz')
 
     # Check that the correct number of traces were found
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)
@@ -133,7 +132,7 @@ def test_trace_add_rm():
             scripts.trace_edges.TraceEdges.parse_args(['-f', pypeit_file]))
 
     # Define the edges master file (HARDCODED!!)
-    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_DET01.fits.gz')
 
     # Check that the correct number of traces were found
     edges = edgetrace.EdgeTraceSet.from_file(trace_file)
@@ -217,10 +216,22 @@ def test_view_fits_proc():
     scripts.view_fits.ViewFits.main(pargs)
 
 
+@dev_suite_required
+def test_view_fits_mosaic():
+    """ Test the list option
+    """
+    file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos', 'GN_HAM_R400_885',
+                        'N20190205S0035.fits')
+    pargs = scripts.view_fits.ViewFits.parse_args(['gemini_gmos_north_ham', file,
+                                                   '--det', 'mosaic',
+                                                   '--proc'])
+    scripts.view_fits.ViewFits.main(pargs)
+
+
 @cooked_required
 def test_chk_flat():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                                'MasterFlat_A_1_01.fits')
+                                'MasterFlat_A_1_DET01.fits')
     # Ginga needs to be open in RC mode
     display.connect_to_ginga(raise_err=True, allow_new=True)
     #
@@ -231,12 +242,13 @@ def test_chk_flat():
 @cooked_required
 def test_chk_wavecalib():
     ms_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                                'MasterWaveCalib_A_1_01.fits')
+                           'MasterWaveCalib_A_1_DET01.fits')
     #
     pargs = scripts.chk_wavecalib.ChkWaveCalib.parse_args([ms_root])
     scripts.chk_wavecalib.ChkWaveCalib.main(pargs)
 
 
+# NOTE: May fail if DetectorContainer datamodel changes.
 def test_coadd1d_1():
     """
     Test basic coadd using shane_kast_blue
@@ -266,6 +278,7 @@ def test_coadd1d_1():
     os.remove(coadd_ofile)
 
 
+# NOTE: May fail if DetectorContainer datamodel changes.
 def test_coadd1d_2():
     """
     Test combining Echelle
@@ -296,13 +309,15 @@ def test_coadd1d_2():
     os.remove(parfile)
     os.remove(coadd_ofile)
 
+#test_coadd1d_2()
+
 
 @cooked_required
 def test_identify():
     arc_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                             'MasterArc_A_1_01.fits')
+                             'MasterArc_A_1_DET01.fits')
     slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                            'MasterSlits_A_1_01.fits.gz')
+                            'MasterSlits_A_1_DET01.fits.gz')
     # Just list
     pargs = scripts.identify.Identify.parse_args([arc_file, slits_file, '--test'])
     arcfitter = scripts.identify.Identify.main(pargs)
@@ -341,6 +356,7 @@ def test_identify():
     os.remove('wvarxiv.fits')
     os.remove('wvcalib.fits')
 
+
 @dev_suite_required
 def test_obslog():
     # Define the output directories (HARDCODED!!)
@@ -358,7 +374,8 @@ def test_obslog():
     # Clean up
     shutil.rmtree(setupdir)
 
-@dev_suite_required
+
+@cooked_required
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
@@ -373,6 +390,7 @@ def test_compare_sky():
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test',
                                                        '--optimal'])
     scripts.compare_sky.CompareSky.main(pargs)
+
 
 @cooked_required
 def test_collate_1d(tmp_path, monkeypatch):
@@ -579,7 +597,7 @@ def test_collate_1d(tmp_path, monkeypatch):
 @cooked_required
 def test_parse_slits():
     slits_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                              'MasterSlits_A_1_01.fits.gz')
+                              'MasterSlits_A_1_DET01.fits.gz')
     spec2d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                               'spec2d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
 
@@ -590,7 +608,7 @@ def test_parse_slits():
     # Spec2d
     pargs = parse_slits.ParseSlits.parse_args([spec2d_file])
     parse_slits.ParseSlits.main(pargs)
-    
+
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 

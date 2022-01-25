@@ -2,7 +2,7 @@
 
     $ pypeit_trace_edges -h
     usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
-                              [-d DETECTOR] [-s SPECTROGRAPH] [-b BINNING]
+                              [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
                               [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
                               [--show]
     
@@ -18,10 +18,12 @@
                             If providing a pypeit file, use the trace images for
                             this calibration group. If None, use the first
                             calibration group. (default: None)
-      -d DETECTOR, --detector DETECTOR
-                            Only analyze the specified detector; otherwise analyze
-                            all or detectors selected by the pypeit file, if
-                            provided. (default: None)
+      -d [DETECTOR ...], --detector [DETECTOR ...]
+                            Detector(s) to process. If more than one, the list of
+                            detectors must be one of the allowed mosaics hard-coded
+                            for the selected spectrograph. Using "mosaic" for
+                            gemini_gmos, keck_deimos, or keck_lris will use the
+                            default mosaic. (default: None)
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier, which is only used if
                             providing files directly: bok_bc, gemini_flamingos1,

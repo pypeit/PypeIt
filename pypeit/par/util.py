@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Utility functions for PypeIt parameter sets
+
+.. include:: ../include/links.rst
 """
 import os
 import time
@@ -23,6 +25,36 @@ from pypeit import msgs, __version__
 def _eval_ignore():
     """Provides a list of strings that should not be evaluated."""
     return [ 'open', 'file', 'dict', 'list', 'tuple' ]
+
+
+def eval_tuple(inp):
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+        - Currently can only handle simple components that can also be evaluated
+          (e.g., integers and floats).
+
+    Args:
+        inp (:obj:`list`):
+            A list of strings that are converted into a list of tuples.  The
+            parentheses must be within the list of elements.
+
+    Return:
+        :obj:`list`: The list of tuples.
+    """
+    joined = ','.join(inp)
+    try:
+        basic = eval(joined)
+    except:
+        msgs.error(f'Cannot evaluate {joined} into a valid tuple.')
+
+    # If any element of the basic evaulation is also a tuple, assume the result
+    # of the evaluation is a tuple of tuples.  This is converted to a list.
+    return list(basic) if any([isinstance(e, tuple) for e in basic]) else [basic]
 
 
 def recursive_dict_evaluate(d):
@@ -61,8 +93,16 @@ def recursive_dict_evaluate(d):
     ignore = _eval_ignore()
     for k in d.keys():
         if isinstance(d[k], dict):
-           d[k] = recursive_dict_evaluate(d[k])
-        elif isinstance(d[k], list):
+            # Recursive call to deal with nested dictionaries
+            d[k] = recursive_dict_evaluate(d[k])
+            continue
+
+        if isinstance(d[k], list) and any(['(' in e for e in d[k]]):
+            # NOTE: This enables syntax for constructing one or more tuples.  
+            d[k] = eval_tuple(d[k])
+            continue
+
+        if isinstance(d[k], list):
             replacement = []
             for v in d[k]:
                 if v in ignore:
@@ -73,11 +113,12 @@ def recursive_dict_evaluate(d):
                     except:
                         replacement += [ v ]
             d[k] = replacement
-        else:
-            try:
-                d[k] = eval(d[k]) if d[k] not in ignore else d[k]
-            except:
-                pass
+            continue
+
+        try:
+            d[k] = eval(d[k]) if d[k] not in ignore else d[k]
+        except:
+            pass
 
     return d
 
