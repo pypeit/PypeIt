@@ -1,12 +1,15 @@
 """
 Module to run tests on sort and arsetup
 """
+from IPython import embed
+
 import pytest
 
 import numpy as np
 
 from pypeit.core import framematch
 from pypeit.tests.tstutils import dummy_fitstbl
+from pypeit.pypmsgs import PypeItError
 
 
 @pytest.fixture
@@ -65,11 +68,12 @@ def test_instr_setup(fitstbl):
     par = fitstbl.spectrograph.default_pypeit_par()
 
     # Check the master key
-    assert fitstbl.master_key(0) == 'A_1_01'
+    assert fitstbl.master_key(0) == 'A_1_DET01'
     # Invalid detector
-    with pytest.raises(IndexError):
+    with pytest.raises(PypeItError):
         # Shane kast blue doesn't have a second detector
         fitstbl.master_key(0, det=2)
+
 
 # TODO: Need a test that adds a calibration group and checks the result
 #    # New calib set

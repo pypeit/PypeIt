@@ -1,4 +1,165 @@
 
+def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+             remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
+    """
+    Identify cosmic rays using the L.A.Cosmic algorithm
+    U{http://www.astro.yale.edu/dokkum/lacosmic/}
+    (article : U{http://arxiv.org/abs/astro-ph/0108003})
+    This routine is mostly courtesy of Malte Tewes
+
+    Args:
+        sciframe:
+        saturation:
+        nonlinear:
+        varframe:
+        maxiter:
+        grow:
+        remove_compact_obj:
+        sigclip (float):
+            Threshold for identifying a CR
+        sigfrac:
+        objlim:
+
+    Returns:
+        ndarray: mask of cosmic rays (0=no CR, 1=CR)
+
+    """
+    msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
+#    msgs.work("Include these parameters in the settings files to be adjusted by the user")
+    # Set the settings
+    scicopy = sciframe.copy()
+    crmask = np.cast['bool'](np.zeros(sciframe.shape))
+    sigcliplow = sigclip * sigfrac
+
+    # Determine if there are saturated pixels
+    satpix = np.zeros_like(sciframe)
+#    satlev = settings_det['saturation']*settings_det['nonlinear']
+    satlev = saturation*nonlinear
+    wsat = np.where(sciframe >= satlev)
+    if wsat[0].size == 0: satpix = None
+    else:
+        satpix[wsat] = 1.0
+        satpix = np.cast['bool'](satpix)
+
+    # Define the kernels
+    laplkernel = np.array([[0.0, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 0.0]])  # Laplacian kernal
+    growkernel = np.ones((3,3))
+    for i in range(1, maxiter+1):
+        msgs.info("Convolving image with Laplacian kernel")
+        # Subsample, convolve, clip negative values, and rebin to original size
+        subsam = utils.subsample(scicopy)
+        conved = signal.convolve2d(subsam, laplkernel, mode="same", boundary="symm")
+        cliped = conved.clip(min=0.0)
+        lplus = utils.rebin_evlist(cliped, np.array(cliped.shape)/2.0)
+
+        msgs.info("Creating noise model")
+        # Build a custom noise map, and compare  this to the laplacian
+        m5 = ndimage.filters.median_filter(scicopy, size=5, mode='mirror')
+        if varframe is None:
+            noise = np.sqrt(np.abs(m5))
+        else:
+            noise = np.sqrt(varframe)
+        msgs.info("Calculating Laplacian signal to noise ratio")
+
+        # Laplacian S/N
+        s = lplus / (2.0 * noise)  # Note that the 2.0 is from the 2x2 subsampling
+
+        # Remove the large structures
+        sp = s - ndimage.filters.median_filter(s, size=5, mode='mirror')
+
+        msgs.info("Selecting candidate cosmic rays")
+        # Candidate cosmic rays (this will include HII regions)
+        candidates = sp > sigclip
+        nbcandidates = np.sum(candidates)
+
+        msgs.info("{0:5d} candidate pixels".format(nbcandidates))
+
+        # At this stage we use the saturated stars to mask the candidates, if available :
+        if satpix is not None:
+            msgs.info("Masking saturated pixels")
+            candidates = np.logical_and(np.logical_not(satpix), candidates)
+            nbcandidates = np.sum(candidates)
+
+            msgs.info("{0:5d} candidate pixels not part of saturated stars".format(nbcandidates))
+
+        msgs.info("Building fine structure image")
+
+        # We build the fine structure image :
+        m3 = ndimage.filters.median_filter(scicopy, size=3, mode='mirror')
+        m37 = ndimage.filters.median_filter(m3, size=7, mode='mirror')
+        f = m3 - m37
+        f /= noise
+        f = f.clip(min=0.01)
+
+        msgs.info("Removing suspected compact bright objects")
+
+        # Now we have our better selection of cosmics :
+
+        if remove_compact_obj:
+            cosmics = np.logical_and(candidates, sp/f > objlim)
+        else:
+            cosmics = candidates
+        nbcosmics = np.sum(cosmics)
+
+        msgs.info("{0:5d} remaining candidate pixels".format(nbcosmics))
+
+        # What follows is a special treatment for neighbors, with more relaxed constains.
+
+        msgs.info("Finding neighboring pixels affected by cosmic rays")
+
+        # We grow these cosmics a first time to determine the immediate neighborhod  :
+        growcosmics = np.cast['bool'](signal.convolve2d(np.cast['float32'](cosmics), growkernel, mode="same", boundary="symm"))
+
+        # From this grown set, we keep those that have sp > sigmalim
+        # so obviously not requiring sp/f > objlim, otherwise it would be pointless
+        growcosmics = np.logical_and(sp > sigclip, growcosmics)
+
+        # Now we repeat this procedure, but lower the detection limit to sigmalimlow :
+
+        finalsel = np.cast['bool'](signal.convolve2d(np.cast['float32'](growcosmics), growkernel, mode="same", boundary="symm"))
+        finalsel = np.logical_and(sp > sigcliplow, finalsel)
+
+        # Unmask saturated pixels:
+        if satpix is not None:
+            msgs.info("Masking saturated stars")
+            finalsel = np.logical_and(np.logical_not(satpix), finalsel)
+
+        ncrp = np.sum(finalsel)
+
+        msgs.info("{0:5d} pixels detected as cosmics".format(ncrp))
+
+        # We find how many cosmics are not yet known :
+        newmask = np.logical_and(np.logical_not(crmask), finalsel)
+        nnew = np.sum(newmask)
+
+        # We update the mask with the cosmics we have found :
+        crmask = np.logical_or(crmask, finalsel)
+
+        msgs.info("Iteration {0:d} -- {1:d} pixels identified as cosmic rays ({2:d} new)".format(i, ncrp, nnew))
+        if ncrp == 0:
+            break
+
+    # Additional algorithms (not traditionally implemented by LA cosmic) to
+    # remove some false positives.
+    msgs.work("The following algorithm would be better on the rectified, tilts-corrected image")
+    filt  = ndimage.sobel(sciframe, axis=1, mode='constant')
+    filty = ndimage.sobel(filt/np.sqrt(np.abs(sciframe)), axis=0, mode='constant')
+    filty[np.where(np.isnan(filty))]=0.0
+
+    sigimg = cr_screen(filty)
+
+    sigsmth = ndimage.filters.gaussian_filter(sigimg,1.5)
+    sigsmth[np.where(np.isnan(sigsmth))]=0.0
+    sigmask = np.cast['bool'](np.zeros(sciframe.shape))
+    sigmask[np.where(sigsmth>sigclip)] = True
+    crmask = np.logical_and(crmask, sigmask)
+    msgs.info("Growing cosmic ray mask by 1 pixel")
+    crmask = grow_mask(crmask, grow)
+
+    return crmask.astype(bool)
+
+
+
 # TODO: Add sigdev to the high-level parameter set so that it can be
 # changed by the user?
 def find_bad_pixels(bias, numamplifiers, datasec, sigdev=10.0, trim=True):

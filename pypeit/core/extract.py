@@ -1212,11 +1212,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'SLITID': 999, 'det': 1,
-                                'objtype': 'unknown', 'pypeline': 'unknown'}
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+
         objfindQA_filename: (str, optional), default = None
             Directory + filename of the object profile QA
-
 
     Returns:
         tuple: Returns the following:
@@ -1241,7 +1241,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1767,12 +1767,13 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
-                inmask=None, spec_min_max=None,
-                fof_link=1.5, plate_scale=0.2, has_negative=False,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
-                trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
+                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
+                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0,
+                cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
                 debug_all=False, skymask_by_boxcar=False, boxcar_rad=None, objfindQA_filename=None):
     """
@@ -1959,8 +1960,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     if hand_extract_dict is not None:
         f_spats = []
         for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
-                              hand_extract_dict['spat'],
-                              hand_extract_dict['spec']):
+                                  hand_extract_dict['spat'],
+                                  hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
             ispat = int(np.clip(np.round(spat),0,nspec-1))
@@ -1995,8 +1996,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
             for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
-                                      hand_extract_dict['spat'],
-                                      hand_extract_dict['spec'], f_spats):
+                                              hand_extract_dict['spat'],
+                                              hand_extract_dict['spec'], f_spats):
                 ispec = int(spec)
                 new_hand_extract_dict['spec'][ss] = ispec
                 new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
