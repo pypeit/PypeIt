@@ -84,7 +84,7 @@ class CoAdd1D:
         # Load the data
         self.waves, self.fluxes, self.ivars, self.gpms, self.header = self.load_arrays()
         # Coadd the data
-        self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd = self.coadd()
         # Scale to a filter magnitude?
         if self.par['filter'] != 'none':
             scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
@@ -138,10 +138,11 @@ class CoAdd1D:
         self.coaddfile = coaddfile
         wave_gpm = self.wave_coadd > 1.0
         # Generate the DataContainer
-        onespec = OneSpec(self.wave_coadd[wave_gpm], self.flux_coadd[wave_gpm],
+        onespec = OneSpec(wave=self.wave_coadd[wave_gpm], wave_grid_mid=self.wave_grid_mid[wave_gpm], flux=self.flux_coadd[wave_gpm],
                           PYP_SPEC=self.spectrograph.name, ivar=self.ivar_coadd[wave_gpm],
                           mask=self.gpm_coadd[wave_gpm].astype(int),
                           ext_mode=self.par['ex_value'], fluxed=self.par['flux_value'])
+
         onespec.head0 = self.header
 
         # Add history entries for coadding.
@@ -189,12 +190,13 @@ class MultiSlitCoAdd1D(CoAdd1D):
 
         Returns:
             tuple
-              - wave, flux, ivar, gpm
+              - wave_grid_mid, wave, flux, ivar, gpm
 
         """
         return coadd.multi_combspec(
             self.waves, self.fluxes, self.ivars, self.gpms,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
+            dv=self.par['dv'], wave_grid_min=self.par['wave_grid_min'], wave_grid_max=self.par['wave_grid_max'],
             spec_samp_fact=self.par['spec_samp_fact'], ref_percentile=self.par['ref_percentile'],
             maxiter_scale=self.par['maxiter_scale'], sigrej_scale=self.par['sigrej_scale'],
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
@@ -225,12 +227,12 @@ class EchelleCoAdd1D(CoAdd1D):
 
         Returns:
             tuple
-              - wave, flux, ivar, gpm
+              - wave_grid_mid, wave, flux, ivar, gpm
 
         """
         weights_sens = sensfunc.SensFunc.sensfunc_weights(self.sensfile, self.waves,
                                                           debug=self.debug)
-        (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
+        wave_grid_mid, (wave_coadd, flux_coadd, ivar_coadd, gpm_coadd), order_stacks \
                 = coadd.ech_combspec(self.waves, self.fluxes, self.ivars, self.gpms, weights_sens,
                                      nbest=self.par['nbest'],
                                      sn_smooth_npix=self.par['sn_smooth_npix'],
@@ -247,6 +249,6 @@ class EchelleCoAdd1D(CoAdd1D):
                                      maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
                                      debug=self.debug, show=self.show)
 
-        return wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
+        return wave_grid_mid, wave_coadd, flux_coadd, ivar_coadd, gpm_coadd
 
 
