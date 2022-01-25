@@ -962,7 +962,12 @@ def load_keck_deimoslris(filename:str, instr:str):
         posx_pa += 360.
 
     # Instantiate the slit mask object and return it
-    indices = numpy.arange(4) if instr == 'keck_deimos' else numpy.arange(4)+1 
+    try:
+        hdu['BluSlits'].data['slitX0']
+        indices = numpy.arange(4)
+    except KeyError:
+        indices = numpy.arange(4)+1
+    #indices = numpy.arange(4) if instr == 'keck_deimos' else numpy.arange(4)+1 
     slit_list = []
     for index in indices:
         for cdim in ['X', 'Y']:
