@@ -823,6 +823,7 @@ class CoAdd2D:
         nfiles =len(spec2d)
         detectors_list = []
         maskdef_designtab_list = []
+        spat_flexure_list = []
         for ifile, f in enumerate(spec2d):
             if isinstance(f, spec2dobj.Spec2DObj):
                 # If spec2d is a list of objects
@@ -839,6 +840,7 @@ class CoAdd2D:
             slits_list.append(s2dobj.slits)
             detectors_list.append(s2dobj.detector)
             maskdef_designtab_list.append(s2dobj.maskdef_designtab)
+            spat_flexure_list.append(s2dobj.sci_spat_flexure)
 
             if ifile == 0:
                 sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
@@ -871,7 +873,8 @@ class CoAdd2D:
                     detectors=detectors_list,
                     spectrograph=self.spectrograph.name,
                     pypeline=self.spectrograph.pypeline,
-                    maskdef_designtab_list=maskdef_designtab_list)
+                    maskdef_designtab_list=maskdef_designtab_list,
+                    spat_flexure_list=spat_flexure_list)
 
     def parse_input(self, input, type='weights'):
         """
@@ -1031,6 +1034,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         elif (self.objid_bri is not None) and (weights == 'auto'):
             _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
             msgs.info('Computing weights using a unique reference object with the highest S/N')
+            self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
         else:
             self.use_weights = self.parse_input(weights, type='weights')
             msgs.info('Using user input weights')
@@ -1166,7 +1170,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
                        'ratio on the same slit of every exposure')
             return None, None, None, None
         else:
-            self.snr_report(snr_bar, slitid=spat_ids[slitid])
             return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
@@ -1229,7 +1232,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             imaskdef_objpos = self.stack_dict['slits_list'][0].maskdef_objpos[slit_idx]
 
             # find left edge
-            slits_left, _, _ = self.stack_dict['slits_list'][0].select_edges(flexure=None)  #TODO add flexure
+            slits_left, _, _ = self.stack_dict['slits_list'][0].select_edges(flexure=self.stack_dict['spat_flexure_list'][0])
             # targeted object spat pix
             maskdef_obj_pixpos = imaskdef_objpos + self.maskdef_offset + slits_left[self.nspec//2, slit_idx]
             # binned expected object position with respect to the center of the slit in ref_trace_stack
@@ -1319,6 +1322,7 @@ class EchelleCoAdd2D(CoAdd2D):
                 use_weights.append(iweights)
             self.use_weights = np.array(use_weights)
             msgs.info('Computing weights using a unique reference object with the highest S/N')
+            self.snr_report(self.snr_bar_bri)
         else:
             self.use_weights = self.parse_input(weights, type='weights')
             msgs.info('Using user input weights')
@@ -1383,7 +1387,6 @@ class EchelleCoAdd2D(CoAdd2D):
                       'ratio for every exposure')
             return None, None, None
         else:
-            self.snr_report(snr_bar)
             return objid, None, snr_bar
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
