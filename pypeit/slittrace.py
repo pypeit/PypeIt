@@ -1304,6 +1304,49 @@ class SlitTraceSet(datamodel.DataContainer):
                       f'Slitmask offset cannot be estimated in {self.detname}.')
             self.maskdef_offset = 0.0
 
+        return
+
+    def get_maskdef_extract_fwhm(self, sobjs, platescale, fwhm_parset):
+        """
+
+        Args:
+            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
+            platescale (:obj:`float`): Platescale
+            fwhm_parset (:obj:`float`, optional): Parset that guides the determination of the fwhm of
+            the maskdef_extract objects. If None (default) the fwhm are computed as the averaged from the
+            detected objects, if it is a number it will be adopted as the fwhm
+
+        Returns:
+            :obj:`float`: FWHM in pixels to be used in the optimal extraction
+
+        """
+        fwhm = None
+        if fwhm_parset is not None:
+            msgs.info('Using user-provided FWHM = {}" for the extraction '
+                      'of all the maskdef_extract objects'.format(fwhm_parset))
+            fwhm = fwhm_parset/platescale
+        elif sobjs.nobj > 0:
+            # Use average FWHM of detected objects, but remove the objects in the alignment boxes
+            # Find align boxes
+            maskdef_id = self.maskdef_designtab['MASKDEF_ID'].data
+            # Flag to identify alignment boxes (1-yes; 0-no)
+            flag_align = self.maskdef_designtab['ALIGN'].data
+            align_maskdef_ids = maskdef_id[flag_align == 1]
+            all_fwhm = np.array([])
+            for ss in sobjs:
+                # append only the FWHM of objects that were detected not in the alignment boxes
+                if ss.MASKDEF_ID not in align_maskdef_ids:
+                    all_fwhm = np.append(all_fwhm, ss.FWHM)
+            if all_fwhm.size > 0:
+                # compute median
+                _, fwhm, _ = sigma_clipped_stats(all_fwhm, sigma=2.)
+                msgs.info('Using median FWHM = {:.3f}" from detected objects for the extraction '
+                          'of all the maskdef_extract objects'.format(fwhm*platescale))
+        if fwhm is None:
+            msgs.error('The median FWHM cannot be determined because no objects were detected. '
+                       'Set parameter `missing_objs_fwhm` in `SlitMaskPar`')
+
+        return fwhm
 
     def user_mask(self, det, user_slits):
         """
@@ -1566,31 +1609,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
 
             if slitmask_par['extract_missing_objs']:
                 # Set the FWHM for the extraction of missing objects
-                fwhm = None
-                if slitmask_par['missing_objs_fwhm'] is not None:
-                    msgs.info('Using user-provided FWHM = {}" for the extraction '
-                              'of all the maskdef_extract objects'.format(slitmask_par['missing_objs_fwhm']))
-                    fwhm = slitmask_par['missing_objs_fwhm']/platescale[i]
-                elif sobjs.nobj > 0:
-                    # Use average FWHM of detected objects, but remove the objects in the alignment boxes
-                    # Find align boxes
-                    maskdef_id = calib_slits[i].maskdef_designtab['MASKDEF_ID'].data
-                    # Flag to identify alignment boxes (1-yes; 0-no)
-                    flag_align = calib_slits[i].maskdef_designtab['ALIGN'].data
-                    align_maskdef_ids = maskdef_id[flag_align == 1]
-                    all_fwhm = np.array([])
-                    for ss in sobjs:
-                        # append only the FWHM of objects that were detected not in the alignment boxes
-                        if ss.MASKDEF_ID not in align_maskdef_ids:
-                            all_fwhm = np.append(all_fwhm, ss.FWHM)
-                    if all_fwhm.size > 0:
-                        # compute median
-                        _, fwhm, _ = sigma_clipped_stats(all_fwhm, sigma=2.)
-                        msgs.info('Using median FWHM = {:.3f}" from detected objects for the extraction '
-                                  'of all the maskdef_extract objects'.format(fwhm*platescale[i]))
-                if fwhm is None:
-                    msgs.error('The median FWHM cannot be determined because no objects were detected. '
-                               'Set parameter `missing_objs_fwhm` in `SlitMaskPar`')
+                fwhm = calib_slits[i].get_maskdef_extract_fwhm(sobjs, platescale[i], slitmask_par['missing_objs_fwhm'])
                 # Assign undetected objects
                 sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
 
