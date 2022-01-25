@@ -664,6 +664,8 @@ class Reduce:
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
             # Find CRs with sky subtraction
+            # TODO: Shouldn't the saturation flagging account for the
+            # subtraction of the sky?
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=self.global_sky)
             # Update the fullmask
@@ -836,9 +838,10 @@ class Reduce:
                         cntr += 1
 
             # Save QA
-            basename = "{0:s}_{1:s}".format(self.basename, mode)
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
-                                    specobjs=sobjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
+            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
+                                    specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
@@ -921,6 +924,7 @@ class Reduce:
             bitmask_in = None
 
         img_gpm = self.sciImg.select_flag(invert=True)
+        detname = self.spectrograph.get_det_name(self.det)
 
         if attr == 'global':
             # global sky subtraction
@@ -932,7 +936,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'global_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -946,7 +950,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'local_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -957,7 +961,7 @@ class Reduce:
                     and self.sciImg.fullmask is not None:
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'sky_resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -969,7 +973,7 @@ class Reduce:
                 # full model residual map
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -1086,9 +1090,9 @@ class MultiSlitReduce(Reduce):
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask
-            # Find objects
             specobj_dict = {'SLITID': slit_spat,
-                            'DET': self.det, 'OBJTYPE': self.objtype,
+                            'DET': self.sciImg.detector.name,
+                            'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
             # This condition allows to not use a threshold to find objects in alignment boxes
@@ -1107,8 +1111,9 @@ class MultiSlitReduce(Reduce):
                     basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
                 else:
                     basename = self.basename
+                detname = self.spectrograph.get_det_name(self.det)
                 objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
-                                                        det=self.det, out_dir=out_dir)
+                                                        det=detname, out_dir=out_dir)
 
             sobjs_slit, skymask[thismask] = \
                     extract.objfind(image, thismask,
@@ -1362,8 +1367,9 @@ class EchelleReduce(Reduce):
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
-        specobj_dict = {'SLITID': 999, #'orderindx': 999,
-                        'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
+        # TODO: Not sure how this fairs if self.det is a tuple...
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+                        'PYPELINE': self.pypeline}
 
         # Set objfind QA filename
         objfindQA_filename = None
@@ -1373,8 +1379,9 @@ class EchelleReduce(Reduce):
                 basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
             else:
                 basename = self.basename
+            detname = self.spectrograph.get_det_name(self.det)
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
-                                                    det=self.det, out_dir=out_dir)
+                                                    det=detname, out_dir=out_dir)
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
