@@ -905,7 +905,7 @@ class DetectorMap:
         # Offset by the chip center
         coo = numpy.array([_x, _y]).T - self.npix[None,:]/2
 
-        # Rotatate and offset by the CCD center
+        # Rotate and offset by the CCD center
         coo = numpy.array([numpy.matmul(self.rot_matrix[d], c) for d,c in zip(_d,coo)]) \
                     + self.ccd_center[_d,:]
 

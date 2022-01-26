@@ -23,8 +23,8 @@ def get_simple_metadata(file_info):
         return (None, None)
 
     dest_file = os.path.basename(file_info)
-    metadata = {_COOKED_FILE1: [1, dest_file, "2021-01-01"],
-                _COOKED_FILE2: [2, dest_file, "2021-01-02"] }
+    metadata = {_COOKED_FILE1: [1, dest_file, 1.234, "2021-01-01"],
+                _COOKED_FILE2: [2, dest_file, 1.234, "2021-01-02"] }
 
     return ([metadata[dest_file]], [(file_info, dest_file)])
 
@@ -44,18 +44,18 @@ def get_multirow_metadata(file_info):
 def test_archive_meta(tmp_path):
     test_meta_path = str(tmp_path / "test_meta.dat")
 
-    col_names = ["id", "file", "date"]
+    col_names = ["id", "file", "num", "date"]
 
     orig_file1 = os.path.join("orig_path", _COOKED_FILE1)
     dest_file1 = _COOKED_FILE1
     orig_file2 = os.path.join("orig_path", _COOKED_FILE2)
     dest_file2 = _COOKED_FILE2
 
-    expected_rows = [ [1, dest_file1, '2021-01-01'],
-                      [2, dest_file2, '2021-01-02']]
+    expected_rows = [ [1, dest_file1, 1.23, '2021-01-01'],
+                      [2, dest_file2, 1.234, '2021-01-02']]
 
-    # Test creating a new file, and adding a new row to it
-    test_meta1 = ArchiveMetadata(test_meta_path, col_names, get_simple_metadata, True)
+    # Test creating a new file, and adding a new row to it, with formatting
+    test_meta1 = ArchiveMetadata(test_meta_path, col_names, get_simple_metadata, True, formats={"num": "%.2f"})
 
     files_to_add = test_meta1.add(orig_file1)
     assert files_to_add[0][0] == orig_file1
@@ -63,7 +63,7 @@ def test_archive_meta(tmp_path):
 
     test_meta1.save()
 
-    # Test loading an existing file, and adding a second row to it
+    # Test loading an existing file, and adding a second row to it, without formatting
     test_meta2 = ArchiveMetadata(test_meta_path, col_names, get_simple_metadata, True)
     (orig_file, dest_file) = test_meta2.add(orig_file2)[0]
     assert orig_file == orig_file2
@@ -85,7 +85,7 @@ def test_archive_dir(tmp_path):
     source_path = os.path.join(os.environ['PYPEIT_DEV'], 'Cooked', 'Science')
 
     # Test an Archiver with two metadta files, one with multiple rows per item
-    col_names1 = ["id", "file", "date"]
+    col_names1 = ["id", "file", "num", "date"]
     test_meta1 = ArchiveMetadata(metadata_file1, col_names1, get_simple_metadata, True)
 
     col_names2 = ["id", "file", "name"]
@@ -112,7 +112,7 @@ def test_archive_dir(tmp_path):
     dest_file1 = tmp_path / _COOKED_FILE1
     dest_file2 = tmp_path / _COOKED_FILE2
     assert dest_file1.exists()
-    assert dest_file1.exists()
+    assert dest_file2.exists()
 
     # Verify ipac metadata files are correct
     good_path = data_path("ipac")

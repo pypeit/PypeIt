@@ -5,6 +5,8 @@
 # -*- coding: utf-8 -*-
 """
 This script runs PypeIt *fast* on a set of DEIMOS images
+
+.. include:: ../include/links.rst
 """
 import os
 import glob

@@ -14,6 +14,8 @@ import gzip
 import shutil
 from packaging import version
 
+from IPython import embed
+
 import numpy
 
 from configobj import ConfigObj
@@ -100,7 +102,13 @@ def rec_to_fits_type(col_element, single_row=False):
         return '{0}D'.format(n)
 
     # If it makes it here, assume its a string
-    l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
+    s = col_element.dtype.str.find('U')
+    if s < 0:
+        s = col_element.dtype.str.find('S')
+    if s < 0:
+        msgs.error(f'Unable to parse datatype: {col_element.dtype.str}')
+    
+    l = int(col_element.dtype.str[s+1:])
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
     return '{0}A'.format(l*n)
 
@@ -421,9 +429,9 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Base-level header to include in the HDU. If None, an
             empty header is used and then added to.
         force_to_bintbl (:obj:`bool`, optional):
-            Force a BinTableHDU to be constructed instead of an
-            ImageHDU when either there are no arrays or tables to
-            write or only a single array is provided.
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -506,6 +514,11 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     cols = []
     for key in array_keys:
         _d = numpy.asarray(d[key])
+        # TODO: This barfs if the array to write is a multi-dimensional string
+        # array.  This has a direct effect on saving the MultiSlitFlexure object
+        # if we want to set 'det' to strings.  There is a hack there that
+        # converts between strings and integers for reading and writing the
+        # object...
         cols += [fits.Column(name=key,
                              format=rec_to_fits_type(_d, single_row=single_row),
                              dim=rec_to_fits_col_dim(_d, single_row=single_row),
@@ -629,8 +642,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
-        force_to_bintbl (bool, optional):
-            Force dict into a BinTableHDU
+        force_to_bintbl (:obj:`bool`, optional):
+            Force construction of a `astropy.io.fits.BinTableHDU`_ instead of an
+            `astropy.io.fits.ImageHDU`_ when either there are no arrays or
+            tables to write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -821,6 +836,8 @@ def fits_open(filename, **kwargs):
     Returns:
         `astropy.io.fits.HDUList`_: List of all the HDUs in the fits file
     """
+    if not os.path.isfile(filename):
+        msgs.error(f'{filename} does not exist!')
     try:
         return fits.open(filename, **kwargs)
     except OSError as e:

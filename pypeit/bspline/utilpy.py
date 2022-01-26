@@ -156,7 +156,7 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     return alpha, beta
 
 
-def cholesky_band(l, mininf=0.0):
+def cholesky_band(l, mininf=0.0, verbose=False):
     """
     Compute Cholesky decomposition of banded matrix.
 
@@ -192,7 +192,8 @@ def cholesky_band(l, mininf=0.0):
     # KBW: Added the "or not finite" flags to negative.
     if negative.any():
         nz = negative.nonzero()[0]
-        warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
+        if verbose:
+            warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
         return nz, l
 
     lower = l.copy()

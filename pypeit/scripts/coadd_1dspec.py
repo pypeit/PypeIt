@@ -83,13 +83,17 @@ def read_coaddfile(ifile):
     return cfg_lines, spec1dfiles, objids
 
 
+# TODO: I can't find where this function is used.  The only place is see is in
+# test_syncspec.py.  Can we comment it out or remove it?
 def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     """
 
     Args:
         files:
         outroot:
-        det:
+        det (:obj:`str`):
+            String identifier for the detector or mosaic with the 1D spectra to
+            coadd.
         debug:
         show:
 
@@ -113,7 +117,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     # Loop on entries
     for key in sync_dict:
 
-        coaddfile = outroot+'-SPAT{:04d}-DET{:02d}'.format(key, det)+'.fits'
+        coaddfile = outroot+f'-SPAT{key:04d}-{det}.fits'
 
         coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
                                                sync_dict[key]['names'],

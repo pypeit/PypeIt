@@ -32,6 +32,7 @@ Submodules
    pypeit.core.load
    pypeit.core.meta
    pypeit.core.moment
+   pypeit.core.mosaic
    pypeit.core.parse
    pypeit.core.pca
    pypeit.core.pixels
@@ -44,6 +45,7 @@ Submodules
    pypeit.core.telluric
    pypeit.core.trace
    pypeit.core.tracewave
+   pypeit.core.transform
    pypeit.core.wave
 
 Module contents
