@@ -1633,10 +1633,7 @@ def lris_read_amp(inp, ext):
     else:
         hdu = inp
     # Count the number of extensions
-    n_ext = 0
-    for kk, ihdu in enumerate(hdu):
-        if 'VidInp' in ihdu.name:
-            n_ext += 1
+    n_ext = np.sum(['VidInp' in h.name for h in hdu])
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12

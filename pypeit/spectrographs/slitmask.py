@@ -152,7 +152,7 @@ class SlitMask:
 
         # PA
         if posx_pa is not None:
-            self.posx_pa, self.negx_pa = fuss_with_maskpa(posx_pa)
+            self.posx_pa, self.negx_pa = positive_maskpa(posx_pa)
         else:
             self.posx_pa, self.negx_pa = None, None
 
@@ -910,7 +910,7 @@ def build_slit_function(edges, size=None, oversample=1, sigma=None):
     return offset, slit_func_x, slit_func_y
 
 
-def fuss_with_maskpa(pa:float):
+def positive_maskpa(pa:float):
     """ Modify input pa to be positive (0-360)
 
     Args:
@@ -970,7 +970,7 @@ def load_keck_deimoslris(filename:str, instr:str):
     # PA corresponding to positive x on detector (spatial)
     posx_pa = hdu['MaskDesign'].data['PA_PNT'][-1]
     # Insure it is positive
-    posx_pa, _ = fuss_with_maskpa(posx_pa)
+    posx_pa, _ = positive_maskpa(posx_pa)
 
     # Instantiate the slit mask object and return it
     try:

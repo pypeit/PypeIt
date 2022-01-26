@@ -91,7 +91,9 @@ Currently, for LRIS one needs to add these explicitly to the
     
 Also for LRIS, one will need to have modified the raw data file
 using the `tilsotua` package which reverse engineers the slitmask design
-file into the necessary information. See https://XXXXX for more.
+file into the necessary information. See their 
+`GitHub page <https://github.com/jsulli27/tilsotua>`_
+for more.
 
 Three other :ref:`pypeit_par:EdgeTracePar Keywords` control the slitmask ID assignment;
 these are: **maskdesign_maxsep**, **maskdesign_sigrej**, **maskdesign_step**.

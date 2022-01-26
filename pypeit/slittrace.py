@@ -15,7 +15,6 @@ from astropy.table import Table
 from astropy.coordinates import SkyCoord, Angle
 from astropy import units
 from astropy.stats import sigma_clipped_stats
-from numpy.lib.arraysetops import isin
 from scipy.interpolate import RegularGridInterpolator, interp1d
 try:
     from skimage import transform as skimageTransform
@@ -1368,30 +1367,6 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
-def parse_slitspatnum(slitspatnum):
-    """
-    Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
-
-    Args:
-        slitspatnum (:obj:`str`, :obj:`list`):
-            A single string or list of strings to parse.
-
-    Returns:
-        :obj:`tuple`:  Two integer arrays with the list of 1-indexed detector
-        numbers and spatial pixels coordinates for each slit.  The shape of each
-        array is ``(nslits,)``, where ``nslits`` is the number of
-        ``slitspatnum`` entries parsed (1 if only a single string is provided).
-    """
-    dets = []
-    spat_ids = []
-    if isinstance(slitspatnum,list):
-        slitspatnum = ",".join(slitspatnum)
-    for item in slitspatnum.split(','):
-        spt = item.split(':')
-        dets.append(int(spt[0]))
-        spat_ids.append(int(spt[1]))
-    # Return
-    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 
 
 def merge_user_slit(slitspatnum, maskIDs):

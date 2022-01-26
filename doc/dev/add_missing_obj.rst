@@ -14,7 +14,7 @@ Version History
 1.0         Debora Pelliccia    02 Apr 2021  1.3.4dev
 1.1         Debora Pelliccia    28 Jul 2021  1.4.3dev
 1.3         Debora Pelliccia    21 Oct 2021  1.6.1dev
-1.4         J. Xavier Prochaska 21 Oct 2021  1.6.1dev
+1.4         J. Xavier Prochaska 25 Jan 2022  1.7.1dev
 =========   =================== =========== ===========
 
 ----

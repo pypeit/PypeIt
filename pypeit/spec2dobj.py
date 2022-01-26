@@ -20,6 +20,7 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
+from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
@@ -483,7 +484,7 @@ class AllSpec2DObj:
             elif slitspatnum is not None: # Update specific slits!
                 
                 # Grab modified detectors and slits
-                dets, spat_ids = slittrace.parse_slitspatnum(slitspatnum)
+                dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
 
                 # Loop on detectors to be fussed with
                 for det in _allspecobj.detectors:

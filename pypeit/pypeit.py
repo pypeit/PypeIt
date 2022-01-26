@@ -517,16 +517,10 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                            slitspatnum=self.par['rdx']['slitspatnum'],
-                                            ndet=self.spectrograph.ndet)
-        # Allow for multiple slitspatnum entries
-#        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-#                                            slitspatnum=self.par['rdx']['slitspatnum'],
-#                                            ndet=self.spectrograph.ndet)
         subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                     else self.par['rdx']['detnum']
         detectors = self.spectrograph.select_detectors(subset=subset)
+        # Allow for multiple slitspatnum entries
         detectors = np.unique(detectors).tolist()
 #        if len(detectors) != self.spectrograph.ndet:
 #            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
