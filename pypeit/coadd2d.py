@@ -22,7 +22,7 @@ from pypeit.images import pypeitimage
 from pypeit.core import extract
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
-from pypeit.core import parse
+#from pypeit.core import parse
 from pypeit import calibrations
 from pypeit import spec2dobj
 from pypeit.core.moment import moment1d

@@ -1,0 +1,15 @@
+This directory is purposely empty in the GitHub repository except for
+this README file.  The atmospheric model grids used for the PypeIt
+telluric corrections are very large and SHOULD NOT BE CHECKED IN to
+PypeIt; see the .gitignore file.
+
+Downloading and installation of the relevant files from a shared Google
+Drive directory is explained by the PypeIt installation documentation here:
+
+https://pypeit.readthedocs.io/en/latest/installing.html#atmospheric-model-grids
+
+See also a description of the telluric correction procedure and script
+here:
+
+https://pypeit.readthedocs.io/en/latest/telluric.html
+

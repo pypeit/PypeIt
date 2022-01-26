@@ -1,7 +1,7 @@
 .. code-block:: console
 
     $ pypeit_view_fits -h
-    usage: pypeit_view_fits [-h] [--list] [--proc] [--exten EXTEN] [--det DET]
+    usage: pypeit_view_fits [-h] [--list] [--proc] [--exten EXTEN] [--det [DET ...]]
                             [--chname CHNAME]
                             spectrograph file
     
@@ -34,7 +34,10 @@
                        not work with this option (default: False)
       --exten EXTEN    Show a FITS extension in the raw file. Note --proc and
                        --mosaic will not work with this option. (default: None)
-      --det DET        Detector number. To mosaic keck_deimos or keck_lris images,
-                       set equal to mosaic. (default: 1)
+      --det [DET ...]  Detector(s) to show. If more than one, the list of detectors
+                       must be one of the allowed mosaics hard-coded for the
+                       selected spectrograph. Using "mosaic" for gemini_gmos,
+                       keck_deimos, or keck_lris will show the mosaic of all
+                       detectors. (default: 1)
       --chname CHNAME  Name of Ginga tab (default: Image)
     

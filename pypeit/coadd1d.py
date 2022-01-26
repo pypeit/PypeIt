@@ -99,7 +99,6 @@ class CoAdd1D:
             tuple:
                - waves, fluxes, ivars, gpms, header
         """
-
         for iexp in range(self.nexp):
             sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp])
             indx = sobjs.name_indices(self.objids[iexp])

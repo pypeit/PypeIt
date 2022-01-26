@@ -20,7 +20,6 @@ from pypeit import coadd2d
 from pypeit import io
 from pypeit import specobjs
 from pypeit import spec2dobj
-from pypeit.pypeit import PypeIt
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 
