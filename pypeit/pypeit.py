@@ -27,7 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
+from pypeit.core import parse
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -562,7 +562,9 @@ class PypeIt:
         if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
-            platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # Grab platescale with binning
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
             # get the dither offset if available
             if self.par['reduce']['slitmask']['use_dither_offset']:
                 dither = self.spectrograph.parse_dither_pattern(

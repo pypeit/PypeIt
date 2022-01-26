@@ -1308,6 +1308,10 @@ class SlitTraceSet(datamodel.DataContainer):
 
     def get_maskdef_extract_fwhm(self, sobjs, platescale, fwhm_parset):
         """
+        This method determines the fwhm to use for the optimal extraction
+        of maskdef_extract (i.e., undetected) objects.
+        If the user provides a fwhm, it would be used. Otherwise fwhm
+        will be computed using the average fwhm of the detected objects.
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced

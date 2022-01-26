@@ -21,7 +21,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa, parse
 from pypeit.images import buildimage
 from pypeit.core.moment import moment1d
 
@@ -52,7 +52,7 @@ class Reduce:
           Specifies masked out slits
           True = Masked
         ir_redux (:obj:`bool`, optional):
-            If True, the scImg has been subtracted by
+            If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
            Show plots along the way?
@@ -255,7 +255,8 @@ class Reduce:
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
                 sobj = self.sobjs[iobj]
-                plate_scale = self.get_platescale(sobj)
+                bin_spec, bin_spat = parse.parse_binning(self.binning)
+                plate_scale = self.get_platescale(sobj)*bin_spat
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
@@ -442,6 +443,7 @@ class Reduce:
         # # Create skymask for maskdef_extracted objects
         if self.par['reduce']['slitmask']['extract_missing_objs']:
             gdslits = np.where(np.invert(self.reduce_bpm))[0]
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
             # Loop on slits
             for slit_idx in gdslits:
                 slit_spat = self.slits.spat_id[slit_idx]
@@ -450,8 +452,9 @@ class Reduce:
                 # sobj index of maskdef_extract
                 maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
                 if maskdef_extract.size > 0:
+                    plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
                     skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
-                            box_pix=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None) \
+                            box_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
                                     if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                     skymask[thismask] = skymask_fwhm[thismask]
         self.sobjs_obj = sobjs_obj
@@ -1109,7 +1112,9 @@ class MultiSlitReduce(Reduce):
 
         # Masking options
         if self.par['reduce']['skysub']['mask_by_boxcar']:
-            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            plate_scale = self.get_platescale(None)*bin_spat
+            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / plate_scale
         else:
             boxcar_rad_skymask = None
 
@@ -1261,8 +1266,10 @@ class MultiSlitReduce(Reduce):
 
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
-            box_rad = self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None)
-            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            plate_scale = self.get_platescale(None)*bin_spat
+            box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
             sigrej = self.par['reduce']['skysub']['sky_sigrej']
             bsp = self.par['reduce']['skysub']['bspline_spacing']
             force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
@@ -1495,7 +1502,7 @@ class EchelleReduce(Reduce):
         bsp = self.par['reduce']['skysub']['bspline_spacing']
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
+        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
