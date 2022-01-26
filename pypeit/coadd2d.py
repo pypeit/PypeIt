@@ -186,7 +186,7 @@ class CoAdd2D:
         self.stack_dict = self.load_coadd2d_stacks(self.spec2d)
         self.pypeline = self.spectrograph.pypeline
 
-        self.nexp = len(self.stack_dict['specobjs_list'])
+        self.nexp = len(self.spec2d)
 
         # Check that there are the same number of slits on every exposure
         nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
@@ -895,7 +895,7 @@ class CoAdd2D:
                     maskdef_designtab_list=maskdef_designtab_list,
                     spat_flexure_list=spat_flexure_list)
 
-    def parse_input(self, input, type='weights'):
+    def check_input(self, input, type='weights'):
         """
         Check that the number of input values (weights or offsets) is the same as the number of exposures
         Args:
@@ -1033,16 +1033,18 @@ class MultiSlitCoAdd2D(CoAdd2D):
             offsets computed during the slitmask design matching will be used.
 
         """
-
-        self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
-            self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
+        if len(self.stack_dict['specobjs_list']) > 0:
+            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
+                self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
+        else:
+            self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = None, None, None, None
 
         if (self.objid_bri is None) and (offsets is None):
             msgs.error('Offsets cannot be computed because no unique reference object '
                               'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
         # Weights
-        if ((self.objid_bri is None) and (weights in ['auto, uniform'])) or \
+        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
                 ((self.objid_bri is not None) and (weights == 'uniform')):
             self.use_weights = 'uniform'
             if weights == 'auto':
@@ -1055,7 +1057,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             msgs.info('Computing weights using a unique reference object with the highest S/N')
             self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
         else:
-            self.use_weights = self.parse_input(weights, type='weights')
+            self.use_weights = self.check_input(weights, type='weights')
             msgs.info('Using user input weights')
 
         # offsets
@@ -1069,7 +1071,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 msgs.error('No maskdef_offset recoded in SlitTraceSet')
         elif offsets is not None:
             msgs.info('Using user input offsets')
-            self.offsets = self.parse_input(offsets, type='offsets')
+            self.offsets = self.check_input(offsets, type='offsets')
             offsets_method = 'user input'
         else:
             offsets_method = 'highest S/N object found on slitid = {:d}'.format(self.spatid_bri)
@@ -1315,16 +1317,18 @@ class EchelleCoAdd2D(CoAdd2D):
             offsets computed during the slitmask design matching will be used.
 
         """
-
-        self.objid_bri, self.slitid_bri, self.snr_bar_bri = \
-            self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
+        if len(self.stack_dict['specobjs_list']) > 0:
+            self.objid_bri, self.slitid_bri, self.snr_bar_bri = \
+                self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
+        else:
+            self.objid_bri, self.slitid_bri, self.snr_bar_bri = None, None, None
 
         if (self.objid_bri is None) and (offsets is None):
             msgs.error('Offsets cannot be computed because no unique reference object '
                        'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
 
         # Weights
-        if ((self.objid_bri is None) and (weights in ['auto, uniform'])) or \
+        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
                 ((self.objid_bri is not None) and (weights == 'uniform')):
             self.use_weights = 'uniform'
             if weights == 'auto':
@@ -1343,14 +1347,14 @@ class EchelleCoAdd2D(CoAdd2D):
             msgs.info('Computing weights using a unique reference object with the highest S/N')
             self.snr_report(self.snr_bar_bri)
         else:
-            self.use_weights = self.parse_input(weights, type='weights')
+            self.use_weights = self.check_input(weights, type='weights')
             msgs.info('Using user input weights')
 
         # offsets
         offsets_method = None
         if offsets is not None:
             msgs.info('Using user input offsets')
-            self.offsets = self.parse_input(offsets, type='offsets')
+            self.offsets = self.check_input(offsets, type='offsets')
             # if the user input the offsets, objid_bri cannot be used to compute the reference stack,
             # so it needs to be None
             self.objid_bri = None
