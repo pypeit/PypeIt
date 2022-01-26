@@ -369,18 +369,21 @@ def create_report_archive(par):
     COADDED_SOBJ_KEYS  =        ['MASKDEF_OBJNAME', 'MASKDEF_ID', 'NAME',        'DET', 'RA',    'DEC',    'med_s2n', 'MASKDEF_EXTRACT', 'WAVE_RMS']
     COADDED_SOBJ_COLUMN_NAMES = ['maskdef_objname', 'maskdef_id', 'pypeit_name', 'det', 'objra', 'objdec', 's2n',     'maskdef_extract', 'wave_rms']
 
-
     report_names = ['filename'] + \
                    COADDED_SOBJ_COLUMN_NAMES + \
                    ['spec1d_filename'] + \
                    COADDED_SPEC1D_COLUMN_NAMES
+
+    report_formats = {'s2n':      '%.2f',
+                      'wave_rms': '%.3f'}
 
     report_metadata = ArchiveMetadata(os.path.join(par['collate1d']['outdir'], "collate_report.dat"),
                                       report_names,
                                       partial(get_report_metadata,
                                               COADDED_SPEC1D_HEADER_KEYS,
                                               COADDED_SOBJ_KEYS),
-                                      append=True)
+                                      append=True,
+                                      formats= report_formats)
     archive_metadata_list.append(report_metadata)
 
     # metadatas in archive object
@@ -450,8 +453,8 @@ class Collate1D(scriptbase.ScriptBase):
             args.par_outfile = os.path.join(outdir, 'collate1d.par')
         print("Writing the parameters to {}".format(args.par_outfile))
         # Gather up config lines for the sections relevant to collate_1d
-        config_lines = par['collate1d'].to_config(section_name='collate1d') + ['']
-        config_lines += par['coadd1d'].to_config(section_name='coadd1d')
+        config_lines = par['collate1d'].to_config(section_name='collate1d',include_descr=False) + ['']
+        config_lines += par['coadd1d'].to_config(section_name='coadd1d',include_descr=False)
         with open(args.par_outfile, "a") as f:
             for line in config_lines:
                 print (line, file=f)
