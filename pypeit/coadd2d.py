@@ -241,10 +241,10 @@ class CoAdd2D:
 
         for iexp, sobjs in enumerate(self.stack_dict['specobjs_list']):
             ithis = sobjs.slitorder_objid_indices(slitorderid, objid[iexp])
-            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS
-            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR
-            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE
-            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
+            flux_stack[:, iexp] = sobjs[ithis].OPT_COUNTS if sobjs[ithis][0].OPT_COUNTS is not None else sobjs[ithis].BOX_COUNTS
+            ivar_stack[:, iexp] = sobjs[ithis].OPT_COUNTS_IVAR if sobjs[ithis][0].OPT_COUNTS_IVAR is not None else sobjs[ithis].BOX_COUNTS_IVAR
+            wave_stack[:, iexp] = sobjs[ithis].OPT_WAVE if sobjs[ithis][0].OPT_WAVE is not None else sobjs[ithis].BOX_WAVE
+            mask_stack[:, iexp] = sobjs[ithis].OPT_MASK if sobjs[ithis][0].OPT_MASK is not None else sobjs[ithis].BOX_MASK
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
         rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
@@ -473,7 +473,7 @@ class CoAdd2D:
         # Manual extraction
         if len(self.par['coadd2d']['manual'].strip()) > 0:
             manual_obj = ManualExtractionObj.by_fitstbl_input(
-                    'None', self.par['coadd2d']['manual']) 
+                    'None', self.par['coadd2d']['manual'])
             uniq_dets = np.unique(manual_obj.det)
             if uniq_dets.size > 1:
                 msgs.error('2D co-adding does not support extractions from multiple detectors. '
@@ -673,9 +673,9 @@ class CoAdd2D:
             indx = 0
             for spec_this in self.stack_dict['specobjs_list']:
                 for spec in spec_this:
-                    waves[:, indx] = spec.OPT_WAVE
+                    waves[:, indx] = spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE
                     # TODO -- OPT_MASK is likely to become a bpm with int values
-                    gpm[:, indx] = spec.OPT_MASK
+                    gpm[:, indx] = spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK
                     indx += 1
 
         wave_grid, wave_grid_mid, dsamp = wvutils.get_wave_grid(waves, masks=gpm,
@@ -1006,10 +1006,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
                     wave = np.zeros((nspec, nobj_slit))
                     mask = np.zeros((nspec, nobj_slit), dtype=bool)
                     for iobj, spec in enumerate(sobjs[ithis]):
-                        flux[:, iobj] = spec.OPT_COUNTS
-                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR
-                        wave[:, iobj] = spec.OPT_WAVE
-                        mask[:, iobj] = spec.OPT_MASK
+                        flux[:, iobj] = spec.OPT_COUNTS if spec.OPT_COUNTS is not None else spec.BOX_COUNTS
+                        ivar[:, iobj] = spec.OPT_COUNTS_IVAR if spec.OPT_COUNTS_IVAR is not None else spec.BOX_COUNTS_IVAR
+                        wave[:, iobj] = spec.OPT_WAVE if spec.OPT_WAVE is not None else spec.BOX_WAVE
+                        mask[:, iobj] = spec.OPT_MASK if spec.OPT_MASK is not None else spec.BOX_MASK
                     rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]
@@ -1129,6 +1129,7 @@ class EchelleCoAdd2D(CoAdd2D):
             order_snr = np.zeros((nslits, nobjs))
             for iord in range(nslits):
                 for iobj in range(nobjs):
+                    # TODO make robust against OPT not existing
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
                     flux = sobjs[ind][0].OPT_COUNTS
                     ivar = sobjs[ind][0].OPT_COUNTS_IVAR
