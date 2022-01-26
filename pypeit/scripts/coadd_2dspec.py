@@ -33,7 +33,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
-        parser.add_argument('--det', default=None, type=int,
+        parser.add_argument('--det', default=None, type=str,
                             help="Only coadd data from this detector (1-indexed)")
         parser.add_argument("--obj", type=str, default=None,
                             help="Object name in lieu of extension, e.g if the spec2d files are "
@@ -74,7 +74,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
-        msgs.warn('PATH =' + os.getcwd())
+        msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
             spectrograph_name, config_lines, spec2d_files \
@@ -108,7 +108,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # If detector was passed as an argument override whatever was in the coadd2d_file
         if args.det is not None:
             msgs.info("Restricting reductions to detector={}".format(args.det))
-            parset['rdx']['detnum'] = int(args.det)
+            parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
 
         # Get headers (if possible) and base names
         spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
@@ -178,10 +178,12 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(qa_path)
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
-        if len(detectors) != spectrograph.ndet:
-            msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
-            set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
+#        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
+        detectors = spectrograph.select_detectors(subset=parset['rdx']['detnum'])
+#        if len(detectors) != spectrograph.ndet:
+#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
+#            set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
+        msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
         if args.only_slits is not None:
@@ -200,7 +202,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # Loop on detectors
         for det in detectors:
             msgs.info("Working on detector {0}".format(det))
-            sci_dict[det] = {}
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
@@ -227,44 +228,46 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             
             # TODO -- JFH -- Check that the slits we are using are correct
 
-            sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-            sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-            sci_dict[det]['specobjs'], sci_dict[det]['detector'], sci_dict[det]['slits'], \
-            sci_dict[det]['tilts'], sci_dict[det]['waveimg'] \
+            sci_dict[coadd.detname] = {}
+            sci_dict[coadd.detname]['sciimg'], sci_dict[coadd.detname]['sciivar'], \
+                sci_dict[coadd.detname]['skymodel'], sci_dict[coadd.detname]['objmodel'], \
+                sci_dict[coadd.detname]['ivarmodel'], sci_dict[coadd.detname]['outmask'], \
+                sci_dict[coadd.detname]['specobjs'], sci_dict[coadd.detname]['detector'], \
+                sci_dict[coadd.detname]['slits'], sci_dict[coadd.detname]['tilts'], \
+                sci_dict[coadd.detname]['waveimg'] \
                     = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks, basename=basename)
 
             # Tack on detector (similarly to pypeit.extract_one)
-            for sobj in sci_dict[det]['specobjs']:
-                sobj.DETECTOR = sci_dict[det]['detector']
+            for sobj in sci_dict[coadd.detname]['specobjs']:
+                sobj.DETECTOR = sci_dict[coadd.detname]['detector']
                 # iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
                 # sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
             # fill the specobjs container
-            all_specobjs.add_sobj(sci_dict[det]['specobjs'])
+            all_specobjs.add_sobj(sci_dict[coadd.detname]['specobjs'])
 
             # fill the spec2dobj container but first ...
             # pull out maskdef_designtab from sci_dict[det]['slits']
-            maskdef_designtab = sci_dict[det]['slits'].maskdef_designtab
-            slits = copy.deepcopy(sci_dict[det]['slits'])
+            maskdef_designtab = sci_dict[coadd.detname]['slits'].maskdef_designtab
+            slits = copy.deepcopy(sci_dict[coadd.detname]['slits'])
             slits.maskdef_designtab = None
             # fill up
-            all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
-                                                  sciimg=sci_dict[det]['sciimg'],
-                                                  ivarraw=sci_dict[det]['sciivar'],
-                                                  skymodel=sci_dict[det]['skymodel'],
-                                                  objmodel=sci_dict[det]['objmodel'],
-                                                  ivarmodel=sci_dict[det]['ivarmodel'],
-                                                  scaleimg=np.array([1.0], dtype=np.float),
-                                                  bpmmask=sci_dict[det]['outmask'],
-                                                  detector=sci_dict[det]['detector'],
-                                                  slits=slits,
-                                                  waveimg=sci_dict[det]['waveimg'],
-                                                  tilts=sci_dict[det]['tilts'],
-                                                  sci_spat_flexure=None,
-                                                  sci_spec_flexure=None,
-                                                  vel_corr=None,
-                                                  vel_type=None,
-                                                  maskdef_designtab=maskdef_designtab)
+            all_spec2d[coadd.detname] = spec2dobj.Spec2DObj(sciimg=sci_dict[coadd.detname]['sciimg'],
+                                                          ivarraw=sci_dict[coadd.detname]['sciivar'],
+                                                          skymodel=sci_dict[coadd.detname]['skymodel'],
+                                                          objmodel=sci_dict[coadd.detname]['objmodel'],
+                                                          ivarmodel=sci_dict[coadd.detname]['ivarmodel'],
+                                                          scaleimg=np.array([1.0], dtype=np.float),
+                                                          bpmmask=sci_dict[coadd.detname]['outmask'],
+                                                          detector=sci_dict[coadd.detname]['detector'],
+                                                          slits=slits,
+                                                          waveimg=sci_dict[coadd.detname]['waveimg'],
+                                                          tilts=sci_dict[coadd.detname]['tilts'],
+                                                          sci_spat_flexure=None,
+                                                          sci_spec_flexure=None,
+                                                          vel_corr=None,
+                                                          vel_type=None,
+                                                          maskdef_designtab=maskdef_designtab)
 
             # Save pseudo image master files
             #coadd.save_masters()
@@ -298,6 +301,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                redux_path=None, master_key_dict=None,
                                                master_dir=None)
         # Write spec2d
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=parset['rdx']['detnum'])
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
 
