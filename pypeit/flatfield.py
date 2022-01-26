@@ -328,7 +328,7 @@ class FlatImages(datamodel.DataContainer):
 
 
 
-class FlatField(object):
+class FlatField:
     """
     Builds pixel-level flat-field and the illumination flat-field.
 
@@ -644,8 +644,15 @@ class FlatField(object):
         # set errors to just be 0.5 in the log
         ivar_log = gpm_log.astype(float)/0.5**2
 
+        # Get the non-linear count level
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
+        except:
+            nonlinear_counts = 1e10
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
+#        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
+#        nonlinear_counts = self.rawflatimg.detector.nonlinear_counts()
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits

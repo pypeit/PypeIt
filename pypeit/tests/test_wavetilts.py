@@ -56,9 +56,9 @@ def test_wavetilts():
 @cooked_required
 def test_instantiate_from_master(master_dir):
     master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                               'MasterTilts_A_1_01.fits')
+                               'MasterTilts_A_1_DET01.fits')
     slit_master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
-                               'MasterSlits_A_1_01.fits.gz')
+                               'MasterSlits_A_1_DET01.fits.gz')
     slits = slittrace.SlitTraceSet.from_file(slit_master_file)
     waveTilts = wavetilts.WaveTilts.from_file(master_file)
     tilts = waveTilts.fit2tiltimg(slits.slit_img())
@@ -69,15 +69,12 @@ def test_instantiate_from_master(master_dir):
 @cooked_required
 def test_flexure(master_dir):
     flexure = 1.
-    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue', 'MasterTilts_A_1_01.fits')
-    #master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'shane_kast_blue', '600_4310_d55',
-    #                           'shane_kast_blue_A','Masters',
-    #                           'MasterTilts_A_1_01.fits')
+    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                               'MasterTilts_A_1_DET01.fits')
     waveTilts = wavetilts.WaveTilts.from_file(master_file)
     # Need slitmask
-    slit_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue', 'MasterSlits_A_1_01.fits.gz')
-    #slit_file =os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'shane_kast_blue', '600_4310_d55',
-    #                                                  'shane_kast_blue_A','Masters',  'MasterSlits_A_1_01.fits.gz')
+    slit_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                             'MasterSlits_A_1_DET01.fits.gz')
     slits = slittrace.SlitTraceSet.from_file(slit_file)
     slitmask = slits.slit_img(flexure=flexure)
     # Do it
@@ -135,5 +132,3 @@ def test_run(master_dir):
     assert isinstance(waveTilts.fit2tiltimg(slits.slit_img()), np.ndarray)
 
 
-#if __name__ == '__main__':
-#    test_instantiate_from_master(master_dir())

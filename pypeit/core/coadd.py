@@ -2127,9 +2127,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None,
                    qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
-
-    '''
-    Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
+    """
+    Routine for coadding longslit/multi-slit spectra. Calls combspec which is
+    the main stacking algorithm.
 
     Args:
         waves (ndarray):
@@ -2211,27 +2211,28 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         show (bool): optional, default=False,
              Show key QA plots or not
 
-        Returns:
-            tuple: Returns the following:
-            - wave_grid_mid: ndarray, (ngrid,)
-                Wavelength grid (in Angstrom) evaluated at the bin centers,
-                uniformly-spaced either in lambda or log10-lambda/velocity.
-                See core.wavecal.wvutils.py for more.
-            - wave_stack: ndarray, (ngrid,)
-                 Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
-                 of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
-                 elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
-                 wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
-            - flux_stack: ndarray, (ngrid,)
-                 Final stacked spectrum on wave_stack wavelength grid
-            - ivar_stack: ndarray, (ngrid,)
-                 Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
-                 masking.
-            - mask_stack: ndarray, bool, (ngrid,)
-                 Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
-    '''
+    Returns:
+        :obj:`tuple`: Returns the following:
 
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or
+              log10-lambda/velocity.  See core.wavecal.wvutils.py for more.
+            - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
+              spectrum. As discussed above, this is the weighted average of the
+              wavelengths of each spectrum that contriuted to a bin in the input
+              wave_grid wavelength grid. It thus has ngrid elements, whereas
+              wave_grid has ngrid+1 elements to specify the ngrid total number
+              of bins. Note that wave_stack is NOT simply the wave_grid bin
+              centers, since it computes the weighted average.
+            - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
+              wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on
+              wave_stack wavelength grid. Erors are propagated according to
+              weighting and masking.
+            - mask_stack: ndarray, bool, (ngrid,): Mask for stacked spectrum on
+              wave_stack wavelength grid. True=Good.
 
+    """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
         nspec, nexp = waves.shape
@@ -3030,6 +3031,9 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
+# TODO: Do we need this function?  It's only used by sync_pair, which is only
+# used by pypeit/scripts/coadd_1dspec.py::coadd1d_filelist, which is only called
+# by a unit test.
 def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
     """
     From a set of spectra in a :class:`pypeit.specobjs.Specobjs`
@@ -3039,16 +3043,20 @@ def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
     of the spectrum
 
     Args:
-        spec (:class:`pypeit.specobjs.Specobjs`):
-        maxspat (int):
+        spec (:class:`~pypeit.specobjs.Specobjs`):
+            Extracted spectra
+        maxspat (:obj:`int`):
             Size of the array generated
-        det (int):
-        extract (str, optional):  Type of extraction performed
-        sigma (float, optional):  sigma of the Gaussian peaks generated
+        det (:obj:`str`):
+            String identifier for the detector or mosaic
+        extract (:obj:`str`, optional):
+            Type of extraction performed
+        sigma (:obj:`float`, optional):
+            sigma of the Gaussian peaks generated
 
     Returns:
-        `numpy.ndarray`_:
-
+        `numpy.ndarray`_: A vector with a series of Gaussians at the locations
+        of the extracted spectra.
     """
     # Generate "arc spectra"
     arc_spec = np.zeros(maxspat)
@@ -3119,6 +3127,9 @@ def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
     sync_dict[indx]['files'] += files[keep].tolist()
     sync_dict[indx]['names'] += names[keep].tolist()
 
+# TODO: Is this function every used outside of
+# pypeit/scripts/coadd_1dspec.py::coadd1d_filelist?  That function doesn't seem
+# to be used anywhere except for a test, so do we need this function?
 def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
     """
     Routine to sync up spectra in a pair of :class:`pypeit.specobjs.Specobjs`
@@ -3127,7 +3138,9 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
     Args:
         spec1_file (str):
         spec2_file (str):
-        det (int):
+        det (:obj:`str`):
+            String identifier for the detector or mosaic with the extracted
+            spectra.
         sync_dict (dict):
         sync_toler (int):
         debug:

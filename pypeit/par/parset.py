@@ -343,7 +343,6 @@ class ParSet:
         row_string[-1] = row_string[0]
         return '\n'.join(row_string)+'\n'
 
-
     @staticmethod
     def _data_string(data, use_repr=True, verbatim=False):
         """
@@ -368,9 +367,13 @@ class ParSet:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            return data if not verbatim else '``' + data + '``'
-        if hasattr(data, '__len__'):
-            return '[]' if isinstance(data, list) and len(data) == 0 \
+            if verbatim:
+                return '..' if len(data) == 0 else '``' + data + '``'
+            return data
+        if isinstance(data, list):
+            # TODO: When the list is empty, should the return include the
+            # brackets?
+            return '[]' if len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
                                                              verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
@@ -739,7 +742,6 @@ class ParSet:
             output += ['----']
             output += ['']
             output += self.data[k].to_rst_table(parsets_listed=parsets_listed)
-
         return output
 
     def validate_keys(self, required=None, can_be_None=None):
