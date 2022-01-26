@@ -204,9 +204,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Lower value of tracethresh
         par['calibrations']['tilts']['tracethresh'] = 10
 
-        # Extraction
-        #par['reduce']['skysub']['bspline_spacing'] = 0.8
-
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
@@ -268,8 +265,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            # model_full_slit when multi-slit observations (generally DEIMOS has short slits)
-            #par['reduce']['extraction']['model_full_slit'] = True
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
@@ -1290,36 +1285,55 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def list_detectors(self):
         """
-        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        They are separated if they are split into blue and red detectors
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
 
         Returns:
-            :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
-            indicates that the spectrograph is divided into blue and red detectors. The array has
-            shape :math:`(2, N_{dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{dets})`
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
         """
-        dets = np.vstack((np.arange(self.ndet)[:self.ndet//2]+1, np.arange(self.ndet)[self.ndet//2:]+1))
-        return dets, True
+        return np.array([detector_container.DetectorContainer.get_name(i+1) 
+                            for i in range(self.ndet)]).reshape(2,-1)
 
     def spec1d_match_spectra(self, sobjs):
-        """Match up slits in a SpecObjs file
-        based on coords.  Specific to DEIMOS
+        """
+        Match up slits in a SpecObjs file based on coords.  Specific to DEIMOS.
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`): 
                 Spec1D objects
 
         Returns:
-            tuple: array of indices for the blue detector, 
-                array of indices for the red (matched to the blue)
+            :obj:`tuple`: array of indices for the blue detector, array of
+            indices for the red (matched to the blue).
         """
 
         # ***FOR THE MOMENT, REMOVE SERENDIPS
         good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
-        
+
         # MATCH RED TO BLUE VIA RA/DEC
-        mb = sobjs['DET'] <=4
-        mr = sobjs['DET'] >4
+#        mb = sobjs['DET'] <=4
+#        mr = sobjs['DET'] >4
+        det = np.array([detector_container.DetectorContainer.parse_name(d) for d in sobjs.DET])
+        mb = det <= 4
+        mr = det > 4
 
         ridx = np.where(mr & good_obj)[0]
         robjs = sobjs[ridx]
@@ -1352,6 +1366,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
                 #n=n+1
             elif np.sum(mtc)>1:
+                embed()
+                exit()
                 msgs.error("Multiple RA matches?!  No good..")
 
             # TODO - confirm with Marla this block is NG
@@ -1701,11 +1717,11 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None):
     sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
                                   idl_spec['COUNTS'].data[0:npix], 
                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                   DET=3)
+                                   DET='DET03')
     sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
                                   idl_spec['COUNTS'].data[npix:], 
                                    1./(idl_spec['COUNTS'].data[npix:]), 
-                                   DET=7)
+                                   DET='DET07')
 
     # SpecObjs
     sobjs = specobjs.SpecObjs()

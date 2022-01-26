@@ -27,7 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
+from pypeit.core import parse
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -284,8 +284,9 @@ class PypeIt:
             grp_frames = frame_indx[in_grp]
 
             # Find the detectors to reduce
-            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                                ndet=self.spectrograph.ndet)
+#            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+#                                                ndet=self.spectrograph.ndet)
+            detectors = self.spectrograph.select_detectors(subset=self.par['rdx']['detnum'])
             calib_dict[calib_grp] = {}
             # Loop on Detectors
             for self.det in detectors:
@@ -402,6 +403,7 @@ class PypeIt:
             science_basename = [None]*len(grp_science)
             # Loop on unique comb_id
             u_combid = np.unique(self.fitstbl['comb_id'][grp_science])
+        
             for j, comb_id in enumerate(u_combid):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 # Find all frames whose comb_id matches the current frames bkg_id.
@@ -433,38 +435,6 @@ class PypeIt:
 
         # Finish
         self.print_end_time()
-
-    # This is a static method to allow for use in coadding script 
-    @staticmethod
-    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
-        """
-        Return the 1-indexed list of detectors to reduce.
-
-        Args:
-            detnum (:obj:`int`, :obj:`list`, optional):
-                One or more detectors to reduce.  If None, return the full list
-                for the provided number of detectors (``ndet``).  Should be None
-                if ``slitspatnum`` is provided.
-            ndet (:obj:`int`, optional):
-                The number of detectors for this instrument.  Only used
-                if ``detnum`` is None.
-            slitspatnum (:obj:`str`, optional):
-                A standard format string used to identify a slit by its detector
-                number and spatial pixel.  Should be None if ``detnum`` is
-                provided.
-
-        Returns:
-            :obj:`list`: List of detectors to be reduced.
-        """
-        if detnum is not None and slitspatnum is not None:
-            msgs.error('You cannot specify both detnum and slitspatnum.  Too painful for '
-                       'over-writing SpecObjs.')
-        if detnum is None and slitspatnum is None:
-            return np.arange(1, ndet+1).tolist()
-        elif detnum is not None:
-            return np.atleast_1d(detnum).tolist()
-        else:
-            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
     # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
@@ -544,12 +514,16 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-                                            slitspatnum=self.par['rdx']['slitspatnum'],
-                                            ndet=self.spectrograph.ndet)
-        if len(detectors) != self.spectrograph.ndet:
-            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
+#        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+#                                            slitspatnum=self.par['rdx']['slitspatnum'],
+#                                            ndet=self.spectrograph.ndet)
+        subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
+                    else self.par['rdx']['detnum']
+        detectors = self.spectrograph.select_detectors(subset=subset)
+#        if len(detectors) != self.spectrograph.ndet:
+#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
+#                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
+        msgs.info(f'Detectors to work on: {detectors}')
 
         # List of detectors with successful calibration
         calibrated_det = []
@@ -588,7 +562,9 @@ class PypeIt:
         if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
-            platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # Grab platescale with binning
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
             # get the dither offset if available
             if self.par['reduce']['slitmask']['use_dither_offset']:
                 dither = self.spectrograph.parse_dither_pattern(
@@ -614,14 +590,16 @@ class PypeIt:
             self.caliBrate = self.calib_one(frames, self.det)
             self.caliBrate.slits = calib_slits[i]
 
+            detname = sciImg_list[i].detector.name
+
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             if all_specobjs_objfind.nobj > 0:
-                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == self.det]
+                all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detname]
             else:
                 all_specobjs_on_det = all_specobjs_objfind
-            all_spec2d[self.det], tmp_sobjs \
+            all_spec2d[detname], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
                                        all_specobjs_on_det, skymask_list[i])
             # Hold em
@@ -671,20 +649,31 @@ class PypeIt:
         Returns the trace of the standard if it is applicable to the current reduction
 
         Args:
-            std_redux (bool): If False, proceed
-            det (int): Detector index
-            std_outfile (str): Filename for the standard star spec1d file
+            std_redux (:obj:`bool`):
+                Flag that the current reduction *is* the reduction of a standard
+                and that this step should be skipped.   So, if this is False,
+                the method will proceed; otherwise, the returned value is always
+                None.
+            det (:obj:`int`, :obj:`tuple`):
+                1-indexed detector(s) to process.
+            std_outfile (:obj:`str`):
+                Filename with the standard star spec1d file.  Can be None.
 
         Returns:
-            ndarray or None: Trace of the standard star on input detector
-
+            `numpy.ndarray`_: Trace of the standard star on input detector.
+            Will be None if ``std_redux`` is true, if ``std_outfile`` is None,
+            or if the selected detector/mosaic is not available in the provided
+            spec1d file.
         """
         if std_redux is False and std_outfile is not None:
             sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
+            detname = self.spectrograph.get_det_name(det)
             # Does the detector match?
-            # TODO Instrument specific logic here could be implemented with the parset. For example LRIS-B or LRIS-R we
-            # we would use the standard from another detector
-            this_det = sobjs.DET == det
+            # TODO: Instrument specific logic here could be implemented with the
+            # parset. For example LRIS-B or LRIS-R we we would use the standard
+            # from another detector.
+
+            this_det = sobjs.DET == detname
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
@@ -916,8 +905,7 @@ class PypeIt:
         spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
 
         # Construct the Spec2DObj
-        spec2DObj = spec2dobj.Spec2DObj(det=self.det,
-                                        sciimg=sciImg.image,
+        spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                         ivarraw=sciImg.ivar,
                                         skymodel=skymodel,
                                         objmodel=objmodel,
@@ -972,6 +960,18 @@ class PypeIt:
         if not os.path.isdir(self.science_path):
             os.makedirs(self.science_path)
 
+        # NOTE: There are some gymnastics here to keep from altering
+        # self.par['rdx']['detnum'].  I.e., I can't just set update_det =
+        # self.par['rdx']['detnum'] because that can alter the latter if I don't
+        # deepcopy it...
+        if self.par['rdx']['detnum'] is None:
+            update_det = None
+        elif isinstance(self.par['rdx']['detnum'], list):
+            update_det = [self.spectrograph.allowed_mosaics.index(d)+1 
+                            if isinstance(d, tuple) else d for d in self.par['rdx']['detnum']]
+        else:
+            update_det = self.par['rdx']['detnum']
+
         subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
         if all_specobjs.nobj > 0:
@@ -980,7 +980,7 @@ class PypeIt:
             # TODO
             #embed(header='deal with the following for maskIDs;  713 of pypeit')
             all_specobjs.write_to_fits(subheader, outfile1d,
-                                       update_det=self.par['rdx']['detnum'],
+                                       update_det=update_det,
                                        slitspatnum=self.par['rdx']['slitspatnum'],
                                        history=history)
             # Info
@@ -1002,8 +1002,9 @@ class PypeIt:
                                                master_dir=self.caliBrate.master_dir,
                                                subheader=subheader,
                                                history=history)
+
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
 
     def msgs_reset(self):

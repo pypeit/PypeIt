@@ -21,7 +21,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa, parse
 from pypeit.images import buildimage
 from pypeit.core.moment import moment1d
 
@@ -52,7 +52,7 @@ class Reduce:
           Specifies masked out slits
           True = Masked
         ir_redux (:obj:`bool`, optional):
-            If True, the scImg has been subtracted by
+            If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
            Show plots along the way?
@@ -255,7 +255,8 @@ class Reduce:
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
                 sobj = self.sobjs[iobj]
-                plate_scale = self.get_platescale(sobj)
+                bin_spec, bin_spat = parse.parse_binning(self.binning)
+                plate_scale = self.get_platescale(sobj)*bin_spat
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
@@ -339,12 +340,12 @@ class Reduce:
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
         #
 
-        # ##################################################
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
-                              show=self.reduce_show & (not self.std_redux))
+                              show=self.reduce_show & (not self.std_redux),
+                              save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -442,16 +443,18 @@ class Reduce:
         # # Create skymask for maskdef_extracted objects
         if self.par['reduce']['slitmask']['extract_missing_objs']:
             gdslits = np.where(np.invert(self.reduce_bpm))[0]
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
             # Loop on slits
             for slit_idx in gdslits:
                 slit_spat = self.slits.spat_id[slit_idx]
                 slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
                 thismask = self.slitmask == slit_spat
                 # sobj index of maskdef_extract
-                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0]
+                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
                 if maskdef_extract.size > 0:
+                    plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
                     skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
-                            box_pix=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None) \
+                            box_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
                                     if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                     skymask[thismask] = skymask_fwhm[thismask]
         self.sobjs_obj = sobjs_obj
@@ -524,9 +527,8 @@ class Reduce:
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
-                     show_trace=False, show=False,
-                     manual_extract_dict=None,
-                     debug=False):
+                     show_trace=False, show=False, save_objfindQA=True,
+                     manual_extract_dict=None, debug=False):
         """
         Single pass at finding objects in the input image
 
@@ -546,6 +548,8 @@ class Reduce:
             ???
         show : :obj:`bool`, optional
             ???
+        save_objfindQA : :obj:`bool`, optional
+            Save to disk (png file) QA showing the object profile
         manual_extract_dict : :obj:`dict`, optional
             This is only used by 2D coadd
         debug : :obj:`bool`, optional
@@ -569,8 +573,8 @@ class Reduce:
             self.find_objects_pypeline(image,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
-                                       show_trace=show_trace,
-                                       manual_extract_dict=manual_extract_dict, debug=debug)
+                                       show_trace=show_trace, save_objfindQA=save_objfindQA,
+                                       manual_extract_dict=manual_extract_dict, neg=False, debug=debug)
 
         # For nobj we take only the positive objects
         if self.find_negative:
@@ -580,8 +584,8 @@ class Reduce:
             sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
-                                           show_trace=show_trace,
-                                           manual_extract_dict=manual_extract_dict,
+                                           show_trace=show_trace, save_objfindQA=save_objfindQA,
+                                           manual_extract_dict=manual_extract_dict, neg=True,
                                            debug=debug)
             # Mask
             skymask = skymask_pos & skymask_neg
@@ -600,7 +604,7 @@ class Reduce:
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, debug=False,
+                              show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
 
         """
@@ -693,6 +697,8 @@ class Reduce:
 
         if update_crmask and self.par['scienceframe']['process']['mask_cr']:
             # Find CRs with sky subtraction
+            # TODO: Shouldn't the saturation flagging account for the
+            # subtraction of the sky?
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=self.global_sky)
             # Update the fullmask
@@ -865,9 +871,10 @@ class Reduce:
                         cntr += 1
 
             # Save QA
-            basename = "{0:s}_{1:s}".format(self.basename, mode)
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
-                                    specobjs=sobjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
+            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
+                                    specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
@@ -950,6 +957,7 @@ class Reduce:
             bitmask_in = None
 
         img_gpm = self.sciImg.select_flag(invert=True)
+        detname = self.spectrograph.get_det_name(self.det)
 
         if attr == 'global':
             # global sky subtraction
@@ -961,7 +969,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'global_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -975,7 +983,7 @@ class Reduce:
                                                              sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'local_sky_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                                 mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
@@ -986,7 +994,7 @@ class Reduce:
                     and self.sciImg.fullmask is not None:
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'sky_resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -998,7 +1006,7 @@ class Reduce:
                 # full model residual map
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
                 image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
+                ch_name = chname if chname is not None else f'resid_{detname}'
                 viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                                 bitmask=bitmask_in, mask=mask_in, clear=clear,
                                                 wcs_match=True)
@@ -1058,7 +1066,7 @@ class MultiSlitReduce(Reduce):
     def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, debug=False):
+                              show=False, save_objfindQA=False, neg=False, debug=False):
         """
         Pipeline specific find objects routine
 
@@ -1079,6 +1087,10 @@ class MultiSlitReduce(Reduce):
             Generate QA  showing traces identified. Requires an open ginga RC
             modules window
         show : :obj:`bool`, optional
+        save_objfindQA : :obj:`bool`, optional
+            Save to disk (png file) QA showing the object profile
+        neg : :obj:`bool`, optional
+            Is this a negative image?
         debug : :obj:`bool`, optional
 
         Returns
@@ -1100,7 +1112,9 @@ class MultiSlitReduce(Reduce):
 
         # Masking options
         if self.par['reduce']['skysub']['mask_by_boxcar']:
-            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            plate_scale = self.get_platescale(None)*bin_spat
+            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / plate_scale
         else:
             boxcar_rad_skymask = None
 
@@ -1111,9 +1125,9 @@ class MultiSlitReduce(Reduce):
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
             inmask = self.sciImg.select_flag(invert=True) & thismask
-            # Find objects
             specobj_dict = {'SLITID': slit_spat,
-                            'DET': self.det, 'OBJTYPE': self.objtype,
+                            'DET': self.sciImg.detector.name,
+                            'OBJTYPE': self.objtype,
                             'PYPELINE': self.pypeline}
 
             # This condition allows to not use a threshold to find objects in alignment boxes
@@ -1124,9 +1138,17 @@ class MultiSlitReduce(Reduce):
             else:
                 sig_thresh = self.par['reduce']['findobj']['sig_thresh']
 
-            # TODO we need to add QA paths and QA hooks. QA should be
-            # done through objfind where all the relevant information
-            # is. This will be a png file(s) per slit.
+            # Set objfind QA filename
+            objfindQA_filename = None
+            if save_objfindQA and (self.basename is not None):
+                out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+                if self.find_negative:
+                    basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
+                else:
+                    basename = self.basename
+                detname = self.spectrograph.get_det_name(self.det)
+                objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
+                                                        det=detname, out_dir=out_dir)
 
             sobjs_slit, skymask[thismask] = \
                     extract.objfind(image, thismask,
@@ -1149,6 +1171,7 @@ class MultiSlitReduce(Reduce):
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
+                                objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
 
             sobjs.add_sobj(sobjs_slit)
@@ -1243,8 +1266,10 @@ class MultiSlitReduce(Reduce):
 
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
-            box_rad = self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None)
-            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            plate_scale = self.get_platescale(None)*bin_spat
+            box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
             sigrej = self.par['reduce']['skysub']['sky_sigrej']
             bsp = self.par['reduce']['skysub']['bspline_spacing']
             force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
@@ -1341,7 +1366,7 @@ class EchelleReduce(Reduce):
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
-                              show_trace=False, debug=False,
+                              show_trace=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
         """
         Pipeline specific find objects routine
@@ -1357,6 +1382,10 @@ class EchelleReduce(Reduce):
             Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
             Generate QA  showing traces identified. Requires an open ginga RC modules window
+        save_objfindQA : :obj:`bool`, optional
+            Save to disk (png file) QA showing the object profile
+        neg : :obj:`bool`, optional
+            Is this a negative image?
         show : :obj:`bool`, optional
         debug : :obj:`bool`, optional
 
@@ -1377,8 +1406,21 @@ class EchelleReduce(Reduce):
         inmask = self.sciImg.select_flag(invert=True)
         # Find objects
         # TODO -- Eliminate this specobj_dict thing
-        specobj_dict = {'SLITID': 999, #'orderindx': 999,
-                        'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
+        # TODO: Not sure how this fairs if self.det is a tuple...
+        specobj_dict = {'SLITID': 999, 'DET': self.sciImg.detector.name, 'OBJTYPE': self.objtype,
+                        'PYPELINE': self.pypeline}
+
+        # Set objfind QA filename
+        objfindQA_filename = None
+        if save_objfindQA and (self.basename is not None):
+            out_dir = os.path.join(self.par['rdx']['redux_path'], self.par['rdx']['qadir'])
+            if self.find_negative:
+                basename = 'neg_' + self.basename if neg else 'pos_' + self.basename
+            else:
+                basename = self.basename
+            detname = self.spectrograph.get_det_name(self.det)
+            objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
+                                                    det=detname, out_dir=out_dir)
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
@@ -1402,7 +1444,7 @@ class EchelleReduce(Reduce):
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
             skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
             boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
-            show_trace=show_trace, debug=debug)
+            show_trace=show_trace, objfindQA_filename=objfindQA_filename, debug=debug)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -1460,7 +1502,7 @@ class EchelleReduce(Reduce):
         bsp = self.par['reduce']['skysub']['bspline_spacing']
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / self.get_platescale(None)
+        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
@@ -1507,7 +1549,7 @@ class IFUReduce(MultiSlitReduce):
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, debug=False,
+                              show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
         """
         See MultiSlitReduce for slit-based IFU reductions
@@ -1515,7 +1557,8 @@ class IFUReduce(MultiSlitReduce):
         if self.par['reduce']['cube']['slit_spec']:
             return super().find_objects_pypeline(image, std_trace=std_trace,
                                                  show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
-                                                 show=show, debug=debug, manual_extract_dict=manual_extract_dict)
+                                                 show=show, save_objfindQA=save_objfindQA, neg=neg,
+                                                 debug=debug, manual_extract_dict=manual_extract_dict)
         else:
             return None, None, None
 
