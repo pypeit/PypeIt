@@ -29,6 +29,8 @@ from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
 from pypeit.datamodel import DataContainer
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 from pypeit import specobjs
 
 from IPython import embed
@@ -511,7 +513,7 @@ def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
     ax.set_xlabel('Lag')
 
 
-def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, flex_list, specobjs=None, out_dir=None):
     """
 
     Args:
@@ -520,7 +522,6 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
         bpm (`numpy.ndarray`_):
             True = masked slit
         basename (str):
-        det (int):
         flex_list (list):
         specobjs: (:class:`pypeit.specobjs.Specobjs`)
             Spectrally extracted objects
@@ -564,7 +565,7 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
 
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(basename, method + '_corr', det=det, slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method + '_corr', slit=slitord, out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
@@ -614,7 +615,7 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', det=det, slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method+'_sky', slit=slitord, out_dir=out_dir)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -732,10 +733,13 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
     diff_err  = []
     los = []
     los_err= []
+
+    good_ivar = ivar > 0
+
     # Loop on known sky lines
     for line in sky_waves: 
         wline = [line-noff,line+noff] 
-        mw    = (wave > wline[0]) & (wave < wline[1])
+        mw    = (wave > wline[0]) & (wave < wline[1]) & good_ivar
         
         # Reuire minimum number
         if np.sum(mw) <= nfit_min:
@@ -743,11 +747,19 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
 
         p=[0,0,0,0]
         # Guess
-        p0 = list(fitting.guess_gauss(wave[mw],flux[mw]))
+        p0 = list(fitting.guess_gauss(wave[mw], flux[mw]))
         # Fit
-        p, pcov = fitting.fit_gauss(wave[mw],flux[mw], 
-                                w_out = 1./np.sqrt(ivar[mw]), 
-                                guesses=p0, nparam=4)
+        try:
+            p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
+                                        guesses=p0, nparam=4)
+        except RuntimeError as e:
+            msgs.warn('First attempt at Gaussian fit failed, ending with RuntimeError.  Original '
+                      f'exception: {e.args[0]}  Assuming this is because it hit the maximum '
+                      'number of function evaluations.  Trying again with a maximum of 10000.')
+            # Try again with larger limit on the number of function evaluations
+            p, pcov = fitting.fit_gauss(wave[mw], flux[mw], w_out=1./np.sqrt(ivar[mw]),
+                                        guesses=p0, nparam=4, maxfev=10000)
+
         perr = np.sqrt(np.diag(pcov))
         #except:
         #    p=p0
@@ -783,32 +795,46 @@ def sky_em_residuals(wave:np.ndarray, flux:np.ndarray,
 
 # TODO -- Consider separating the methods from the DataContainer as per calibrations
 class MultiSlitFlexure(DataContainer):
-    # Class to perform Multi-Detector flexure analysis
-    # Based on codes written by Marla Geha for DEIMOS
+    """
+    Class to perform multi-detector flexure analysis.
+
+    Based on code written by Marla Geha for DEIMOS.
+    """
 
     # Set the version of this class
-    version = '1.0.0'
+    version = '1.1.0'
 
     datamodel = {'s1dfile': dict(otype=str, descr='spec1d filename'), 
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'ndet': dict(otype=int, descr='Number of detectors per spectrum'),
                  'nslits': dict(otype=int, descr='Number of slits'),
-                 'det': dict(otype=np.ndarray, atype=np.integer, descr='Detector number (ndet, nslits)'),
+                 'is_msc': dict(otype=np.ndarray, atype=(int, np.integer),
+                                descr='Flag that the "det" is the mosaic ID (ndet, nslits)'),
+                 'det': dict(otype=np.ndarray, atype=(int, np.integer),
+                             descr='Integer identifiers for the detector or mosaic (ndet, nslits)'),
                  'SN': dict(otype=np.ndarray, atype=np.floating, descr='S/N (ndet, nslits)'),
                  'slitid': dict(otype=np.ndarray, atype=np.floating, descr='Slit ID (nslits)'),
-                 'mn_wv': dict(otype=np.ndarray, atype=np.floating, descr='Mininum wavelength of the slit [Ang] (nslits)'),
-                 'indiv_fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='Fits to each slit individually (nslits)'),
-                 'indiv_fit_b': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for b (nslits)'),
-                 'indiv_fit_los': dict(otype=np.ndarray, atype=np.floating, descr='Same as above but for line width (nslits)'),
-                 'fit_slope': dict(otype=np.ndarray, atype=np.floating, descr='Fitted slope (nslits)'),
-                 'fit_b': dict(otype=np.ndarray, atype=np.floating, descr='Fitted b value(nslits)'),
-                 'fit_los': dict(otype=np.ndarray, atype=np.floating, descr='Fitted line width(nslits)'),
-                 'resid_sky': dict(otype=np.ndarray, atype=np.floating, descr='Residuals of flexure model on sky lines (nslits)'),
+                 'mn_wv': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Mininum wavelength of the slit [Ang] (nslits)'),
+                 'indiv_fit_slope': dict(otype=np.ndarray, atype=np.floating,
+                                         descr='Fits to each slit individually (nslits)'),
+                 'indiv_fit_b': dict(otype=np.ndarray, atype=np.floating,
+                                     descr='Same as above but for b (nslits)'),
+                 'indiv_fit_los': dict(otype=np.ndarray, atype=np.floating,
+                                       descr='Same as above but for line width (nslits)'),
+                 'fit_slope': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Fitted slope (nslits)'),
+                 'fit_b': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Fitted b value(nslits)'),
+                 'fit_los': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='Fitted line width(nslits)'),
+                 'resid_sky': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Residuals of flexure model on sky lines (nslits)'),
                  'objra': dict(otype=np.ndarray, atype=np.floating, descr='Object RA (nslits)'),
                  'objdec': dict(otype=np.ndarray, atype=np.floating, descr='Object DEC (nslits)'),
                  'maskdef_id': dict(otype=np.ndarray, atype=np.integer, descr='Mask ID (nslits)'),
-                 'rms_arc': dict(otype=np.ndarray, atype=np.floating, descr='RMS of fit (ndet, nslits)'),
-                 }
+                 'rms_arc': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='RMS of fit (ndet, nslits)')}
 
     def __init__(self, s1dfile=None, PYP_SPEC=None, nslits=None, det=None, 
                  SN=None, slitid=None, mn_wv=None, fit_slope=None, fit_b=None,
@@ -820,14 +846,13 @@ class MultiSlitFlexure(DataContainer):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
         # Init
-        super(MultiSlitFlexure, self).__init__(d=_d)
+        super().__init__(d=_d)
 
         # Load up specobjs
-        self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile,
-                                                        chk_version=False) 
+        self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
         #  Sky lines
-        sky_file = os.path.join(resource_filename('pypeit', 'data'), 
-                                'sky_spec', 'sky_single_mg.dat')
+        sky_file = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec',
+                                'sky_single_mg.dat')
         self.sky_table = ascii.read(sky_file)
 
     def _init_internals(self):
@@ -845,17 +870,16 @@ class MultiSlitFlexure(DataContainer):
         self.pmodel_m = None
         self.pmodel_b = None
         self.pmodel_l = None
-    
+
     def init(self, spectrograph, par):
         """ Initialize this and that about the slits, par, spectrograph
         e.g. RA, DEC, S/N
 
         Args:
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
-                The `Spectrograph` instance that sets the
-                instrument used to take the observations.  Used to set
-                :attr:`spectrograph`.
-            par (:class:`pypeit.par.pypeitpar.FlexurePar`):
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                The spectrograph instance that sets the instrument used to take
+                the observations.  Used to set :attr:`spectrograph`.
+            par (:class:`~pypeit.par.pypeitpar.FlexurePar`):
                 The parameters used for the flexure processing
         """
         # Internals
@@ -875,23 +899,16 @@ class MultiSlitFlexure(DataContainer):
         #self['slitname'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_OBJNAME']
         self['maskdef_id'] = self.specobjs[self.sobj_idx[0]]['MASKDEF_ID']
 
-        # Fill in 2D
-        #for new_key, key, dtype in zip(['objname', 'det'],
-        #                        ['NAME', 'DET'],
-        #                        [str, int]): 
-        for new_key, key, dtype in zip(['det'],
-                                ['DET'],
-                                [int]): 
-            # Init
-            if self.datamodel[new_key]['atype'] == np.str:
-                slist = []
-                for det in range(self.ndet):
-                    slist.append(self.specobjs[self.sobj_idx[det]][key])
-                self[new_key] = np.array(slist)
-            else:
-                self[new_key] = np.zeros((self.ndet, self.nslits), dtype=dtype)
-                for det in range(self.ndet):
-                    self[new_key][det] = self.specobjs[self.sobj_idx[det]][key]
+        # Compile the list of detector *names* once
+        DETs = self.specobjs.DET
+        # Find which ones are actually mosaics
+        is_msc = np.array([Mosaic.name_prefix in d for d in DETs]).astype(np.uint16)
+        # Use the relevant parser to get the integer identifier
+        det_msc_num = np.array([Mosaic.parse_name(d) if m else DetectorContainer.parse_name(d) 
+                                    for d,m in zip(DETs, is_msc)])
+        # Then assign the attributes
+        self.is_msc = np.vstack(tuple(is_msc[self.sobj_idx[det]] for det in range(self.ndet)))
+        self.det = np.vstack(tuple(det_msc_num[self.sobj_idx[det]] for det in range(self.ndet)))
 
         # S/N and mn_wv from the spectra
         self['SN'] = np.zeros((self.ndet, self.nslits), dtype=float)
@@ -900,44 +917,39 @@ class MultiSlitFlexure(DataContainer):
             self['SN'][det] = [sobj.med_s2n for sobj in self.specobjs[self.sobj_idx[det]]]
             self['mn_wv'][det] = [sobj.mnx_wave[0] for sobj in self.specobjs[self.sobj_idx[det]]]
 
-        # Return
-        return
-
     def fit_mask_surfaces(self):
-        """Fit 2D model to linear flexure models
-        from each slit as a function of RA, DEC
+        """
+        Fit 2D model to linear flexure models from each slit as a function of
+        RA, DEC.
         """
         # Cut on S/N
         good_SN = self['SN'] > self.flex_par['multi_min_SN']
         good_slit = np.sum(good_SN, axis=0) == self.ndet
 
         # Basic stats
-        mu =  np.median(self['indiv_fit_slope'][good_slit])
-        sd =  np.std(self['indiv_fit_slope'][good_slit])
-        mu2 =  np.median(self['indiv_fit_b'][good_slit])
-        sd2 =  np.std(self['indiv_fit_b'][good_slit])
-
+        mu = np.median(self['indiv_fit_slope'][good_slit])
+        sd = np.std(self['indiv_fit_slope'][good_slit])
+        mu2 = np.median(self['indiv_fit_b'][good_slit])
+        sd2 = np.std(self['indiv_fit_b'][good_slit])
 
         # Cut down to +/- 2sigma
-        mgood=(np.abs(self['indiv_fit_slope']-mu) < 2.*sd)  & (
-            np.abs(self['indiv_fit_b']-mu2) < 2.*sd2) & good_slit
-
+        mgood = (np.abs(self['indiv_fit_slope']-mu) < 2.*sd) \
+                    & ( np.abs(self['indiv_fit_b']-mu2) < 2.*sd2) & good_slit
 
         # Fit me (without additional rejection)
         # TODO -- Allow for x,y position instead of RA, DEC
         self.pmodel_m = fitting.robust_fit(self['objra'][mgood],
-                                       self['indiv_fit_slope'][mgood], (2,2),
-                                       function='polynomial2d',
-                                       x2=self['objdec'][mgood])
+                                           self['indiv_fit_slope'][mgood], (2,2),
+                                           function='polynomial2d',
+                                           x2=self['objdec'][mgood])
         self.pmodel_b = fitting.robust_fit(self['objra'][mgood],
-                                       self['indiv_fit_b'][mgood], (2,2),
-                                       function='polynomial2d',
-                                       x2=self['objdec'][mgood])
+                                           self['indiv_fit_b'][mgood], (2,2),
+                                           function='polynomial2d',
+                                           x2=self['objdec'][mgood])
         self.pmodel_l = fitting.robust_fit(self['objra'][mgood],
-                                       self['indiv_fit_los'][mgood], (2,2),
-                                       function='polynomial2d',
-                                       x2=self['objdec'][mgood])
-        
+                                           self['indiv_fit_los'][mgood], (2,2),
+                                           function='polynomial2d',
+                                           x2=self['objdec'][mgood])
 
     def measure_sky_lines(self):
         """Main method to analyze the sky lines for all the slits
@@ -954,7 +966,6 @@ class MultiSlitFlexure(DataContainer):
 
             if not np.all(self['SN'][:,i] > 1.):
                 continue
-            # 
 
             # Loop on detectors
             sky_lines, sky_diffs, sky_ediffs, sky_loss = [], [], [], []
@@ -982,7 +993,6 @@ class MultiSlitFlexure(DataContainer):
             sky_ediffs = np.concatenate(sky_ediffs)
             sky_loss = np.concatenate(sky_loss)
             
-
             # FIT SINGLE SLIT SKY LINES WITH A LINE           
             linear_fit = fitting.robust_fit(sky_lines,
                                             sky_diffs,
@@ -996,9 +1006,6 @@ class MultiSlitFlexure(DataContainer):
             self['indiv_fit_slope'][i] = linear_fit.fitc[1]
             self['indiv_fit_los'][i]   = np.median(sky_loss)
 
-        # Return
-        return
-
     def update_fit(self):
         """Update fits for each slit based on 2D model
         """
@@ -1010,12 +1017,11 @@ class MultiSlitFlexure(DataContainer):
         # CALCULATE RESIDUALS FROM FIT
         #   Only for QA (I think)
         resid_sky = []
-        for i in np.arange(0,self.nslits,1):
+        for i in range(self.nslits):
 
             # Require sufficient S/N in reddest detector
             if self['SN'][-1,i] > 0:
                 # Load up the full spectrum
-                #all_wave,all_flux,all_ivar,all_sky = dmost_utils.load_spectrum(f,hdu,vacuum = 1)
                 tmp_wave, all_flux, all_sky, all_ivar = np.ndarray(0), \
                     np.ndarray(0), np.ndarray(0), np.ndarray(0)
                 # TODO -- Allow for Boxcar
@@ -1047,14 +1053,12 @@ class MultiSlitFlexure(DataContainer):
                 if (np.sum(mm) > 10):
                     msgs.warn('Removing more than 10 pixels of data')
                 
-
-                _,diff,diff_err,_,_ = sky_em_residuals(
-                    all_wave,all_sky,all_ivar,
-                    self.sky_table['Wave'])
-                m=np.isfinite(diff)
-                sky_mean = np.average(np.abs(diff[m]), 
-                                      weights = 1./diff_err[m]**2)
+                _,diff,diff_err,_,_ = sky_em_residuals(all_wave, all_sky, all_ivar,
+                                                       self.sky_table['Wave'])
+                m = np.isfinite(diff)
+                sky_mean = np.average(np.abs(diff[m]), weights = 1./diff_err[m]**2)
                 resid_sky = np.append(resid_sky,sky_mean)
+
             else:
                 resid_sky = np.append(resid_sky,-1)
 
@@ -1223,3 +1227,6 @@ class MultiSlitFlexure(DataContainer):
 
         
         pdf.close()
+
+
+

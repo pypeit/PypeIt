@@ -19,7 +19,6 @@ from pypeit import coadd2d
 from pypeit import io
 from pypeit import specobjs
 from pypeit import spec2dobj
-from pypeit.pypeit import PypeIt
 from pypeit.scripts import scriptbase
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -32,7 +31,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument("--file", type=str, default=None, help="File to guide 2d coadds")
-        parser.add_argument('--det', default=None, type=int,
+#        parser.add_argument('--det', default=None, type=int,
+#                            help="Only coadd data from this detector (1-indexed)")
+        parser.add_argument('--det', default=None, type=str,
                             help="Only coadd data from this detector (1-indexed)")
         parser.add_argument("--obj", type=str, default=None,
                             help="Object name in lieu of extension, e.g if the spec2d files are "
@@ -74,7 +75,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
     def main(args):
         """ Executes 2d coadding
         """
-        msgs.warn('PATH =' + os.getcwd())
+        msgs.info('PATH =' + os.getcwd())
         # Load the file
         if args.file is not None:
             spectrograph_name, config_lines, spec2d_files \
@@ -111,7 +112,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # If detector was passed as an argument override whatever was in the coadd2d_file
         if args.det is not None:
             msgs.info("Restricting reductions to detector={}".format(args.det))
-            parset['rdx']['detnum'] = int(args.det)
+            parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
 
         # Get headers (if possible) and base names
         spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
@@ -181,15 +182,16 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             os.makedirs(qa_path)
 
         # Find the detectors to reduce
-        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
-        if len(detectors) != spectrograph.ndet:
-            msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
-            set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
+#        detectors = PypeIt.select_detectors(detnum=parset['rdx']['detnum'], ndet=spectrograph.ndet)
+        detectors = spectrograph.select_detectors(subset=parset['rdx']['detnum'])
+#        if len(detectors) != spectrograph.ndet:
+#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([str(d) for d in
+#            set(np.arange(spectrograph.ndet) + 1) - set(detectors)])))
+        msgs.info(f'Detectors to work on: {detectors}')
 
         # Loop on detectors
         for det in detectors:
             msgs.info("Working on detector {0}".format(det))
-            sci_dict[det] = {}
 
             # Instantiate Coadd2d
             coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
@@ -216,14 +218,20 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             
             # TODO -- JFH -- Check that the slits we are using are correct
 
-            sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], \
-            sci_dict[det]['objmodel'], sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], \
-            sci_dict[det]['specobjs'], sci_dict[det]['detector'], sci_dict[det]['slits'], \
-            sci_dict[det]['tilts'], sci_dict[det]['waveimg'] \
+            sci_dict[coadd.detname] = {}
+            sci_dict[coadd.detname]['sciimg'], sci_dict[coadd.detname]['sciivar'], \
+                sci_dict[coadd.detname]['skymodel'], sci_dict[coadd.detname]['objmodel'], \
+                sci_dict[coadd.detname]['ivarmodel'], sci_dict[coadd.detname]['outmask'], \
+                sci_dict[coadd.detname]['specobjs'], sci_dict[coadd.detname]['detector'], \
+                sci_dict[coadd.detname]['slits'], sci_dict[coadd.detname]['tilts'], \
+                sci_dict[coadd.detname]['waveimg'] \
                     = coadd.reduce(pseudo_dict, show=args.show, show_peaks=args.peaks, basename=basename)
 
             # Save pseudo image master files
             #coadd.save_masters()
+
+        detnames = list(sci_dict.keys())
+        detnames.remove('meta')
 
         # Make the new Science dir
         # TODO: This needs to be defined by the user
@@ -236,7 +244,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         # TODO -- These lines should be above once reduce() passes back something sensible
         all_specobjs = specobjs.SpecObjs()
-        for det in detectors:
+        for det in detnames:
             all_specobjs.add_sobj(sci_dict[det]['specobjs'])
 
         # Write
@@ -249,9 +257,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = ir_redux
         all_spec2d['meta']['find_negative'] = find_negative
-        for det in detectors:
-            all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
-                                                  sciimg=sci_dict[det]['sciimg'],
+        for det in detnames:
+            all_spec2d[det] = spec2dobj.Spec2DObj(sciimg=sci_dict[det]['sciimg'],
                                                   ivarraw=sci_dict[det]['sciivar'],
                                                   skymodel=sci_dict[det]['skymodel'],
                                                   objmodel=sci_dict[det]['objmodel'],

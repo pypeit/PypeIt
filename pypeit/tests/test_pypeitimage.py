@@ -9,17 +9,15 @@ import numpy as np
 
 from pypeit.images import pypeitimage
 from pypeit.images import imagebitmask
+from pypeit.tests.tstutils import data_path
 
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 def test_full():
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.reinit_mask()
     # Full datamodel
-    full_datamodel = pypeitImage.full_datamodel()
-    assert 'gain' in full_datamodel.keys()
+#    full_datamodel = pypeitImage.full_datamodel()
+#    assert 'gain' in full_datamodel.keys()
     assert 'detector' in pypeitImage.keys()
 
     # I/O
