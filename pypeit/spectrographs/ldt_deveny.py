@@ -183,7 +183,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         """
         par = super().default_pypeit_par()
 
-        # Turn off illumflat -- other defaults OK (as of v1.6.0)
+        # Turn off illumflat unless/until we can deal properly with flexure in
+        #   the spatial direction.  All other defaults OK (as of v1.7.0)
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
 
@@ -204,8 +205,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # TODO: Not sure if we will need to adjust these at some point
         par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
         par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
-        #par['calibrations']['wavelengths']['nlocal_cc'] = 13  # Default: 11
-        #par['calibrations']['wavelengths']['fwhm']= 3.0  # Default: 4.0
+        # The DeVeny arc lines are bright, but FWHM varies based on slitwidth used
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
@@ -274,7 +274,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return fitstbl['idname'] == 'BIAS'
         if ftype in ['arc', 'tilt']:
-            # FOCUS frames should have frametype None, Bias is bias regardless of lamp status
+            # FOCUS frames should have frametype None, BIAS is bias regardless of lamp status
             return good_exp & (fitstbl['lampstat01'] != 'off') & (fitstbl['idname'] != 'FOCUS') & \
                    (fitstbl['idname'] != 'BIAS')
         if ftype in ['trace', 'pixelflat']:
@@ -282,7 +282,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         if ftype in ['illumflat','sky']:
             return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
         if ftype == 'science':
-            return good_exp & (fitstbl['idname'] == 'OBJECT') & (fitstbl['lampstat01'] == 'off')
+            # Both OBJECT and STANDARD frames should be processed as science frames
+            return good_exp & (fitstbl['idname'] in ['OBJECT', 'STANDARD']) & \
+                   (fitstbl['lampstat01'] == 'off')
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'STANDARD') & (fitstbl['lampstat01'] == 'off')
         if ftype == 'dark':
@@ -349,7 +351,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # reid_arxiv in this case.
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_300l_HgCdAr.fits'
             # Flat fielding adjustment -- Apparent smudge on DV2 grating?
-            # Causes weird excess illumination blueward of 3500A along center of slit for flats
+            # Possible ghost reflection causes weird excess illumination blueward of 3500A along
+            #   center of slit for flats.  Will suggest to users that adding this parameter to
+            #   the PypeIt Reduction File can mask the reflection's effect in the DV2 flats.
             # par['calibrations']['flatfield']['pixelflat_min_wave'] = 3500
         elif grating == 'DV3 (300/6750)':
             pass
@@ -480,7 +484,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
 
         # The spatial section is unchanged, but the spectral section flips
         #  Add 1 because the pixels are 1-indexed (FITS standard)
-        y2p, y1p = nspecpix - np.int16(spec_sec.split(':')) + 1
+        y2p, y1p = nspecpix - np.int32(spec_sec.split(':')) + 1
 
         # Return the PypeIt-standard Numpy array
         return np.atleast_1d(f"[{spat_sec},{y1p}:{y2p}]")
