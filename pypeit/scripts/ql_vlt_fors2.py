@@ -132,22 +132,21 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
     spec_flex_table['sci_spec_flexure'] = redux.slitshift
 
     # Construct the Spec2DObj with the positive image
-    spec2DObj = spec2dobj.Spec2DObj(det=det,
-                                      sciimg=sciImg.image,
-                                      ivarraw=sciImg.ivar,
-                                      skymodel=skymodel,
-                                      objmodel=objmodel,
-                                      ivarmodel=ivarmodel,
-                                      scaleimg=scaleimg,
-                                      waveimg=waveimg,
-                                      bpmmask=outmask,
-                                      detector=sciImg.detector,
-                                      sci_spat_flexure=sciImg.spat_flexure,
-                                      sci_spec_flexure=spec_flex_table,
-                                      vel_corr=None,
-                                      vel_type=parset['calibrations']['wavelengths']['refframe'],
-                                      tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
+    spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
+                                    ivarraw=sciImg.ivar,
+                                    skymodel=skymodel,
+                                    objmodel=objmodel,
+                                    ivarmodel=ivarmodel,
+                                    scaleimg=scaleimg,
+                                    waveimg=waveimg,
+                                    bpmmask=outmask,
+                                    detector=sciImg.detector,
+                                    sci_spat_flexure=sciImg.spat_flexure,
+                                    sci_spec_flexure=spec_flex_table,
+                                    vel_corr=None,
+                                    vel_type=parset['calibrations']['wavelengths']['refframe'],
+                                    tilts=tilts,
+                                    slits=copy.deepcopy(caliBrate.slits))
     spec2DObj.process_steps = sciImg.process_steps
     return spec2DObj
 
@@ -256,6 +255,13 @@ class QLVLTFORS2(scriptbase.ScriptBase):
             # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
             msgs.error('Master frames not found.  Check that environment variable QL_MASTERS '
                        'points at the Master Calibs')
+
+        # We need the platescale
+
+        # Get detector (there's only one)
+        #det = 1 # MOSFIRE has a single detector
+        #detector = spectrograph.get_detector_par(det)
+        #detname = detector.name
 
         # We need the platescale
         det_container = spectrograph.get_detector_par(1, hdu=fits.open(files[0]))
