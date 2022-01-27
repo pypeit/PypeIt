@@ -368,7 +368,7 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            if self.pypeline == 'Echelle':
+            if (not isinstance(self.use_weights, str)) and (self.use_weights.ndim > 2):
                 weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
