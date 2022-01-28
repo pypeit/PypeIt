@@ -454,7 +454,7 @@ class Reduce:
                 if maskdef_extract.size > 0:
                     plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
                     skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
-                            box_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
+                            box_rad_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
                                     if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                     skymask[thismask] = skymask_fwhm[thismask]
         self.sobjs_obj = sobjs_obj
