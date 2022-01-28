@@ -1037,7 +1037,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
-def create_skymask_fwhm(sobjs, thismask, box_pix=None):
+def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
     and or the boxcar radius
@@ -1047,8 +1047,8 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
             Objects for which you would like to create the mask
         thismask (`numpy.ndarray`_): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
-        box_pix (float, optional):
-            If set, the skymask will be at least as wide as this radius.
+        box_rad_pix (float, optional):
+            If set, the skymask will be at least as wide as this radius in pixels. 
 
     Returns:
         `numpy.ndarray`_: skymask, bool, shape (nspec, nspat) Boolean image with
@@ -1067,19 +1067,20 @@ def create_skymask_fwhm(sobjs, thismask, box_pix=None):
         all_fwhm = sobjs.FWHM
         med_fwhm = np.median(all_fwhm)
         # Boxcar radius?
-        if box_pix is not None:
+        if box_rad_pix is not None:
             # DP: If we want to enforce the boxcar masking this will prevent it if FWHM is larger.
             # I think here med_fwhm should be = box_pix
             # med_fwhm = max(med_fwhm, box_pix)
-            med_fwhm = box_pix
-            msgs.info("Masking around the object with a boxcar radius of {} pixels".format(med_fwhm))
+            skymask_radius = box_rad_pix
+            msgs.info("Masking around the object with an input boxcar radius of {} pixels".format(skymask_radius))
         else:
-            msgs.info("Masking around the object with {} pixels".format(med_fwhm))
+            skymask_radius = med_fwhm
+            msgs.info("Masking around the object within a radius equal to the median fwhm of {} pixels".format(skymask_radius))
         # Loop me
         for iobj in range(nobj):
             # Create a mask for the pixels that will contribute to the object
             slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
-            objmask_now = thismask & (spat_img > (slit_img - med_fwhm)) & (spat_img < (slit_img + med_fwhm))
+            objmask_now = thismask & (spat_img > (slit_img - skymask_radius)) & (spat_img < (slit_img + skymask_radius))
             skymask = skymask & np.invert(objmask_now)
 
         # Check that we have not performed too much masking
