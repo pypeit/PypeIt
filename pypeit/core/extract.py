@@ -1048,7 +1048,7 @@ def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
         thismask (`numpy.ndarray`_): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
         box_rad_pix (float, optional):
-            If set, the skymask will be at least as wide as this radius in pixels. 
+            If set, the skymask will be at least as wide as this radius in pixels.
 
     Returns:
         `numpy.ndarray`_: skymask, bool, shape (nspec, nspat) Boolean image with
