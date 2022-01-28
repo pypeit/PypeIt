@@ -482,7 +482,7 @@ class CoAdd2D:
             if None not in all_maskdef_ids:
                 maskdef_id[islit] = coadd_dict['maskdef_id']
                 maskdef_objpos[islit] = coadd_dict['maskdef_objpos']
-                maskdef_slitcen[:, islit] = coadd_dict['maskdef_slitcen']
+                maskdef_slitcen[:, islit] = np.full(nspec_pseudo, coadd_dict['maskdef_slitcen'])
                 if coadd_dict['maskdef_designtab'] is not None:
                     maskdef_designtab = vstack([maskdef_designtab, coadd_dict['maskdef_designtab']])
 
