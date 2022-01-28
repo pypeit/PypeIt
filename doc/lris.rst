@@ -161,11 +161,13 @@ routine for LRIS similar to its DEIMOS capabilities. i.e. If the trace
 calibrations files with mask information are fed to PypeIt, it is 
 capable of using said information to determine object coordinates, 
 identify targeted and serendipitous source and subsequently, collate by
-ra/dec. Unfortunately, LRIS raw frames do not come ready with slitmask
+ra/dec. 
+
+Unfortunately, LRIS raw frames do not come ready with slitmask
 data and thus this information needs to be inserted by the user before
 processing with PypeIt if they are desirous of incorporating
-the abovementioned features into their reduction. Here are the steps to
-do so:
+the abovementioned features into their reduction. 
+Here are the steps to do so:
 
 #. Obtain the mask design files from UCO/Lick: As of 2022 Jan 27th, when the AUTOSLIT mask design files (ascii files that end with ".file3" by default) are fed to the slitmask database, a FITS file is generated with the milling blueprint. The FITS files have HDUs akin to DEIMOS raw files (sans the raw image of course). Please contact Steve Allen of UCO/Lick (UCSC) to procure these files.
 #. Process the FITS files with `TILSOTUA <https://github.com/jsulli27/tilsotua>`: The FITS files contain the milling blueprint (the `BluSlits` table) but have empty `DesiSlits`, `ObjectCat` and `SlitObjMap` binary tables. DEIMOS users may be familiar with these tables from their raw frames. TILSOTUA populates these tables with the help of its `xytowcs` function (in `LRIS_Mask_Coords_to_WCS.py`). 
@@ -177,7 +179,9 @@ do so:
 
 #. Append TILSOTUA's output to your raw trace files: Once the user is satisfied with the processed FITS file from TILSOTUA, append the binary tables to the trace FITS files. The user must first verify that TILSOTUA has indeed processed the files correctly. This implies:
 
-    #. TILSOTUA has correctly identified the alignement stars (see the QA plot it generates).
+    #. TILSOTUA has correctly identified the alignment stars (see the QA plot it generates).
     #. TILSOTUA has estimated the `TopDist` and `BotDist` in the `SlitObjMap` table correctly.
 
-If processed correctly, PypeIt should now be able to fully utilize its arsenal of slitmask processing tools to reduce and coadd spectra with the WCS information incorporated. 
+If processed correctly, PypeIt should now fully utilize its 
+arsenal of slitmask processing tools to reduce and coadd spectra 
+with the WCS information incorporated. 
