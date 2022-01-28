@@ -45,19 +45,22 @@ from pypeit.scripts import scriptbase
 def config_lines(args):
     # Config the run
     cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format('vlt_fors2')]
+    cfg_lines += ['    spectrograph = {0}'.format('keck_lris_red_mark4')]
     cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
     cfg_lines += ['    use_pixelflat = False']
     cfg_lines += ['    use_illumflat = False']
+    cfg_lines += ['    use_biasimage = False'] # TODO fix for LRIS
+
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[wavelengths]]']
     cfg_lines += ['        refframe = observed']
+    cfg_lines += ['[scienceframe]']
+    cfg_lines += ['    [[process]]']
+    cfg_lines += ['        spat_flexure_correct = False']
     if not args.mask_cr:
-        cfg_lines += ['[scienceframe]']
-        cfg_lines += ['    [[process]]']
         cfg_lines += ['        mask_cr = False']
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
@@ -66,7 +69,8 @@ def config_lines(args):
         cfg_lines += ['        boxcar_radius = {0}'.format(args.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['        skip_second_find = True']
-
+    cfg_lines += ['[flexure]']
+    cfg_lines += ['        spec_method = skip']
     return cfg_lines
 
 
@@ -188,7 +192,8 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                  'to the left.')
         parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                             help="Location where reduction outputs should be stored.")
-        parser.add_argument("--master_dir", type=str, default=os.getenv('QL_MASTERS'),
+        # TODO make an environment variable
+        parser.add_argument("--master_dir", type=str, default=None,  #os.getenv('QL_MASTERS'),
                             help="Location of PypeIt Master files used for the reduction.")
         parser.add_argument('--embed', default=False, action='store_true',
                             help='Upon completion embed in ipython shell')
@@ -206,7 +211,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         nfiles = len(files)
 
         # Read in the spectrograph, config the parset
-        spectrograph = load_spectrograph('vlt_fors2')
+        spectrograph = load_spectrograph('keck_lris_red_mark4')
         #spectrograph_def_par = spectrograph.default_pypeit_par()
         spectrograph_cfg_lines = spectrograph.config_specific_par(files[0]).to_config()
         parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines,
@@ -232,24 +237,24 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                        'pypeit_install_ql_masters script.')
 
         # Define some hard wired master files here to be later parsed out of the directory
-        fors2_grism = spectrograph.get_meta_value(files[0], 'dispname')
-        fors2_masters = os.path.join(master_dir, 'FORS2_MASTERS', fors2_grism)
-
+        lris_grating = spectrograph.get_meta_value(files[0], 'dispname')
+        #lris_masters = os.path.join(master_dir, 'LRIS_MASTERS', lris_grism)
+        lris_masters='/Users/joe/lris_observing_2022/Jan26/redux/red/600_10000_d680_hizqso/LRIS_RED_MASTERS/'
 
         bias_masterframe_name = \
-            utils.find_single_file(os.path.join(fors2_masters, "MasterBias*"))
+            utils.find_single_file(os.path.join(lris_masters, "MasterBias*"))
         slit_masterframe_name \
-            = utils.find_single_file(os.path.join(fors2_masters, "MasterSlits*"))
+            = utils.find_single_file(os.path.join(lris_masters, "MasterSlits*"))
         tilts_masterframe_name \
-            = utils.find_single_file(os.path.join(fors2_masters, "MasterTilts*"))
+            = utils.find_single_file(os.path.join(lris_masters, "MasterTilts*"))
         wvcalib_masterframe_name \
-            = utils.find_single_file(os.path.join(fors2_masters, 'MasterWaveCalib*'))
-        std_spec1d_file = utils.find_single_file(os.path.join(fors2_masters, 'spec1d_*'))
-        sensfunc_masterframe_name = utils.find_single_file(os.path.join(fors2_masters, 'sens_*'))
+            = utils.find_single_file(os.path.join(lris_masters, 'MasterWaveCalib*'))
+        std_spec1d_file = utils.find_single_file(os.path.join(lris_masters, 'spec1d_*'))
+        sensfunc_masterframe_name = utils.find_single_file(os.path.join(lris_masters, 'sens_*'))
 
         # TODO make and impelement sensfunc
-        if (bias_masterframe_name is None or not os.path.isfile(bias_masterframe_name)) or \
-                (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
+        #if (bias_masterframe_name is None or not os.path.isfile(bias_masterframe_name)) or \
+        if (slit_masterframe_name is None or not os.path.isfile(slit_masterframe_name)) or \
                 (tilts_masterframe_name is None or not os.path.isfile(tilts_masterframe_name)) or \
                 (std_spec1d_file is None or not os.path.isfile(std_spec1d_file)):
             # or (sensfunc_masterframe_name is None or not os.path.isfile(sensfunc_masterframe_name)):
@@ -268,7 +273,9 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         binspectral, binspatial = parse_binning(det_container['binning'])
         platescale = det_container['platescale']*binspatial
         # Parse the offset information out of the headers.
-        _, _, offset_arcsec = spectrograph.parse_dither_pattern(files)
+        # TODO ADD this functionality!
+        #_, _, offset_arcsec = spectrograph.parse_dither_pattern(files)
+        offset_arcsec = np.zeros(len(files))
 
         # Print out a report on the offsets
         msg_string = msgs.newline()  + '*******************************************************'
@@ -299,7 +306,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
             std_trace = None
 
         # Read in the bias
-        msbias = buildimage.BiasImage.from_file(bias_masterframe_name)
+        msbias = buildimage.BiasImage.from_file(bias_masterframe_name) if bias_masterframe_name is not None else None
         # Read in the msbpm
         sdet = get_dnum(det, prefix=False)
         msbpm = spectrograph.bpm(files[0], det)
