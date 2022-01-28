@@ -520,11 +520,6 @@ class PypeIt:
         subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                     else self.par['rdx']['detnum']
         detectors = self.spectrograph.select_detectors(subset=subset)
-        # Allow for multiple slitspatnum entries
-        detectors = np.unique(detectors).tolist()
-#        if len(detectors) != self.spectrograph.ndet:
-#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-#                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
         msgs.info(f'Detectors to work on: {detectors}')
 
         # List of detectors with successful calibration
