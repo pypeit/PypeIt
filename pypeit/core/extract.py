@@ -1679,7 +1679,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     #
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')
-        skymask = create_skymask_fwhm(sobjs,thismask, box_pix=boxcar_rad_skymask)
+        skymask = create_skymask_fwhm(sobjs,thismask, box_rad_pix=boxcar_rad_skymask)
         return specobjs.SpecObjs(), skymask[thismask]
 
     # Sort objects according to their spatial location
@@ -1707,7 +1707,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     skymask_objflux = np.copy(thismask)
     skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (skymask_nthresh*threshold)
     # Still have to make the skymask
-    skymask_fwhm = create_skymask_fwhm(sobjs,thismask, box_pix=boxcar_rad_skymask)
+    skymask_fwhm = create_skymask_fwhm(sobjs,thismask, box_rad_pix=boxcar_rad_skymask)
     if boxcar_rad_skymask is None:
         skymask = skymask_objflux | skymask_fwhm
     else:  # Enforces boxcar radius masking
