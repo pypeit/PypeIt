@@ -30,7 +30,7 @@ from linetools.spectra import xspectrum1d
 from IPython import embed
 
 
-class Reduce:
+class Extract:
     """
     This class will organize and run actions related to
     finding objects, sky subtraction, and extraction for
@@ -99,8 +99,8 @@ class Reduce:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, basename=None, manual=None):
+                 objtype, ir_redux=False, find_negative=False, std_redux=False, show=False,
+                 setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -121,11 +121,11 @@ class Reduce:
         Returns:
             :class:`pypeit.reduce.Reduce`:
         """
-        return next(c for c in utils.all_subclasses(Reduce)
-                    if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
+        return next(c for c in utils.all_subclasses(Extract)
+                    if c.__name__ == (spectrograph.pypeline + 'Extract'))(
                             sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
-                            find_negative=find_negative, det=det, std_redux=std_redux, show=show,
-                            binning=binning, setup=setup, basename=basename,
+                            find_negative=find_negative, std_redux=std_redux, show=show,
+                            setup=setup, basename=basename,
                             manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
@@ -184,8 +184,8 @@ class Reduce:
         self.find_negative = find_negative
 
         self.std_redux = std_redux
-        self.det = det
-        self.binning = binning
+        self.det = caliBrate.det
+        self.binning = caliBrate.binning
         self.setup = setup
         self.pypeline = spectrograph.pypeline
         self.reduce_show = show
@@ -303,67 +303,6 @@ class Reduce:
         """
         pass
 
-    def run_objfind(self, std_trace=None, show_peaks=False):
-        """
-        Primary code flow for object finding in PypeIt reductions
-
-        *NOT* used by COADD2D
-
-        Parameters
-        ----------
-        std_trace : `numpy.ndarray`_, optional
-            Trace of the standard star
-        show_peaks : :obj:`bool`, optional
-            Show peaks in find_objects methods
-
-        Returns
-        -------
-        global_sky : `numpy.ndarray`_
-            Initial global sky model
-        sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
-            List of objects found
-        skymask : `numpy.ndarray`_
-            Boolean mask
-        """
-
-        # Deal with dynamic calibrations
-        # Tilts
-        self.waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-        else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        msgs.info("Generating tilts image")
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-        #
-
-        # First pass object finding
-        self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(self.sciImg.image, std_trace=std_trace,
-                              show_peaks=show_peaks,
-                              show=self.reduce_show & (not self.std_redux),
-                              save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
-
-        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file. IFU only
-        skymask_init, usersky = self.load_skyregions(skymask_init)
-
-        # Global sky subtract (self.global_sky is also generated here)
-        self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
-        # Second pass object finding on sky-subtracted image
-        if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(self.sciImg.image - self.initial_sky,
-                                  std_trace=std_trace,
-                                  show=self.reduce_show,
-                                  show_peaks=show_peaks)
-        else:
-            msgs.info("Skipping 2nd run of finding objects")
-            self.skymask = skymask_init
-
-        return self.global_sky, self.sobjs_obj, self.skymask
 
     def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
@@ -526,95 +465,6 @@ class Reduce:
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
                self.scaleimg, self.waveimg, self.tilts
 
-    def find_objects(self, image, std_trace=None,
-                     show_peaks=False, show_fits=False,
-                     show_trace=False, show=False, save_objfindQA=True,
-                     manual_extract_dict=None, debug=False):
-        """
-        Single pass at finding objects in the input image
-
-        If self.find_negative is True, do a search for negative objects too
-
-        Parameters
-        ----------
-        image : `numpy.ndarray`_
-            Input image
-        std_trace : `numpy.ndarray`_, optional
-            ???
-        show_peaks : :obj:`bool`, optional
-            ???
-        show_fits : :obj:`bool`, optional
-            ???
-        show_trace : :obj:`bool`, optional
-            ???
-        show : :obj:`bool`, optional
-            ???
-        save_objfindQA : :obj:`bool`, optional
-            Save to disk (png file) QA showing the object profile
-        manual_extract_dict : :obj:`dict`, optional
-            This is only used by 2D coadd
-        debug : :obj:`bool`, optional
-            ???
-
-        Returns
-        -------
-        sobjs_obj_single : :class:`~pypeit.specobjs.SpecObjs`
-            Objects found
-        nobj_single : :obj:`int`
-            Number of objects found
-        skymask : `numpy.ndarray`_
-            Boolean sky mask
-        """
-        # Positive image
-        if manual_extract_dict is None:
-            manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
-
-        #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
-        sobjs_obj_single, nobj_single, skymask_pos = \
-            self.find_objects_pypeline(image,
-                                       std_trace=std_trace,
-                                       show_peaks=show_peaks, show_fits=show_fits,
-                                       show_trace=show_trace, save_objfindQA=save_objfindQA,
-                                       manual_extract_dict=manual_extract_dict, neg=False, debug=debug)
-
-        # For nobj we take only the positive objects
-        if self.find_negative:
-            msgs.info("Finding objects in the negative image")
-            # Parses
-            manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
-            sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
-                self.find_objects_pypeline(-image, std_trace=std_trace,
-                                           show_peaks=show_peaks, show_fits=show_fits,
-                                           show_trace=show_trace, save_objfindQA=save_objfindQA,
-                                           manual_extract_dict=manual_extract_dict, neg=True,
-                                           debug=debug)
-            # Mask
-            skymask = skymask_pos & skymask_neg
-            # Add (if there are any)
-            sobjs_obj_single.append_neg(sobjs_obj_single_neg)
-        else:
-            skymask = skymask_pos
-
-        if show:
-            gpm = self.sciImg.select_flag(invert=True)
-            self.show('image', image=image*gpm.astype(float), chname='objfind',
-                      sobjs=sobjs_obj_single, slits=True)
-
-        # For nobj we take only the positive objects
-        return sobjs_obj_single, nobj_single, skymask
-
-    def find_objects_pypeline(self, image, std_trace=None,
-                              show_peaks=False, show_fits=False, show_trace=False,
-                              show=False, save_objfindQA=False, neg=False, debug=False,
-                              manual_extract_dict=None):
-
-        """
-         Dummy method for object finding. Overloaded by class specific object finding.
-
-         Returns:
-
-         """
-        return None, None, None
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
                       previous_sky=None, 
@@ -1037,7 +887,7 @@ class Reduce:
         return txt
 
 
-class MultiSlitReduce(Reduce):
+class MultiSlitExtract(Extract):
     """
     Child of Reduce for Multislit and Longslit reductions
 
@@ -1045,7 +895,7 @@ class MultiSlitReduce(Reduce):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super(MultiSlitExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -1316,7 +1166,7 @@ class MultiSlitReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-class EchelleReduce(Reduce):
+class EchelleExtract(Extract):
     """
     Child of Reduce for Echelle reductions
 
@@ -1324,7 +1174,7 @@ class EchelleReduce(Reduce):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super(EchelleExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -1537,7 +1387,7 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-class IFUReduce(MultiSlitReduce):
+class IFUExtract(MultiSlitExtract):
     """
     Child of Reduce for IFU reductions
 
@@ -1545,7 +1395,7 @@ class IFUReduce(MultiSlitReduce):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super(IFUExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
     def find_objects_pypeline(self, image, std_trace=None,

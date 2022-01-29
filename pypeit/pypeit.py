@@ -25,6 +25,7 @@ from pypeit import calibrations
 from pypeit.images import buildimage
 from pypeit.display import display
 from pypeit import reduce
+from pypeit import find_objects
 from pypeit import spec2dobj
 from pypeit.core import qa
 from pypeit.core import parse
@@ -802,7 +803,7 @@ class PypeIt:
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
+        self.objFind = find_objects.FindObjects.get_instance(sciImg, self.spectrograph,
                                                 self.par, self.caliBrate,
                                                 self.objtype,
                                                 ir_redux=self.ir_redux,
@@ -811,15 +812,14 @@ class PypeIt:
                                                 std_redux=self.std_redux,
                                                 setup=self.setup,
                                                 show=self.show,
-                                                det=det, binning=self.binning,
                                                 basename=self.basename)
         # Show?
         if self.show:
-            self.redux.show('image', image=sciImg.image, chname='processed',
+            self.objFind.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
         # Do it
-        global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
+        global_sky, sobjs_obj, skymask = self.objFind.run_objfind(std_trace=std_trace, show_peaks=self.show)
         return global_sky, sobjs_obj, skymask, sciImg
 
     def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):

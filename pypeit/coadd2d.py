@@ -28,6 +28,7 @@ from pypeit.core.moment import moment1d
 from pypeit.manual_extract import ManualExtractionObj
 
 
+
 class CoAdd2D:
 
     """
@@ -469,6 +470,9 @@ class CoAdd2D:
         # Build the Calibrate object
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
+        caliBrate.det = self.det
+        caliBrate.det = self.binning
+
 
         # Manual extraction
         if len(self.par['coadd2d']['manual'].strip()) > 0:
@@ -483,9 +487,13 @@ class CoAdd2D:
         else:
             manual_dict = None
 
-        redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
+        objFind = find_objects.FindObjects(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux,
-                                         find_negative=self.find_negative, det=self.det, show=show)
+                                         find_negative=self.find_negative, show=show)
+
+        redux=extract.Extract.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
+                                         'science_coadd2d', ir_redux=self.ir_redux,
+                                         find_negative=self.find_negative, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
@@ -512,7 +520,7 @@ class CoAdd2D:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
-        sobjs_obj, nobj, skymask_init = redux.find_objects(
+        sobjs_obj, nobj, skymask_init = objFind.find_objects(
             sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
             manual_extract_dict=manual_dict)
 
