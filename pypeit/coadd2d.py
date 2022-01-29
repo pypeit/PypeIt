@@ -1178,7 +1178,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
             for islit, spat_id in enumerate(spat_ids):
                 ithis = np.abs(sobjs.SLITID - spat_id) <= self.par['coadd2d']['spat_toler']
                 nobj_slit = np.sum(ithis)
-                if np.any(ithis):
+                # ignore objects for which optimal extraction could not be performed (i.e., OPT_COUNTS is None)
+                if np.any(ithis) and np.any(sobjs[ithis].OPT_COUNTS):
                     objid_this = sobjs[ithis].OBJID
                     flux = np.zeros((nspec, nobj_slit))
                     ivar = np.zeros((nspec, nobj_slit))
@@ -1421,12 +1422,14 @@ class EchelleCoAdd2D(CoAdd2D):
             for iord in range(nslits):
                 for iobj in range(nobjs):
                     ind = (sobjs.ECH_ORDERINDX == iord) & (sobjs.ECH_OBJID == uni_objid[iobj])
-                    flux = sobjs[ind][0].OPT_COUNTS
-                    ivar = sobjs[ind][0].OPT_COUNTS_IVAR
-                    wave = sobjs[ind][0].OPT_WAVE
-                    mask = sobjs[ind][0].OPT_MASK
-                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
-                    order_snr[iord, iobj] = rms_sn
+                    # ignore objects for which optimal extraction could not be performed (i.e., OPT_COUNTS is None)
+                    if np.any(sobjs[ind][0].OPT_COUNTS):
+                        flux = sobjs[ind][0].OPT_COUNTS
+                        ivar = sobjs[ind][0].OPT_COUNTS_IVAR
+                        wave = sobjs[ind][0].OPT_WAVE
+                        mask = sobjs[ind][0].OPT_MASK
+                        rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
+                        order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object
             snr_bar_vec = np.mean(order_snr, axis=0)
