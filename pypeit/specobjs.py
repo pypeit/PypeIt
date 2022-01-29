@@ -100,11 +100,7 @@ class SpecObjs:
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            try:
-                sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
-            except:
-                embed()
-                exit()
+            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
