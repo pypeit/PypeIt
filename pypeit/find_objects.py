@@ -235,7 +235,7 @@ class FindObjects:
 
 
 
-    def run_objfind(self, std_trace=None, show_peaks=False):
+    def run(self, std_trace=None, show_peaks=False):
         """
         Primary code flow for object finding in PypeIt reductions
 
@@ -283,19 +283,56 @@ class FindObjects:
         skymask_init, usersky = self.load_skyregions(skymask_init)
 
         # Global sky subtract (self.global_sky is also generated here)
-        self.initial_sky = self.global_skysub(skymask=skymask_init).copy()
+        initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(self.sciImg.image - self.initial_sky,
+            sobjs_obj, self.nobj, skymask = \
+                self.find_objects(self.sciImg.image - initial_sky,
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
-            self.skymask = skymask_init
+            skymask = skymask_init
+            sobjs_obj=None
 
-        return self.global_sky, self.sobjs_obj, self.skymask
+
+        return initial_sky, sobjs_obj, skymask
+
+    def get_final_global_sky(self, initial_sky, skymask):
+
+        #TODO Move this call to PypeIt
+        # Global sky subtraction second pass. Uses skymask from object finding
+        if (self.std_redux or self.par['reduce']['findobj']['skip_final_global']):
+            self.global_sky = initial_sky.copy()
+        else:
+            self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
+
+
+    def update_skymask(self, sobjs):
+
+
+        # # Create skymask for maskdef_extracted objects
+        if self.par['reduce']['slitmask']['extract_missing_objs']:
+            gdslits = np.where(np.invert(self.reduce_bpm))[0]
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            # Loop on slits
+            for slit_idx in gdslits:
+                slit_spat = self.slits.spat_id[slit_idx]
+                slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
+                thismask = self.slitmask == slit_spat
+                # sobj index of maskdef_extract
+                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
+                if maskdef_extract.size > 0:
+                    plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
+                    skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
+                            box_rad_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
+                                    if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
+                    skymask[thismask] = skymask_fwhm[thismask]
+        self.sobjs_obj = sobjs_obj
+        self.skymask = skymask
+        self.nobj = len(sobjs_obj)
+
 
 
     def find_objects(self, image, std_trace=None,
@@ -429,14 +466,14 @@ class FindObjects:
 
         """
         # Prep
-        self.global_sky = np.zeros_like(self.sciImg.image)
+        global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
         if self.std_redux:
             sigrej = 7.0
             update_crmask = False
             if not self.par['reduce']['skysub']['global_sky_std']:
                 msgs.info('Skipping global sky-subtraction for standard star.')
-                return self.global_sky
+                return global_sky
         else:
             sigrej = 3.0
 
@@ -472,7 +509,7 @@ class FindObjects:
                 continue
 
             # Find sky
-            self.global_sky[thismask] = skysub.global_skysub(
+            global_sky[thismask] = skysub.global_skysub(
                 self.sciImg.image, self.sciImg.ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
                 inmask=inmask, sigrej=sigrej,
@@ -481,7 +518,7 @@ class FindObjects:
                 pos_mask=(not self.ir_redux), show_fit=show_fit)
 
             # Mask if something went wrong
-            if np.sum(self.global_sky[thismask]) == 0.:
+            if np.sum(global_sky[thismask]) == 0.:
                 msgs.warn("Bad fit to sky.  Rejecting slit: {:d}".format(slit_idx))
                 self.reduce_bpm[slit_idx] = True
 
@@ -490,7 +527,7 @@ class FindObjects:
             # TODO: Shouldn't the saturation flagging account for the
             # subtraction of the sky?
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                     subtract_img=self.global_sky)
+                                     subtract_img=global_sky)
             # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 
@@ -503,7 +540,7 @@ class FindObjects:
             self.show('global', slits=True, sobjs=sobjs_show, clear=False)
 
         # Return
-        return self.global_sky
+        return global_sky
 
 
     # TODO This method only used for IFUs, so it should be present in the IFU subclass not here.
@@ -1130,7 +1167,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        self.global_sky = np.zeros_like(self.sciImg.image)
+        global_sky = np.zeros_like(self.sciImg.image)
         thismask = (self.slitmask > 0)
         inmask = (self.sciImg.select_flag(invert=True) & thismask & skymask_now).astype(np.bool)
         # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
@@ -1145,14 +1182,14 @@ class IFUFindObjects(MultiSlitFindObjects):
             update_crmask = False
             if not self.par['reduce']['skysub']['global_sky_std']:
                 msgs.info('Skipping global sky-subtraction for standard star.')
-                return self.global_sky
+                return global_sky
 
         # Iterate to use a model variance image
         numiter = 4
         model_ivar = self.sciImg.ivar
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
-            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
+            global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
                                                              thismask, self.slits_left, self.slits_right, inmask=inmask,
                                                              sigrej=sigrej, trim_edg=trim_edg,
                                                              bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -1161,7 +1198,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
-            counts = self.global_sky# + np.clip(self.sciImg.image-self.global_sky, 0, None)
+            counts = global_sky# + np.clip(self.sciImg.image-self.global_sky, 0, None)
             _scale = None if self.sciImg.img_scale is None else self.sciImg.img_scale[thismask]
             # NOTE: darkcurr must be a float for the call below to work.
             var = procimg.variance_model(self.sciImg.base_var[thismask], counts=counts[thismask],
@@ -1172,12 +1209,12 @@ class IFUFindObjects(MultiSlitFindObjects):
             # model_ivar = utils.inverse(var)
             # Redo the relative spectral illumination correction with the improved sky model
             if self.par['scienceframe']['process']['use_specillum']:
-                self.illum_profile_spectral(self.global_sky, skymask=skymask)
+                self.illum_profile_spectral(global_sky, skymask=skymask)
 
         if update_crmask:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                     subtract_img=self.global_sky)
+                                     subtract_img=global_sky)
             # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 
@@ -1188,7 +1225,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show('global', slits=True, sobjs=sobjs_show, clear=False)
-        return self.global_sky
+        return global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                       show_fit=False, show=False, show_objs=False):

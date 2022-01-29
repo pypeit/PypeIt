@@ -16,7 +16,8 @@ from matplotlib import pyplot as plt
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import slittrace
-from pypeit import reduce
+from pypeit import extraction
+from pypeit import find_objects
 from pypeit.images import pypeitimage
 from pypeit.core import extract
 from pypeit.core.wavecal import wvutils
@@ -491,7 +492,25 @@ class CoAdd2D:
                                          'science_coadd2d', ir_redux=self.ir_redux,
                                          find_negative=self.find_negative, show=show)
 
-        redux=extract.Extract.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
+
+        # Masking
+        #  TODO: Treat the masking of the slits objects
+        #   from every exposure, come up with an aggregate mask (if it is masked on one slit,
+        #   mask the slit for all) and that should be propagated into the slits object in the psuedo_dict
+        slits = self.stack_dict['slits_list'][0]
+        reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
+            slits.mask, flag=slits.bitmask.exclude_for_reducing)))
+        objFind.reduce_bpm = reduce_bpm
+
+        # TODO:
+        #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
+        #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
+        #  2d coadd reduce
+        sobjs_obj, nobj, skymask_init = objFind.find_objects(
+            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
+            manual_extract_dict=manual_dict)
+
+        redux=extraction.Extract.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux,
                                          find_negative=self.find_negative, show=show)
 
@@ -501,6 +520,8 @@ class CoAdd2D:
         redux.waveimg = pseudo_dict['waveimg']
         redux.binning = self.binning
         redux.basename = basename
+
+        # TODO Make a method that generates reduce_bpm
 
         # Masking
         #  TODO: Treat the masking of the slits objects
