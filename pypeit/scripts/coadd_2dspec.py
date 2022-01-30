@@ -107,7 +107,9 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # If detector was passed as an argument override whatever was in the coadd2d_file
         if args.det is not None:
             msgs.info("Restricting reductions to detector={}".format(args.det))
-            parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
+            # TODO this needs to be adjusted if we want to pass (as inline command) more than one detector
+            #  and also if we are combining mosaic detectors
+            parset['rdx']['detnum'] = int(args.det)
 
         # Get headers (if possible) and base names
         spec1d_files = [files.replace('spec2d', 'spec1d') for files in spec2d_files]
