@@ -207,6 +207,9 @@ class SOARGoodmanRedSpectrograph(SOARGoodmanSpectrograph):
         par['calibrations']['slitedges']['bound_detector'] = True
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Always correct for flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+
         # Set pixel flat combination method
         #par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         # Change the wavelength calibration method
