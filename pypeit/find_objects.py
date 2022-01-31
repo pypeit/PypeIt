@@ -52,7 +52,7 @@ class FindObjects:
         maskslits (`numpy.ndarray`_, optional):
           Specifies masked out slits
           True = Masked
-        ir_redux (:obj:`bool`, optional):
+        bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
@@ -100,7 +100,7 @@ class FindObjects:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, std_redux=False, show=False,
+                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
                  setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -124,13 +124,13 @@ class FindObjects:
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
-                            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
+                            sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
                             setup=setup, basename=basename,
                             manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, std_redux=False, show=False,
+                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
                  setup=None, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -181,7 +181,7 @@ class FindObjects:
         self.wv_calib = caliBrate.wv_calib
 
         # Load up other input items
-        self.ir_redux = ir_redux
+        self.bkg_redux = bkg_redux
         self.find_negative = find_negative
 
         self.std_redux = std_redux
@@ -203,8 +203,6 @@ class FindObjects:
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
-        self.sobjs_obj = None  # Only object finding but no extraction
-        self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
@@ -232,7 +230,6 @@ class FindObjects:
         self.sciImg.update_mask_slitmask(self.slitmask)
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
-
 
 
     def run(self, std_trace=None, show_peaks=False):
@@ -273,7 +270,7 @@ class FindObjects:
         #
 
         # First pass object finding
-        self.sobjs_obj, self.nobj, skymask_init = \
+        sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
@@ -294,8 +291,6 @@ class FindObjects:
         else:
             msgs.info("Skipping 2nd run of finding objects")
             skymask = skymask_init
-            sobjs_obj=None
-
 
         return initial_sky, sobjs_obj, skymask
 
@@ -329,7 +324,7 @@ class FindObjects:
                             box_rad_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
                                     if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                     skymask[thismask] = skymask_fwhm[thismask]
-        self.sobjs_obj = sobjs_obj
+        #self.sobjs_obj = sobjs_obj
         self.skymask = skymask
         self.nobj = len(sobjs_obj)
 
@@ -487,8 +482,8 @@ class FindObjects:
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
         # Allow for previous sky to better estimate ivar
-        #  Unless we used a background image (i.e. ir_redux=True)
-        if (previous_sky is not None) and (not self.ir_redux):
+        #  Unless we used a background image (i.e. bkg_redux=True)
+        if (previous_sky is not None) and (not self.bkg_redux):
             # Estimate the variance using the input sky model
             var = procimg.variance_model(self.sciImg.base_var,
                                           counts=previous_sky,
@@ -515,7 +510,7 @@ class FindObjects:
                 inmask=inmask, sigrej=sigrej,
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
                 no_poly=self.par['reduce']['skysub']['no_poly'],
-                pos_mask=(not self.ir_redux), show_fit=show_fit)
+                pos_mask=(not self.bkg_redux), show_fit=show_fit)
 
             # Mask if something went wrong
             if np.sum(global_sky[thismask]) == 0.:
@@ -535,7 +530,7 @@ class FindObjects:
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            sobjs_show = None if show_objs else self.sobjs_obj
+            sobjs_show = None if show_objs else sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show('global', slits=True, sobjs=sobjs_show, clear=False)
 
@@ -1194,7 +1189,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                              sigrej=sigrej, trim_edg=trim_edg,
                                                              bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                              no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                                             pos_mask=(not self.bkg_redux), show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object
@@ -1222,7 +1217,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            sobjs_show = None if show_objs else self.sobjs_obj
+            sobjs_show = None if show_objs else sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show('global', slits=True, sobjs=sobjs_show, clear=False)
         return global_sky

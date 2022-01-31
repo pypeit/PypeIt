@@ -470,22 +470,22 @@ class PypeIt:
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.ir_redux. Perhaps
+        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.bkg_redux. Perhaps
         # we should rename this to bg_redux or something like that, since it need not be IR.
         if has_bg:
-            self.ir_redux = True
+            self.bkg_redux = True
             # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
             # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
             # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
             self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
                 if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
         else:
-            self.ir_redux = False
+            self.bkg_redux = False
             self.find_negative= False
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
-        all_spec2d['meta']['ir_redux'] = self.ir_redux
+        all_spec2d['meta']['bkg_redux'] = self.bkg_redux
         all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
@@ -590,9 +590,6 @@ class PypeIt:
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
                 self.par['reduce']['slitmask'])
 
-
-
-
         # Extract
         for i, self.det in enumerate(calibrated_det):
             # re-run (i.e., load) calibrations
@@ -615,9 +612,10 @@ class PypeIt:
 
             # Update the global sky
 
-
+            # Extract
             all_spec2d[detname], tmp_sobjs \
-                    = self.extract_one(frames, self.det, sciImg_list[i], initial_sky_list[i],
+                    = self.extract_one(frames, self.det, sciImg_list[i], 
+                                       initial_sky_list[i],
                                        all_specobjs_on_det, skymask_list[i])
             # Hold em
             if tmp_sobjs.nobj > 0:
@@ -825,7 +823,7 @@ class PypeIt:
         objFind = find_objects.FindObjects.get_instance(sciImg, self.spectrograph,
                                                         self.par, self.caliBrate,
                                                         self.objtype,
-                                                        ir_redux=self.ir_redux,
+                                                        bkg_redux=self.bkg_redux,
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
                                                         std_redux=self.std_redux,
@@ -838,8 +836,10 @@ class PypeIt:
                             slits=True, clear=True)
 
         # Do it
-        global_sky, sobjs_obj, skymask = objFind.run_objfind(std_trace=std_trace, show_peaks=self.show)
-        return global_sky, sobjs_obj, skymask, sciImg, objFind
+        initial_sky, sobjs_obj, skymask = objFind.run(std_trace=std_trace, 
+                                                     show_peaks=self.show)
+        # Return
+        return initial_sky, sobjs_obj, skymask, sciImg, objFind
 
     def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):
         """
@@ -884,15 +884,15 @@ class PypeIt:
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
-        self.redux = extraction.Extract.get_instance(sciImg, self.spectrograph,
-                                                self.par, self.caliBrate,
-                                                self.objtype,
-                                                ir_redux=self.ir_redux,
-                                                find_negative=self.find_negative,
-                                                std_redux=self.std_redux,
-                                                setup=self.setup,
-                                                show=self.show,
-                                                basename=self.basename)
+        self.redux = extraction.Extract.get_instance(
+            sciImg, sobjs_obj, self.spectrograph, 
+            self.par, self.caliBrate, self.objtype, 
+            bkg_redux=self.bkg_redux, 
+            find_negative=self.find_negative,
+            std_redux=self.std_redux,
+            setup=self.setup,
+            show=self.show,
+            basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(

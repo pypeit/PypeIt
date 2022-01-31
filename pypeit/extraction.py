@@ -51,7 +51,7 @@ class Extract:
         maskslits (`numpy.ndarray`_, optional):
           Specifies masked out slits
           True = Masked
-        ir_redux (:obj:`bool`, optional):
+        bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
@@ -98,8 +98,8 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, std_redux=False, show=False,
+    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate,
+                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
                  setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -123,13 +123,16 @@ class Extract:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
-                            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
+                            sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
+                            bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
                             setup=setup, basename=basename,
                             manual=manual)
 
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, std_redux=False, show=False,
+                 objtype, 
+                 bkg_redux=False, find_negative=False, 
+                 std_redux=False, show=False,
                  setup=None, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -181,7 +184,7 @@ class Extract:
         self.wv_calib = caliBrate.wv_calib
 
         # Load up other input items
-        self.ir_redux = ir_redux
+        self.bkg_redux = bkg_redux
         self.find_negative = find_negative
 
         self.std_redux = std_redux
@@ -197,13 +200,11 @@ class Extract:
         self.ivarmodel = None
         self.objimage = None
         self.skyimage = None
-        self.initial_sky = None
         self.global_sky = None
         self.skymask = None
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
-        self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
@@ -291,7 +292,7 @@ class Extract:
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
-                                          model_noise=(not self.ir_redux),
+                                          model_noise=(not self.bkg_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
 
@@ -381,6 +382,7 @@ class Extract:
         # TODO this should return things to make the control flow less opqaque.
         self.prepare_extraction(global_sky)
 
+        '''
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask, usersky = self.load_skyregions(skymask)
 
@@ -403,16 +405,20 @@ class Extract:
                                     if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
                     skymask[thismask] = skymask_fwhm[thismask]
         self.sobjs_obj = sobjs_obj
+        '''
         self.skymask = skymask
         self.nobj = len(sobjs_obj)
 
+
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
+            '''
             # Global sky subtraction second pass. Uses skymask from 2nd object finding and maskdef_extracted objects
             if ((not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not usersky)) \
                     or (self.par['reduce']['slitmask']['extract_missing_objs']):
                 self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
                                                      previous_sky=self.initial_sky)
+            '''
 
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
@@ -744,8 +750,8 @@ class MultiSlitExtract(Extract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(MultiSlitExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(MultiSlitExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -900,8 +906,8 @@ class EchelleExtract(Extract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(EchelleExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(EchelleExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -1015,8 +1021,8 @@ class IFUExtract(MultiSlitExtract):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(IFUExtract, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+    def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(IFUExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
 
