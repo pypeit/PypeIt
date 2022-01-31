@@ -25,6 +25,7 @@ from pypeit import msgs
 from pypeit import datamodel
 from pypeit import specobj
 from pypeit.bitmask import BitMask
+from pypeit.core import parse
 
 
 class SlitTraceBitMask(BitMask):
