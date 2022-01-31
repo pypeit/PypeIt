@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Utility functions for PypeIt parameter sets
+
+.. include:: ../include/links.rst
 """
 import os
 import time
 import glob
-import warnings
-import textwrap
+import yaml
 from IPython import embed
 
 import numpy as np
@@ -24,6 +25,36 @@ from pypeit import msgs
 def _eval_ignore():
     """Provides a list of strings that should not be evaluated."""
     return [ 'open', 'file', 'dict', 'list', 'tuple' ]
+
+
+def eval_tuple(inp):
+    """
+    Evaluate the input to one or more tuples.
+
+    This allows conversion of one or more tuples provided to a configuration
+    parameters.
+
+    .. warning::
+        - Currently can only handle simple components that can also be evaluated
+          (e.g., integers and floats).
+
+    Args:
+        inp (:obj:`list`):
+            A list of strings that are converted into a list of tuples.  The
+            parentheses must be within the list of elements.
+
+    Return:
+        :obj:`list`: The list of tuples.
+    """
+    joined = ','.join(inp)
+    try:
+        basic = eval(joined)
+    except:
+        msgs.error(f'Cannot evaluate {joined} into a valid tuple.')
+
+    # If any element of the basic evaulation is also a tuple, assume the result
+    # of the evaluation is a tuple of tuples.  This is converted to a list.
+    return list(basic) if any([isinstance(e, tuple) for e in basic]) else [basic]
 
 
 def recursive_dict_evaluate(d):
@@ -62,8 +93,16 @@ def recursive_dict_evaluate(d):
     ignore = _eval_ignore()
     for k in d.keys():
         if isinstance(d[k], dict):
-           d[k] = recursive_dict_evaluate(d[k])
-        elif isinstance(d[k], list):
+            # Recursive call to deal with nested dictionaries
+            d[k] = recursive_dict_evaluate(d[k])
+            continue
+
+        if isinstance(d[k], list) and any(['(' in e for e in d[k]]):
+            # NOTE: This enables syntax for constructing one or more tuples.  
+            d[k] = eval_tuple(d[k])
+            continue
+
+        if isinstance(d[k], list):
             replacement = []
             for v in d[k]:
                 if v in ignore:
@@ -74,11 +113,12 @@ def recursive_dict_evaluate(d):
                     except:
                         replacement += [ v ]
             d[k] = replacement
-        else:
-            try:
-                d[k] = eval(d[k]) if d[k] not in ignore else d[k]
-            except:
-                pass
+            continue
+
+        try:
+            d[k] = eval(d[k]) if d[k] not in ignore else d[k]
+        except:
+            pass
 
     return d
 
@@ -418,19 +458,31 @@ def _read_data_file_table(lines, file_check=True):
 
 
 def _parse_setup_lines(lines):
-    """Return a list of the setup names"""
+    """
+    Return a list of the setup names and corresponding dict
+
+    Args:
+        lines (`numpy.ndarray`_): Setup lines as an array
+
+    Returns:
+        tuple: list, dict
+
+    """
     setups = []
-    for l in lines:
-        if 'Setup' in l:
-            tsetup = l.split()[1].strip()
-            # Remove any lingering colon
-            if tsetup[-1] == ':':
-                setup = tsetup[:-1]
-            else:
-                setup = tsetup
-            setups.append(setup)
-    #
-    return setups
+    # Kludge for backwards compatability
+    line_list = lines.tolist()
+    for ss, line in enumerate(line_list):
+        if 'Setup' in line and ':' not in line:
+            line_list[ss] = line+':'
+    # Slurp
+    ystr = '\n'.join(line_list)
+    sdict = yaml.safe_load(ystr)
+    for key in sdict:
+        if 'Setup' in key:
+            tsetup = key.split()[1].strip()
+            setups.append(tsetup)
+    # TODO -- Crash if there is more than one setup.  Should not happen
+    return setups, sdict
 
 def parse_tool_config(config_file, block, check_files=False):
     """
@@ -497,13 +549,14 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
             Perform additional checks if called to run PypeIt
 
     Returns:
-        5-element tuple containing
+        6-element tuple containing
 
         - list:  List of configuration lines,
         - list:  List of datafiles to read,
         - list:  List of frametypes for each file
         - :obj:`astropy.table.Table`:  Table of user supplied info on data files
         - list:  List of setup lines.
+        - dict:  Setup dict
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the reduction file')
@@ -539,9 +592,10 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
     if s >= 0 and e < 0:
         msgs.error("Missing 'setup end' in {0}".format(ifile))
     if s < 0:
-        setups = []
+        msgs.warn("Missing setup block! This may be a problem")
+        setups, sdict = [], {}
     else:
-        setups = _parse_setup_lines(lines[s:e])
+        setups, sdict = _parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
 
     # TODO: This should be moved to the PypeIt class
@@ -555,7 +609,7 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
             msgs.error("Add setup info to your PypeIt file in the setup block!")
 
     msgs.info('Input file loaded successfully')
-    return list(lines[is_config]), data_files, frametype, usrtbl, setups
+    return list(lines[is_config]), data_files, frametype, usrtbl, setups, sdict
 
 
 def pypeit_config_lines(ifile):

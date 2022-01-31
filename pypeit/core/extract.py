@@ -26,6 +26,7 @@ from pypeit.core import pixels
 from pypeit.core import arc
 from pypeit.core import fitting
 from pypeit.core import procimg
+from pypeit.core import qa
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
@@ -612,7 +613,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     try:
         cont_flux, _ = c_answer.value(wave[indsp])
     except:
-        embed()
+        msgs.error("Bad Fitting in extract:fit_profile..")
 
     sn2 = (np.fmax(spline_flux*(np.sqrt(np.fmax(fluxivar_sm[indsp], 0))*bmask2),0))**2
     ind_nonzero = (sn2 > 0)
@@ -1036,58 +1037,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
-def parse_hand_dict(hand_extract_dict):
-    """ Utility routine for objfind to parse the hand_extract_dict dictionary for hand selected apertures
-
-    Parameters
-    ----------
-    hand_extract_dict:   dictionary
-
-    Returns
-    -------
-    hand_spec:  spectral pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_spat:  spatial pixel location, numpy float 1-d array with size equal to number of hand aperatures requested
-
-    hand_det:   Detector for hand apertures. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    hand_fwhm:  hand aperture fwhm for extraction. This should either be ba numpy float 1-d array with size equal to number of hand
-                apertures requested, or a single number which applies to all the hand apertures provied by hand_spec, hand_spat
-
-    Notes
-    -----
-    Revision History
-        - 23-June-2018  Written by J. Hennawi
-
-    """
-
-
-    if ('hand_extract_spec' not in hand_extract_dict.keys() | 'hand_extract_spat' not in hand_extract_dict.keys()):
-        msgs.error('hand_extract_spec and hand_extract_spat must be set in the hand_extract_dict')
-
-    hand_extract_spec=np.asarray(hand_extract_dict['hand_extract_spec'])
-    hand_extract_spat=np.asarray(hand_extract_dict['hand_extract_spat'])
-    hand_extract_det = np.asarray(hand_extract_dict['hand_extract_det'])
-    if(hand_extract_spec.size == hand_extract_spat.size == hand_extract_det.size) == False:
-        msgs.error('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
-    nhand = hand_extract_spec.size
-
-    hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
-    # hand_extract_fwhm = hand_extract_dict.get('hand_extract_fwhm')
-    # if hand_extract_fwhm is not None:
-    #     hand_extract_fwhm = np.asarray(hand_extract_fwhm)
-    #     if(hand_extract_fwhm.size==hand_extract_spec.size):
-    #         pass
-    #     elif (hand_extract_fwhm.size == 1):
-    #         hand_extract_fwhm = np.full(nhand, hand_extract_fwhm)
-    #     else:
-    #         raise ValueError('hand_extract_fwhm must either be a number of have the same size as hand_extract_spec and hand_extract_spat')
-    # else:
-    #     hand_extract_fwhm = np.full(nhand, None)
-    return hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm
-
-
 def create_skymask_fwhm(sobjs, thismask, box_pix=None):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
@@ -1143,7 +1092,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             boxcar_rad_skymask=None, cont_sig_thresh=2.0,
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
-            qa_title='objfind'):
+            qa_title='objfind', objfindQA_filename=None):
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
@@ -1170,6 +1119,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
+        det:  int, default = None
+            Dectector number of slit to be extracted.
         inmask: float ndarray, default = None
             Input mask image.
         spec_min_max: tuple of float or int, (2), default=None.
@@ -1261,8 +1212,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'SLITID': 999, 'det': 1,
-                                'objtype': 'unknown', 'pypeline': 'unknown'}
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+
+        objfindQA_filename: (str, optional), default = None
+            Directory + filename of the object profile QA
 
     Returns:
         tuple: Returns the following:
@@ -1287,7 +1241,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1498,7 +1452,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         nobj_reg = 0
 
     # ToDo Also plot the edge trimming boundaries on the QA here.
-    if show_peaks:
+    if show_peaks or objfindQA_filename is not None:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
         spat_approx = slit_left[specmid] + xsize[specmid]*xcen/nsamp
         # Define the plotting function
@@ -1516,9 +1470,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
-        plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
-        viewer, ch = display.show_image(image*(thismask*inmask))
-        plt.show()
+        # plt.title(qa_title + ': Slit# {:d}'.format(objfindQA_dict['SLITORD_ID']))
+        plt.title(qa_title)
+        if objfindQA_filename is not None:
+            plt.savefig(objfindQA_filename, dpi=400)
+        if show_peaks:
+            viewer, ch = display.show_image(image*(thismask*inmask))
+            plt.show()
+        plt.close('all')
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1623,10 +1582,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_us
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = [
+            hand_extract_dict[key] for key in ['spec', 'spat', 'det', 'fwhm']]
+
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
-                                                  np.rint(hand_extract_spat).astype(int)]))[0]
+                                                  np.rint(hand_extract_spat).astype(int)]))
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]
@@ -1806,14 +1767,15 @@ def remap_orders(xinit, spec_min_max, inverse=False):
 
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
-                inmask=None, spec_min_max=None,
-                fof_link=1.5, plate_scale=0.2, has_negative=False,
-                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
-                pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, cont_sig_thresh=2.0, specobj_dict=None,
-                trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
+                inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
+                std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
+                nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0,
+                cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
+                npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
-                debug_all=False, skymask_by_boxcar=False, boxcar_rad=None):
+                debug_all=False, skymask_by_boxcar=False, boxcar_rad=None, objfindQA_filename=None):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -1920,6 +1882,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             If True, use the boxcar radius in the skymask
         boxcar_rad: float, optional
             Boxcar radius in arcsec
+        objfindQA_filename: (str, optional), default = None
+            Directory + filename of the object profile QA
 
     Returns:
         tuple: Returns the following:
@@ -1995,9 +1959,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
         f_spats = []
-        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                              hand_extract_dict['hand_extract_spat'],
-                              hand_extract_dict['hand_extract_spec']):
+        for ss, spat, spec in zip(range(len(hand_extract_dict['spec'])),
+                                  hand_extract_dict['spat'],
+                                  hand_extract_dict['spec']):
             # Find the input slit
             ispec = int(np.clip(np.round(spec),0,nspec-1))
             ispat = int(np.clip(np.round(spat),0,nspec-1))
@@ -2015,7 +1979,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up SLITID and orderindx!
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
-        msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
+        qa_title = 'Finding objects on order # {:d}'.format(order_vec[iord])
+        msgs.info(qa_title)
         thisslit_gpm = slitmask == gdslit_spat[iord]
         inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = gdslit_spat[iord]
@@ -2030,18 +1995,22 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # not one at every location on the order            
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
-                                      hand_extract_dict['hand_extract_spat'],
-                                      hand_extract_dict['hand_extract_spec'], f_spats):
+            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['spec'])),
+                                              hand_extract_dict['spat'],
+                                              hand_extract_dict['spec'], f_spats):
                 ispec = int(spec)
-                new_hand_extract_dict['hand_extract_spec'][ss] = ispec
-                new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
+                new_hand_extract_dict['spec'][ss] = ispec
+                new_hand_extract_dict['spat'][ss] = slit_left[ispec,iord] + f_spat*(
                     slit_righ[ispec,iord]-slit_left[ispec,iord])
         else:
             new_hand_extract_dict = None
 
         # Masking
         boxcar_rad_skymask = boxcar_rad/plate_scale_ord[iord] if skymask_by_boxcar else None
+
+        # Get SLTIORD_ID for the objfind QA
+        ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
+            if objfindQA_filename is not None else None
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
@@ -2052,8 +2021,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
-                    boxcar_rad_skymask=boxcar_rad_skymask,
-                    specobj_dict=specobj_dict )
+                    boxcar_rad_skymask=boxcar_rad_skymask, qa_title=qa_title,
+                    specobj_dict=specobj_dict, objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)

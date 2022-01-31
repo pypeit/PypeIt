@@ -2,7 +2,8 @@
 
     $ pypeit_setup -h
     usage: pypeit_setup [-h] [-s SPECTROGRAPH] [-r ROOT] [-e EXTENSION]
-                        [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-v VERBOSITY]
+                        [-d OUTPUT_PATH] [-o] [-c CFG_SPLIT] [-b] [-m]
+                        [-v VERBOSITY]
     
     Parse data files to construct a pypeit file in preparation for reduction using
     'run_pypeit'
@@ -49,6 +50,9 @@
                             (default: None)
       -b, --background      Include the background-pair columns for the user to edit
                             (default: False)
+      -m, --manual_extraction
+                            Include the manual extraction column for the user to
+                            edit (default: False)
       -v VERBOSITY, --verbosity VERBOSITY
                             Level of verbosity from 0 to 2. (default: 2)
     

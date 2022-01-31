@@ -477,9 +477,9 @@ def rebin_evlist(frame, newshape):
     # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
     shape = frame.shape
     lenShape = len(shape)
-    factor = np.asarray(shape)/np.asarray(newshape)
+    factor = (np.asarray(shape)/np.asarray(newshape)).astype(int)
     evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             ['int(newshape[%d]),factor[%d],'% (i, i) for i in range(lenShape)] + \
              [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
              ['/factor[%d]' % i for i in range(lenShape)]
     return eval(''.join(evList))
@@ -1030,7 +1030,11 @@ def yamlify(obj, debug=False):
 #    elif isinstance(obj, bytes):
 #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
-        obj = str(obj)
+        # Worry about colons!
+        if ':' in obj:
+            obj = '"'+str(obj)+'"'
+        else:
+            obj = str(obj)
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
