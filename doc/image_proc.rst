@@ -9,7 +9,9 @@ Basic Image Processing
 Here we describe the basic image processing steps performed by ``PypeIt``,
 specifically their order, salient details, and how to toggle specific steps
 using the :ref:`pypeit_file`.  This description is meant to be general to *all*
-spectrographs.  For instrument-specific advice, see :ref:`spec_details`.
+spectrographs.  For instrument-specific advice, see :ref:`spec_details`.  Also
+note that some spectrographs enable processing of detector mosaics instead of
+the individual detectors; see :ref:`mosaic`.
 
 Unless otherwise stated, the relevant parameters governing basic image
 processing are kept by :class:`~pypeit.par.pypeitpar.ProcessImagesPar`; see
@@ -264,6 +266,13 @@ counts/s measured by the master dark frame.
     always be at least as long as your longest exposure time in the same
     calibration group.  Calibration groups are discussed by :ref:`setup_doc`,
     :ref:`a-b_differencing`, and :ref:`2d_combine`.
+
+Build Detector Mosaic
+---------------------
+
+If requested and applicable for the instrument data being reduced, ``PypeIt``
+then uses hard-coded detector geometries to construct a mosaic of the image data
+from multiple detectors.  See more information regarding the :ref:`mosaic`.
 
 Spatial Flexure Shift
 ---------------------

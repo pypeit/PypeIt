@@ -24,11 +24,6 @@ lat = 19.82833             # Latitude of the telescope
 alt = 4160.0               # Elevation of the telescope (in m)
 
 
-@pytest.fixture
-def fitstbl():
-    return dummy_fitstbl()
-
-
 def test_geovelocity():
     """ Test the full geomotion velocity calculation
     """
@@ -47,10 +42,11 @@ def test_geovelocity():
     assert np.isclose(corrbary, -12.510015817405023, rtol=1e-5)
 
 
-def test_geocorrect(fitstbl):
+def test_geocorrect():
     """
     """
 
+    fitstbl = dummy_fitstbl()
     # Specobj (wrap in a list to mimic a slit)
     scidx = 5
     obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
@@ -63,9 +59,11 @@ def test_geocorrect(fitstbl):
 
     # Now apply to a specobj
     npix = 1000
-    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj = specobj.SpecObj('MultiSlit', 'DET01', SLITID=0)
     sobj.BOX_WAVE = np.linspace(4000., 6000., npix)
     sobj.BOX_COUNTS = 50.*(sobj.BOX_WAVE/5000.)**-1.
     sobj.BOX_COUNTS_IVAR = 1./sobj.BOX_COUNTS.copy()
     sobj.apply_helio(hel_corr, 'heliocentric')
     assert np.isclose(sobj.BOX_WAVE[0], 3999.877589008, rtol=1e-8)
+
+

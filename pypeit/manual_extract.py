@@ -1,5 +1,13 @@
-import numpy as np
+"""
+Implements an object to handle manual object extraction.
+
+.. include:: ../include/links.rst
+"""
 import inspect
+
+from IPython import embed
+
+import numpy as np
 
 from pypeit import datamodel 
 
@@ -120,3 +128,4 @@ class ManualExtractionObj(datamodel.DataContainer):
             manual_extract_dict['det'] = -1 * manual_extract_dict['det']
         # Return
         return manual_extract_dict
+

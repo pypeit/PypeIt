@@ -48,7 +48,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    })
 
 
-class Identify(object):
+class Identify:
     """
     GUI to interactively identify arc lines. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
@@ -136,9 +136,10 @@ class Identify(object):
         matplotlib.pyplot.rcParams['keymap.save'] = ''              # saving current figure (Default: s)
         matplotlib.pyplot.rcParams['keymap.quit'] = ''              # close the current figure (Default: ctrl+w, cmd+w)
         matplotlib.pyplot.rcParams['keymap.grid'] = ''              # switching on/off a grid in current axes (Default: g)
+        matplotlib.pyplot.rcParams['keymap.grid_minor'] = ''        # switching on/off a (minor) grid in current axes (Default: G)
         matplotlib.pyplot.rcParams['keymap.yscale'] = ''            # toggle scaling of y-axes ('log'/'linear') (Default: l)
         matplotlib.pyplot.rcParams['keymap.xscale'] = ''            # toggle scaling of x-axes ('log'/'linear') (Default: L, k)
-        matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
+        #matplotlib.pyplot.rcParams['keymap.all_axes'] = ''          # enable all axes (Default: a)
 
         # Initialise the main canvas tools
         canvas.mpl_connect('draw_event', self.draw_callback)

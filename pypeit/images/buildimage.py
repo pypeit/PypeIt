@@ -124,37 +124,66 @@ class SkyRegions(pypeitimage.PypeItImage):
     master_file_format = 'fits.gz'
 
 
+# Convert frame type into an Image
+frame_image_classes = dict(
+    bias=BiasImage,
+    dark=DarkImage,
+    arc=ArcImage,
+    tilt=TiltImage,
+    trace=TraceImage,
+    align=AlignImage)
+
+
 def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=None, dark=None,
-                        flatimages=None, maxiters=5, ignore_saturation=True, slits=None):
+                        flatimages=None, maxiters=5, ignore_saturation=True, slits=None,
+                        mosaic=None):
     """
-    Perform basic image processing on a list of images.
+    Perform basic image processing on a list of images and combine the results.
+
+    .. warning::
+
+        For image mosaics (when ``det`` is a tuple) the processing behavior is
+        hard-coded such that bias and dark frames are *not* reformatted into a
+        mosaic image.  They are saved in their native multi-image format.
+        Bad-pixel masks are also expected to be in multi-image format.  See
+        :class:`~pypeit.images.rawimage.RawImage`.
 
     Args:
         spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
+        det (:obj:`int`, :obj:`tuple`):
+            The 1-indexed detector number(s) to process.  If a tuple, it must
+            include detectors viable as a mosaic for the provided spectrograph;
+            see :func:`~pypeit.spectrographs.spectrograph.Spectrograph.allowed_mosaics`.
         frame_par (:class:`~pypeit.par.pypeitpar.FramePar`):
             Parameters that dictate the processing of the images.  See
             :class:`~pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
         file_list (:obj:`list`):
             List of files
-        bias (`numpy.ndarray`_, optional):
-            Bias image.
+        bias (:class:`~pypeit.images.buildimage.BiasImage`, optional):
+            Bias image for bias subtraction; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
         bpm (`numpy.ndarray`_, optional):
-            Bad pixel mask.
-        dark (`numpy.ndarray`_, optional):
-            Dark-current image
+            Bad pixel mask; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
+        dark (:class:`~pypeit.images.buildimage.DarkImage`, optional):
+            Dark-current image; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
         flatimages (:class:`~pypeit.flatfield.FlatImages`, optional):
-            Flat-field image.
+            Flat-field images for flat fielding; passed directly to
+            :func:`~pypeit.images.rawimage.RawImage.process` for all images.
         maxiters (:obj:`int`, optional):
-            Maximum number of sigma-rejection iterations.  Passed to
-            :func:`~pypeit.core.combine.weighted_combine`.
+            When ``combine_method='mean'``) and sigma-clipping
+            (``sigma_clip`` is True), this sets the maximum number of
+            rejection iterations.  If None, rejection iterations continue
+            until no more data are rejected; see
+            :func:`~pypeit.core.combine.weighted_combine``.
         ignore_saturation (:obj:`bool`, optional):
-            Do not flag saturated pixels during image combination.  See
-            :func:`pypeit.images.combineimage.CombineImage.run`.  This should be
-            True for calibration images and False otherwise
+            If True, turn off the saturation flag in the individual images
+            before stacking.  This avoids having such values set to 0, which
+            for certain images (e.g. flat calibrations) can have unintended
+            consequences.
         slits (:class:`~pypeit.slittrace.SlitTraceSet`, optional):
             Edge traces for all slits.  These are used to calculate spatial
             flexure between the image and the slits, and for constructing the
@@ -173,41 +202,23 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list, bias=None, bpm=
         # requires frametype to be valid
         msgs.error(f'{frame_par["frametype"]} is not a valid PypeIt frame type.')
 
+    # Should the detectors be reformatted into a single image mosaic?
+    if mosaic is None:
+        mosaic = isinstance(det, tuple) and frame_par['frametype'] not in ['bias', 'dark']
+
     # Do it
-    combineImage = combineimage.CombineImage(spectrograph, det, 
-                                             frame_par['process'], file_list)
+    combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
     pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark, flatimages=flatimages,
                                    sigma_clip=frame_par['process']['clip'],
-                                   sigrej=frame_par['process']['comb_sigrej'], maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation, slits=slits,
-                                   combine_method=frame_par['process']['combine'])
-
+                                   sigrej=frame_par['process']['comb_sigrej'],
+                                   maxiters=maxiters, ignore_saturation=ignore_saturation,
+                                   slits=slits, combine_method=frame_par['process']['combine'],
+                                   mosaic=mosaic)
     # Decorate according to the type of calibration, primarily as needed for
     # handling MasterFrames.  WARNING: Any internals (i.e., the ones defined by
     # the _init_internals method) in pypeitImage are lost here.
-    if frame_par['frametype'] in frame_image_classes.keys():
-        finalImage = frame_image_classes[frame_par['frametype']].from_pypeitimage(pypeitImage)
-    else:
-        finalImage = pypeitImage
-
-    # TODO: Attempt to move all this copying into the from_pypeitimage function,
-    # except for the list of files?
-    # Internals
-    finalImage.process_steps = pypeitImage.process_steps
-    finalImage.files = file_list
-    finalImage.rawheadlist = pypeitImage.rawheadlist
-    finalImage.head0 = pypeitImage.head0
-
-    # Return
-    return finalImage
+    return frame_image_classes[frame_par['frametype']].from_pypeitimage(pypeitImage) \
+            if frame_par['frametype'] in frame_image_classes.keys() else pypeitImage
 
 
-# Convert frame type into an Image
-frame_image_classes = dict(
-    bias=BiasImage,
-    dark=DarkImage,
-    arc=ArcImage,
-    tilt=TiltImage,
-    tilts=TiltImage,
-    trace=TraceImage,
-    align=AlignImage)
+

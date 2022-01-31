@@ -35,7 +35,7 @@ from pypeit.images import detector_container
 
 from pypeit.utils import index_of_x_eq_y
 
-from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
@@ -778,7 +778,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return np.array(tel_off)
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
@@ -792,58 +792,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             data read from the file. The returned object is the same as
             :attr:`slitmask`.
         """
-        # Open the file
-        hdu = io.fits_open(filename)
-
-        # Build the object data
-        #   - Find the index of the object IDs in the slit-object
-        #     mapping that match the object catalog
-        mapid = hdu['SlitObjMap'].data['ObjectID']
-        catid = hdu['ObjectCat'].data['ObjectID']
-        indx = index_of_x_eq_y(mapid, catid)
-        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
-        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
-                            catid.astype(int),
-                            hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ'],
-                            objname,
-                            hdu['ObjectCat'].data['mag'],
-                            hdu['ObjectCat'].data['pBand'],
-                            hdu['SlitObjMap'].data['TopDist'][indx],
-                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
-        #   - Only keep the objects that are in the slit-object mapping
-        objects = objects[mapid[indx] == catid]
-
-        # Match the slit IDs in DesiSlits to those in BluSlits
-        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
-                               strict=True)
-
-        # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
-        if posx_pa < 0.:
-            posx_pa += 360.
-
-        # Instantiate the slit mask object and return it
-        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
-                                           hdu['BluSlits'].data['slitY1'],
-                                           hdu['BluSlits'].data['slitX2'],
-                                           hdu['BluSlits'].data['slitY2'],
-                                           hdu['BluSlits'].data['slitX3'],
-                                           hdu['BluSlits'].data['slitY3'],
-                                           hdu['BluSlits'].data['slitX4'],
-                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
-                                 slitid=hdu['BluSlits'].data['dSlitId'],
-                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
-                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                 hdu['DesiSlits'].data['slitDec'][indx],
-                                                 hdu['DesiSlits'].data['slitLen'][indx],
-                                                 hdu['DesiSlits'].data['slitWid'][indx],
-                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects,
-                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
-                                 posx_pa=posx_pa)
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
     # TODO: Allow this to accept the relevant row from the PypeItMetaData
@@ -1286,36 +1235,55 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def list_detectors(self):
         """
-        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        They are separated if they are split into blue and red detectors
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
 
         Returns:
-            :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
-            indicates that the spectrograph is divided into blue and red detectors. The array has
-            shape :math:`(2, N_{dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{dets})`
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
         """
-        dets = np.vstack((np.arange(self.ndet)[:self.ndet//2]+1, np.arange(self.ndet)[self.ndet//2:]+1))
-        return dets, True
+        return np.array([detector_container.DetectorContainer.get_name(i+1) 
+                            for i in range(self.ndet)]).reshape(2,-1)
 
     def spec1d_match_spectra(self, sobjs):
-        """Match up slits in a SpecObjs file
-        based on coords.  Specific to DEIMOS
+        """
+        Match up slits in a SpecObjs file based on coords.  Specific to DEIMOS.
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`): 
                 Spec1D objects
 
         Returns:
-            tuple: array of indices for the blue detector, 
-                array of indices for the red (matched to the blue)
+            :obj:`tuple`: array of indices for the blue detector, array of
+            indices for the red (matched to the blue).
         """
 
         # ***FOR THE MOMENT, REMOVE SERENDIPS
         good_obj = sobjs.MASKDEF_OBJNAME != 'SERENDIP'
-        
+
         # MATCH RED TO BLUE VIA RA/DEC
-        mb = sobjs['DET'] <=4
-        mr = sobjs['DET'] >4
+#        mb = sobjs['DET'] <=4
+#        mr = sobjs['DET'] >4
+        det = np.array([detector_container.DetectorContainer.parse_name(d) for d in sobjs.DET])
+        mb = det <= 4
+        mr = det > 4
 
         ridx = np.where(mr & good_obj)[0]
         robjs = sobjs[ridx]
@@ -1348,6 +1316,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
                 #n=n+1
             elif np.sum(mtc)>1:
+                embed()
+                exit()
                 msgs.error("Multiple RA matches?!  No good..")
 
             # TODO - confirm with Marla this block is NG
@@ -1697,11 +1667,11 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None):
     sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
                                   idl_spec['COUNTS'].data[0:npix], 
                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                   DET=3)
+                                   DET='DET03')
     sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
                                   idl_spec['COUNTS'].data[npix:], 
                                    1./(idl_spec['COUNTS'].data[npix:]), 
-                                   DET=7)
+                                   DET='DET07')
 
     # SpecObjs
     sobjs = specobjs.SpecObjs()

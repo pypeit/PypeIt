@@ -38,15 +38,14 @@ def test_maskdef_id():
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det, par['calibrations']['traceframe'],
                                                     flat_files(instr=name))
-        msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
         trace_par = par['calibrations']['slitedges']
 
         # Run edge trace
-        edges = EdgeTraceSet(traceImage, instrument, trace_par, bpm=msbpm, auto=True,
-                                               debug=False, show_stages=False,qa_path=None)
+        edges = EdgeTraceSet(traceImage, instrument, trace_par, auto=True, debug=False,
+                             show_stages=False,qa_path=None)
 
         slits = edges.get_slits()
         # Check that the `maskdef_id` assigned to the first and last slits is correct
@@ -75,9 +74,9 @@ def test_add_missing_slits():
         det = 1
 
         # Built trace image
-        traceImage = buildimage.buildimage_fromlist(instrument, det, par['calibrations']['traceframe'],
+        traceImage = buildimage.buildimage_fromlist(instrument, det,
+                                                    par['calibrations']['traceframe'],
                                                     flat_files(instr=name))
-        msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
@@ -86,10 +85,10 @@ def test_add_missing_slits():
         # Running the EdgeTraceSet steps (one-by-one)
 
         # Initialize EdgeTraceSet
-        edges = EdgeTraceSet(traceImage, instrument, trace_par, bpm=msbpm, auto=False, debug=False,
+        edges = EdgeTraceSet(traceImage, instrument, trace_par, auto=False, debug=False,
                              show_stages=False, qa_path=None)
         # Perform the initial edge detection and trace identification
-        edges.initial_trace(bpm=msbpm)
+        edges.initial_trace()
         # Initial trace can result in no edges found
         if not edges.is_empty:
             # Refine the locations of the trace using centroids of the
@@ -119,11 +118,15 @@ def test_add_missing_slits():
         # Check the values of the traces that will be removed
         if name == 'keck_deimos':
             # Two traces NOT from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 458, 'wrong DEIMOS left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, 'wrong DEIMOS right trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 458, \
+                        'wrong DEIMOS left trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, \
+                        'wrong DEIMOS right trace position'
             # Two traces from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 496, 'wrong DEIMOS left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, 'wrong DEIMOS right trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 496, \
+                        'wrong DEIMOS left trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, \
+                        'wrong DEIMOS right trace position'
 
             # Remove two left traces and two right traces
             # NOT form the same slit
@@ -135,11 +138,15 @@ def test_add_missing_slits():
             indx[11] = True
         elif name == 'keck_mosfire':
             # Two traces NOT from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][0]) == 349, 'wrong MOSFIRE left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, 'wrong MOSFIRE right trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][0]) == 349, \
+                        'wrong MOSFIRE left trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, \
+                        'wrong MOSFIRE right trace position'
             # Two traces from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][9]) == 973, 'wrong MOSFIRE left trace position'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 1100, 'wrong MOSFIRE right trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][9]) == 973, \
+                        'wrong MOSFIRE left trace position'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 1100, \
+                        'wrong MOSFIRE right trace position'
 
             # Remove two left traces and two right traces
             # NOT form the same slit
@@ -160,52 +167,62 @@ def test_add_missing_slits():
         # Check the values of the traces that have been recovered
         if name == 'keck_deimos':
             # Two traces NOT from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 459, 'DEIMOS left trace position not recovered'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, 'DEIMOS right trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][8]) == 459, \
+                        'DEIMOS left trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-12]) == 1690, \
+                        'DEIMOS right trace position not recovered'
             # Two traces from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 497, 'DEIMOS left trace position not recovered'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, 'DEIMOS right trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 497, \
+                        'DEIMOS left trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 561, \
+                        'DEIMOS right trace position not recovered'
             # These values are obtained by running PypeIt with the "adding missing traces" functionality.
             # These are within a few pixels (max 4 pixels) from their original values. The correctness of these values
             # was also tested by visual inspection of the EdgeTraceSet image.
         elif name == 'keck_mosfire':
             # Two traces NOT from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][1]) == 348, 'MOSFIRE left trace position not recovered'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, 'MOSFIRE right trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][1]) == 348, \
+                        'MOSFIRE left trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][-1]) == 2032, \
+                        'MOSFIRE right trace position not recovered'
             # Two traces from the same slit
-            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 973, 'MOSFIRE left trace position not recovered'
-            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 1101, 'MOSFIRE right trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][10]) == 973, \
+                        'MOSFIRE left trace position not recovered'
+            assert round(edges.edge_fit[edges.pca.reference_row, :][11]) == 1101, \
+                        'MOSFIRE right trace position not recovered'
 
 
 @dev_suite_required
 def test_overlapped_slits():
     # Load flats frames that have overlapping alignment slits.
-    deimos_flats = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '1200G_alignslit', ifile)
-                    for ifile in ['DE.20110529.11732.fits', 'DE.20110529.11813.fits', 'DE.20110529.11895.fits']]
+    deimos_flats = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos',
+                                 '1200G_alignslit', ifile)
+                        for ifile in ['DE.20110529.11732.fits', 'DE.20110529.11813.fits',
+                                      'DE.20110529.11895.fits']]
 
     # Load instrument
     keck_deimos = load_spectrograph('keck_deimos')
     par = keck_deimos.default_pypeit_par()
 
-    # working only on detector 1
+    # working only on detector 2
     det = 2
 
     # Built trace image
-    traceImage = buildimage.buildimage_fromlist(keck_deimos, det, par['calibrations']['traceframe'],
-                                                deimos_flats)
-    msbpm = keck_deimos.bpm(traceImage.files[0], det)
+    traceImage = buildimage.buildimage_fromlist(keck_deimos, det,
+                                                par['calibrations']['traceframe'], deimos_flats)
 
     # load specific config parameters
     par = keck_deimos.config_specific_par(traceImage.files[0])
     trace_par = par['calibrations']['slitedges']
 
     # Run edge trace
-    edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, debug=False,
+    edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, auto=True, debug=False,
                          show_stages=False, qa_path=None)
 
     slits = edges.get_slits()
     # Check that the total number of expected slits and the number of alignment slits are correct.
-    assert len(slits.maskdef_designtab['MASKDEF_ID'].data) == 22, 'wrong number of slits for this detector'
+    assert len(slits.maskdef_designtab['MASKDEF_ID'].data) == 22, \
+                'wrong number of slits for this detector'
     assert np.sum(slits.maskdef_designtab['ALIGN'].data) == 3, 'wrong number of alignment slits'
     # These number have been verified by visual inspection.
 
