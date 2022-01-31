@@ -59,7 +59,7 @@
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Update for `LDT/DeVeny` including support for binned data, `use_header`
   for reading arc lamps used from frames, and `reid_arxiv` templates for
-  three additional gratings.
+  three additional gratings.  
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
 
 
