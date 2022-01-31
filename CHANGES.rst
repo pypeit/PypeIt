@@ -56,6 +56,9 @@
 - `PypeIt` file parameters can now parse sets of tuples; e.g.,
   `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
   (3,4)]`.
+- Update for `LDT/DeVeny` including support for binned data, `use_header`
+  for reading arc lamps used from frames, and `reid_arxiv` templates for
+  three additional gratings.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Include sky model in 2nd pass of global sky subtraction (not for IR redux).
 - Skymask is now computed also for the maskdef_extract objects.
@@ -64,6 +67,7 @@
   objects considered a serendipitous detection.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+
 
 1.7.0 (19 Nov 2021)
 -------------------
