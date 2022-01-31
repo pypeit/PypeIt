@@ -188,10 +188,6 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         set_use = dict(use_illumflat=False)
         par.reset_all_processimages_par(**set_use)
 
-        # Use median combine (rather than weighted mean) for pixelflatframe since
-        #  the instrinsic shape of the flat will make sigma clipping ineffectual
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
 
@@ -201,8 +197,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'HgI']
         # The default WaveCalib method is `holy-grail`, but there is an option...
         #par['calibrations']['wavelengths']['method'] = 'full_template'
-        # These are changes from defaults from another spectrograph...
-        # TODO: Not sure if we will need to adjust these at some point
+        # These are changes from defaults from another spectrograph, but seem
+        #   to work well for LDT/DeVeny.
         par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
         par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
         # The DeVeny arc lines are bright, but FWHM varies based on slitwidth used
