@@ -714,7 +714,7 @@ class Identify(object):
                 print("\n\nPlease visit the following site if you want to include your solution in PypeIt:")
                 print("https://pypeit.readthedocs.io/en/latest/construct_template.html#creating-the-template\n")
                 print("You will need the following information:")
-                print("  (1) spectral binning = {0:d}".format(binspec))
+                print("  (1) spectral binning = {}".format(binspec))
                 print("  (2) slit spat_id = {0:s}".format(self._spatid))
                 print("  (3) the {0:s} file".format(outfname))
                 print("\nPlease consider sending your solution to the PypeIt team!\n")

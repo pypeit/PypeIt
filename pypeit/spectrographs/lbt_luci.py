@@ -317,16 +317,17 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 
             elif 'lbt_luci1' in meta_table['PYP_SPEC'] and coverage == 'HKspec':
 
-                wave_blue = 15100  # blue wavelength below which there is a
-                # strong
-                # drop off in flux
-                wave_red = 23200 # red wavelength above which there is a strong
+                wave_blue = 15200  # blue wavelength below which there is a
+                # strong drop off in flux
+                wave_red = 23100 # red wavelength above which there is a strong
                 # drop off in flux combined with telluric absorption
 
-            if coverage is not None:
-                msgs.warn('Tweaking standard spectrum coverage.')
-                msgs.warn('Standard spectrum reduced wavelenghts: {} to {'
-                             '}'.format(wave_blue, wave_red))
+
+            msgs.warn('Tweaking standard spectrum coverage.')
+            msgs.warn('Standard spectrum reduced wavelenghts: {} to {'
+                         '}'.format(wave_blue, wave_red))
+            msgs.warn('For the telluric correction (pypeit_tellfilt), '
+                      'make sure to mask the excluded regions.')
 
 
 
