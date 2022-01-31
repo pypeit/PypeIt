@@ -14,6 +14,7 @@ from astropy.stats import sigma_clip
 
 from pypeit.bitmask import BitMask
 from pypeit.utils import index_of_x_eq_y
+from pypeit import io
 
 from IPython import embed
 
@@ -130,6 +131,8 @@ class SlitMask:
             The slit width.
         pa (`numpy.ndarray`_):
             The cartesian rotation angle of the slit in degrees.
+        mask_radec (:obj:`tuple`, optional):
+            RA, Dec (deg) of the pointing of the mask (approximate center)
         posx_pa (:obj:`float`):
             Sky PA that points to positive x (spatial) on the detector
         negx_pa (:obj:`float`):
@@ -145,14 +148,15 @@ class SlitMask:
     """
     bitmask = SlitMaskBitMask()
     def __init__(self, corners, slitid=None, align=None, science=None, onsky=None, objects=None,
-                 posx_pa=None, object_names=None):
+                 posx_pa=None, object_names=None, mask_radec=None):
 
         # PA
         if posx_pa is not None:
-            self.posx_pa, self.negx_pa = fuss_with_maskpa(posx_pa)
+            self.posx_pa, self.negx_pa = positive_maskpa(posx_pa)
         else:
             self.posx_pa, self.negx_pa = None, None
 
+        self.mask_radec = mask_radec
         self.object_names=object_names
 
         # TODO: Allow random input order and then fix
@@ -906,7 +910,15 @@ def build_slit_function(edges, size=None, oversample=1, sigma=None):
     return offset, slit_func_x, slit_func_y
 
 
-def fuss_with_maskpa(pa):
+def positive_maskpa(pa:float):
+    """ Modify input pa to be positive (0-360)
+
+    Args:
+        pa (float): [description]
+
+    Returns:
+        [type]: [description]
+    """
     # Require it be positive
     if pa < 0.:
         pa += 360.
@@ -914,3 +926,76 @@ def fuss_with_maskpa(pa):
     comp_pa = pa - 180. if pa > 180. else pa + 180.
     # Return
     return pa, comp_pa
+
+def load_keck_deimoslris(filename:str, instr:str):
+    """ Load up the mask design info from the header
+    of the file provided
+
+    Args:
+        filename (str): 
+        instr (str): Name of spectrograph
+            Allowed are keck_lris_xxx, keck_deimos
+
+    Returns:
+        [type]: [description]
+    """
+    # Open the file
+    hdu = io.fits_open(filename)
+
+    # Build the object data
+    #   - Find the index of the object IDs in the slit-object
+    #     mapping that match the object catalog
+    mapid = hdu['SlitObjMap'].data['ObjectID']
+    catid = hdu['ObjectCat'].data['ObjectID']
+    indx = index_of_x_eq_y(mapid, catid)
+    objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
+    #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
+    objects = numpy.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
+                        catid.astype(int),
+                        hdu['ObjectCat'].data['RA_OBJ'],
+                        hdu['ObjectCat'].data['DEC_OBJ'],
+                        objname,
+                        hdu['ObjectCat'].data['mag'],
+                        hdu['ObjectCat'].data['pBand'],
+                        hdu['SlitObjMap'].data['TopDist'][indx],
+                        hdu['SlitObjMap'].data['BotDist'][indx]]).T
+    #   - Only keep the objects that are in the slit-object mapping
+    objects = objects[mapid[indx] == catid]
+
+    # Match the slit IDs in DesiSlits to those in BluSlits
+    indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], 
+                            hdu['BluSlits'].data['dSlitId'],
+                            strict=True)
+
+    # PA corresponding to positive x on detector (spatial)
+    posx_pa = hdu['MaskDesign'].data['PA_PNT'][-1]
+    # Insure it is positive
+    posx_pa, _ = positive_maskpa(posx_pa)
+
+    # Instantiate the slit mask object and return it
+    try:
+        hdu['BluSlits'].data['slitX0']
+        indices = numpy.arange(4)
+    except KeyError:
+        indices = numpy.arange(4)+1
+    #indices = numpy.arange(4) if instr == 'keck_deimos' else numpy.arange(4)+1 
+    slit_list = []
+    for index in indices:
+        for cdim in ['X', 'Y']:
+            slit_list.append(hdu['BluSlits'].data[f'slit{cdim}{index}'])
+    slitmask = SlitMask(numpy.array(slit_list).T.reshape(-1,4,2),
+                                slitid=hdu['BluSlits'].data['dSlitId'],
+                                align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                                science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                                onsky=numpy.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                hdu['DesiSlits'].data['slitDec'][indx],
+                                                hdu['DesiSlits'].data['slitLen'][indx],
+                                                hdu['DesiSlits'].data['slitWid'][indx],
+                                                hdu['DesiSlits'].data['slitLPA'][indx]]).T,
+                                objects=objects,
+                                #object_names=hdu['ObjectCat'].data['OBJECT'],
+                                mask_radec=(hdu['MaskDesign'].data['RA_PNT'][0], 
+                                            hdu['MaskDesign'].data['DEC_PNT'][0]),
+                                posx_pa=posx_pa)
+    # Return
+    return slitmask 
