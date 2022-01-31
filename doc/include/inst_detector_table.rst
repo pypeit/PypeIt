@@ -45,7 +45,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``lbt_mods1r``                1    0         False     False     4         2.38, 2.5, 2.46, 2.81       3.78, 4.04, 4.74, 4.14  0.4       -1.0e+10  65535.0       0.9900     0.1230    
 ``lbt_mods2b``                1    0         True      False     4         1.99, 2.06, 1.96, 2.01      3.66, 3.62, 3.72, 3.64  0.5       -1.0e+10  65535.0       0.9900     0.1200    
 ``lbt_mods2r``                1    0         False     False     4         1.7, 1.67, 1.66, 1.66       2.95, 2.65, 2.78, 2.87  0.4       -1.0e+10  65535.0       0.9900     0.1230    
-``ldt_deveny``                1    1         True      False     1         ``None``                    ``None``                4.5       -1.0e+10  65535.0       1.0000     0.3400    
+``ldt_deveny``                1    1         True      False     1         1.52                        4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
 ``magellan_fire``             1    1         True      False     1         1.2                         5.0                     0.01      -1.0e+10  100000.0      1.0000     0.1800    
 ``magellan_fire_long``        1    0         False     False     1         3.8                         6.0                     0.01      -1.0e+10  320000.0      0.8750     0.1500    
 ``magellan_mage``             1    1         True      False     1         1.02                        2.9                     1.0       -1.0e+10  65535.0       0.9900     0.3000    

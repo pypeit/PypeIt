@@ -416,7 +416,7 @@ Key                   Type                       Options                        
 ``func``              str                        ..                                                                                                      ``legendre``      Function used for wavelength solution fits                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 ``fwhm``              int, float                 ..                                                                                                      4.0               Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``fwhm_fromlines``    bool                       ..                                                                                                      False             Estimate spectral resolution in each slit using the arc lines. If True, the estimated FWHM will override ``fwhm`` only in the determination of the wavelength solution (i.e. not in WaveTilts).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use ``None`` for no calibration. Choose ``use_header`` to use the list of lamps recorded in the header of the arc frames (this is currently available only for Keck DEIMOS).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``lamps``             list                       ..                                                                                                      ..                Name of one or more ions used for the wavelength calibration.  Use ``None`` for no calibration. Choose ``use_header`` to use the list of lamps recorded in the header of the arc frames (this is currently available only for Keck DEIMOS and LDT DeVeny).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``match_toler``       float                      ..                                                                                                      2.0               Matching tolerance in pixels when searching for new lines. This is the difference in pixels between the wavlength assigned to an arc line by an iteration of the wavelength solution to the wavelength in the line list.  This parameter is also used as the matching tolerance in pixels for a line reidentification.  A good line match must match within this tolerance to the shifted and stretched archive spectrum, and the archive wavelength solution at this match must be within match_toler dispersion elements from the line in line list.                                                                                                                                                                                                                             
 ``method``            str                        ``simple``, ``semi-brute``, ``basic``, ``holy-grail``, ``identify``, ``reidentify``, ``full_template``  ``holy-grail``    Method to use to fit the individual arc lines.  Note that most of the available methods should not be used; they are unstable and require significant parameter tweaking to succeed.  You should useeither 'holy-grail' or 'reidentify': 'holy-grail' attempts to get a first guess at line IDs by looking for patterns in the line locations.  It is fully automated.  When it works, it works well; however, it can fail catastrophically.  Instead, 'reidentify' is the preferred method.  It requires an archived wavelength solution for your specific instrument/grating combination as a reference.  This is used to anchor the wavelength solution for the data being reduced.  All options are: simple, semi-brute, basic, holy-grail, identify, reidentify, full_template
 ``n_final``           int, float, list, ndarray  ..                                                                                                      4                 Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -3302,7 +3302,7 @@ Alterations to the default parameters are::
   [flexure]
       spec_method = boxcar
 
-LDT deveny (``ldt_deveny``)
+LDT DeVeny (``ldt_deveny``)
 ---------------------------
 Alterations to the default parameters are::
 
@@ -3364,8 +3364,7 @@ Alterations to the default parameters are::
               noise_floor = 0.01
               use_illumflat = False
       [[wavelengths]]
-          ech_fix_format = False
-          lamps = NeI, ArI, CdI, HgI
+          lamps = use_header
           sigdetect = 10.0
           fwhm_fromlines = True
           rms_threshold = 0.5
@@ -3381,11 +3380,15 @@ Alterations to the default parameters are::
   [scienceframe]
       [[process]]
           mask_cr = True
+          sigclip = 5.0
+          objlim = 2.0
           noise_floor = 0.01
           use_illumflat = False
   [reduce]
       [[findobj]]
           sig_thresh = 5.0
+  [flexure]
+      spec_method = boxcar
   [sensfunc]
       polyorder = 7
 
