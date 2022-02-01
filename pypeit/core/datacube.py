@@ -822,8 +822,20 @@ def coadd_cube(files, parset, overwrite=False):
         slits = spec2DObj.slits
 
         wave0 = waveimg[waveimg != 0.0].min()
-        diff = waveimg[1:, :] - waveimg[:-1, :]
-        dwv = float(np.median(diff[diff != 0.0])) if cubepar['wave_delta'] is None else cubepar['wave_delta']
+        # Calculate the delta wave in every pixel on the slit
+        waveimp = np.roll(waveimg, 1, axis=0)
+        waveimn = np.roll(waveimg, -1, axis=0)
+        dwaveimg = np.zeros_like(waveimg)
+        # All good pixels
+        wnz = np.where((waveimg!=0)&(waveimp!=0))
+        dwaveimg[wnz] = np.abs(waveimg[wnz]-waveimp[wnz])
+        # All bad pixels
+        wnz = np.where((waveimg!=0)&(waveimp==0))
+        dwaveimg[wnz] = np.abs(waveimg[wnz]-waveimn[wnz])
+        # All endpoint pixels
+        dwaveimg[0, :] = np.abs(waveimg[0, :] - waveimn[0, :])
+        dwaveimg[-1, :] = np.abs(waveimg[-1, :] - waveimp[-1, :])
+        dwv = np.median(dwaveimg[dwaveimg != 0.0]) if cubepar['wave_delta'] is None else cubepar['wave_delta']
 
         msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
@@ -892,6 +904,7 @@ def coadd_cube(files, parset, overwrite=False):
         wave_ext = waveimg[onslit_gpm].copy()
         flux_ext = sciimg[onslit_gpm].copy()
         ivar_ext = ivar[onslit_gpm].copy()
+        dwav_ext = dwaveimg[onslit_gpm].copy()
 
         # Correct for sensitivity as a function of grating angle
         # (this assumes the spectrum of the flatfield lamp has the same shape for all setups)
@@ -956,7 +969,7 @@ def coadd_cube(files, parset, overwrite=False):
         ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
 
         # Convert units to Counts/s/Ang/arcsec2
-        scl_units = dwv * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
+        scl_units = dwav_ext[wvsrt] * 3600.0 * 3600.0 * (frame_wcs.wcs.cdelt[0] * frame_wcs.wcs.cdelt[1])
         flux_sav /= scl_units
         ivar_sav *= scl_units ** 2
 
