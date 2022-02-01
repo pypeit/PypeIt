@@ -21,7 +21,12 @@ from pypeit.display import display
 from pypeit.core import pixels
 
 
-def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
+def create_skymask_fwhm(sobjs, thismask, slit_left, slit_righ, 
+                        box_rad_pix=None,
+                        extract_maskwidth=4.0, 
+                        trim_edg=(5,5),
+                        skymask_nthresh=1.0, 
+                        boxcar_rad_skymask=None):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
     and or the boxcar radius
@@ -31,8 +36,32 @@ def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
             Objects for which you would like to create the mask
         thismask (`numpy.ndarray`_): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
+        slit_left (np.ndarray):
+            Left boundary of slit/order to be extracted (given as
+            floating pt pixels). This a 1-d array with shape (nspec, 1)
+            or (nspec)
+        slit_righ (np.ndarray):
+            Right boundary of slit/order to be extracted (given as
+            floating pt pixels). This a 1-d array with shape (nspec, 1)
+            or (nspec)
+        extract_maskwidth (float,optional): default = 4.0
+            This parameter determines the initial size of the region in
+            units of fwhm that will be used for local sky subtraction in
+            the routine skysub.local_skysub_extract.
         box_rad_pix (float, optional):
             If set, the skymask will be at least as wide as this radius in pixels.
+        skymask_nthresh (float, optional): default = 2.0
+            The multiple of the final object finding threshold (see
+            above) which is used to create the skymask using the value
+            of the peak flux in the slit profile (image with the
+            spectral direction smashed out).
+        boxcar_rad_skymask (float, optional): Boxcar radius; only for sky masking. Needs to be in pixels
+            If set, the skymask will be at least as wide as this radius.
+            Passed to create_skymask_fwhm()
+        trim_edg (tuple, optional): of integers or float, default = (5,5)
+            Ignore objects within this many pixels of the left and right
+            slit boundaries, where the first element refers to the left
+            and second refers to the right.
 
     Returns:
         `numpy.ndarray`_: skymask, bool, shape (nspec, nspat) Boolean image with
@@ -41,10 +70,35 @@ def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
             False = should be masked when sky subtracting.
     """
     nobj = len(sobjs)
-    skymask = np.copy(thismask)
-    if nobj == 0:
-        return skymask
-    else:
+    ximg, _ = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, 
+                                             trim_edg=trim_edg)
+    #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
+    xsize = slit_righ - slit_left
+    #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
+    nsamp = np.ceil(xsize.max())
+
+    # Assign the maskwidth and compute some inputs for the object mask
+    xtmp = (np.arange(nsamp) + 0.5)/nsamp
+    qobj = np.zeros_like(xtmp)
+    for iobj in range(nobj):
+        # TODO -- This parameter may not be used anywhere
+        if skythresh > 0.0:
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
+        else:
+            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM
+        sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
+        sep_inc = sobjs[iobj].maskwidth/nsamp
+        close = sep <= sep_inc
+        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
+
+    # Create an objmask. This is created here in case we decide to use it later, but it is not currently used
+    skymask_objflux = np.copy(thismask)
+    skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (
+        skymask_nthresh*threshold)
+
+    # FWHM
+    skymask_fwhm = np.copy(thismask)
+    if nobj > 0:
         nspec, nspat = thismask.shape
         # spatial position everywhere along image
         spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
@@ -65,16 +119,22 @@ def create_skymask_fwhm(sobjs, thismask, box_rad_pix=None):
             # Create a mask for the pixels that will contribute to the object
             slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
             objmask_now = thismask & (spat_img > (slit_img - skymask_radius)) & (spat_img < (slit_img + skymask_radius))
-            skymask = skymask & np.invert(objmask_now)
+            skymask_fwhm = skymask_fwhm & np.invert(objmask_now)
 
         # Check that we have not performed too much masking
-        if (np.sum(skymask)/np.sum(thismask) < 0.10):
+        if (np.sum(skymask_fwhm)/np.sum(thismask) < 0.10):
             msgs.warn('More than 90% of  usable area on this slit would be masked and not used by global sky subtraction. '
                       'Something is probably wrong with object finding for this slit. Not masking object for global sky subtraction.')
-            return np.copy(thismask)
-        else:
-            return skymask
+            skymask_fwhm = np.copy(thismask)
 
+    # Still have to make the skymask
+    if boxcar_rad_skymask is None:
+        skymask = skymask_objflux | skymask_fwhm
+    else:  # Enforces boxcar radius masking
+        skymask = skymask_objflux & skymask_fwhm
+
+    # Return
+    return skymask
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
                 inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
@@ -667,11 +727,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
 
 
-def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
+def objs_in_slit(image, thismask, slit_left, slit_righ, 
+                 inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
-            extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            boxcar_rad_skymask=None, cont_sig_thresh=2.0,
-            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
+            sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, 
+            trim_edg=(5,5), cont_sig_thresh=2.0,
+            specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
             qa_title='objfind', objfindQA_filename=None):
 
@@ -692,12 +753,12 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             Boolean mask image specifying the pixels which lie on the
             slit/order to search for objects on.  The convention is:
             True = on the slit/order, False = off the slit/order
-        slit_left:  float ndarray
+        slit_left (np.ndarray):
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
-        slit_righ:  float ndarray
-            Left boundary of slit/order to be extracted (given as
+        slit_righ (np.ndarray):
+            Right boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
         det:  int, default = None
@@ -736,10 +797,6 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         nperslit: int, default = 10
             Maximum number of objects allowed per slit. The code will
             take the nperslit most significant detections.
-        extract_maskwidth: float, default = 3.0
-            This parameter determines the initial size of the region in
-            units of fwhm that will be used for local sky subtraction in
-            the routine skysub.local_skysub_extract.
         sig_thresh: float, default = 5.0
             Significance threshold for object detection. The code uses
             the maximum of the thresholds defined by sig_thresh,
@@ -768,23 +825,15 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             to core.arc.iter_continum. For extremely narrow slits that are almost filled by the object trace set
             this to a smaller number like 1.0 or disable continuum fitting altogether with cont_fit=False below.
             Default = 2.0
-        trim_edg: tuple of integers or float, default = (3,3)
+        trim_edg: tuple of integers or float, default = (5,5)
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
             and second refers to the right.
-        skymask_nthresh: float, default = 2.0
-            The multiple of the final object finding threshold (see
-            above) which is used to create the skymask using the value
-            of the peak flux in the slit profile (image with the
-            spectral direction smashed out).
         has_negative (bool, optional):
             Image has negative object traces, i.e. for IR difference imaging. This impacts how the
             iterative conntinuum is fit to the spectral directoin smashed image for object finding. Default=False
         cont_fit (bool): default=True:
             Fit a continuum to the illumination pattern across the slit when peak finding
-        boxcar_rad_skymask (float, optional): Boxcar radius; only for sky masking. Needs to be in pixels
-            If set, the skymask will be at least as wide as this radius.
-            Passed to create_skymask_fwhm()
         npoly_cont (int): default=1
             Order of polynomial fit to the illumination pattern across the slit when peak finding
         specobj_dict: dict, default = None
@@ -800,10 +849,9 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             Directory + filename of the object profile QA
 
     Returns:
-        tuple: Returns the following:
-            - sobjs: SpecoObjs object: Object containing the
+        SpecObjs: 
+            - sobjs: Object containing the
               information about the objects found on the slit/order
-            - np.ndarray: Skymask image
 
     Note:
         Revision History:
@@ -811,6 +859,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             - 2005-2018 -- Improved by J. F. Hennawi and J. X. Prochaska
             - 23-June-2018 -- Ported to python by J. F. Hennawi and
               significantly improved
+            - 01-Feb-2022 -- Skymask stripped out by JXP
 
     """
 
@@ -1134,8 +1183,8 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
-        skymask = create_skymask_fwhm(sobjs,thismask)
-        return specobjs.SpecObjs(), skymask[thismask]
+        #skymask = create_skymask_fwhm(sobjs,thismask)
+        return specobjs.SpecObjs()#, skymask[thismask]
     else:
         msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
@@ -1219,9 +1268,6 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             sobjs.add_sobj(thisobj)
 
     nobj = len(sobjs)
-    # If there are no regular aps and no hand aps, just return
-    #if nobj == 0:
-    #    return (None, skymask, objmask)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
     if nobj_reg > 0 and hand_extract_dict is not None:
@@ -1254,8 +1300,8 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     #
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')
-        skymask = create_skymask_fwhm(sobjs,thismask, box_rad_pix=boxcar_rad_skymask)
-        return specobjs.SpecObjs(), skymask[thismask]
+        #skymask = create_skymask_fwhm(sobjs,thismask, box_rad_pix=boxcar_rad_skymask)
+        return specobjs.SpecObjs()#, skymask[thismask]
 
     # Sort objects according to their spatial location
     nobj = len(sobjs)
@@ -1264,6 +1310,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     # Assign integer objids
     sobjs.OBJID = np.arange(nobj) + 1
 
+    '''
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
     qobj = np.zeros_like(xtmp)
@@ -1287,6 +1334,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         skymask = skymask_objflux | skymask_fwhm
     else:  # Enforces boxcar radius masking
         skymask = skymask_objflux & skymask_fwhm
+    '''
     # If requested display the resulting traces on top of the image
     if show_trace:
         viewer, ch = display.show_image(image*(thismask*inmask))
@@ -1300,11 +1348,15 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 
     msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
-    # Vette
+    # Finish 
     for sobj in sobjs:
+        # Add in more info
+        sobj.SKYTHRESH = skythresh
+        sobj.THRESHOLD = threshold
+        # Vet
         if not sobj.ready_for_extraction():
             msgs.error("Bad SpecObj.  Can't proceed")
 
     # Return
-    return sobjs, skymask[thismask]
+    return sobjs
 

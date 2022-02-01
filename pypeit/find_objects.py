@@ -204,6 +204,24 @@ class FindObjects:
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
+    def create_skymask(self, sobjs_obj):
+        skymask = np.ones_like(self.sciImg.image, dtype=bool)
+        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        for slit_idx in gdslits:
+            slit_spat = self.slits.spat_id[slit_idx]
+            qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
+            msgs.info(qa_title)
+            thismask = self.slitmask == slit_spat
+            skymask[thismask] = findobj_skymask.create_skymask(
+                sobjs_obj, thismask, 
+                self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
+                        box_rad_pix=None,
+                        extract_maskwidth=4.0, 
+                        trim_edg=(5,5),
+                        skymask_nthresh=1.0, 
+                        boxcar_rad_skymask=None)
+
+
     def initialise_slits(self, initial=False):
         """
         Initialise the slits
@@ -249,8 +267,8 @@ class FindObjects:
             Initial global sky model
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found
-        skymask : `numpy.ndarray`_
-            Boolean mask
+        skymask_tuple : tuple
+            Skymask bits and pieces
         """
 
         # Deal with dynamic calibrations
@@ -268,20 +286,25 @@ class FindObjects:
         #
 
         # First pass object finding
-        sobjs_obj, self.nobj, skymask_init = \
+        sobjs_obj, self.nobj, skymask_tuples = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file. IFU only
-        skymask_init, usersky = self.load_skyregions(skymask_init)
+        if self.par['reduce']['skysub']['load_mask'] or (
+            self.par['reduce']['skysub']['user_regions'] is not None):
+            embed(header='not ready for this!')
+            skymask_init, usersky = self.load_skyregions(skymask_init)
+        else:
+            self.create_skymask(sobjs_obj, skymask_tuples)
 
         # Global sky subtract (self.global_sky is also generated here)
         initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            sobjs_obj, self.nobj, skymask = \
+            sobjs_obj, self.nobj, skymask_tuple = \
                 self.find_objects(self.sciImg.image - initial_sky,
                                   std_trace=std_trace,
                                   show=self.reduce_show,
@@ -290,7 +313,7 @@ class FindObjects:
             msgs.info("Skipping 2nd run of finding objects")
             skymask = skymask_init
 
-        return initial_sky, sobjs_obj, skymask
+        return initial_sky, sobjs_obj, skymask_tuple
 
     def get_final_global_sky(self, initial_sky, skymask):
 
@@ -364,38 +387,32 @@ class FindObjects:
             Objects found
         nobj_single : :obj:`int`
             Number of objects found
-        skymask : `numpy.ndarray`_
-            Boolean sky mask
         """
         # Positive image
         if manual_extract_dict is None:
             manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
 
-        #parse_manual = self.parse_manual_dict(manual_extract_dict, neg=False)
-        sobjs_obj_single, nobj_single, skymask_pos = \
+        sobjs_obj_single, nobj_single = \
             self.find_objects_pypeline(image,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace, save_objfindQA=save_objfindQA,
-                                       manual_extract_dict=manual_extract_dict, neg=False, debug=debug)
+                                       manual_extract_dict=manual_extract_dict, 
+                                       neg=False, debug=debug)
 
-        # For nobj we take only the positive objects
+        # Find negative objects
         if self.find_negative:
             msgs.info("Finding objects in the negative image")
             # Parses
             manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
-            sobjs_obj_single_neg, nobj_single_neg, skymask_neg = \
+            sobjs_obj_single_neg, nobj_single_neg = \
                 self.find_objects_pypeline(-image, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
                                            show_trace=show_trace, save_objfindQA=save_objfindQA,
                                            manual_extract_dict=manual_extract_dict, neg=True,
                                            debug=debug)
-            # Mask
-            skymask = skymask_pos & skymask_neg
             # Add (if there are any)
             sobjs_obj_single.append_neg(sobjs_obj_single_neg)
-        else:
-            skymask = skymask_pos
 
         if show:
             gpm = self.sciImg.select_flag(invert=True)
@@ -403,7 +420,7 @@ class FindObjects:
                       sobjs=sobjs_obj_single, slits=True)
 
         # For nobj we take only the positive objects
-        return sobjs_obj_single, nobj_single, skymask
+        return sobjs_obj_single, nobj_single
 
     # TODO maybe we don't need parent and children for this method. But IFU has a bunch of extra methods.
     def find_objects_pypeline(self, image, std_trace=None,
@@ -417,7 +434,7 @@ class FindObjects:
          Returns:
 
          """
-        return None, None, None
+        return None, None
 
 
     def get_platescale(self, sobj):
@@ -756,14 +773,11 @@ class MultiSlitFindObjects(FindObjects):
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
-        skymask : `numpy.ndarray`_
-            Boolean image indicating which pixels are useful for global sky
-            subtraction
+        skymask_tuples : list
+            List of skymask tuples
         """
         gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
-        # create the ouptut image for skymask
-        skymask = np.zeros_like(image, dtype=bool)
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
@@ -807,7 +821,7 @@ class MultiSlitFindObjects(FindObjects):
                 objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=slit_spat,
                                                         det=detname, out_dir=out_dir)
 
-            sobjs_slit, skymask[thismask] = \
+            sobjs_slit = \
                     findobj_skymask.objs_in_slit(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
@@ -830,7 +844,7 @@ class MultiSlitFindObjects(FindObjects):
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 objfindQA_filename=objfindQA_filename,
                                 debug_all=debug)
-
+            # Record
             sobjs.add_sobj(sobjs_slit)
 
         # Steps
@@ -841,7 +855,7 @@ class MultiSlitFindObjects(FindObjects):
                       slits=True)
 
         # Return
-        return sobjs, len(sobjs), skymask
+        return sobjs, len(sobjs)
 
 
 

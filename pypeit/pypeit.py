@@ -29,6 +29,7 @@ from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
 from pypeit.core import parse
+from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -554,11 +555,11 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            initial_sky, sobjs_obj, skymask, sciImg, objFind = self.objfind_one(
+            initial_sky, sobjs_obj, skymask_tuple, sciImg, objFind = self.objfind_one(
                 frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
-            skymask_list.append(skymask)
+            skymask_list.append(skymask_tuple)
             initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
@@ -607,9 +608,8 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind
 
             # Update the skymask
-
-
-
+            skymask = 
+            
             # Update the global sky
 
             # Extract
@@ -766,9 +766,8 @@ class PypeIt:
             Initial global sky model
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found
-        skymask : `numpy.ndarray`_
-            Boolean image indicating which pixels are useful for global sky
-            subtraction
+        skymask_tuple : tuple
+            several items needed to generate the skymask downstream
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
         objFind : :class:`~pypeit.find_objects.FindObjects`
