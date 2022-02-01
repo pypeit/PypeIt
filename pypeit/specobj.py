@@ -589,6 +589,7 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
+            'smash_peakflux',
             'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'SKYTHRESH',
             'THRESHOLD']
         if 'Echelle' in self.PYPELINE:

@@ -555,11 +555,11 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            initial_sky, sobjs_obj, skymask_tuple, sciImg, objFind = self.objfind_one(
+            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(
                 frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
-            skymask_list.append(skymask_tuple)
+            #skymask_list.append(skymask_tuple)
             initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
@@ -608,15 +608,18 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind
 
             # Update the skymask
-            skymask = 
+            # TODO -- Pass in other skymask parameters!
+            skymask = objFind_list[i].create_skymask(all_specobjs_on_det)
             
             # Update the global sky
+            final_global_sky = objFind_list[i].global_skysub(
+                previous_sky=initial_sky_list[i], skymask=skymask, 
+                show=self.show)
 
             # Extract
             all_spec2d[detname], tmp_sobjs \
                     = self.extract_one(frames, self.det, sciImg_list[i], 
-                                       initial_sky_list[i],
-                                       all_specobjs_on_det, skymask_list[i])
+                                       final_global_sky, all_specobjs_on_det)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
@@ -766,8 +769,6 @@ class PypeIt:
             Initial global sky model
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found
-        skymask_tuple : tuple
-            several items needed to generate the skymask downstream
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
         objFind : :class:`~pypeit.find_objects.FindObjects`
@@ -835,12 +836,12 @@ class PypeIt:
                             slits=True, clear=True)
 
         # Do it
-        initial_sky, sobjs_obj, skymask = objFind.run(std_trace=std_trace, 
-                                                     show_peaks=self.show)
+        initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, 
+                                             show_peaks=self.show)
         # Return
-        return initial_sky, sobjs_obj, skymask, sciImg, objFind
+        return initial_sky, sobjs_obj, sciImg, objFind
 
-    def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):
+    def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj):
         """
         Extract Objects in a single exposure/detector pair
 
@@ -859,8 +860,6 @@ class PypeIt:
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            skymask (`numpy.ndarray`_):
-               Boolean image indicating which pixels are useful for global sky subtraction
 
         Returns:
             tuple: Returns six `numpy.ndarray`_ objects and a
@@ -894,8 +893,10 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
+                tilts = self.redux.run_extraction(global_sky, sobjs_obj, 
+                ra=self.fitstbl["ra"][frames[0]], 
+                dec=self.fitstbl["dec"][frames[0]],
                 obstime=self.obstime)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts

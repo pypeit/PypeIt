@@ -22,6 +22,7 @@ from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
 from pypeit.core import skysub, pixels, qa, parse
+from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
 
@@ -212,14 +213,16 @@ class FindObjects:
             qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
+            # TODO -- Update the input parameters with par
             skymask[thismask] = findobj_skymask.create_skymask(
                 sobjs_obj, thismask, 
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
                         box_rad_pix=None,
-                        extract_maskwidth=4.0, 
                         trim_edg=(5,5),
                         skymask_nthresh=1.0, 
                         boxcar_rad_skymask=None)
+        # Return
+        return skymask
 
 
     def initialise_slits(self, initial=False):
@@ -286,7 +289,7 @@ class FindObjects:
         #
 
         # First pass object finding
-        sobjs_obj, self.nobj, skymask_tuples = \
+        sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
@@ -298,22 +301,21 @@ class FindObjects:
             embed(header='not ready for this!')
             skymask_init, usersky = self.load_skyregions(skymask_init)
         else:
-            self.create_skymask(sobjs_obj, skymask_tuples)
+            skymask_init = self.create_skymask(sobjs_obj)
 
         # Global sky subtract (self.global_sky is also generated here)
         initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            sobjs_obj, self.nobj, skymask_tuple = \
+            sobjs_obj, self.nobj = \
                 self.find_objects(self.sciImg.image - initial_sky,
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
-            skymask = skymask_init
 
-        return initial_sky, sobjs_obj, skymask_tuple
+        return initial_sky, sobjs_obj
 
     def get_final_global_sky(self, initial_sky, skymask):
 
@@ -838,7 +840,7 @@ class MultiSlitFindObjects(FindObjects):
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
-                                boxcar_rad_skymask=boxcar_rad_skymask,
+                                #boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],

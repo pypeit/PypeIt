@@ -65,12 +65,8 @@ class Extract:
             Model of object
         skyimage (`numpy.ndarray`_):
             Final model of sky
-        initial_sky (`numpy.ndarray`_):
-            Initial sky model after first pass with global_skysub()
         global_sky (`numpy.ndarray`_):
             Fit to global sky
-        skymask (`numpy.ndarray`_):
-            Mask of the sky fit
         outmask (`numpy.ndarray`_):
             Final output mask
         extractmask (`numpy.ndarray`_):
@@ -201,7 +197,6 @@ class Extract:
         self.objimage = None
         self.skyimage = None
         self.global_sky = None
-        self.skymask = None
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
@@ -347,11 +342,10 @@ class Extract:
         self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         # Set the initial and global sky
-        self.initial_sky = global_sky.copy()
         self.global_sky = global_sky
 
 
-    def run_extraction(self, global_sky, sobjs_obj, skymask, ra=None, dec=None, obstime=None, return_negative=False):
+    def run_extraction(self, global_sky, sobjs_obj, ra=None, dec=None, obstime=None, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
@@ -359,11 +353,9 @@ class Extract:
 
         Args:
             global_sky (`numpy.ndarray`_):
-                Initial global sky model
+                Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            skymask (`numpy.ndarray`_):
-               Boolean image indicating which pixels are useful for global sky subtraction
             ra (float, optional):
                 Required if helio-centric correction is to be applied
             dec (float, optional):
@@ -406,7 +398,6 @@ class Extract:
                     skymask[thismask] = skymask_fwhm[thismask]
         self.sobjs_obj = sobjs_obj
         '''
-        self.skymask = skymask
         self.nobj = len(sobjs_obj)
 
 
@@ -439,7 +430,7 @@ class Extract:
             #Could have negative objects but no positive objects so purge them
             if self.find_negative:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
-            self.skymodel = self.initial_sky
+            self.skymodel = global_sky 
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)

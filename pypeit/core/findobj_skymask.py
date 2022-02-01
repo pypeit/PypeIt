@@ -6,6 +6,7 @@ import scipy
 from matplotlib import pyplot as plt
 
 from astropy import stats
+from sympy import im
 
 from pypeit import msgs
 from pypeit import utils
@@ -20,10 +21,10 @@ from pypeit.core import arc
 from pypeit.display import display
 from pypeit.core import pixels
 
+from IPython import embed
 
-def create_skymask_fwhm(sobjs, thismask, slit_left, slit_righ, 
+def create_skymask(sobjs, thismask, slit_left, slit_righ, 
                         box_rad_pix=None,
-                        extract_maskwidth=4.0, 
                         trim_edg=(5,5),
                         skymask_nthresh=1.0, 
                         boxcar_rad_skymask=None):
@@ -44,10 +45,6 @@ def create_skymask_fwhm(sobjs, thismask, slit_left, slit_righ,
             Right boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
-        extract_maskwidth (float,optional): default = 4.0
-            This parameter determines the initial size of the region in
-            units of fwhm that will be used for local sky subtraction in
-            the routine skysub.local_skysub_extract.
         box_rad_pix (float, optional):
             If set, the skymask will be at least as wide as this radius in pixels.
         skymask_nthresh (float, optional): default = 2.0
@@ -81,20 +78,16 @@ def create_skymask_fwhm(sobjs, thismask, slit_left, slit_righ,
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
-        # TODO -- This parameter may not be used anywhere
-        if skythresh > 0.0:
-            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
-        else:
-            sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM
         sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
         sep_inc = sobjs[iobj].maskwidth/nsamp
         close = sep <= sep_inc
-        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
+        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(
+            np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
 
     # Create an objmask. This is created here in case we decide to use it later, but it is not currently used
     skymask_objflux = np.copy(thismask)
     skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (
-        skymask_nthresh*threshold)
+        skymask_nthresh*sobjs[iobj].THRESHOLD)
 
     # FWHM
     skymask_fwhm = np.copy(thismask)
@@ -134,7 +127,7 @@ def create_skymask_fwhm(sobjs, thismask, slit_left, slit_righ,
         skymask = skymask_objflux & skymask_fwhm
 
     # Return
-    return skymask
+    return skymask[thismask]
 
 def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
                 inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
@@ -732,6 +725,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
             sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, 
             trim_edg=(5,5), cont_sig_thresh=2.0,
+            extract_maskwidth=4.0, 
             specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
             qa_title='objfind', objfindQA_filename=None):
@@ -819,6 +813,10 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             smashed profile.  The code uses the maximum of the
             thresholds defined by sig_thresh, peak_thers, and
             abs_thresh.
+        extract_maskwidth (float,optional): default = 4.0
+            This parameter determines the initial size of the region in
+            units of fwhm that will be used for local sky subtraction in
+            the routine skysub.local_skysub_extract.
         cont_sig_thresh (float, optional):
             Significance threshold for peak detection for determinining which pixels to use for the iteratively
             fit continuum of the spectral direction smashed image. This is passed as the sigthresh parameter
@@ -1310,21 +1308,19 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
     # Assign integer objids
     sobjs.OBJID = np.arange(nobj) + 1
 
-    '''
     # Assign the maskwidth and compute some inputs for the object mask
-    xtmp = (np.arange(nsamp) + 0.5)/nsamp
-    qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
         # TODO -- This parameter may not be used anywhere
         if skythresh > 0.0:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM
-        sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
-        sep_inc = sobjs[iobj].maskwidth/nsamp
-        close = sep <= sep_inc
-        qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
+        #sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
+        #sep_inc = sobjs[iobj].maskwidth/nsamp
+        #close = sep <= sep_inc
+        #qobj[close] += sobjs[iobj].smash_peakflux*np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2,-9.0))
 
+    '''
     # Create an objmask. This is created here in case we decide to use it later, but it is not currently used
     skymask_objflux = np.copy(thismask)
     skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (skymask_nthresh*threshold)
@@ -1355,6 +1351,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
         sobj.THRESHOLD = threshold
         # Vet
         if not sobj.ready_for_extraction():
+            embed(header=utils.embed_header())
             msgs.error("Bad SpecObj.  Can't proceed")
 
     # Return
