@@ -21,11 +21,9 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa, parse
+from pypeit.core import skysub, pixels, qa, parse
 from pypeit.images import buildimage
-from pypeit.core.moment import moment1d
-
-from linetools.spectra import xspectrum1d
+from pypeit.core import findobj_skymask
 
 from IPython import embed
 
@@ -532,7 +530,7 @@ class FindObjects:
         if show:
             sobjs_show = None if show_objs else sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs=sobjs_show, clear=False)
+            self.show('global', slits=True, sobjs=sobjs_obj, clear=False)
 
         # Return
         return global_sky
@@ -810,7 +808,7 @@ class MultiSlitFindObjects(FindObjects):
                                                         det=detname, out_dir=out_dir)
 
             sobjs_slit, skymask[thismask] = \
-                    extract.objfind(image, thismask,
+                    findobj_skymask.objs_in_slit(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask, has_negative=self.find_negative,
@@ -955,7 +953,7 @@ class EchelleFindObjects(FindObjects):
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
                                                     det=detname, out_dir=out_dir)
 
-        sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
+        sobjs_ech, skymask[self.slitmask > -1] = findobj_skymask.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
