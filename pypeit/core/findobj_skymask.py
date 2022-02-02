@@ -26,8 +26,7 @@ from IPython import embed
 def create_skymask(sobjs, thismask, slit_left, slit_righ, 
                         box_rad_pix=None,
                         trim_edg=(5,5),
-                        skymask_nthresh=1.0, 
-                        boxcar_rad_skymask=None):
+                        skymask_nthresh=1.0): 
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
     and or the boxcar radius
@@ -37,11 +36,11 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ,
             Objects for which you would like to create the mask
         thismask (`numpy.ndarray`_): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
-        slit_left (np.ndarray):
+        slit_left (`numpy.ndarray`_):
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
-        slit_righ (np.ndarray):
+        slit_righ (`numpy.ndarray`_):
             Right boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
             or (nspec)
@@ -52,9 +51,6 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ,
             above) which is used to create the skymask using the value
             of the peak flux in the slit profile (image with the
             spectral direction smashed out).
-        boxcar_rad_skymask (float, optional): Boxcar radius; only for sky masking. Needs to be in pixels
-            If set, the skymask will be at least as wide as this radius.
-            Passed to create_skymask_fwhm()
         trim_edg (tuple, optional): of integers or float, default = (5,5)
             Ignore objects within this many pixels of the left and right
             slit boundaries, where the first element refers to the left
@@ -121,7 +117,8 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ,
             skymask_fwhm = np.copy(thismask)
 
     # Still have to make the skymask
-    if boxcar_rad_skymask is None:
+    # TODO -- Make sure this is right
+    if box_rad_pix is None:
         skymask = skymask_objflux | skymask_fwhm
     else:  # Enforces boxcar radius masking
         skymask = skymask_objflux & skymask_fwhm
@@ -138,7 +135,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
                 npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, debug=False, show_pca=False,
-                debug_all=False, skymask_by_boxcar=False, boxcar_rad=None, objfindQA_filename=None):
+                debug_all=False, 
+                #skymask_by_boxcar=False, boxcar_rad=None, 
+                objfindQA_filename=None):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -249,12 +248,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             Directory + filename of the object profile QA
 
     Returns:
-        tuple: Returns the following:
-            - sobjs: object: Specobjs object containing the objects
-              detected
-            - skymask: float ndarray, same shape as image: Skymask
-              indicating which pixels can be used for global sky
-              subtraction
+        SpecObjs: object containing the objects detected
     """
 
     #debug_all=True
@@ -336,7 +330,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             f_spats.append(f_spat)
 
     # create the ouptut images skymask and objmask
-    skymask_objfind = np.copy(allmask)
+    #skymask_objfind = np.copy(allmask)
+
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up SLITID and orderindx!
@@ -369,13 +364,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             new_hand_extract_dict = None
 
         # Masking
-        boxcar_rad_skymask = boxcar_rad/plate_scale_ord[iord] if skymask_by_boxcar else None
+        #boxcar_rad_skymask = boxcar_rad/plate_scale_ord[iord] if skymask_by_boxcar else None
 
         # Get SLTIORD_ID for the objfind QA
         ech_objfindQA_filename = objfindQA_filename.replace('S0999', 'S{:04d}'.format(order_vec[iord])) \
             if objfindQA_filename is not None else None
         # Run
-        sobjs_slit, skymask_objfind[thisslit_gpm] = \
+        #sobjs_slit, skymask_objfind[thisslit_gpm] = \
+        sobjs_slit = \
             objs_in_slit(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
@@ -384,14 +380,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
-                    boxcar_rad_skymask=boxcar_rad_skymask, qa_title=qa_title,
+                    #boxcar_rad_skymask=boxcar_rad_skymask, 
+                    qa_title=qa_title,
                     specobj_dict=specobj_dict, objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
 
     if nfound == 0:
-        return sobjs, skymask_objfind[allmask]
+        return sobjs#, skymask_objfind[allmask]
 
     FOF_frac = fof_link/(np.median(np.median(slit_width,axis=0)*plate_scale_ord))
     # Run the FOF. We use fake coordinaes
@@ -534,6 +531,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 imin = np.argmin(np.abs(sobjs_align[this_obj_id].ECH_ORDERINDX - iord))
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
+                thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
                 thisobj.OBJID = uni_obj_id[iobj]
@@ -613,8 +611,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     if nobj_trim == 0:
         sobjs_final = specobjs.SpecObjs()
-        skymask = create_skymask_fwhm(sobjs_final, allmask)
-        return sobjs_final, skymask[allmask]
+        #skymask = create_skymask_fwhm(sobjs_final, allmask)
+        return sobjs_final#, skymask[allmask]
 
     SNR_arr_trim = SNR_arr[:,keep_obj]
 
@@ -675,8 +673,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     #    spec.ech_order = order_vec[spec.ECH_ORDERINDX]
     sobjs_final.set_names()
 
-    skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
-    skymask = skymask_objfind | skymask_fwhm
+    #skymask_fwhm = create_skymask_fwhm(sobjs_final,allmask)
+    #skymask = skymask_objfind | skymask_fwhm
 
     if show_trace:
         viewer, ch = display.show_image(image*allmask)
@@ -716,7 +714,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         if not sobj.ready_for_extraction():
             msgs.error("Bad SpecObj.  Can't proceed")
 
-    return sobjs_final, skymask[allmask]
+    return sobjs_final# , skymask[allmask]
 
 
 

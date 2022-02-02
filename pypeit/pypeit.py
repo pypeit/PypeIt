@@ -609,7 +609,7 @@ class PypeIt:
 
             # Update the skymask
             # TODO -- Pass in other skymask parameters!
-            skymask = objFind_list[i].create_skymask(all_specobjs_on_det)
+            skymask = objFind_list[i].create_skymask(all_specobjs_on_det) 
             
             # Update the global sky
             final_global_sky = objFind_list[i].global_skysub(

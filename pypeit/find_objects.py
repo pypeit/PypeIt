@@ -206,6 +206,9 @@ class FindObjects:
         self.vel_corr = None
 
     def create_skymask(self, sobjs_obj):
+        # Masking options
+        boxcar_rad_pix = None
+
         skymask = np.ones_like(self.sciImg.image, dtype=bool)
         gdslits = np.where(np.invert(self.reduce_bpm))[0]
         for slit_idx in gdslits:
@@ -213,14 +216,16 @@ class FindObjects:
             qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
-            # TODO -- Update the input parameters with par
+            # Boxcar mask?
+            if self.par['reduce']['skysub']['mask_by_boxcar']:
+                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(
+                    self.slits.slitord_id[slit_idx])
+            # Do it
             skymask[thismask] = findobj_skymask.create_skymask(
                 sobjs_obj, thismask, 
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
-                        box_rad_pix=None,
-                        trim_edg=(5,5),
-                        skymask_nthresh=1.0, 
-                        boxcar_rad_skymask=None)
+                        box_rad_pix=boxcar_rad_pix,
+                        trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
 
@@ -439,14 +444,14 @@ class FindObjects:
         return None, None
 
 
-    def get_platescale(self, sobj):
+    def get_platescale(self, ECH_ORDER):
         """
         Return the platescale for the current detector/echelle order
 
         Over-loaded by the children
 
         Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
+            ECH_ORDER (int):
 
         Returns:
             float:
@@ -880,19 +885,19 @@ class EchelleFindObjects(FindObjects):
                        'assigned in the relevant SlitTraceSet.')
 
 
-    def get_platescale(self, sobj):
+    def get_platescale(self, ECH_ORDER):
         """
         Return the plate scale for the given current echelle order
         based on the order index
 
         Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
+            ECH_ORDER (int):
 
         Returns:
             float:
 
         """
-        return self.spectrograph.order_platescale(sobj.ECH_ORDER, binning=self.binning)[0]
+        return self.spectrograph.order_platescale(ECH_ORDER, binning=self.binning)[0]
 
 # TODO This does not appear to be used anywhere
 #    def get_positive_sobj(self, specobjs, iord):
@@ -969,7 +974,8 @@ class EchelleFindObjects(FindObjects):
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
                                                     det=detname, out_dir=out_dir)
 
-        sobjs_ech, skymask[self.slitmask > -1] = findobj_skymask.ech_objfind(
+        #sobjs_ech, skymask[self.slitmask > -1] = findobj_skymask.ech_objfind(
+        sobjs_ech = findobj_skymask.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
@@ -989,8 +995,8 @@ class EchelleFindObjects(FindObjects):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
-            boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
+            #skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
+            #boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
             show_trace=show_trace, objfindQA_filename=objfindQA_filename, debug=debug)
 
         # Steps
@@ -1000,7 +1006,7 @@ class EchelleFindObjects(FindObjects):
             self.show('image', image=image*gpm.astype(float), chname='ech_objfind',
                       sobjs=sobjs_ech, slits=False)
 
-        return sobjs_ech, len(sobjs_ech), skymask
+        return sobjs_ech, len(sobjs_ech)#, skymask
 
 
 class IFUFindObjects(MultiSlitFindObjects):
