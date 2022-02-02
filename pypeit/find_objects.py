@@ -331,7 +331,7 @@ class FindObjects:
         else:
             self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
 
-
+    # TODO -- REMOVE THIS METHOD?
     def update_skymask(self, sobjs):
 
 

@@ -73,6 +73,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ,
     # Assign the maskwidth and compute some inputs for the object mask
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
     qobj = np.zeros_like(xtmp)
+    # TODO -- Handle added objects which do smash_peakflux = 0.
     for iobj in range(nobj):
         sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
         sep_inc = sobjs[iobj].maskwidth/nsamp

@@ -559,7 +559,6 @@ class PypeIt:
                 frames, self.det, bg_frames, std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
-            #skymask_list.append(skymask_tuple)
             initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
