@@ -428,7 +428,8 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
+                                       self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -523,15 +524,9 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-#        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-#                                            slitspatnum=self.par['rdx']['slitspatnum'],
-#                                            ndet=self.spectrograph.ndet)
         subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                     else self.par['rdx']['detnum']
         detectors = self.spectrograph.select_detectors(subset=subset)
-#        if len(detectors) != self.spectrograph.ndet:
-#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-#                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
         msgs.info(f'Detectors to work on: {detectors}')
 
 
@@ -1019,7 +1014,9 @@ class PypeIt:
                                                history=history)
 
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr,
+                                 update_det=update_det,
+                                 slitspatnum=self.par['rdx']['slitspatnum'])
 
 
     def msgs_reset(self):
