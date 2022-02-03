@@ -1307,7 +1307,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             npt_img = whgood.shape[0] // 2
             # This is hard-coded for DEIMOS, since it refers to the detectors configuration
             if nimg == 1:
-                whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
+                whgood = whgood[:npt_img] if _ccdnum[0] <= 4 else whgood[npt_img:]
             if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
                 omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
             if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
