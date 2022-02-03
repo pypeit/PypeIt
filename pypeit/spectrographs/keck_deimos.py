@@ -32,11 +32,35 @@ from pypeit.core import wave
 from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit.images.mosaic import Mosaic
+from pypeit.core.mosaic import build_image_mosaic_transform
 
 from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
+
+
+class DEIMOSMosaicLookUp:
+    """
+    Provides the geometry required to mosaic Gemini GMOS data.
+    Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
+
+    """
+    geometry = {
+        'MSC01': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
+                                                 (0, 4108): {'shift': (6., -3.), 'rotation': 0.}},
+
+        'MSC02': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
+                                                 (0, 4108): {'shift': (7., 0.), 'rotation': 0.}},
+
+        'MSC03': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
+                                                 (0, 4108): {'shift': (7., 0.), 'rotation': 0.}},
+
+        'MSC04': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
+                                                 (0, 4108): {'shift': (1., 0.), 'rotation': 0.}},
+    }
+
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
@@ -588,15 +612,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             (1-indexed) number of the amplifier used to read each detector
             pixel. Pixels unassociated with any amplifier are set to 0.
         """
-        # Check for file; allow for extra .gz, etc. suffix
-        # TODO: Why not use os.path.isfile?
-        fil = glob.glob(raw_file + '*')
-        if len(fil) != 1:
-            msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
         # Read
-        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+        msgs.info(f'Attempting to read DEIMOS file: {raw_file}')
+        # NOTE: io.fits_open checks that the file exists
+        hdu = io.fits_open(raw_file)
 
-        hdu = io.fits_open(fil[0])
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+
+        # Grab the detector or mosaic parameters
+        mosaic = None if nimg == 1 else self.get_mosaic_par(det, hdu=hdu)
+        detectors = [self.get_detector_par(det, hdu=hdu)] if nimg == 1 else mosaic.detectors
+
         if hdu[0].header['AMPMODE'] != 'SINGLE:B':
             msgs.error('PypeIt can only reduce images with AMPMODE == SINGLE:B.')
         if hdu[0].header['MOSMODE'] != 'Spectral':
@@ -607,47 +634,143 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         detlsize = hdu[0].header['DETLSIZE']
         x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
-        # Create final image
-        if det is None:
-            image = np.zeros((x_npix, y_npix + 4 * postpix))
-            rawdatasec_img = np.zeros_like(image, dtype=int)
-            oscansec_img = np.zeros_like(image, dtype=int)
-
         # get the x and y binning factors...
         binning = hdu[0].header['BINNING']
         if binning != '1,1':
             msgs.error("This binning for DEIMOS might not work.  But it might..")
 
-        # DEIMOS detectors
-        nchip = 8
-
+        # get the chips to read in
+        # DP: I don't know if this needs to still exist. I believe det is never None
         if det is None:
-            chips = range(nchip)
+            chips = range(self.ndet)
         else:
-            chips = [det - 1]  # Indexing starts at 0 here
-        # Loop
-        for tt in chips:
-            data, oscan = deimos_read_1chip(hdu, tt + 1)
+            chips = [d-1 for d in _det]  # Indexing starts at 0 here
 
-            # One detector??
-            if det is not None:
-                image = np.zeros((data.shape[0], data.shape[1] + oscan.shape[1]))
-                rawdatasec_img = np.zeros_like(image, dtype=int)
-                oscansec_img = np.zeros_like(image, dtype=int)
+        # Create final image
+        # DP: Still do not know if this is necessary
+        if det is None:
+            image = np.zeros((nimg, x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+        # One detector??
+        else:
+            # get final datasec and oscan size (it's the same for every chip so
+            # it's safe to determine it outsize the loop)
+            data, oscan = deimos_read_1chip(hdu, chips[0] + 1)
+            image = np.zeros((nimg, data.shape[0], data.shape[1] + oscan.shape[1]))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
+
+        # Loop over the chips
+        for ii, tt in enumerate(chips):
+            data, oscan = deimos_read_1chip(hdu, tt + 1)
 
             # Indexing
             x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
 
             # Fill
-            image[y1:y2, x1:x2] = data
-            rawdatasec_img[y1:y2, x1:x2] = 1 # Amp
-            image[o_y1:o_y2, o_x1:o_x2] = oscan
-            oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+            image[ii, y1:y2, x1:x2] = data
+            rawdatasec_img[ii, y1:y2, x1:x2] = 1 # Amp
+            image[ii, o_y1:o_y2, o_x1:o_x2] = oscan
+            oscansec_img[ii, o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
 
         # Return
-        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return self.get_detector_par(det if det is not None else 1, hdu=hdu), \
-               image, hdu, exptime, rawdatasec_img, oscansec_img
+        # Handle returning both single and multiple images
+        if nimg == 1:
+            return detectors[0], image[0], hdu, exptime, rawdatasec_img[0], oscansec_img[0]
+        return mosaic, image, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def get_mosaic_par(self, mosaic, hdu=None):
+        """
+        Return the hard-coded parameters needed to construct detector mosaics
+        from unbinned images.
+
+        The parameters expect the images to be trimmed and oriented to follow
+        the ``PypeIt`` shape convention of ``(nspec,nspat)``.  For returned
+        lists, the length of the list is the same as the number of detectors in
+        the mosaic, and they are ordered by the detector number.
+
+        Args:
+            mosaic (:obj:`tuple`):
+                Tuple of detector numbers used to construct the mosaic.  Must be
+                one among the list of possible mosaics as hard-coded by the
+                :func:`allowed_mosaics` function.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent detector parameters are set to a
+                default.  BEWARE: If ``hdu`` is not provided, the binning is
+                assumed to be `1,1`, which will cause faults if applied to
+                binned images!
+
+        Returns:
+            :class:`~pypeit.images.mosaic.Mosaic`: Object with the mosaic *and*
+            detector parameters.
+        """
+
+        # Validate the entered (list of) detector(s)
+        nimg, _ = self.validate_det(mosaic)
+
+        # Index of mosaic in list of allowed detector combinations
+        mosaic_id = self.allowed_mosaics.index(mosaic)+1
+        detid = f'MSC0{mosaic_id}'
+
+        # Get the detectors
+        detectors = np.array([self.get_detector_par(det, hdu=hdu) for det in mosaic])
+        # Binning *must* be consistent for all detectors
+        if any(d.binning != detectors[0].binning for d in detectors[1:]):
+            msgs.error('Binning is somehow inconsistent between detectors in the mosaic!')
+
+        # Collect the offsets and rotations for *all unbinned* detectors in the
+        # full instrument, ordered by the number of the detector.  Detector
+        # numbers must be sequential and 1-indexed.
+        # NOTE: These lines use the directly copied metadata from the Gemini
+        # DRAGONS software and then adjusts them so that they are in "PypeIt
+        # format".  See the mosaic documentattion.
+        expected_shape = DEIMOSMosaicLookUp.geometry[detid]['default_shape']
+        shift = np.array([(DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['shift'][1],
+                            -DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['shift'][0]),
+                          (DEIMOSMosaicLookUp.geometry[detid][(0,0)]['shift'][1],
+                            -DEIMOSMosaicLookUp.geometry[detid][(0,0)]['shift'][0])])
+
+        rotation = np.array([DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['rotation'],
+                             DEIMOSMosaicLookUp.geometry[detid][(0,0)]['rotation']])
+
+        # The binning and process image shape must be the same for all images in
+        # the mosaic
+        binning = tuple(int(b) for b in detectors[0].binning.split(','))
+        shape = tuple(n // b for n, b in zip(expected_shape, binning))
+
+        msc_sft = [None]*nimg
+        msc_rot = [None]*nimg
+        msc_tfm = [None]*nimg
+
+        for i in range(nimg):
+            msc_sft[i] = shift[i]
+            msc_rot[i] = rotation[i]
+            msc_tfm[i] = build_image_mosaic_transform(shape, msc_sft[i], msc_rot[i], binning)
+
+        return Mosaic(mosaic_id, detectors, shape, np.array(msc_sft), np.array(msc_rot),
+                      np.array(msc_tfm))
+
+    @property
+    def allowed_mosaics(self):
+        """
+        Return the list of allowed detector mosaics.
+
+        Gemini GMOS only allows for mosaicing all three detectors.
+
+        Returns:
+            :obj:`list`: List of tuples, where each tuple provides the 1-indexed
+            detector numbers that can be combined into a mosaic and processed by
+            ``PypeIt``.
+        """
+        return [(1,5),(2,6),(3,7),(4,8)]
+
+    @property
+    def default_mosaic(self):
+        return self.allowed_mosaics[0]
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -676,51 +799,65 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
+        # Validate the entered (list of) detector(s)
+        nimg, _det = self.validate_det(det)
+        _det = list(_det)
+
         # Call the base-class method to generate the empty bpm
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
+        # NOTE: expand_dims does *not* copy the array.  We can edit it directly
+        # because we've created it inside this function.
+        _bpm_img = np.expand_dims(bpm_img, 0) if nimg == 1 else bpm_img
 
-        if det == 1:
-            bpm_img[:,1052:1054] = 1
-        elif det == 2:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,376:381] = 1
-            bpm_img[:,489] = 1
-            bpm_img[:,1333:1335] = 1
-            bpm_img[:,2047] = 1
-        elif det == 3:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,221] = 1
-            bpm_img[:,260] = 1
-            bpm_img[:,366] = 1
-            bpm_img[:,816:819] = 1
-            bpm_img[:,851] = 1
-            bpm_img[:,940] = 1
-            bpm_img[:,1167] = 1
-            bpm_img[:,1280] = 1
-            bpm_img[:,1301:1303] = 1
-            bpm_img[:,1744:1747] = 1
-            bpm_img[:,-4:] = 1
-        elif det == 4:
-            bpm_img[:,0:4] = 1
-            bpm_img[:,47] = 1
-            bpm_img[:,744] = 1
-            bpm_img[:,790:792] = 1
-            bpm_img[:,997:999] = 1
-        elif det == 5:
-            bpm_img[:,25:27] = 1
-            bpm_img[:,128:130] = 1
-            bpm_img[:,1535:1539] = 1
-        elif det == 7:
-            bpm_img[:,426:428] = 1
-            bpm_img[:,676] = 1
-            bpm_img[:,1176:1178] = 1
-        elif det == 8:
-            bpm_img[:,440] = 1
-            bpm_img[:,509:513] = 1
-            bpm_img[:,806] = 1
-            bpm_img[:,931:934] = 1
+        if 1 in _det:
+            i = _det.index(1)
+            _bpm_img[i,:,1052:1054] = 1
+        if 2 in _det:
+            i = _det.index(2)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,376:381] = 1
+            _bpm_img[i,:,489] = 1
+            _bpm_img[i,:,1333:1335] = 1
+            _bpm_img[i,:,2047] = 1
+        if 3 in _det:
+            i = _det.index(3)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,221] = 1
+            _bpm_img[i,:,260] = 1
+            _bpm_img[i,:,366] = 1
+            _bpm_img[i,:,816:819] = 1
+            _bpm_img[i,:,851] = 1
+            _bpm_img[i,:,940] = 1
+            _bpm_img[i,:,1167] = 1
+            _bpm_img[i,:,1280] = 1
+            _bpm_img[i,:,1301:1303] = 1
+            _bpm_img[i,:,1744:1747] = 1
+            _bpm_img[i,:,-4:] = 1
+        if 4 in _det:
+            i = _det.index(4)
+            _bpm_img[i,:,0:4] = 1
+            _bpm_img[i,:,47] = 1
+            _bpm_img[i,:,744] = 1
+            _bpm_img[i,:,790:792] = 1
+            _bpm_img[i,:,997:999] = 1
+        if 5 in _det:
+            i = _det.index(5)
+            _bpm_img[i,:,25:27] = 1
+            _bpm_img[i,:,128:130] = 1
+            _bpm_img[i,:,1535:1539] = 1
+        if 7 in _det:
+            i = _det.index(7)
+            _bpm_img[i,:,426:428] = 1
+            _bpm_img[i,:,676] = 1
+            _bpm_img[i,:,1176:1178] = 1
+        if 8 in _det:
+            i = _det.index(8)
+            _bpm_img[i,:,440] = 1
+            _bpm_img[i,:,509:513] = 1
+            _bpm_img[i,:,806] = 1
+            _bpm_img[i,:,931:934] = 1
 
-        return bpm_img
+        return _bpm_img[0] if nimg == 1 else _bpm_img
 
     def get_lamps(self, fitstbl):
         """
@@ -1130,6 +1267,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         if ccdnum is None:
             msgs.error('A detector number must be provided')
 
+        # parse ccdnum
+        nimg, _det = self.validate_det(ccdnum)
+        _ccdnum = [d for d in _det]
+
         # Match left and right edges separately
         # Sort slits in mm from the slit-mask design
         sortindx = np.argsort(self.slitmask.center[:, 0])
@@ -1152,18 +1293,21 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # We "flag" the left and right traces predicted by the optical model that are outside of the
             # current detector, by giving a value of -1.
             # bottom
-            omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] < 10 else \
-                              np.median(bedge_pix[i, ccd_b[i, :] == ccdnum])
+            thisccd = np.logical_or(ccd_b[i, :] == _ccdnum[0], ccd_b[i, :] == _ccdnum[1]) if nimg == 2 \
+                else ccd_b[i, :] == _ccdnum[0]
+            omodel_bspat[i] = -1 if bedge_pix[i, thisccd].shape[0] < 10 else \
+                              np.median(bedge_pix[i, thisccd])
             # top
-            omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] < 10 else \
-                              np.median(tedge_pix[i, ccd_t[i, :] == ccdnum])
+            omodel_tspat[i] = -1 if tedge_pix[i, thisccd].shape[0] < 10 else \
+                              np.median(tedge_pix[i, thisccd])
 
             # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
             # is determined using the pixel position from the image plane.
             whgood = np.where(tedge_img[i, :] > -1e4)[0]
             npt_img = whgood.shape[0] // 2
             # This is hard-coded for DEIMOS, since it refers to the detectors configuration
-            whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
+            if nimg == 1:
+                whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
             if omodel_bspat[i] == -1 and omodel_tspat[i] >= 0:
                 omodel_bspat[i] = omodel_tspat[i] - np.median((tedge_img - bedge_img)[i, whgood])
             if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
@@ -1233,7 +1377,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return omodel_bspat, omodel_tspat, sortindx, self.slitmask
 
-    def list_detectors(self):
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 
@@ -1259,8 +1403,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             the array is 2D, there are detectors separated along the dispersion
             axis.
         """
-        return np.array([detector_container.DetectorContainer.get_name(i+1) 
-                            for i in range(self.ndet)]).reshape(2,-1)
+        if mosaic:
+            return np.array(['MSC{:02d}'.format(i+1) for i in range(len(self.allowed_mosaics))])
+        else:
+            return np.array([detector_container.DetectorContainer.get_name(i+1)
+                             for i in range(self.ndet)]).reshape(2,-1)
 
     def spec1d_match_spectra(self, sobjs):
         """

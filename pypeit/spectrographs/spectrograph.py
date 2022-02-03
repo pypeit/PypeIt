@@ -466,7 +466,7 @@ class Spectrograph:
         msgs.info(f'Generating a BPM using bias for det={_det} for {self.name}')
         return self.bpm_frombias(msbias, bpm_img)
 
-    def list_detectors(self):
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 

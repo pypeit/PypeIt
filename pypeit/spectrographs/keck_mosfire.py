@@ -482,7 +482,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         else:
             return wave_in, counts_in, counts_ivar_in, gpm_in
 
-    def list_detectors(self):
+    def list_detectors(self, mosaic=False):
         """
         List the *names* of the detectors in this spectrograph.
 
