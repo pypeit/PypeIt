@@ -168,6 +168,12 @@ def exclude_source_objects(source_objects, exclude_map, par):
             excluded_messages.append(msg)
             continue
 
+        if par['collate1d']['rms_thresh'] is not None and sobj.WAVE_RMS > par['collate1d']['rms_thresh']:
+            msg = f'Excluding {sobj.NAME} in {spec1d_file} due to wave_rms {sobj.WAVE_RMS} > threshold {par["collate1d"]["rms_thresh"]}'
+            msgs.info(msg)
+            excluded_messages.append(msg)
+            continue
+
         if sobj.MASKDEF_ID in exclude_map:
             msg = f'Excluding {sobj.NAME} with mask id: {sobj.MASKDEF_ID} in {spec1d_file} because of flags {exclude_map[sobj.MASKDEF_ID]}'
             msgs.info(msg)
@@ -337,6 +343,9 @@ def build_parameters(args):
     if args.exclude_serendip:
         params['collate1d']['exclude_serendip'] = True
 
+    if args.rms_thresh is not None:
+        params['collate1d']['rms_thresh'] = args.rms_thresh
+
     if args.dry_run:
         params['collate1d']['dry_run'] = True
 
@@ -437,6 +446,7 @@ class Collate1D(scriptbase.ScriptBase):
                             help=blank_par.descr['exclude_slit_trace_bm'])
         parser.add_argument('--exclude_serendip', action='store_true',
                             help=blank_par.descr['exclude_serendip'])
+        parser.add_argument("--rms_thresh", type=float, default = None, help=blank_par.descr['rms_thresh'])
         return parser
 
     @staticmethod
