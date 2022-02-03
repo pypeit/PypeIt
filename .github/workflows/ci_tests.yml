@@ -76,8 +76,8 @@ jobs:
 
     strategy:
       matrix:
-        # Test both CentOS 7 and 8
-        centos_ver: [7, 8]
+        # Test CentOS 7
+        centos_ver: [7]
         # Test both pip and conda for installing dependencies
         toxenv: [test-alldeps, conda]
 

@@ -35,7 +35,7 @@ from pypeit.images import detector_container
 
 from pypeit.utils import index_of_x_eq_y
 
-from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
@@ -777,7 +777,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return np.array(tel_off)
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
@@ -791,58 +791,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             data read from the file. The returned object is the same as
             :attr:`slitmask`.
         """
-        # Open the file
-        hdu = io.fits_open(filename)
-
-        # Build the object data
-        #   - Find the index of the object IDs in the slit-object
-        #     mapping that match the object catalog
-        mapid = hdu['SlitObjMap'].data['ObjectID']
-        catid = hdu['ObjectCat'].data['ObjectID']
-        indx = index_of_x_eq_y(mapid, catid)
-        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
-        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
-                            catid.astype(int),
-                            hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ'],
-                            objname,
-                            hdu['ObjectCat'].data['mag'],
-                            hdu['ObjectCat'].data['pBand'],
-                            hdu['SlitObjMap'].data['TopDist'][indx],
-                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
-        #   - Only keep the objects that are in the slit-object mapping
-        objects = objects[mapid[indx] == catid]
-
-        # Match the slit IDs in DesiSlits to those in BluSlits
-        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
-                               strict=True)
-
-        # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
-        if posx_pa < 0.:
-            posx_pa += 360.
-
-        # Instantiate the slit mask object and return it
-        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
-                                           hdu['BluSlits'].data['slitY1'],
-                                           hdu['BluSlits'].data['slitX2'],
-                                           hdu['BluSlits'].data['slitY2'],
-                                           hdu['BluSlits'].data['slitX3'],
-                                           hdu['BluSlits'].data['slitY3'],
-                                           hdu['BluSlits'].data['slitX4'],
-                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
-                                 slitid=hdu['BluSlits'].data['dSlitId'],
-                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
-                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                 hdu['DesiSlits'].data['slitDec'][indx],
-                                                 hdu['DesiSlits'].data['slitLen'][indx],
-                                                 hdu['DesiSlits'].data['slitWid'][indx],
-                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects,
-                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
-                                 posx_pa=posx_pa)
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
     # TODO: Allow this to accept the relevant row from the PypeItMetaData

@@ -364,6 +364,7 @@ class PypeIt:
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
 
+        # Standard Star(s) Loop
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
 
@@ -392,6 +393,7 @@ class PypeIt:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
+        # Science Frame(s) Loop
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
             # Find all the frames in this calibration group
