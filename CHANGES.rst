@@ -62,6 +62,10 @@
   three additional gratings.  
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
 
+- When using glob to get files in pypeit_setup, added automatic sorting so that
+  the default `comb_id` ordering matches the sorted file name.
+- Improve Keck/KCWI automatic frame typing.
+
 
 1.7.0 (19 Nov 2021)
 -------------------
