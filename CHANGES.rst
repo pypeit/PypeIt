@@ -61,6 +61,7 @@
   for reading arc lamps used from frames, and `reid_arxiv` templates for
   three additional gratings.  
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
+- Hotfix for `gemini_gmos` mosaic tracing parameters
 
 
 1.7.0 (19 Nov 2021)
