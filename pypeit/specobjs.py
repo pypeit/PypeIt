@@ -100,11 +100,7 @@ class SpecObjs:
         for hdu in hdul[1:]:
             if 'DETECTOR' in hdu.name:
                 continue
-            try:
-                sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
-            except:
-                embed()
-                exit()
+            sobj = specobj.SpecObj.from_hdu(hdu, chk_version=chk_version)
             # Restrict on det?
             if det is not None and sobj.DET != det:
                 continue
@@ -628,7 +624,9 @@ class SpecObjs:
             outfile (str):
             overwrite (bool, optional):
             slitspatnum (:obj:`str` or :obj:`list`, optional):
-                Restricted set of slits for reduction
+              Restricted set of slits for reduction.
+              If provided, do not clobber the existing file but only update
+              the indicated slits.  Useful for re-running on a subset of slits
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
               the indicated detectors.  Useful for re-running on a subset of detectors

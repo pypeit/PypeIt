@@ -3360,7 +3360,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, find_negative=None, find_min_max=None,
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None, find_min_max=None,
                  cont_sig_thresh=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -3435,6 +3435,14 @@ class FindObjPar(ParSet):
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
 
+        defaults['skip_final_global'] = False
+        dtypes['skip_final_global'] = bool
+        descr['skip_final_global'] = 'If True, do not update initial sky to get global sky using updated noise model. This ' \
+                                     'should be True for quicklook to save time. This should also be True for near-IR ' \
+                                     'reductions which perform difference imaging, since there we fit sky-residuals rather ' \
+                                     'than the sky itself, so there is no noise model to update. '
+
+
         defaults['find_negative'] = None
         dtypes['find_negative'] = bool
         descr['find_negative'] = 'Identify negative objects in object finding for spectra that are differenced. This is used to manually ' \
@@ -3477,7 +3485,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_negative', 'find_min_max', 'cont_sig_thresh']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global', 'find_negative', 'find_min_max', 'cont_sig_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4534,7 +4542,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, archive_root=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None, pypeit_file=None):
+    def __init__(self, tolerance=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4570,16 +4578,6 @@ class Collate1DPar(ParSet):
         dtypes['outdir'] = str
         descr['outdir'] = "The path where all coadded output files and report files will be placed."
 
-        # Root directory of archive
-        defaults['archive_root'] = None
-        dtypes['archive_root'] = str
-        descr['archive_root'] = "The path where files and metadata will be archived."
-
-        # .pypeit file to archive.
-        defaults['pypeit_file'] = None
-        dtypes['pypeit_file'] = str
-        descr['pypeit_file'] = "A .pypeit file to place into the archive. Only used if archive_root is specified. Defaults to looking in the parent directory of the spec1d files."
-
         # What slit flags to exclude
         defaults['exclude_slit_trace_bm'] = []
         dtypes['exclude_slit_trace_bm'] = [list, str]
@@ -4607,7 +4605,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'archive_root', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir', 'pypeit_file']
+        parkeys = ['tolerance', 'dry_run', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

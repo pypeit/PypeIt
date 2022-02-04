@@ -113,7 +113,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
+    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', bkg_redux=True, show=show,
                                        det=det)
 
     # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
@@ -151,7 +151,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       slits=copy.deepcopy(caliBrate.slits))
     spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
-    all_spec2d['meta']['ir_redux'] = True
+    all_spec2d['meta']['bkg_redux'] = True
     all_spec2d[spec2DObj_A.detname] = spec2DObj_A
 
     # Construct the Spec2DObj with the negative image
@@ -398,7 +398,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
                                              offsets=offsets_pixels, weights='uniform',
                                              spec_samp_fact=args.spec_samp_fact,
                                              spat_samp_fact=args.spat_samp_fact,
-                                             ir_redux=True, debug=args.show)
+                                             bkg_redux=True, debug=args.show)
         # Coadd the slits
         # TODO implement only_slits later
         coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)

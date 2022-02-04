@@ -84,14 +84,17 @@ class ArchiveMetadata():
         append (bool):
             If true append new metadata to an existing file. If this is false
             any existing file will be overwritten.
-          
-             
+
+        formats (dict, optional):
+            Dictionary mapping column names to a format. The format 
+            can be any format accepted by a Astropy Table `Column <https://docs.astropy.org/en/stable/api/astropy.table.Column.html#astropy.table.Column>`_.                       
     """
 
-    def __init__(self, metadata_file, col_names, get_metadata_func, append):
+    def __init__(self, metadata_file, col_names, get_metadata_func, append, formats={}):
         self.metadata_file = metadata_file
         self.col_names = col_names
-        self.get_metadata_func = get_metadata_func        
+        self.get_metadata_func = get_metadata_func
+        self.formats = formats        
         
         # Load metadata from any pre-existing metadata file.
         # Because astropy Tables are slow at adding rows, we convert 
@@ -128,7 +131,13 @@ class ArchiveMetadata():
         """
         if len(self._metadata) > 0:
             with open(self.metadata_file, 'w') as f:
-                ascii.write(Table(rows=self._metadata, names=self.col_names), f, format='ipac')
+                t = Table(rows=self._metadata, names=self.col_names)
+                
+                # Set column formats before writing
+                for key in self.formats.keys():
+                    t[key].format = self.formats[key]
+
+                ascii.write(t, f, format='ipac')
 
 
 class ArchiveDir():

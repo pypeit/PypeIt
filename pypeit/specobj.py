@@ -50,7 +50,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.4'
+    version = '1.1.5'
     """
     Current datamodel version number.
     """
@@ -60,6 +60,8 @@ class SpecObj(datamodel.DataContainer):
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
+                 'THRESHOLD': dict(otype=float,
+                                  descr='Threshold used for object finding'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -585,7 +587,8 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+            'smash_peakflux',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 

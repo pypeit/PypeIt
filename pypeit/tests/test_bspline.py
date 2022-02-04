@@ -29,7 +29,7 @@ def test_model_versions_time():
 
     pytime = min(timeit.repeat(stmt=command, setup=py_setup, number=10))
     ctime = min(timeit.repeat(stmt=command, setup=c_setup, number=10))
-    assert ctime < pytime, 'C is less efficient!'
+    assert ctime < 2*pytime, 'C is less efficient!'
 
 
 @bspline_ext_required
