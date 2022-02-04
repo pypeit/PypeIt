@@ -1,3 +1,5 @@
+# TODO THIS IS NOT USED ANYMORE, SHOULD WE MOVE IT TO DEPRECATED?
+
 """
 Main driver class for skysubtraction and extraction
 
@@ -51,7 +53,7 @@ class Reduce:
         maskslits (`numpy.ndarray`_, optional):
           Specifies masked out slits
           True = Masked
-        ir_redux (:obj:`bool`, optional):
+        bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
@@ -99,7 +101,7 @@ class Reduce:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
+                 objtype, bkg_redux=False, find_negative=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
@@ -123,13 +125,13 @@ class Reduce:
         """
         return next(c for c in utils.all_subclasses(Reduce)
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
-                            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux,
+                            sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=bkg_redux,
                             find_negative=find_negative, det=det, std_redux=std_redux, show=show,
                             binning=binning, setup=setup, basename=basename,
                             manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
-                 objtype, ir_redux=False, find_negative=False, det=1, std_redux=False, show=False,
+                 objtype, bkg_redux=False, find_negative=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -180,7 +182,7 @@ class Reduce:
         self.wv_calib = caliBrate.wv_calib
 
         # Load up other input items
-        self.ir_redux = ir_redux
+        self.bkg_redux = bkg_redux
         self.find_negative = find_negative
 
         self.std_redux = std_redux
@@ -280,7 +282,7 @@ class Reduce:
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
                 self.local_skysub_extract(global_sky, self.sobjs_obj,
-                                          model_noise=(not self.ir_redux),
+                                          model_noise=(not self.bkg_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
 
@@ -661,8 +663,8 @@ class Reduce:
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
         # Allow for previous sky to better estimate ivar
-        #  Unless we used a background image (i.e. ir_redux=True)
-        if (previous_sky is not None) and (not self.ir_redux):
+        #  Unless we used a background image (i.e. bkg_redux=True)
+        if (previous_sky is not None) and (not self.bkg_redux):
             # Estimate the variance using the input sky model
             var = procimg.variance_model(self.sciImg.base_var, 
                                           counts=previous_sky, 
@@ -689,7 +691,7 @@ class Reduce:
                 inmask=inmask, sigrej=sigrej, 
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
                 no_poly=self.par['reduce']['skysub']['no_poly'], 
-                pos_mask=(not self.ir_redux), show_fit=show_fit)
+                pos_mask=(not self.bkg_redux), show_fit=show_fit)
 
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
@@ -1738,7 +1740,7 @@ class IFUReduce(MultiSlitReduce):
                                                              sigrej=sigrej, trim_edg=trim_edg,
                                                              bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                                              no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                                             pos_mask=(not self.bkg_redux), show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             # Choose the highest counts out of sky and object

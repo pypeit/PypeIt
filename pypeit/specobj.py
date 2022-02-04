@@ -60,10 +60,8 @@ class SpecObj(datamodel.DataContainer):
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
-                 'SKYTHRESH': dict(otype=float,
-                                  descr='Threshold relative to sky for object finding'),
                  'THRESHOLD': dict(otype=float,
-                                  descr='Threshold used for finding'),
+                                  descr='Threshold used for object finding'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -590,8 +588,7 @@ class SpecObj(datamodel.DataContainer):
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
             'smash_peakflux',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'SKYTHRESH',
-            'THRESHOLD']
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 

@@ -14,15 +14,10 @@ from astropy import stats
 from abc import ABCMeta
 
 from linetools import utils as ltu
-from scipy import interpolate
-from scipy.optimize import least_squares
 
-from pypeit import specobjs
 from pypeit import msgs, utils
-from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, procimg, qa, parse
-from pypeit.images import buildimage
+from pypeit.core import skysub, extract, wave, flexure, parse
 from pypeit.core.moment import moment1d
 
 from linetools.spectra import xspectrum1d
@@ -90,8 +85,6 @@ class Extract:
 
     __metaclass__ = ABCMeta
 
-
-
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate,
@@ -153,12 +146,9 @@ class Extract:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if objtype == 'science':
-            if self.par['scienceframe']['process']['spat_flexure_correct']:
-                self.spat_flexure_shift = self.sciImg.spat_flexure
-        elif objtype == 'standard':
-            if self.par['calibrations']['standardframe']['process']['spat_flexure_correct']:
-                self.spat_flexure_shift = self.sciImg.spat_flexure
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+            self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
         else:
@@ -204,7 +194,6 @@ class Extract:
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
-
         # remove objects found in `BOXSLIT` (we don't want to extract those)
         remove_idx = []
         for i, sobj in enumerate(self.sobjs_obj):
@@ -212,7 +201,6 @@ class Extract:
                 remove_idx.append(i)
         # remove
         self.sobjs_obj.remove_sobj(remove_idx)
-
 
     def initialise_slits(self, initial=False):
         """
@@ -310,7 +298,6 @@ class Extract:
         """
         pass
 
-
     def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
         """
@@ -344,7 +331,6 @@ class Extract:
         # Set the initial and global sky
         self.global_sky = global_sky
 
-
     def run_extraction(self, global_sky, sobjs_obj, ra=None, dec=None, obstime=None, return_negative=False):
         """
         Primary code flow for PypeIt reductions
@@ -374,43 +360,10 @@ class Extract:
         # TODO this should return things to make the control flow less opqaque.
         self.prepare_extraction(global_sky)
 
-        '''
-        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
-        skymask, usersky = self.load_skyregions(skymask)
-
-
-        # # Create skymask for maskdef_extracted objects
-        if self.par['reduce']['slitmask']['extract_missing_objs']:
-            gdslits = np.where(np.invert(self.reduce_bpm))[0]
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            # Loop on slits
-            for slit_idx in gdslits:
-                slit_spat = self.slits.spat_id[slit_idx]
-                slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
-                thismask = self.slitmask == slit_spat
-                # sobj index of maskdef_extract
-                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
-                if maskdef_extract.size > 0:
-                    plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
-                    skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
-                            box_rad_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
-                                    if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
-                    skymask[thismask] = skymask_fwhm[thismask]
-        self.sobjs_obj = sobjs_obj
-        '''
         self.nobj = len(sobjs_obj)
-
 
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
-            '''
-            # Global sky subtraction second pass. Uses skymask from 2nd object finding and maskdef_extracted objects
-            if ((not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']) and (not usersky)) \
-                    or (self.par['reduce']['slitmask']['extract_missing_objs']):
-                self.global_sky = self.global_skysub(skymask=skymask, show=self.reduce_show,
-                                                     previous_sky=self.initial_sky)
-            '''
-
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -467,7 +420,6 @@ class Extract:
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
                self.scaleimg, self.waveimg, self.tilts
 
-
     def local_skysub_extract(self, global_sky, sobjs, model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
         """
@@ -476,7 +428,6 @@ class Extract:
         Overloaded by class specific skysub and extraction.
         """
         return None, None, None, None, None
-
 
     def spec_flexure_correct(self, mode="local", sobjs=None):
         """ Correct for spectral flexure
@@ -492,86 +443,85 @@ class Extract:
         """
         if self.par['flexure']['spec_method'] == 'skip':
             msgs.info('Skipping flexure correction.')
-        else:
-            # Perform some checks
-            if mode == "local" and sobjs is None:
-                msgs.error("No spectral extractions provided for flexure, using slit center instead")
-            elif mode not in ["local", "global"]:
-                msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
+            return
 
-            # Prepare a list of slit spectra, if required.
-            if mode == "global":
-                gd_slits = np.logical_not(self.reduce_bpm)
-                # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
-                trace_spat = 0.5 * (self.slits_left + self.slits_right)
-                trace_spec = np.arange(self.slits.nspec)
-                slit_specs = []
-                for ss in range(self.slits.nslits):
-                    if not gd_slits[ss]:
-                        slit_specs.append(None)
+        # Perform some checks
+        if mode == "local" and sobjs is None:
+            msgs.error("No spectral extractions provided for flexure, using slit center instead")
+        elif mode not in ["local", "global"]:
+            msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
+
+        # Prepare a list of slit spectra, if required.
+        if mode == "global":
+            gd_slits = np.logical_not(self.reduce_bpm)
+            # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
+            trace_spat = 0.5 * (self.slits_left + self.slits_right)
+            trace_spec = np.arange(self.slits.nspec)
+            slit_specs = []
+            for ss in range(self.slits.nslits):
+                if not gd_slits[ss]:
+                    slit_specs.append(None)
+                    continue
+                slit_spat = self.slits.spat_id[ss]
+                thismask = (self.slitmask == slit_spat)
+                box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
+                wghts = (box_denom + (box_denom == 0.0))
+                slit_sky = moment1d(self.global_sky * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                # Denom is computed in case the trace goes off the edge of the image
+                slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+
+            # Measure flexure
+            # If mode == global: specobjs = None and slitspecs != None
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+                                                  self.par['flexure']['spectrum'],
+                                                  method=self.par['flexure']['spec_method'],
+                                                  mxshft=self.par['flexure']['spec_maxshift'],
+                                                  specobjs=sobjs, slit_specs=slit_specs)
+
+            # Store the slit shifts that were applied to each slit
+            # These corrections are later needed so the specobjs metadata contains the total spectral flexure
+            self.slitshift = np.zeros(self.slits.nslits)
+            for islit in range(self.slits.nslits):
+                if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
+                    continue
+                self.slitshift[islit] = flex_list[islit]['shift'][0]
+            # Apply flexure to the new wavelength solution
+            msgs.info("Regenerating wavelength image")
+            self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
+                                                       spat_flexure=self.spat_flexure_shift,
+                                                       spec_flexure=self.slitshift)
+        elif mode == "local":
+            # Measure flexure:
+            # If mode == local: specobjs != None and slitspecs = None
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+                                                  self.par['flexure']['spectrum'],
+                                                  method=self.par['flexure']['spec_method'],
+                                                  mxshft=self.par['flexure']['spec_maxshift'],
+                                                  specobjs=sobjs, slit_specs=None)
+            # Apply flexure to objects
+            for islit in range(self.slits.nslits):
+                i_slitord = self.slits.slitord_id[islit]
+                indx = sobjs.slitorder_indices(i_slitord)
+                this_specobjs = sobjs[indx]
+                this_flex_dict = flex_list[islit]
+                # Loop through objects
+                cntr = 0
+                for ss, sobj in enumerate(this_specobjs):
+                    if sobj is None or sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
                         continue
-                    slit_spat = self.slits.spat_id[ss]
-                    thismask = (self.slitmask == slit_spat)
-                    box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
-                    wghts = (box_denom + (box_denom == 0.0))
-                    slit_sky = moment1d(self.global_sky * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-                    # Denom is computed in case the trace goes off the edge of the image
-                    slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-                    # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
-                    slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+                    # Interpolate
+                    new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
+                                                          this_flex_dict['sky_spec'][cntr])
+                    flex_list[islit]['sky_spec'][cntr] = new_sky.copy()
+                    cntr += 1
 
-                # Measure flexure
-                # If mode == global: specobjs = None and slitspecs != None
-                flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
-                                                      self.par['flexure']['spectrum'],
-                                                      method=self.par['flexure']['spec_method'],
-                                                      mxshft=self.par['flexure']['spec_maxshift'],
-                                                      specobjs=sobjs, slit_specs=slit_specs)
-
-                # Store the slit shifts that were applied to each slit
-                # These corrections are later needed so the specobjs metadata contains the total spectral flexure
-                self.slitshift = np.zeros(self.slits.nslits)
-                for islit in range(self.slits.nslits):
-                    if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
-                        continue
-                    self.slitshift[islit] = flex_list[islit]['shift'][0]
-                # Apply flexure to the new wavelength solution
-                msgs.info("Regenerating wavelength image")
-                self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
-                                                           spat_flexure=self.spat_flexure_shift,
-                                                           spec_flexure=self.slitshift)
-            elif mode == "local":
-                # Measure flexure:
-                # If mode == local: specobjs != None and slitspecs = None
-                flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
-                                                      self.par['flexure']['spectrum'],
-                                                      method=self.par['flexure']['spec_method'],
-                                                      mxshft=self.par['flexure']['spec_maxshift'],
-                                                      specobjs=sobjs, slit_specs=None)
-                # Apply flexure to objects
-                for islit in range(self.slits.nslits):
-                    i_slitord = self.slits.slitord_id[islit]
-                    indx = sobjs.slitorder_indices(i_slitord)
-                    this_specobjs = sobjs[indx]
-                    this_flex_dict = flex_list[islit]
-                    # Loop through objects
-                    cntr = 0
-                    for ss, sobj in enumerate(this_specobjs):
-                        if sobj is None:
-                            continue
-                        if sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
-                            continue
-                        # Interpolate
-                        new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
-                                                              this_flex_dict['sky_spec'][cntr])
-                        flex_list[islit]['sky_spec'][cntr] = new_sky.copy()
-                        cntr += 1
-
-            # Save QA
-            basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
-            out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
-                                    specobjs=sobjs, out_dir=out_dir)
+        # Save QA
+        basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
+        out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
+        flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, flex_list,
+                                specobjs=sobjs, out_dir=out_dir)
 
     def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
@@ -587,8 +537,8 @@ class Extract:
         """
         # Correct Telescope's motion
         refframe = self.par['calibrations']['wavelengths']['refframe']
-        if (refframe in ['heliocentric', 'barycentric']) \
-                and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
+        if refframe in ['heliocentric', 'barycentric'] \
+                and self.par['calibrations']['wavelengths']['reference'] != 'pixel':
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
             # Calculate correction
             radec = ltu.radec_to_coord((ra, dec))
@@ -641,9 +591,6 @@ class Extract:
         image : ndarray, optional
           User supplied image to display
 
-        Returns
-        -------
-
         """
 
         if showmask:
@@ -657,57 +604,49 @@ class Extract:
         detname = self.spectrograph.get_det_name(self.det)
 
         # TODO Do we still need this here?
-        if attr == 'global':
+        if attr == 'global' and all([a is not None for a in [self.sciImg.image, self.global_sky, self.sciImg.fullmask]]):
             # global sky subtraction
-            if self.sciImg.image is not None and self.global_sky is not None \
-                    and self.sciImg.fullmask is not None:
-                # sky subtracted image
-                image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
-                mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                             sigma_upper=5.0)
-                cut_min = mean - 1.0 * sigma
-                cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else f'global_sky_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                                mask=mask_in, clear=clear, wcs_match=True)
-                                              #, cuts=(cut_min, cut_max))
-        elif attr == 'local':
+            # sky subtracted image
+            image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
+            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
+                                                         sigma_upper=5.0)
+            cut_min = mean - 1.0 * sigma
+            cut_max = mean + 4.0 * sigma
+            ch_name = chname if chname is not None else f'global_sky_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
+                                            mask=mask_in, clear=clear, wcs_match=True)
+                                          #, cuts=(cut_min, cut_max))
+        elif attr == 'local' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.sciImg.fullmask]]):
             # local sky subtraction
-            if self.sciImg.image is not None and self.skymodel is not None \
-                    and self.sciImg.fullmask is not None:
-                # sky subtracted image
-                image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
-                mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                             sigma_upper=5.0)
-                cut_min = mean - 1.0 * sigma
-                cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else f'local_sky_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                                mask=mask_in, clear=clear, wcs_match=True)
-                                              #, cuts=(cut_min, cut_max))
-        elif attr == 'sky_resid':
+            # sky subtracted image
+            image = (self.sciImg.image - self.skymodel) * img_gpm.astype(float)
+            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
+                                                         sigma_upper=5.0)
+            cut_min = mean - 1.0 * sigma
+            cut_max = mean + 4.0 * sigma
+            ch_name = chname if chname is not None else f'local_sky_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
+                                            mask=mask_in, clear=clear, wcs_match=True)
+                                          #, cuts=(cut_min, cut_max))
+        elif attr == 'sky_resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
+                                                                  self.ivarmodel, self.sciImg.fullmask]]):
             # sky residual map with object included
-            if self.sciImg.image is not None and self.skymodel is not None \
-                    and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.fullmask is not None:
-                image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
-                image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else f'sky_resid_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                                wcs_match=True)
-        elif attr == 'resid':
+            image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
+            image *= img_gpm.astype(float)
+            ch_name = chname if chname is not None else f'sky_resid_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                            wcs_match=True)
+        elif attr == 'resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
+                                                                      self.ivarmodel, self.sciImg.fullmask]]):
             # full residual map with object model subtractede
-            if self.sciImg.image is not None and self.skymodel is not None \
-                    and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.fullmask is not None:
-                # full model residual map
-                image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-                image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else f'resid_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                                wcs_match=True)
+            # full model residual map
+            image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
+            image *= img_gpm.astype(float)
+            ch_name = chname if chname is not None else f'resid_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                            wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
@@ -742,7 +681,7 @@ class MultiSlitExtract(Extract):
 
     """
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(MultiSlitExtract, self).__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """

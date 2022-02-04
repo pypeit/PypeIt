@@ -900,6 +900,8 @@ class SlitTraceSet(datamodel.DataContainer):
             # FWHM
             thisobj.FWHM = fwhm  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
+            thisobj.smash_peakflux = 0.
+            thisobj.THRESHOLD = 0.
             # Finishing up
             thisobj.set_name()
             # Mask info

@@ -13,7 +13,6 @@ import os
 from astropy import stats
 from abc import ABCMeta
 
-from linetools import utils as ltu
 from scipy import interpolate
 from scipy.optimize import least_squares
 
@@ -21,13 +20,12 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, pixels, qa, parse
+from pypeit.core import skysub, pixels, qa, parse, flat
 from pypeit.core import procimg
 from pypeit.images import buildimage
 from pypeit.core import findobj_skymask
 
 from IPython import embed
-
 
 
 class FindObjects:
@@ -77,24 +75,20 @@ class FindObjects:
             Extraction mask
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
-            Only object finding but no extraction
-        sobjs (:class:`pypeit.specobjs.SpecObjs`):
-            Final extracted object list with trace corrections applied
-        spat_flexure_shift (float):
+            Objects found
+        spat_flexure_shift (:obj:`float`):
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
         waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
         slitshift (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
-        vel_corr (float):
+        vel_corr (:obj:`float`float):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
     """
 
     __metaclass__ = ABCMeta
-
-
 
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -109,11 +103,11 @@ class FindObjects:
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (pypeit.images.scienceimage.ScienceImage):
+            sciImg (:class:`pypeit.images.scienceimage.ScienceImage`):
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
-            basename (str, optional):
+            basename (:obj:`str`, optional):
                 Output filename used for spectral flexure QA
             **kwargs
                 Passed to Parent init
@@ -153,12 +147,9 @@ class FindObjects:
         # frames.  Is that okay for this usage?
         # Flexure
         self.spat_flexure_shift = None
-        if objtype == 'science':
-            if self.par['scienceframe']['process']['spat_flexure_correct']:
-                self.spat_flexure_shift = self.sciImg.spat_flexure
-        elif objtype == 'standard':
-            if self.par['calibrations']['standardframe']['process']['spat_flexure_correct']:
-                self.spat_flexure_shift = self.sciImg.spat_flexure
+        if (objtype == 'science' and self.par['scienceframe']['process']['spat_flexure_correct']) or \
+           (objtype == 'standard' and self.par['calibrations']['standardframe']['process']['spat_flexure_correct']):
+            self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
         else:
@@ -202,10 +193,24 @@ class FindObjects:
         self.outmask = None
         self.extractmask = None
         # SpecObjs object
+        self.sobjs_obj = None
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
 
     def create_skymask(self, sobjs_obj):
+        """
+        Creates a skymask from a SpecObjs object
+
+        Args:
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+            Objects for which you would like to create the mask
+
+        Returns:
+            `numpy.ndarray`_: Boolean image with shape :math:`(N_{\rm spec}, N_{\rm spat})`
+            indicating which pixels are usable for global sky subtraction.
+            True = usable for sky subtraction, False = should be masked when sky subtracting.
+
+        """
         # Masking options
         boxcar_rad_pix = None
 
@@ -228,7 +233,6 @@ class FindObjects:
                         trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
-
 
     def initialise_slits(self, initial=False):
         """
@@ -255,7 +259,6 @@ class FindObjects:
 #        # For echelle
 #        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
-
     def run(self, std_trace=None, show_peaks=False):
         """
         Primary code flow for object finding in PypeIt reductions
@@ -271,12 +274,10 @@ class FindObjects:
 
         Returns
         -------
-        global_sky : `numpy.ndarray`_
+        initial_sky : `numpy.ndarray`_
             Initial global sky model
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found
-        skymask_tuple : tuple
-            Skymask bits and pieces
         """
 
         # Deal with dynamic calibrations
@@ -297,66 +298,35 @@ class FindObjects:
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
-                              show=self.reduce_show & (not self.std_redux),
+                              show=self.reduce_show and not self.std_redux,
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
 
-        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file. IFU only
-        if self.par['reduce']['skysub']['load_mask'] or (
-            self.par['reduce']['skysub']['user_regions'] is not None):
-            embed(header='not ready for this!')
-            skymask_init, usersky = self.load_skyregions(skymask_init)
-        else:
-            skymask_init = self.create_skymask(sobjs_obj)
+        # create skymask using first pass sobjs_obj
+        skymask_init = self.create_skymask(sobjs_obj)
+
+        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file.
+        skymask_init, usersky = self.load_skyregions(skymask_init)
 
         # Global sky subtract (self.global_sky is also generated here)
         initial_sky = self.global_skysub(skymask=skymask_init).copy()
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            sobjs_obj, self.nobj = \
-                self.find_objects(self.sciImg.image - initial_sky,
-                                  std_trace=std_trace,
-                                  show=self.reduce_show,
-                                  show_peaks=show_peaks)
+            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky,
+                                                     std_trace=std_trace, show=self.reduce_show,
+                                                     show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
         return initial_sky, sobjs_obj
 
-    def get_final_global_sky(self, initial_sky, skymask):
-
-        #TODO Move this call to PypeIt
-        # Global sky subtraction second pass. Uses skymask from object finding
-        if (self.std_redux or self.par['reduce']['findobj']['skip_final_global']):
-            self.global_sky = initial_sky.copy()
-        else:
-            self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
-
-    # TODO -- REMOVE THIS METHOD?
-    def update_skymask(self, sobjs):
-
-
-        # # Create skymask for maskdef_extracted objects
-        if self.par['reduce']['slitmask']['extract_missing_objs']:
-            gdslits = np.where(np.invert(self.reduce_bpm))[0]
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            # Loop on slits
-            for slit_idx in gdslits:
-                slit_spat = self.slits.spat_id[slit_idx]
-                slit_objs = sobjs_obj[sobjs_obj.SLITID == slit_spat]
-                thismask = self.slitmask == slit_spat
-                # sobj index of maskdef_extract
-                maskdef_extract = np.where(slit_objs.MASKDEF_EXTRACT == True)[0] if slit_objs.nobj > 0 else np.array([])
-                if maskdef_extract.size > 0:
-                    plate_scale = self.get_platescale(slit_objs[maskdef_extract][0])*bin_spat
-                    skymask_fwhm = extract.create_skymask_fwhm(slit_objs[maskdef_extract], skymask,
-                            box_rad_pix=self.par['reduce']['extraction']['boxcar_radius']/plate_scale \
-                                    if self.par['reduce']['skysub']['mask_by_boxcar'] else None)
-                    skymask[thismask] = skymask_fwhm[thismask]
-        #self.sobjs_obj = sobjs_obj
-        self.skymask = skymask
-        self.nobj = len(sobjs_obj)
-
-
+    # def get_final_global_sky(self, initial_sky, skymask):
+    #
+    #     #TODO Move this call to PypeIt
+    #     # Global sky subtraction second pass. Uses skymask from object finding
+    #     if (self.std_redux or self.par['reduce']['findobj']['skip_final_global']):
+    #         self.global_sky = initial_sky.copy()
+    #     else:
+    #         self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -443,7 +413,6 @@ class FindObjects:
          """
         return None, None
 
-
     def get_platescale(self, ECH_ORDER):
         """
         Return the platescale for the current detector/echelle order
@@ -460,8 +429,7 @@ class FindObjects:
         pass
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
-                      previous_sky=None,
-                      show_fit=False, show=False, show_objs=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -552,15 +520,13 @@ class FindObjects:
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            sobjs_show = None if show_objs else sobjs_obj
+            sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs=sobjs_obj, clear=False)
+            self.show('global', slits=True, sobjs=sobjs_show, clear=False)
 
         # Return
         return global_sky
 
-
-    # TODO This method only used for IFUs, so it should be present in the IFU subclass not here.
     def load_skyregions(self, skymask_init):
         """
         Load or generate the sky regions
@@ -602,19 +568,20 @@ class FindObjects:
                 usersky = True
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
-        elif self.par['reduce']['skysub']['user_regions'] is not None:
-            if len(self.par['reduce']['skysub']['user_regions']) != 0:
-                skyregtxt = self.par['reduce']['skysub']['user_regions']
-                if type(skyregtxt) is list:
-                    skyregtxt = ",".join(skyregtxt)
-                msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
-                # The resolution probably doesn't need to be a user parameter
-                maxslitlength = np.max(self.slits_right-self.slits_left)
-                # Get the regions
-                status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
-                # Generate image
-                skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right, spat_flexure=self.spat_flexure_shift)
-                usersky = True
+        elif self.par['reduce']['skysub']['user_regions'] is not None and \
+                len(self.par['reduce']['skysub']['user_regions']) != 0:
+            skyregtxt = self.par['reduce']['skysub']['user_regions']
+            if type(skyregtxt) is list:
+                skyregtxt = ",".join(skyregtxt)
+            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
+            # The resolution probably doesn't need to be a user parameter
+            maxslitlength = np.max(self.slits_right-self.slits_left)
+            # Get the regions
+            status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
+            # Generate image
+            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left,
+                                                self.slits_right, spat_flexure=self.spat_flexure_shift)
+            usersky = True
         return skymask_init, usersky
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
@@ -654,43 +621,37 @@ class FindObjects:
         img_gpm = self.sciImg.select_flag(invert=True)
         detname = self.spectrograph.get_det_name(self.det)
 
-        if attr == 'global':
+        if attr == 'global' and all([a is not None for a in [self.sciImg.image, self.global_sky, self.sciImg.fullmask]]):
             # global sky subtraction
-            if self.sciImg.image is not None and self.global_sky is not None \
-                    and self.sciImg.fullmask is not None:
-                # sky subtracted image
-                image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
-                mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
-                                                             sigma_upper=5.0)
-                cut_min = mean - 1.0 * sigma
-                cut_max = mean + 4.0 * sigma
-                ch_name = chname if chname is not None else f'global_sky_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                                mask=mask_in, clear=clear, wcs_match=True)
-                                              #, cuts=(cut_min, cut_max))
-        elif attr == 'sky_resid':
+            # sky subtracted image
+            image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
+            mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
+                                                         sigma_upper=5.0)
+            cut_min = mean - 1.0 * sigma
+            cut_max = mean + 4.0 * sigma
+            ch_name = chname if chname is not None else f'global_sky_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
+                                            mask=mask_in, clear=clear, wcs_match=True)
+                                          #, cuts=(cut_min, cut_max))
+        elif attr == 'sky_resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
+                                                                  self.ivarmodel, self.sciImg.fullmask]]):
             # sky residual map with object included
-            if self.sciImg.image is not None and self.skymodel is not None \
-                    and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.fullmask is not None:
-                image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
-                image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else f'sky_resid_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                                wcs_match=True)
-        elif attr == 'resid':
+            image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
+            image *= img_gpm.astype(float)
+            ch_name = chname if chname is not None else f'sky_resid_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                            wcs_match=True)
+        elif attr == 'resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
+                                                              self.ivarmodel, self.sciImg.fullmask]]):
             # full residual map with object model subtractede
-            if self.sciImg.image is not None and self.skymodel is not None \
-                    and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.fullmask is not None:
-                # full model residual map
-                image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-                image *= img_gpm.astype(float)
-                ch_name = chname if chname is not None else f'resid_{detname}'
-                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                                wcs_match=True)
+            # full model residual map
+            image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
+            image *= img_gpm.astype(float)
+            ch_name = chname if chname is not None else f'resid_{detname}'
+            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                            wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
@@ -725,7 +686,7 @@ class MultiSlitFindObjects(FindObjects):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(MultiSlitFindObjects, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -780,8 +741,6 @@ class MultiSlitFindObjects(FindObjects):
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
-        skymask_tuples : list
-            List of skymask tuples
         """
         gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
@@ -865,7 +824,6 @@ class MultiSlitFindObjects(FindObjects):
         return sobjs, len(sobjs)
 
 
-
 class EchelleFindObjects(FindObjects):
     """
     Child of Reduce for Echelle reductions
@@ -947,12 +905,7 @@ class EchelleFindObjects(FindObjects):
             Container holding Specobj objects
         nobj : :obj:`int`
             Number of objects identified
-        skymask : `numpy.ndarray`_
-            Boolean image indicating which pixels are useful for global sky
-            subtraction
         """
-        # create the ouptut image for skymask
-        skymask = np.zeros_like(image, dtype=bool)
 
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.select_flag(invert=True)
@@ -974,7 +927,6 @@ class EchelleFindObjects(FindObjects):
             objfindQA_filename = qa.set_qa_filename(basename, 'obj_profile_qa', slit=999,
                                                     det=detname, out_dir=out_dir)
 
-        #sobjs_ech, skymask[self.slitmask > -1] = findobj_skymask.ech_objfind(
         sobjs_ech = findobj_skymask.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
@@ -995,7 +947,6 @@ class EchelleFindObjects(FindObjects):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            #skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
             #boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
             show_trace=show_trace, objfindQA_filename=objfindQA_filename, debug=debug)
 
@@ -1006,7 +957,7 @@ class EchelleFindObjects(FindObjects):
             self.show('image', image=image*gpm.astype(float), chname='ech_objfind',
                       sobjs=sobjs_ech, slits=False)
 
-        return sobjs_ech, len(sobjs_ech)#, skymask
+        return sobjs_ech, len(sobjs_ech)
 
 
 class IFUFindObjects(MultiSlitFindObjects):
@@ -1032,8 +983,7 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                  show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
                                                  show=show, save_objfindQA=save_objfindQA, neg=neg,
                                                  debug=debug, manual_extract_dict=manual_extract_dict)
-        else:
-            return None, None, None
+        return None, None, None
 
     def apply_relative_scale(self, scaleImg):
         """Apply a relative scale to the science frame (and correct the varframe, too)
@@ -1054,7 +1004,7 @@ class IFUFindObjects(MultiSlitFindObjects):
             self.sciImg.update_mask('BADSCALE', indx=_bpm)
         self.sciImg.ivar = utils.inverse(varImg)
 
-    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
+    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
         """ Calculate the residual spatial illumination profile using the sky regions.
         The redisual is calculated using the differential:
         correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
@@ -1067,6 +1017,8 @@ class IFUFindObjects(MultiSlitFindObjects):
              trim_edg (:obj:`tuple`):
                 A tuple of two ints indicated how much of the slit edges should be
                 trimmed when fitting to the spatial profile.
+            debug (:obj:`bool`):
+                Show debugging plots?
         """
 
         msgs.info("Performing spatial sensitivity correction")
@@ -1135,7 +1087,6 @@ class IFUFindObjects(MultiSlitFindObjects):
             spatScaleImg[onslit_b_init] = spatnorm
             coeff_fit[sl, :] = res_lsq.x
 
-        debug=False
         if debug:
             from matplotlib import pyplot as plt
             xplt = np.arange(24)
@@ -1237,13 +1188,13 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.steps.append(inspect.stack()[0][3])
 
         if show:
-            sobjs_show = None if show_objs else sobjs_obj
+            sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show('global', slits=True, sobjs=sobjs_show, clear=False)
         return global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
-                      show_fit=False, show=False, show_objs=False):
+                      previous_sky=None, show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction. This IFU-specific routine ensures that the
         edges of the slits are not trimmed, and performs a spatial and spectral
@@ -1288,41 +1239,42 @@ class IFUFindObjects(MultiSlitFindObjects):
                                                     trim_edg=trim_edg, show_fit=show_fit,
                                                     show=show, show_objs=show_objs)
 
-        debug = False
-        if debug:
-            embed()
-            wavefull = np.linspace(3950, 4450, 10000)
-            import matplotlib.pylab as pl
-            from matplotlib import pyplot as plt
-            colors = pl.cm.jet(np.linspace(0, 1, gdslits.size))
-            plt.subplot(121)
-            for sl, slit_idx in enumerate(gdslits):
-                slit_spat = self.slits.spat_id[slit_idx]
-                thismask = self.slitmask == slit_spat
-                wav = self.waveimg[thismask]
-                flx = global_sky_sep[thismask]
-                argsrt = np.argsort(wav)
-                spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
-                if sl == 0:
-                    ref = spl(wavefull)
-                    plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
-                plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
-            plt.subplot(122)
-            for sl, slit_idx in enumerate(gdslits):
-                slit_spat = self.slits.spat_id[slit_idx]
-                thismask = self.slitmask == slit_spat
-                wav = self.waveimg[thismask]
-                flx = self.global_sky[thismask]
-                argsrt = np.argsort(wav)
-                spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
-                if sl == 0:
-                    ref = spl(wavefull)
-                    plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
-                plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
-                print(sl, np.median(spl(wavefull) / ref))
-                # plt.plot(wavefull, spl(wavefull), color=colors[sl])
-
-            plt.show()
+        # TODO remove? This does not seem to be usable
+        # debug = False
+        # if debug:
+        #     embed()
+        #     wavefull = np.linspace(3950, 4450, 10000)
+        #     import matplotlib.pylab as pl
+        #     from matplotlib import pyplot as plt
+        #     colors = pl.cm.jet(np.linspace(0, 1, gdslits.size))
+        #     plt.subplot(121)
+        #     for sl, slit_idx in enumerate(gdslits):
+        #         slit_spat = self.slits.spat_id[slit_idx]
+        #         thismask = self.slitmask == slit_spat
+        #         wav = self.waveimg[thismask]
+        #         flx = global_sky_sep[thismask]
+        #         argsrt = np.argsort(wav)
+        #         spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
+        #         if sl == 0:
+        #             ref = spl(wavefull)
+        #             plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
+        #         plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
+        #     plt.subplot(122)
+        #     for sl, slit_idx in enumerate(gdslits):
+        #         slit_spat = self.slits.spat_id[slit_idx]
+        #         thismask = self.slitmask == slit_spat
+        #         wav = self.waveimg[thismask]
+        #         flx = self.global_sky[thismask]
+        #         argsrt = np.argsort(wav)
+        #         spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
+        #         if sl == 0:
+        #             ref = spl(wavefull)
+        #             plt.plot(wavefull, ref / np.nanmedian(ref), color=colors[sl], linestyle=':')
+        #         plt.plot(wavefull, spl(wavefull) / ref, color=colors[sl])
+        #         print(sl, np.median(spl(wavefull) / ref))
+        #         # plt.plot(wavefull, spl(wavefull), color=colors[sl])
+        #
+        #     plt.show()
 
         return self.global_sky
 
