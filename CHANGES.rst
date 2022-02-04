@@ -61,6 +61,7 @@
   for reading arc lamps used from frames, and `reid_arxiv` templates for
   three additional gratings.  
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
+- Hotfix for `gemini_gmos` mosaic tracing parameters
 
 - When using glob to get files in pypeit_setup, added automatic sorting so that
   the default `comb_id` ordering matches the sorted file name.

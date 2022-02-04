@@ -1246,6 +1246,6 @@ class Identify:
                       'flag' : self._lineflg},
                      names=['pixel', 'wavelength', 'flag'],
                      meta=meta)
-        ascii_io.write(data, fname, format='fixed_width')
+        ascii_io.write(data, fname, format='fixed_width', overwrite=True)
         msgs.info("Line IDs saved as:" + msgs.newline() + fname)
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
