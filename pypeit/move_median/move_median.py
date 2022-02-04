@@ -7,5 +7,5 @@ try:
     warnings.warn("using bottleneck")
 except:
     warnings.warn('Unable to load bottleneck moving median.  Try reinstalling bottleneck.  In the '
-                  'meantime, falling back to pure python code.')
+                  'meantime, falling back on the slower pure python code.')
     from pypeit.move_median.mmpy import move_median
