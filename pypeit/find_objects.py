@@ -226,11 +226,10 @@ class FindObjects:
                 boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(
                     self.slits.slitord_id[slit_idx])
             # Do it
-            skymask[thismask] = findobj_skymask.create_skymask(
-                sobjs_obj, thismask, 
-                self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
-                        box_rad_pix=boxcar_rad_pix,
-                        trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
+            skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj, thismask, self.slits_left[:,slit_idx],
+                                                               self.slits_right[:,slit_idx],
+                                                               box_rad_pix=boxcar_rad_pix,
+                                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
 
@@ -747,13 +746,10 @@ class MultiSlitFindObjects(FindObjects):
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
-        # Masking options
-        if self.par['reduce']['skysub']['mask_by_boxcar']:
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            plate_scale = self.get_platescale(None)*bin_spat
-            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / plate_scale
-        else:
-            boxcar_rad_skymask = None
+
+        bin_spec, bin_spat = parse.parse_binning(self.binning)
+        plate_scale = self.get_platescale(None)*bin_spat
+
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -794,7 +790,7 @@ class MultiSlitFindObjects(FindObjects):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh= sig_thresh,
+                                sig_thresh=sig_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -803,8 +799,8 @@ class MultiSlitFindObjects(FindObjects):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
-                                #boxcar_rad_skymask=boxcar_rad_skymask,
+                                use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
+                                boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
@@ -947,8 +943,8 @@ class EchelleFindObjects(FindObjects):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            #boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
-            show_trace=show_trace, objfindQA_filename=objfindQA_filename, debug=debug)
+            box_radius=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
+            show_trace=show_trace, objfindQA_filename=objfindQA_filename)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

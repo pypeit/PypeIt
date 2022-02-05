@@ -250,18 +250,12 @@ class Extract:
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
                 sobj = self.sobjs[iobj]
-                bin_spec, bin_spat = parse.parse_binning(self.binning)
-                plate_scale = self.get_platescale(sobj)*bin_spat
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
-                if sobj.MASKDEF_EXTRACT is True:
-                    box_rad = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
-                else:
-                    box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, box_rad, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj.BOX_RADIUS, sobj, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
@@ -700,7 +694,6 @@ class MultiSlitExtract(Extract):
         plate_scale = self.sciImg.detector.platescale
         return plate_scale
 
-
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -780,10 +773,6 @@ class MultiSlitExtract(Extract):
 
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            plate_scale = self.get_platescale(None)*bin_spat
-            box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
             sigrej = self.par['reduce']['skysub']['sky_sigrej']
             bsp = self.par['reduce']['skysub']['bspline_spacing']
             force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
@@ -800,8 +789,7 @@ class MultiSlitExtract(Extract):
                                                   self.slits_right[:, slit_idx],
                                                   self.sobjs[thisobj], ingpm=ingpm,
                                                   spat_pix=spat_pix,
-                                                  model_full_slit=model_full_slit, box_rad=box_rad,
-                                                  box_rad_maskdef_extract= box_rad_maskdef_extract,
+                                                  model_full_slit=model_full_slit,
                                                   sigrej=sigrej, model_noise=model_noise,
                                                   std=self.std_redux, bsp=bsp,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
@@ -908,9 +896,6 @@ class EchelleExtract(Extract):
 
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
-        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
@@ -923,9 +908,7 @@ class EchelleExtract(Extract):
                                                   self.slits_right, self.slitmask, sobjs,
                                                   self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
-                                                  min_snr=min_snr, bsp=bsp,
-                                                  box_rad_order=box_rad_order,
-                                                  box_rad_maskdef_extract= box_rad_maskdef_extract, sigrej=sigrej,
+                                                  min_snr=min_snr, bsp=bsp, sigrej=sigrej,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,

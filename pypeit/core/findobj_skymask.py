@@ -76,6 +76,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
         # threshold for object finding
         thresh = np.array([])
         for iobj in range(nobj):
+            # this will skip also sobjs with THRESHOLD=0, because are the same that have smash_peakflux=0.
             if (sobjs[iobj].smash_peakflux != 0.) and (sobjs[iobj].smash_peakflux != None):
                 sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
                 sep_inc = sobjs[iobj].maskwidth/nsamp
@@ -83,11 +84,13 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
                 qobj[close] += sobjs[iobj].smash_peakflux * \
                                np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2, -9.0))
                 thresh = np.append(thresh, sobjs[iobj].THRESHOLD)
-        # get the max THRESHOLD. Generally, objects in the same slit have same THRESHOLD,
-        # but force extracted objects will have THRESHOLD = 0
-        max_tresh = np.max(thresh)
-        # fill it
-        skymask_objflux[thismask] = np.interp(ximg[thismask], xtmp, qobj) < (skymask_nthresh*max_tresh)
+        # get THRESHOLD for this slit. Generally, objects in the same slit have same THRESHOLD,
+        # so we use the average among all the sobjs. But if this slit has only a force extracted sobj (with THRESHOLD=0)
+        # the array thresh is empty
+        if thresh.size > 0:
+            mean_tresh = np.mean(thresh)
+            # fill it
+            skymask_objflux[thismask] = np.interp(ximg[thismask], xtmp, qobj) < (skymask_nthresh*mean_tresh)
 
     # FWHM
     skymask_fwhm = np.copy(thismask)
@@ -136,10 +139,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
                 use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
-                extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0,
+                extract_maskwidth=3.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0,
                 cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
                 npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
-                show_trace=False, show_single_trace=False, debug=False, show_pca=False,
+                show_trace=False, show_single_trace=False, show_pca=False,
                 debug_all=False, objfindQA_filename=None):
     """
     Object finding routine for Echelle spectrographs. This routine:
@@ -230,17 +233,75 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             Minimum SNR for keeping an object. For an object to be kept
             it must have a median S/N ratio above min_snr for at least
             nabove_min_snr orders.
+        max_snr (:obj:`float`):
+            Required SNR for keeping an object. For an object to be kept
+            it must have a max S/N ratio above max_snr.
         nabove_min_snr (:obj:`int`):
             The required number of orders that an object must have with
             median SNR>min_snr in order to be kept.
+        pca_explained_var (:obj:`float`, optional):
+            The percentage (i.e., not the fraction) of the variance
+            in the data accounted for by the PCA used to truncate the
+            number of PCA coefficients to keep (see `npca`). Ignored
+            if `npca` is provided directly. See :func:`pypeit.core.pca.pca_decomposition`.
         cont_sig_thresh (:obj:`float`, optional):
             Significance threshold for peak detection for determinining which pixels to use for the iteratively
             fit continuum of the spectral direction smashed image. This is passed to objfind which is then passed as
             the sigthresh parameter to core.arc.iter_continum. For extremely narrow slits that are almost filled by
             the object trace set this to a smaller number like 1.0 or disable continuum fitting altogether with
             cont_fit=False below. Default = 1.0
+        npoly_cont (:obj:`int`):
+            Order of polynomial fit to the illumination pattern across the slit when peak finding
+        cont_fit (:obj:`bool`):
+            Fit a continuum to the illumination pattern across the slit when peak finding
+        trim_edg (:obj:`tuple`):
+            Ignore objects within this many pixels of the left and right
+            slit boundaries, where the first element refers to the left
+            and second refers to the right. This is tuple of 2 integers of floats
+        specobj_dict (:obj:`dict`):
+            Dictionary containing meta-data for the objects that will be
+            propgated into the SpecObj objects, i.e. SLITID,
+            detector, object type, and pipeline. The default is None, in
+            which case the following dictionary will be used::
+
+                specobj_dict = {'SLITID': 999, 'DET': 'DET01',
+                                'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
+        abs_thresh (:obj:`float`):
+            Absolute threshold for object detection.  Objects are found
+            by smashing out the spectral direction along the curved
+            slit/order traces, and abs_thresh is in the units of this
+            smashed profile.  The code uses the maximum of the
+            thresholds defined by sig_thresh, peak_thers, and
+            abs_thresh.
+        peak_thresh (:obj:`float`):
+            Peak threshold for object detection. This is a number
+            between 0 and 1 and represents the fraction of the brightest
+            object on the slit that will be kept as an object, i.e. if
+            ymax is the brightest object of the spectrum smashed out in
+            the spectral direction, all objects with ypeak >
+            peak_thresh*ymak are kept. The code uses the maximum of the
+            thresholds defined by sig_thresh, peak_thers, and
+            abs_thresh.
+        extract_maskwidth (:obj:`float`,optional):
+            This parameter determines the initial size of the region in
+            units of fwhm that will be used for local sky subtraction in
+            the routine skysub.local_skysub_extract.
+        nperslit (:obj:`int`):
+            Maximum number of objects allowed per slit. The code will
+            take the nperslit most significant detections.
+        std_trace (`numpy.ndarray`_):
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
+        has_negative (:obj:`bool`, optional):
+            Image has negative object traces, i.e. for IR difference imaging. This impacts how the
+            iterative conntinuum is fit to the spectral direction smashed image for object finding. Default=False
         box_radius (:obj:`float`):
-            Box_car extraction radius in arcseconds for SNR calculation and trimming
+            Box_car extraction radius in arcseconds to assign to each detected object and to be
+            used later for boxcar extraction. In this method box_radius is converted into pixels
+            by using the plate scale for the particular order.
+            box_radius is also used for SNR calculation and trimming.
         sig_thresh (:obj:`float`):
             Threshold for finding objects
         show_peaks (:obj:`bool`):
@@ -251,8 +312,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             Plot trace fitting for single order fits
         show_trace (:obj:`bool`):
             Whether display the resulting traces on top of the image
-        debug (:obj:`bool`):
-            Debug?
+        show_single_trace (:obj:`bool`):
+            Whether display the resulting traces on top of the single order
+        show_pca (:obj:`bool`):
+            Whether display debugging plots for pca
+        debug_all (:obj:`bool`):
+            Show all the debugging plots?
         objfindQA_filename (:obj:`str`, optional):
             Directory + filename of the object profile QA. Default = None.
 
@@ -345,7 +410,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = order_vec[iord]
         std_in = None if std_trace is None else std_trace[:, iord]
-        
+
         # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,		
         # not one at every location on the order            
         if hand_extract_dict is not None:
@@ -370,11 +435,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
                     nperslit=nperslit, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
-                    trim_edg=trim_edg, cont_fit=cont_fit,
-                    npoly_cont=npoly_cont, show_peaks=show_peaks,
-                    show_fits=show_single_fits, show_trace=show_single_trace,
-                    qa_title=qa_title,
-                    specobj_dict=specobj_dict, objfindQA_filename=ech_objfindQA_filename)
+                    trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord], cont_fit=cont_fit,
+                    npoly_cont=npoly_cont, show_peaks=show_peaks, show_fits=show_single_fits,
+                    show_trace=show_single_trace, qa_title=qa_title, specobj_dict=specobj_dict,
+                    objfindQA_filename=ech_objfindQA_filename)
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)
@@ -703,15 +767,12 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     return sobjs_final
 
 
-def objs_in_slit(image, thismask, slit_left, slit_righ, 
-                 inmask=None, fwhm=3.0, use_user_fwhm=False, maxdev=2.0, has_negative=False, spec_min_max=None,
-            hand_extract_dict=None, std_trace=None, ncoeff=5, nperslit=None,
-            sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, 
-            trim_edg=(5,5), cont_sig_thresh=2.0,
-            extract_maskwidth=4.0, 
-            specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
-            show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
-            qa_title='objfind', objfindQA_filename=None):
+def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
+                 maxdev=2.0, has_negative=False, spec_min_max=None, hand_extract_dict=None, std_trace=None,
+                 ncoeff=5, nperslit=None, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
+                 cont_sig_thresh=2.0, extract_maskwidth=4.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
+                 find_min_max=None, show_peaks=False, show_fits=False, show_trace=False, show_cont=False,
+                 debug_all=False, qa_title='objfind', objfindQA_filename=None):
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
@@ -758,6 +819,8 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             If True PypeIt will use the spatial profile fwm input by the user (i.e. the fwhm parameter above)
             rather than determine the spatial fwhm from the smashed spatial profile via the automated algorithm.
             Default = False.
+        boxcar_rad (:obj:`float`, :obj:`int`):
+            Boxcar radius in *pixels* to assign to each detected object and to be used later for boxcar extraction.
         maxdev (:obj:`float`):
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -814,7 +877,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             and second refers to the right. This is tuple of 2 integers of floats
         has_negative (:obj:`bool`, optional):
             Image has negative object traces, i.e. for IR difference imaging. This impacts how the
-            iterative conntinuum is fit to the spectral directoin smashed image for object finding. Default=False
+            iterative conntinuum is fit to the spectral direction smashed image for object finding. Default=False
         cont_fit (:obj:`bool`):
             Fit a continuum to the illumination pattern across the slit when peak finding
         npoly_cont (:obj:`int`):
@@ -827,7 +890,18 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             
                 specobj_dict = {'SLITID': 999, 'DET': 'DET01',
                                 'OBJTYPE': 'unknown', 'PYPELINE': 'unknown'}
-
+        show_peaks (:obj:`bool`):
+            Whether plotting the QA of peak finding of your object in each order
+        show_fits (:obj:`bool`):
+            Plot trace fitting for final fits using PCA as crutch
+        show_trace (:obj:`bool`):
+            Whether display the resulting traces on top of the image
+        show_cont (:obj:`bool`):
+            Show debugging plot of the routine used to determine the spectrum continuum
+        debug_all (:obj:`bool`):
+            Show all the debugging plots?
+        qa_title (:obj:`str`, optional):
+            Title to be printed in the QA plots
         objfindQA_filename: (:obj:`str`, optional):
             Directory + filename of the object profile QA
 
@@ -1097,6 +1171,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
         # Set the idx for any prelminary outputs we print out. These will be updated shortly
         sobjs[iobj].set_name()
 
+        # assign FWHM
         if use_user_fwhm:
             sobjs[iobj].FWHM = fwhm
 
@@ -1149,6 +1224,9 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
                 sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
             else:
                 sobjs[iobj].FWHM = fwhm
+
+        # assign BOX_RADIUS
+        sobjs[iobj].BOX_RADIUS = boxcar_rad
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
@@ -1225,6 +1303,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
             thisobj.trace_spec = spec_vec
             thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
             thisobj.set_name()
+            # assign FWHM
             # TODO -- I think FWHM *has* to be input
             if hand_extract_fwhm[iobj] is not None: # If a hand_extract_fwhm was input use that for the fwhm
                 thisobj.FWHM = hand_extract_fwhm[iobj]
@@ -1232,6 +1311,8 @@ def objs_in_slit(image, thismask, slit_left, slit_righ,
                 thisobj.FWHM = med_fwhm_reg
             else:  # Otherwise just use the FWHM parameter input to the code (or the default value)
                 thisobj.FWHM = fwhm
+            # assign BOX_RADIUS
+            thisobj.BOX_RADIUS = boxcar_rad
             # Finish
             sobjs.add_sobj(thisobj)
 
