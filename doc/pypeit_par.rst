@@ -866,7 +866,7 @@ Key                      Type                Options  Default                   
 ``star_ra``              float               ..       ..                                                                              Object right-ascension in decimal deg                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
 ``star_type``            str                 ..       ..                                                                              stellar type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 ``sticky``               bool                ..       True                                                                            Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  If set to True then points rejected from a previous iteration are kept rejected, in other words the bad pixel mask is the OR of all previous iterations and rejected pixels accumulate. If set to False, the bad pixel mask is the mask from the previous iteration, and if the model fit changes between iterations, points can alternate from being rejected to not rejected. At present this code only performs optimizations with differential evolution and experience shows that sticky needs to be True in order for these to converge. This is because the outliers can be so large that they dominate the loss function, and one never iteratively converges to a good model fit. In other words, the deformations in the model between iterations with sticky=False are too small to approach a reasonable fit.
-``telgridfile``          str                 ..       ..                                                                              File containing the telluric grid for the observatory in question. These grids are generated from HITRAN models for each observatory using nominal site parameters. They must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+``telgridfile``          str                 ..       ..                                                                              File containing the telluric grid for the observatory in question. These grids are generated from HITRAN models for each observatory using nominal site parameters. They must be downloaded from the GoogleDrive and installed in your PypeIt installation via the pypeit_install_telluric script. NOTE: This parameter no longer includes the full pathname to the Telluric Grid file, but is just the filename of the grid itself.
 ``tell_norm_thresh``     int, float          ..       0.9                                                                             Threshold of telluric absorption region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ``tol``                  float               ..       0.001                                                                           Relative tolerance for converage of the differential evolution optimization. See scipy.optimize.differential_evolution for details.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``upper``                int, float          ..       3.0                                                                             Upper rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and sigma_corr is an empirically determined correction to the formal error. See above for description.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
@@ -1221,7 +1221,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
@@ -1514,7 +1514,7 @@ Alterations to the default parameters are::
   [sensfunc]
       algorithm = IR
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
@@ -1625,7 +1625,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 6
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 GTC OSIRIS (``gtc_osiris``)
 ---------------------------
@@ -1808,7 +1808,7 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
@@ -2532,7 +2532,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 13
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRES (``keck_nires``)
 ---------------------------
@@ -2654,7 +2654,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
@@ -2765,7 +2765,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
@@ -3332,7 +3332,6 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pixelflatframe]]
           [[[process]]]
-              combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
@@ -3512,7 +3511,7 @@ Alterations to the default parameters are::
   [sensfunc]
       algorithm = IR
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
@@ -3624,7 +3623,7 @@ Alterations to the default parameters are::
           find_trim_edge = 50, 50
   [sensfunc]
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 MAGELLAN MagE (``magellan_mage``)
 ---------------------------------
@@ -3879,7 +3878,7 @@ Alterations to the default parameters are::
   [sensfunc]
       polyorder = 7
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 MMT Blue_Channel (``mmt_bluechannel``)
 --------------------------------------
@@ -4092,7 +4091,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 NOT ALFOSC (``not_alfosc``)
 ---------------------------
@@ -4417,7 +4416,7 @@ Alterations to the default parameters are::
       [[UVIS]]
           polycorrect = False
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_Lick_3100_11100_R10000.fits
+          telgridfile = TelFit_Lick_3100_11100_R10000.fits
 
 P200 TSPEC (``p200_tspec``)
 ---------------------------
@@ -4539,7 +4538,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = TelFit_MaunaKea_3100_26100_R20000.fits
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -4701,7 +4700,7 @@ Alterations to the default parameters are::
       spec_method = boxcar
   [sensfunc]
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_Lick_3100_11100_R10000.fits
+          telgridfile = TelFit_Lick_3100_11100_R10000.fits
 
 SHANE KASTr (``shane_kast_red_ret``)
 ------------------------------------
@@ -4863,7 +4862,7 @@ Alterations to the default parameters are::
           noise_floor = 0.01
   [sensfunc]
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = TelFit_LasCampanas_3100_26100_R20000.fits
 
 TNG DOLORES (``tng_dolores``)
 -----------------------------
@@ -5139,7 +5138,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 7
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)
 ---------------------------------------
@@ -5275,7 +5274,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
@@ -5478,7 +5477,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7
       [[IR]]
-          telgridfile = /home/dusty/work/PypeIt/pypeit/data/telluric/atm_grids/TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 WHT ISISb (``wht_isis_blue``)
 -----------------------------
