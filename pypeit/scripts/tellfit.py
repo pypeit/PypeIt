@@ -113,8 +113,7 @@ class TellFit(scriptbase.ScriptBase):
             if par['sensfunc']['IR']['telgridfile'] is not None:
                 par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
             else:
-                par['telluric']['telgridfile'] = resource_filename('pypeit',
-                                 '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
+                par['telluric']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
                 msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
         # Checks

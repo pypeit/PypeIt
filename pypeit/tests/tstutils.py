@@ -18,6 +18,7 @@ from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
 from pypeit.core.wavecal import waveio
+from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
@@ -36,8 +37,9 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             reason='no dev-suite cooked directory')
 
 # Tests require the Telluric file (Mauna Kea)
-tell_test_grid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids',
-                              'TelFit_MaunaKea_3100_26100_R20000.fits')
+par = Spectrograph.default_pypeit_par()
+tell_test_grid = os.path.join(par['sensfunc']['IR'].default_root,
+                                  'TelFit_MaunaKea_3100_26100_R20000.fits')
 telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
                                        reason='no Mauna Kea telluric file')
 

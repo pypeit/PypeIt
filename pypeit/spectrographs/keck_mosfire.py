@@ -127,9 +127,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 13
         par['sensfunc']['IR']['maxiter'] = 2
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

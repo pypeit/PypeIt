@@ -213,9 +213,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_fwhm'] = 10.  
 
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

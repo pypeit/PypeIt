@@ -2092,7 +2092,7 @@ class TelluricPar(ParSet):
         """
         Return the default path to the atmospheric model grids.
         """
-        return resource_filename('pypeit', '/data/telluric/atm_grids/')
+        return os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
 
 
 class ReduxPar(ParSet):
