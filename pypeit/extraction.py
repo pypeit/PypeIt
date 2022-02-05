@@ -17,7 +17,7 @@ from linetools import utils as ltu
 
 from pypeit import msgs, utils
 from pypeit.display import display
-from pypeit.core import skysub, extract, wave, flexure, parse
+from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
 
 from linetools.spectra import xspectrum1d
@@ -39,19 +39,11 @@ class Extract:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`):
         objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        det (:obj:`int`, optional):
-           Detector index
-        setup (:obj:`str`, optional):
-           Used for naming
-        maskslits (`numpy.ndarray`_, optional):
-          Specifies masked out slits
-          True = Masked
         bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
            Show plots along the way?
-        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -87,9 +79,8 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+                     find_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -99,30 +90,44 @@ class Extract:
 
         Args:
             sciImg (pypeit.images.scienceimage.ScienceImage):
+                Image to reduce.
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                Objects found but not yet extracted
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
+            objtype (:obj:`str`):
+                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
+                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
+                    Find a way to dermine those outside this class
+            bkg_redux (:obj:`bool`, optional):
+                If True, the sciImg has been subtracted by
+                a background image (e.g. standard treatment in the IR)
+            find_negative (:obj:`bool`, optional):
+                If True, the negative objects are found
+            std_redux (:obj:`bool`, optional):
+                If True the object being extracted is a standards star
+                so that the reduction parameters can be adjusted accordingly.
             basename (str, optional):
                 Output filename used for spectral flexure QA
+            show (:obj:`bool`, optional):
+                Show plots along the way?
             **kwargs
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.reduce.Reduce`:
+            :class:`pypeit.extraction.Extract`:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
                             sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
                             bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
-                            setup=setup, basename=basename,
-                            manual=manual)
+                            basename=basename)
 
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, 
-                 bkg_redux=False, find_negative=False, 
-                 std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
+                 basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -135,7 +140,6 @@ class Extract:
         self.caliBrate = caliBrate
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
-        self.manual = manual
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -176,7 +180,6 @@ class Extract:
         self.std_redux = std_redux
         self.det = caliBrate.det
         self.binning = caliBrate.binning
-        self.setup = setup
         self.pypeline = spectrograph.pypeline
         self.reduce_show = show
 

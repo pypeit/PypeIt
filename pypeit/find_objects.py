@@ -42,13 +42,6 @@ class FindObjects:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`):
         objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        det (:obj:`int`, optional):
-           Detector index
-        setup (:obj:`str`, optional):
-           Used for naming
-        maskslits (`numpy.ndarray`_, optional):
-          Specifies masked out slits
-          True = Masked
         bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
@@ -92,9 +85,8 @@ class FindObjects:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+    def get_instance(cls, sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+                     find_negative=False, std_redux=False, show=False, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -103,28 +95,44 @@ class FindObjects:
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (:class:`pypeit.images.scienceimage.ScienceImage`):
+            sciImg (pypeit.images.scienceimage.ScienceImage):
+                Image to reduce.
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
-            basename (:obj:`str`, optional):
+            objtype (:obj:`str`):
+                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
+                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
+                    Find a way to dermine those outside this class
+            bkg_redux (:obj:`bool`, optional):
+                If True, the sciImg has been subtracted by
+                a background image (e.g. standard treatment in the IR)
+            find_negative (:obj:`bool`, optional):
+                If True, the negative objects are found
+            std_redux (:obj:`bool`, optional):
+                If True the object being extracted is a standards star
+                so that the reduction parameters can be adjusted accordingly.
+            manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
+                Class with info guiding the manual extraction
+            basename (str, optional):
                 Output filename used for spectral flexure QA
+            show (:obj:`bool`, optional):
+                Show plots along the way?
             **kwargs
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.reduce.Reduce`:
+            :class:`pypeit.find_objects.FindObjects`:
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
                             sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
-                            setup=setup, basename=basename,
-                            manual=manual)
+                            basename=basename, manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+                 basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -177,7 +185,6 @@ class FindObjects:
         self.std_redux = std_redux
         self.det = caliBrate.det
         self.binning = caliBrate.binning
-        self.setup = setup
         self.pypeline = spectrograph.pypeline
         self.reduce_show = show
 
