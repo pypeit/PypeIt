@@ -223,8 +223,8 @@ class FindObjects:
             thismask = self.slitmask == slit_spat
             # Boxcar mask?
             if self.par['reduce']['skysub']['mask_by_boxcar']:
-                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(
-                    self.slits.slitord_id[slit_idx])
+                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
+                                 self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
             # Do it
             skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj, thismask, self.slits_left[:,slit_idx],
                                                                self.slits_right[:,slit_idx],
@@ -412,17 +412,18 @@ class FindObjects:
          """
         return None, None
 
-    def get_platescale(self, ECH_ORDER):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the platescale for the current detector/echelle order
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Over-loaded by the children
 
         Args:
-            ECH_ORDER (int):
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
         pass
@@ -687,21 +688,20 @@ class MultiSlitFindObjects(FindObjects):
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
         super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def get_platescale(self, dummy):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the platescale for multislit.
-        The input argument is ignored
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Args:
-            dummy:
-                ignored
-                Keeps argument lists the same amongst the children
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
-        plate_scale = self.sciImg.detector.platescale
+        bin_spec, bin_spat = parse.parse_binning(self.binning)
+        plate_scale = self.sciImg.detector.platescale * bin_spec
         return plate_scale
 
     def find_objects_pypeline(self, image, std_trace=None,
@@ -745,11 +745,6 @@ class MultiSlitFindObjects(FindObjects):
 
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
-
-
-        bin_spec, bin_spat = parse.parse_binning(self.binning)
-        plate_scale = self.get_platescale(None)*bin_spat
-
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -800,7 +795,7 @@ class MultiSlitFindObjects(FindObjects):
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
-                                boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,  #pixels
+                                boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
@@ -838,20 +833,22 @@ class EchelleFindObjects(FindObjects):
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
 
-
-    def get_platescale(self, ECH_ORDER):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the plate scale for the given current echelle order
-        based on the order index
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Args:
-            ECH_ORDER (int):
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
-        return self.spectrograph.order_platescale(ECH_ORDER, binning=self.binning)[0]
+        if slitord_id is None:
+            msgs.error('slitord_id is missing. Plate scale for current echelle order cannot be determined.')
+        return self.spectrograph.order_platescale(slitord_id, binning=self.binning)[0]
+
 
 # TODO This does not appear to be used anywhere
 #    def get_positive_sobj(self, specobjs, iord):

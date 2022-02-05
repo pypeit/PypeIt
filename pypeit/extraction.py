@@ -273,24 +273,8 @@ class Extract:
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
 
-
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
-
-    def get_platescale(self, sobj):
-        """
-        Return the platescale for the current detector/echelle order
-
-        Over-loaded by the children
-
-        Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
-
-        Returns:
-            float:
-
-        """
-        pass
 
     def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
@@ -677,23 +661,6 @@ class MultiSlitExtract(Extract):
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
         super().__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def get_platescale(self, dummy):
-        """
-        Return the platescale for multislit.
-        The input argument is ignored
-
-        Args:
-            dummy:
-                ignored
-                Keeps argument lists the same amongst the children
-
-        Returns:
-            float:
-
-        """
-        plate_scale = self.sciImg.detector.platescale
-        return plate_scale
-
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -834,23 +801,6 @@ class EchelleExtract(Extract):
         if self.order_vec is None:
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
-
-
-    def get_platescale(self, sobj):
-        """
-        Return the plate scale for the given current echelle order
-        based on the order index
-
-        Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
-
-        Returns:
-            float:
-
-        """
-        return self.spectrograph.order_platescale(sobj.ECH_ORDER, binning=self.binning)[0]
-
-
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?

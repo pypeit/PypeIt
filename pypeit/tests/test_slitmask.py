@@ -40,7 +40,6 @@ def test_assign_maskinfo_add_missing():
         traceImage = buildimage.buildimage_fromlist(instrument, det,
                                                     par['calibrations']['traceframe'],
                                                     flat_files(instr=name))
-        msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
@@ -93,8 +92,8 @@ def test_assign_maskinfo_add_missing():
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
-        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
-                                                 par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])
+        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None],
+                                                 [det_par['platescale']], par['reduce']['slitmask'])
 
         # Test
         if name == 'keck_deimos':
@@ -122,6 +121,7 @@ def test_assign_maskinfo_add_missing():
         sobjs.write_to_fits({}, data_path('tst_sobjs.fits'))
         os.remove(data_path('tst_sobjs.fits'))
 
+
 @cooked_required
 def test_dith_obs():
     instr_names = ['keck_deimos']
@@ -139,7 +139,6 @@ def test_dith_obs():
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det,
                                                     par['calibrations']['traceframe'], flat_files)
-        msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
@@ -184,8 +183,8 @@ def test_dith_obs():
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
-        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
-                                                 par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])
+        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None],
+                                                 [det_par['platescale']], par['reduce']['slitmask'])
 
         # Test
         if name == 'keck_deimos':
