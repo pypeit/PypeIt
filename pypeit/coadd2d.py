@@ -234,8 +234,7 @@ class CoAdd2D:
         if self.good_slits is None:
             msgs.error('Cannot determine nslits_coadded because `self.good_slits` is `None`. '
                        'Run `self.good_slits = self.good_slitindx(only_slits=only_slits)` first')
-        else:
-            return self.good_slits.size
+        return self.good_slits.size
 
     def good_slitindx(self, only_slits):
         """
@@ -250,7 +249,7 @@ class CoAdd2D:
         #  Yes, definitely - DONE?
 
         only_slits = [only_slits] if (only_slits is not None and
-                                      isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
+                                      isinstance(only_slits, (int, np.integer))) else only_slits
 
         # This creates a unified bpm common to all frames
         slits0 = self.stack_dict['slits_list'][0]
@@ -260,30 +259,28 @@ class CoAdd2D:
         for i in range(1, self.nexp):
             # update bpm with the info from the other frames
             slits = self.stack_dict['slits_list'][i]
-            reduce_bpm & (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
+            reduce_bpm &= (slits.mask > 0) & (np.invert(slits.bitmask.flagged(slits.mask,
                                                                              flag=slits.bitmask.exclude_for_reducing)))
         # this are the good slit index according to the bpm mask
-        good_slitindx = np.where(np.invert(reduce_bpm))[0]
+        good_slitindx = np.where(np.logical_not(reduce_bpm))[0]
 
         # If we want to coadd all the good slits
         if only_slits is None:
             return good_slitindx
 
         # If instead we want to coadd only a selected (by the user) number of slits
-        else:
-            # this are the `slitord_id` of the slits that we want to coadd
-            only_slits = np.atleast_1d(only_slits)
-            # create an array of slit index that are selected by the user and are also good slits
-            good_onlyslits = np.array([], dtype=int)
-            for islit in only_slits:
-                if islit not in slits0.slitord_id[good_slitindx]:
-                    # Warnings for the slits that are selected by the user but NOT good slits
-                    msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
-                else:
-                    indx = np.where(slits0.slitord_id[good_slitindx] == islit)[0]
-                    good_onlyslits = np.append(good_onlyslits, good_slitindx[indx])
-            return good_onlyslits
-            #embed(header='DEAL WITH bitmask')
+        # this are the `slitord_id` of the slits that we want to coadd
+        only_slits = np.atleast_1d(only_slits)
+        # create an array of slit index that are selected by the user and are also good slits
+        good_onlyslits = np.array([], dtype=int)
+        for islit in only_slits:
+            if islit not in slits0.slitord_id[good_slitindx]:
+                # Warnings for the slits that are selected by the user but NOT good slits
+                msgs.warn('Slit {} cannot be coadd because masked'.format(islit))
+            else:
+                indx = np.where(slits0.slitord_id[good_slitindx] == islit)[0]
+                good_onlyslits = np.append(good_onlyslits, good_slitindx[indx])
+        return good_onlyslits
 
     def optimal_weights(self, slitorderid, objid, const_weights=False):
         """
@@ -372,7 +369,7 @@ class CoAdd2D:
             maskdef_dict = self.get_maskdef_dict(slit_idx, ref_trace_stack)
 
             # weights
-            if (not isinstance(self.use_weights, str)) and (self.use_weights.ndim > 2):
+            if not isinstance(self.use_weights, str) and self.use_weights.ndim > 2:
                 weights = self.use_weights[slit_idx]
             else:
                 weights = self.use_weights
@@ -616,7 +613,7 @@ class CoAdd2D:
             manual_extract_dict=manual_dict)
 
         # maskdef stuff
-        if parcopy['reduce']['slitmask']['assign_obj'] is True and slits.maskdef_designtab is not None:
+        if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
             # Select the edges to use
             slits_left, slits_right, _ = slits.select_edges(flexure=None)
             platescale = sciImage.detector.platescale * self.spat_samp_fact
@@ -708,7 +705,7 @@ class CoAdd2D:
 
         """
 
-        if (offsets_method is not None) and (offsets is not None):
+        if offsets_method is not None and offsets is not None:
             msg_string = msgs.newline() + '---------------------------------------------'
             msg_string += msgs.newline() + ' Summary of offsets from {}     '.format(offsets_method)
             msg_string += msgs.newline() + '---------------------------------------------'
@@ -717,23 +714,6 @@ class CoAdd2D:
                 msg_string += msgs.newline() + '            {:d}        {:5.2f}'.format(iexp, off)
             msg_string += msgs.newline() + '-----------------------------------------------'
             msgs.info(msg_string)
-
-    # DP: replaced by good_slitindx
-    # def get_good_slits(self, only_slits):
-    #     """
-    #     ..todo.. I need a doc string
-    #
-    #     Args:
-    #         only_slits:
-    #
-    #     Returns:
-    #
-    #     """
-    #
-    #     only_slits = [only_slits] if (only_slits is not None and
-    #                                     isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
-    #     good_slits = np.arange(self.nslits) if only_slits is None else only_slits
-    #     return good_slits
 
     def offset_slit_cen(self, slitid, offsets):
         """
@@ -913,8 +893,7 @@ class CoAdd2D:
             if len(input) != self.nexp:
                 msgs.error(f'If {type} are input it must be a list/array with same number of elements as exposures')
             return np.atleast_1d(input)
-        else:
-            msgs.error(f'Unrecognized format for {type}')
+        msgs.error(f'Unrecognized format for {type}')
 
     def compute_offsets_and_weights(self, weights, offsets):
         """
@@ -1046,7 +1025,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                 # warn if the user had put `auto` in the parset
                 msgs.warn('Weights cannot be computed because no unique reference object '
                           'with the highest S/N was found. Using uniform weights instead.')
-            if weights == 'uniform':
+            elif weights == 'uniform':
                 msgs.info('Using uniform weights')
         # 2) Yes bright object and parset `weights` is equal to 'auto'
         elif (self.objid_bri is not None) and (weights == 'auto'):
@@ -1204,8 +1183,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
                        'ratio on the same slit of every exposure')
             return None, None, None, None
-        else:
-            return objid, slitid, spat_ids[slitid], snr_bar
+        return objid, slitid, spat_ids[slitid], snr_bar
 
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
     # single slit???
@@ -1240,10 +1218,10 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
         """
         # maskdef info
-        if (self.par['calibrations']['slitedges']['use_maskdesign'] is True) and \
-                (self.stack_dict['slits_list'][0].maskdef_id is not None) and \
-                (self.stack_dict['slits_list'][0].maskdef_objpos is not None) and \
-                (self.stack_dict['maskdef_designtab_list'][0] is not None):
+        if self.par['calibrations']['slitedges']['use_maskdesign'] and \
+                self.stack_dict['slits_list'][0].maskdef_id is not None and \
+                self.stack_dict['slits_list'][0].maskdef_objpos is not None and \
+                self.stack_dict['maskdef_designtab_list'][0] is not None:
             # maskdef_designtab info for only this slit
             this_idx = self.stack_dict['maskdef_designtab_list'][0]['SPAT_ID'] == self.stack_dict['slits_list'][0].spat_id[slit_idx]
             this_maskdef_designtab = self.stack_dict['maskdef_designtab_list'][0][this_idx]
@@ -1348,7 +1326,7 @@ class EchelleCoAdd2D(CoAdd2D):
                 # warn if the user had put `auto` in the parset
                 msgs.warn('Weights cannot be computed because no unique reference object '
                           'with the highest S/N was found. Using uniform weights instead.')
-            if weights == 'uniform':
+            elif weights == 'uniform':
                 msgs.info('Using uniform weights')
         # 2) Yes bright object and parset `weights` is equal to 'auto'
         elif (self.objid_bri is not None) and (weights == 'auto'):
@@ -1439,8 +1417,7 @@ class EchelleCoAdd2D(CoAdd2D):
             msgs.warn('You do not appear to have a unique reference object that was traced as the highest S/N '
                       'ratio for every exposure')
             return None, None, None
-        else:
-            return objid, None, snr_bar
+        return objid, None, snr_bar
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
         """

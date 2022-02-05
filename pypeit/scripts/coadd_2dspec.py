@@ -87,6 +87,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # JFH: The reason is that the coadd2dfile may want different reduction parameters
             # DP: I think config_specific_par() is more appropriate here. default_pypeit_par()
             # is included in config_specific_par()
+            # NOTE `config_specific_par` works with the spec2d files because we construct the header
+            # of those files to include all the relevant keywords from the raw file.
             spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
             parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=config_lines)
 
@@ -99,6 +101,8 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             head0 = fits.getheader(spec2d_files[0])
             spectrograph_name = head0['PYP_SPEC']
             spectrograph = load_spectrograph(spectrograph_name)
+            # NOTE `config_specific_par` works with the spec2d files because we construct the header
+            # of those files to include all the relevant keywords from the raw file.
             spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
             parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
         else:

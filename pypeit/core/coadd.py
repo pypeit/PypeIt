@@ -2859,7 +2859,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # TODO -- If weights is a numpy.ndarray, how can this not crash?
     #   Maybe the doc string above is inaccurate?
-    if  weights == 'uniform':
+    if weights == 'uniform':
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
@@ -2927,7 +2927,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
     new_maskdef_objpos = None
     new_maskdef_slitcen = None
-    if (maskdef_dict['maskdef_objpos'] is not None) and (maskdef_dict['maskdef_slitcen']):
+    if maskdef_dict['maskdef_objpos'] is not None and maskdef_dict['maskdef_slitcen']:
         new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
         # maskdef_slitcen is the old slit center
         new_maskdef_slitcen = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_slitcen'])

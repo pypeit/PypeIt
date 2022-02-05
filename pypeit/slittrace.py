@@ -938,6 +938,9 @@ class SlitTraceSet(datamodel.DataContainer):
             TOLER (:obj:`float`, optional): Matching tolerance in arcsec
             skip_serendip (:obj:`bool`, optional): Skip extraction of serendip objects?
 
+        Returns:
+            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced
+
         """
 
         if self.maskdef_objpos is None:
@@ -1046,18 +1049,18 @@ class SlitTraceSet(datamodel.DataContainer):
                 if skip_serendip:
                     remove_idx.append(ss)
                     msgs.info('Skipping SERENDIP object at pixel {}'.format(cut_sobjs[ss].SPAT_PIXPOS))
-                else:
-                    sobj = cut_sobjs[ss]
-                    # Measured coordinates
-                    offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
-                    new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                        np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
-                    # Assign
-                    sobj.RA = new_obj_coord.ra.value
-                    sobj.DEC = new_obj_coord.dec.value
-                    sobj.MASKDEF_OBJNAME = 'SERENDIP'
-                    sobj.MASKDEF_EXTRACT = False
-                    sobj.hand_extract_flag = False
+                    continue
+                sobj = cut_sobjs[ss]
+                # Measured coordinates
+                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - slits_left)[specmid, self.spat_id == sobj.SLITID][0]
+                new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
+                    np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
+                # Assign
+                sobj.RA = new_obj_coord.ra.value
+                sobj.DEC = new_obj_coord.dec.value
+                sobj.MASKDEF_OBJNAME = 'SERENDIP'
+                sobj.MASKDEF_EXTRACT = False
+                sobj.hand_extract_flag = False
         # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
         noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
         if noidx.size > 0:
@@ -1147,8 +1150,6 @@ class SlitTraceSet(datamodel.DataContainer):
 
         self.maskdef_objpos = expected_objpos_all
         self.maskdef_slitcen = new_slitcen
-
-        return
 
     def get_maskdef_offset(self, sobjs, slits_left, platescale, slitmask_off, bright_maskdefid,
                            nsig_thrshd, use_alignbox, dither_off=None):
