@@ -666,12 +666,7 @@ def parse_binning(binning):
 # likely to become, e.g., DET01:175,DET01:205.
 def parse_slitspatnum(slitspatnum):
     """
-    Parse a string into a list of detectors and SPAT_IDs.
-
-    These strings follow a syntax mostly used to restrict the reduction to a set
-    of slits.  The syntax is DET:SPAT.  For example, ``slitspatnum =
-    1:175,1:205`` will reduce the slits found at spatial positions 175 and 205
-    on detector 1.
+    Parse the ``slitspatnum`` into a list of detectors and SPAT_IDs.
 
     Args:
         slitspatnum (:obj:`str`, :obj:`list`):
@@ -685,6 +680,8 @@ def parse_slitspatnum(slitspatnum):
     """
     dets = []
     spat_ids = []
+    if isinstance(slitspatnum,list):
+        slitspatnum = ",".join(slitspatnum)
     for item in slitspatnum.split(','):
         spt = item.split(':')
         dets.append(int(spt[0]))

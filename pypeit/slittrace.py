@@ -563,7 +563,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None,
+    def slit_img(self, pad=None, slitidx=None, initial=False, 
+                 flexure=None,
                  exclude_flag=None, use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
@@ -1073,7 +1074,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return sobjs
 
-    def get_maskdef_objpos(self, plate_scale, slits_left, slits_right, det_buffer):
+    def get_maskdef_objpos(self, plate_scale, 
+                           slits_left, slits_right, det_buffer):
         """
         Determine the object positions expected by the slitmask design
 
@@ -1420,6 +1422,8 @@ class SlitTraceSet(datamodel.DataContainer):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
 
+
+
 def merge_user_slit(slitspatnum, maskIDs):
     # Not set?
     if slitspatnum is None and maskIDs is None:
@@ -1468,7 +1472,8 @@ def get_maskdef_objpos_offset_alldets(sobjs, calib_slits, spat_flexure,
         slits_left, slits_right, _ = calib_slits[i].select_edges(initial=True, flexure=spat_flexure[i])
         if calib_slits[i].maskdef_designtab is not None:
             # get object positions expected by slitmask design
-            calib_slits[i].get_maskdef_objpos(platescale[i], slits_left, slits_right, det_buffer)
+            calib_slits[i].get_maskdef_objpos(
+                platescale[i], slits_left, slits_right, det_buffer)
 
             # get slitmask offset in each single detector
             calib_slits[i].get_maskdef_offset(sobjs, slits_left, platescale[i],

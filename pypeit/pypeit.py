@@ -27,7 +27,7 @@ from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import extract
+from pypeit.core import parse
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -362,6 +362,7 @@ class PypeIt:
         # Frame indices
         frame_indx = np.arange(len(self.fitstbl))
 
+        # Standard Star(s) Loop
         # Iterate over each calibration group and reduce the standards
         for i in range(self.fitstbl.n_calib_groups):
 
@@ -390,6 +391,7 @@ class PypeIt:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
 
+        # Science Frame(s) Loop
         # Iterate over each calibration group again and reduce the science frames
         for i in range(self.fitstbl.n_calib_groups):
             # Find all the frames in this calibration group
@@ -426,7 +428,8 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename, history)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, 
+                                       self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -514,15 +517,9 @@ class PypeIt:
             msgs.info(bg_msgs_string)
 
         # Find the detectors to reduce
-#        detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
-#                                            slitspatnum=self.par['rdx']['slitspatnum'],
-#                                            ndet=self.spectrograph.ndet)
         subset = self.par['rdx']['slitspatnum'] if self.par['rdx']['slitspatnum'] is not None \
                     else self.par['rdx']['detnum']
         detectors = self.spectrograph.select_detectors(subset=subset)
-#        if len(detectors) != self.spectrograph.ndet:
-#            msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
-#                                set(np.arange(self.spectrograph.ndet)+1)-set(detectors)])))
         msgs.info(f'Detectors to work on: {detectors}')
 
         # List of detectors with successful calibration
@@ -562,7 +559,9 @@ class PypeIt:
         if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
-            platescale = np.array([ss.detector.platescale for ss in sciImg_list])
+            # Grab platescale with binning
+            bin_spec, bin_spat = parse.parse_binning(self.binning)
+            platescale = np.array([ss.detector.platescale*bin_spat for ss in sciImg_list])
             # get the dither offset if available
             if self.par['reduce']['slitmask']['use_dither_offset']:
                 dither = self.spectrograph.parse_dither_pattern(
@@ -1005,7 +1004,9 @@ class PypeIt:
                                                history=history)
 
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, 
+                                 update_det=update_det,
+                                 slitspatnum=self.par['rdx']['slitspatnum'])
 
 
     def msgs_reset(self):

@@ -57,6 +57,11 @@
   `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
   (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
+- Update for `LDT/DeVeny` including support for binned data, `use_header`
+  for reading arc lamps used from frames, and `reid_arxiv` templates for
+  three additional gratings.  
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
+- Hotfix for `gemini_gmos` mosaic tracing parameters
 
 
 1.7.0 (19 Nov 2021)
