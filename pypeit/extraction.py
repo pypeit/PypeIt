@@ -161,9 +161,7 @@ class Extract:
         self.initialise_slits()
 
         # Internal bpm mask
-        # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
-        # with other bad flag (for which bpm>2)
-        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -221,7 +219,7 @@ class Extract:
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -281,16 +279,6 @@ class Extract:
     def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
         """
-        # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.reduce_bpm = (self.slits.mask > 0) & \
-                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
-                                                                flag=self.slits.bitmask.exclude_for_reducing)))
-        # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
-        # use the tweaked traces if they exist - DP: I'm not sure this is necessary
-        self.sciImg.update_mask_slitmask(self.slitmask)
-
         # Deal with dynamic calibrations
         # Tilts
         self.waveTilts.is_synced(self.slits)
