@@ -242,7 +242,8 @@ class FindObjects:
 
     def initialise_slits(self, initial=False):
         """
-        Initialise the slits
+        Gather all the :class:`SlitTraceSet` attributes
+        that we'll use here in :class:`FindObjects`
 
         Args:
             initial (:obj:`bool`, optional):
@@ -325,15 +326,6 @@ class FindObjects:
 
         return initial_sky, sobjs_obj
 
-    # def get_final_global_sky(self, initial_sky, skymask):
-    #
-    #     #TODO Move this call to PypeIt
-    #     # Global sky subtraction second pass. Uses skymask from object finding
-    #     if (self.std_redux or self.par['reduce']['findobj']['skip_final_global']):
-    #         self.global_sky = initial_sky.copy()
-    #     else:
-    #         self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
-
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
                      show_trace=False, show=False, save_objfindQA=True,
@@ -346,23 +338,29 @@ class FindObjects:
         Parameters
         ----------
         image : `numpy.ndarray`_
-            Input image
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
-            ???
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         show_peaks : :obj:`bool`, optional
-            ???
+            Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
-            ???
+            Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
-            ???
+            Generate QA  showing traces identified. Requires an open ginga RC
+            modules window
         show : :obj:`bool`, optional
-            ???
+            Show all the QA
         save_objfindQA : :obj:`bool`, optional
             Save to disk (png file) QA showing the object profile
         manual_extract_dict : :obj:`dict`, optional
             This is only used by 2D coadd
         debug : :obj:`bool`, optional
-            ???
+            Show debugging plots?
 
         Returns
         -------
@@ -708,8 +706,7 @@ class MultiSlitFindObjects(FindObjects):
 
         """
         bin_spec, bin_spat = parse.parse_binning(self.binning)
-        plate_scale = self.sciImg.detector.platescale * bin_spec
-        return plate_scale
+        return self.sciImg.detector.platescale * bin_spec
 
     def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
@@ -722,9 +719,14 @@ class MultiSlitFindObjects(FindObjects):
         ----------
 
         image : `numpy.ndarray`_
-            ???
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
-            ???
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
@@ -735,11 +737,13 @@ class MultiSlitFindObjects(FindObjects):
             Generate QA  showing traces identified. Requires an open ginga RC
             modules window
         show : :obj:`bool`, optional
+            Show all the QA
         save_objfindQA : :obj:`bool`, optional
             Save to disk (png file) QA showing the object profile
         neg : :obj:`bool`, optional
             Is this a negative image?
         debug : :obj:`bool`, optional
+            Show debugging plots?
 
         Returns
         -------
@@ -884,8 +888,16 @@ class EchelleFindObjects(FindObjects):
         Parameters
         ----------
         image : `numpy.ndarray`_
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         manual_extract_dict : :obj:`dict`, optional
+            Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
             Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional

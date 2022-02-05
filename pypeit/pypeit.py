@@ -596,8 +596,7 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind
 
             # Update the skymask
-            # TODO -- Pass in other skymask parameters!
-            skymask = objFind_list[i].create_skymask(all_specobjs_on_det) 
+            skymask = objFind_list[i].create_skymask(all_specobjs_on_det)
             
             # Update the global sky
             if 'standard' in self.fitstbl['frametype'][frames[0]] or \

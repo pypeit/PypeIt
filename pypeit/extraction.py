@@ -207,7 +207,8 @@ class Extract:
 
     def initialise_slits(self, initial=False):
         """
-        Initialise the slits
+        Gather all the :class:`SlitTraceSet` attributes
+        that we'll use here in :class:`Extract`
 
         Args:
             initial (:obj:`bool`, optional):
@@ -323,12 +324,14 @@ class Extract:
                 Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            ra (float, optional):
+            ra (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
-            dec (float, optional):
+            dec (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
             obstime (:obj:`astropy.time.Time`, optional):
                 Required if helio-centric correction is to be applied
+            return_negative (:obj:`bool`, optional):
+                Do you want to extract the negative objects?
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
@@ -548,7 +551,6 @@ class Extract:
 
         else:
             msgs.info('A wavelength reference frame correction will not be performed.')
-        return
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -673,35 +675,42 @@ class MultiSlitExtract(Extract):
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        global_sky : `numpy.ndarray`_
-            ???
-        sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            ???
-        spat_pix : `numpy.ndarray`_, optional
-            ???
-        model_noise : :obj:`bool`, optional
-            ???
-        show_resids : :obj:`bool`, optional
-            ???
-        show_profile : :obj:`bool`, optional
-            ???
-        show : :obj:`bool`, optional
-            ???
 
-        Returns
-        -------
-        skymodel : `numpy.ndarray`_
-            ???
-        objmodel : `numpy.ndarray`_
-            ???
-        ivarmodel : `numpy.ndarray`_
-            ???
-        outmask : `numpy.ndarray`_
-            ???
-        sobjs : ??
-            ???
+        Args:
+            global_sky (`numpy.ndarray`_):
+                Global sky model
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Class containing the information about the objects found
+            spat_pix (`numpy.ndarray`_, optional):
+                Image containing the spatial location of pixels. If not
+                input, it will be computed from ``spat_img =
+                np.outer(np.ones(nspec), np.arange(nspat))``.
+            model_noise (:obj:`bool`, optional):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See
+                `~pypeit.core.skysub.local_skysub_extract` for more info.
+            show_resids (:obj:`bool`, optional):
+                Show the model fits and residuals.
+            show_profile (:obj:`bool`, optional):
+                Show QA for the object profile fitting to the screen. Note
+                that this will show interactive matplotlib plots which will
+                block the execution of the code until the window is closed.
+            show (:obj:`bool`, optional):
+                Show debugging plots
+
+        Returns:
+            `numpy.ndarray`_:
+                skymodel: Model sky flux
+            `numpy.ndarray`_:
+                objmodel : Model object flux
+            `numpy.ndarray`_:
+                ivarmodel : Model inverse variance
+            `numpy.ndarray`_:
+                outmask : Model mask
+            :class:`~pypeit.specobjs.SpecObjs`:
+                sobjs Class containing the information about the objects found
 
         """
         self.global_sky = global_sky
@@ -815,35 +824,41 @@ class EchelleExtract(Extract):
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        global_sky : `numpy.ndarray`_
-            ???
-        sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            ???
-        spat_pix : `numpy.ndarray`_, optional
-            ???
-        model_noise : :obj:`bool`, optional
-            ???
-        show_resids : :obj:`bool`, optional
-            ???
-        show_profile : :obj:`bool`, optional
-            ???
-        show : :obj:`bool`, optional
-            ???
+        Args:
+            global_sky (`numpy.ndarray`_):
+                Global sky model
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Class containing the information about the objects found
+            spat_pix (`numpy.ndarray`_, optional):
+                Image containing the spatial location of pixels. If not
+                input, it will be computed from ``spat_img =
+                np.outer(np.ones(nspec), np.arange(nspat))``.
+            model_noise (:obj:`bool`, optional):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See
+                `~pypeit.core.skysub.local_skysub_extract` for more info.
+            show_resids (:obj:`bool`, optional):
+                Show the model fits and residuals.
+            show_profile (:obj:`bool`, optional):
+                Show QA for the object profile fitting to the screen. Note
+                that this will show interactive matplotlib plots which will
+                block the execution of the code until the window is closed.
+            show (:obj:`bool`, optional):
+                Show debugging plots
 
-        Returns
-        -------
-        skymodel : `numpy.ndarray`_
-            ???
-        objmodel : `numpy.ndarray`_
-            ???
-        ivarmodel : `numpy.ndarray`_
-            ???
-        outmask : `numpy.ndarray`_
-            ???
-        sobjs : ???
-            ???
+        Returns:
+            `numpy.ndarray`_:
+                skymodel: Model sky flux
+            `numpy.ndarray`_:
+                objmodel : Model object flux
+            `numpy.ndarray`_:
+                ivarmodel : Model inverse variance
+            `numpy.ndarray`_:
+                outmask : Model mask
+            :class:`~pypeit.specobjs.SpecObjs`:
+                sobjs Class containing the information about the objects found
         """
         self.global_sky = global_sky
 
