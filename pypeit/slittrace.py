@@ -131,7 +131,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'maskdef_offset': dict(otype=float, descr='Slitmask offset (pixels) from position expected '
                                                            'by the slitmask design'),
                  'maskdef_objpos': dict(otype=np.ndarray, atype=np.floating,
-                                         descr='Object positions expected by the slitmask design'),
+                                         descr='Object positions expected by the slitmask design [relative pixels]'),
                  'maskdef_slitcen': dict(otype=np.ndarray, atype=np.floating,
                                          descr='Slit centers expected by the slitmask design'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
@@ -613,7 +613,9 @@ class SlitTraceSet(datamodel.DataContainer):
                 Warning -- This could conflict with input slitids, i.e. avoid using both
             use_spatial (bool, optional):
                 If True, use self.spat_id value instead of 0-based indices
-
+            flexure (:obj:`float`, optional):
+                If provided, offset each slit by this amount
+                Done in select_edges()
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
@@ -1095,8 +1097,8 @@ class SlitTraceSet(datamodel.DataContainer):
         obj_botdist = self.maskdef_designtab['OBJ_BOTDIST'].data
 
         # slit lengths
-        expected_slitlen = (obj_topdist + obj_botdist) / plate_scale  # pixels
-        measured_slitlen = slits_right[specmid, :] - slits_left[specmid, :]  # pixels
+        expected_slitlen = (obj_topdist + obj_botdist) / plate_scale  # binned pixels
+        measured_slitlen = slits_right[specmid, :] - slits_left[specmid, :]  # binned pixels
         # difference between measured and expected slit length (but only for the left side).
         left_edgeloss = np.zeros(self.maskdef_id.size)
         # define a new slit center to take into account the slits that are smaller than what
@@ -1238,7 +1240,7 @@ class SlitTraceSet(datamodel.DataContainer):
             for align_id in align_maskdef_ids:
                 sidx = np.where(cut_sobjs.MASKDEF_ID == align_id)[0]
                 if sidx.size > 0:
-                    # Parse the peak fluxes
+                    # Take the brightest source as the star
                     peak_flux = cut_sobjs[sidx].smash_peakflux
                     imx_peak = np.argmax(peak_flux)
                     imx_sidx = sidx[imx_peak]
@@ -1574,8 +1576,8 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
 
 def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmask_par):
     """
-    Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to extracted object
-    and to force extraction of undetected objects.
+    Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to
+    extracted object and to force extraction of undetected objects.
 
     Args:
         sobjs (:class:`~pypeit.specobjs.SpecObjs`):
