@@ -1827,7 +1827,9 @@ class TelluricPar(ParSet):
         dtypes['telgridfile'] = str
         descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
                                'generated from HITRAN models for each observatory using nominal site parameters. They ' \
-                               'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+                               'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
+                               'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -2091,6 +2093,7 @@ class TelluricPar(ParSet):
     def default_root(self):
         """
         Return the default path to the atmospheric model grids.
+        NOTE: This the sole place in the code where this location is defined.
         """
         return os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
 

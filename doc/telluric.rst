@@ -98,25 +98,27 @@ Command Line Options
 +++++++++++++
 Your object model, either qso, star or poly.
 
---tell_grid OR -g
+--tell_grid, -g
 +++++++++++++++++
 
-The full path for the telluric grid file. In case of spectrograph which
-has defined the default grid, you do not need to set this argument.
+The filename of the telluric grid file. In case of spectrograph which
+has defined the default grid, you do not need to set this argument.  You
+may, however, select a different grid than the instrument default using
+this argument.
 
---pca_file or -p
+--pca_file, -p
 ++++++++++++++++
 
 The full path for the qso pca pickle file. Only used in the qso model.
 The default is qso_pca_1200_3100.pckl which should be downloaded and put in
 the pypeit telluric data folder.
 
---tell_file or -t
+--tell_file, -t
 +++++++++++++++++
 
 The tellfit parameter file.
 
---redshift or -r
+--redshift, -r
 ++++++++++++++++
 
 Redshift of your object.
