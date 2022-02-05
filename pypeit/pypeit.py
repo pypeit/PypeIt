@@ -882,9 +882,11 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
+            # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
                 tilts = self.redux.run_extraction(global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
-                                                  dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
+                                                  dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
+                                                  return_negative=False)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
             self.redux.prepare_extraction(global_sky)

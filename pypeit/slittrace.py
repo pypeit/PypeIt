@@ -1028,7 +1028,7 @@ class SlitTraceSet(datamodel.DataContainer):
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
             # we include in the tolerance the rms of the slit edges matching and the size of
             # the detected object with the highest peak flux
-            if not np.any((cut_sobjs[idx].smash_peakflux == None) or (cut_sobjs[idx].smash_peakflux == 0.)):
+            if np.any((cut_sobjs[idx].smash_peakflux != None) & (cut_sobjs[idx].smash_peakflux != 0.)):
                 ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
                 obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
             else:

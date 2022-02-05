@@ -489,10 +489,17 @@ class CoAdd2D:
         else:
             manual_dict = None
 
+        # Initiate FindObjects object
         objFind = find_objects.FindObjects(sciImage, self.spectrograph, parcopy, caliBrate,
-                                         'science_coadd2d', bkg_redux=self.bkg_redux,
-                                         find_negative=self.find_negative, show=show)
+                                           'science_coadd2d', bkg_redux=self.bkg_redux,
+                                           find_negative=self.find_negative, show=show)
 
+        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
+        # normally, but this is not possible for coadds
+        objFind.tilts = pseudo_dict['tilts']
+        objFind.waveimg = pseudo_dict['waveimg']
+        objFind.binning = self.binning
+        objFind.basename = basename
 
         # Masking
         #  TODO: Treat the masking of the slits objects
@@ -503,24 +510,22 @@ class CoAdd2D:
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
         objFind.reduce_bpm = reduce_bpm
 
+        if show:
+            gpm = sciImage.select_flag(invert=True)
+            objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
+                       chname='imgminsky', slits=True, clear=True)
+
         # TODO:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
-        sobjs_obj, nobj, skymask_init = objFind.find_objects(
-            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
-            manual_extract_dict=manual_dict)
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, show_peaks=show_peaks,
+                                               save_objfindQA=True, manual_extract_dict=manual_dict)
 
-        redux=extraction.Extract.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
-                                         'science_coadd2d', bkg_redux=self.bkg_redux,
-                                         find_negative=self.find_negative, show=show)
-
-        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
-        # normally, but this is not possible for coadds
-        redux.tilts = pseudo_dict['tilts']
-        redux.waveimg = pseudo_dict['waveimg']
-        redux.binning = self.binning
-        redux.basename = basename
+        # Initiate Extract object
+        extract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
+                                                  'science_coadd2d', bkg_redux=self.bkg_redux,
+                                                  find_negative=self.find_negative, show=show)
 
         # TODO Make a method that generates reduce_bpm
 
@@ -531,25 +536,20 @@ class CoAdd2D:
         slits = self.stack_dict['slits_list'][0]
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
-        redux.reduce_bpm = reduce_bpm
+        extract.reduce_bpm = reduce_bpm
 
-        if show:
-            gpm = sciImage.select_flag(invert=True)
-            redux.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
-                       chname='imgminsky', slits=True, clear=True)
+        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
+        # normally, but this is not possible for coadds
+        extract.tilts = pseudo_dict['tilts']
+        extract.waveimg = pseudo_dict['waveimg']
+        extract.binning = self.binning
+        extract.basename = basename
 
-        # TODO:
-        #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
-        #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
-        #  2d coadd reduce
-        sobjs_obj, nobj, skymask_init = objFind.find_objects(
-            sciImage.image, show_peaks=show_peaks, save_objfindQA=True,
-            manual_extract_dict=manual_dict)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs \
-                = redux.local_skysub_extract(global_sky_pseudo, sobjs_obj,
+                = extract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
                                              spat_pix=pseudo_dict['spat_img'], model_noise=False,
                                              show_profile=show, show=show)
 

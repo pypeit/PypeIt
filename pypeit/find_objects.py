@@ -160,8 +160,6 @@ class FindObjects:
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
-        else:
-            msgs.error("Not ready for this objtype in Reduce")
 
         # Initialise the slits
         msgs.info("Initialising slits")
