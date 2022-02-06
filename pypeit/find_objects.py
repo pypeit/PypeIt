@@ -226,12 +226,14 @@ class FindObjects:
             qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
+            this_sobjs = sobjs_obj.SLITID == slit_spat
             # Boxcar mask?
             if self.par['reduce']['skysub']['mask_by_boxcar']:
                 boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
                                  self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
             # Do it
-            skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj, thismask, self.slits_left[:,slit_idx],
+            skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj[this_sobjs], thismask,
+                                                               self.slits_left[:,slit_idx],
                                                                self.slits_right[:,slit_idx],
                                                                box_rad_pix=boxcar_rad_pix,
                                                                trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
@@ -832,7 +834,7 @@ class EchelleFindObjects(FindObjects):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(EchelleFindObjects, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -978,7 +980,7 @@ class IFUFindObjects(MultiSlitFindObjects):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(IFUFindObjects, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
     def find_objects_pypeline(self, image, std_trace=None,

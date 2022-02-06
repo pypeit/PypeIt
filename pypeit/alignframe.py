@@ -194,7 +194,7 @@ class TraceAlignment:
             specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
                             'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
-            align_traces, _ = findobj_skymask.objs_in_slit(
+            align_traces = findobj_skymask.objs_in_slit(
                 self.rawalignimg.image, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
                 has_negative=False, ncoeff=self.alignpar['trace_npoly'],

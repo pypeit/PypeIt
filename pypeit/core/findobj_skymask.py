@@ -87,7 +87,8 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
         # get THRESHOLD for this slit. Generally, objects in the same slit have same THRESHOLD,
         # so we use the average among all the sobjs. But if this slit has only a force extracted sobj (with THRESHOLD=0)
         # the array thresh is empty
-        if thresh.size > 0:
+        # TODO for echelle sobjs[iobj].THRESHOLD is None for some orders, understand why and deal with it
+        if thresh[thresh != None].size > 0:
             mean_tresh = np.mean(thresh)
             # fill it
             skymask_objflux[thismask] = np.interp(ximg[thismask], xtmp, qobj) < (skymask_nthresh*mean_tresh)

@@ -19,7 +19,7 @@ from pypeit import slittrace
 from pypeit import extraction
 from pypeit import find_objects
 from pypeit.images import pypeitimage
-from pypeit.core import extract
+from pypeit.core import findobj_skymask
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 #from pypeit.core import parse
@@ -962,7 +962,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
         #                'pypeline': 'MultiSLit' + '_coadd_2d'}
         for iexp in range(self.nexp):
-            sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
+            sobjs_exp, _ = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], has_negative=self.find_negative,
                                            fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                            trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
