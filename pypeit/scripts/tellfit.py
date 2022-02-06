@@ -117,9 +117,10 @@ class TellFit(scriptbase.ScriptBase):
                 msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
         # Checks
+        telgrid_path = par['sensfunc']['IR'].default_root
         if par['telluric']['telgridfile'] is None:
             msgs.error('A file with the telluric grid must be provided.')
-        elif not os.path.isfile(par['telluric']['telgridfile']):
+        elif not os.path.isfile(os.path.join(telgrid_path, par['telluric']['telgridfile'])):
             msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Check your "
                        f"installation.")
 
