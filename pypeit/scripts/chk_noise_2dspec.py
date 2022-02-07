@@ -18,7 +18,9 @@ import argparse
 
 from pypeit import spec2dobj
 from pypeit import msgs
+import pypeit
 from pypeit.scripts import scriptbase
+from pypeit.images.detector_container import DetectorContainer
 
 from IPython import embed
 
@@ -61,8 +63,8 @@ def grab_lines():
     return line_names, line_wav
 
 
-def plot(image:np.ndarray, line_wav, line_names, 
-         lbda, lbda_min, lbda_max, aspect_ratio, 
+def plot(image:np.ndarray, line_wav:list, line_names:list, 
+         lbda:np.ndarray, lbda_min:float, lbda_max:float, aspect_ratio, 
          chi_select, flux_select, err_select, filename:str):
     fig=plt.figure(figsize=(23,4.))
     ax=plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=3)
@@ -74,8 +76,13 @@ def plot(image:np.ndarray, line_wav, line_names,
     if line_wav.size>0:
         for i in range(line_wav.size):
             ax.axvline(line_wav[i], color='black', ls='dotted', zorder=2)
-            ax.annotate('{}'.format(line_names[i]), xy=(line_wav[i],1),xytext=(line_wav[i],1.03), xycoords=('data', 'axes fraction'), arrowprops=dict(facecolor='None', edgecolor='None', headwidth=0., headlength=0, width=0, shrink=0.), annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
-    ax.axvspan(lbda.searchsorted(lbda_min), lbda.searchsorted(lbda_max), color='tab:green', alpha=0.2, zorder=2)
+            ax.annotate('{}'.format(line_names[i]), 
+                        xy=(line_wav[i],1),
+                        xytext=(line_wav[i],1.03), 
+                        xycoords=('data', 'axes fraction'), 
+                        arrowprops=dict(facecolor='None', edgecolor='None', headwidth=0., headlength=0, width=0, shrink=0.), annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
+    #ax.axvspan(lbda.searchsorted(lbda_min), lbda.searchsorted(lbda_max), 
+    #           color='tab:green', alpha=0.2, zorder=2)
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -110,7 +117,11 @@ class ChkNoise2D(scriptbase.ScriptBase):
                                     width=width)
 
         parser.add_argument('files', type = str, nargs='*', help = 'PypeIt spec2d file(s)')
-        parser.add_argument('--det', default=1, type=int, help='Detector number [default: 1]')
+        parser.add_argument('--det', default='1', type=str,
+                            help='Detector name or number.  If a number, the name is constructed '
+                                 'assuming the reduction is for a single detector.  If a string, '
+                                 'it must match the name of the detector object (e.g., DET01 for '
+                                 'a detector, MSC01 for a mosaic).')
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
         parser.add_argument('--maskdef_id', default=None, type=int, help='MASKDEF_ID of the slit that you want to plot')
         parser.add_argument('--pypeit_id', default=None, type=int, help='PypeIt ID of the slit that you want to plot')
@@ -127,6 +138,14 @@ class ChkNoise2D(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        # Parse the detector name
+        try:
+            det = int(args.det)
+        except:
+            detname = args.det
+        else:
+            detname = DetectorContainer.get_name(det)
+
         # Load em
         line_names, line_wav = grab_lines()
             
@@ -142,7 +161,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
             # Load 2D object
             file = files[i]
-            spec2DObj = spec2dobj.Spec2DObj.from_file(file, args.det, chk_version=False)
+            spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=False)
 
             # Deal with redshifts
             if args.z is not None:
@@ -240,9 +259,11 @@ class ChkNoise2D(scriptbase.ScriptBase):
             for i in show_slits:
                 pypeit_id = all_pypeit_ids[i]
                 if all_maskdef_ids is not None:
-                    filename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, all_maskdef_ids[i], pypeit_id)
+                    filename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(
+                        spec2DObj.head0['DECKER'], args.det, all_maskdef_ids[i], pypeit_id)
                 else:
-                    filename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, pypeit_id)
+                    filename = '{}_DET{}_pypeitID{}'.format(
+                        spec2DObj.head0['DECKER'], args.det, pypeit_id)
 
                 # Chi
                 chi_slit, _, _ = spec2DObj.calc_chi_slit(i, pad=args.pad)
@@ -250,18 +271,28 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 # Cut down
                 chi_select = chi_slit * input_mask
                 if np.all(chi_select == 0):
+                    msgs.warn(f"All of the chi values are masked in {filename}!")
                     continue
 
                 # Flux to show
-                flux_select = (spec2DObj.sciimg - spec2DObj.skymodel) * input_mask
+                flux_select = spec2DObj.sciimg - spec2DObj.skymodel
+                if spec2DObj.objmodel is not None:
+                    flux_select -= spec2DObj.objmodel
+                flux_select *= input_mask
+                # Error
                 err_select = 1/np.sqrt(spec2DObj.ivarmodel)* input_mask
 
+                # Wavelengths
                 left, right, _ = spec2DObj.slits.select_edges()
                 spat_start = int(left[:, i].min())
                 spat_end = int(right[:, i].max())
 
-                lbda = spec2DObj.waveimg[:,pypeit_id]
+                slit_select = spec2DObj.slits.slit_img(pad=args.pad, slitidx=slitidx)
+                in_slit = slit_select == spec2DObj.slits.spat_id[slitidx]
+
+                lbda = spec2DObj.waveimg[in_slit]
                 if lbda[lbda!=0].size == 0:
+                    msgs.warn(f"None of the wavelength values work for {filename}!")
                     continue
 
                 line_wav_plt = np.array([])

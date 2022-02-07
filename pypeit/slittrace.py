@@ -330,6 +330,7 @@ class SlitTraceSet(datamodel.DataContainer):
     @property
     def slit_info(self):
         """
+        THIS NEEDS A DESCRIPTION
 
         Returns:
             `numpy.ndarray`_:

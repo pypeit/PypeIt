@@ -94,7 +94,7 @@ class Spec2DObj(datamodel.DataContainer):
                                descr='Median of the chi image for each slit/order'),
                  'std_chis': dict(otype=np.ndarray, atype=np.floating,
                                descr='std of the chi image for each slit/order'),
-                 'det': dict(otype=int, descr='Detector index')}
+                 'det': dict(otype=int, descr='Detector index'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
@@ -251,7 +251,8 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
-    def calc_chi_slit(self, slitidx:int, pad:int=None):
+    def calc_chi_slit(self, slitidx:int, pad:int=None, 
+                      remove_object:bool=True):
         """ Calculate a chi map and run some stats on it
         for a given slit/order
 
@@ -259,14 +260,20 @@ class Spec2DObj(datamodel.DataContainer):
             slitidx (int): Given slit/order
             pad (int, optional):  Ignore pixels within pad of edges. 
                 Defaults to None.
+            remove_object (bool, optional):  Remove object model (if 
+                it exists)
 
         Returns:
-            tuple: np.ndarray (chi image), median, std
+            tuple: np.ndarray (chi image), median (float), std (float)
         """
         slit_select = self.slits.slit_img(pad=pad, slitidx=slitidx)
-        chi = (self.sciimg - self.skymodel) * np.sqrt(
-            self.ivarmodel) * (self.bpmmask == 0)
-        chi_slit = chi * (slit_select == self.slits.slitord_id[slitidx]) * (
+        skysub_img = self.sciimg - self.skymodel
+        if remove_object and self.objmodel is not None:
+            skysub_img -= self.objmodel
+
+        # Chi
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (
             self.bpmmask == 0)
 
         # All bad?
