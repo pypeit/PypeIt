@@ -98,7 +98,7 @@ def plot(image:np.ndarray, line_wav:list, line_names:list,
     ax2.axvline(0, ls='dotted', color='Gray')
     ax2.set_xlim(hist_bins[:-1][hist_n > 10].min(), hist_bins[:-1][hist_n > 10].max())
     ax2.set_ylim(-0.02, hist_n.max()*1.5)
-    ax2.set_xlabel(r'(sciimg - skymodel) * sqrt(ivarmodel) * (bpmmask == 0)')
+    ax2.set_xlabel(r'(sciimg - skymodel - objmodel) * sqrt(ivarmodel) * (bpmmask == 0)')
     ax2.set_ylabel(r'#')
     err_over_flux = (np.median(err_select[flux_select!=0])/mad_std(flux_select[flux_select!=0]))
     ax2.text(0.99, 0.95, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(np.median(err_select[flux_select!=0]), mad_std(flux_select[flux_select!=0]), err_over_flux), color='k', fontsize=9, horizontalalignment='right', transform=ax2.transAxes)
