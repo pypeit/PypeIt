@@ -61,6 +61,7 @@
   for reading arc lamps used from frames, and `reid_arxiv` templates for
   three additional gratings.
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage)
+- Hotfix for `gemini_gmos` mosaic tracing parameters
 - Include sky model in 2nd pass of global sky subtraction (not for IR redux).
 - Skymask is now computed also for the maskdef_extract objects.
 - Added dedicated fwhm and boxcar_radius for maskdef_extract objects.

@@ -3434,7 +3434,6 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
-
         defaults['skip_final_global'] = False
         dtypes['skip_final_global'] = bool
         descr['skip_final_global'] = 'If True, do not update initial sky to get global sky using updated noise model. This ' \

@@ -800,19 +800,24 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-    def mask_add_missing_obj(self, sobjs, fwhm, slits_left, slits_right):
+    def mask_add_missing_obj(self, sobjs, fwhm, boxcar_rad, slits_left, slits_right):
         """
         Generate new SpecObj and add them into the SpecObjs object for any slits missing the targeted source.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
-            fwhm (:obj:`float`): FWHM in pixels to be used in the optimal extraction
-            slits_left (`numpy.ndarray`_): Array with left slit edges.
-            slits_right (`numpy.ndarray`_): Array with right slit edges.
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+                List of SpecObj that have been found and traced
+            fwhm (:obj:`float`):
+                FWHM in pixels to be used in the optimal extraction
+            boxcar_rad (:obj:`float`):
+                BOX_RADIUS in pixels to be used in the boxcar extraction
+            slits_left (`numpy.ndarray`_):
+                Array with left slit edges.
+            slits_right (`numpy.ndarray`_):
+                Array with right slit edges.
 
         Returns:
-            tuple:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): Updated list of SpecObj that have been found and traced
+            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced
 
         """
         msgs.info('Add undetected objects at the expected location from slitmask design.')
@@ -898,6 +903,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # FWHM
             thisobj.FWHM = fwhm  # pixels
+            thisobj.BOX_RADIUS = boxcar_rad  # pixels
             thisobj.maskwidth = 4. * fwhm  # matches objfind() in extract.py
             thisobj.smash_peakflux = 0.
             thisobj.THRESHOLD = 0.
@@ -938,6 +944,9 @@ class SlitTraceSet(datamodel.DataContainer):
             det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge
             TOLER (:obj:`float`, optional): Matching tolerance in arcsec
             skip_serendip (:obj:`bool`, optional): Skip extraction of serendip objects?
+
+        Returns:
+            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced
 
         """
 
@@ -1018,7 +1027,7 @@ class SlitTraceSet(datamodel.DataContainer):
                       'positions: {} arcsec'.format(np.round(separ*plate_scale, 2)))
             # we include in the tolerance the rms of the slit edges matching and the size of
             # the detected object with the highest peak flux
-            if not np.any(cut_sobjs[idx].smash_peakflux == None):
+            if np.any((cut_sobjs[idx].smash_peakflux != None) & (cut_sobjs[idx].smash_peakflux != 0.)):
                 ipeak = np.argmax(cut_sobjs[idx].smash_peakflux)
                 obj_fwhm = cut_sobjs[ipeak].FWHM*plate_scale
             else:
@@ -1597,8 +1606,6 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
             List of shifts, in spatial pixels, between this image and SlitTrace.
         platescale (:obj:`list`):
             List of platescale for every detector.
-        fwhm (:obj:`float`):
-            Estimate of the FWHM of objects in pixels.
         slitmask_par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             Slitmask PypeIt parameters.
 
@@ -1623,7 +1630,9 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
                 # Set the FWHM for the extraction of missing objects
                 fwhm = calib_slits[i].get_maskdef_extract_fwhm(sobjs, platescale[i], slitmask_par['missing_objs_fwhm'])
                 # Assign undetected objects
-                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
+                sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm,
+                                                            slitmask_par['missing_objs_boxcar_rad']/platescale[i],
+                                                            slits_left, slits_right)
 
     return sobjs
 

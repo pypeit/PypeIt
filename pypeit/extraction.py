@@ -17,7 +17,7 @@ from linetools import utils as ltu
 
 from pypeit import msgs, utils
 from pypeit.display import display
-from pypeit.core import skysub, extract, wave, flexure, parse
+from pypeit.core import skysub, extract, wave, flexure
 from pypeit.core.moment import moment1d
 
 from linetools.spectra import xspectrum1d
@@ -39,19 +39,11 @@ class Extract:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`):
         objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        det (:obj:`int`, optional):
-           Detector index
-        setup (:obj:`str`, optional):
-           Used for naming
-        maskslits (`numpy.ndarray`_, optional):
-          Specifies masked out slits
-          True = Masked
         bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
         show (:obj:`bool`, optional):
            Show plots along the way?
-        manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -87,9 +79,8 @@ class Extract:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+    def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+                     find_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -99,30 +90,44 @@ class Extract:
 
         Args:
             sciImg (pypeit.images.scienceimage.ScienceImage):
+                Image to reduce.
+            sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
+                Objects found but not yet extracted
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
+            objtype (:obj:`str`):
+                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
+                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
+                    Find a way to dermine those outside this class
+            bkg_redux (:obj:`bool`, optional):
+                If True, the sciImg has been subtracted by
+                a background image (e.g. standard treatment in the IR)
+            find_negative (:obj:`bool`, optional):
+                If True, the negative objects are found
+            std_redux (:obj:`bool`, optional):
+                If True the object being extracted is a standards star
+                so that the reduction parameters can be adjusted accordingly.
             basename (str, optional):
                 Output filename used for spectral flexure QA
+            show (:obj:`bool`, optional):
+                Show plots along the way?
             **kwargs
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.reduce.Reduce`:
+            :class:`pypeit.extraction.Extract`:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
                             sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
                             bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
-                            setup=setup, basename=basename,
-                            manual=manual)
+                            basename=basename)
 
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, 
-                 bkg_redux=False, find_negative=False, 
-                 std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
+                 basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -135,7 +140,6 @@ class Extract:
         self.caliBrate = caliBrate
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
         self.basename = basename
-        self.manual = manual
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -151,17 +155,13 @@ class Extract:
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
-        else:
-            msgs.error("Not ready for this objtype in Reduce")
 
         # Initialise the slits
         msgs.info("Initialising slits")
         self.initialise_slits()
 
         # Internal bpm mask
-        # We want to keep the 'BOXSLIT', which has bpm=2. But we don't want to keep 'BOXSLIT'
-        # with other bad flag (for which bpm>2)
-        self.reduce_bpm = (self.slits.mask > 2) & (np.invert(self.slits.bitmask.flagged(
+        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
@@ -176,7 +176,6 @@ class Extract:
         self.std_redux = std_redux
         self.det = caliBrate.det
         self.binning = caliBrate.binning
-        self.setup = setup
         self.pypeline = spectrograph.pypeline
         self.reduce_show = show
 
@@ -204,7 +203,8 @@ class Extract:
 
     def initialise_slits(self, initial=False):
         """
-        Initialise the slits
+        Gather all the :class:`SlitTraceSet` attributes
+        that we'll use here in :class:`Extract`
 
         Args:
             initial (:obj:`bool`, optional):
@@ -219,7 +219,7 @@ class Extract:
 
         # Slitmask
         self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing+['BOXSLIT'])
+                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -250,18 +250,12 @@ class Extract:
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
                 sobj = self.sobjs[iobj]
-                bin_spec, bin_spat = parse.parse_binning(self.binning)
-                plate_scale = self.get_platescale(sobj)*bin_spat
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
-                if sobj.MASKDEF_EXTRACT is True:
-                    box_rad = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
-                else:
-                    box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, box_rad, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj.BOX_RADIUS, sobj, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
@@ -279,38 +273,12 @@ class Extract:
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
 
-
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
-
-    def get_platescale(self, sobj):
-        """
-        Return the platescale for the current detector/echelle order
-
-        Over-loaded by the children
-
-        Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
-
-        Returns:
-            float:
-
-        """
-        pass
 
     def prepare_extraction(self, global_sky):
         """ Prepare the masks and wavelength image for extraction.
         """
-        # Update bpm mask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.reduce_bpm = (self.slits.mask > 0) & \
-                          (np.invert(self.slits.bitmask.flagged(self.slits.mask,
-                                                                flag=self.slits.bitmask.exclude_for_reducing)))
-        # Update Slitmask to remove `BOXSLIT`, i.e., we don't want to extract those
-        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
-                                            exclude_flag=self.slits.bitmask.exclude_for_reducing)
-        # use the tweaked traces if they exist - DP: I'm not sure this is necessary
-        self.sciImg.update_mask_slitmask(self.slitmask)
-
         # Deal with dynamic calibrations
         # Tilts
         self.waveTilts.is_synced(self.slits)
@@ -342,12 +310,14 @@ class Extract:
                 Global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            ra (float, optional):
+            ra (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
-            dec (float, optional):
+            dec (:obj:`float`, optional):
                 Required if helio-centric correction is to be applied
             obstime (:obj:`astropy.time.Time`, optional):
                 Required if helio-centric correction is to be applied
+            return_negative (:obj:`bool`, optional):
+                Do you want to extract the negative objects?
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
@@ -567,7 +537,6 @@ class Extract:
 
         else:
             msgs.info('A wavelength reference frame correction will not be performed.')
-        return
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -683,24 +652,6 @@ class MultiSlitExtract(Extract):
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
         super().__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def get_platescale(self, dummy):
-        """
-        Return the platescale for multislit.
-        The input argument is ignored
-
-        Args:
-            dummy:
-                ignored
-                Keeps argument lists the same amongst the children
-
-        Returns:
-            float:
-
-        """
-        plate_scale = self.sciImg.detector.platescale
-        return plate_scale
-
-
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -710,35 +661,42 @@ class MultiSlitExtract(Extract):
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        global_sky : `numpy.ndarray`_
-            ???
-        sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            ???
-        spat_pix : `numpy.ndarray`_, optional
-            ???
-        model_noise : :obj:`bool`, optional
-            ???
-        show_resids : :obj:`bool`, optional
-            ???
-        show_profile : :obj:`bool`, optional
-            ???
-        show : :obj:`bool`, optional
-            ???
 
-        Returns
-        -------
-        skymodel : `numpy.ndarray`_
-            ???
-        objmodel : `numpy.ndarray`_
-            ???
-        ivarmodel : `numpy.ndarray`_
-            ???
-        outmask : `numpy.ndarray`_
-            ???
-        sobjs : ??
-            ???
+        Args:
+            global_sky (`numpy.ndarray`_):
+                Global sky model
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Class containing the information about the objects found
+            spat_pix (`numpy.ndarray`_, optional):
+                Image containing the spatial location of pixels. If not
+                input, it will be computed from ``spat_img =
+                np.outer(np.ones(nspec), np.arange(nspat))``.
+            model_noise (:obj:`bool`, optional):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See
+                `~pypeit.core.skysub.local_skysub_extract` for more info.
+            show_resids (:obj:`bool`, optional):
+                Show the model fits and residuals.
+            show_profile (:obj:`bool`, optional):
+                Show QA for the object profile fitting to the screen. Note
+                that this will show interactive matplotlib plots which will
+                block the execution of the code until the window is closed.
+            show (:obj:`bool`, optional):
+                Show debugging plots
+
+        Returns:
+            `numpy.ndarray`_:
+                skymodel: Model sky flux
+            `numpy.ndarray`_:
+                objmodel : Model object flux
+            `numpy.ndarray`_:
+                ivarmodel : Model inverse variance
+            `numpy.ndarray`_:
+                outmask : Model mask
+            :class:`~pypeit.specobjs.SpecObjs`:
+                sobjs Class containing the information about the objects found
 
         """
         self.global_sky = global_sky
@@ -780,10 +738,6 @@ class MultiSlitExtract(Extract):
 
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            plate_scale = self.get_platescale(None)*bin_spat
-            box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-            box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
             sigrej = self.par['reduce']['skysub']['sky_sigrej']
             bsp = self.par['reduce']['skysub']['bspline_spacing']
             force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
@@ -800,8 +754,7 @@ class MultiSlitExtract(Extract):
                                                   self.slits_right[:, slit_idx],
                                                   self.sobjs[thisobj], ingpm=ingpm,
                                                   spat_pix=spat_pix,
-                                                  model_full_slit=model_full_slit, box_rad=box_rad,
-                                                  box_rad_maskdef_extract= box_rad_maskdef_extract,
+                                                  model_full_slit=model_full_slit,
                                                   sigrej=sigrej, model_noise=model_noise,
                                                   std=self.std_redux, bsp=bsp,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
@@ -847,23 +800,6 @@ class EchelleExtract(Extract):
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
 
-
-    def get_platescale(self, sobj):
-        """
-        Return the plate scale for the given current echelle order
-        based on the order index
-
-        Args:
-            sobj (:class:`pypeit.specobj.SpecObj`):
-
-        Returns:
-            float:
-
-        """
-        return self.spectrograph.order_platescale(sobj.ECH_ORDER, binning=self.binning)[0]
-
-
-
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, global_sky, sobjs,
@@ -874,43 +810,46 @@ class EchelleExtract(Extract):
 
         Wrapper to skysub.local_skysub_extract
 
-        Parameters
-        ----------
-        global_sky : `numpy.ndarray`_
-            ???
-        sobjs : :class:`~pypeit.specobjs.SpecObjs`
-            ???
-        spat_pix : `numpy.ndarray`_, optional
-            ???
-        model_noise : :obj:`bool`, optional
-            ???
-        show_resids : :obj:`bool`, optional
-            ???
-        show_profile : :obj:`bool`, optional
-            ???
-        show : :obj:`bool`, optional
-            ???
+        Args:
+            global_sky (`numpy.ndarray`_):
+                Global sky model
+            sobjs (:class:`~pypeit.specobjs.SpecObjs`):
+                Class containing the information about the objects found
+            spat_pix (`numpy.ndarray`_, optional):
+                Image containing the spatial location of pixels. If not
+                input, it will be computed from ``spat_img =
+                np.outer(np.ones(nspec), np.arange(nspat))``.
+            model_noise (:obj:`bool`, optional):
+                If True, construct and iteratively update a model inverse variance image
+                using :func:`~pypeit.core.procimg.variance_model`. If False, a
+                variance model will not be created and instead the input sciivar will
+                always be taken to be the inverse variance. See
+                `~pypeit.core.skysub.local_skysub_extract` for more info.
+            show_resids (:obj:`bool`, optional):
+                Show the model fits and residuals.
+            show_profile (:obj:`bool`, optional):
+                Show QA for the object profile fitting to the screen. Note
+                that this will show interactive matplotlib plots which will
+                block the execution of the code until the window is closed.
+            show (:obj:`bool`, optional):
+                Show debugging plots
 
-        Returns
-        -------
-        skymodel : `numpy.ndarray`_
-            ???
-        objmodel : `numpy.ndarray`_
-            ???
-        ivarmodel : `numpy.ndarray`_
-            ???
-        outmask : `numpy.ndarray`_
-            ???
-        sobjs : ???
-            ???
+        Returns:
+            `numpy.ndarray`_:
+                skymodel: Model sky flux
+            `numpy.ndarray`_:
+                objmodel : Model object flux
+            `numpy.ndarray`_:
+                ivarmodel : Model inverse variance
+            `numpy.ndarray`_:
+                outmask : Model mask
+            :class:`~pypeit.specobjs.SpecObjs`:
+                sobjs Class containing the information about the objects found
         """
         self.global_sky = global_sky
 
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
-        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
-        box_rad_maskdef_extract = self.par['reduce']['slitmask']['missing_objs_boxcar_rad'] / plate_scale
         sigrej = self.par['reduce']['skysub']['sky_sigrej']
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
@@ -923,9 +862,7 @@ class EchelleExtract(Extract):
                                                   self.slits_right, self.slitmask, sobjs,
                                                   self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
-                                                  min_snr=min_snr, bsp=bsp,
-                                                  box_rad_order=box_rad_order,
-                                                  box_rad_maskdef_extract= box_rad_maskdef_extract, sigrej=sigrej,
+                                                  min_snr=min_snr, bsp=bsp, sigrej=sigrej,
                                                   force_gauss=force_gauss, sn_gauss=sn_gauss,
                                                   model_full_slit=model_full_slit,
                                                   model_noise=model_noise,

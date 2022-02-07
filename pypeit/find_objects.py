@@ -42,13 +42,6 @@ class FindObjects:
         caliBrate (:class:`~pypeit.calibrations.Calibrations`):
         objtype (:obj:`str`):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        det (:obj:`int`, optional):
-           Detector index
-        setup (:obj:`str`, optional):
-           Used for naming
-        maskslits (`numpy.ndarray`_, optional):
-          Specifies masked out slits
-          True = Masked
         bkg_redux (:obj:`bool`, optional):
             If True, the sciImg has been subtracted by
             a background image (e.g. standard treatment in the IR)
@@ -92,9 +85,8 @@ class FindObjects:
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+    def get_instance(cls, sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=False,
+                     find_negative=False, std_redux=False, show=False, basename=None, manual=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -103,28 +95,44 @@ class FindObjects:
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (:class:`pypeit.images.scienceimage.ScienceImage`):
+            sciImg (pypeit.images.scienceimage.ScienceImage):
+                Image to reduce.
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
-            basename (:obj:`str`, optional):
+            objtype (:obj:`str`):
+                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
+                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
+                    Find a way to dermine those outside this class
+            bkg_redux (:obj:`bool`, optional):
+                If True, the sciImg has been subtracted by
+                a background image (e.g. standard treatment in the IR)
+            find_negative (:obj:`bool`, optional):
+                If True, the negative objects are found
+            std_redux (:obj:`bool`, optional):
+                If True the object being extracted is a standards star
+                so that the reduction parameters can be adjusted accordingly.
+            manual (:class:`~pypeit.manual_extract.ManualExtractObj`, optional):
+                Class with info guiding the manual extraction
+            basename (str, optional):
                 Output filename used for spectral flexure QA
+            show (:obj:`bool`, optional):
+                Show plots along the way?
             **kwargs
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.reduce.Reduce`:
+            :class:`pypeit.find_objects.FindObjects`:
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
                             sciImg, spectrograph, par, caliBrate, objtype, bkg_redux=bkg_redux,
                             find_negative=find_negative, std_redux=std_redux, show=show,
-                            setup=setup, basename=basename,
-                            manual=manual)
+                            basename=basename, manual=manual)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
-                 setup=None, basename=None, manual=None):
+                 basename=None, manual=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -152,8 +160,6 @@ class FindObjects:
             self.spat_flexure_shift = self.sciImg.spat_flexure
         elif objtype == 'science_coadd2d':
             self.spat_flexure_shift = None
-        else:
-            msgs.error("Not ready for this objtype in Reduce")
 
         # Initialise the slits
         msgs.info("Initialising slits")
@@ -177,7 +183,6 @@ class FindObjects:
         self.std_redux = std_redux
         self.det = caliBrate.det
         self.binning = caliBrate.binning
-        self.setup = setup
         self.pypeline = spectrograph.pypeline
         self.reduce_show = show
 
@@ -221,22 +226,24 @@ class FindObjects:
             qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
             thismask = self.slitmask == slit_spat
+            this_sobjs = sobjs_obj.SLITID == slit_spat
             # Boxcar mask?
             if self.par['reduce']['skysub']['mask_by_boxcar']:
-                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(
-                    self.slits.slitord_id[slit_idx])
+                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
+                                 self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
             # Do it
-            skymask[thismask] = findobj_skymask.create_skymask(
-                sobjs_obj, thismask, 
-                self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
-                        box_rad_pix=boxcar_rad_pix,
-                        trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
+            skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj[this_sobjs], thismask,
+                                                               self.slits_left[:,slit_idx],
+                                                               self.slits_right[:,slit_idx],
+                                                               box_rad_pix=boxcar_rad_pix,
+                                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
 
     def initialise_slits(self, initial=False):
         """
-        Initialise the slits
+        Gather all the :class:`SlitTraceSet` attributes
+        that we'll use here in :class:`FindObjects`
 
         Args:
             initial (:obj:`bool`, optional):
@@ -319,15 +326,6 @@ class FindObjects:
 
         return initial_sky, sobjs_obj
 
-    # def get_final_global_sky(self, initial_sky, skymask):
-    #
-    #     #TODO Move this call to PypeIt
-    #     # Global sky subtraction second pass. Uses skymask from object finding
-    #     if (self.std_redux or self.par['reduce']['findobj']['skip_final_global']):
-    #         self.global_sky = initial_sky.copy()
-    #     else:
-    #         self.global_sky = self.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.reduce_show)
-
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
                      show_trace=False, show=False, save_objfindQA=True,
@@ -340,23 +338,29 @@ class FindObjects:
         Parameters
         ----------
         image : `numpy.ndarray`_
-            Input image
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
-            ???
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         show_peaks : :obj:`bool`, optional
-            ???
+            Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
-            ???
+            Generate QA  showing fits to traces
         show_trace : :obj:`bool`, optional
-            ???
+            Generate QA  showing traces identified. Requires an open ginga RC
+            modules window
         show : :obj:`bool`, optional
-            ???
+            Show all the QA
         save_objfindQA : :obj:`bool`, optional
             Save to disk (png file) QA showing the object profile
         manual_extract_dict : :obj:`dict`, optional
             This is only used by 2D coadd
         debug : :obj:`bool`, optional
-            ???
+            Show debugging plots?
 
         Returns
         -------
@@ -413,17 +417,18 @@ class FindObjects:
          """
         return None, None
 
-    def get_platescale(self, ECH_ORDER):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the platescale for the current detector/echelle order
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Over-loaded by the children
 
         Args:
-            ECH_ORDER (int):
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
         pass
@@ -688,22 +693,20 @@ class MultiSlitFindObjects(FindObjects):
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
         super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def get_platescale(self, dummy):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the platescale for multislit.
-        The input argument is ignored
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Args:
-            dummy:
-                ignored
-                Keeps argument lists the same amongst the children
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
-        plate_scale = self.sciImg.detector.platescale
-        return plate_scale
+        bin_spec, bin_spat = parse.parse_binning(self.binning)
+        return self.sciImg.detector.platescale * bin_spec
 
     def find_objects_pypeline(self, image, std_trace=None,
                               manual_extract_dict=None,
@@ -716,9 +719,14 @@ class MultiSlitFindObjects(FindObjects):
         ----------
 
         image : `numpy.ndarray`_
-            ???
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
-            ???
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         manual_extract_dict : :obj:`dict`, optional
             Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
@@ -729,11 +737,13 @@ class MultiSlitFindObjects(FindObjects):
             Generate QA  showing traces identified. Requires an open ginga RC
             modules window
         show : :obj:`bool`, optional
+            Show all the QA
         save_objfindQA : :obj:`bool`, optional
             Save to disk (png file) QA showing the object profile
         neg : :obj:`bool`, optional
             Is this a negative image?
         debug : :obj:`bool`, optional
+            Show debugging plots?
 
         Returns
         -------
@@ -746,14 +756,6 @@ class MultiSlitFindObjects(FindObjects):
 
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
-
-        # Masking options
-        if self.par['reduce']['skysub']['mask_by_boxcar']:
-            bin_spec, bin_spat = parse.parse_binning(self.binning)
-            plate_scale = self.get_platescale(None)*bin_spat
-            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / plate_scale
-        else:
-            boxcar_rad_skymask = None
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -794,7 +796,7 @@ class MultiSlitFindObjects(FindObjects):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh= sig_thresh,
+                                sig_thresh=sig_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
@@ -803,8 +805,8 @@ class MultiSlitFindObjects(FindObjects):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                use_user_fwhm = self.par['reduce']['extraction']['use_user_fwhm'],
-                                #boxcar_rad_skymask=boxcar_rad_skymask,
+                                use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
+                                boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(),  #pixels
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
@@ -832,7 +834,7 @@ class EchelleFindObjects(FindObjects):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(EchelleFindObjects, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -842,20 +844,22 @@ class EchelleFindObjects(FindObjects):
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
 
-
-    def get_platescale(self, ECH_ORDER):
+    def get_platescale(self, slitord_id=None):
         """
-        Return the plate scale for the given current echelle order
-        based on the order index
+        Return the platescale in binned pixels for the current detector/echelle order
 
         Args:
-            ECH_ORDER (int):
+            slitord_id (:obj:`int`, optional):
+                slit spat_id (MultiSlit, IFU) or ech_order (Echelle) value
 
         Returns:
-            float:
+            :obj:`float`: plate scale in binned pixels
 
         """
-        return self.spectrograph.order_platescale(ECH_ORDER, binning=self.binning)[0]
+        if slitord_id is None:
+            msgs.error('slitord_id is missing. Plate scale for current echelle order cannot be determined.')
+        return self.spectrograph.order_platescale(slitord_id, binning=self.binning)[0]
+
 
 # TODO This does not appear to be used anywhere
 #    def get_positive_sobj(self, specobjs, iord):
@@ -884,8 +888,16 @@ class EchelleFindObjects(FindObjects):
         Parameters
         ----------
         image : `numpy.ndarray`_
+            Image to search for objects from. This floating-point image has shape
+            (nspec, nspat) where the first dimension (nspec) is
+            spectral, and second dimension (nspat) is spatial.
         std_trace : `numpy.ndarray`_, optional
+            This is a one dimensional float array with shape = (nspec,) containing the standard star
+            trace which is used as a crutch for tracing. If the no
+            standard star is provided the code uses the the slit
+            boundaries as the crutch.
         manual_extract_dict : :obj:`dict`, optional
+            Dict guiding the manual extraction
         show_peaks : :obj:`bool`, optional
             Generate QA showing peaks identified by object finding
         show_fits : :obj:`bool`, optional
@@ -947,8 +959,8 @@ class EchelleFindObjects(FindObjects):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            #boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
-            show_trace=show_trace, objfindQA_filename=objfindQA_filename, debug=debug)
+            box_radius=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
+            show_trace=show_trace, objfindQA_filename=objfindQA_filename)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
@@ -968,7 +980,7 @@ class IFUFindObjects(MultiSlitFindObjects):
 
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
-        super(IFUFindObjects, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
     def find_objects_pypeline(self, image, std_trace=None,

@@ -441,14 +441,13 @@ class PypeIt:
         # Finish
         self.print_end_time()
 
-    # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
 
         Args:
-            frame (:obj:`int`):
-                0-indexed row in :attr:`fitstbl` with the frame to
+            frames (:obj:`list`):
+                List of 0-indexed rows in :attr:`fitstbl` with the frames to
                 reduce.
             bg_frames (:obj:`list`, optional):
                 List of frame indices for the background.
@@ -461,10 +460,6 @@ class PypeIt:
             extraction.
 
         """
-
-        # TODO:
-        # - change doc string to reflect that more than one frame can be
-        #   provided
 
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
@@ -497,8 +492,7 @@ class PypeIt:
         all_specobjs_objfind = specobjs.SpecObjs()
         # container for specobjs during second loop (extraction)
         all_specobjs_extract = specobjs.SpecObjs()
-        # list of skymask and global_sky obtained during objfind and used in extraction
-        skymask_list = []
+        # list of global_sky obtained during objfind and used in extraction
         initial_sky_list = []
         # list of sciImg
         sciImg_list = []
@@ -531,7 +525,6 @@ class PypeIt:
         detectors = self.spectrograph.select_detectors(subset=subset)
         msgs.info(f'Detectors to work on: {detectors}')
 
-
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
@@ -552,14 +545,13 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(
-                frames, self.det, bg_frames, std_outfile=std_outfile)
+            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(frames, self.det, bg_frames,
+                                                                       std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
             initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
             objFind_list.append(objFind)
-
 
         # slitmask stuff
         if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
@@ -604,13 +596,17 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind
 
             # Update the skymask
-            # TODO -- Pass in other skymask parameters!
-            skymask = objFind_list[i].create_skymask(all_specobjs_on_det) 
+            skymask = objFind_list[i].create_skymask(all_specobjs_on_det)
             
             # Update the global sky
-            final_global_sky = objFind_list[i].global_skysub(
-                previous_sky=initial_sky_list[i], skymask=skymask, 
-                show=self.show)
+            if 'standard' in self.fitstbl['frametype'][frames[0]] or \
+                    self.par['reduce']['findobj']['skip_final_global'] or \
+                    self.par['reduce']['skysub']['load_mask'] or \
+                    self.par['reduce']['skysub']['user_regions'] is not None:
+                final_global_sky = initial_sky_list[i]
+            else:
+                final_global_sky = objFind_list[i].global_skysub(previous_sky=initial_sky_list[i],
+                                                                 skymask=skymask, show=self.show)
 
             # Extract
             all_spec2d[detname], tmp_sobjs \
@@ -823,7 +819,6 @@ class PypeIt:
                                                         manual=manual_obj,
                                                         find_negative=self.find_negative,
                                                         std_redux=self.std_redux,
-                                                        setup=self.setup,
                                                         show=self.show,
                                                         basename=self.basename)
         # Show?
@@ -832,8 +827,7 @@ class PypeIt:
                             slits=True, clear=True)
 
         # Do it
-        initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, 
-                                             show_peaks=self.show)
+        initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=self.show)
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
 
@@ -884,21 +878,20 @@ class PypeIt:
             bkg_redux=self.bkg_redux, 
             find_negative=self.find_negative,
             std_redux=self.std_redux,
-            setup=self.setup,
             show=self.show,
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
+            # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
-                tilts = self.redux.run_extraction(global_sky, sobjs_obj, 
-                ra=self.fitstbl["ra"][frames[0]], 
-                dec=self.fitstbl["dec"][frames[0]],
-                obstime=self.obstime)
+                tilts = self.redux.run_extraction(global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
+                                                  dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
+                                                  return_negative=False)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
             self.redux.prepare_extraction(global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.redux.initial_sky
+            skymodel = self.redux.global_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)
             ivarmodel = np.copy(self.redux.sciImg.ivar)
             outmask = self.redux.sciImg.fullmask
