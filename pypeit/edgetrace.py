@@ -621,6 +621,7 @@ class EdgeTraceSet(DataContainer):
             table.
         """
         length = 0 if rows is None else rows
+        # TODO -- Rename TOPDIST -> LEFTDIST and BOTDIST -> RIGHTDIST
         return table.Table([
                     table.Column(name='OBJID', dtype=int, length=length,
                                  description='Object ID Number'),
@@ -4187,6 +4188,7 @@ class EdgeTraceSet(DataContainer):
             plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
+
 
         # We compute the predicted edge positions from the optical model after the x-correlation with the traced edges
         # bottom edges

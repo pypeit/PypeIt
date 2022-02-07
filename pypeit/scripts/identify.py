@@ -103,7 +103,7 @@ class Identify(scriptbase.ScriptBase):
         if 'WaveFit' in arcfitter._fitdict.keys():
             waveCalib = WaveCalib(nslits=1, wv_fits=np.atleast_1d(arcfitter._fitdict['WaveFit']),
                                   arc_spectra=np.atleast_2d(arcfitter.specdata).T,
-                                  spat_ids=np.atleast_1d(int(arcfitter._spatid)), PYP_SPEC=specname,
+                                  spat_ids=np.atleast_1d(int(arcfitter._spatid)), PYP_SPEC=msarc.PYP_SPEC,
                                   lamps=','.join(lamps))
         else:
             waveCalib = None
