@@ -87,7 +87,6 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
         # get THRESHOLD for this slit. Generally, objects in the same slit have same THRESHOLD,
         # so we use the average among all the sobjs. But if this slit has only a force extracted sobj (with THRESHOLD=0)
         # the array thresh is empty
-        # TODO for echelle sobjs[iobj].THRESHOLD is None for some orders, understand why and deal with it
         if thresh[thresh != None].size > 0:
             mean_tresh = np.mean(thresh)
             # fill it
@@ -590,6 +589,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
+                thisobj.THRESHOLD = sobjs_align[imin].THRESHOLD
+                thisobj.BOX_RADIUS = sobjs_align[imin].BOX_RADIUS
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
                 thisobj.OBJID = uni_obj_id[iobj]
@@ -759,9 +760,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         canvas.add('constructedcanvas', canvas_list)
     # TODO two things need to be debugged. 1) For objects which were found and traced, i don't think we should be updating the tracing with
     # the PCA. This just adds a failutre mode. 2) The PCA fit is going wild for X-shooter. Debug that.
-    
     # Vette
-    for sobj in sobjs:
+    for sobj in sobjs_final:
         if not sobj.ready_for_extraction():
             msgs.error("Bad SpecObj.  Can't proceed")
 
@@ -1380,7 +1380,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         sobj.THRESHOLD = threshold
         # Vet
         if not sobj.ready_for_extraction():
-            embed(header=utils.embed_header())
+            # embed(header=utils.embed_header())
             msgs.error("Bad SpecObj.  Can't proceed")
 
     # Return
