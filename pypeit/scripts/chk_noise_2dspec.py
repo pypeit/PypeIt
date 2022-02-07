@@ -18,7 +18,7 @@ import argparse
 
 from pypeit import spec2dobj
 from pypeit import msgs
-import pypeit
+from pypeit import io
 from pypeit.scripts import scriptbase
 from pypeit.images.detector_container import DetectorContainer
 
@@ -130,6 +130,8 @@ class ChkNoise2D(scriptbase.ScriptBase):
         parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting a region of the spectrum to analyze.')
         parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting a region of the spectrum to analyze.')
         parser.add_argument('--mode', default='plot', type=str, help='Do you want to save to disk or open a plot in a mpl window. If you choose save, a folder called spec2d*_noisecheck will be created and all the relevant plot will be placed there.')
+        parser.add_argument('--list', default=False, help='List the extensions only?',
+                            action='store_true')
         #parser.add_argument('--det', default=1, type=int, help='Detector number')
         return parser
 
@@ -161,6 +163,10 @@ class ChkNoise2D(scriptbase.ScriptBase):
 
             # Load 2D object
             file = files[i]
+            # List only?
+            if args.list:
+                io.fits_open(file).info()
+                continue
             spec2DObj = spec2dobj.Spec2DObj.from_file(file, detname, chk_version=False)
 
             # Deal with redshifts
