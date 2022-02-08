@@ -69,7 +69,9 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
 
     # Objmask
     skymask_objflux = np.copy(thismask)
-    if nobj > 0:
+    if nobj == 0:
+        msgs.info('No objects were detected. The entire slit will be used to determine the sky subtraction.')
+    else:
         # Compute some inputs for the object mask
         xtmp = (np.arange(nsamp) + 0.5)/nsamp
         # threshold for object finding

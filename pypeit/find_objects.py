@@ -221,22 +221,23 @@ class FindObjects:
 
         skymask = np.ones_like(self.sciImg.image, dtype=bool)
         gdslits = np.where(np.invert(self.reduce_bpm))[0]
-        for slit_idx in gdslits:
-            slit_spat = self.slits.spat_id[slit_idx]
-            qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
-            msgs.info(qa_title)
-            thismask = self.slitmask == slit_spat
-            this_sobjs = sobjs_obj.SLITID == slit_spat
-            # Boxcar mask?
-            if self.par['reduce']['skysub']['mask_by_boxcar']:
-                boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
-                                 self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
-            # Do it
-            skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj[this_sobjs], thismask,
-                                                               self.slits_left[:,slit_idx],
-                                                               self.slits_right[:,slit_idx],
-                                                               box_rad_pix=boxcar_rad_pix,
-                                                               trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
+        if sobjs_obj.nobj > 0:
+            for slit_idx in gdslits:
+                slit_spat = self.slits.spat_id[slit_idx]
+                qa_title ="Generating skymask for slit # {:d}".format(slit_spat)
+                msgs.info(qa_title)
+                thismask = self.slitmask == slit_spat
+                this_sobjs = sobjs_obj.SLITID == slit_spat
+                # Boxcar mask?
+                if self.par['reduce']['skysub']['mask_by_boxcar']:
+                    boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / \
+                                     self.get_platescale(slitord_id=self.slits.slitord_id[slit_idx])
+                # Do it
+                skymask[thismask] = findobj_skymask.create_skymask(sobjs_obj[this_sobjs], thismask,
+                                                                   self.slits_left[:,slit_idx],
+                                                                   self.slits_right[:,slit_idx],
+                                                                   box_rad_pix=boxcar_rad_pix,
+                                                                   trim_edg=self.par['reduce']['findobj']['find_trim_edge'])
         # Return
         return skymask
 

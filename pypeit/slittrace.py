@@ -920,14 +920,15 @@ class SlitTraceSet(datamodel.DataContainer):
             # Add to SpecObjs
             sobjs.add_sobj(thisobj)
 
-        # Sort objects according to their spatial location
-        spat_pixpos = sobjs.SPAT_PIXPOS
-        sobjs = sobjs[spat_pixpos.argsort()]
+        if sobjs.nobj > 0:
+            # Sort objects according to their spatial location
+            spat_pixpos = sobjs.SPAT_PIXPOS
+            sobjs = sobjs[spat_pixpos.argsort()]
 
-        # Vette
-        for sobj in sobjs:
-            if not sobj.ready_for_extraction():
-                msgs.error("Bad SpecObj.  Can't proceed")
+            # Vette
+            for sobj in sobjs:
+                if not sobj.ready_for_extraction():
+                    msgs.error("Bad SpecObj.  Can't proceed")
 
         # Return
         return sobjs
