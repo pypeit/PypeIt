@@ -1,5 +1,4 @@
 import os
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -7,6 +6,7 @@ import numpy as np
 
 from pypeit.core import telluric
 from pypeit.tests.tstutils import telluric_required, tell_test_grid
+from pypeit import data
 
 @telluric_required
 def test_telluric_init():
@@ -16,8 +16,7 @@ def test_telluric_init():
     ivar = np.ones(wave.size, dtype=float)
     gpm = np.ones(wave.size, dtype=bool)
 
-    obj_params = {'pca_file': os.path.join(resource_filename('pypeit', 'data'), 'telluric',
-                                           'models', 'qso_pca_1200_3100.fits'),
+    obj_params = {'pca_file': os.path.join(data.Paths.tel_model, 'qso_pca_1200_3100.fits'),
                   'npca': 8, 'z_qso': 7.52, 'delta_zqso': 0.1, 'lbound_norm': 0.1,
                   'ubound_norm': 3.0, 'tell_norm_thresh': 0.9,
                   'output_meta_keys': ('pca_file', 'npca', 'z_qso', 'delta_zqso', 'lbound_norm',
@@ -50,8 +49,7 @@ def test_telluric_io():
     ivar = np.ones(wave.size, dtype=float)
     gpm = np.ones(wave.size, dtype=bool)
 
-    obj_params = {'pca_file': os.path.join(resource_filename('pypeit', 'data'), 'telluric',
-                                           'models', 'qso_pca_1200_3100.fits'),
+    obj_params = {'pca_file': os.path.join(data.Paths.tel_model, 'qso_pca_1200_3100.fits'),
                   'npca': 8, 'z_qso': 7.52, 'delta_zqso': 0.1, 'lbound_norm': 0.1,
                   'ubound_norm': 3.0, 'tell_norm_thresh': 0.9,
                   'output_meta_keys': ('pca_file', 'npca', 'z_qso', 'delta_zqso', 'lbound_norm',

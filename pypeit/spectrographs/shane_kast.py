@@ -4,7 +4,6 @@ Module for Shane/Kast specific methods.
 .. include:: ../include/links.rst
 """
 import os
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -17,7 +16,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
-from pypeit.core import parse
+from pypeit import data
 
 
 
@@ -254,8 +253,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         """
         par = super().default_pypeit_par()
 
-        par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                  'sky_kastb_600.fits')
+        par['flexure']['spectrum'] = os.path.join(data.Paths.sky_spec, 'sky_kastb_600.fits')
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20

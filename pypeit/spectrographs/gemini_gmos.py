@@ -3,12 +3,6 @@ Module for Gemini GMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs
@@ -20,7 +14,7 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-from pypeit.par import pypeitpar
+
 
 class GeminiGMOSMosaicLookUp:
     """

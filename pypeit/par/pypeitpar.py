@@ -62,7 +62,6 @@ assuming you want it to be accessed throughout the code.
 """
 import os
 import warnings
-from pkg_resources import resource_filename
 import inspect
 from IPython import embed
 from collections import OrderedDict
@@ -74,6 +73,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+from pypeit import data
 
 
 def tuple_force(par):
@@ -788,8 +788,7 @@ class FlexurePar(ParSet):
         dtypes['spec_maxshift'] = [int, float]
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                            'paranal_sky.fits')
+        defaults['spectrum'] = os.path.join(data.Paths.sky_spec, 'paranal_sky.fits')
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -1973,8 +1972,7 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/models/'),
-                                            'qso_pca_1200_3100.fits')
+        defaults['pca_file'] = os.path.join(data.Paths.tel_model, 'qso_pca_1200_3100.fits')
         dtypes['pca_file'] = str
         descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
 

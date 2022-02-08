@@ -3,11 +3,6 @@ Module for Gemini FLAMINGOS.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs

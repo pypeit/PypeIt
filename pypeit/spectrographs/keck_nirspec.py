@@ -3,9 +3,6 @@ Module for Keck/NIRSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs

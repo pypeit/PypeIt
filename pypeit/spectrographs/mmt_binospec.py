@@ -3,11 +3,7 @@ Module for MMT/BINOSPEC specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
 import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 

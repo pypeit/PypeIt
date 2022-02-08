@@ -3,11 +3,7 @@ Module for MMT MMIRS
 
 .. include:: ../include/links.rst
 """
-import os
 import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 from scipy.signal import savgol_filter

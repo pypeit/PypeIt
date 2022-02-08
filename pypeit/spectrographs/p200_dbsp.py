@@ -3,11 +3,7 @@ Module for P200/DBSP specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
 from typing import List, Optional
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 

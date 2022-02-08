@@ -5,7 +5,6 @@
 
 """
 import inspect
-from pkg_resources import resource_filename
 
 import numpy as np
 import copy, os
@@ -32,6 +31,7 @@ from pypeit.datamodel import DataContainer
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 from pypeit import specobjs
+from pypeit import data
 
 from IPython import embed
 
@@ -851,8 +851,7 @@ class MultiSlitFlexure(DataContainer):
         # Load up specobjs
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
         #  Sky lines
-        sky_file = os.path.join(resource_filename('pypeit', 'data'), 'sky_spec',
-                                'sky_single_mg.dat')
+        sky_file = os.path.join(data.Paths.sky_spec, 'sky_single_mg.dat')
         self.sky_table = ascii.read(sky_file)
 
     def _init_internals(self):

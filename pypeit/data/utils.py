@@ -21,13 +21,29 @@ class Paths():
     [extended_summary]
     """
 
-    # Class Attributes: Hardwired paths
-    telgrid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
-    arclines = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines')
-    reid_arxiv = os.path.join(arclines, 'reid_arxiv')
-    linelist = os.path.join(arclines, 'lists')
-    nist = os.path.join(arclines, 'NIST')
-    arc_plot = os.path.join(arclines, 'plots')
+    # Class Attributes -- Hardwired Paths
+    data = resource_filename('pypeit', 'data')
+
+    # Telluric Corrections
+    telgrid = os.path.join(data, 'telluric', 'atm_grids')
+    tel_model = os.path.join(data, 'telluric', 'models')
+
+    # Wavelength Calibrations
+    arclines = os.path.join(data, 'arc_lines')
+    reid_arxiv = os.path.join(data, 'arc_lines', 'reid_arxiv')
+    linelist = os.path.join(data, 'arc_lines', 'lists')
+    nist = os.path.join(data, 'arc_lines', 'NIST')
+    arc_plot = os.path.join(data, 'arc_lines', 'plots')
+
+    # Flux Calibrations
+    standards = os.path.join(data, 'standards')
+    extinction = os.path.join(data, 'extinction')
+    skisim = os.path.join(data, 'skisim')
+    filters = os.path.join(data, 'filters')
+
+    # Other
+    sky_spec = os.path.join(data, 'sky_spec')
+    static_calibs = os.path.join(data, 'static_calibs')
 
     def __init__(self):
         pass
@@ -55,4 +71,4 @@ def load_telluric_grid(filename):
 
 
 def load_thar_spec():
-    return io.fits_open(Paths.arclines+'thar_spec_MM201006.fits')
+    return io.fits_open(os.path.join(Paths.arclines, 'thar_spec_MM201006.fits'))

@@ -78,7 +78,6 @@ class TellFit(scriptbase.ScriptBase):
         """
 
         import os
-        from pkg_resources import resource_filename
 
         from astropy.io import fits
 

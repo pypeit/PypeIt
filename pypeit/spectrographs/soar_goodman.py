@@ -3,11 +3,7 @@ Module for the SOAR/Goodman instrument
 
 .. include:: ../include/links.rst
 """
-from IPython.terminal.embed import embed
-from pkg_resources import resource_filename
-
 import numpy as np
-import os
 
 from astropy.time import Time
 

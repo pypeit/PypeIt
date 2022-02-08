@@ -3,9 +3,6 @@ Module for P200/Triplespec specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from astropy.time import Time

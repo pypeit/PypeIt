@@ -3,8 +3,6 @@ Module for VLT/SINFONI specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
 
 from IPython import embed
 

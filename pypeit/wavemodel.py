@@ -1,6 +1,8 @@
 """
 Module to create models of arc lines.
 """
+import os
+
 import astropy
 import re
 import scipy
@@ -8,7 +10,6 @@ import scipy
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pkg_resources import resource_filename
 
 from astropy.io import fits
 from astropy.convolution import convolve, Gaussian1DKernel
@@ -146,8 +147,8 @@ def oh_lines():
     """
 
     msgs.info("Reading in the Rousselot (2000) OH line list")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    oh = np.loadtxt(skisim_dir+"rousselot2000.dat", usecols=(0, 1))
+    oh = np.loadtxt(os.path.join(data.Paths.skisim, 'rousselot2000.dat'),
+                    usecols=(0, 1))
     return oh[:,0]/10000., oh[:,1] # wave converted to microns
 
 
@@ -170,8 +171,7 @@ def transparency(wavelength, debug=False):
     """
 
     msgs.info("Reading in the atmospheric transmission model")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    transparency = np.loadtxt(skisim_dir+'atm_transmission_secz1.5_1.6mm.dat')
+    transparency = np.loadtxt(os.path.join(data.Paths.skisim, 'atm_transmission_secz1.5_1.6mm.dat'))
     wave_mod = transparency[:,0]
     tran_mod = transparency[:,1]
 
@@ -225,8 +225,8 @@ def h2o_lines():
     """
 
     msgs.info("Reading in the water atmsopheric spectrum")
-    skisim_dir = resource_filename('pypeit', 'data/skisim/')
-    h2o = np.loadtxt(skisim_dir+"HITRAN.txt", usecols=(0, 1))
+    h2o = np.loadtxt(os.path.join(data.Paths.skisim, 'HITRAN.txt'),
+                     usecols=(0, 1))
     h2o_wv = 1./ h2o[:,0] * 1e4 # microns
     h2o_rad = h2o[:,1] * 5e11 # added to match XIDL
 

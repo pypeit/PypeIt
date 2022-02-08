@@ -3,11 +3,6 @@ Module for Keck/MOSFIRE specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
