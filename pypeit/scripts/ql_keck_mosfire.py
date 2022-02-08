@@ -116,8 +116,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # At instantiaton, the fullmask in self.sciImg is modified
 
     # DP: Should find_negative be True here?
-    objFind = find_objects.FindObjects(sciImg, spectrograph, parset, caliBrate, 'science', bkg_redux=True,
-                                       find_negative=True, show=show)
+    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+                                                    bkg_redux=True, find_negative=True, show=show)
 
     global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
 
@@ -339,6 +339,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         caliBrate.msbpm = msbpm
         caliBrate.wavetilts = tilts_obj
         caliBrate.wv_calib = wv_calib
+        caliBrate.binning = f'{slits.binspec},{slits.binspat}'
 
         # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
         #uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
