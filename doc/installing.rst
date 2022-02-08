@@ -85,7 +85,8 @@ in the optional dependencies, e.g.:
 
 Also, ``PypeIt`` will use the `bottleneck`_ package to speed up a few
 calculations, if it is available.  To include bottleneck in the ``PypeIt``
-installation, run, e.g.:
+installation and take advantage of these speed gains, instead install by
+running, e.g.:
 
 .. code-block:: console
 
@@ -381,10 +382,6 @@ Some users have run into the following complications when installing the
 - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
   PySide2) because of our dependence on ``linetools``.
 
-- Note that ``shapely`` is provided as an optional dependency, but is only
-  currently used by one method that calculates the spaxel area for KCWI output
-  datacubes.
-
 ----
 
 .. _developer_install:
@@ -411,14 +408,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
