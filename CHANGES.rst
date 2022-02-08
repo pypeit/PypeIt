@@ -69,6 +69,7 @@
   objects considered a serendipitous detection.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
 
 
 1.7.0 (19 Nov 2021)
