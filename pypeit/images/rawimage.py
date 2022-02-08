@@ -532,7 +532,7 @@ class RawImage:
         #   - Subtract any fixed pattern defined for the instrument.  NOTE: This
         #     step *must* be done before subtract_overscan
         if self.par['use_pattern']:
-            self.subtract_pattern(slits)
+            self.subtract_pattern()
 
         #   - Estimate the readnoise using the overscan regions.  NOTE: This
         #     needs to be done *after* any pattern subtraction.
@@ -1031,7 +1031,7 @@ class RawImage:
             self.proc_var += np.array(var)
         self.steps[step] = True
 
-    def subtract_pattern(self, slits):
+    def subtract_pattern(self):
         """
         Analyze and subtract the pattern noise from the image.
 
@@ -1050,7 +1050,6 @@ class RawImage:
             msgs.error('Must estimate readnoise before trimming the image.')
 
         # Calculate the slit image
-        slitimg = (slits.slit_img(pad=2) == -1).astype(np.int)
         _ps_img = [None]*self.nimg
         for i in range(self.nimg):
             # The image must have an overscan region for this to work.
@@ -1071,16 +1070,9 @@ class RawImage:
                     frequency = None
             except KeyError:
                 frequency = None
-            # Determine the pixels that can be used to estimate the pattern frequency.
-            pix_offslit = (self.datasec_img[i] + self.oscansec_img[i])
-            # Find regions on the untrimmed image to apply the slit image
-            wa = np.where(np.logical_not(np.all(self.datasec_img[i]<1, axis=1)))[0]
-            wb = np.where(np.logical_not(np.all(self.datasec_img[i]<1, axis=0)))[0]
-            ww = (wa.repeat(wb.size), wb.reshape(wb.size,1).repeat(wa.size,axis=1).T.flatten())
-            pix_offslit[ww] *= slitimg.flatten()
             # Subtract the pattern and overwrite the current image
             _ps_img[i] = procimg.subtract_pattern(self.image[i], self.datasec_img[i],
-                                                  self.oscansec_img[i], pix_offslit, frequency=frequency)
+                                                  self.oscansec_img[i], frequency=frequency)
         self.image = np.array(_ps_img)
         self.steps[step] = True
 
