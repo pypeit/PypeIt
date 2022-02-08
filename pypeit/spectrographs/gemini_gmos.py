@@ -190,7 +190,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Always default to reducing as a mosaic
         par['rdx']['detnum'] = [(1,2,3)]
 
-        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['follow_span'] = 80
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_order'] = 3
 
         # 1D wavelength solution

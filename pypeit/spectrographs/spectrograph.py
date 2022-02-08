@@ -781,7 +781,7 @@ class Spectrograph:
                 description above.  Note detectors are 1-indexed.
 
         Returns:
-            :obj:`list`: List of detectors or detector mosaics to be reduced.
+            :obj:`list`: Uniqe List of detectors or detector mosaics to be reduced.
 
         Raises:
             PypeItError: Raised if any of the detectors or detector mosaics
@@ -801,7 +801,8 @@ class Spectrograph:
         if any([s not in allowed for s in _subset]):
             msgs.error('Selected detectors or detector mosaics contain invalid values.')
 
-        return _subset
+        # Require the list contains unique items
+        return list(set(_subset))
 
     @property
     def default_mosaic(self):
