@@ -760,16 +760,16 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
-            par['flexure']['spectrum'] = os.path.join(data.Paths.sky_spec, 'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(data.Paths.sky_spec, 'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(data.Paths.sky_spec, 'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
         elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
-            par['flexure']['spectrum'] = os.path.join(data.Paths.sky_spec, 'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))

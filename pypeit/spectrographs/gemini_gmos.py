@@ -14,7 +14,7 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 from pypeit.images.mosaic import Mosaic
 from pypeit.core.mosaic import build_image_mosaic_transform
-
+from pypeit.par import pypeitpar
 
 class GeminiGMOSMosaicLookUp:
     """

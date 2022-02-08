@@ -112,24 +112,6 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     return lag_max[0]
 
 
-def load_sky_spectrum(sky_file):
-    """
-    Load a sky spectrum into an XSpectrum1D object
-
-    .. todo::
-
-        Try to eliminate the XSpectrum1D dependancy
-
-    Args:
-        sky_file: str
-
-    Returns:
-        sky_spec: XSpectrum1D
-          spectrum
-    """
-    return xspectrum1d.XSpectrum1D.from_file(sky_file)
-
-
 def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
@@ -377,7 +359,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
 
     # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
     # multiple times
-    sky_spectrum = load_sky_spectrum(sky_file)
+    sky_spectrum = data.load_sky_spectrum(sky_file)
     sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
     nslits = slits.nslits
@@ -850,9 +832,9 @@ class MultiSlitFlexure(DataContainer):
 
         # Load up specobjs
         self.specobjs = specobjs.SpecObjs.from_fitsfile(self.s1dfile, chk_version=False) 
-        #  Sky lines
-        sky_file = os.path.join(data.Paths.sky_spec, 'sky_single_mg.dat')
-        self.sky_table = ascii.read(sky_file)
+        #  Sky lines -- This one is ASCII, so don't use load_sky_spectrum()
+        sky_file = 'sky_single_mg.dat'
+        self.sky_table = ascii.read(os.path.join(data.Paths.sky_spec, sky_file))
 
     def _init_internals(self):
         # Parameters (FlexurePar)

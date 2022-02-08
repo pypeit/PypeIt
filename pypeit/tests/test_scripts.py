@@ -378,7 +378,7 @@ def test_obslog():
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    sky_file = os.path.join(data.Paths.sky_spec, 'sky_kastb_600.fits')
+    sky_file = 'sky_kastb_600.fits'
 
     # Running in `test` mode for boxcar extraction
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])

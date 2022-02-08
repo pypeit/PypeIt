@@ -9,7 +9,7 @@ from pkg_resources import resource_filename
 
 import numpy as np
 
-from astropy.table import Table
+from linetools.spectra import xspectrum1d
 
 from pypeit import io
 from pypeit import msgs
@@ -72,3 +72,24 @@ def load_telluric_grid(filename):
 
 def load_thar_spec():
     return io.fits_open(os.path.join(Paths.arclines, 'thar_spec_MM201006.fits'))
+
+
+def load_sky_spectrum(sky_file):
+    """
+    Load a sky spectrum into an XSpectrum1D object
+
+    NOTE: This is where the path to the data directory is added!
+
+    .. todo::
+
+        Try to eliminate the XSpectrum1D dependancy
+
+    Args:
+        sky_file: str
+          The filename (NO PATH) of the sky file to use.
+
+    Returns:
+        sky_spec: XSpectrum1D
+          spectrum
+    """
+    return xspectrum1d.XSpectrum1D.from_file(os.path.join(Paths.sky_spec, sky_file))

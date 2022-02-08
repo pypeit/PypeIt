@@ -59,7 +59,7 @@ class CompareSky(scriptbase.ScriptBase):
         # Load user file
         user_sky = readspec(args.file, exten=exten, **ikwargs)
         # Load sky spec
-        arx_sky = readspec(os.path.join(data.Paths.sky_spec, args.skyfile))
+        arx_sky = data.load_sky_spectrum(args.skyfile)
 
         # Plot
         plt.clf()
