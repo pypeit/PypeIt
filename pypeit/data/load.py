@@ -15,16 +15,26 @@ from pypeit import io
 from pypeit import msgs
 
 
-# Hardwired Paths
-# TODO: There is probably a better way to package these...
-TELGRID_PATH = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
-ARCLINES_DIR = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines')
-REID_ARXIV_PATH = os.path.join(ARCLINES_DIR, 'reid_arxiv')
-LINE_PATH = os.path.join(ARCLINES_DIR, 'lists')
-NIST_PATH = os.path.join(ARCLINES_DIR, 'NIST')
-ARC_PLOT_PATH = os.path.join(ARCLINES_DIR, 'plots')
+class Paths():
+    """Paths List of hardwired paths within the pypeit.data module
+
+    [extended_summary]
+    """
+
+    # Class Attributes: Hardwired paths
+    telgrid = os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
+    arclines = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines')
+    reid_arxiv = os.path.join(arclines, 'reid_arxiv')
+    linelist = os.path.join(arclines, 'lists')
+    nist = os.path.join(arclines, 'NIST')
+    arc_plot = os.path.join(arclines, 'plots')
+
+    def __init__(self):
+        pass
 
 
+
+# Loading Functions for Particular File Types ================================#
 def load_telluric_grid(filename):
 
     # Check for existance of file parameter
@@ -33,7 +43,7 @@ def load_telluric_grid(filename):
                    "See https://pypeit.readthedocs.io/en/latest/telluric.html")
 
     # Add standard data path to the filename, as contained in default pypeit pars
-    file_with_path = os.path.join(TELGRID_PATH, filename)
+    file_with_path = os.path.join(Paths.telgrid, filename)
 
     # Check for existance of file
     if not os.path.isfile(file_with_path):
@@ -45,4 +55,4 @@ def load_telluric_grid(filename):
 
 
 def load_thar_spec():
-    return io.fits_open(ARCLINES_DIR+'thar_spec_MM201006.fits')
+    return io.fits_open(Paths.arclines+'thar_spec_MM201006.fits')

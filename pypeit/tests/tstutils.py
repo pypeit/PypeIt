@@ -9,8 +9,7 @@ from IPython import embed
 
 import numpy as np
 from astropy import time
-from astropy.io import fits
-from pypeit.data.load import TELGRID_PATH
+from pypeit import data
 
 from pypeit.images import buildimage
 from pypeit import edgetrace
@@ -38,7 +37,7 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
 
 # Tests require the Telluric file (Mauna Kea)
 par = Spectrograph.default_pypeit_par()
-tell_test_grid = os.path.join(TELGRID_PATH, 'TelFit_MaunaKea_3100_26100_R20000.fits')
+tell_test_grid = os.path.join(data.Paths.telgrid, 'TelFit_MaunaKea_3100_26100_R20000.fits')
 telluric_required = pytest.mark.skipif(not os.path.isfile(tell_test_grid),
                                        reason='no Mauna Kea telluric file')
 

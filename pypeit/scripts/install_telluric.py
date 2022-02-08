@@ -6,7 +6,7 @@ Script to install telluric model grids into the user's pypeit installation.
 """
 
 from pypeit.scripts import scriptbase
-from pypeit.data import TELGRID_PATH
+from pypeit import data
 
 class InstallTelluric(scriptbase.ScriptBase):
 
@@ -41,9 +41,9 @@ class InstallTelluric(scriptbase.ScriptBase):
             raise ValueError(f'No telluric grid files found in {args.path}')
 
         # Get the directory for the grids and make sure it exists
-        if not os.path.isdir(TELGRID_PATH):
-            raise NotADirectoryError(f'Unable to find {TELGRID_PATH}.  Check your installation.')
+        if not os.path.isdir(data.Paths.telgrid):
+            raise NotADirectoryError(f'Unable to find {data.Paths.telgrid}.  Check your installation.')
 
         # Create a symlink for each file
         for f in tell_files:
-            create_symlink(f, TELGRID_PATH, overwrite=True)
+            create_symlink(f, data.Paths.telgrid, overwrite=True)

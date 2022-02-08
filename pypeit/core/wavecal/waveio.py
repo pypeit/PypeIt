@@ -13,10 +13,7 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit.core.wavecal import defs
-from pypeit.data import REID_ARXIV_PATH
-from pypeit.data import LINE_PATH
-from pypeit.data import NIST_PATH
-from pypeit.data.load import ARCLINES_DIR
+from pypeit import data
 
 from IPython import embed
 
@@ -74,7 +71,7 @@ def load_template(arxiv_file, det, wvrng=None):
     """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
-        calibfile = os.path.join(REID_ARXIV_PATH, arxiv_file)
+        calibfile = os.path.join(data.Paths.reid_arxiv, arxiv_file)
     else:
         calibfile = arxiv_file
     # Read me
@@ -110,7 +107,7 @@ def load_reid_arxiv(arxiv_file):
 
     """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile = os.path.join(REID_ARXIV_PATH, arxiv_file)
+    calibfile = os.path.join(data.Paths.reid_arxiv, arxiv_file)
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if calibfile[-4:] == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
@@ -156,7 +153,7 @@ def load_by_hand():
     """
     str_len_dict = defs.str_len()
 
-    src_file = os.path.join(ARCLINES_DIR, 'sources', 'by_hand_list.ascii')
+    src_file = os.path.join(data.Paths.arclines, 'sources', 'by_hand_list.ascii')
     # Read
     line_list = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Add
@@ -191,7 +188,7 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     line_list : Table
 
     """
-    path = NIST_PATH if NIST else LINE_PATH
+    path = data.Paths.nist if NIST else data.Paths.linelist
     if use_ion:
         list_type = 'vacuum.ascii' if NIST else 'lines.dat'
         line_file = os.path.join(path, f'{line_file}_{list_type}')
@@ -260,7 +257,7 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
     """
     # All?
     if all:
-        line_files = glob.glob(os.path.join(LINE_PATH, '*_lines.dat'))
+        line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
         lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
@@ -272,12 +269,12 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
     lists = []
     for lamp in lamps:
         if NIST:
-            line_file = os.path.join(NIST_PATH, f'{lamp}_vacuum.ascii')
+            line_file = os.path.join(data.Paths.nist, f'{lamp}_vacuum.ascii')
         else:
-            line_file = os.path.join(LINE_PATH, f'{lamp}_lines.dat')
+            line_file = os.path.join(data.Paths.linelist, f'{lamp}_lines.dat')
         if not os.path.isfile(line_file):
             if not skip:
-                line_files = glob.glob(os.path.join(LINE_PATH, '*_lines.dat'))
+                line_files = glob.glob(os.path.join(data.Paths.linelist, '*_lines.dat'))
                 all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
                 msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +
@@ -317,7 +314,7 @@ def load_source_table():
     sources : Table
 
     """
-    src_file = os.path.join(ARCLINES_DIR, 'sources', 'arcline_sources.ascii')
+    src_file = os.path.join(data.Paths.arclines, 'sources', 'arcline_sources.ascii')
     # Load
     sources = Table.read(src_file, format='ascii.fixed_width', comment='#')
     # Return
@@ -357,11 +354,10 @@ def load_tree(polygon=4, numsearch=20):
     """
 
     # TODO: Can we save these as fits files instead?
-    # TODO: Use os.path.join
     # TODO: Please don't use imports within functions
     import pickle
-    filename = os.path.join(LINE_PATH, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
-    fileindx = os.path.join(LINE_PATH, f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
+    filename = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.kdtree')
+    fileindx = os.path.join(data.Paths.linelist, f'ThAr_patterns_poly{polygon}_search{numsearch}.index.npy')
     try:
         file_load = pickle.load(open(filename, 'rb'))
         index = np.load(fileindx)
@@ -393,7 +389,7 @@ def load_nist(ion):
     """
     import glob
     # Find file
-    srch_file = os.path.join(NIST_PATH, f'{ion}_vacuum.ascii')
+    srch_file = os.path.join(data.Paths.nist, f'{ion}_vacuum.ascii')
     nist_file = glob.glob(srch_file)
     if len(nist_file) == 0:
         raise IOError(f"Cannot find NIST file {srch_file}")
@@ -446,7 +442,7 @@ def load_unknown_list(lines, unknwn_file=None, all=False):
     line_dict = defs.lines()
     # Load
     if unknwn_file is None:
-        unknwn_file = os.path.join(LINE_PATH, 'UNKNWNs.dat')
+        unknwn_file = os.path.join(data.Paths.linelist, 'UNKNWNs.dat')
     line_list = load_line_list(unknwn_file)
     # Cut on input lamps?
     if all:
