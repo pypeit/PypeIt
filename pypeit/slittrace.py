@@ -912,14 +912,15 @@ class SlitTraceSet(datamodel.DataContainer):
             # Add to SpecObjs
             sobjs.add_sobj(thisobj)
 
-        # Sort objects according to their spatial location
-        spat_pixpos = sobjs.SPAT_PIXPOS
-        sobjs = sobjs[spat_pixpos.argsort()]
+        if sobjs.nobj > 0:
+            # Sort objects according to their spatial location
+            spat_pixpos = sobjs.SPAT_PIXPOS
+            sobjs = sobjs[spat_pixpos.argsort()]
 
-        # Vette
-        for sobj in sobjs:
-            if not sobj.ready_for_extraction():
-                msgs.error("Bad SpecObj.  Can't proceed")
+            # Vette
+            for sobj in sobjs:
+                if not sobj.ready_for_extraction():
+                    msgs.error("Bad SpecObj.  Can't proceed")
 
         # Return
         return sobjs
@@ -1312,24 +1313,33 @@ class SlitTraceSet(datamodel.DataContainer):
 
         return
 
-    def get_maskdef_extract_fwhm(self, sobjs, platescale, fwhm_parset):
+    def get_maskdef_extract_fwhm(self, sobjs, platescale, fwhm_parset, find_fwhm):
         """
+        This method determines the fwhm to use for the optimal extraction
+        of maskdef_extract (i.e., undetected) objects.
+        If the user provides a fwhm, it would be used. Otherwise fwhm
+        will be computed using the average fwhm of the detected objects.
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`): List of SpecObj that have been found and traced
-            platescale (:obj:`float`): Platescale
-            fwhm_parset (:obj:`float`, optional): Parset that guides the determination of the fwhm of
-            the maskdef_extract objects. If None (default) the fwhm are computed as the averaged from the
-            detected objects, if it is a number it will be adopted as the fwhm
+            sobjs (:class:`pypeit.specobjs.SpecObjs`):
+                List of SpecObj that have been found and traced.
+            platescale (:obj:`float`):
+                Platescale.
+            fwhm_parset (:obj:`float`, optional):
+                Parset that guides the determination of the fwhm of the maskdef_extract objects.
+                If None (default) the fwhm are computed as the averaged from the detected objects,
+                if it is a number it will be adopted as the fwhm.
+            find_fwhm (:obj:`float`):
+            Initial guess of the objects fwhm in pixels (used in object finding)
 
         Returns:
             :obj:`float`: FWHM in pixels to be used in the optimal extraction
 
         """
+        msgs.info('Determining the FWHM to be used for the optimal extraction of `maskdef_extract` objects')
         fwhm = None
         if fwhm_parset is not None:
-            msgs.info('Using user-provided FWHM = {}" for the extraction '
-                      'of all the maskdef_extract objects'.format(fwhm_parset))
+            msgs.info(f'Using user-provided FWHM = {fwhm_parset}"')
             fwhm = fwhm_parset/platescale
         elif sobjs.nobj > 0:
             # Use average FWHM of detected objects, but remove the objects in the alignment boxes
@@ -1346,11 +1356,12 @@ class SlitTraceSet(datamodel.DataContainer):
             if all_fwhm.size > 0:
                 # compute median
                 _, fwhm, _ = sigma_clipped_stats(all_fwhm, sigma=2.)
-                msgs.info('Using median FWHM = {:.3f}" from detected objects for the extraction '
-                          'of all the maskdef_extract objects'.format(fwhm*platescale))
+                msgs.info('Using median FWHM = {:.3f}" from detected objects.'.format(fwhm*platescale))
         if fwhm is None:
-            msgs.error('The median FWHM cannot be determined because no objects were detected. '
-                       'Set parameter `missing_objs_fwhm` in `SlitMaskPar`')
+            fwhm = find_fwhm
+            msgs.warn('The median FWHM cannot be determined because no objects were detected. '
+                      'Using `find_fwhm` = {:.3f}". if the user wants to provide a value '
+                      'set parameter `missing_objs_fwhm` in `SlitMaskPar`'.format(fwhm*platescale))
 
         return fwhm
 
@@ -1580,7 +1591,7 @@ def average_maskdef_offset(calib_slits, platescale, list_detectors):
     return calib_slits
 
 
-def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmask_par):
+def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmask_par, find_fwhm):
     """
     Loop around all the calibrated detectors to assign RA, DEC and OBJNAME to
     extracted object and to force extraction of undetected objects.
@@ -1596,6 +1607,8 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
             List of platescale for every detector.
         slitmask_par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
             Slitmask PypeIt parameters.
+        find_fwhm (:obj:`float`):
+            Initial guess of the objects fwhm in pixels (used in object finding)
 
     Returns:
         :class:`~pypeit.specobjs.SpecObjs`:
@@ -1616,7 +1629,8 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
 
             if slitmask_par['extract_missing_objs']:
                 # Set the FWHM for the extraction of missing objects
-                fwhm = calib_slits[i].get_maskdef_extract_fwhm(sobjs, platescale[i], slitmask_par['missing_objs_fwhm'])
+                fwhm = calib_slits[i].get_maskdef_extract_fwhm(sobjs, platescale[i],
+                                                               slitmask_par['missing_objs_fwhm'], find_fwhm)
                 # Assign undetected objects
                 sobjs = calib_slits[i].mask_add_missing_obj(sobjs, fwhm, slits_left, slits_right)
 

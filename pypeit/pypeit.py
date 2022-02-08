@@ -556,7 +556,7 @@ class PypeIt:
             sciImg_list.append(sciImg)
 
         # slitmask stuff
-        if self.par['reduce']['slitmask']['assign_obj'] and all_specobjs_objfind.nobj > 0:
+        if self.par['reduce']['slitmask']['assign_obj']:
             # get object positions from slitmask design and slitmask offsets for all the detectors
             spat_flexure = np.array([ss.spat_flexure for ss in sciImg_list])
             # Grab platescale with binning
@@ -579,7 +579,7 @@ class PypeIt:
             # slitmask design matching and add undetected objects
             all_specobjs_objfind = slittrace.assign_addobjs_alldets(
                 all_specobjs_objfind, calib_slits, spat_flexure, platescale,
-                self.par['reduce']['slitmask'])
+                self.par['reduce']['slitmask'], self.par['reduce']['findobj']['find_fwhm'])
 
         # Extract
         for i, self.det in enumerate(calibrated_det):

@@ -624,7 +624,8 @@ class CoAdd2D:
             if parcopy['reduce']['slitmask']['extract_missing_objs'] is True:
                 # Set the FWHM for the extraction of missing objects
                 fwhm = slits.get_maskdef_extract_fwhm(sobjs_obj, platescale,
-                                                      parcopy['reduce']['slitmask']['missing_objs_fwhm'])
+                                                      parcopy['reduce']['slitmask']['missing_objs_fwhm'],
+                                                      parcopy['reduce']['findobj']['find_fwhm'])
                 # Assign undetected objects
                 sobjs_obj = slits.mask_add_missing_obj(sobjs_obj, fwhm, slits_left, slits_right)
 
