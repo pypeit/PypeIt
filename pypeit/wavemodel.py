@@ -20,6 +20,7 @@ from pypeit.core import arc
 from pypeit import utils
 from pypeit.core.wave import airtovac
 from pypeit import io
+from pypeit import data
 
 from IPython import embed
 
@@ -244,9 +245,8 @@ def thar_lines():
     """
 
     msgs.info("Reading in the ThAr spectrum")
-    arclines_dir = resource_filename('pypeit', 'data/arc_lines/')
-    thar = io.fits_open(arclines_dir+'thar_spec_MM201006.fits')
-
+    thar = data.load_thar_spec()
+    
     # create pixel array
     thar_pix = np.arange(thar[0].header['CRPIX1'],len(thar[0].data[0,:])+1)
     # convert pixels to wavelength in Angstrom

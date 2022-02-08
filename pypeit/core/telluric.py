@@ -19,13 +19,12 @@ from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import fitting
+from pypeit import data
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import onespec
-from pypeit import io
 from pypeit import datamodel
-from pypeit.spectrographs.spectrograph import Spectrograph
 from pypeit.spectrographs.util import load_spectrograph
 
 from pypeit import datamodel
@@ -159,19 +158,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     Returns:
         :obj:`dict`: Dictionary containing the telluric grid.
     """
-    # Check for existance of file parameter
-    if not filename:
-        msgs.error("No file specified for telluric correction.  See https://pypeit.readthedocs.io/en/latest/telluric.html")
-
-    # Add standard data path to the filename, as contained in default pypeit pars
-    par = Spectrograph.default_pypeit_par()
-    file_with_path = os.path.join(par['sensfunc']['IR'].default_root, filename)
-
-    # Check for existance of file
-    if not os.path.isfile(file_with_path):
-        msgs.error(f"File {file_with_path} is not on your disk.  You likely need to download the Telluric files.  See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
-
-    hdul = io.fits_open(file_with_path)
+    # load_telluric_grid() takes care of path and existance check
+    hdul = data.load_telluric_grid(filename)
     wave_grid_full = 10.0*hdul[1].data
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size

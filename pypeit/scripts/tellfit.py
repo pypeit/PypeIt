@@ -5,9 +5,8 @@ Fit telluric absorption to observed spectra
 .. include:: ../include/links.rst
 """
 
-from IPython import embed
-
 from pypeit.scripts import scriptbase
+from pypeit.data import TELGRID_PATH
 
 
 class TellFit(scriptbase.ScriptBase):
@@ -117,10 +116,9 @@ class TellFit(scriptbase.ScriptBase):
                 msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
         # Checks
-        telgrid_path = par['sensfunc']['IR'].default_root
         if par['telluric']['telgridfile'] is None:
             msgs.error('A file with the telluric grid must be provided.')
-        elif not os.path.isfile(os.path.join(telgrid_path, par['telluric']['telgridfile'])):
+        elif not os.path.isfile(os.path.join(TELGRID_PATH, par['telluric']['telgridfile'])):
             msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Check your "
                        f"installation.")
 

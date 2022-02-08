@@ -16,13 +16,12 @@ import linetools.utils
 import pypeit  # For path
 from pypeit import msgs
 from pypeit.core.wavecal import defs
+from pypeit.data import REID_ARXIV_PATH
+from pypeit.data import LINE_PATH
+from pypeit.data import NIST_PATH
+from pypeit.spectrographs.spectrograph import Spectrograph
 
 from IPython import embed
-
-# TODO: These should not be declared here
-line_path = resource_filename('pypeit', '/data/arc_lines/lists/')
-nist_path = resource_filename('pypeit','/data/arc_lines/NIST/')
-reid_arxiv_path = resource_filename('pypeit','/data/arc_lines/reid_arxiv/')
 
 
 # TODO -- Move this to the WaveCalib object
@@ -78,7 +77,7 @@ def load_template(arxiv_file, det, wvrng=None):
     """
     # Path already included?
     if os.path.basename(arxiv_file) == arxiv_file:
-        calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+        calibfile = os.path.join(REID_ARXIV_PATH, arxiv_file)
     else:
         calibfile = arxiv_file
     # Read me
@@ -114,7 +113,7 @@ def load_reid_arxiv(arxiv_file):
 
     """
     # ToDO put in some code to allow user specified files rather than everything in the main directory
-    calibfile = os.path.join(reid_arxiv_path, arxiv_file)
+    calibfile = os.path.join(REID_ARXIV_PATH, arxiv_file)
     # This is a hack as it will fail if we change the data model yet again for wavelength solutions
     if calibfile[-4:] == 'json':
         wv_calib_arxiv = load_wavelength_calibration(calibfile)
@@ -196,9 +195,9 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
 
     """
     if NIST:
-        path = nist_path
+        path = NIST_PATH
     else:
-        path = line_path
+        path = LINE_PATH
     if use_ion:
         if NIST:
             line_file = path+'{:s}_vacuum.ascii'.format(line_file)
@@ -269,7 +268,7 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
     """
     # All?
     if all:
-        line_files = glob.glob(line_path+'*_lines.dat')
+        line_files = glob.glob(LINE_PATH+'*_lines.dat')
         lamps = []
         for line_file in line_files:
             i0 = line_file.rfind('/')
@@ -281,12 +280,12 @@ def load_line_lists(lamps, unknown=False, skip=False, all=False, NIST=False,
     lists = []
     for lamp in lamps:
         if NIST:
-            line_file = nist_path+'{:s}_vacuum.ascii'.format(lamp)
+            line_file = NIST_PATH+'{:s}_vacuum.ascii'.format(lamp)
         else:
-            line_file = line_path+'{:s}_lines.dat'.format(lamp)
+            line_file = LINE_PATH+'{:s}_lines.dat'.format(lamp)
         if not os.path.isfile(line_file):
             if not skip:
-                line_files = glob.glob(line_path + '*_lines.dat')
+                line_files = glob.glob(LINE_PATH + '*_lines.dat')
                 all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
                 msgs.warn("Input line {:s} is not included in arclines".format(lamp))
                 msgs.info("Please choose from the following list:" + msgs.newline() +

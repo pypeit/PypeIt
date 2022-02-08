@@ -2089,14 +2089,6 @@ class TelluricPar(ParSet):
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
 
-    @property
-    def default_root(self):
-        """
-        Return the default path to the atmospheric model grids.
-        NOTE: This the sole place in the code where this location is defined.
-        """
-        return os.path.join(resource_filename('pypeit', 'data'), 'telluric', 'atm_grids')
-
 
 class ReduxPar(ParSet):
     """
