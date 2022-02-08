@@ -215,6 +215,17 @@ or have a feature request, please `submit an issue
    skysub
    extraction
    scripts
+   A-B_differencing
+   nir_example
+
+----
+
+.. toctree::
+   :caption: Processing Details
+   :maxdepth: 1
+
+   image_proc
+   mosaic
 
 ----
 
@@ -222,7 +233,6 @@ or have a feature request, please `submit an issue
    :caption: Standard outputs
    :maxdepth: 1
 
-   image_proc
    calibrations
    outputs
    qa
@@ -233,7 +243,6 @@ or have a feature request, please `submit an issue
    :caption: Further processing
    :maxdepth: 1
 
-   A-B_differencing
    fluxing
    coadd1d
    telluric

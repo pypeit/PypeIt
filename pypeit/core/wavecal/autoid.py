@@ -938,17 +938,27 @@ def full_template(spec, lamps, par, ok_mask, det, binspectral, nsnippet=2,
         pspec = np.zeros_like(temp_spec)
         nspec = len(ispec)
         npad = ncomb - nspec
-        pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
+        if npad > 0:    # Pad the input spectrum
+            pspec[npad // 2:npad // 2 + len(ispec)] = ispec_cont_sub
+            tspec = tspec_cont_sub
+        elif npad < 0:  # Pad the template!
+            pspec = ispec_cont_sub
+            npad *= -1
+            tspec = np.zeros(nspec)
+            tspec[npad // 2:npad // 2 + ncomb] = tspec_cont_sub
+        else:  # No padding necessary
+            pspec = ispec_cont_sub
+            tspec = tspec_cont_sub
         # Cross-correlate
-        shift_cc, corr_cc = wvutils.xcorr_shift(tspec_cont_sub, pspec, debug=debug, fwhm=par['fwhm'], percent_ceil=x_percentile)
+        shift_cc, corr_cc = wvutils.xcorr_shift(tspec, pspec, debug=debug, fwhm=par['fwhm'], percent_ceil=x_percentile)
         #shift_cc, corr_cc = wvutils.xcorr_shift(temp_spec, pspec, debug=debug, percent_ceil=x_percentile)
         msgs.info("Shift = {}; cc = {}".format(shift_cc, corr_cc))
         if debug:
-            xvals = np.arange(ncomb)
+            xvals = np.arange(tspec.size)
             plt.clf()
             ax = plt.gca()
             #
-            ax.plot(xvals, temp_spec, label='template')  # Template
+            ax.plot(xvals, tspec, label='template')  # Template
             ax.plot(xvals, np.roll(pspec, int(shift_cc)), 'k', label='input')  # Input
             ax.legend()
             plt.show()
@@ -2521,7 +2531,6 @@ class HolyGrail:
                 A list [tcent, ecent] indicating which detection list should be used. Note that if arr_err is set then the weak keyword is ignored.
 
         Returns:
-        -------
             patt_dict (dict):
                 Dictionary containing information about the best patterns.
 

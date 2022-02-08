@@ -91,7 +91,7 @@ class Calibrations:
             :attr:`fitstbl`.
         calib_ID (:obj:`int`):
             calib group ID of the current frame
-        slitspat_num (:obj:`str` or :obj:`list, optional):
+        user_slits (:obj:`list, optional):
             Identifies a slit or slits to restrict the analysis on
             Used in :func:`get_slits` and propagated beyond
 
@@ -100,7 +100,7 @@ class Calibrations:
 
     @classmethod
     def get_instance(cls, fitstbl, par, spectrograph, caldir, qadir=None,
-                     reuse_masters=False, show=False, slitspat_num=None):
+                     reuse_masters=False, show=False, user_slits=None):
         """
         Get the instance of the appropriate subclass of :class:`Calibrations` to
         use for reducing data from the provided ``spectrograph``.  For argument
@@ -117,10 +117,10 @@ class Calibrations:
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (pypeline + 'Calibrations'))(
             fitstbl, par, spectrograph, caldir, qadir=qadir,
-                     reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
+                     reuse_masters=reuse_masters, show=show, user_slits=user_slits)
 
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
-                 reuse_masters=False, show=False, slitspat_num=None):
+                 reuse_masters=False, show=False, user_slits=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -142,7 +142,7 @@ class Calibrations:
         self.master_dir = caldir
 
         # Restrict on slits?
-        self.slitspat_num = slitspat_num
+        self.user_slits = user_slits
 
         # QA
         self.qa_path = qadir
@@ -652,7 +652,7 @@ class Calibrations:
                                                                  bias=self.msbias, bpm=self.msbpm,
                                                                  dark=self.msdark)
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
-                                                    self.par['slitedges'], bpm=self.msbpm,
+                                                    self.par['slitedges'], #bpm=self.msbpm,
                                                     auto=True)
                 if not self.edges.success:
                     self.success = False
@@ -670,8 +670,8 @@ class Calibrations:
             self.slits.to_master_file(slit_masterframe_name)
 
         # User mask?
-        if self.slitspat_num is not None:
-            self.slits.user_mask(self.det, self.slitspat_num)
+        if self.user_slits is not None:
+            self.slits.user_mask(self.det, self.user_slits)
 
         return self.slits
 
@@ -721,10 +721,10 @@ class Calibrations:
                 if self.par['wavelengths']['lamps'] == ['use_header'] else self.par['wavelengths']['lamps']
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
-                                                      self.par['wavelengths'], lamps, binspectral=binspec,
-                                                      det=self.det,
+                                                      self.par['wavelengths'], lamps,
+                                                      binspectral=binspec, det=self.det,
                                                       master_key=self.master_key_dict['arc'],
-                                                      qa_path=self.qa_path, msbpm=self.msbpm)
+                                                      qa_path=self.qa_path) #, msbpm=self.msbpm)
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)

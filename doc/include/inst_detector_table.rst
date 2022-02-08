@@ -34,6 +34,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ...                           2    0         True      False     2         1.63, 1.7                   3.6, 3.6                0.0       -1.0e+10  65535.0       0.8600     0.1350    
 ``keck_lris_red``             1    0         False     False     2         1.255, 1.18                 4.64, 4.76              0.0       -1.0e+10  65535.0       0.7600     0.1350    
 ...                           2    0         False     False     2         1.191, 1.162                4.54, 4.62              0.0       -1.0e+10  65535.0       0.7600     0.1350    
+``keck_lris_red_mark4``       1    0         True      False     2         1.61, 1.60153               3.65, 3.52              0.0       -1.0e+10  65535.0       0.7600     0.1230    
 ``keck_lris_red_orig``        1    1         False     False     2         1.98, 2.17                  6.1, 6.3                0.0       -1.0e+10  65535.0       0.7600     0.2100    
 ``keck_mosfire``              1    1         False     False     1         2.15                        5.8                     0.8       -1.0e+10  1000000000.0  1.0000     0.1798    
 ``keck_nires``                1    1         True      False     1         3.8                         5.0                     0.01      -1.0e+10  1000000.0     0.7600     0.1500    
@@ -44,7 +45,7 @@ Instrument                    Det  specaxis  specflip  spatflip  namp      gain 
 ``lbt_mods1r``                1    0         False     False     4         2.38, 2.5, 2.46, 2.81       3.78, 4.04, 4.74, 4.14  0.4       -1.0e+10  65535.0       0.9900     0.1230    
 ``lbt_mods2b``                1    0         True      False     4         1.99, 2.06, 1.96, 2.01      3.66, 3.62, 3.72, 3.64  0.5       -1.0e+10  65535.0       0.9900     0.1200    
 ``lbt_mods2r``                1    0         False     False     4         1.7, 1.67, 1.66, 1.66       2.95, 2.65, 2.78, 2.87  0.4       -1.0e+10  65535.0       0.9900     0.1230    
-``ldt_deveny``                1    1         True      False     1         ``None``                    ``None``                4.5       -1.0e+10  65535.0       1.0000     0.3400    
+``ldt_deveny``                1    1         True      False     1         1.52                        4.9                     4.5       -1.0e+10  65535.0       0.9700     0.3400    
 ``magellan_fire``             1    1         True      False     1         1.2                         5.0                     0.01      -1.0e+10  100000.0      1.0000     0.1800    
 ``magellan_fire_long``        1    0         False     False     1         3.8                         6.0                     0.01      -1.0e+10  320000.0      0.8750     0.1500    
 ``magellan_mage``             1    1         True      False     1         1.02                        2.9                     1.0       -1.0e+10  65535.0       0.9900     0.3000    

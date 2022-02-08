@@ -14,15 +14,10 @@ from pypeit import fluxcalibrate
 from pypeit import sensfunc
 from pypeit.par import pypeitpar
 from pypeit.scripts import flux_calib
-from pypeit.tests.tstutils import cooked_required, telluric_required
+from pypeit.tests.tstutils import cooked_required, telluric_required, data_path
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import keck_deimos
 from pypeit import specobjs, specobj
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
 
 
 @pytest.fixture
@@ -35,11 +30,10 @@ def kast_blue_files():
     return [std_file, sci_file]
 
 
-sens_file = data_path('sensfunc.fits')
-
 @cooked_required
 def test_gen_sensfunc(kast_blue_files):
 
+    sens_file = data_path('sensfunc.fits')
     if os.path.isfile(sens_file):
         os.remove(sens_file)
 
@@ -67,7 +61,8 @@ def test_gen_sensfunc(kast_blue_files):
 
 @cooked_required
 def test_from_sens_func(kast_blue_files):
-    # TODO: Tests need to be self-contained...
+
+    sens_file = data_path('sensfunc.fits')
     if os.path.isfile(sens_file):
         os.remove(sens_file)
 
@@ -90,6 +85,7 @@ def test_from_sens_func(kast_blue_files):
 
     os.remove(sens_file)
     os.remove(outfile)
+
 
 def test_extinction_correction_uvis():
     extinction_correction_tester('UVIS')

@@ -5,6 +5,7 @@ Module for LRIS specific methods.
 """
 import glob
 import os
+import pdb
 
 from IPython import embed
 
@@ -14,6 +15,10 @@ import numpy as np
 
 from astropy.io import fits
 from astropy import time
+from astropy.coordinates import SkyCoord 
+from astropy import units
+
+from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -21,6 +26,7 @@ from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
 
 
@@ -123,7 +129,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['target'] = dict(ext=0, card='TARGNAME')
         self.meta['decker'] = dict(ext=0, card='SLITNAME')
         self.meta['binning'] = dict(card=None, compound=True)
-
+        # 
         self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
         self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
         self.meta['airmass'] = dict(ext=0, card='AIRMASS')
@@ -134,6 +140,12 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
+
+        # Extras for pypeit file
+        if self.name == 'keck_lris_red_mark4':
+            self.meta['amp'] = dict(ext=0, card='TAPLINES')
+        else:
+            self.meta['amp'] = dict(ext=0, card='NUMAMPS')
 
         # Lamps -- Have varied in time..
         for kk in range(12): # This needs to match the length of LAMPS below
@@ -156,10 +168,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
+
             return binning
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
-            curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            curr_date = time.Time(self.get_meta_value(headarr, 'mjd'), format='mjd')
             # Modern -- Assuming the change occurred with the new red detector
             t_newlamp = time.Time("2014-02-15", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
@@ -237,8 +250,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
+            # Allow for dome or internal
+            good_dome = self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
+            good_internal = self.lamps(fitstbl, 'halogen') & (fitstbl['hatch'] == 'closed')
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
+            return good_exp & (good_dome + good_internal)
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
@@ -271,17 +287,24 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             # Check if all are off
             return np.all(np.array([ (fitstbl[k] == 'off') | (fitstbl[k] == 'None')
                                         for k in fitstbl.keys() if 'lampstat' in k]), axis=0)
-        if status == 'arcs':
+        elif status == 'arcs':
             # Check if any arc lamps are on
             arc_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(1,9) ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in arc_lamp_stat]), axis=0)
-        if status == 'dome':
+        elif status == 'dome':
             # Check if any dome lamps are on
             # Warning 9, 10 are FEARGON and DEUTERI
             dome_lamp_stat = [ 'lampstat{0:02d}'.format(i) for i in range(9,13) ]
             return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
                                             if k in dome_lamp_stat]), axis=0)
+        elif status == 'halogen':
+            halo_lamp_stat = ['lampstat12']
+            return np.any(np.array([ fitstbl[k] == 'on' for k in fitstbl.keys()
+                                            if k in halo_lamp_stat]), axis=0)
+        else:
+            msgs.error(f"Bad status option! {status}")
+
         raise ValueError('No implementation for status = {0}'.format(status))
 
     def get_rawimage(self, raw_file, det):
@@ -338,13 +361,18 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
         # First read over the header info to determine the size of the output array...
-        n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+        extensions = []
+        for kk, ihdu in enumerate(hdu):
+            if 'VidInp' in ihdu.name:
+                extensions.append(kk)
+        n_ext = len(extensions)
         xcol = []
         xmax = 0
         ymax = 0
         xmin = 10000
         ymin = 10000
-        for i in np.arange(1, n_ext + 1):
+
+        for i in extensions:
             theader = hdu[i].header
             detsec = theader['DETSEC']
             if detsec != '0':
@@ -469,6 +497,136 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return super().subheader_for_spec(row_fitstbl, raw_header,
                                           extra_header_cards=_extra_header_cards,
                                           allow_missing=allow_missing)
+
+    def get_slitmask(self, filename:str):
+        """
+        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
+        return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design using
+        the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+            ccdnum (:obj:`int`):
+                Detector number
+            filename (:obj:`str`):
+                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+                Default is None, i.e., to use previously instantiated attributes.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+
+        """
+        # Re-initiate slitmask
+        if filename is not None:
+            self.get_slitmask(filename)
+        else:
+            msgs.error('The name of a science file should be provided')
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        platescale = self.get_detector_par(det=1)['platescale']
+
+
+        hdu = fits.open(filename)
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        _, bin_spat = parse.parse_binning(binning)
+
+        # Slit center
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+                               dec=self.slitmask.onsky[:,1], unit='deg')
+        mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
+                              dec=self.slitmask.mask_radec[1], unit='deg')
+
+        # build an array of values containing the bottom (right) edge of the slits
+        # starting edge
+        left_edges = []
+        #for islit in x_order:
+        for islit in range(self.slitmask.nslits):
+            sep = mask_coord.separation(slit_coords[islit])
+            PA = mask_coord.position_angle(slit_coords[islit])
+            #
+            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
+            #delta = sep.to('arcsec') * np.sin(PA-self.slitmask.posx_pa*units.deg)
+            dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
+            # target is the slit number
+            left_edges.append(np.round(dx_pix))
+        left_edges = np.array(left_edges, dtype=int)
+
+        # Build up the right edges
+        right_edges = left_edges + np.round(
+            self.slitmask.onsky[:,2]/(platescale*bin_spat)).astype(int)
+
+        # Center of slit
+        centers = (left_edges + right_edges)/2.
+
+        # Trim down by detector
+        # TODO -- Deal with Mark4
+        max_spat = 2048//bin_spat
+        if ccdnum == 1:
+            if self.name == 'keck_lris_red':
+                good = centers < 0.
+                xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
+            elif self.name == 'keck_lris_blue':
+                good = centers < 0.
+                xstart = max_spat + 30//bin_spat  
+            else:
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+        else:
+            if self.name in ['keck_lris_red', 'keck_lris_blue']:
+                good = centers >= 0.
+                xstart = -48//bin_spat
+            else:             
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+        left_edges += xstart
+        right_edges += xstart
+        left_edges[~good] = -1
+
+        # Toss any left edges off the right-side of the detector
+        keep = left_edges < max_spat
+        left_edges[~keep] = -1
+
+        right_edges[left_edges == -1] = -1
+        # Deal with right edge off the detector
+        for islit in range(self.slitmask.nslits):
+            if left_edges[islit] != -1 and right_edges[islit] > max_spat:
+                right_edges[islit] = max_spat
+        # Now the left
+        for islit in range(self.slitmask.nslits):
+            if right_edges[islit] != -1 and left_edges[islit] < 0:
+                left_edges[islit] = 0
+
+        # Order from left to right
+        # Highest x is leftmost on DET=1
+        x_order = np.argsort(self.slitmask.corners[:,1,0])
+        sortindx = x_order[::-1]
+
+        # Return
+        return left_edges.astype(float), right_edges.astype(float), sortindx, self.slitmask
+
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -832,7 +990,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     camera = 'LRISr'
     header_name = 'LRIS'
     supported = True
-    comment = 'Red camera; see :doc:`lris`'
+    comment = 'Red camera;  LBNL detector, 2kx4k; see :doc:`lris`'
     
     def get_detector_par(self, det, hdu=None):
         """
@@ -883,7 +1041,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             # Allow for post COVID detector issues
             t2020_1 = time.Time("2020-06-30", format='isot')  # First run
             t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
-            date = time.Time(hdu[0].header['MJD-OBS'], format='mjd')
+            # Check for the new detector (Mark4) upgrade
+            t2021_upgrade = time.Time("2021-04-15", format='isot') 
+            date = time.Time(self.get_meta_value(self.get_headarr(hdu), 'mjd'), 
+                             format='mjd')
 
             if date < t2020_1:
                 pass
@@ -893,6 +1054,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                 detector_dict2['gain'] = np.atleast_1d([1.26])
                 detector_dict1['ronoise'] = np.atleast_1d([99.])
                 detector_dict2['ronoise'] = np.atleast_1d([5.2])
+            elif date > t2021_upgrade: 
+                # Note:  We are unlikely to trip this.  Other things probably failed first
+                msgs.error("This is the new detector.  Use keck_lris_red_mark4")
             else: # This is the 2020 July 29 run
                 msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
                 detector_dict1['gain'] = np.atleast_1d([1.45])
@@ -997,7 +1161,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '400/8500':  # This is basically a reidentify
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
+            if self.name == 'keck_lris_red_mark4':
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_mark4_R400.fits'
+            else:
+                par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['sigdetect'] = 20.0
             par['calibrations']['wavelengths']['nsnippet'] = 1
@@ -1047,7 +1214,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle']
+        return super().configuration_keys() + ['dispangle', 'amp', 'binning']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1099,6 +1266,189 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         return bpm_img
 
+class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
+    """
+    Child to handle the new Mark4 detector
+    """
+    ndet = 1
+    name = 'keck_lris_red_mark4'
+    supported = True
+    comment = 'New Mark4 detector, circa Spring 2021; Supported setups = R400'
+
+    def init_meta(self):
+        super().init_meta()
+        # Over-ride a pair
+        self.meta['mjd'] = dict(ext=0, card='MJD')
+        self.meta['exptime'] = dict(ext=0, card='TELAPSE')
+
+    def get_detector_par(self, det, hdu=None):
+        """
+        Return metadata for the selected detector.
+
+        Args:
+            det (:obj:`int`):
+                1-indexed detector number.
+            hdu (`astropy.io.fits.HDUList`_, optional):
+                The open fits file with the raw image of interest.  If not
+                provided, frame-dependent parameters are set to a default.
+
+        Returns:
+            :class:`~pypeit.images.detector_container.DetectorContainer`:
+            Object with the detector metadata.
+        """
+        # Binning
+        binning = '1,1' if hdu is None else self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning=binning,
+            det=1,
+            dataext=0,
+            specaxis=0,
+            specflip=True,  
+            spatflip=False,
+            platescale=0.123,  # From the web page
+            darkcurr=0.0,
+            saturation=65535.,
+            nonlinear=0.76,
+            mincounts=-1e10,
+            numamplifiers=2,  # These are defaults but can modify below
+            gain=np.atleast_1d([1.61, 1.67*0.959]), # Assumes AMPMODE=HSPLIT,VUP;  Corrected by JXP using 2x1 binned flats
+            ronoise=np.atleast_1d([3.65, 3.52]),
+        )
+
+        if hdu is None:
+            return detector_container.DetectorContainer(**detector_dict1)
+
+        # Date of Mark4 installation
+        t2021_upgrade = time.Time("2021-04-15", format='isot') 
+        # TODO -- Update with the date we transitioned to the correct ones
+        t_gdhead = time.Time("2022-01-01", format='isot')  
+        date = time.Time(hdu[0].header['MJD'], format='mjd')
+
+        if date < t2021_upgrade:
+            msgs.error("This is not the Mark4 detector.  Use a different keck_lris_red spectrograph")
+
+        # Deal with the intermediate headers
+        if date < t_gdhead:
+            amp_mode = hdu[0].header['AMPMODE']
+            msgs.info("AMPMODE = {:s}".format(amp_mode))
+            # Load up translation dict
+            ampmode_translate_file = os.path.join(
+                resource_filename('pypeit', 'data'), 'spectrographs',
+                'keck_lris_red_mark4', 'dict_for_ampmode.json')
+            ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
+            # Load up the corrected header
+            swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
+            header_file = os.path.join(
+                resource_filename('pypeit', 'data'), 'spectrographs',
+                'keck_lris_red_mark4', 
+                f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
+            correct_header = fits.getheader(header_file)
+        else:
+            correct_header = hdu[0].header
+
+        # Deal with number of amps
+        detector_dict1['numamplifiers'] = correct_header['TAPLINES']
+
+        # The website does not give values for single amp per detector so we take the mean
+        #   of the values provided
+        if detector_dict1['numamplifiers'] == 2: 
+            pass
+        elif detector_dict1['numamplifiers'] == 4:
+            # From the web page on 2021-10-04 (L1, L2, U1, U2)
+            #  Corrected by JXP and SS using chk_lris_mark4_gain.py in the DevSuite
+            detector_dict1['gain'] = np.atleast_1d([1.710, 
+                                                    1.64*1.0245,  # L2
+                                                    1.61*1.0185,  # U1
+                                                    1.67*1.0052]) # U2
+            detector_dict1['ronoise'] = np.atleast_1d([3.64, 3.45, 3.65, 3.52])
+        else:
+            msgs.error("Did not see this namps coming..")
+
+        detector_dict1['datasec'] = []
+        detector_dict1['oscansec'] = []
+
+        # Parse which AMPS were used
+        used_amps = []
+        for amp in range(4):
+            if f'AMPNM{amp}' in correct_header.keys():
+                used_amps.append(amp)
+        # Check
+        assert detector_dict1['numamplifiers'] == len(used_amps)
+
+        # Reverse engenieering to translate LRIS DSEC, BSEC
+        #  into ones friendly for PypeIt...
+        binspec = int(binning[0])
+        binspatial = int(binning[-1])
+        
+        for iamp in used_amps:
+            # These are column, row
+            dsecs = correct_header[f'DSEC{iamp}'].split(',')
+            d_rows = [int(item) for item in dsecs[1][:-1].split(':')]
+            d_cols = [int(item) for item in dsecs[0][1:].split(':')]
+            bsecs = correct_header[f'BSEC{iamp}'].split(',')
+            o_rows = [int(item) for item in bsecs[1][:-1].split(':')]
+            o_cols = [int(item) for item in bsecs[0][1:].split(':')]
+
+            # Deal with binning (heaven help me!!)
+            d_rows = [str(item*binspec) if item != 1 else str(item) for item in d_rows]
+            o_rows = [str(item*binspec) if item != 1 else str(item) for item in o_rows]
+            d_cols = [str(item*binspatial) if item != 1 else str(item) for item in d_cols]
+            o_cols = [str(item*binspatial) if item != 1 else str(item) for item in o_cols]
+
+            # These are now row, column
+            #  And they need to be native!!  i.e. no binning accounted for..
+            detector_dict1['datasec'] += [f"[{':'.join(d_rows)},{':'.join(d_cols)}]"]
+            detector_dict1['oscansec'] += [f"[{':'.join(o_rows)},{':'.join(o_cols)}]"]
+
+        detector_dict1['datasec'] = np.array(detector_dict1['datasec'])
+        detector_dict1['oscansec'] = np.array(detector_dict1['oscansec'])
+
+        # Instantiate
+        detector = detector_container.DetectorContainer(**detector_dict1)
+
+        #print('Dict1:', detector_dict1)
+        #print('Binning:', binning)
+
+        # Return
+        return detector
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Read raw images and generate a few other bits and pieces
+        that are key for image processing.
+
+        Over-ride standard get_rawimage() for LRIS
+
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            1-indexed detector to read
+
+        Returns
+        -------
+        detector_par : :class:`pypeit.images.detector_container.DetectorContainer`
+            Detector metadata parameters.
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector.
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+            Exposure time read from the file header
+        rawdatasec_img : `numpy.ndarray`_
+            Data (Science) section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        oscansec_img : `numpy.ndarray`_
+            Overscan section of the detector as provided by setting the
+            (1-indexed) number of the amplifier used to read each detector
+            pixel. Pixels unassociated with any amplifier are set to 0.
+        """
+        # Note:  There is no way we know to super super super
+        return spectrograph.Spectrograph.get_rawimage(self, raw_file, det)
 
 class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     """
@@ -1108,7 +1458,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
     name = 'keck_lris_red_orig'
     camera = 'LRISr'
     supported = True
-    comment = 'Original detector; replaced in 20??; see :doc:`lris`'
+    comment = 'Original detector; replaced in 2009; see :doc:`lris`'
 
     @classmethod
     def default_pypeit_par(cls):
@@ -1282,7 +1632,8 @@ def lris_read_amp(inp, ext):
         hdu = io.fits_open(inp)
     else:
         hdu = inp
-    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+    # Count the number of extensions
+    n_ext = np.sum(['VidInp' in h.name for h in hdu])
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
@@ -1309,7 +1660,6 @@ def lris_read_amp(inp, ext):
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
     xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
-
     # grab the components...
     predata = temp[0:precol, :]
     # datasec appears to have the x value for the keywords that are zero
@@ -1439,7 +1789,6 @@ def get_orig_rawimage(raw_file, debug=False):
         oscansec_img[:, biascols] = iamp+1
         imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
         rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
-
     return image, hdul, float(head0['ELAPTIME']), \
            rawdatasec_img, oscansec_img
 

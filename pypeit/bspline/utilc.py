@@ -186,7 +186,7 @@ cholesky_band_c.restype = int
 cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                             ctypes.c_int32, ctypes.c_int32]
 
-def cholesky_band(l, mininf=0.0):
+def cholesky_band(l, mininf=0.0, verbose=False):
     """
     Compute Cholesky decomposition of banded matrix.
 
@@ -212,7 +212,8 @@ def cholesky_band(l, mininf=0.0):
     negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
     if np.any(negative):
         nz = negative.nonzero()[0]
-        warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
+        if verbose:
+            warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
         return nz, l
     ll = l.copy()
     err = cholesky_band_c(ll, ll.shape[0], ll.shape[1])

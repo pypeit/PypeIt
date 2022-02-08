@@ -21,7 +21,8 @@ from pypeit import spec2dobj, alignframe, flatfield
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction, fit_zeropoint, get_standard_spectrum, ZP_UNIT_CONST, PYPEIT_FLUX_SCALE
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
-from pypeit.core.procimg import grow_masked
+#from pypeit.core.procimg import grow_masked
+from pypeit.core.procimg import grow_mask
 from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
@@ -493,7 +494,9 @@ def make_whitelight(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx, dspa
         nrmCube = (norm > 0) / (norm + (norm == 0))
         whtlght = (wlcube * nrmCube)[:, :, 0]
         # Create a mask of good pixels (trim the edges)
-        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
+#        gpm = grow_masked(whtlght == 0, trim, 1) == 0  # A good pixel = 1
+        # TODO: NEED TO CHECK THIS IS OKAY!!
+        gpm = grow_mask(whtlght == 0, trim) == 0  # A good pixel = 1
         whtlght *= gpm
         # Set the masked regions to the minimum value
         minval = np.min(whtlght[gpm == 1])
@@ -706,27 +709,43 @@ def generate_cube_ngp(outfile, hdr, all_sci, all_ivar, all_wghts, pix_coord, bin
     final_cube.to_file(outfile, hdr=hdr, overwrite=overwrite)
 
 
-def coadd_cube(files, parset, overwrite=False):
+def coadd_cube(files, spectrograph=None, parset=None, overwrite=False):
     """ Main routine to coadd spec2D files into a 3D datacube
 
     Args:
-        files (list):
+        files (:obj:`list`):
             List of all spec2D files
-        parset (:class:`pypeit.par.core.PypeItPar`):
-            An instance of the parameter set.
-        overwrite (bool):
+        spectrograph (:obj:`str`, :class:`~pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+            The name or instance of the spectrograph used to obtain the data.
+            If None, this is pulled from the file header.
+        parset (:class:`~pypeit.par.pypeitpar.PypeItPar`, optional):
+            An instance of the parameter set.  If None, assumes that detector 1
+            is the one reduced and uses the default reduction parameters for the
+            spectrograph (see
+            :func:`~pypeit.spectrographs.spectrograph.Spectrograph.default_pypeit_par`
+            for the relevant spectrograph class).
+        overwrite (:obj:`bool`, optional):
             Overwrite the output file, if it exists?
     """
-    # Get the detector number
-    det = 1 if parset is None else parset['rdx']['detnum']
+    if spectrograph is None:
+        with fits.open(files[0]) as hdu:
+            spectrograph = hdu[0].header['PYP_SPEC']
 
-    # Load the spectrograph
-    spec2DObj = spec2dobj.Spec2DObj.from_file(files[0], det)
-    specname = spec2DObj.head0['PYP_SPEC']
-    spec = load_spectrograph(specname)
+    if isinstance(spectrograph, str):
+        spec = load_spectrograph(spectrograph)
+        specname = spectrograph
+    else:
+        # Assume it's a Spectrograph instance
+        spec = spectrograph
+        specname = spectrograph.name
+
+    # Get the detector number and string representation
+    det = 1 if parset is None else parset['rdx']['detnum']
+    detname = spec.get_det_name(det)
 
     # Grab the parset, if not provided
-    if parset is None: parset = spec.default_pypeit_par()
+    if parset is None:
+        parset = spec.default_pypeit_par()
     cubepar = parset['reduce']['cube']
     flatpar = parset['calibrations']['flatfield']
 
@@ -799,7 +818,7 @@ def coadd_cube(files, parset, overwrite=False):
     flat_splines = dict()   # A dictionary containing the splines of the flatfield
     for ff, fil in enumerate(files):
         # Load it up
-        spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(fil, detname)
         detector = spec2DObj.detector
         flexure = None  #spec2DObj.sci_spat_flexure
 

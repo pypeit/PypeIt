@@ -11,63 +11,57 @@ from IPython import embed
 
 import numpy as np
 
-from scipy import interpolate
-
 from astropy import units
 
 from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit.core import flexure
-from pypeit.core import parse
 from pypeit.core import flux_calib
-from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit import datamodel
-from pypeit.images import detector_container
-
-
-def det_hdu_prefix(det):
-    return 'DET{:02d}-'.format(det)
+from pypeit.images.detector_container import DetectorContainer
+from pypeit.images.mosaic import Mosaic
 
 
 class SpecObj(datamodel.DataContainer):
     """
-    Class to handle object spectra from a single exposure.
+    Class to handle single spectra from a single exposure.
 
-    One generates one of these Objects for each spectrum in the exposure. They
+    One generates one of these objects for each spectrum in the exposure. They
     are instantiated by the object finding routine, and then all spectral
     extraction information for the object are assigned as attributes
 
     Args:
-        pypeline (str): Name of the PypeIt pypeline method
-            Allowed options are:  MultiSlit, Echelle, IFU
-        DET (int): Detector number
-        copy_dict (dict, optional): Used to set the entire internal dict of the object.
-            Only used in the copy() method so far.
-        objtype (str, optional)
-           Type of object ('unknown', 'standard', 'science')
-        slitid (int, optional):
-           Identifier for the slit (max=9999).
-           Multislit and IFU
-        specobj_dict (dict, optional):
-           Uswed in the objfind() method of extract.py to Instantiate
-        orderindx (int, optional):
-           Running index for the order
-        ech_order (int, optional):
-           Physical order number
-
-    Attributes:
-        See datamodel and _init_internals()
+        PYPELINE (:obj:`str`):
+            Name of the ``PypeIt`` pipeline method.  Allowed options are
+            MultiSlit, Echelle, or IFU.
+        DET (:obj:`str`):
+            The name of the detector or mosaic from which the spectrum was
+            extracted.  For example, DET01.
+        OBJTYPE (:obj:`str`, optional):
+            Object type.  For example: 'unknown', 'standard', 'science'.
+        SLITID (:obj:`int`, optional):
+            For multislit and IFU reductions, this is an identifier for the slit
+            (max=9999).
+        ECH_ORDER (:obj:`int`, optional):
+            Physical order number.
+        ECH_ORDERINDX (:obj:`int`, optional):
+            Running index for the order.
     """
-    version = '1.1.4'
-    hdu_prefix = None
+
+    version = '1.1.5'
+    """
+    Current datamodel version number.
+    """
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
                                     descr='Object trace along the spec (spatial pixel)'),
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
+                 'THRESHOLD': dict(otype=float,
+                                  descr='Threshold used for object finding'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -96,7 +90,6 @@ class SpecObj(datamodel.DataContainer):
                                             'used for this extraction'),
                  'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
-                 # TODO -- Confirm BOX_NPIX should be a float and not int!
                  'BOX_NPIX': dict(otype=np.ndarray, atype=float,
                                   descr='Number of pixels used for the boxcar extraction; can be '
                                         'fractional'),
@@ -144,13 +137,16 @@ class SpecObj(datamodel.DataContainer):
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
                  # Detector
-                 # TODO: Why are both det and detector attributes, isn't det in detector?
-                 'DET': dict(otype=(int, np.integer), descr='Detector number'),
-                 'DETECTOR': dict(otype=detector_container.DetectorContainer,
-                                  descr='Detector DataContainer'),
-                 #
+                 # TODO: Change this to DETNAME?
+                 # NOTE: DET (or DETNAME) is needed in the case when DETECTOR is None.
+                 'DET': dict(otype=str,
+                             descr='A string identifier for the reduced detector or mosaic.'),
+                 'DETECTOR': dict(otype=(DetectorContainer, Mosaic),
+                                  descr='Object with the detector or mosaic metadata'),
                  'PYPELINE': dict(otype=str, descr='Name of the PypeIt pipeline mode'),
-                 'OBJTYPE': dict(otype=str, descr='PypeIt type of object (standard, science)'),
+                 # TODO: It's unclear if OBJTYPE has to be one among a set of
+                 # specific keywords.
+                 'OBJTYPE': dict(otype=str, descr='Object type (e.g., standard, science)'),
                  'SPAT_PIXPOS': dict(otype=(float, np.floating),
                                      descr='Spatial location of the trace on detector (pixel) at half-way'),
                  'SPAT_FRACPOS': dict(otype=(float, np.floating),
@@ -193,14 +189,16 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Name of the object for echelle data. Same as NAME above '
                                         'but order numbers are omitted giving a unique name per '
                                         'object.')}
+    """
+    Defines the current datmodel.
+    """
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
-        # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=_d)
+        super().__init__(d=_d)
 
         self.FLEX_SHIFT_GLOBAL = 0.
         self.FLEX_SHIFT_LOCAL = 0.
@@ -210,14 +208,12 @@ class SpecObj(datamodel.DataContainer):
         self.set_name()
 
     @classmethod
-    def from_arrays(cls, PYPE_LINE:str, wave:np.ndarray, 
-                    counts:np.ndarray, ivar:np.ndarray, mode='OPT', 
-                    DET=1, SLITID=0, **kwargs):
+    def from_arrays(cls, PYPELINE:str, wave:np.ndarray, counts:np.ndarray, ivar:np.ndarray,
+                    mode='OPT', DET='DET01', SLITID=0, **kwargs):
         # Instantiate
-        slf = cls(PYPE_LINE, DET, SLITID=SLITID)
+        slf = cls(PYPELINE, DET, SLITID=SLITID)
         # Add in arrays
-        for item, attr in zip((wave, counts, ivar), 
-                              ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
+        for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
         # Mask
         slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
@@ -245,40 +241,48 @@ class SpecObj(datamodel.DataContainer):
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
+    def _validate(self):
+        """
+        Validate the object.
+        """
+        pypelines = ['MultiSlit', 'IFU', 'Echelle']
+        if self.PYPELINE not in pypelines:
+            msgs.error(f'{self.PYPELINE} is not a known pipeline procedure.  Options are: '
+                       f"{', '.join(pypelines)}")
+
     def _bundle(self, **kwargs):
         """
-        Over-ride DataContainer._bundle() to deal with DETECTOR
+        Override base class to handle inclusion of
+        :class:`~pypeit.images.detector_container.DetectorContainer` or
+        :class:`~pypeit.images.mosaic.Mosaic` objects for each spectrum.
 
         Args:
-            kwargs:
-                Passed to DataContainer._bundle()
+            kwargs (:obj:`dict`):
+                Passed directly to the base class method.
 
         Returns:
-            list:
-
+            :obj:`list`: List of dictionaries used to construct fits extensions.
         """
-        _d = super(SpecObj, self)._bundle(**kwargs)
-        # Move DetectorContainer into its own HDU
+        # Use the base class for most of the data model
+        _d = super()._bundle(**kwargs)
+
+        # Separate out the detector into its own HDU
         if _d[0]['DETECTOR'] is not None:
             _d.append(dict(detector=_d[0].pop('DETECTOR')))
-        # Return
+
         return _d
 
-
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
+    def to_hdu(self, **kwargs):
         """
-        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
-        a BinTableHDU
-
-        See that func for Args and Returns
+        Override the base class function to force the main datamodel attributes
+        to be written to an `astropy.io.fits.BinTableHDU`_ object.  This is
+        identical to the base class method except ``force_to_bintbl`` is always
+        set to True.
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(SpecObj, self).to_hdu(**_d)
+        if 'force_to_bintbl' in kwargs and not kwargs['force_to_bintbl']:
+            msgs.warn(f'Writing a {self.__class__.__name__} always requires force_to_bintbl=True')
+            del kwargs['force_to_bintbl']
+        return super().to_hdu(force_to_bintbl=True, **kwargs)
 
     @property
     def slit_order(self):
@@ -337,31 +341,31 @@ class SpecObj(datamodel.DataContainer):
 
     def set_name(self):
         """
-        Generate a unique index for this spectrum based on the
-        slit/order, its position and for multi-slit the detector.
+        Construct the ``PypeIt`` name for this object.
 
-        Multi-slit
+        The ``PypeIt`` name depends on the type of data being processed:
 
-            Each object is named by its:
-             - spatial position (pixel number) on the reduced image [SPAT]
-             - the slit number based on SPAT center of the slit or SlitMask ID [SLIT]
-             - the detector number [DET]
+            - For multislit and IFU data, the name is
+              ``SPATnnnn-SLITmmmm-{DET}``, where ``nnnn`` is the nearest integer
+              pixel in the spatial direction (at the spectral midpoint) where
+              the object was extracted, ``mmmm`` is the slit identification
+              number, and ``{DET}`` is the string identifier for the detector or
+              mosaic.
 
-            For example::
+            - For echelle data, the name is ``OBJnnnn-{DET}-ORDERoooo``, where
+              ``nnnn`` is 1000 times the fractional position along the spatial
+              direction rounded to the nearest integer, ``{DET}`` is the string
+              identifier for the detector or mosaic, and ``oooo`` is the echelle
+              order.
 
-                SPAT0176-SLIT0185-DET01
-
-        Echelle
-
-        Returns:
-            str:
-
+        For echelle data, this modifies both :attr:`ECH_NAME` and :attr:`NAME`;
+        otherwise, only the latter is set.
         """
         naming_model = {}
-        for skey in ['SPAT', 'SLIT', 'DET', 'SCI', 'OBJ', 'ORDER']:
+        for skey in ['SPAT', 'SLIT', 'SCI', 'OBJ', 'ORDER']:
             naming_model[skey.lower()] = skey
 
-        if 'Echelle' in self.PYPELINE:
+        if self.PYPELINE == 'Echelle':
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
@@ -371,15 +375,14 @@ class SpecObj(datamodel.DataContainer):
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
                 name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
                 ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-            sdet = parse.get_dnum(self.DET, prefix=False)
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-            ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            name += f'-{self.DET}'
+            ech_name += f'-{self.DET}'
             # Order number
             name += '-'+naming_model['order']
             name += '{:04d}'.format(self.ECH_ORDER)
             self.ECH_NAME = ech_name
             self.NAME = name
-        elif 'MultiSlit' in self.PYPELINE:
+        elif self.PYPELINE in ['MultiSlit', 'IFU']:
             # Spat
             name = naming_model['spat']
             if self['SPAT_PIXPOS'] is None:
@@ -389,24 +392,10 @@ class SpecObj(datamodel.DataContainer):
             # Slit
             name += '-'+naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
-            sdet = parse.get_dnum(self.DET, prefix=False)
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-            self.NAME = name
-        elif 'IFU' in self.PYPELINE:
-            # Spat
-            name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None:
-                name += '----'
-            else:
-                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
-            # Slit
-            name += '-' + naming_model['slit']
-            name += '{:04d}'.format(self.SLITID)
-            sdet = parse.get_dnum(self.DET, prefix=False)
-            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            name += f'-{self.DET}'
             self.NAME = name
         else:
-            msgs.error("Bad PYPELINE")
+            msgs.error(f'{self.PYPELINE} is not an understood pipeline.')
 
     def copy(self):
         """
@@ -598,7 +587,8 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+            'smash_peakflux',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 

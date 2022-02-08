@@ -6,6 +6,9 @@ import os
 
 import pytest
 import glob
+
+from IPython import embed
+
 import numpy as np
 
 from pypeit.images import rawimage
@@ -14,9 +17,6 @@ from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 
-par = pypeitpar.ProcessImagesPar()
-
-kast_blue = load_spectrograph('shane_kast_blue')
 
 @pytest.fixture
 @dev_suite_required
@@ -43,15 +43,14 @@ def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     det = 3
     rawImage = rawimage.RawImage(one_file, spectograph, det)
     # Test
-    assert isinstance(rawImage.image, np.ndarray)
-    assert rawImage.datasec_img.shape == (4096, 2128)
+    assert rawImage.datasec_img.shape == (1, 4096, 2128), 'Wrong shape'
 
     # Kast blue
     det2 = 1
     one_file = kast_blue_bias_files[0]
     spectograph2 = load_spectrograph('shane_kast_blue')
     rawImage2 = rawimage.RawImage(one_file, spectograph2, det2)
-    assert isinstance(rawImage2.image, np.ndarray)
+    assert rawImage2.image.shape == (1, 350, 2112), 'Wrong shape'
 
 
 @dev_suite_required
@@ -72,6 +71,7 @@ def test_overscan_subtract(deimos_flat_files):
     # Test
     assert rawImage.steps['subtract_overscan']
     assert rawImage.steps['trim']
-    assert rawImage.image.shape == (4096,2048)
+    assert rawImage.image.shape == (1,4096,2048)
+
 
 

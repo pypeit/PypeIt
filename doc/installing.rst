@@ -196,6 +196,8 @@ setup.  See also the `PypeIt-development-suite`_ GitHub repository, which
 includes a :doc:`pypeit_file` for each instrument and setup used during
 development testing.
 
+.. _install_atmosphere:
+
 Atmospheric Model Grids
 -----------------------
 

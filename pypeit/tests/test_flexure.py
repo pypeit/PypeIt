@@ -70,17 +70,22 @@ def test_flex_shift():
 
 @cooked_required
 def test_flex_multi():
-   
+
+    # Set output file
+    outfile = data_path('tst_multi_flex.fits')
+    if os.path.isfile(outfile):
+        # Remove it if it already exists
+        os.remove(outfile)
+
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                            'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
+                               'spec1d_DE.20100913.22358-CFHQS1_DEIMOS_20100913T061231.334.fits')
 
     msFlex = flexure.MultiSlitFlexure(s1dfile=spec1d_file) 
     # Parameters
     keck_deimos = load_spectrograph('keck_deimos')
     par = keck_deimos.default_pypeit_par()
-    msFlex.init(keck_deimos, par['flexure'])
     # Init                    
-    outfile = data_path('tst_multi_flex.fits')
+    msFlex.init(keck_deimos, par['flexure'])
     # INITIAL SKY LINE STUFF
     msFlex.measure_sky_lines()
     # FIT SURFACES
@@ -98,11 +103,14 @@ def test_flex_multi():
 
     # Read
     msFlex2 = flexure.MultiSlitFlexure.from_file(outfile)
-    msFlex2.to_file(outfile, overwrite=True)
-
     # Check
-    assert np.all(np.isclose(msFlex2.fit_b, msFlex.fit_b))
+    assert np.array_equal(msFlex2.fit_b, msFlex.fit_b), 'Bad read'
+
+    # Try to overwrite
+    msFlex2.to_file(outfile, overwrite=True)
 
     # Clean up
     if os.path.isfile(outfile):
         os.remove(outfile)
+
+
