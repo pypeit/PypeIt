@@ -510,12 +510,12 @@ def clear_canvas(cname):
     canvas.clear()
 
 
-def clear_all():
+def clear_all(allow_new=False):
     """
     Clear all of the ginga canvasses
 
     """
-    viewer = connect_to_ginga()
+    viewer = connect_to_ginga(allow_new=allow_new)
     shell = viewer.shell()
     chnames = shell.get_channel_names()
     for ch in chnames:
