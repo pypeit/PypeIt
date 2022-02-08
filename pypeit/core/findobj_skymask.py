@@ -43,7 +43,7 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
             floating pt pixels). This a 1-d array with shape :math:`(N_{\rm spec}, 1)`
             or :math:`(N_{\rm spec},)`
         box_rad_pix (:obj:`float`, optional):
-            If set, the skymask will be at least as wide as this radius in pixels.
+            If set, the skymask will be as wide as this radius in pixels.
         skymask_nthresh (:obj:`float`, optional): default = 2.0
             The multiple of the final object finding threshold (see
             above) which is used to create the skymask using the value
@@ -72,50 +72,36 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     if nobj > 0:
         # Compute some inputs for the object mask
         xtmp = (np.arange(nsamp) + 0.5)/nsamp
-        qobj = np.zeros_like(xtmp)
         # threshold for object finding
-        thresh = np.array([])
         for iobj in range(nobj):
             # this will skip also sobjs with THRESHOLD=0, because are the same that have smash_peakflux=0.
             if (sobjs[iobj].smash_peakflux != 0.) and (sobjs[iobj].smash_peakflux != None):
+                qobj = np.zeros_like(xtmp)
                 sep = np.abs(xtmp-sobjs[iobj].SPAT_FRACPOS)
                 sep_inc = sobjs[iobj].maskwidth/nsamp
                 close = sep <= sep_inc
-                qobj[close] += sobjs[iobj].smash_peakflux * \
+                qobj[close] = sobjs[iobj].smash_peakflux * \
                                np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2, -9.0))
-                thresh = np.append(thresh, sobjs[iobj].THRESHOLD)
-        # get THRESHOLD for this slit. Generally, objects in the same slit have same THRESHOLD,
-        # so we use the average among all the sobjs. But if this slit has only a force extracted sobj (with THRESHOLD=0)
-        # the array thresh is empty
-        if thresh[thresh != None].size > 0:
-            mean_tresh = np.mean(thresh)
-            # fill it
-            skymask_objflux[thismask] = np.interp(ximg[thismask], xtmp, qobj) < (skymask_nthresh*mean_tresh)
-
+                if sobjs[iobj].THRESHOLD > 0.:
+                    skymask_objflux[thismask] &= \
+                        np.interp(ximg[thismask], xtmp, qobj) < (skymask_nthresh * sobjs[iobj].THRESHOLD)
     # FWHM
     skymask_fwhm = np.copy(thismask)
     if nobj > 0:
         nspec, nspat = thismask.shape
         # spatial position everywhere along image
         spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
-        all_fwhm = sobjs.FWHM
-        med_fwhm = np.median(all_fwhm)
         # Boxcar radius?
         if box_rad_pix is not None:
-            # DP: If we want to enforce the boxcar masking this will prevent it if FWHM is larger.
-            # I think here med_fwhm should be = box_pix
-            # med_fwhm = max(med_fwhm, box_pix)
-            skymask_radius = box_rad_pix
-            msgs.info("Masking around the object with an input boxcar radius of {} pixels".format(skymask_radius))
-        else:
-            skymask_radius = med_fwhm
-            msgs.info("Masking around the object within a radius equal to the median fwhm of {} pixels".format(skymask_radius))
+            msgs.info("Using boxcar radius for masking")
         # Loop me
         for iobj in range(nobj):
             # Create a mask for the pixels that will contribute to the object
+            skymask_radius = box_rad_pix if box_rad_pix is not None else sobjs[iobj].FWHM
+            msgs.info(f"Masking around object {iobj+1} within a radius = {skymask_radius} pixels")
             slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
             objmask_now = thismask & (spat_img > (slit_img - skymask_radius)) & (spat_img < (slit_img + skymask_radius))
-            skymask_fwhm = skymask_fwhm & np.invert(objmask_now)
+            skymask_fwhm &= np.invert(objmask_now)
 
         # Check that we have not performed too much masking
         if (np.sum(skymask_fwhm)/np.sum(thismask) < 0.10):
@@ -124,11 +110,15 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
             skymask_fwhm = np.copy(thismask)
 
     # Still have to make the skymask
-    # TODO -- Make sure this is right
-    if box_rad_pix is None:
-        skymask = skymask_objflux | skymask_fwhm
-    else:  # Enforces boxcar radius masking
-        skymask = skymask_objflux & skymask_fwhm
+    # # TODO -- Make sure this is right
+    # if box_rad_pix is None:
+    #     skymask = skymask_objflux | skymask_fwhm
+    # else:  # Enforces boxcar radius masking
+    #     skymask = skymask_objflux & skymask_fwhm
+    # DP: I think skymask should always be skymask_objflux & skymask_fwhm (i.e., not only when box_rad_pix is not None).
+    # In the case of skymask_objflux | skymask_fwhm, if skymask_objflux cannot be computed, the entire slit
+    # is used for sky calculation (i.e., skymask_fwhm will not have effect).
+    skymask = skymask_objflux & skymask_fwhm
 
     # Return
     return skymask[thismask]

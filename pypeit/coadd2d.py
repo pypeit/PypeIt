@@ -490,7 +490,7 @@ class CoAdd2D:
             manual_dict = None
 
         # Initiate FindObjects object
-        objFind = find_objects.FindObjects(sciImage, self.spectrograph, parcopy, caliBrate,
+        objFind = find_objects.FindObjects.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                            'science_coadd2d', bkg_redux=self.bkg_redux,
                                            find_negative=self.find_negative, show=show)
 
@@ -962,7 +962,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
         #                'pypeline': 'MultiSLit' + '_coadd_2d'}
         for iexp in range(self.nexp):
-            sobjs_exp, _ = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
+            sobjs_exp = findobj_skymask.objs_in_slit(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], has_negative=self.find_negative,
                                            fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                            trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
