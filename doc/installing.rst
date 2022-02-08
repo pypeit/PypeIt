@@ -83,6 +83,14 @@ in the optional dependencies, e.g.:
 
     pip install "pypeit[pyside2,scikit-image]"
 
+Also, ``PypeIt`` will use the `bottleneck`_ package to speed up a few
+calculations, if it is available.  To include bottleneck in the ``PypeIt``
+installation, run, e.g.:
+
+.. code-block:: console
+
+    pip install "pypeit[pyside2,bottleneck]"
+
 .. note::
 
     Whether or not it is correct syntax to use the quotes in the commands above
