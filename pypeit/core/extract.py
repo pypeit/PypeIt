@@ -30,7 +30,7 @@ from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 
 
-def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_radius,
+def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
                     spec, min_frac_use=0.05, base_var=None, count_scale=None, noise_floor=None):
 
     """
@@ -59,8 +59,6 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_ra
         True=Good.
     oprof : float `numpy.ndarray`_, shape (nspec, nspat)
         Image containing the profile of the object that we are extracting.
-    box_radius : :obj:`float`
-        Size of boxcar window in floating point pixels in the spatial direction.
     spec : :class:`~pypeit.specobj.SpecObj`
         This is the container that holds object, trace, and extraction
         information for the object in question. This routine operates one object
@@ -200,7 +198,7 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof, box_ra
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
 
-def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_var=None,
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
                    count_scale=None, noise_floor=None):
     """
     Perform boxcar extraction for a single SpecObj
@@ -221,8 +219,6 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_v
         Wavelength image.
     skyimg : float `numpy.ndarray`_, shape (nspec, nspat)
         Image containing our model of the sky
-    box_radius : :obj:`float`
-        Size of boxcar window in floating point pixels in the spatial direction.
     spec : :class:`~pypeit.specobj.SpecObj`
         This is the container that holds object, trace, and extraction
         information for the object in question. This routine operates one object
@@ -255,6 +251,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_v
     spat_vec = np.arange(nspat)
     if spec.trace_spec is None:
         spec.trace_spec = spec_vec
+
+    # get boxcar_radius
+    box_radius = spec.BOX_RADIUS
 
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = None if base_var is None \
@@ -302,7 +301,6 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, box_radius, spec, base_v
     spec.BOX_MASK = mask_box
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_SIG_DET = base_box
-    spec.BOX_RADIUS = box_radius
     # TODO - Confirm this should be float, not int
     spec.BOX_NPIX = pixtot-pixmsk
 

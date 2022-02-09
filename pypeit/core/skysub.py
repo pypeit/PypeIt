@@ -750,7 +750,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage, sobjs[iobj].BOX_RADIUS,
+                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage,
                                            sobjs[iobj], base_var=base_var, count_scale=count_scale,
                                            noise_floor=adderr)
                     flux = sobjs[iobj].BOX_COUNTS
@@ -763,11 +763,11 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask), waveimg,
-                                           skyimage, sobjs[iobj].BOX_RADIUS, sobjs[iobj], base_var=base_var,
+                                           skyimage, sobjs[iobj], base_var=base_var,
                                            count_scale=count_scale, noise_floor=adderr)
                     # Optimal
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg,
-                                            skyimage, thismask, last_profile, sobjs[iobj].BOX_RADIUS, sobjs[iobj],
+                                            skyimage, thismask, last_profile, sobjs[iobj],
                                             base_var=base_var, count_scale=count_scale,
                                             noise_floor=adderr)
                     # If the extraction is bad do not update
@@ -896,12 +896,12 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             # Optimal
             objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
-                                    waveimg, skyimage, thismask, this_profile, sobjs[iobj].BOX_RADIUS, sobjs[iobj],
+                                    waveimg, skyimage, thismask, this_profile, sobjs[iobj],
                                     base_var=base_var, count_scale=count_scale,
                                     noise_floor=adderr)
             # Boxcar
             extract.extract_boxcar(sciimg, modelivar*thismask, (outmask_extract & objmask),
-                                   waveimg, skyimage, sobjs[iobj].BOX_RADIUS, sobjs[iobj], base_var=base_var,
+                                   waveimg, skyimage, sobjs[iobj], base_var=base_var,
                                    count_scale=count_scale, noise_floor=adderr)
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
