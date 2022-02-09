@@ -7,6 +7,12 @@
 Installation
 ============
 
+.. warning::
+
+    **M1 Macs Users**: We have a solution that works for installation on the new
+    hardware.  It *requires* anaconda and a specific series of installation
+    steps.  If you're an M1 Mac users, skip to the :ref:`m1_macs`.
+
 .. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
 
 Below, we provide detailed instructions for installing ``PypeIt``.  For
@@ -90,7 +96,7 @@ running, e.g.:
 
 .. code-block:: console
 
-    pip install "pypeit[pyside2,bottleneck]"
+    pip install "pypeit[pyqt5,bottleneck]"
 
 .. note::
 
@@ -167,6 +173,40 @@ or
 depending on how you first installed ``PypeIt``.  If this causes problems (e.g.,
 a new ``PypeIt`` script is unavailable or you encounter script errors), first
 try uninstalling (e.g., ``pip uninstall pypeit``) and then reinstalling.
+
+.. _m1_macs:
+
+M1 Mac User Installation
+------------------------
+
+We have a (temporary?) solution for M1 Mac users to install ``PypeIt``.  The
+following is the current step-by-step installation:
+
+#. You *must* have `conda`_ installed.
+
+#. Create a new ``PypeIt`` environment and activate it:
+
+   .. code-block:: console
+
+        conda create -n pypeit python=3.8
+        conda activate pypeit
+
+#. Install PyQt5 (this is the only step that's different from a typical conda installation)
+
+   .. code-block:: console
+
+        conda install pyqt
+
+#. Install ``PypeIt`` via pip with the ``pyqt5`` option.  **Do not include** the
+   ``bottleneck`` option.  
+
+   .. code-block:: console
+
+        pip install "pypeit[pyqt5]"
+
+We currently cannot install ``bottleneck`` with ``PypeIt`` on an M1 Mac.
+Solutions/Recommendations for this installation are welcome; please `Submit an
+issue`_.
 
 ----
 
@@ -492,6 +532,19 @@ For example:
 
     python
     >>> import pypeit
+
+**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
+with the package.  Below is a zshell command-line incantation (it's likely the
+same in bash) that will locate a test spec1D file and attempt to use
+:ref:`pypeit_show_1dspec` to show it:
+
+.. code-block:: console
+
+    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+
+If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+spectrum from the Shane/KAST spectrograph.
 
 Developer Tests
 ---------------
