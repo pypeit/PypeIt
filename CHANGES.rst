@@ -62,7 +62,8 @@
   three additional gratings.  
 - Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
 - Hotfix for `gemini_gmos` mosaic tracing parameters
-
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
 
 1.7.0 (19 Nov 2021)
 -------------------
