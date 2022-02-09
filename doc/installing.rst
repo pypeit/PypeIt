@@ -9,9 +9,9 @@ Installation
 
 .. warning::
 
-    **M1 Macs Users**: We have a solution that works for installation on the new
+    **M1 Mac Users**: We have a solution that works for installation on the new
     hardware.  It *requires* anaconda and a specific series of installation
-    steps.  If you're an M1 Mac users, skip to the :ref:`m1_macs`.
+    steps.  If you're an M1 Mac user, skip to the :ref:`m1_macs`.
 
 .. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
 
