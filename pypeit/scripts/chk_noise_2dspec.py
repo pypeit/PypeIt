@@ -24,48 +24,25 @@ from pypeit.images.detector_container import DetectorContainer
 
 from IPython import embed
 
-def grab_lines():
-    ## spectral features
-    Lyalphanam, Lyalphawav='Lyalpha', 1215.7
-    OIInam, OIIwav='[OII]', 3727.5 #average between 3726,3729
-    OIIInam1, OIIIwav1='[OIII]', 5007.
-    OIIInam2, OIIIwav2='[OIII]', 4959.
-    OIIInam3, OIIIwav3='[OIII]', 4363.
-    Halphanam, Halphawav='Halpha', 6563.
-    Hbetanam, Hbetawav='Hbeta', 4861.
-    Hdeltanam, Hdeltawav='Hdelta', 4101.
-    Hgammanam, Hgammawav='Hgamma', 4341.
-
-    NeIIInam, NeIIIwav = '[NeIII]', 3869.
-    NeVnam, NeVwav = '[NeV]', 3426.
-    SIInam, SIIwav = '[SII]', 6724. #average between 6717,6731
-
-
-    ##absorption 
-    H13nam, H13wav = 'H13', 3734.
-    H12nam, H12wav = 'H12', 3750.
-    H11nam, H11wav = 'H11', 3771.
-    H10nam, H10wav = 'H10', 3798.
-    H9nam, H9wav = 'H9', 3835.
-    H8nam, H8wav = 'H8', 3889.
-    HeInam, HeIwav = 'HeI', 3889.
-
-    CAII_Knam, CaII_Kwav = 'CaK', 3934. 
-    CAII_Hnam, CaII_Hwav = 'CaH', 3968.
-
-    Gbandnam, Gbandwav = 'Gband', 4305.
-
-    line_names=np.array([Lyalphanam, OIInam, OIIInam1, OIIInam2, OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,SIInam, H13nam, H12nam, H11nam, H10nam, 
-                            H9nam, HeInam, CAII_Knam, CAII_Hnam, Gbandnam,])
-
-    line_wav=np.array([Lyalphawav, OIIwav, OIIIwav1, OIIIwav2, OIIIwav3, Halphawav, Hbetawav,Hdeltawav, Hgammawav, NeIIIwav, NeVwav, SIIwav, H13wav,H12wav, H11wav, H10wav, 
-                        H9wav, HeIwav,CaII_Kwav, CaII_Hwav, Gbandwav])
-    return line_names, line_wav
-
 
 def plot(image:np.ndarray, line_wav:list, line_names:list, 
          lbda:np.ndarray, lbda_min:float, lbda_max:float, aspect_ratio, 
          chi_select, flux_select, err_select, filename:str):
+    """ Generate the plot
+
+    Args:
+        image (np.ndarray): [description]
+        line_wav (list): [description]
+        line_names (list): [description]
+        lbda (np.ndarray): [description]
+        lbda_min (float): [description]
+        lbda_max (float): [description]
+        aspect_ratio ([type]): [description]
+        chi_select ([type]): [description]
+        flux_select ([type]): [description]
+        err_select ([type]): [description]
+        filename (str): [description]
+    """
     fig=plt.figure(figsize=(23,4.))
     ax=plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=3)
     ax.minorticks_on()
@@ -219,49 +196,8 @@ class ChkNoise2D(scriptbase.ScriptBase):
             else:
                 show_slits = range(all_pypeit_ids.size)
 
-                '''
-                # Chi
-                chi_slit, _, _ = spec2DObj.calc_chi_slit(slitidx, pad=args.pad)
 
-                # Cut down on bad pixels and wavelengths (optional)
-                chi_select = chi_slit * input_mask
-                if np.all(chi_select == 0):
-                    continue
-
-                # Flux in slit
-                flux_select = (spec2DObj.sciimg - spec2DObj.skymodel) * input_mask
-                err_select = 1/np.sqrt(spec2DObj.ivarmodel)* input_mask
-
-                left, right, _ = spec2DObj.slits.select_edges()
-                spat_start = int(left[:, slitidx].min())
-                spat_end = int(right[:, slitidx].max())
-
-                lbda = spec2DObj.waveimg[:,pypeit_id]
-                if lbda[lbda!=0].size == 0:
-                    continue
-
-                line_wav_plt = np.array([])
-                line_names_plt = np.array([])
-                if z is not None:
-                    for i in range(line_wav_z.shape[0]):
-                        if (line_wav_z[i]>lbda[lbda!=0].min())&(line_wav_z[i]<lbda[lbda!=0].max()):
-                            line_wav_plt = np.append(line_wav_plt, lbda.searchsorted(line_wav_z[i]))
-                            line_names_plt = np.append(line_names_plt, line_names[i])
-
-                lbda_min = args.wavemin if args.wavemin is not None else lbda[lbda!=0].min()
-                lbda_max = args.wavemax if args.wavemax is not None else lbda[lbda!=0].max()
-
-                # Plot!
-                plot(chi_slit[:, spat_start:spat_end], 
-                          line_wav_plt, line_names_plt, lbda,
-                          lbda_min, lbda_max, args.aspect_ratio, 
-                          chi_select, flux_select, err_select, filename)
-                if args.plot_or_save == 'plot': plt.show()
-                if args.plot_or_save == 'save': plt.savefig('{}/noisecheck_{}.png'.format(folder, filename), bbox_inches='tight', dpi=400)
-                plt.close()
-                '''
-
-
+            # loop on em
             for i in show_slits:
                 pypeit_id = all_pypeit_ids[i]
                 if all_maskdef_ids is not None:

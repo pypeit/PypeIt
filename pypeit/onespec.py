@@ -84,6 +84,18 @@ class OneSpec(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    @property
+    def sig(self):
+        """ Return the 1-sigma array
+
+        Returns:
+            np.ndarray: error array
+        """
+        sig = np.zeros_like(self.ivar)
+        gd = self.ivar > 0.
+        sig[gd] = 1./np.sqrt(self.ivar[gd])
+        return sig
+        
     def _init_internals(self):
         self.head0 = None
         self.filename = None

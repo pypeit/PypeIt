@@ -54,8 +54,7 @@
 - Dark counts used for calculating the shot noise now includes measured
   dark images if provided
 - `PypeIt` file parameters can now parse sets of tuples; e.g.,
-  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
-  (3,4)]`.
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2), (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Update for `LDT/DeVeny` including support for binned data, `use_header`
   for reading arc lamps used from frames, and `reid_arxiv` templates for
@@ -69,6 +68,7 @@
   objects considered a serendipitous detection.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Scripts to explore the noise residuals in PypeIt
 
 
 1.7.0 (19 Nov 2021)

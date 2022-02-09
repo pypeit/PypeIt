@@ -1407,6 +1407,11 @@ def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
                 stack.append(neighbor)
 
 def list_of_spectral_lines():
+    """ Generate a list of spectral lines
+
+    Returns:
+        tuple: np.ndarray, np.ndarray
+    """
     ## spectral features
     Lyalphanam, Lyalphawav='Lyalpha', 1215.7
     OIInam, OIIwav='[OII]', 3727.5 #average between 3726,3729

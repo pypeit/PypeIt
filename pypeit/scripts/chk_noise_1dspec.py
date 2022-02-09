@@ -20,12 +20,33 @@ from pypeit.scripts import scriptbase
 from pypeit import specobj, utils
 from pypeit import msgs
 from pypeit import specobjs
+from pypeit.onespec import OneSpec
 
 from IPython import embed
 
 
-def plot(args, line_wav_z, line_names, flux, err, mask, input_mask,
-         ratio, lbda, filename:str, folder:str=None, z:float=None):
+def plot(args, line_wav_z:list, line_names:list, 
+         flux:np.ndarray, err:np.ndarray, mask:np.ndarray, 
+         input_mask:np.ndarray, ratio:np.ndarray, 
+         lbda:np.ndarray, filename:str, folder:str=None, z:float=None):
+    """ 
+    Plot the 1D spectrum
+
+    Args:
+        args ([type]): [description]
+        line_wav_z (list): [description]
+        line_names (list): [description]
+        flux (np.ndarray): flux of the spectrum
+        err (np.ndarray): sig of the spectrum
+        mask (np.ndarray): 
+        input_mask (np.ndarray): 
+        ratio (np.ndarray): 
+            chi values
+        lbda (np.ndarray): wavelength values of thspectrum
+        filename (str): [description]
+        folder (str, optional): output folder, if saving. Defaults to None.
+        z (float, optional): redshift. Defaults to None.
+    """
 
     ########### PLOT ######
     fig=plt.figure(figsize=(23,6.))
@@ -112,8 +133,6 @@ class ChkNoise1D(scriptbase.ScriptBase):
     def main(args):
 
         maskdef_objname = None
-        extraction = None
-        pypeit_name = None
         # Load em
         line_names, line_wav = utils.list_of_spectral_lines()
             
@@ -144,7 +163,11 @@ class ChkNoise1D(scriptbase.ScriptBase):
 
             # I/O
             if args.fileformat == 'coadd1d':
-                embed(header='146 need to code this up!')
+                coaddspec = OneSpec.from_file(file)
+                lbda = coaddspec.wave
+                flux = coaddspec.flux
+                err = coaddspec.sig
+                mask = coaddspec.mask
             else:
                 specObjs = specobjs.SpecObjs.from_fitsfile(file)
                 hdr = specObjs.header
@@ -199,69 +222,3 @@ class ChkNoise1D(scriptbase.ScriptBase):
                             input_mask, ratio, lbda, filename, 
                              folder=None, z=None)
 
-
-            '''
-            hdu= fits.open(file)
-            hdr = hdu[0].header
-
-            for i in range(len(hdu)-1):
-                hdr_spec1d = hdu[i+1].header
-                data = Table(hdu[i+1].data)
-                if args.fileformat == 'coadd1d':
-                    lbda = data['wave'].data
-                    flux = data['flux'].data     # counts
-                    err = 1./np.sqrt(data['ivar'])
-                    mask = data['mask'] == 1
-                    filename = file.split('.fits')[0]
-                    maskdef_objname = None
-                    pypeit_name = None
-                if (args.fileformat == 'spec1d') and (hdr_spec1d.get('EXTNAME') is not None):
-                    if hdr_spec1d.get('EXTNAME')[:4] != 'SPAT':
-                        pass
-                    else:
-                        if args.extraction == 'box':
-                            lbda = data['BOX_WAVE'].data
-                            flux = data['BOX_COUNTS'].data     # counts
-                            err = data['BOX_COUNTS_SIG']
-                            mask = data['BOX_MASK']
-                            extraction = 'BOX'
-                        else:
-                            try:
-                                lbda = data['OPT_WAVE'].data
-                                flux = data['OPT_COUNTS'].data     # counts
-                                err = data['OPT_COUNTS_SIG']
-                                mask = data['OPT_MASK']
-                                extraction = 'OPT'
-                            except KeyError:
-                                msgs.info("Showing the BOX extraction as OPT doesn't exist!")
-                                lbda = data['BOX_WAVE'].data
-                                flux = data['BOX_COUNTS'].data     # counts
-                                err = data['BOX_COUNTS_SIG']
-                                mask = data['BOX_MASK']
-                                extraction = 'BOX'
-
-                        maskdef_objname = hdr_spec1d.get('HIERARCH MASKDEF_OBJNAME')
-                        pypeit_name = hdr_spec1d.get('NAME')
-                    if maskdef_objname is not None:
-                        if hdr_spec1d.get('MASKDEF_EXTRACT') is not False:
-                            filename = '{}_{}obj{}_{}_{}'.format(hdr.get('DECKER'), extraction, maskdef_objname, pypeit_name, 'maskdef_extract')
-                        else:
-                            filename = '{}_{}obj{}_{}'.format(hdr.get('DECKER'),extraction, maskdef_objname, pypeit_name)
-                    else:
-                        filename = '{}_{}_{}'.format(hdr.get('DECKER'), extraction, pypeit_name)
-
-                if (maskdef_objname is not None and maskdef_objname==args.maskdef_objname) or (pypeit_name is not None and pypeit_name==args.pypeit_name) or (args.maskdef_objname is None and args.pypeit_name is None):
-                    input_mask = mask.copy()
-                    if args.wavemin is not None:
-                        input_mask &= lbda > args.wavemin
-                    if args.wavemax is not None:
-                        input_mask &= lbda < args.wavemax
-
-                    if lbda[input_mask].size < 10:
-                        pass
-                    else:
-                        ratio = flux[input_mask]/err[input_mask]
-                        plot(args, line_wav_z, line_names, flux, err, mask, 
-                             input_mask, ratio, lbda, filename, 
-                             folder=None, z=None)
-            '''
