@@ -17,8 +17,9 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit.scripts import scriptbase
-from pypeit import utils
+from pypeit import specobj, utils
 from pypeit import msgs
+from pypeit import specobjs
 
 from IPython import embed
 
@@ -65,6 +66,7 @@ def plot(args, line_wav_z, line_names, flux, err, mask, input_mask,
                         stddev=1.)
     ax2.plot(bins, mod_mods(bins), label=r"Gaussian ($\sigma=1$)")
     ax2.axvline(0, ls='dotted', color='Gray')
+
     ax2.set_xlim(hist_bins[:-1][hist_n > 10].min()*2, 
                  hist_bins[:-1][hist_n > 10].max()*2)
     ax2.set_ylim(-0.02, hist_n.max()*1.5)
@@ -109,6 +111,9 @@ class ChkNoise1D(scriptbase.ScriptBase):
     @staticmethod
     def main(args):
 
+        maskdef_objname = None
+        extraction = None
+        pypeit_name = None
         # Load em
         line_names, line_wav = utils.list_of_spectral_lines()
             
@@ -138,6 +143,64 @@ class ChkNoise1D(scriptbase.ScriptBase):
                     if not os.path.exists(folder): os.makedirs(folder)
 
             # I/O
+            if args.fileformat == 'coadd1d':
+                embed(header='146 need to code this up!')
+            else:
+                specObjs = specobjs.SpecObjs.from_fitsfile(file)
+                hdr = specObjs.header
+                # Grab the extension
+                if args.maskdef_objname is not None:
+                    idx = np.where(specObjs.MASKDEF_OBJNAME == args.maskdef_objname)[0][0]
+                elif args.pypeit_name is None:
+                    msgs.error("You must set either maskdef_objname or pypeit_name!!")
+                else:
+                    idx = np.where(specObjs.NAME == args.pypeit_name)[0][0]
+                # Grab em
+                specObj = specObjs[idx]   
+                if args.extraction == 'box':
+                    lbda = specObj['BOX_WAVE']
+                    flux = specObj['BOX_COUNTS']
+                    err = specObj['BOX_COUNTS_SIG']
+                    mask = specObj['BOX_MASK']
+                else:
+                    lbda = specObj['OPT_WAVE']
+                    flux = specObj['OPT_COUNTS']
+                    err = specObj['OPT_COUNTS_SIG']
+                    mask = specObj['OPT_MASK']
+                    
+            # Filename
+            if maskdef_objname is not None:
+                if specObj['MASKDEF_EXTRACT']: 
+                    filename = '{}_{}obj{}_{}_{}'.format(
+                        hdr.get('DECKER'), args.extraction, 
+                        args.maskdef_objname, args.pypeit_name, 'maskdef_extract')
+                else:
+                    filename = '{}_{}obj{}_{}'.format(
+                        hdr.get('DECKER'), args.extraction, 
+                        args.maskdef_objname, args.pypeit_name)
+            else:
+                filename = '{}_{}_{}'.format(
+                    hdr.get('DECKER'), args.extraction, args.pypeit_name)
+
+            # Cut down
+            input_mask = mask.copy()
+            if args.wavemin is not None:
+                input_mask &= lbda > args.wavemin
+            if args.wavemax is not None:
+                input_mask &= lbda < args.wavemax
+
+            if lbda[input_mask].size < 10:
+                msgs.warn("The spectrum was cut down to <10 pixels.  Skipping")
+                continue
+
+            # Plot
+            ratio = flux[input_mask]/err[input_mask]
+            plot(args, line_wav_z, line_names, flux, err, mask, 
+                            input_mask, ratio, lbda, filename, 
+                             folder=None, z=None)
+
+
+            '''
             hdu= fits.open(file)
             hdr = hdu[0].header
 
@@ -201,3 +264,4 @@ class ChkNoise1D(scriptbase.ScriptBase):
                         plot(args, line_wav_z, line_names, flux, err, mask, 
                              input_mask, ratio, lbda, filename, 
                              folder=None, z=None)
+            '''

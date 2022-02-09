@@ -134,17 +134,6 @@ run_pypeit
 
 This is the main executable for PypeIt.  See :doc:`running` for details.
 
-pypeit_view_fits
-================
-
-This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
-in that it writes a dummy tmp.fits file to the harddrive and sends
-that into Ginga.  The dummy file is deleted afterwards.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_view_fits.rst
 
 
 Data Processing Scripts
@@ -259,3 +248,85 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_flux_setup.rst
 
+Data Exploration Scripts
+++++++++++++++++++++++++
+
+.. include:: help/pypeit_view_fits.rst
+
+pypeit_view_fits
+================
+
+This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
+in that it writes a dummy tmp.fits file to the harddrive and sends
+that into Ginga.  The dummy file is deleted afterwards.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+
+pypeit_chk_noise_1dspec
+=======================
+
+Script to view the chi distribution of the residuals 
+for a processed spectrum.  This makes most sense if 
+restricted to a region of he spectrum *without* signal.
+
+Here is an example from the Dev Suite::
+
+pypeit_chk_noise_2dspec
+=======================
+
+Script to view the chi distribution of the residuals 
+for a processed slit (or order) of the 2D image.
+Both the sky and object model are subtracted.
+
+Ideally, one sees an image without structure and that the
+chi values are unit Gaussian distributed.
+
+
+Here is an example from the Dev Suite::
+
+    pypeit_chk_noise_2dspec spec2d_s190519_0067-J1450+3302_NIRES_20190519T095152.165.fits --pypeit_id 6
+
+Here is the usage::
+
+    usage: pypeit_chk_noise_2dspec [-h] [--det DET] [--z [Z ...]]
+                                [--maskdef_id MASKDEF_ID]
+                                [--pypeit_id PYPEIT_ID] [--pad PAD]
+                                [--aspect_ratio ASPECT_RATIO]
+                                [--wavemin WAVEMIN] [--wavemax WAVEMAX]
+                                [--mode MODE] [--list]
+                                [files ...]
+
+    Examine the noise in a PypeIt slit/order
+
+    positional arguments:
+    files                 PypeIt spec2d file(s) (default: None)
+
+    optional arguments:
+    -h, --help            show this help message and exit
+    --det DET             Detector name or number. If a number, the name is
+                            constructed assuming the reduction is for a single
+                            detector. If a string, it must match the name of the
+                            detector object (e.g., DET01 for a detector, MSC01 for
+                            a mosaic). (default: 1)
+    --z [Z ...]           Object redshift (default: None)
+    --maskdef_id MASKDEF_ID
+                            MASKDEF_ID of the slit that you want to plot (default:
+                            None)
+    --pypeit_id PYPEIT_ID
+                            PypeIt ID of the slit that you want to plot (default:
+                            None)
+    --pad PAD             [spec2d only] Padding for the selected slit. Negative
+                            value will trim. [default: -5] (default: -5)
+    --aspect_ratio ASPECT_RATIO
+                            Aspect ratio when plotting the spec2d (default: 3)
+    --wavemin WAVEMIN     Wavelength min. This is for selecting a region of the
+                            spectrum to analyze. (default: None)
+    --wavemax WAVEMAX     Wavelength max.This is for selecting a region of the
+                            spectrum to analyze. (default: None)
+    --mode MODE           Do you want to save to disk or open a plot in a mpl
+                            window. If you choose save, a folder called
+                            spec2d*_noisecheck will be created and all the
+                            relevant plot will be placed there. (default: plot)
+    --list                List the extensions only? (default: False)
