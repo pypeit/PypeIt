@@ -5,6 +5,7 @@ for one of the outputs of PypeIt
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
+import imp
 import os
 
 import numpy as np
@@ -16,11 +17,14 @@ from astropy.modeling.models import Gaussian1D
 from astropy.table import Table
 import argparse
 
+from sympy import im
+
 from pypeit import spec2dobj
 from pypeit import msgs
 from pypeit import io
 from pypeit.scripts import scriptbase
 from pypeit.images.detector_container import DetectorContainer
+from pypeit.utils import list_of_spectral_lines
 
 from IPython import embed
 
@@ -126,7 +130,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
             detname = DetectorContainer.get_name(det)
 
         # Load em
-        line_names, line_wav = grab_lines()
+        line_names, line_wav = list_of_spectral_lines()
             
         files=np.array(args.files)
 
