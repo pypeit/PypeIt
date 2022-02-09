@@ -255,7 +255,7 @@ class Extract:
                 inmask = self.sciImg.select_flag(invert=True) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, sobj.BOX_RADIUS, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
