@@ -31,6 +31,8 @@ Submodules
    pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
+   pypeit.extraction
+   pypeit.find_objects
    pypeit.flatfield
    pypeit.fluxcalibrate
    pypeit.history

@@ -1,4 +1,8 @@
-""" Methods to find objects """
+""" Methods to find objects
+
+.. include:: ../include/links.rst
+
+"""
 import copy
 
 import numpy as np
