@@ -9,7 +9,7 @@ import numpy as np
 from IPython import embed
 
 from pypeit.display import display
-from pypeit.core import extract
+from pypeit.core import findobj_skymask
 from pypeit import datamodel, msgs
 
 
@@ -194,7 +194,7 @@ class TraceAlignment:
             specobj_dict = {'SLITID': slit_idx, 'DET': self.rawalignimg.detector.name,
                             'OBJTYPE': "align_profile", 'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
-            align_traces, _ = extract.objfind(
+            align_traces = findobj_skymask.objs_in_slit(
                 self.rawalignimg.image, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
                 has_negative=False, ncoeff=self.alignpar['trace_npoly'],

@@ -1700,7 +1700,7 @@ class SlitMaskPar(ParSet):
     """
     def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
                  slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
-                 use_alignbox=None):
+                 missing_objs_fwhm=None, missing_objs_boxcar_rad=None, use_alignbox=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1763,9 +1763,22 @@ class SlitMaskPar(ParSet):
         defaults['extract_missing_objs'] = False
         dtypes['extract_missing_objs'] = bool
         descr['extract_missing_objs'] = 'Force extraction of undetected objects at the location expected ' \
-                                        'from the slitmask design. PypeIt will try to determine the FWHM from ' \
-                                        'the flux profile (by using ``find_fwhm`` in `FindObjPar` as initial guess). ' \
-                                        'If the FWHM cannot be determined, ``find_fwhm`` will be assumed.'
+                                        'from the slitmask design.'
+
+        defaults['missing_objs_fwhm'] = None
+        dtypes['missing_objs_fwhm'] = [int, float]
+        descr['missing_objs_fwhm'] = 'Indicates the FWHM in arcsec for the force extraction of undetected objects. ' \
+                                     'PypeIt will try to determine the FWHM from the flux profile ' \
+                                     '(by using ``missing_objs_fwhm`` as initial guess). ' \
+                                     'If the FWHM cannot be determined, ``missing_objs_fwhm`` will be assumed. ' \
+                                     'If you do not want PypeIt to try to determine the FWHM set the ' \
+                                     'parameter ``use_user_fwhm`` in ``ExtractionPar`` to True. ' \
+                                     'If ``missing_objs_fwhm`` is ``None`` (which is the default) PypeIt will use ' \
+                                     'the median FWHM of all the detected objects.'
+        defaults['missing_objs_boxcar_rad'] = 1.0
+        dtypes['missing_objs_boxcar_rad'] = [int, float]
+        descr['missing_objs_boxcar_rad'] = 'Indicates the boxcar radius in arcsec for the force ' \
+                                           'extraction of undetected objects. '
 
         # Instantiate the parameter set
         super(SlitMaskPar, self).__init__(list(pars.keys()),
@@ -1779,7 +1792,8 @@ class SlitMaskPar(ParSet):
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
         parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
-                   'bright_maskdef_id', 'extract_missing_objs', 'use_alignbox']
+                   'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'missing_objs_boxcar_rad',
+                   'use_alignbox']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -3342,7 +3356,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None, find_negative=None, find_min_max=None,
+                 ech_find_nabove_min_snr=None, skip_second_find=None, skip_final_global=None, find_negative=None, find_min_max=None,
                  cont_sig_thresh=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -3416,6 +3430,13 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+        defaults['skip_final_global'] = False
+        dtypes['skip_final_global'] = bool
+        descr['skip_final_global'] = 'If True, do not update initial sky to get global sky using updated noise model. This ' \
+                                     'should be True for quicklook to save time. This should also be True for near-IR ' \
+                                     'reductions which perform difference imaging, since there we fit sky-residuals rather ' \
+                                     'than the sky itself, so there is no noise model to update. '
+
 
         defaults['find_negative'] = None
         dtypes['find_negative'] = bool
@@ -3459,7 +3480,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_negative', 'find_min_max', 'cont_sig_thresh']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'skip_final_global', 'find_negative', 'find_min_max', 'cont_sig_thresh']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

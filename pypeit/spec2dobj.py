@@ -423,7 +423,7 @@ class AllSpec2DObj:
         if redux_path is not None:
             hdr['PYPRDXP'] = redux_path
         # Sky sub mode
-        if 'ir_redux' in self['meta'] and self['meta']['ir_redux']:
+        if 'bkg_redux' in self['meta'] and self['meta']['bkg_redux']:
             hdr['SKYSUB'] = 'DIFF'
         else:
             hdr['SKYSUB'] = 'MODEL'

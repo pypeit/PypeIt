@@ -146,7 +146,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         skysub_mode = head2d['SKYSUB']
         findobj_mode = head2d['FINDOBJ']
-        ir_redux = True if 'DIFF' in skysub_mode else False
+        bkg_redux = True if 'DIFF' in skysub_mode else False
         find_negative = True if 'NEG' in findobj_mode else False
 
         # Print status message
@@ -172,7 +172,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
-        sci_dict['meta']['ir_redux'] = ir_redux
+        sci_dict['meta']['bkg_redux'] = bkg_redux
         sci_dict['meta']['find_negative'] = find_negative
 
         # Make QA coadd directory
@@ -199,7 +199,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                  weights=parset['coadd2d']['weights'],
                                                  spec_samp_fact=args.spec_samp_fact,
                                                  spat_samp_fact=args.spat_samp_fact,
-                                                 ir_redux=ir_redux, find_negative=find_negative,
+                                                 bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)
 
@@ -255,7 +255,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # 2D spectra
         # TODO -- These lines should be above once reduce() passes back something sensible
         all_spec2d = spec2dobj.AllSpec2DObj()
-        all_spec2d['meta']['ir_redux'] = ir_redux
+        all_spec2d['meta']['bkg_redux'] = bkg_redux
         all_spec2d['meta']['find_negative'] = find_negative
         for det in detnames:
             all_spec2d[det] = spec2dobj.Spec2DObj(sciimg=sci_dict[det]['sciimg'],
