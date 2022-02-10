@@ -11,6 +11,7 @@ Subpackages
    pypeit.core
    pypeit.display
    pypeit.images
+   pypeit.move_median
    pypeit.par
    pypeit.scripts
    pypeit.spectrographs
