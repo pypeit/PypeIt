@@ -201,7 +201,9 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
                    count_scale=None, noise_floor=None):
     """
-    Perform boxcar extraction for a single SpecObj
+    Perform boxcar extraction for a single SpecObj.
+    The size of the boxcar must be available as an attribute of
+     :class:`~pypeit.specobj.SpecObj`.
 
     SpecObj is filled in place
 

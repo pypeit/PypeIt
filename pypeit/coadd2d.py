@@ -523,7 +523,7 @@ class CoAdd2D:
                                                save_objfindQA=True, manual_extract_dict=manual_dict)
 
         # Initiate Extract object
-        extract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
+        exTract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
                                                   'science_coadd2d', bkg_redux=self.bkg_redux,
                                                   find_negative=self.find_negative, show=show)
 
@@ -536,20 +536,20 @@ class CoAdd2D:
         slits = self.stack_dict['slits_list'][0]
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
-        extract.reduce_bpm = reduce_bpm
+        exTract.reduce_bpm = reduce_bpm
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
-        extract.tilts = pseudo_dict['tilts']
-        extract.waveimg = pseudo_dict['waveimg']
-        extract.binning = self.binning
-        extract.basename = basename
+        exTract.tilts = pseudo_dict['tilts']
+        exTract.waveimg = pseudo_dict['waveimg']
+        exTract.binning = self.binning
+        exTract.basename = basename
 
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs \
-                = extract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
+                = exTract.local_skysub_extract(global_sky_pseudo, sobjs_obj,
                                              spat_pix=pseudo_dict['spat_img'], model_noise=False,
                                              show_profile=show, show=show)
 
