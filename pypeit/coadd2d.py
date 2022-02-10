@@ -223,21 +223,6 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
-    def nslits_coadded(self):
-        """
-        This gives the number of slits of the coadded frame.
-        `self.good_slits` must be defined first.
-
-        Returns:
-            :obj:`int`: Number of slits of the coadded frame
-
-        """
-        # this is the number of slits of the coadded frame
-        if self.good_slits is None:
-            msgs.error('Cannot determine nslits_coadded because `self.good_slits` is `None`. '
-                       'Run `self.good_slits = self.good_slitindx(only_slits=only_slits)` first')
-        return self.good_slits.size
-
     def good_slitindx(self, only_slits=None):
         """
         This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
@@ -251,8 +236,6 @@ class CoAdd2D:
         Returns:
             `numpy.ndarray`_: array of index of good slits in the un-coadded frames
         """
-        # TODO We should be checking the bitmask for the reductions or something here??
-        #  Yes, definitely - DONE?
 
         only_slits = [only_slits] if (only_slits is not None and
                                       isinstance(only_slits, (int, np.integer))) else only_slits
@@ -363,6 +346,8 @@ class CoAdd2D:
         """
         # get slit index that indicates which slits are good for coadding
         self.good_slits = self.good_slitindx(only_slits=only_slits)
+        # get the number of slits that are going to be coadded
+        self.nslits_coadded = self.good_slits.size
 
         coadd_list = []
         for slit_idx in self.good_slits:
@@ -400,7 +385,6 @@ class CoAdd2D:
 
         THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
         STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
-
 
         # Check that self.nslit is equal to len(coadd_list)
         if self.nslits_coadded != len(coadd_list):
@@ -616,7 +600,7 @@ class CoAdd2D:
 
         # maskdef stuff
         if parcopy['reduce']['slitmask']['assign_obj'] and slits.maskdef_designtab is not None:
-            # Select the edges to use
+            # Get plate scale
             platescale = sciImage.detector.platescale * self.spat_samp_fact
 
             # Assign slitmask design information to detected objects

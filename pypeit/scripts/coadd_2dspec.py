@@ -57,8 +57,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                  "(spat_samp_fact > 1.0) by this sampling factor, i.e. units of "
                                  "spat_samp_fact are pixels.")
         parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
-
-        # TODO implement an option to only do certian slits - DONE?
         parser.add_argument("--only_slits", type=str, default=None, help="Only coadd the following slits")
 
         #parser.add_argument("--wave_method", type=str, default=None,
@@ -199,7 +197,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # container for spec2dobj
         all_spec2d = spec2dobj.AllSpec2DObj()
         # set some meta
-        all_spec2d['meta']['ir_redux'] = ir_redux
+        all_spec2d['meta']['bkg_redux'] = bkg_redux
         all_spec2d['meta']['find_negative'] = find_negative
 
         # Loop on detectors
