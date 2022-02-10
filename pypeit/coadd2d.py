@@ -899,15 +899,32 @@ class CoAdd2D:
             return np.atleast_1d(input)
         msgs.error(f'Unrecognized format for {type}')
 
-    def compute_offsets_and_weights(self, weights, offsets):
+    def compute_offsets(self, offsets):
         """
          Dummy method to compute offsets and weights. Overloaded by child methods.
 
-        Args:
-            weights:
-            offsets:
+        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
 
-        Returns:
+        Args:
+            offsets (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the offsets.
+                It could be a list of offsets, or a string, or None.
+
+        """
+
+        pass
+
+    def compute_weights(self, weights):
+        """
+         Dummy method to compute weights. Overloaded by child methods.
+
+        Determine self.use_weights, the weights to be used in the coadd2d
+
+        Args:
+            weights (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the weights.
+                It could be a list of weights or a string. If 'auto' the weight will be computed using
+                the brightest trace, if 'uniform' uniform weights will be used.
 
         """
 
@@ -992,61 +1009,36 @@ class MultiSlitCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
-        # self.offsets = self.compute_offsets(offsets)
-        # self.weigths = self.compute_weights(weights)
-
-        # get offsets and weights
-        self.compute_offsets_and_weights(weights, offsets)
-
-    # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
-    # and another time to weighted_combine the images in compute2d. This could be sped up
-    # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
-    # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
-    # reference objects into the same frame without first rebinning them onto the same grid.
-    def compute_offsets_and_weights(self, weights, offsets):
-        """
-
-        Args:
-            weights (:obj:`list` or :obj:`str`): Value that guides the determination of the weights.
-            It could be a list of weights or a string. If equal to 'auto', the weight will be computed
-            using the brightest trace, if 'uniform' uniform weights will be used.
-            offsets (:obj:`list` or :obj:`str`): Value that guides the determination of the offsets.
-            It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
-            offsets computed during the slitmask design matching will be used.
-
-        """
+        # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0:
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.spat_ids)
         else:
             self.objid_bri, self.slitidx_bri, self.spatid_bri, self.snr_bar_bri = None, None, None, None
 
-        # Weights
-        # 1) No bright object and parset `weights` is 'auto' or 'uniform',
-        # or Yes bright object but the user wants still to use uniform weights
-        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
-                ((self.objid_bri is not None) and (weights == 'uniform')):
-            # use uniform weights
-            self.use_weights = 'uniform'
-            if weights == 'auto':
-                # warn if the user had put `auto` in the parset
-                msgs.warn('Weights cannot be computed because no unique reference object '
-                          'with the highest S/N was found. Using uniform weights instead.')
-            elif weights == 'uniform':
-                msgs.info('Using uniform weights')
-        # 2) Yes bright object and parset `weights` is equal to 'auto'
-        elif (self.objid_bri is not None) and (weights == 'auto'):
-            # compute weights using bright object
-            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
-            msgs.info('Computing weights using a unique reference object with the highest S/N')
-            self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
-        # 3) User inputs weights
-        else:
-            # use those inputs
-            self.use_weights = self.check_input(weights, type='weights')
-            msgs.info('Using user input weights')
+        # get self.offsets
+        self.compute_offsets(offsets)
 
-        # offsets
+        # get self.use_weights
+        self.compute_weights(weights)
+
+    # TODO When we run multislit, we actually compute the rebinned images twice. Once here to compute the offsets
+    # and another time to weighted_combine the images in compute2d. This could be sped up
+    # TODO The reason we rebin the images for the purposes of computing the offsets is to deal with combining
+    # data that are dithered in the spectral direction. In these situations you cannot register the two dithered
+    # reference objects into the same frame without first rebinning them onto the same grid.
+
+    def compute_offsets(self, offsets):
+        """
+        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
+
+        Args:
+            offsets (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the offsets.
+                It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
+                offsets computed during the slitmask design matching will be used.
+        """
+
         # If offsets are not provided by the user and there is no a bright object
         # to be used to compute the offsets, we cannot continue
         if (self.objid_bri is None) and (offsets is None):
@@ -1080,8 +1072,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # TODO Need to think abbout whether we have multiple tslits_dict for each exposure or a single one
             for iexp in range(self.nexp):
                 trace_stack_bri[:,iexp] = self.stack_dict['slits_list'][iexp].center[:,self.slitidx_bri]
-    #            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
-    #                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
+            #            trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
+            #                                       self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
             # Determine the wavelength grid that we will use for the current slit/order
 
             ## TODO: Should the spatial and spectral samp_facts here match those of the final coadded data, or she would
@@ -1129,6 +1121,42 @@ class MultiSlitCoAdd2D(CoAdd2D):
             self.offsets = offsets
 
         self.offsets_report(self.offsets, offsets_method)
+
+    def compute_weights(self, weights):
+        """
+        Determine self.use_weights, the weights to be used in the coadd2d
+
+        Args:
+            weights (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the weights.
+                It could be a list of weights or a string. If equal to 'auto', the weight will be computed
+                using the brightest trace, if 'uniform' uniform weights will be used.
+
+        """
+
+        # 1) No bright object and parset `weights` is 'auto' or 'uniform',
+        # or Yes bright object but the user wants still to use uniform weights
+        if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
+                ((self.objid_bri is not None) and (weights == 'uniform')):
+            # use uniform weights
+            self.use_weights = 'uniform'
+            if weights == 'auto':
+                # warn if the user had put `auto` in the parset
+                msgs.warn('Weights cannot be computed because no unique reference object '
+                          'with the highest S/N was found. Using uniform weights instead.')
+            elif weights == 'uniform':
+                msgs.info('Using uniform weights')
+        # 2) Yes bright object and parset `weights` is equal to 'auto'
+        elif (self.objid_bri is not None) and (weights == 'auto'):
+            # compute weights using bright object
+            _, self.use_weights = self.optimal_weights(self.spatid_bri, self.objid_bri, const_weights=True)
+            msgs.info('Computing weights using a unique reference object with the highest S/N')
+            self.snr_report(self.snr_bar_bri, slitid=self.spatid_bri)
+        # 3) User inputs weights
+        else:
+            # use those inputs
+            self.use_weights = self.check_input(weights, type='weights')
+            msgs.info('Using user input weights')
 
     def get_brightest_obj(self, specobjs_list, spat_ids):
 
@@ -1300,28 +1328,68 @@ class EchelleCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'log10' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
-        # get offsets and weights
-        self.compute_offsets_and_weights(weights, offsets)
-
-    def compute_offsets_and_weights(self, weights, offsets):
-        """
-
-        Args:
-            weights (:obj:`list` or :obj:`str`): Value that guides the determination of the weights.
-            It could be a list of weights or a string. If 'auto' the weight will be computed using
-            the brightest trace, if 'uniform' uniform weights will be used.
-            offsets (:obj:`list` or :obj:`str`): Value that guides the determination of the offsets.
-            It could be a list of offsets, or a string, or None. If equal to 'maskdef_offsets' the
-            offsets computed during the slitmask design matching will be used.
-
-        """
+        # find if there is a bright object we could use
         if len(self.stack_dict['specobjs_list']) > 0:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri = \
                 self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits_single)
         else:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri = None, None, None
 
-        # Weights
+        # get self.offsets
+        self.compute_offsets(offsets)
+
+        # get self.use_weights
+        self.compute_weights(weights)
+
+    # TODO move the part of the compute_offsets compute_weights common to MultiSlit and Echelle to the parent class
+    def compute_offsets(self, offsets):
+        """
+        Determine self.offsets, the offset of the frames to be coadded with respect to the first frame
+
+        Args:
+            offsets (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the offsets.
+                It could be a list of offsets, or a string, or None.
+
+        """
+
+        # If offsets are not provided by the user and there is no a bright object
+        # to be used to compute the offsets, we cannot continue
+        if (self.objid_bri is None) and (offsets is None):
+            msgs.error('Offsets cannot be computed because no unique reference object '
+                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
+
+        offsets_method = None
+        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
+        if offsets is not None:
+            msgs.info('Using user input offsets')
+            # use them
+            self.offsets = self.check_input(offsets, type='offsets')
+            # if the user inputs the offsets, `objid_bri` cannot be used to compute the reference stack,
+            # so it needs to be None
+            self.objid_bri = None
+            offsets_method = 'user input'
+        # 2) parset `offsets` is None but we have a bright object
+        else:
+            # offsets are not determined, but the bright object is used to construct
+            # a reference trace (this is done in coadd using method `reference_trace_stack`)
+            msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
+            self.offsets = None
+
+        self.offsets_report(self.offsets, offsets_method)
+
+    def compute_weights(self, weights):
+        """
+        Determine self.use_weights, the weights to be used in the coadd2d
+
+        Args:
+            weights (:obj:`list` or :obj:`str`):
+                Value that guides the determination of the weights.
+                It could be a list of weights or a string. If 'auto' the weight will be computed using
+                the brightest trace, if 'uniform' uniform weights will be used.
+
+        """
+
         # 1) No bright object and parset `weights` is 'auto' or 'uniform',
         # or Yes bright object but the user wants still to use uniform weights
         if ((self.objid_bri is None) and (weights in ['auto', 'uniform'])) or \
@@ -1350,32 +1418,6 @@ class EchelleCoAdd2D(CoAdd2D):
             # use those inputs
             self.use_weights = self.check_input(weights, type='weights')
             msgs.info('Using user input weights')
-
-        # offsets
-        # If offsets are not provided by the user and there is no a bright object
-        # to be used to compute the offsets, we cannot continue
-        if (self.objid_bri is None) and (offsets is None):
-            msgs.error('Offsets cannot be computed because no unique reference object '
-                       'with the highest S/N was found. To continue, provide offsets in `Coadd2DPar`')
-
-        offsets_method = None
-        # 1) a list of offsets is provided by the user (no matter if we have a bright object or not)
-        if offsets is not None:
-            msgs.info('Using user input offsets')
-            # use them
-            self.offsets = self.check_input(offsets, type='offsets')
-            # if the user inputs the offsets, `objid_bri` cannot be used to compute the reference stack,
-            # so it needs to be None
-            self.objid_bri = None
-            offsets_method = 'user input'
-        # 2) parset `offsets` is None but we have a bright object
-        else:
-            # offsets are not determined, but the bright object is used to construct
-            # a reference trace (this is done in coadd using method `reference_trace_stack`)
-            msgs.info('Reference trace about which 2d coadd is performed is computed using the brightest object')
-            self.offsets = None
-
-        self.offsets_report(self.offsets, offsets_method)
 
     def get_brightest_obj(self, specobjs_list, nslits):
         """
