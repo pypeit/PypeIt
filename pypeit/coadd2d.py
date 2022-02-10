@@ -989,6 +989,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
         kwargs_wave['wave_method'] = 'linear' if 'wave_method' not in kwargs_wave else kwargs_wave['wave_method']
         self.wave_grid, self.wave_grid_mid, self.dsamp = self.get_wave_grid(**kwargs_wave)
 
+        # self.offsets = self.compute_offsets(offsets)
+        # self.weigths = self.compute_weights(weights)
+
         # get offsets and weights
         self.compute_offsets_and_weights(weights, offsets)
 
