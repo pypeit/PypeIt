@@ -1972,9 +1972,10 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(data.Paths.tel_model, 'qso_pca_1200_3100.fits')
+        defaults['pca_file'] = 'qso_pca_1200_3100.fits'
         dtypes['pca_file'] = str
-        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
+        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso.  NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Model file, but is just the filename of the model itself.'
 
         defaults['npca'] = 8
         dtypes['npca'] = int

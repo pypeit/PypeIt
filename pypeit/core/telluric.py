@@ -59,9 +59,12 @@ def init_pca(filename,wave_grid,redshift, npca):
     # The relevant pieces are the wavelengths (wave_pca_c), the PCA components (pca_comp_c),
     # and the Gaussian mixture model prior (mix_fit)
 
+    # The PCA file location is provided by data.Paths.tel_model
+    file_with_path = os.path.join(data.Paths.tel_model, filename)
+
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
-    pca_table = table.Table.read(filename)
+    pca_table = table.Table.read(file_with_path)
     wave_pca_c = pca_table['WAVE_PCA'][0].flatten()
     pca_comp_c = pca_table['PCA_COMP'][0][0,:,:]
     coeffs_c =pca_table['PCA_COEFFS'][0][0,:,:]
