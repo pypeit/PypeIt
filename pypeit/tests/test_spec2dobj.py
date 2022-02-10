@@ -116,7 +116,7 @@ def test_all2dobj_hdr(init_dict):
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     allspec2D = spec2dobj.AllSpec2DObj()
-    allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['bkg_redux'] = False
     allspec2D['meta']['find_negative'] = False
     allspec2D[spec2DObj.detname] = spec2DObj
     #
@@ -134,7 +134,7 @@ def test_all2dobj_write(init_dict):
     init_dict['detector'] = tstutils.get_kastb_detector()
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     allspec2D = spec2dobj.AllSpec2DObj()
-    allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['bkg_redux'] = False
     allspec2D['meta']['find_negative'] = False
     detname = spec2DObj.detname
     allspec2D[detname] = spec2DObj
@@ -149,7 +149,7 @@ def test_all2dobj_write(init_dict):
     assert allspec2D.detectors == _allspec2D.detectors, 'Bad read: detector mismatch'
     assert allspec2D['meta'] == _allspec2D['meta'], 'Bad read: meta mismatch'
     # Try to update it
-    _allspec2D['meta']['ir_redux'] = True
+    _allspec2D['meta']['bkg_redux'] = True
     _allspec2D[detname].vel_corr = 2.
     _allspec2D.write_to_fits(ofile, update_det='DET01')
 
@@ -163,7 +163,7 @@ def test_all2dobj_write(init_dict):
 def test_all2dobj_update_image(init_dict):
 
     allspec2D = spec2dobj.AllSpec2DObj()
-    allspec2D['meta']['ir_redux'] = False
+    allspec2D['meta']['bkg_redux'] = False
     allspec2D['meta']['find_negative'] = False
     for i in range(2):
         d = load_spectrograph('keck_deimos').get_detector_par(i+1)
@@ -176,7 +176,7 @@ def test_all2dobj_update_image(init_dict):
     allspec2D.write_to_fits(ofile)
 
     _allspec2D = spec2dobj.AllSpec2DObj()
-    _allspec2D['meta']['ir_redux'] = False
+    _allspec2D['meta']['bkg_redux'] = False
     _allspec2D['meta']['find_negative'] = False
     d = load_spectrograph('keck_deimos').get_detector_par(2)
     detname = d.name

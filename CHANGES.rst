@@ -59,9 +59,15 @@
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Update for `LDT/DeVeny` including support for binned data, `use_header`
   for reading arc lamps used from frames, and `reid_arxiv` templates for
-  three additional gratings.  
-- Slurps in and uses slitmask design for Keck/LRIS (limited usage) 
+  three additional gratings.
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage)
 - Hotfix for `gemini_gmos` mosaic tracing parameters
+- Include sky model in 2nd pass of global sky subtraction (not for IR redux).
+- Skymask is now computed also for the maskdef_extract objects.
+- Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
+- Added pypeit_version to the pypeit file header.
+- Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
 - Improvements in `pypeit_coadd_2d`:
     - `maskdef_id` assigned to each slit
     - Assigning object's name, ra and dec to detected objects is now available

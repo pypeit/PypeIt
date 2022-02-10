@@ -148,7 +148,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
 
         skysub_mode = head2d['SKYSUB']
         findobj_mode = head2d['FINDOBJ']
-        ir_redux = True if 'DIFF' in skysub_mode else False
+        bkg_redux = True if 'DIFF' in skysub_mode else False
         find_negative = True if 'NEG' in findobj_mode else False
 
         # Print status message
@@ -174,7 +174,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         sci_dict = OrderedDict()  # This needs to be ordered
         sci_dict['meta'] = {}
         sci_dict['meta']['vel_corr'] = 0.
-        sci_dict['meta']['ir_redux'] = ir_redux
+        sci_dict['meta']['bkg_redux'] = bkg_redux
         sci_dict['meta']['find_negative'] = find_negative
 
         # Make QA coadd directory
@@ -212,7 +212,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
                                                  weights=parset['coadd2d']['weights'],
                                                  spec_samp_fact=args.spec_samp_fact,
                                                  spat_samp_fact=args.spat_samp_fact,
-                                                 ir_redux=ir_redux, find_negative=find_negative,
+                                                 bkg_redux=bkg_redux, find_negative=find_negative,
                                                  debug_offsets=args.debug_offsets,
                                                  debug=args.debug)
 

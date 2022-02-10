@@ -24,10 +24,12 @@ from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
 from pypeit.display import display
-from pypeit import reduce
+from pypeit import find_objects
+from pypeit import extraction
 from pypeit import spec2dobj
 from pypeit.core import qa
 from pypeit.core import parse
+from pypeit.core import findobj_skymask
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -428,7 +430,7 @@ class PypeIt:
                     science_basename[j] = self.basename
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, 
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs,
                                        self.basename, history)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
@@ -439,14 +441,13 @@ class PypeIt:
         # Finish
         self.print_end_time()
 
-    # TODO: update doc string.  frames can be a list...
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
 
         Args:
-            frame (:obj:`int`):
-                0-indexed row in :attr:`fitstbl` with the frame to
+            frames (:obj:`list`):
+                List of 0-indexed rows in :attr:`fitstbl` with the frames to
                 reduce.
             bg_frames (:obj:`list`, optional):
                 List of frame indices for the background.
@@ -460,34 +461,27 @@ class PypeIt:
 
         """
 
-        # TODO:
-        # - change doc string to reflect that more than one frame can be
-        #   provided
-
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
             # TODO: Put this in a try/except block?
             display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-        # Is this an IR reduction?
-        # TODO: Why specific to IR?
-        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.ir_redux. Perhaps
-        # we should rename this to bg_redux or something like that, since it need not be IR.
+        # Is this an b/g subtraction reduction?
         if has_bg:
-            self.ir_redux = True
+            self.bkg_redux = True
             # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
             # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
             # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
             self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
                 if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
         else:
-            self.ir_redux = False
+            self.bkg_redux = False
             self.find_negative= False
 
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
-        all_spec2d['meta']['ir_redux'] = self.ir_redux
+        all_spec2d['meta']['bkg_redux'] = self.bkg_redux
         all_spec2d['meta']['find_negative'] = self.find_negative
         # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
@@ -495,11 +489,17 @@ class PypeIt:
         all_specobjs_objfind = specobjs.SpecObjs()
         # container for specobjs during second loop (extraction)
         all_specobjs_extract = specobjs.SpecObjs()
-        # list of skymask and global_sky obtained during objfind and used in extraction
-        skymask_list = []
-        global_sky_list = []
+        # list of global_sky obtained during objfind and used in extraction
+        initial_sky_list = []
         # list of sciImg
         sciImg_list = []
+        # List of detectors with successful calibration
+        calibrated_det = []
+        # list of successful MasterSlits calibrations to be used in the extraction loop
+        calib_slits = []
+        # List of objFind objects
+        objFind_list = []
+
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -522,11 +522,6 @@ class PypeIt:
         detectors = self.spectrograph.select_detectors(subset=subset)
         msgs.info(f'Detectors to work on: {detectors}')
 
-        # List of detectors with successful calibration
-        calibrated_det = []
-        # list of successful MasterSlits calibrations to be used in the extraction loop
-        calib_slits = []
-
         # Loop on Detectors
         # TODO: Attempt to put in a multiprocessing call here?
         # objfind
@@ -547,13 +542,13 @@ class PypeIt:
             # in the slitmask stuff in between the two loops
             calib_slits.append(self.caliBrate.slits)
             # global_sky, skymask and sciImg are needed in the extract loop
-            global_sky, sobjs_obj, skymask, sciImg = self.objfind_one(
-                frames, self.det, bg_frames, std_outfile=std_outfile)
+            initial_sky, sobjs_obj, sciImg, objFind = self.objfind_one(frames, self.det, bg_frames,
+                                                                       std_outfile=std_outfile)
             if len(sobjs_obj)>0:
                 all_specobjs_objfind.add_sobj(sobjs_obj)
-            skymask_list.append(skymask)
-            global_sky_list.append(global_sky)
+            initial_sky_list.append(initial_sky)
             sciImg_list.append(sciImg)
+            objFind_list.append(objFind)
 
         # slitmask stuff
         if self.par['reduce']['slitmask']['assign_obj']:
@@ -596,9 +591,11 @@ class PypeIt:
                 all_specobjs_on_det = all_specobjs_objfind[all_specobjs_objfind.DET == detname]
             else:
                 all_specobjs_on_det = all_specobjs_objfind
+
+            # Extract
             all_spec2d[detname], tmp_sobjs \
-                    = self.extract_one(frames, self.det, sciImg_list[i], global_sky_list[i],
-                                       all_specobjs_on_det, skymask_list[i])
+                    = self.extract_one(frames, self.det, sciImg_list[i], objFind_list[i],
+                                       initial_sky_list[i], all_specobjs_on_det)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
@@ -748,11 +745,11 @@ class PypeIt:
             Initial global sky model
         sobjs_obj : :class:`~pypeit.specobjs.SpecObjs`
             List of objects found
-        skymask : `numpy.ndarray`_
-            Boolean image indicating which pixels are useful for global sky
-            subtraction
         sciImg : :class:`~pypeit.images.pypeitimage.PypeItImage`
             Science image
+        objFind : :class:`~pypeit.find_objects.FindObjects`
+            Object finding object
+
         """
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning \
@@ -799,27 +796,26 @@ class PypeIt:
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                                self.par, self.caliBrate,
-                                                self.objtype,
-                                                ir_redux=self.ir_redux,
-                                                manual=manual_obj,
-                                                find_negative=self.find_negative,
-                                                std_redux=self.std_redux,
-                                                setup=self.setup,
-                                                show=self.show,
-                                                det=det, binning=self.binning,
-                                                basename=self.basename)
+        objFind = find_objects.FindObjects.get_instance(sciImg, self.spectrograph,
+                                                        self.par, self.caliBrate,
+                                                        self.objtype,
+                                                        bkg_redux=self.bkg_redux,
+                                                        manual=manual_obj,
+                                                        find_negative=self.find_negative,
+                                                        std_redux=self.std_redux,
+                                                        show=self.show,
+                                                        basename=self.basename)
         # Show?
         if self.show:
-            self.redux.show('image', image=sciImg.image, chname='processed',
+            objFind.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
         # Do it
-        global_sky, sobjs_obj, skymask = self.redux.run_objfind(std_trace=std_trace, show_peaks=self.show)
-        return global_sky, sobjs_obj, skymask, sciImg
+        initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=self.show)
+        # Return
+        return initial_sky, sobjs_obj, sciImg, objFind
 
-    def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj, skymask):
+    def extract_one(self, frames, det, sciImg, objFind, initial_sky, sobjs_obj):
         """
         Extract Objects in a single exposure/detector pair
 
@@ -834,12 +830,12 @@ class PypeIt:
             sciImg (:class:`PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
-            global_sky (`numpy.ndarray`_):
+            objFind : :class:`~pypeit.find_objects.FindObjects`
+                Object finding object
+            initial_sky (`numpy.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
-            skymask (`numpy.ndarray`_):
-               Boolean image indicating which pixels are useful for global sky subtraction
 
         Returns:
             tuple: Returns six `numpy.ndarray`_ objects and a
@@ -856,31 +852,44 @@ class PypeIt:
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
 
+        # Update the skymask
+        skymask = objFind.create_skymask(sobjs_obj)
+
+        # Update the global sky
+        if 'standard' in self.fitstbl['frametype'][frames[0]] or \
+                self.par['reduce']['findobj']['skip_final_global'] or \
+                self.par['reduce']['skysub']['load_mask'] or \
+                self.par['reduce']['skysub']['user_regions'] is not None:
+            final_global_sky = initial_sky
+        else:
+            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                                self.par, self.caliBrate,
-                                                self.objtype,
-                                                ir_redux=self.ir_redux,
-                                                find_negative=self.find_negative,
-                                                std_redux=self.std_redux,
-                                                setup=self.setup,
-                                                show=self.show,
-                                                det=det, binning=self.binning,
-                                                basename=self.basename)
+        # TODO Are we repeating steps in the init for FindObjects and Extract??
+        self.redux = extraction.Extract.get_instance(
+            sciImg, sobjs_obj, self.spectrograph, 
+            self.par, self.caliBrate, self.objtype, 
+            bkg_redux=self.bkg_redux, 
+            find_negative=self.find_negative,
+            std_redux=self.std_redux,
+            show=self.show,
+            basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run_extraction(
-                global_sky, sobjs_obj, skymask, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
-                obstime=self.obstime)
+            # DP: what should we put here for return_negative?
+            skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
+                tilts = self.redux.run_extraction(final_global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
+                                                  dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
+                                                  return_negative=False)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.redux.prepare_extraction(global_sky)
+            self.redux.prepare_extraction(final_global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.redux.initial_sky
+            skymodel = self.redux.global_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)
             ivarmodel = np.copy(self.redux.sciImg.ivar)
             outmask = self.redux.sciImg.fullmask
@@ -1004,7 +1013,7 @@ class PypeIt:
                                                history=history)
 
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, 
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr,
                                  update_det=update_det,
                                  slitspatnum=self.par['rdx']['slitspatnum'])
 
