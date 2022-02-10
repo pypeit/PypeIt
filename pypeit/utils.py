@@ -17,7 +17,6 @@ from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
-import bottleneck
 
 from scipy import interpolate, ndimage
 
@@ -29,6 +28,7 @@ from astropy import stats
 
 from pypeit.core import pydl
 from pypeit import msgs
+from pypeit.move_median import move_median
 
 
 def get_time_string(codetime):
@@ -628,7 +628,7 @@ def fast_running_median(seq, window_size):
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    result = bottleneck.move_median(seq_pad, window=window_size)
+    result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.filters.medfilt

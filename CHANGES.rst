@@ -64,11 +64,11 @@
 - Include sky model in 2nd pass of global sky subtraction (not for IR redux).
 - Skymask is now computed also for the maskdef_extract objects.
 - Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
-- Added a new parset `skip_serendip` to skip th extraction of detected
-  objects considered a serendipitous detection.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
 - Scripts to explore the noise residuals in PypeIt
+
 
 
 1.7.0 (19 Nov 2021)

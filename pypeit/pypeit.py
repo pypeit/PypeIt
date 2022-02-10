@@ -467,10 +467,7 @@ class PypeIt:
             display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
-        # Is this an IR reduction?
-        # TODO: Why specific to IR?
-        # JFH This is not specific to IR, but to b/g subtraction with frames. The flag though is self.bkg_redux. Perhaps
-        # we should rename this to bg_redux or something like that, since it need not be IR.
+        # Is this an b/g subtraction reduction?
         if has_bg:
             self.bkg_redux = True
             # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
@@ -595,23 +592,10 @@ class PypeIt:
             else:
                 all_specobjs_on_det = all_specobjs_objfind
 
-            # Update the skymask
-            skymask = objFind_list[i].create_skymask(all_specobjs_on_det)
-            
-            # Update the global sky
-            if 'standard' in self.fitstbl['frametype'][frames[0]] or \
-                    self.par['reduce']['findobj']['skip_final_global'] or \
-                    self.par['reduce']['skysub']['load_mask'] or \
-                    self.par['reduce']['skysub']['user_regions'] is not None:
-                final_global_sky = initial_sky_list[i]
-            else:
-                final_global_sky = objFind_list[i].global_skysub(previous_sky=initial_sky_list[i],
-                                                                 skymask=skymask, show=self.show)
-
             # Extract
             all_spec2d[detname], tmp_sobjs \
-                    = self.extract_one(frames, self.det, sciImg_list[i], 
-                                       final_global_sky, all_specobjs_on_det)
+                    = self.extract_one(frames, self.det, sciImg_list[i], objFind_list[i],
+                                       initial_sky_list[i], all_specobjs_on_det)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs_extract.add_sobj(tmp_sobjs)
@@ -831,7 +815,7 @@ class PypeIt:
         # Return
         return initial_sky, sobjs_obj, sciImg, objFind
 
-    def extract_one(self, frames, det, sciImg, global_sky, sobjs_obj):
+    def extract_one(self, frames, det, sciImg, objFind, initial_sky, sobjs_obj):
         """
         Extract Objects in a single exposure/detector pair
 
@@ -846,7 +830,9 @@ class PypeIt:
             sciImg (:class:`PypeItImage`):
                 Data container that holds a single image from a
                 single detector its related images (e.g. ivar, mask)
-            global_sky (`numpy.ndarray`_):
+            objFind : :class:`~pypeit.find_objects.FindObjects`
+                Object finding object
+            initial_sky (`numpy.ndarray`_):
                 Initial global sky model
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of objects found during `run_objfind`
@@ -866,6 +852,18 @@ class PypeIt:
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
 
+        # Update the skymask
+        skymask = objFind.create_skymask(sobjs_obj)
+
+        # Update the global sky
+        if 'standard' in self.fitstbl['frametype'][frames[0]] or \
+                self.par['reduce']['findobj']['skip_final_global'] or \
+                self.par['reduce']['skysub']['load_mask'] or \
+                self.par['reduce']['skysub']['user_regions'] is not None:
+            final_global_sky = initial_sky
+        else:
+            final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
+
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
         # Instantiate Reduce object
@@ -884,12 +882,12 @@ class PypeIt:
         if not self.par['reduce']['extraction']['skip_extraction']:
             # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
-                tilts = self.redux.run_extraction(global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
+                tilts = self.redux.run_extraction(final_global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
                                                   dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
                                                   return_negative=False)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.redux.prepare_extraction(global_sky)
+            self.redux.prepare_extraction(final_global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
             skymodel = self.redux.global_sky
             objmodel = np.zeros_like(self.redux.sciImg.image)

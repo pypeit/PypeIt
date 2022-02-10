@@ -7,6 +7,12 @@
 Installation
 ============
 
+.. warning::
+
+    **M1 Mac Users**: We have a solution that works for installation on the new
+    hardware.  It *requires* anaconda and a specific series of installation
+    steps.  If you're an M1 Mac user, skip to the :ref:`m1_macs`.
+
 .. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
 
 Below, we provide detailed instructions for installing ``PypeIt``.  For
@@ -83,6 +89,15 @@ in the optional dependencies, e.g.:
 
     pip install "pypeit[pyside2,scikit-image]"
 
+Also, ``PypeIt`` will use the `bottleneck`_ package to speed up a few
+calculations, if it is available.  To include bottleneck in the ``PypeIt``
+installation and take advantage of these speed gains, instead install by
+running, e.g.:
+
+.. code-block:: console
+
+    pip install "pypeit[pyqt5,bottleneck]"
+
 .. note::
 
     Whether or not it is correct syntax to use the quotes in the commands above
@@ -158,6 +173,40 @@ or
 depending on how you first installed ``PypeIt``.  If this causes problems (e.g.,
 a new ``PypeIt`` script is unavailable or you encounter script errors), first
 try uninstalling (e.g., ``pip uninstall pypeit``) and then reinstalling.
+
+.. _m1_macs:
+
+M1 Mac User Installation
+------------------------
+
+We have a (temporary?) solution for M1 Mac users to install ``PypeIt``.  The
+following is the current step-by-step installation:
+
+#. You *must* have `conda`_ installed.
+
+#. Create a new ``PypeIt`` environment and activate it:
+
+   .. code-block:: console
+
+        conda create -n pypeit python=3.8
+        conda activate pypeit
+
+#. Install PyQt5 (this is the only step that's different from a typical conda installation)
+
+   .. code-block:: console
+
+        conda install pyqt
+
+#. Install ``PypeIt`` via pip with the ``pyqt5`` option.  **Do not include** the
+   ``bottleneck`` option.  
+
+   .. code-block:: console
+
+        pip install "pypeit[pyqt5]"
+
+We currently cannot install ``bottleneck`` with ``PypeIt`` on an M1 Mac.
+Solutions/Recommendations for this installation are welcome; please `Submit an
+issue`_.
 
 ----
 
@@ -373,10 +422,6 @@ Some users have run into the following complications when installing the
 - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
   PySide2) because of our dependence on ``linetools``.
 
-- Note that ``shapely`` is provided as an optional dependency, but is only
-  currently used by one method that calculates the spaxel area for KCWI output
-  datacubes.
-
 ----
 
 .. _developer_install:
@@ -403,14 +448,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
@@ -487,6 +532,19 @@ For example:
 
     python
     >>> import pypeit
+
+**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
+with the package.  Below is a zshell command-line incantation (it's likely the
+same in bash) that will locate a test spec1D file and attempt to use
+:ref:`pypeit_show_1dspec` to show it:
+
+.. code-block:: console
+
+    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+
+If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+spectrum from the Shane/KAST spectrograph.
 
 Developer Tests
 ---------------

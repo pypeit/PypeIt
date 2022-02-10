@@ -933,7 +933,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return sobjs
 
-    def assign_maskinfo(self, sobjs, plate_scale, spat_flexure, TOLER=1., skip_serendip=False):
+    def assign_maskinfo(self, sobjs, plate_scale, spat_flexure, TOLER=1.):
         """
         Assign RA, DEC, Name to objects.
         Modified in place.
@@ -944,7 +944,6 @@ class SlitTraceSet(datamodel.DataContainer):
             spat_flexure (:obj:`float`): Shifts, in spatial pixels, between this image and SlitTrace.
             det_buffer (:obj:`int`): Minimum separation between detector edges and a slit edge.
             TOLER (:obj:`float`, optional): Matching tolerance in arcsec.
-            skip_serendip (:obj:`bool`, optional): Skip extraction of serendip objects?
 
         Returns:
             :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced.
@@ -1012,9 +1011,6 @@ class SlitTraceSet(datamodel.DataContainer):
         measured = np.array(measured)
         expected = np.array(expected)
 
-        # index of SpecObjs to be removed because serendipitous objects (if `skip_serendip` is True)
-        remove_idx = []
-
         # Assign
         # Loop on slits to deal with multiple sources within TOLER
         # Exclude the objects that have maskdef_id=-99
@@ -1058,21 +1054,17 @@ class SlitTraceSet(datamodel.DataContainer):
                 idx = np.array(idx)
             # Fill in the rest
             for ss in idx:
-                if skip_serendip:
-                    remove_idx.append(ss)
-                    msgs.info('Skipping SERENDIP object at pixel {}'.format(cut_sobjs[ss].SPAT_PIXPOS))
-                else:
-                    sobj = cut_sobjs[ss]
-                    # Measured coordinates
-                    offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - left_init)[specmid, self.spat_id == sobj.SLITID][0]
-                    new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
-                        np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
-                    # Assign
-                    sobj.RA = new_obj_coord.ra.value
-                    sobj.DEC = new_obj_coord.dec.value
-                    sobj.MASKDEF_OBJNAME = 'SERENDIP'
-                    sobj.MASKDEF_EXTRACT = False
-                    sobj.hand_extract_flag = False
+                sobj = cut_sobjs[ss]
+                # Measured coordinates
+                offset = measured[ss] - (self.maskdef_slitcen + self.maskdef_offset - left_init)[specmid, self.spat_id == sobj.SLITID][0]
+                new_obj_coord = obj_slit_coords[sidx].directional_offset_by(
+                    np.radians(obj_slit_pa[sidx]), (offset*plate_scale)*units.arcsec)
+                # Assign
+                sobj.RA = new_obj_coord.ra.value
+                sobj.DEC = new_obj_coord.dec.value
+                sobj.MASKDEF_OBJNAME = 'SERENDIP'
+                sobj.MASKDEF_EXTRACT = False
+                sobj.hand_extract_flag = False
         # Give fake values of RA, DEC, and MASKDEF_OBJNAME for object with maskdef_id=-99.
         noidx = np.where(cut_sobjs.MASKDEF_ID == -99)[0]
         if noidx.size > 0:
@@ -1084,8 +1076,6 @@ class SlitTraceSet(datamodel.DataContainer):
                 sobj.MASKDEF_EXTRACT = False
                 sobj.hand_extract_flag = False
 
-        # Remove serendip sobjs (if any and if `skip_serendip` is True)
-        sobjs.remove_sobj(np.where(on_det)[0][remove_idx])
         # Return
         return sobjs
 
@@ -1629,8 +1619,7 @@ def assign_addobjs_alldets(sobjs, calib_slits, spat_flexure, platescale, slitmas
         if calib_slits[i].maskdef_designtab is not None:
             # Assign slitmask design information to detected objects
             sobjs = calib_slits[i].assign_maskinfo(sobjs, platescale[i], spat_flexure[i],
-                                                   TOLER=slitmask_par['obj_toler'],
-                                                   skip_serendip=slitmask_par['skip_serendip'])
+                                                   TOLER=slitmask_par['obj_toler'])
 
             if slitmask_par['extract_missing_objs']:
                 # Set the FWHM for the extraction of missing objects
