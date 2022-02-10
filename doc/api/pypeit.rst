@@ -9,6 +9,7 @@ Subpackages
 
    pypeit.bspline
    pypeit.core
+   pypeit.data
    pypeit.display
    pypeit.images
    pypeit.par
