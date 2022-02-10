@@ -77,7 +77,7 @@ class Show1DSpec(scriptbase.ScriptBase):
         # Setup
         app = QApplication(sys.argv)
         # Screen dimensions
-        width = app.desktop().screenGeometry().width()
+        width = app.screens()[0].geometry().width()
         scale = 2. * (width/3200.)
 
         # Launch
