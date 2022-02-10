@@ -2796,12 +2796,13 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Shape is (nimgs, nspec,
             nspat).
-        weights (`numpy.ndarray`_, optional):
+        # TODO JFH I think the str option should be changed here, but am leaving it for now.
+        weights (`numpy.ndarray`_ or str, optional):
             The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If no weights are provided,
+            :func:`weighted_combine`).  If weights is set to 'uniform' then a
             uniform weighting is used.  Weights are broadast to the
             correct size of the image stacks (see
-            :func:`broadcast_weights`), as necessary.  Shape must be
+            :func:`broadcast_weights`), as necessary.  If an array is passed in shape must be
             (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
         spat_samp_fact (float, optional):
             Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
@@ -2859,7 +2860,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     # TODO -- If weights is a numpy.ndarray, how can this not crash?
     #   Maybe the doc string above is inaccurate?
-    if weights == 'uniform':
+    if isinstance(weights,str) and weights == 'uniform':
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
