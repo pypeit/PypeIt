@@ -62,6 +62,8 @@ class SpecObj(datamodel.DataContainer):
                                  descr='Spatial FWHM across the detector (pixels)'),
                  'THRESHOLD': dict(otype=float,
                                   descr='Threshold used for object finding'),
+                 'smash_peakflux': dict(otype=float,
+                                   descr='Peak value of the spectrum spatial profile'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
