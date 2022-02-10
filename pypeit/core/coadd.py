@@ -2747,8 +2747,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, maskdef_dict,
-                    wave_grid, spat_samp_fact=1.0,
+                    thismask_stack, waveimg_stack,
+                    wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -2762,7 +2762,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     ..todo.. -- These docs appear out-of-date
 
     Args:
-        trace_stack (`numpy.ndarray`_):
+        ref_trace_stack (`numpy.ndarray`_):
             Stack of reference traces about which the images are
             rectified and coadded.  If the images were not dithered then
             this reference trace can simply be the center of the slit::
@@ -2817,7 +2817,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         wave_grid (`numpy.ndarray`_, optional):
             Same as `loglam_grid` but in angstroms instead of
             log(angstroms). (TODO: Check units...)
-        maskdef_dict (:obj:`dict`:) Dictionary containing all the maskdef info. The quantities saved
+        maskdef_dict (:obj:`dict`:, optional) Dictionary containing all the maskdef info. The quantities saved
             are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab. To learn what
             they are see :class:`~pypeit.slittrace.SlitTraceSet` datamodel.
 
@@ -2925,21 +2925,28 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         dspat_img_fake = spat_img_coadd + dspat_mid[0]
         dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
-    # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
+    # initiate maskdef parameters
+    maskdef_id = None
+    maskdef_designtab = None
     new_maskdef_objpos = None
     new_maskdef_slitcen = None
-    if maskdef_dict['maskdef_objpos'] is not None and maskdef_dict['maskdef_slitcen']:
-        new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
-        # maskdef_slitcen is the old slit center
-        new_maskdef_slitcen = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_slitcen'])
+    if maskdef_dict is not None and maskdef_dict['maskdef_id'] is not None:
+        maskdef_id = maskdef_dict['maskdef_id']
+        # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
+        if maskdef_dict['maskdef_objpos'] is not None and maskdef_dict['maskdef_slitcen'] is not None:
+            new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
+            # maskdef_slitcen is the old slit center
+            new_maskdef_slitcen = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_slitcen'])
+        if maskdef_dict['maskdef_designtab'] is not None:
+            maskdef_designtab = maskdef_dict['maskdef_designtab']
 
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
                 dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
-                maskdef_id=maskdef_dict['maskdef_id'], maskdef_slitcen=new_maskdef_slitcen,
+                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen,
                 maskdef_objpos=new_maskdef_objpos,
-                maskdef_designtab=maskdef_dict['maskdef_designtab'])
+                maskdef_designtab=maskdef_designtab)
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):

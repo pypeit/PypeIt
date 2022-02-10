@@ -111,6 +111,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         # If detector was passed as an argument override whatever was in the coadd2d_file
         if args.det is not None:
             msgs.info("Restricting reductions to detector={}".format(args.det))
+            # parset['rdx']['detnum'] = par.util.eval_tuple(args.det.split(','))
             # TODO this needs to be adjusted if we want to pass (as inline command) more than one detector
             #  and also if we are combining mosaic detectors
             parset['rdx']['detnum'] = int(args.det)
@@ -191,10 +192,7 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
         msgs.info(f'Detectors to work on: {detectors}')
 
         # Only_slits?
-        if args.only_slits is not None:
-            only_slits = [int(item) for item in args.only_slits.split(',')]
-        else:
-            only_slits = None
+        only_slits = [int(item) for item in args.only_slits.split(',')] if args.only_slits is not None else None
 
         # container for specobjs
         all_specobjs = specobjs.SpecObjs()
@@ -245,8 +243,6 @@ class CoAdd2DSpec(scriptbase.ScriptBase):
             # Tack on detector (similarly to pypeit.extract_one)
             for sobj in sci_dict[coadd.detname]['specobjs']:
                 sobj.DETECTOR = sci_dict[coadd.detname]['detector']
-                # iwv = np.where(self.caliBrate.wv_calib.spat_ids == sobj.SLITID)[0][0]
-                # sobj.WAVE_RMS =self.caliBrate.wv_calib.wv_fits[iwv].rms
 
             # fill the specobjs container
             all_specobjs.add_sobj(sci_dict[coadd.detname]['specobjs'])

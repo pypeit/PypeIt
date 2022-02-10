@@ -220,14 +220,13 @@ class CoAdd2D:
         # If smoothing is not input, smooth by 10% of the spectral dimension
         self.sn_smooth_npix = sn_smooth_npix if sn_smooth_npix is not None else 0.1*self.nspec
 
-    @property
     def nslits_coadded(self):
         """
         This gives the number of slits of the coadded frame.
         `self.good_slits` must be defined first.
 
         Returns:
-            :obj:`float`: Number of slits of the coadded frame
+            :obj:`int`: Number of slits of the coadded frame
 
         """
         # this is the number of slits of the coadded frame
@@ -236,8 +235,12 @@ class CoAdd2D:
                        'Run `self.good_slits = self.good_slitindx(only_slits=only_slits)` first')
         return self.good_slits.size
 
-    def good_slitindx(self, only_slits):
+    def good_slitindx(self, only_slits=None):
         """
+        This provides an array of index of slits in the un-coadded frames that are considered good for 2d coadding.
+        A bitmask common to all the un-coadded frames is used to determine which slits are good. Also,
+        If the `only_slits` parameter is provided only those slits are considered good for 2d coadding.
+        
         Args:
             only_slits (:obj:`list`, optional):
                 List of slits to combine. It must be `slitord_id`
@@ -355,7 +358,7 @@ class CoAdd2D:
             # TODO Make this a PypeIt object, with data model yada-yada.
 
         """
-
+        # get slit index that indicates which slits are good for coadding
         self.good_slits = self.good_slitindx(only_slits=only_slits)
 
         coadd_list = []
@@ -381,8 +384,8 @@ class CoAdd2D:
                                                self.stack_dict['tilts_stack'],
                                                thismask_stack,
                                                self.stack_dict['waveimg_stack'],
-                                               maskdef_dict,
                                                self.wave_grid, self.spat_samp_fact,
+                                               maskdef_dict=maskdef_dict,
                                                weights=weights, interp_dspat=interp_dspat)
             coadd_list.append(coadd_dict)
 
@@ -1100,8 +1103,6 @@ class MultiSlitCoAdd2D(CoAdd2D):
             inmask = norm_rebin_stack > 0
             traces_rect = np.zeros((nspec_pseudo, self.nexp))
             sobjs = specobjs.SpecObjs()
-            #specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999, 'det': self.det, 'objtype': 'unknown',
-            #                'pypeline': 'MultiSLit' + '_coadd_2d'}
             for iexp in range(self.nexp):
                 sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                                inmask=inmask[iexp,:,:], has_negative=self.find_negative,
@@ -1117,6 +1118,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
             # Now deterimine the offsets. Arbitrarily set the zeroth trace to the reference
             med_traces_rect = np.median(traces_rect,axis=0)
             offsets = med_traces_rect[0] - med_traces_rect
+            # TODO create a QA with this
             if self.debug_offsets:
                 for iexp in range(self.nexp):
                     plt.plot(traces_rect[:, iexp], linestyle='--', label='original trace')

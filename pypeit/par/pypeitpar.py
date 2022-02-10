@@ -1698,7 +1698,7 @@ class SlitMaskPar(ParSet):
 
 
     """
-    def __init__(self, obj_toler=None, assign_obj=None, skip_serendip=None, nsig_thrshd=None,
+    def __init__(self, obj_toler=None, assign_obj=None, nsig_thrshd=None,
                  slitmask_offset=None, use_dither_offset=None, bright_maskdef_id=None, extract_missing_objs=None,
                  missing_objs_fwhm=None, missing_objs_boxcar_rad=None, use_alignbox=None):
 
@@ -1725,10 +1725,6 @@ class SlitMaskPar(ParSet):
         defaults['assign_obj'] = False
         dtypes['assign_obj'] = bool
         descr['assign_obj'] = 'If SlitMask object was generated, assign RA,DEC,name to detected objects'
-
-        defaults['skip_serendip'] = False
-        dtypes['skip_serendip'] = bool
-        descr['skip_serendip'] = 'Skip the extraction of non detected (i.e, serendipitous) objects.'
 
         defaults['use_alignbox'] = False
         dtypes['use_alignbox'] = bool
@@ -1795,7 +1791,7 @@ class SlitMaskPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['obj_toler', 'assign_obj', 'skip_serendip', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
+        parkeys = ['obj_toler', 'assign_obj', 'nsig_thrshd', 'slitmask_offset', 'use_dither_offset',
                    'bright_maskdef_id', 'extract_missing_objs', 'missing_objs_fwhm', 'missing_objs_boxcar_rad',
                    'use_alignbox']
 
