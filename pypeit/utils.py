@@ -1412,9 +1412,24 @@ def list_of_spectral_lines():
     Returns:
         tuple: np.ndarray, np.ndarray
     """
-    ## spectral features
+    # spectral features
+    CIVnam1, CIVwav1='CIV', 1548.
+    CIVnam2, CIVwav2='CIV', 1550.
+
+    HeIInam0, HeIIwav0='HeII', 1640.
+
+    OIIInam01, OIIIwav01='OIII]', 1661.
+    OIIInam02, OIIIwav02='OIII]', 1666.
+
+    SiIIInam1, SiIIIwav1='SiIII]', 1882.
+    SiIIInam2, SiIIIwav2='SiIII]', 1892.
+
+    CIIInam1, CIIIwav1='CIII]', 1907.
+    CIIInam2, CIIIwav2='CIII]', 1909.
+
     Lyalphanam, Lyalphawav='Lyalpha', 1215.7
-    OIInam, OIIwav='[OII]', 3727.5 #average between 3726,3729
+    OIInam1, OIIwav1='[OII]', 3726
+    OIInam2, OIIwav2='[OII]', 3729
     OIIInam1, OIIIwav1='[OIII]', 5007.
     OIIInam2, OIIIwav2='[OIII]', 4959.
     OIIInam3, OIIIwav3='[OIII]', 4363.
@@ -1425,10 +1440,11 @@ def list_of_spectral_lines():
 
     NeIIInam, NeIIIwav = '[NeIII]', 3869.
     NeVnam, NeVwav = '[NeV]', 3426.
-    SIInam, SIIwav = '[SII]', 6724. #average between 6717,6731
+    SIInam1, SIIwav1 = '[SII]', 6716.
+    SIInam2, SIIwav2 = '[SII]', 6716.
 
 
-    ##absorption 
+    ##absorption
     H13nam, H13wav = 'H13', 3734.
     H12nam, H12wav = 'H12', 3750.
     H11nam, H11wav = 'H11', 3771.
@@ -1437,14 +1453,21 @@ def list_of_spectral_lines():
     H8nam, H8wav = 'H8', 3889.
     HeInam, HeIwav = 'HeI', 3889.
 
-    CAII_Knam, CaII_Kwav = 'CaK', 3934. 
+    CAII_Knam, CaII_Kwav = 'CaK', 3934.
     CAII_Hnam, CaII_Hwav = 'CaH', 3968.
 
     Gbandnam, Gbandwav = 'Gband', 4305.
 
-    line_names=np.array([Lyalphanam, OIInam, OIIInam1, OIIInam2, OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,SIInam, H13nam, H12nam, H11nam, H10nam, 
-                            H9nam, HeInam, CAII_Knam, CAII_Hnam, Gbandnam,])
+    line_names=np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
+                         CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
+                         OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
+                         SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
+                         CAII_Knam, CAII_Hnam, Gbandnam])
 
-    line_wav=np.array([Lyalphawav, OIIwav, OIIIwav1, OIIIwav2, OIIIwav3, Halphawav, Hbetawav,Hdeltawav, Hgammawav, NeIIIwav, NeVwav, SIIwav, H13wav,H12wav, H11wav, H10wav, 
-                        H9wav, HeIwav,CaII_Kwav, CaII_Hwav, Gbandwav])
+    line_wav = np.array([CIVwav2, CIVwav2, HeIIwav0, OIIIwav01, OIIIwav02, SiIIIwav1, SiIIIwav2,
+                         CIIIwav1, CIIIwav2, Lyalphawav, OIIwav1, OIIwav2, OIIIwav1, OIIIwav2,
+                         OIIIwav3, Halphawav, Hbetawav, Hdeltawav, Hgammawav, NeIIIwav, NeVwav,
+                         SIIwav1,SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
+                         CaII_Kwav, CaII_Hwav, Gbandwav])
+
     return line_names, line_wav
