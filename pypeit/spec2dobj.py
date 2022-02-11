@@ -77,6 +77,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
+                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                                           descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
@@ -128,7 +130,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
-                 vel_type, vel_corr, slits, tilts):
+                 vel_type, vel_corr, slits, tilts, maskdef_designtab):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -191,6 +193,9 @@ class Spec2DObj(datamodel.DataContainer):
             # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # maskdef_designtab
+            elif key == 'maskdef_designtab':
+                d.append(dict(maskdef_designtab=self.maskdef_designtab))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))

@@ -910,6 +910,11 @@ class PypeIt:
         spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
         spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
 
+        # pull out maskdef_designtab from caliBrate.slits
+        maskdef_designtab = self.caliBrate.slits.maskdef_designtab
+        slits = copy.deepcopy(self.caliBrate.slits)
+        slits.maskdef_designtab = None
+
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
                                         ivarraw=sciImg.ivar,
@@ -925,7 +930,8 @@ class PypeIt:
                                         vel_corr=self.redux.vel_corr,
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
-                                        slits=copy.deepcopy(self.caliBrate.slits))
+                                        slits=slits,
+                                        maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 
         # QA

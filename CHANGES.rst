@@ -67,8 +67,18 @@
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
 - Added row-dependent pattern-noise calculation
+- Improvements in `pypeit_coadd_2d`:
+    - `maskdef_id` assigned to each slit
+    - Assigning object's name, ra and dec to detected objects is now available
+    - Force extract of undetected objects is now available
+    - `maskdef_offset` can be use as offsets in the coadd
+    - Coadding only a specific sets of slits is now possible with the parset `--only_slits`
+    - If the user inputs a list of offsets, the weights can still be computed
+      if a bright object is found, otherwise uniform weigths will be used
+    - Fixed manual extraction bug
+    - Various improvements in the flow of the code
+    - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
-
 
 
 1.7.0 (19 Nov 2021)

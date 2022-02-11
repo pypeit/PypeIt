@@ -869,7 +869,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
             # Generate a new specobj
             specobj_dict = {'SLITID': self.spat_id[islit], # Confirm this
-                            'DET': self.detname, 
+                            'DET': self.detname,
                             'OBJTYPE': 'science',  # Confirm this is ok
                             'PYPELINE': self.pypeline}
             thisobj = specobj.SpecObj(**specobj_dict)
@@ -947,6 +947,9 @@ class SlitTraceSet(datamodel.DataContainer):
 
         Returns:
             :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced.
+
+        Returns:
+            :class:`pypeit.specobjs.SpecObjs`: Updated list of SpecObj that have been found and traced
 
         """
 
