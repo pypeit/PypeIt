@@ -12,6 +12,7 @@ Subpackages
    pypeit.data
    pypeit.display
    pypeit.images
+   pypeit.move_median
    pypeit.par
    pypeit.scripts
    pypeit.spectrographs
@@ -32,6 +33,8 @@ Submodules
    pypeit.compiler_version
    pypeit.datamodel
    pypeit.edgetrace
+   pypeit.extraction
+   pypeit.find_objects
    pypeit.flatfield
    pypeit.fluxcalibrate
    pypeit.history

@@ -11,6 +11,8 @@ Submodules
    pypeit.scripts.chk_edges
    pypeit.scripts.chk_flats
    pypeit.scripts.chk_for_calibs
+   pypeit.scripts.chk_noise_1dspec
+   pypeit.scripts.chk_noise_2dspec
    pypeit.scripts.chk_wavecalib
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec

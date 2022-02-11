@@ -208,10 +208,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
-        # Find objects
-        #  The following corresponds to 1.1" if unbinned (DEIMOS is never binned)
-        par['reduce']['findobj']['find_fwhm'] = 10.  
-
         # If telluric is triggered
         par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
@@ -261,8 +257,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             # Lower edge_thresh works better
             par['calibrations']['slitedges']['edge_thresh'] = 10.
-            # needed for better slitmask design matching
-            par['calibrations']['flatfield']['tweak_slits'] = False
             # use stars in alignment boxes to compute the slitmask offset (this works the best)
             par['reduce']['slitmask']['use_alignbox'] = True
             # Assign RA, DEC, OBJNAME to detected objects
@@ -292,10 +286,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
-        # FWHM
+        # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Objects FWHM
+        # Find objects
+        #  The following corresponds to 0.8"
+        par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
         return par

@@ -171,8 +171,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            # needed for better slitmask design matching
-            par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
                 # exclude the random slits outside the long2pos from slit tracing
                 pix_start, pix_end = self._long2pos_pos()

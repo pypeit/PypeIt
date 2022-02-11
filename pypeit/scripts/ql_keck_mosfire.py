@@ -27,7 +27,8 @@ from pypeit import spec2dobj
 from pypeit import coadd2d
 from pypeit import specobjs
 from pypeit import slittrace
-from pypeit import reduce
+from pypeit import extraction
+from pypeit import find_objects
 from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
@@ -107,18 +108,21 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # Background Image?
     sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], list(B_files), bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False),
             parset['scienceframe']['process'])
-    # Instantiate Reduce object
+    # Instantiate FindObjects object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show,
-                                       det=det)
 
-    # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
-    #     std_trace=std_trace, return_negative=True, show_peaks=show)
+    # DP: Should find_negative be True here?
+    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+                                                    bkg_redux=True, find_negative=True, show=show)
 
-    global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
-        global_sky, sobjs_obj, skymask, return_negative=True)
+    global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
+
+    # Instantiate Extract object
+    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
+                                              'science', bkg_redux=True, find_negative=True, show=show)
+    skymodel, objmodel, ivarmodel, \
+    outmask, sobjs, scaleimg, waveimg, tilts = extract.run_extraction(global_sky, sobjs_obj , return_negative=True)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -128,7 +132,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # Construct table of spectral flexure
     spec_flex_table = Table()
     spec_flex_table['spat_id'] = caliBrate.slits.spat_id
-    spec_flex_table['sci_spec_flexure'] = redux.slitshift
+    spec_flex_table['sci_spec_flexure'] = extract.slitshift
 
     # Construct the Spec2DObj with the positive image
     spec2DObj_A = spec2dobj.Spec2DObj(sciimg=sciImg.image,
@@ -145,10 +149,11 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       vel_corr=None,
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
+                                      slits=copy.deepcopy(caliBrate.slits),
+                                      maskdef_designtab=None)
     spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
-    all_spec2d['meta']['ir_redux'] = True
+    all_spec2d['meta']['bkg_redux'] = True
     all_spec2d[spec2DObj_A.detname] = spec2DObj_A
 
     # Construct the Spec2DObj with the negative image
@@ -166,7 +171,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       vel_corr=None,
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
+                                      slits=copy.deepcopy(caliBrate.slits),
+                                      maskdef_designtab=None)
     return spec2DObj_A, spec2DObj_B
 
 
@@ -332,6 +338,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
         caliBrate.msbpm = msbpm
         caliBrate.wavetilts = tilts_obj
         caliBrate.wv_calib = wv_calib
+        caliBrate.binning = f'{slits.binspec},{slits.binspat}'
 
         # Find the unique throw absolute value, which defines each MASK_NOD seqeunce
         #uniq_offsets, _ = np.unique(offset_arcsec, return_inverse=True)
@@ -395,7 +402,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
                                              offsets=offsets_pixels, weights='uniform',
                                              spec_samp_fact=args.spec_samp_fact,
                                              spat_samp_fact=args.spat_samp_fact,
-                                             ir_redux=True, debug=args.show)
+                                             bkg_redux=True, debug=args.show)
         # Coadd the slits
         # TODO implement only_slits later
         coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)
