@@ -11,7 +11,7 @@ coadd all matching spectra.
 Grouping can be done by sky coordinates if available, or by pixel coordinates.
 Coadding is done using flux calibrated spectra when available. 
 
-Fluxing is planned to be added in a future release. 
+Fluxing is performed using archived sensitivity files.
 
 Usage
 =====
@@ -75,9 +75,12 @@ Command Line
 The cofiguration file for pypeit_collate_1d consists of a set of :ref:`pypeit_par:Collate1DPar Keywords`, 
 followed by a list of spec1d files. An example configuration file is shown below::
 
-    # User-defined coadding parameters
+    # User-defined coadding and fluxing parameters can be given but are not required
     [coadd1d]
     sn_clip = 20
+
+    [fluxcalib]
+    extinct_correct = True
 
     # User-defined collating parameters
     [collate1d]
@@ -125,11 +128,12 @@ followed by a list of spec1d files. An example configuration file is shown below
     Science/spec1d*.fits
     spec1d end
 
-Coadd1D Configuration
---------------------- 
-Coadd1d configuration can be configured in the ``.collate1d`` as shown above, or
-in a separate ``.coadd1d`` file with the same base name as the ``.collate1d`` file.
-:ref:`pypeit_par:Coadd1DPar Keywords`, 
+Coadd1D and Fluxing Configuration
+---------------------------------
+Coadd1d and Fluxing configuration can be configured in the ``.collate1d`` as shown above. 
+Coadd parameters can be specified in a separate ``.coadd1d`` file with the same base name 
+as the ``.collate1d`` file (See :ref:`pypeit_par:Coadd1DPar Keywords`). For the :ref:`pypeit_par:FluxCalibratePar Keywords`
+``pypeit_collate_1d`` will always set ``extrap_sens`` and ``use_archived_sens`` to True.
 
 Reporting
 ---------

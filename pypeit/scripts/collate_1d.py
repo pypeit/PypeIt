@@ -545,7 +545,9 @@ class Collate1D(scriptbase.ScriptBase):
         # Gather up config lines for the sections relevant to collate_1d
         config_lines = par['collate1d'].to_config(section_name='collate1d',include_descr=False) + ['']
         config_lines += par['coadd1d'].to_config(section_name='coadd1d',include_descr=False)
-        with open(args.par_outfile, "a") as f:
+        if par['collate1d']['flux']:
+            config_lines += [''] + par['fluxcalib'].to_config(section_name='fluxcalib',include_descr=False)
+        with open(args.par_outfile, "w") as f:
             for line in config_lines:
                 print (line, file=f)
 
