@@ -191,22 +191,22 @@ following is the current step-by-step installation:
         conda create -n pypeit python=3.8
         conda activate pypeit
 
-#. Install PyQt5 (this is the only step that's different from a typical conda installation)
+#. Install PyQt5 and bottleneck directly (these are the only step that's different from a nominal conda installation)
 
    .. code-block:: console
 
         conda install pyqt
+        conda install -c conda-forge bottleneck
 
 #. Install ``PypeIt`` via pip with the ``pyqt5`` option.  **Do not include** the
-   ``bottleneck`` option.  
+   ``bottleneck`` option; you've already installed it in the previous step.  
 
    .. code-block:: console
 
         pip install "pypeit[pyqt5]"
 
-We currently cannot install ``bottleneck`` with ``PypeIt`` on an M1 Mac.
-Solutions/Recommendations for this installation are welcome; please `Submit an
-issue`_.
+Other solutions/recommendations for M1 Mac installations are welcome; to provide
+it, please `Submit an issue`_.
 
 ----
 
