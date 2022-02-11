@@ -934,6 +934,9 @@ class PypeIt:
                                         maskdef_designtab=maskdef_designtab)
         spec2DObj.process_steps = sciImg.process_steps
 
+        # QA
+        spec2DObj.gen_qa()
+
         # Return
         return spec2DObj, sobjs
 

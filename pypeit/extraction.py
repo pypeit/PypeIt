@@ -89,17 +89,17 @@ class Extract:
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (pypeit.images.scienceimage.ScienceImage):
+            sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
                 Image to reduce.
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 Objects found but not yet extracted
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
             objtype (:obj:`str`):
-                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
-                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
-                    Find a way to dermine those outside this class
+                Specifies object being reduced 'science' 'standard'
+                'science_coadd2d'.  This is used only to determine the
+                spat_flexure_shift and ech_order for coadd2d.
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -116,7 +116,7 @@ class Extract:
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.extraction.Extract`:
+            :class:`~pypeit.extraction.Extract`:
         """
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
@@ -657,10 +657,10 @@ class MultiSlitExtract(Extract):
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
                              show_resids=False, show_profile=False, show=False):
         """
-        Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
+        Perform local sky subtraction, profile fitting, and optimal extraction
+        slit by slit.
 
-        Wrapper to skysub.local_skysub_extract
-
+        Wrapper to :func:`~pypeit.core.skysub.local_skysub_extract`.
 
         Args:
             global_sky (`numpy.ndarray`_):
@@ -676,7 +676,7 @@ class MultiSlitExtract(Extract):
                 using :func:`~pypeit.core.procimg.variance_model`. If False, a
                 variance model will not be created and instead the input sciivar will
                 always be taken to be the inverse variance. See
-                `~pypeit.core.skysub.local_skysub_extract` for more info.
+                :func:`~pypeit.core.skysub.local_skysub_extract` for more info.
             show_resids (:obj:`bool`, optional):
                 Show the model fits and residuals.
             show_profile (:obj:`bool`, optional):
@@ -687,17 +687,10 @@ class MultiSlitExtract(Extract):
                 Show debugging plots
 
         Returns:
-            `numpy.ndarray`_:
-                skymodel: Model sky flux
-            `numpy.ndarray`_:
-                objmodel : Model object flux
-            `numpy.ndarray`_:
-                ivarmodel : Model inverse variance
-            `numpy.ndarray`_:
-                outmask : Model mask
-            :class:`~pypeit.specobjs.SpecObjs`:
-                sobjs Class containing the information about the objects found
-
+            :obj:`tuple`: Return the model sky flux, object flux, inverse
+            variance, and mask as `numpy.ndarray`_ objects, and returns a
+            :class:`~pypeit.specobjs.SpecObjs`: instance c containing the
+            information about the objects found.
         """
         self.global_sky = global_sky
 
@@ -808,7 +801,7 @@ class EchelleExtract(Extract):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
-        Wrapper to skysub.local_skysub_extract
+        Wrapper to :func:`~pypeit.core.skysub.local_skysub_extract`.
 
         Args:
             global_sky (`numpy.ndarray`_):
@@ -835,16 +828,10 @@ class EchelleExtract(Extract):
                 Show debugging plots
 
         Returns:
-            `numpy.ndarray`_:
-                skymodel: Model sky flux
-            `numpy.ndarray`_:
-                objmodel : Model object flux
-            `numpy.ndarray`_:
-                ivarmodel : Model inverse variance
-            `numpy.ndarray`_:
-                outmask : Model mask
-            :class:`~pypeit.specobjs.SpecObjs`:
-                sobjs Class containing the information about the objects found
+            :obj:`tuple`: Return the model sky flux, object flux, inverse
+            variance, and mask as `numpy.ndarray`_ objects, and returns a
+            :class:`~pypeit.specobjs.SpecObjs`: instance c containing the
+            information about the objects found.
         """
         self.global_sky = global_sky
 

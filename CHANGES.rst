@@ -54,8 +54,7 @@
 - Dark counts used for calculating the shot noise now includes measured
   dark images if provided
 - `PypeIt` file parameters can now parse sets of tuples; e.g.,
-  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
-  (3,4)]`.
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2), (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Update for `LDT/DeVeny` including support for binned data, `use_header`
   for reading arc lamps used from frames, and `reid_arxiv` templates for
@@ -79,6 +78,7 @@
     - Fixed manual extraction bug
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
+- Scripts to explore the noise residuals in PypeIt
 
 
 1.7.0 (19 Nov 2021)
