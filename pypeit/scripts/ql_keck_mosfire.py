@@ -152,7 +152,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       vel_corr=None,
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
+                                      slits=copy.deepcopy(caliBrate.slits),
+                                      maskdef_designtab=None)
     spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['bkg_redux'] = True
@@ -173,7 +174,8 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
                                       vel_corr=None,
                                       vel_type=parset['calibrations']['wavelengths']['refframe'],
                                       tilts=tilts,
-                                      slits=copy.deepcopy(caliBrate.slits))
+                                      slits=copy.deepcopy(caliBrate.slits),
+                                      maskdef_designtab=None)
     return spec2DObj_A, spec2DObj_B
 
 
