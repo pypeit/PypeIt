@@ -191,7 +191,8 @@ following is the current step-by-step installation:
         conda create -n pypeit python=3.8
         conda activate pypeit
 
-#. Install PyQt5 and bottleneck directly (these are the only step that's different from a nominal conda installation)
+#. Install PyQt5 and bottleneck directly (these are the only steps that are
+   different from a nominal conda installation)
 
    .. code-block:: console
 
