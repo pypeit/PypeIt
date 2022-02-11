@@ -275,6 +275,9 @@ The script usage can be displayed by calling the script with the
 .. include:: help/pypeit_chk_noise_1dspec.rst
 
 Here is an example from the Dev Suite:
+.. code-block:: console
+
+    pypeit_chk_noise_1dspec Science/spec1d_d0225_0054-16045h_DEIMOS_20190225T145727.158.fits
 
 pypeit_chk_noise_2dspec
 =======================
