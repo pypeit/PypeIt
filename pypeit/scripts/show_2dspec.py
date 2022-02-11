@@ -74,7 +74,7 @@ class Show2DSpec(scriptbase.ScriptBase):
                                                  'Ginga viewer.  Run above the Science/ folder',
                                     width=width)
 
-        parser.add_argument('file', type = str, default = None, help = 'PYPIT spec2d file')
+        parser.add_argument('file', type = str, default = None, help = 'PypeIt spec2d file')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
         # User can provide only '--det' or '--detname', not both

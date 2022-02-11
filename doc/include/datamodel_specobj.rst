@@ -1,6 +1,6 @@
 
 
-Version: 1.1.4
+Version: 1.1.5
 
 ======================  =========================  =================  ====================================================================================================================================================================================
 Obj Key                 Obj Type                   Array Type         Description                                                                                                                                                                         
@@ -57,6 +57,7 @@ Obj Key                 Obj Type                   Array Type         Descriptio
 ``SLITID``              int, integer                                  PypeIt slit ID (aka SPAT_ID).                                                                                                                                                       
 ``SPAT_FRACPOS``        float, floating                               Fractional location of the object on the slit                                                                                                                                       
 ``SPAT_PIXPOS``         float, floating                               Spatial location of the trace on detector (pixel) at half-way                                                                                                                       
+``THRESHOLD``           float                                         Threshold used for object finding                                                                                                                                                   
 ``TRACE_SPAT``          ndarray                    float              Object trace along the spec (spatial pixel)                                                                                                                                         
 ``VEL_CORR``            float                                         Relativistic velocity correction for wavelengths                                                                                                                                    
 ``VEL_TYPE``            str                                           Type of heliocentric correction (if any)                                                                                                                                            
