@@ -74,10 +74,13 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     if args.ploterr: 
         ax.plot(lbda[sec], err[sec], drawstyle=drawstyle, lw=1, color='#ff6666', zorder=0, label='noise')
     if z is not None:
+        line_num = 0
         for i in range(line_wav_z.shape[0]):
             if lbda[sec].min() < line_wav_z[i] < lbda[sec].max():
+                line_num += 1
+                yannot = 0.94 if (line_num % 2) == 0 else 0.90
                 ax.axvline(line_wav_z[i], color='Gray', ls='dotted', zorder=-1)
-                ax.annotate('{}'.format(line_names[i]), xy=(line_wav_z[i],1), xytext=(line_wav_z[i], 0.95),
+                ax.annotate('{}'.format(line_names[i]), xy=(line_wav_z[i],1), xytext=(line_wav_z[i], yannot),
                             xycoords=('data', 'axes fraction'), arrowprops=dict(facecolor='None', edgecolor='None',
                                                                                 headwidth=0., headlength=0, width=0,
                                                                                 shrink=0.),
@@ -90,13 +93,13 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax.set_ylim(ymin, ymax)
     ax.set_xlabel('Wavelength  (Angstrom)')
     ax.set_ylabel(r'Counts')
-    plt.legend(loc=2)
+    plt.legend(loc=3)
     ax2 = plt.subplot2grid((1, 4), (0, 3), rowspan=1, colspan=1)
     ax2.minorticks_on()
     bins = np.arange(np.nanmin(ratio), np.nanmax(ratio), 0.1)
     hist_n, hist_bins, _ = ax2.hist(ratio, bins=bins, histtype='stepfilled')
     mod_mods = Gaussian1D(amplitude=hist_n.max(), mean=np.median(ratio), stddev=1.)
-    ax2.plot(bins, mod_mods(bins), label=r"Gaussian ($\sigma=1$)")
+    ax2.plot(bins, mod_mods(bins), label=r"$\sigma=1$")
     ax2.axvline(0, ls='dotted', color='Gray')
     ax2.set_xlim(-6.5, 6.5)
     ax2.set_ylim(-0.02, hist_n.max()*1.5)
@@ -179,6 +182,8 @@ class ChkNoise1D(scriptbase.ScriptBase):
             if args.z is not None:
                 z = zs[i] if zs.size == files.size else zs[0]
                 line_wav_z *= (1+z)   # redshifted linelist
+            else:
+                z = None
 
             # this file and header
             file = files[i]
@@ -253,5 +258,5 @@ class ChkNoise1D(scriptbase.ScriptBase):
                     # Plot
                     ratio = flux[input_mask]/err[input_mask]
                     plot(args, line_wav_z, line_names, flux, err, mask, input_mask, ratio, lbda, basename,
-                         folder=folder, z=None, plot_shaded=plot_shaded)
+                         folder=folder, z=z, plot_shaded=plot_shaded)
 
