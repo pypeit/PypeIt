@@ -14,7 +14,7 @@ from astropy.modeling.models import Gaussian1D
 from astropy.io import fits
 
 from pypeit.scripts import scriptbase
-from pypeit import utils, io
+from pypeit import utils
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit.onespec import OneSpec
@@ -106,11 +106,11 @@ def plot(args, line_wav_z:np.ndarray, line_names:np.ndarray,
     ax2.set_xlabel(r'Flux/Noise')
     ax2.set_ylabel(r'#')
     err_over_flux = (np.median(err[input_mask])/mad_std(flux[input_mask]))
-    ax2.text(0.99, 0.95, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(np.median(err[input_mask]),
+    ax2.text(0.97, 0.93, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(np.median(err[input_mask]),
                                                                                        mad_std(flux[input_mask]),
                                                                                        err_over_flux),
              color='k', fontsize=9, horizontalalignment='right', transform=ax2.transAxes)
-    ax2.text(0.99, 0.90, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(np.median(ratio), mad_std(ratio)),
+    ax2.text(0.97, 0.87, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(np.median(ratio), mad_std(ratio)),
              color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
     ax2.legend(loc=2)
     plt.tight_layout()
@@ -148,9 +148,15 @@ class ChkNoise1D(scriptbase.ScriptBase):
         parser.add_argument('--step', default=False, help='Use `steps-mid` as linestyle', action='store_true')
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
         parser.add_argument('--maskdef_objname', default=None, type=str, help='MASKDEF_OBJNAME of the '
-                                                                              'target that you want to plot')
+                                                                              'target that you want to plot. '
+                                                                              'If maskdef_objname is not provided, '
+                                                                              'nor a pypeit_name, all the 1D spectra '
+                                                                              'in the file(s) will be plotted.')
         parser.add_argument('--pypeit_name', default=None, type=str, help='PypeIt name of the target that '
-                                                                          'you want to plot')
+                                                                          'you want to plot. '
+                                                                          'If pypeit_name is not provided, '
+                                                                          'nor a maskdef_objname, all the 1D spectra '
+                                                                          'in the file(s) will be plotted.')
         parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting '
                                                                         'a region of the spectrum to analyze.')
         parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting '
@@ -245,7 +251,7 @@ class ChkNoise1D(scriptbase.ScriptBase):
 
                     # determine if plotting the shaded area in the plot that shows the
                     # wavelength range used to compute the chi
-                    plot_shaded = False if (args.wavemin is None) and (args.wavemax is None) else True
+                    plot_shaded = False if args.wavemin is None and args.wavemax is None else True
 
                     # Save?
                     if args.plot_or_save == 'save':

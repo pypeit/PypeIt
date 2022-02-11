@@ -251,8 +251,7 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
-    def calc_chi_slit(self, slitidx:int, pad:int=None, 
-                      remove_object:bool=True):
+    def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
         """ Calculate a chi map and run some stats on it
         for a given slit/order
 
@@ -273,8 +272,7 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Chi
         chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
-        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (
-            self.bpmmask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
 
         # All bad?
         if np.all(chi_slit == 0):

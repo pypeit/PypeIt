@@ -5,8 +5,6 @@ for one of the outputs of PypeIt
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../include/links.rst
 """
-import imp
-import os
 
 import numpy as np
 
@@ -15,13 +13,11 @@ from matplotlib import pyplot as plt
 from astropy.stats import sigma_clip, mad_std
 from astropy.modeling.models import Gaussian1D
 from astropy.table import Table
-import argparse
-
-from sympy import im
 
 from pypeit import spec2dobj
 from pypeit import msgs
 from pypeit import io
+from pypeit import utils
 from pypeit.scripts import scriptbase
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.utils import list_of_spectral_lines
@@ -29,41 +25,58 @@ from pypeit.utils import list_of_spectral_lines
 from IPython import embed
 
 
-def plot(image:np.ndarray, line_wav:list, line_names:list, 
-         lbda:np.ndarray, lbda_min:float, lbda_max:float, aspect_ratio, 
-         chi_select, flux_select, err_select, filename:str):
+def plot(image:np.ndarray, chi_select:np.ndarray, flux_select:np.ndarray,
+         err_select:np.ndarray, basename:str, line_wav, line_names,
+         lbda_1d, lbda_min=None, lbda_max=None, aspect_ratio=1):
     """ Generate the plot
 
     Args:
-        image (np.ndarray): [description]
-        line_wav (list): [description]
-        line_names (list): [description]
-        lbda (np.ndarray): [description]
-        lbda_min (float): [description]
-        lbda_max (float): [description]
-        aspect_ratio ([type]): [description]
-        chi_select ([type]): [description]
-        flux_select ([type]): [description]
-        err_select ([type]): [description]
-        filename (str): [description]
+        image (np.ndarray):
+            Image of the slit to plot.
+        chi_select (`numpy.ndarray`_):
+            2D array of the chi value for a selected part of the slit.
+        line_wav (`numpy.ndarray`_):
+            Array of wavelength of spectral features to be plotted.
+        line_names (`numpy.ndarray`_):
+            Array of names of spectral features to be plotted.
+        lbda_1d (np.ndarray):
+            1D array of the wavelength
+        lbda_min (float):
+            Minimum wavelength of the select pat of the slit
+        lbda_max (float):
+            Maximum wavelength of the select pat of the slit
+        aspect_ratio ([type]):
+            Aspect ratio for plotting the spec2d image.
+        flux_select (`numpy.ndarray`_):
+            Flux of the 2D spectrum
+        err_select (`numpy.ndarray`_):
+            Sig of the 2D spectrum
+        basename (:obj:`str`):
+            Basename
     """
-    fig=plt.figure(figsize=(23,4.))
-    ax=plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=3)
+    fig = plt.figure(figsize=(23,4.))
+    ax = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=3)
     ax.minorticks_on()
     zmax = sigma_clip(image[image!=0], sigma=2, return_bounds=True)[2]*1.3
     zmin = sigma_clip(image[image!=0], sigma=2, return_bounds=True)[1]*1.3
-    ax.imshow(image.T, origin ='lower', interpolation='nearest', aspect=aspect_ratio, vmin=zmin, vmax=zmax, cmap=plt.get_cmap('gist_gray'))
-    ax.text(0.005, 1.1, '{}'.format(filename), color='k', fontsize=13, horizontalalignment='left', transform=ax.transAxes, bbox=dict(edgecolor='black', facecolor='white', linewidth=1))
+    ax.imshow(image.T, origin ='lower', interpolation='nearest', aspect=aspect_ratio,
+              vmin=zmin, vmax=zmax, cmap=plt.get_cmap('gist_gray'))
+    ax.text(0.005, -0.15, '{}'.format(basename), color='k', fontsize=13, horizontalalignment='left',
+            transform=ax.transAxes, bbox=dict(edgecolor='black', facecolor='white', linewidth=1))
     if line_wav.size>0:
+        line_num=0
         for i in range(line_wav.size):
+            line_num += 1
+            yannot = 1.03 if (i % 2) == 0 else 1.13
             ax.axvline(line_wav[i], color='black', ls='dotted', zorder=2)
-            ax.annotate('{}'.format(line_names[i]), 
-                        xy=(line_wav[i],1),
-                        xytext=(line_wav[i],1.03), 
-                        xycoords=('data', 'axes fraction'), 
-                        arrowprops=dict(facecolor='None', edgecolor='None', headwidth=0., headlength=0, width=0, shrink=0.), annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
-    #ax.axvspan(lbda.searchsorted(lbda_min), lbda.searchsorted(lbda_max), 
-    #           color='tab:green', alpha=0.2, zorder=2)
+            ax.annotate('{}'.format(line_names[i]), xy=(line_wav[i],1), xytext=(line_wav[i], yannot),
+                        xycoords=('data', 'axes fraction'),arrowprops=dict(facecolor='None', edgecolor='None',
+                                                                           headwidth=0., headlength=0, width=0,
+                                                                           shrink=0.),
+                        annotation_clip=True, horizontalalignment='center', color='k', fontsize=10)
+
+    if not (lbda_min is None and lbda_max is None):
+        ax.axvspan(lbda_1d.searchsorted(lbda_min), lbda_1d.searchsorted(lbda_max), color='tab:green', alpha=0.2, zorder=2)
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -71,21 +84,22 @@ def plot(image:np.ndarray, line_wav:list, line_names:list,
     ax2=plt.subplot2grid((1, 4), (0, 3), rowspan=1, colspan=1)
     ax2.minorticks_on()
 
-    bins=np.arange(chi_select[chi_select!=0].min(), 
-                    chi_select[chi_select!=0].max(), 0.1)
+    bins=np.arange(chi_select[chi_select!=0].min(), chi_select[chi_select!=0].max(), 0.1)
     hist_n, hist_bins, _ = ax2.hist(chi_select[chi_select!=0], bins=bins, histtype='stepfilled')
     mod_mods=Gaussian1D(amplitude=hist_n.max(), mean=np.median(chi_select[chi_select!=0]), stddev=1.)
-    ax2.plot(bins, mod_mods(bins), label=r"Gaussian ($\sigma=1$)")
+    ax2.plot(bins, mod_mods(bins), label=r"$\sigma=1$")
     ax2.axvline(0, ls='dotted', color='Gray')
-    ax2.set_xlim(hist_bins[:-1][hist_n > 10].min(), hist_bins[:-1][hist_n > 10].max())
+    ax2.set_xlim(-6.5,6.5)
     ax2.set_ylim(-0.02, hist_n.max()*1.5)
     ax2.set_xlabel(r'(sciimg - skymodel - objmodel) * sqrt(ivarmodel) * (bpmmask == 0)')
     ax2.set_ylabel(r'#')
     err_over_flux = (np.median(err_select[flux_select!=0])/mad_std(flux_select[flux_select!=0]))
-    ax2.text(0.99, 0.95, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(np.median(err_select[flux_select!=0]), mad_std(flux_select[flux_select!=0]), err_over_flux), color='k', fontsize=9, horizontalalignment='right', transform=ax2.transAxes)
-    ax2.text(0.99, 0.90, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(
-        np.median(chi_select[chi_select!=0]), 
-        mad_std(chi_select[chi_select!=0])), color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
+    ax2.text(0.97, 0.93, r'Median Noise= {:.1f} - Flux RMS= {:.1f} --> {:.2f}x'.format(
+        np.median(err_select[flux_select!=0]), mad_std(flux_select[flux_select!=0]), err_over_flux),
+             color='k', fontsize=9, horizontalalignment='right', transform=ax2.transAxes)
+    ax2.text(0.97, 0.87, r'Chi:  Median = {:.2f}, Std = {:.2f}'.format(
+        np.median(chi_select[chi_select!=0]), mad_std(chi_select[chi_select!=0])),
+             color='k', fontsize=12, horizontalalignment='right', transform=ax2.transAxes, weight='bold')
     ax2.legend(loc=2)
     plt.tight_layout()
 
@@ -104,16 +118,30 @@ class ChkNoise2D(scriptbase.ScriptBase):
                                  'it must match the name of the detector object (e.g., DET01 for '
                                  'a detector, MSC01 for a mosaic).')
         parser.add_argument('--z', default=None, type=float, nargs='*', help='Object redshift')
-        parser.add_argument('--maskdef_id', default=None, type=int, help='MASKDEF_ID of the slit that you want to plot')
-        parser.add_argument('--pypeit_id', default=None, type=int, help='PypeIt ID of the slit that you want to plot')
-        parser.add_argument('--pad', default=-5, type=int, help='[spec2d only] Padding for the selected slit. Negative value will trim. [default: -5]')
+        parser.add_argument('--maskdef_id', default=None, type=int, help='MASKDEF_ID of the slit that '
+                                                                         'you want to plot. If maskdef_id is '
+                                                                         'not provided, nor a pypeit_id, all the'
+                                                                         ' 2D spectra in the file(s) will be plotted.')
+        parser.add_argument('--pypeit_id', default=None, type=int, help='PypeIt ID of the slit that '
+                                                                        'you want to plot. If pypeit_id is not '
+                                                                        'provided, nor a maskdef_id, all the '
+                                                                        '2D spectra in the file(s) will be plotted.')
+        parser.add_argument('--pad', default=-5, type=int, help='Padding for the selected slit. '
+                                                                'Negative value will trim.')
         parser.add_argument('--aspect_ratio', default=3, type=int, help='Aspect ratio when plotting the spec2d')
-        parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting a region of the spectrum to analyze.')
-        parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting a region of the spectrum to analyze.')
-        parser.add_argument('--mode', default='plot', type=str, help='Do you want to save to disk or open a plot in a mpl window. If you choose save, a folder called spec2d*_noisecheck will be created and all the relevant plot will be placed there.')
+        parser.add_argument('--wavemin', default=None, type=float, help='Wavelength min. This is for selecting a '
+                                                                        'region of the spectrum to analyze.')
+        parser.add_argument('--wavemax', default=None, type=float, help='Wavelength max.This is for selecting a '
+                                                                        'region of the spectrum to analyze.')
+        parser.add_argument('--mode', default='plot', type=str, help='Options are: plot, save, print'
+                                                                     'Do you want to save to disk or open a plot '
+                                                                     'in a mpl window. If you choose save, a '
+                                                                     'folder called spec2d*_noisecheck will be '
+                                                                     'created and all the relevant plot will be '
+                                                                     'placed there. If you choose print, check noise '
+                                                                     'value are printed in the terminal')
         parser.add_argument('--list', default=False, help='List the extensions only?',
                             action='store_true')
-        #parser.add_argument('--det', default=1, type=int, help='Detector number')
         return parser
 
 
@@ -140,7 +168,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
         # Loop on the files
         for i in range(files.size):    
             # reinitialize lines wave
-            line_wav_z=line_wav.copy()
+            line_wav_z = line_wav.copy()
 
             # Load 2D object
             file = files[i]
@@ -158,6 +186,7 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 z = None
 
             # Save?
+            folder = None
             if args.mode == 'save':
                 folder = '{}_noisecheck'.format(file.split('.fits')[0])
                 if not os.path.exists(folder): os.makedirs(folder)
@@ -171,9 +200,6 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 print(tbl)
                 print('-----------------------------------------------------')
                 return
-
-            # Generate chi image
-            chi = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
 
             # Find the slit of interest
             all_maskdef_ids = spec2DObj.slits.maskdef_id
@@ -189,35 +215,33 @@ class ChkNoise2D(scriptbase.ScriptBase):
                 input_mask *= spec2DObj.waveimg < args.wavemax
 
             # Decide on slits to show
+            show_slits = range(all_pypeit_ids.size)
             if args.pypeit_id is not None or args.maskdef_id is not None:
                 if args.maskdef_id is not None and args.maskdef_id in all_maskdef_ids:
-                    pypeit_id = all_pypeit_ids[all_maskdef_ids==args.maskdef_id][0]
-                    slitidx = np.where(all_maskdef_ids==args.maskdef_id)[0][0]
+                    slitidx = np.where(all_maskdef_ids == args.maskdef_id)[0][0]
                 elif args.pypeit_id is not None and args.pypeit_id in all_pypeit_ids:
-                    pypeit_id = args.pypeit_id
-                    slitidx = np.where(all_pypeit_ids==args.pypeit_id)[0][0]
+                    slitidx = np.where(all_pypeit_ids == args.pypeit_id)[0][0]
                 show_slits = range(slitidx, slitidx+1)
-            else:
-                show_slits = range(all_pypeit_ids.size)
-
 
             # loop on em
             for i in show_slits:
                 pypeit_id = all_pypeit_ids[i]
                 if all_maskdef_ids is not None:
-                    filename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(
-                        spec2DObj.head0['DECKER'], args.det, all_maskdef_ids[i], pypeit_id)
+                    basename = '{}_DET{}_maskdefID{}_pypeitID{}'.format(spec2DObj.head0['DECKER'],
+                                                                        args.det, all_maskdef_ids[i], pypeit_id)
                 else:
-                    filename = '{}_DET{}_pypeitID{}'.format(
-                        spec2DObj.head0['DECKER'], args.det, pypeit_id)
+                    basename = '{}_DET{}_pypeitID{}'.format(spec2DObj.head0['DECKER'], args.det, pypeit_id)
 
                 # Chi
                 chi_slit, _, _ = spec2DObj.calc_chi_slit(i, pad=args.pad)
 
+                if chi_slit is None:
+                    continue
+
                 # Cut down
                 chi_select = chi_slit * input_mask
                 if np.all(chi_select == 0):
-                    msgs.warn(f"All of the chi values are masked in {filename}!")
+                    msgs.warn(f"All of the chi values are masked in slit {pypeit_id} of {basename}!")
                     continue
 
                 # Flux to show
@@ -226,35 +250,33 @@ class ChkNoise2D(scriptbase.ScriptBase):
                     flux_select -= spec2DObj.objmodel
                 flux_select *= input_mask
                 # Error
-                err_select = 1/np.sqrt(spec2DObj.ivarmodel)* input_mask
+                err_select = np.sqrt(utils.inverse(spec2DObj.ivarmodel)) * input_mask
 
-                # Wavelengths
+                # get edges of the slit to plot
                 left, right, _ = spec2DObj.slits.select_edges()
                 spat_start = int(left[:, i].min())
                 spat_end = int(right[:, i].max())
+                mid_spat = int((spat_end + spat_start)/2.)
 
-                slit_select = spec2DObj.slits.slit_img(pad=args.pad, slitidx=slitidx)
-                in_slit = slit_select == spec2DObj.slits.spat_id[slitidx]
-
-                lbda = spec2DObj.waveimg[in_slit]
-                if lbda[lbda!=0].size == 0:
-                    msgs.warn(f"None of the wavelength values work for {filename}!")
+                # Wavelengths
+                if spec2DObj.waveimg[input_mask].size == 0:
+                    msgs.warn(f"None of the wavelength values work in slit {pypeit_id} of {basename}!")
                     continue
+                lbda_1darray = spec2DObj.waveimg[:, mid_spat]
 
                 line_wav_plt = np.array([])
                 line_names_plt = np.array([])
                 if z is not None:
                     for i in range(line_wav_z.shape[0]):
-                        if (line_wav_z[i]>lbda[lbda!=0].min())&(line_wav_z[i]<lbda[lbda!=0].max()):
-                            line_wav_plt = np.append(line_wav_plt, lbda.searchsorted(line_wav_z[i]))
+                        if lbda_1darray[lbda_1darray != 0].min() < line_wav_z[i] < lbda_1darray[lbda_1darray != 0].max():
+                            line_wav_plt = np.append(line_wav_plt, lbda_1darray.searchsorted(line_wav_z[i]))
                             line_names_plt = np.append(line_names_plt, line_names[i])
 
-                lbda_min = args.wavemin if args.wavemin is not None else lbda[lbda!=0].min()
-                lbda_max = args.wavemax if args.wavemax is not None else lbda[lbda!=0].max()
-                plot(chi_slit[:, spat_start:spat_end], line_wav_plt, line_names_plt, 
-                    lbda, lbda_min, lbda_max, 
-                    args.aspect_ratio, chi_select, flux_select, 
-                    err_select, filename)
-                if args.mode == 'plot': plt.show()
-                if args.mode == 'save': plt.savefig('{}/noisecheck_{}.png'.format(folder, filename), bbox_inches='tight', dpi=400)
+                plot(chi_slit[:, spat_start:spat_end], chi_select, flux_select, err_select, basename,
+                     line_wav_plt, line_names_plt, lbda_1darray, lbda_min=args.wavemin,
+                     lbda_max=args.wavemax, aspect_ratio=args.aspect_ratio)
+                if args.mode == 'plot':
+                    plt.show()
+                if args.mode == 'save':
+                    plt.savefig('{}/noisecheck_{}.png'.format(folder, basename), bbox_inches='tight', dpi=400)
                 plt.close()
