@@ -376,6 +376,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     slit_width = slit_righ - slit_left
     slit_spec_pos = nspec/2.0
 
+    # TODO JFH This hand apertures in echelle needs to be completely refactored.
     # Hand prep
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
@@ -482,7 +483,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     # one obj_id per order
                     min_dist_ind = 0
                 ind_rest = np.setdiff1d(ind,ind[min_dist_ind])
-                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
+                # JFH OLD LINE with bug
+                #obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
+                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id.max()
 
     uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
     nobj = len(uni_obj_id)
@@ -512,7 +515,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     # Reset names (just in case)
     sobjs_align.set_names()
-
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
     # where no object was found
@@ -556,12 +558,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         else:
             frac_mean_new = np.full(norders, uni_frac[iobj])
 
+
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
             on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
-            if not np.any(on_order):
-                # Add this to the sobjs_align, and assign required tags
+            num_on_order = np.sum(on_order)
+            if num_on_order == 0:
+                # If it is not, create a new sobjs and add to sobjs_align and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
                                              ECH_ORDERINDX=iord,
@@ -596,6 +600,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
+            elif num_on_order == 1:
+                # Object is already on this order so no need to do anything
+                pass
+            elif num_on_order > 1:
+                msgs.error('Problem in echelle object finding. The same objid={:d} appears {:d} times on echelle orderindx ={:d}'
+                           ' even after duplicate obj_ids the orders were removed. '
+                           'Report this bug to PypeIt developers'.format(uni_obj_id[iobj],num_on_order, iord))
+
+
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
     varimg = utils.calc_ivar(ivar)
@@ -986,26 +999,29 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 
     ##   New CODE
     # 1st iteration
+
+    gauss_smth_sigma = (fwhm/2.3548) # JFH Reduced by two
     smash_mask = np.isfinite(flux_mean)
     flux_mean_med0 = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = flux_mean_med0
     fluxsub0 = flux_mean - flux_mean_med0
-    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, fwhm/2.3548, mode='nearest')
+    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
 
+    #show_cont=True
     cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask0 = arc.iter_continuum(
-        fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
+        fluxconv0, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
         qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
 
     # Second iteration
     flux_mean_med = np.median(flux_mean[cont_mask0])
     fluxsub = flux_mean - flux_mean_med
-    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
+    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, gauss_smth_sigma, mode='nearest')
 
     cont, cont_mask = arc.iter_continuum(
         fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
         qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use

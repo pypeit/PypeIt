@@ -184,7 +184,7 @@ class FindObjects:
         self.det = caliBrate.det
         self.binning = caliBrate.binning
         self.pypeline = spectrograph.pypeline
-        self.reduce_show = show
+        self.findobj_show = show
 
         self.steps = []
 
@@ -193,7 +193,6 @@ class FindObjects:
         self.objimage = None
         self.skyimage = None
         self.initial_sky = None
-        self.global_sky = None
         self.skymask = None
         self.outmask = None
         self.extractmask = None
@@ -201,6 +200,11 @@ class FindObjects:
         self.sobjs_obj = None
         self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
         self.vel_corr = None
+
+        # Show?
+        if self.findobj_show:
+            self.show('image', image=sciImg.image, chname='processed', slits=True, clear=True)
+
 
     def create_skymask(self, sobjs_obj):
         r"""
@@ -306,7 +310,7 @@ class FindObjects:
         sobjs_obj, self.nobj = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
-                              show=self.reduce_show and not self.std_redux,
+                              show=self.findobj_show and not self.std_redux,
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
 
         # create skymask using first pass sobjs_obj
@@ -320,7 +324,7 @@ class FindObjects:
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky,
-                                                     std_trace=std_trace, show=self.reduce_show,
+                                                     std_trace=std_trace, show=self.findobj_show,
                                                      show_peaks=show_peaks)
         else:
             msgs.info("Skipping 2nd run of finding objects")
@@ -528,7 +532,8 @@ class FindObjects:
         if show:
             sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs=sobjs_show, clear=False)
+            self.show('global', global_sky=global_sky, slits=True, sobjs=sobjs_show, clear=False)
+
 
         # Return
         return global_sky
@@ -590,7 +595,7 @@ class FindObjects:
             usersky = True
         return skymask_init, usersky
 
-    def show(self, attr, image=None, showmask=False, sobjs=None,
+    def show(self, attr, image=None, global_sky=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
         """
         Show one of the internal images
@@ -627,10 +632,10 @@ class FindObjects:
         img_gpm = self.sciImg.select_flag(invert=True)
         detname = self.spectrograph.get_det_name(self.det)
 
-        if attr == 'global' and all([a is not None for a in [self.sciImg.image, self.global_sky, self.sciImg.fullmask]]):
+        if attr == 'global' and all([a is not None for a in [self.sciImg.image, global_sky, self.sciImg.fullmask]]):
             # global sky subtraction
             # sky subtracted image
-            image = (self.sciImg.image - self.global_sky) * img_gpm.astype(float)
+            image = (self.sciImg.image - global_sky) * img_gpm.astype(float)
             mean, med, sigma = stats.sigma_clipped_stats(image[img_gpm], sigma_lower=5.0,
                                                          sigma_upper=5.0)
             cut_min = mean - 1.0 * sigma
@@ -639,25 +644,6 @@ class FindObjects:
             viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
                                             mask=mask_in, clear=clear, wcs_match=True)
                                           #, cuts=(cut_min, cut_max))
-        elif attr == 'sky_resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
-                                                                  self.ivarmodel, self.sciImg.fullmask]]):
-            # sky residual map with object included
-            image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
-            image *= img_gpm.astype(float)
-            ch_name = chname if chname is not None else f'sky_resid_{detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                            wcs_match=True)
-        elif attr == 'resid' and all([a is not None for a in [self.sciImg.image, self.skymodel, self.objmodel,
-                                                              self.ivarmodel, self.sciImg.fullmask]]):
-            # full residual map with object model subtractede
-            # full model residual map
-            image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-            image *= img_gpm.astype(float)
-            ch_name = chname if chname is not None else f'resid_{detname}'
-            viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                            bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                            wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
             viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
@@ -1209,7 +1195,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         if show:
             sobjs_show = None if show_objs else self.sobjs_obj
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show('global', slits=True, sobjs=sobjs_show, clear=False)
+            self.show('global', global_sky=global_sky, slits=True, sobjs=sobjs_show, clear=False)
         return global_sky
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
@@ -1250,11 +1236,11 @@ class IFUFindObjects(MultiSlitFindObjects):
         # Fit to the sky
         if self.par['reduce']['skysub']['joint_fit']:
             # Use sky information in all slits to perform a joint sky fit
-            self.global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
+            global_sky = self.joint_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
                                                 show_fit=show_fit, show=show, show_objs=show_objs)
         else:
             # Re-run global skysub on individual slits, with the science frame now scaled
-            self.global_sky = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
+            global_sky = super().global_skysub(skymask=skymask, update_crmask=update_crmask,
                                                     trim_edg=trim_edg, show_fit=show_fit,
                                                     show=show, show_objs=show_objs)
 
@@ -1295,7 +1281,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         #
         #     plt.show()
 
-        return self.global_sky
+        return global_sky
 
 
 

@@ -805,10 +805,6 @@ class PypeIt:
                                                         std_redux=self.std_redux,
                                                         show=self.show,
                                                         basename=self.basename)
-        # Show?
-        if self.show:
-            objFind.show('image', image=sciImg.image, chname='processed',
-                            slits=True, clear=True)
 
         # Do it
         initial_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=self.show)
@@ -870,11 +866,10 @@ class PypeIt:
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         # TODO Are we repeating steps in the init for FindObjects and Extract??
-        self.redux = extraction.Extract.get_instance(
+        self.exTract = extraction.Extract.get_instance(
             sciImg, sobjs_obj, self.spectrograph, 
             self.par, self.caliBrate, self.objtype, 
             bkg_redux=self.bkg_redux, 
-            find_negative=self.find_negative,
             std_redux=self.std_redux,
             show=self.show,
             basename=self.basename)
@@ -882,20 +877,19 @@ class PypeIt:
         if not self.par['reduce']['extraction']['skip_extraction']:
             # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
-                tilts = self.redux.run_extraction(final_global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
-                                                  dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
-                                                  return_negative=False)
+                tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
+                                         dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
-            self.redux.prepare_extraction(final_global_sky)
+            self.exTract.prepare_extraction(final_global_sky)
             # Since the extraction was not performed, fill the arrays with the best available information
-            skymodel = self.redux.global_sky
-            objmodel = np.zeros_like(self.redux.sciImg.image)
-            ivarmodel = np.copy(self.redux.sciImg.ivar)
-            outmask = self.redux.sciImg.fullmask
-            scaleImg = self.redux.scaleimg
-            waveImg = self.redux.waveimg
-            tilts = self.redux.tilts
+            skymodel = self.exTract.global_sky
+            objmodel = np.zeros_like(self.exTract.sciImg.image)
+            ivarmodel = np.copy(self.exTract.sciImg.ivar)
+            outmask = self.exTract.sciImg.fullmask
+            scaleImg = self.exTract.scaleimg
+            waveImg = self.exTract.waveimg
+            tilts = self.exTract.tilts
             sobjs = sobjs_obj
 
         # TODO -- Do this upstream
@@ -908,7 +902,7 @@ class PypeIt:
         # Construct table of spectral flexure
         spec_flex_table = Table()
         spec_flex_table['spat_id'] = self.caliBrate.slits.spat_id
-        spec_flex_table['sci_spec_flexure'] = self.redux.slitshift
+        spec_flex_table['sci_spec_flexure'] = self.exTract.slitshift
 
         # pull out maskdef_designtab from caliBrate.slits
         maskdef_designtab = self.caliBrate.slits.maskdef_designtab
@@ -927,7 +921,7 @@ class PypeIt:
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
                                         sci_spec_flexure=spec_flex_table,
-                                        vel_corr=self.redux.vel_corr,
+                                        vel_corr=self.exTract.vel_corr,
                                         vel_type=self.par['calibrations']['wavelengths']['refframe'],
                                         tilts=tilts,
                                         slits=slits,
