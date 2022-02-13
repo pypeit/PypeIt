@@ -254,3 +254,9 @@ will need to edit by hand. The two columns added, ``comb_id`` and
 :doc:`A-B_differencing` for the syntax used for the data in these
 columns and how ``PypeIt`` uses them.
 
+
+-m option
++++++++++
+
+If you wish to include a column where you can include
+input for :doc:`manual` then use this additional flag.

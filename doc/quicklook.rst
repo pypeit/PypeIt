@@ -164,3 +164,50 @@ MOSFIRE QL Output
 If all goes smoothly, a ginga window will open with the resulting image.
 
 
+.. _pypeit-ql-deimos:
+
+pypeit_ql_deimos
+================
+
+This scripts enables quicklook reductions on :doc:`deimos` data.
+
+For the user at WMKO, the general procedure is two steps:
+  (1) run the script on your afternoon calibrations;
+  (2) run the script during the night on a given slit on a given detector.
+
+Afternoon Calibrations
+++++++++++++++++++++++
+
+To enable fast reductions during the night, 
+you will need to have processed the calibrations for
+at least the detectors that you will want to inspect during the night.  
+The calibration processing is expensive (~1 hour per detector per setup) 
+and future work should enable
+this to launch as a multi-process job.
+
+Here is an example call that will reduce the 3rd detector for all of
+the masks in the specified path::
+    
+    pypeit_ql_keck_deimos full_path_to_raw_files --root=DE. -d=3 --redux_path=path_for_calibs --calibs_only
+
+This will process all the raw files in `full_path_to_raw_files` and put the calibration
+outputs in `path_for_calibs`.  And only for detector=3.
+
+If you are running at WMKO and have access to a sizeable machine with
+50+Gb RAM and 8 processors, you can launch one command like the one above for
+each detector.
+
+One Slit
+++++++++
+
+To reduce a single slit on a single detector for a single exposure, you would issue
+a command like::
+
+    pypeit_ql_keck_deimos full_path_to_raw_files --science=DE.20130409.20629.fits --slit_spat=3:763 --redux_path=path_to_calibs 
+
+This will process and extract spectra from the slit_id=763 in the 
+science exposure DE.20130409.20629.fits.  Again, you specify
+the path to the RAW frames and the `path_for_calibs` which is also
+where the reduced spectra will appear.  
+
+We estimate 2min for full extraction on a single slit.

@@ -17,7 +17,6 @@ from IPython import embed
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
-import bottleneck
 
 from scipy import interpolate, ndimage
 
@@ -29,6 +28,7 @@ from astropy import stats
 
 from pypeit.core import pydl
 from pypeit import msgs
+from pypeit.move_median import move_median
 
 
 def get_time_string(codetime):
@@ -477,9 +477,9 @@ def rebin_evlist(frame, newshape):
     # https://scipy-cookbook.readthedocs.io/items/Rebinning.html
     shape = frame.shape
     lenShape = len(shape)
-    factor = np.asarray(shape)/np.asarray(newshape)
+    factor = (np.asarray(shape)/np.asarray(newshape)).astype(int)
     evList = ['frame.reshape('] + \
-             ['int(newshape[%d]),int(factor[%d]),'% (i, i) for i in range(lenShape)] + \
+             ['int(newshape[%d]),factor[%d],'% (i, i) for i in range(lenShape)] + \
              [')'] + ['.sum(%d)' % (i+1) for i in range(lenShape)] + \
              ['/factor[%d]' % i for i in range(lenShape)]
     return eval(''.join(evList))
@@ -628,7 +628,7 @@ def fast_running_median(seq, window_size):
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    result = bottleneck.move_median(seq_pad, window=window_size)
+    result = move_median.move_median(seq_pad, window_size)
 
     # This takes care of the offset produced by the original code deducec by trial and error comparison with
     # scipy.ndimage.filters.medfilt
@@ -1030,7 +1030,11 @@ def yamlify(obj, debug=False):
 #    elif isinstance(obj, bytes):
 #        obj = obj.decode('utf-8')
     elif isinstance(obj, (np.string_, str)):
-        obj = str(obj)
+        # Worry about colons!
+        if ':' in obj:
+            obj = '"'+str(obj)+'"'
+        else:
+            obj = str(obj)
     elif isinstance(obj, units.Quantity):
         try:
             obj = obj.value.tolist()
@@ -1401,3 +1405,69 @@ def DFS(v: int, visited: List[bool], group: List[int], adj: np.ndarray):
             neighbors = [i for i in range(len(adj[u])) if adj[u,i]]
             for neighbor in neighbors:
                 stack.append(neighbor)
+
+def list_of_spectral_lines():
+    """ Generate a list of spectral lines
+
+    Returns:
+        tuple: np.ndarray, np.ndarray
+    """
+    # spectral features
+    CIVnam1, CIVwav1='CIV', 1548.
+    CIVnam2, CIVwav2='CIV', 1550.
+
+    HeIInam0, HeIIwav0='HeII', 1640.
+
+    OIIInam01, OIIIwav01='OIII]', 1661.
+    OIIInam02, OIIIwav02='OIII]', 1666.
+
+    SiIIInam1, SiIIIwav1='SiIII]', 1882.
+    SiIIInam2, SiIIIwav2='SiIII]', 1892.
+
+    CIIInam1, CIIIwav1='CIII]', 1907.
+    CIIInam2, CIIIwav2='CIII]', 1909.
+
+    Lyalphanam, Lyalphawav='Lyalpha', 1215.7
+    OIInam1, OIIwav1='[OII]', 3726
+    OIInam2, OIIwav2='[OII]', 3729
+    OIIInam1, OIIIwav1='[OIII]', 5007.
+    OIIInam2, OIIIwav2='[OIII]', 4959.
+    OIIInam3, OIIIwav3='[OIII]', 4363.
+    Halphanam, Halphawav='Halpha', 6563.
+    Hbetanam, Hbetawav='Hbeta', 4861.
+    Hdeltanam, Hdeltawav='Hdelta', 4101.
+    Hgammanam, Hgammawav='Hgamma', 4341.
+
+    NeIIInam, NeIIIwav = '[NeIII]', 3869.
+    NeVnam, NeVwav = '[NeV]', 3426.
+    SIInam1, SIIwav1 = '[SII]', 6716.
+    SIInam2, SIIwav2 = '[SII]', 6716.
+
+
+    ##absorption
+    H13nam, H13wav = 'H13', 3734.
+    H12nam, H12wav = 'H12', 3750.
+    H11nam, H11wav = 'H11', 3771.
+    H10nam, H10wav = 'H10', 3798.
+    H9nam, H9wav = 'H9', 3835.
+    H8nam, H8wav = 'H8', 3889.
+    HeInam, HeIwav = 'HeI', 3889.
+
+    CAII_Knam, CaII_Kwav = 'CaK', 3934.
+    CAII_Hnam, CaII_Hwav = 'CaH', 3968.
+
+    Gbandnam, Gbandwav = 'Gband', 4305.
+
+    line_names=np.array([CIVnam1, CIVnam2, HeIInam0, OIIInam01, OIIInam02, SiIIInam1, SiIIInam2,
+                         CIIInam1, CIIInam2, Lyalphanam, OIInam1, OIInam2, OIIInam1, OIIInam2,
+                         OIIInam3, Halphanam, Hbetanam, Hdeltanam, Hgammanam, NeIIInam, NeVnam,
+                         SIInam1, SIInam2, H13nam, H12nam, H11nam, H10nam, H9nam, H8nam, HeInam,
+                         CAII_Knam, CAII_Hnam, Gbandnam])
+
+    line_wav = np.array([CIVwav2, CIVwav2, HeIIwav0, OIIIwav01, OIIIwav02, SiIIIwav1, SiIIIwav2,
+                         CIIIwav1, CIIIwav2, Lyalphawav, OIIwav1, OIIwav2, OIIIwav1, OIIIwav2,
+                         OIIIwav3, Halphawav, Hbetawav, Hdeltawav, Hgammawav, NeIIIwav, NeVwav,
+                         SIIwav1,SIIwav2, H13wav, H12wav, H11wav, H10wav, H9wav, H8wav, HeIwav,
+                         CaII_Kwav, CaII_Hwav, Gbandwav])
+
+    return line_names, line_wav

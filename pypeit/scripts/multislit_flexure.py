@@ -6,8 +6,7 @@ Script to measure and correct for flexure in multi-slit data.
 """
 import os
 
-# TODO: Why not just from IPython import embed?  Are they different?
-from IPython.terminal.embed import embed
+from IPython import embed
 
 import numpy as np
 

@@ -752,6 +752,9 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
     sn_sigclip = stats.sigma_clip(sn_val_ma, sigma=3, maxiters=5)
     # TODO: Update with sigma_clipped stats with our new cenfunc and std_func = mad_std
     sn2 = (sn_sigclip.mean(axis=0).compressed())**2  #S/N^2 value for each spectrum
+    if sn2.shape[0] != nstack:
+        msgs.error('No unmasked value in one of the exposures. Check inputs.')
+
     rms_sn = np.sqrt(sn2)  # Root Mean S/N**2 value for all spectra
 
     # Check if relative weights input
@@ -1991,7 +1994,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
              maxrej=None, qafile=None, title='', debug=False,
              debug_scale=False, show_scale=False, show=False,
-             verbose=False):
+             verbose=True):
 
     '''
     Driver routine for coadding longslit/multi-slit spectra.
@@ -2068,6 +2071,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     Returns:
         tuple: Returns the following:
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom) evaluated at the bin centers,
+              uniformly-spaced either in lambda or log10-lambda/velocity. See core.wavecal.wvutils.py for more.
             - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
               spectrum. As discussed above, this is the weighted average
               of the wavelengths of each spectrum that contriuted to a
@@ -2077,8 +2082,8 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
               wave_stack is NOT simply the wave_grid bin centers, since
               it computes the weighted average.
             - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
-              wave_stack wavelength grid _ ivar_stack: ndarray,
-              (ngrid,): Inverse variance spectrum on wave_stack
+              wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on wave_stack
               wavelength grid. Erors are propagated according to
               weighting and masking.
             - mask_stack: ndarray, bool, (ngrid,): Mask for stacked
@@ -2091,7 +2096,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     ivars = np.float64(ivars)
 
     # Generate a giant wave_grid
-    wave_grid, _, _ = wvutils.get_wave_grid(waves, masks = masks, wave_method=wave_method,
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks = masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
                                             dloglam=dloglam, spec_samp_fact=spec_samp_fact)
@@ -2112,7 +2117,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
     if show:
         coadd_qa(wave_stack, flux_stack, ivar_stack, nused, mask=mask_stack, title='Stacked spectrum', qafile=qafile)
 
-    return wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
 #TODO: Make this read in a generalized file format, either specobjs or output of a previous coaddd.
 def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
@@ -2122,9 +2127,9 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
                    const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                    maxrej=None, phot_scale_dicts=None,
                    qafile=None, debug=False, debug_scale=False, show_scale=False, show=False):
-
-    '''
-    Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
+    """
+    Routine for coadding longslit/multi-slit spectra. Calls combspec which is
+    the main stacking algorithm.
 
     Args:
         waves (ndarray):
@@ -2206,24 +2211,28 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         show (bool): optional, default=False,
              Show key QA plots or not
 
-        Returns:
-            tuple: Returns the following:
+    Returns:
+        :obj:`tuple`: Returns the following:
 
-            - wave_stack: ndarray, (ngrid,)
-                 Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
-                 of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
-                 elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
-                 wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
-            - flux_stack: ndarray, (ngrid,)
-                 Final stacked spectrum on wave_stack wavelength grid
-            - ivar_stack: ndarray, (ngrid,)
-                 Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
-                 masking.
-            - mask_stack: ndarray, bool, (ngrid,)
-                 Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
-    '''
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or
+              log10-lambda/velocity.  See core.wavecal.wvutils.py for more.
+            - wave_stack: ndarray, (ngrid,): Wavelength grid for stacked
+              spectrum. As discussed above, this is the weighted average of the
+              wavelengths of each spectrum that contriuted to a bin in the input
+              wave_grid wavelength grid. It thus has ngrid elements, whereas
+              wave_grid has ngrid+1 elements to specify the ngrid total number
+              of bins. Note that wave_stack is NOT simply the wave_grid bin
+              centers, since it computes the weighted average.
+            - flux_stack: ndarray, (ngrid,): Final stacked spectrum on
+              wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,): Inverse variance spectrum on
+              wave_stack wavelength grid. Erors are propagated according to
+              weighting and masking.
+            - mask_stack: ndarray, bool, (ngrid,): Mask for stacked spectrum on
+              wave_stack wavelength grid. True=Good.
 
-
+    """
     # Decide how much to smooth the spectra by if this number was not passed in
     if sn_smooth_npix is None:
         nspec, nexp = waves.shape
@@ -2232,7 +2241,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
         sn_smooth_npix = int(np.round(0.1*nspec_eff))
         msgs.info('Using a sn_smooth_npix={:d} to decide how to scale and weight your spectra'.format(sn_smooth_npix))
 
-    wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
+    wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack = combspec(
         waves, fluxes,ivars, masks, wave_method=wave_method, dwave=dwave, dv=dv, dloglam=dloglam,
         spec_samp_fact=spec_samp_fact, wave_grid_min=wave_grid_min, wave_grid_max=wave_grid_max, ref_percentile=ref_percentile,
         maxiter_scale=maxiter_scale, sigrej_scale=sigrej_scale, scale_method=scale_method, hand_scale=hand_scale,
@@ -2246,7 +2255,7 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     #    save.save_coadd1d_to_fits(outfile, wave_stack, flux_stack, ivar_stack, mask_stack, header=header,
     #                              ex_value=ex_value, overwrite=True)
 
-    return wave_stack, flux_stack, ivar_stack, mask_stack
+    return wave_grid_mid, wave_stack, flux_stack, ivar_stack, mask_stack
 
 
 #def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
@@ -2362,6 +2371,9 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
 
     Returns:
         tuple: Returns the following:
+            - wave_grid_mid: ndarray, (ngrid,): Wavelength grid (in Angstrom)
+              evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity.
+              See core.wavecal.wvutils.py for more.
             - wave_giant_stack: ndarray, (ngrid,): Wavelength grid for
               stacked spectrum. As discussed above, this is the weighted
               average of the wavelengths of each spectrum that
@@ -2414,7 +2426,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
     scales = np.zeros_like(waves)
 
     # Generate a giant wave_grid
-    wave_grid, _, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
+    wave_grid, wave_grid_mid, _ = wvutils.get_wave_grid(waves, masks=masks, wave_method=wave_method,
                                             wave_grid_min=wave_grid_min,
                                             wave_grid_max=wave_grid_max, dwave=dwave, dv=dv,
                                             dloglam=dloglam, spec_samp_fact=spec_samp_fact)
@@ -2582,7 +2594,7 @@ def ech_combspec(waves, fluxes, ivars, masks, weights_sens, nbest=None, wave_met
     #                          header=header, ex_value=ex_value, overwrite=True)
 
 
-    return (wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack), \
+    return wave_grid_mid, (wave_giant_stack, flux_giant_stack, ivar_giant_stack, mask_giant_stack), \
            (waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders,)
 
 
@@ -2681,7 +2693,7 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
     """
     Determine the spatial bins for a 2d coadd and relative pixel coordinate images. This routine loops over all the
     images being coadded and creates an image of spatial pixel positions relative to the reference trace for each image
-    in used of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
+    in units of the desired rebinned spatial pixel sampling spat_samp_fact.  The minimum and maximum relative pixel positions
     in this frame are then used to define a spatial position grid with whatever desired pixel spatial sampling.
 
     Parameters
@@ -2735,7 +2747,8 @@ def get_spat_bins(thismask_stack, trace_stack, spat_samp_fact=1.0):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, spat_samp_fact=1.0,
+                    thismask_stack, waveimg_stack,
+                    wave_grid, spat_samp_fact=1.0, maskdef_dict=None,
                     weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -2746,10 +2759,11 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     covariant errors.  Dithering is supported as all images are centered
     relative to a set of reference traces in trace_stack.
 
-    ..todo.. -- These docs appear out-of-date
+    .. todo::
+        These docs appear out-of-date
 
     Args:
-        trace_stack (`numpy.ndarray`_):
+        ref_trace_stack (`numpy.ndarray`_):
             Stack of reference traces about which the images are
             rectified and coadded.  If the images were not dithered then
             this reference trace can simply be the center of the slit::
@@ -2760,7 +2774,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slitcen appropriately shifted with the dither pattern,
             or it could be the trace of the object of interest in each
             exposure determined by running PypeIt on the individual
-            images.  Shape is (nimgs, nspec).
+            images.  Shape is (nspec, nimgs).
         sciimg_stack (`numpy.ndarray`_):
             Stack of science images.  Shape is (nimgs, nspec, nspat).
         sciivar_stack (`numpy.ndarray`_):
@@ -2783,17 +2797,18 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Shape is (nimgs, nspec,
             nspat).
-        weights (`numpy.ndarray`_, optional):
+        weights (`numpy.ndarray`_ or str, optional):
             The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If no weights are provided,
-            uniform weighting is used.  Weights are broadast to the
-            correct size of the image stacks (see
-            :func:`broadcast_weights`), as necessary.  Shape must be
-            (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
+            :func:`weighted_combine`).  If weights is set to 'uniform' then a
+            uniform weighting is used.  Weights are broadast to the correct size
+            of the image stacks (see :func:`broadcast_weights`), as necessary.
+            If an array is passed in shape must be (nimgs,), (nimgs, nspec), or
+            (nimgs, nspec, nspat).  (TODO: JFH I think the str option should be
+            changed here, but am leaving it for now.)
         spat_samp_fact (float, optional):
-            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
-            will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
-
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
+            (i.e. bigger pixels) will downsample the images spatially, whereas <
+            1.0 will oversample. Default = 1.0
         loglam_grid (`numpy.ndarray`_, optional):
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
@@ -2802,10 +2817,16 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             Either `loglam_grid` or `wave_grid` must be provided.
         wave_grid (`numpy.ndarray`_, optional):
             Same as `loglam_grid` but in angstroms instead of
-            log(angstroms). (TODO: Check units...)
+            log(angstroms). (TODO: Check units.)
+        maskdef_dict (:obj:`dict`, optional):
+            Dictionary containing all the maskdef info. The quantities saved
+            are: maskdef_id, maskdef_objpos, maskdef_slitcen, maskdef_designtab.
+            To learn what they are see :class:`~pypeit.slittrace.SlitTraceSet`
+            datamodel.
 
     Returns:
         tuple: Returns the following (TODO: This needs to be updated):
+
             - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
               Rectified and coadded science image
             - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
@@ -2838,12 +2859,13 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
               information about the slits boundaries. The slit
               boundaries are trivial and are simply vertical traces at 0
               and nspat_coadd-1.
+
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
     # TODO -- If weights is a numpy.ndarray, how can this not crash?
     #   Maybe the doc string above is inaccurate?
-    if 'uniform' in weights:
+    if isinstance(weights,str) and weights == 'uniform':
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
 
@@ -2908,11 +2930,28 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         dspat_img_fake = spat_img_coadd + dspat_mid[0]
         dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
+    # initiate maskdef parameters
+    maskdef_id = None
+    maskdef_designtab = None
+    new_maskdef_objpos = None
+    new_maskdef_slitcen = None
+    if maskdef_dict is not None and maskdef_dict['maskdef_id'] is not None:
+        maskdef_id = maskdef_dict['maskdef_id']
+        # update maskdef_objpos and maskdef_slitcen with the new value in the new slit
+        if maskdef_dict['maskdef_objpos'] is not None and maskdef_dict['maskdef_slitcen'] is not None:
+            new_maskdef_objpos = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_objpos'])
+            # maskdef_slitcen is the old slit center
+            new_maskdef_slitcen = np.searchsorted(dspat[nspec_coadd//2, :], maskdef_dict['maskdef_slitcen'])
+        if maskdef_dict['maskdef_designtab'] is not None:
+            maskdef_designtab = maskdef_dict['maskdef_designtab']
+
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
                 imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
-                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
-
+                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1],
+                maskdef_id=maskdef_id, maskdef_slitcen=new_maskdef_slitcen,
+                maskdef_objpos=new_maskdef_objpos,
+                maskdef_designtab=maskdef_designtab)
 
 
 def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
@@ -3019,6 +3058,9 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
+# TODO: Do we need this function?  It's only used by sync_pair, which is only
+# used by pypeit/scripts/coadd_1dspec.py::coadd1d_filelist, which is only called
+# by a unit test.
 def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
     """
     From a set of spectra in a :class:`pypeit.specobjs.Specobjs`
@@ -3028,16 +3070,20 @@ def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
     of the spectrum
 
     Args:
-        spec (:class:`pypeit.specobjs.Specobjs`):
-        maxspat (int):
+        spec (:class:`~pypeit.specobjs.Specobjs`):
+            Extracted spectra
+        maxspat (:obj:`int`):
             Size of the array generated
-        det (int):
-        extract (str, optional):  Type of extraction performed
-        sigma (float, optional):  sigma of the Gaussian peaks generated
+        det (:obj:`str`):
+            String identifier for the detector or mosaic
+        extract (:obj:`str`, optional):
+            Type of extraction performed
+        sigma (:obj:`float`, optional):
+            sigma of the Gaussian peaks generated
 
     Returns:
-        `numpy.ndarray`_:
-
+        `numpy.ndarray`_: A vector with a series of Gaussians at the locations
+        of the extracted spectra.
     """
     # Generate "arc spectra"
     arc_spec = np.zeros(maxspat)
@@ -3108,6 +3154,9 @@ def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
     sync_dict[indx]['files'] += files[keep].tolist()
     sync_dict[indx]['names'] += names[keep].tolist()
 
+# TODO: Is this function every used outside of
+# pypeit/scripts/coadd_1dspec.py::coadd1d_filelist?  That function doesn't seem
+# to be used anywhere except for a test, so do we need this function?
 def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
     """
     Routine to sync up spectra in a pair of :class:`pypeit.specobjs.Specobjs`
@@ -3116,7 +3165,9 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
     Args:
         spec1_file (str):
         spec2_file (str):
-        det (int):
+        det (:obj:`str`):
+            String identifier for the detector or mosaic with the extracted
+            spectra.
         sync_dict (dict):
         sync_toler (int):
         debug:

@@ -13,12 +13,7 @@ from pypeit.images import buildimage
 from pypeit import edgetrace, slittrace, specobjs
 from pypeit.spectrographs.keck_deimos import KeckDEIMOSSpectrograph
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.tests.tstutils import dev_suite_required, cooked_required
-
-
-def data_path(filename):
-    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-    return os.path.join(data_dir, filename)
+from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 
 
 # Load flats files
@@ -43,15 +38,15 @@ def test_assign_maskinfo_add_missing():
 
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det,
-                                                    par['calibrations']['traceframe'], flat_files(instr=name))
-        msbpm = instrument.bpm(traceImage.files[0], det)
+                                                    par['calibrations']['traceframe'],
+                                                    flat_files(instr=name))
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
 
         # Run edge trace
-        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'], bpm=msbpm, auto=True,
-                                       debug=False, show_stages=False,qa_path=None)
+        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'],
+                                       auto=True, debug=False, show_stages=False,qa_path=None)
 
         slits = edges.get_slits()
 
@@ -97,8 +92,9 @@ def test_assign_maskinfo_add_missing():
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
-        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
-                                                 par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])
+        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None],
+                                                 [det_par['platescale']], par['reduce']['slitmask'],
+                                                 par['reduce']['findobj']['find_fwhm'])
 
         # Test
         if name == 'keck_deimos':
@@ -126,11 +122,14 @@ def test_assign_maskinfo_add_missing():
         sobjs.write_to_fits({}, data_path('tst_sobjs.fits'))
         os.remove(data_path('tst_sobjs.fits'))
 
+
 @cooked_required
 def test_dith_obs():
     instr_names = ['keck_deimos']
-    flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_M_9000_dither', ifile)
-                for ifile in ['DE.20141022.12107.fits', 'DE.20141022.12185.fits', 'DE.20141022.12263.fits']]
+    flat_files = [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos',
+                              '830G_M_9000_dither', ifile) 
+                    for ifile in ['DE.20141022.12107.fits', 'DE.20141022.12185.fits',
+                                  'DE.20141022.12263.fits']]
     for name in instr_names:
         # Spectrograph
         instrument = load_spectrograph(name)
@@ -141,7 +140,6 @@ def test_dith_obs():
         # Built trace image
         traceImage = buildimage.buildimage_fromlist(instrument, det,
                                                     par['calibrations']['traceframe'], flat_files)
-        msbpm = instrument.bpm(traceImage.files[0], det)
 
         # load specific config parameters
         par = instrument.config_specific_par(traceImage.files[0])
@@ -149,9 +147,8 @@ def test_dith_obs():
         par['reduce']['slitmask']['bright_maskdef_id'] = 918850
 
         # Run edge trace
-        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'], bpm=msbpm, auto=True,
-                                       debug=False, show_stages=False,qa_path=None)
-
+        edges = edgetrace.EdgeTraceSet(traceImage, instrument, par['calibrations']['slitedges'],
+                                       auto=True, debug=False, show_stages=False, qa_path=None)
         slits = edges.get_slits()
 
         # Test that the maskfile is saved properly
@@ -173,7 +170,7 @@ def test_dith_obs():
                 sobj.MASKDEF_OBJNAME = None
                 sobj.RA = None
                 sobj.DEC = None
-                sobj.MASKDEF_EXTRACT = None
+                sobj.MASKDEF_EXTRACT = False
         sobjs.remove_sobj(idx_remove)
 
         if name == 'keck_deimos':
@@ -187,8 +184,9 @@ def test_dith_obs():
         # determine if slitmask offsets exist and compute an average offsets over all the detectors
         calib_slits = slittrace.average_maskdef_offset(calib_slits, det_par['platescale'], instrument.list_detectors())
         # slitmask design matching and add undetected objects
-        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None], [det_par['platescale']],
-                                                 par['reduce']['findobj']['find_fwhm'], par['reduce']['slitmask'])
+        sobjs = slittrace.assign_addobjs_alldets(sobjs, calib_slits, [None],
+                                                 [det_par['platescale']], par['reduce']['slitmask'],
+                                                 par['reduce']['findobj']['find_fwhm'])
 
         # Test
         if name == 'keck_deimos':
@@ -200,7 +198,6 @@ def test_dith_obs():
                 'Wrong object (yg_21385) location on the dithered DEIMOS slit'
 
 
-
 @dev_suite_required
 def test_deimosslitmask():
     f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '830G_M_8500',
@@ -208,4 +205,5 @@ def test_deimosslitmask():
     spec = KeckDEIMOSSpectrograph()
     spec.get_slitmask(f)
     assert spec.slitmask.nslits == 106, 'Incorrect number of slits read!'
+
 

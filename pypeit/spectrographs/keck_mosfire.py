@@ -178,8 +178,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             par['reduce']['slitmask']['assign_obj'] = True
             # force extraction of undetected objects
             par['reduce']['slitmask']['extract_missing_objs'] = True
-            # needed for better slitmask design matching
-            par['calibrations']['flatfield']['tweak_slits'] = False
             if 'long2pos' in self.get_meta_value(headarr, 'decker'):
                 # exclude the random slits outside the long2pos from slit tracing
                 pix_start, pix_end = self._long2pos_pos()
@@ -484,17 +482,32 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
     def list_detectors(self):
         """
-        List the detectors of this spectrograph, e.g., array([[1, 2, 3, 4], [5, 6, 7, 8]])
-        They are separated if they are split into blue and red detectors
+        List the *names* of the detectors in this spectrograph.
+
+        This is primarily used :func:`~pypeit.slittrace.average_maskdef_offset`
+        to measure the mean offset between the measured and expected slit
+        locations.
+
+        Detectors separated along the dispersion direction should be ordered
+        along the first axis of the returned array.  For example, Keck/DEIMOS
+        returns:
+        
+        .. code-block:: python
+        
+            dets = np.array([['DET01', 'DET02', 'DET03', 'DET04'],
+                             ['DET05', 'DET06', 'DET07', 'DET08']])
+
+        such that all the bluest detectors are in ``dets[0]``, and the slits
+        found in detectors 1 and 5 are just from the blue and red counterparts
+        of the same slit.
 
         Returns:
-            :obj:`tuple`: An array that lists the detector numbers, and a flag that if True
-            indicates that the spectrograph is divided into blue and red detectors. The array has
-            shape :math:`(2, N_{dets})` if split into blue and red dets, otherwise shape :math:`(1, N_{dets})`
+            `numpy.ndarray`_: The list of detectors in a `numpy.ndarray`_.  If
+            the array is 2D, there are detectors separated along the dispersion
+            axis.
         """
-        dets = np.array([range(self.ndet)])+1
-
-        return dets, False
+        return np.array([detector_container.DetectorContainer.get_name(i+1) 
+                            for i in range(self.ndet)])
 
     def get_slitmask(self, filename):
         """

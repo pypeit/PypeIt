@@ -40,9 +40,10 @@ def test_master_io():
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
     # Write
     master_filename = masterframe.construct_file_name(arcImage, 'A_01_22', master_dir=data_path(''))
+    assert master_filename == data_path('MasterArc_A_01_22.fits'), 'Master filename changed'
     arcImage.to_master_file(master_filename)
     # Read
-    _arcImage = buildimage.ArcImage.from_file(data_path('MasterArc_A_01_22.fits'))
+    _arcImage = buildimage.ArcImage.from_file(master_filename)
     assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
     # Cleanup
     os.remove(master_filename)

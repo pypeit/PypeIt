@@ -7,11 +7,12 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pypeit.scripts.chk_2dslits
    pypeit.scripts.chk_alignments
    pypeit.scripts.chk_edges
    pypeit.scripts.chk_flats
    pypeit.scripts.chk_for_calibs
+   pypeit.scripts.chk_noise_1dspec
+   pypeit.scripts.chk_noise_2dspec
    pypeit.scripts.chk_wavecalib
    pypeit.scripts.coadd_1dspec
    pypeit.scripts.coadd_2dspec
@@ -27,7 +28,9 @@ Submodules
    pypeit.scripts.multislit_flexure
    pypeit.scripts.obslog
    pypeit.scripts.parse_calib_id
+   pypeit.scripts.parse_slits
    pypeit.scripts.qa_html
+   pypeit.scripts.ql_keck_deimos
    pypeit.scripts.ql_keck_mosfire
    pypeit.scripts.ql_keck_nires
    pypeit.scripts.ql_mos

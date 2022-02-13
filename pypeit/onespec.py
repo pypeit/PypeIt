@@ -10,9 +10,11 @@ from IPython import embed
 
 import numpy as np
 
+from pypeit import utils
 from pypeit import datamodel
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
+
 
 class OneSpec(datamodel.DataContainer):
     """
@@ -33,9 +35,10 @@ class OneSpec(datamodel.DataContainer):
             Build from PYP_SPEC
 
     """
-    version = '1.0.0'
+    version = '1.0.1'
 
-    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang)'),
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array (Ang), weighted by pixel contributions'),
+                 'wave_grid_mid': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength grid (Ang) evaluated at the bin centers, uniformly-spaced either in lambda or log10-lambda/velocity'),
                  'flux': dict(otype=np.ndarray, atype=np.floating,
                               descr='Flux array in units of counts/s or 10^-17 erg/s/cm^2/Ang'),
                  'ivar': dict(otype=np.ndarray, atype=np.floating,
@@ -75,7 +78,7 @@ class OneSpec(datamodel.DataContainer):
         #
         return slf
 
-    def __init__(self, wave, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
+    def __init__(self, wave, wave_grid_mid, flux, PYP_SPEC=None, ivar=None, mask=None, telluric=None,
                  obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -83,6 +86,15 @@ class OneSpec(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    @property
+    def sig(self):
+        """ Return the 1-sigma array
+
+        Returns:
+            `numpy.ndarray`_: error array
+        """
+        return np.sqrt(utils.inverse(self.ivar))
+        
     def _init_internals(self):
         self.head0 = None
         self.filename = None

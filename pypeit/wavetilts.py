@@ -197,13 +197,17 @@ class BuildWaveTilts:
         self.master_key = master_key
         self.spat_flexure = spat_flexure
 
-        # --------------------------------------------------------------
-        # TODO: Build another base class that does these things for both
-        # WaveTilts and WaveCalib?
-
         # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
+        # TODO: This is currently hacked to deal with Mosaics
+        try:
+            self.nonlinear_counts = self.mstilt.detector.nonlinear_counts()
+        except:
+            self.nonlinear_counts = 1e10
+
+#        # Get the non-linear count level
+#        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+#            else self.mstilt.detector.nonlinear_counts()
+##            else self.spectrograph.nonlinear_counts(self.mstilt.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that

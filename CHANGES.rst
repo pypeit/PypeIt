@@ -1,4 +1,90 @@
 
+1.8.0 (12 Feb 2022)
+-------------------
+
+- Fixed a bug about how `maskdef_offset` is assigned to each detector
+- Changed default behavior for how PypeIt computes `maskdef_offset` for
+  DEIMOS.  It now uses by default the stars in the alignment boxes.
+- Introduces pypeit_parse_calib_id script
+- Refactor manual extraction
+- Fixed 2Dcoadd spec bugs for central wavelength dithers.
+- GMOS doc updates
+- Add 2D wavelength calibration image to MasterFlat output; include
+  wavelength calibration in pypeit_chk_flat ginga display.
+- Introduce mosaicing
+    - `det` arguments can now be tuples with a list of detectors to
+      combine into a mosaic.  Mosaics can now be defined in the pypeit
+      file using `detnum`; e.g., `detnum=(1,2)` creates a mosaic of
+      detectors 1 and 2.
+    - The tuples must be one among an allowed set defined by each
+      spectrograph class; see `gemini_gmos.py`.
+    - `DETECTOR` extensions in output files can now be either a
+      `DetectorContainer` object or a `Mosaic` object.  Both are now
+      written using `astropy.table.Table` instances.  `Mosaic` objects
+      just have more columns.
+    - The `otype` of `DataContainer` data-model components can now be a
+      tuple of `DataContainer` subclasses indicating that the component
+      has an optional type.
+    - Added the `one_row_table` class attribute to `DataContainer`,
+      which will try to force all the elements of a datamodel into a
+      binary table extension with a single row.
+    - Started propagation of name changes from, e.g., `DET01` to
+      `MSC01`, where the latter indicates the reduction uses the first
+      mosaic option for the spectrograph.  Keys for master calibration
+      frames are now, e.g., `A_1_DET01` instead of `A_1_01`.
+    - Currently only implemented for `gemini_gmos`.
+    - During processing, bias and dark images are left as separate
+      detector images, whereas all other images are mosaiced for further
+      processing.  This means that `RawImage` is now *always* 3D, where
+      `PypeItImage` can be either 2D or 3D.
+    - Added a `det_img` to `PypeItImage` datamodel to keep track of the
+      parent detector for each pixel in a mosaic.
+    - Added a `amp_img` to `PypeItImage` datamodel to keep track of the
+      parent amplifier for each pixel in a mosaic; this is the result of
+      mosaicing the `datasec_img` objects for each detector.
+- Improve performance of L.A.Cosmic algorithm:
+    - Switch to using ndimage.binary_dilation for growing masked regions
+    - Switch to astropy convolution for Laplace convolution
+    - Added faster block replication algorithm
+    - Fix iteration logic
+- Intermediate update to BPM.  Preference given to pulling this from the
+  relevant `PypeItImage` calibration image instead of always building it
+  from scratch.  That latter complicated things for mosaics.
+- First steps toward more robust treatment of saturation.
+- Dark counts used for calculating the shot noise now includes measured
+  dark images if provided
+- `PypeIt` file parameters can now parse sets of tuples; e.g.,
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
+  (3,4)]`.
+- `PypeIt.select_detectors` has been moved to `Spectrograph`.
+- Update for `LDT/DeVeny` including support for binned data,
+  `use_header` for reading arc lamps used from frames, and `reid_arxiv`
+  templates for three additional gratings.
+- Slurps in and uses slitmask design for Keck/LRIS (limited usage)
+- Hotfix for `gemini_gmos` mosaic tracing parameters
+- Include sky model in 2nd pass of global sky subtraction (not for IR
+  redux).
+- Skymask is now computed also for the maskdef_extract objects.
+- Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
+- Added pypeit_version to the pypeit file header.
+- Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
+- Improvements in `pypeit_coadd_2d`:
+    - `maskdef_id` assigned to each slit
+    - Assigning object's name, ra and dec to detected objects is now
+      available
+    - Force extract of undetected objects is now available
+    - `maskdef_offset` can be use as offsets in the coadd
+    - Coadding only a specific sets of slits is now possible with the
+      parset `--only_slits`
+    - If the user inputs a list of offsets, the weights can still be
+      computed if a bright object is found, otherwise uniform weigths
+      will be used
+    - Fixed manual extraction bug
+    - Various improvements in the flow of the code
+    - spec1d*.txt is now produced also for coadd2d
+- Scripts to explore the noise residuals in PypeIt
+
 
 1.7.0 (19 Nov 2021)
 -------------------
@@ -9,6 +95,8 @@
 - Pypeit can now read (currently for Keck DEIMOS only) the list of arc
   lamps from the header and use it for wavelength calibration.
 - Allow one to restrict the wavelength range of the arxiv template
+- Fixed a bug in HolyGrail that did not allow for sigdetect and rms_wavelength to be
+  slit dependent lists.
 - Set DEIMOS FWHM default to 10 pixels
 - Fixed a bug in HolyGrail that did not allow for sigdetect and
   rms_wavelength to be slit dependent lists.
@@ -21,7 +109,9 @@
       slitmask_offset, but the user can provide the maskdef_id of a slit
       with a bright object that can trace the offset.
     - improvements in the frame typing
-- Implements new Mark4 detector for Keck/LRISr (aka keck_lris_red_mark4)
+- Implements new Mark4 detector for Keck/LRISr  (aka keck_lris_red_mark4)
+- QL script for Keck/DEIMOS
+
 
 1.6.0 (1 Oct 2021)
 ------------------

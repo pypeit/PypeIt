@@ -24,6 +24,7 @@ Submodules
    pypeit.core.convert_DEIMOSsavfiles
    pypeit.core.datacube
    pypeit.core.extract
+   pypeit.core.findobj_skymask
    pypeit.core.fitting
    pypeit.core.flat
    pypeit.core.flexure
@@ -32,6 +33,7 @@ Submodules
    pypeit.core.load
    pypeit.core.meta
    pypeit.core.moment
+   pypeit.core.mosaic
    pypeit.core.parse
    pypeit.core.pca
    pypeit.core.pixels
@@ -44,6 +46,7 @@ Submodules
    pypeit.core.telluric
    pypeit.core.trace
    pypeit.core.tracewave
+   pypeit.core.transform
    pypeit.core.wave
 
 Module contents

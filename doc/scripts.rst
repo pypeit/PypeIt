@@ -134,17 +134,6 @@ run_pypeit
 
 This is the main executable for PypeIt.  See :doc:`running` for details.
 
-pypeit_view_fits
-================
-
-This is a wrapper to the Ginga image viewer.  It is a bit of a kludge
-in that it writes a dummy tmp.fits file to the harddrive and sends
-that into Ginga.  The dummy file is deleted afterwards.
-
-The script usage can be displayed by calling the script with the
-``-h`` option:
-
-.. include:: help/pypeit_view_fits.rst
 
 
 Data Processing Scripts
@@ -193,21 +182,22 @@ The script usage can be displayed by calling the script with the
 
 .. include:: help/pypeit_chk_flats.rst
 
-.. _pypeit_chk_2dslits:
 
 pypeit_chk_wavecalib
 ====================
 
 See :ref:`pypeit-chk-wavecalib` for details.
 
-pypeit_chk_2dslits
+.. _pypeit_parse_slits:
+
+pypeit_parse_slits
 ==================
 
 This script prints a simple summary of the state of the reduction
-for all of the slits in a given :doc:`out_spec2D` file.  
+for all of the slits in a given :doc:`out_spec2D` or MasterSlits file.  
 Here is a standard call::
 
-    pypeit_chk_2dslits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
+    pypeit_parse_slits spec2d_d0315_45929-agsmsk_DEIMOS_2018Mar15T124523.587.fits 
 
 And the output to screen will look like:
 
@@ -257,4 +247,58 @@ The script usage can be displayed by calling the script with the
 ``-h`` option:
 
 .. include:: help/pypeit_flux_setup.rst
+
+Data Exploration Scripts
+++++++++++++++++++++++++
+
+pypeit_view_fits
+================
+
+This is a simple wrapper to the Ginga image viewer that allows you to open and
+view both raw and processed files.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_view_fits.rst
+
+pypeit_chk_noise_1dspec
+=======================
+
+Script to view the chi distribution of the residuals 
+for a processed spectrum.  This makes most sense if 
+restricted to a region of he spectrum *without* signal.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_noise_1dspec.rst
+
+Here is an example from the Dev Suite:
+.. code-block:: console
+
+    pypeit_chk_noise_1dspec Science/spec1d_d0225_0054-16045h_DEIMOS_20190225T145727.158.fits
+
+pypeit_chk_noise_2dspec
+=======================
+
+Script to view the chi distribution of the residuals 
+for a processed slit (or order) of the 2D image.
+Both the sky and object model are subtracted.
+
+Ideally, one sees an image without structure and that the
+chi values are unit Gaussian distributed.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_noise_1dspec.rst
+
+Here is an example from the Dev Suite:
+
+.. code-block:: console
+
+    pypeit_chk_noise_2dspec spec2d_s190519_0067-J1450+3302_NIRES_20190519T095152.165.fits --pypeit_id 6
+
+
 
