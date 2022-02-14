@@ -67,7 +67,7 @@
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
 - Added row-dependent pattern-noise calculation
-- Improvements in `pypeit_coadd_2d`:
+- Improvements in `pypeit_coadd_2dspec`:
     - `maskdef_id` assigned to each slit
     - Assigning object's name, ra and dec to detected objects is now available
     - Force extract of undetected objects is now available
@@ -79,6 +79,12 @@
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
+-- Fixes a  bug in echelle object finding
+-- Attempt to make the threshold computation for object finding more robust.
+-- Fixed a bug in extraction for echelle spectrographs for IR reductions.
+-- Tuned up preivious refactor of object finding and extraction classes.
+-- Fixed a bug that was introduced in skymask definition.
+
 
 
 1.7.0 (19 Nov 2021)
