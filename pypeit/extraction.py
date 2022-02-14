@@ -27,23 +27,9 @@ from IPython import embed
 
 class Extract:
     """
-    This class will organize and run actions related to
-    finding objects, sky subtraction, and extraction for
+    This class will organize and run actions relatedt to sky subtraction, and extraction for
     a Science or Standard star exposure
 
-    Args:
-        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-            Image to reduce.
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-        caliBrate (:class:`~pypeit.calibrations.Calibrations`):
-        objtype (:obj:`str`):
-           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        bkg_redux (:obj:`bool`, optional):
-            If True, the sciImg has been subtracted by
-            a background image (e.g. standard treatment in the IR)
-        show (:obj:`bool`, optional):
-           Show plots along the way?
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -103,6 +89,13 @@ class Extract:
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
+            return_negative (:obj:`bool`, optional):
+                If True, negative objects from difference imaging will also be extracted and returned. Default=False.
+                This option only applies to the case where bkg_redux=True, i.e. typically a near-IR reduction
+                where difference imaging has been employed to perform a first-pass at sky-subtraction. The
+                default behavior is to not extract these objects, although they are masked in global sky-subtraction
+                (performed in the find_objects class), and modeled in local sky-subtraction (performed by this class).
+
             std_redux (:obj:`bool`, optional):
                 If True the object being extracted is a standards star
                 so that the reduction parameters can be adjusted accordingly.
@@ -110,8 +103,6 @@ class Extract:
                 Output filename used for spectral flexure QA
             show (:obj:`bool`, optional):
                 Show plots along the way?
-            **kwargs
-                Passed to Parent init
 
         Returns:
             :class:`~pypeit.extraction.Extract`:
@@ -677,6 +668,12 @@ class MultiSlitExtract(Extract):
 
     @property
     def nobj_to_extract(self):
+        """
+        See parent method docs.
+
+        Returns:
+
+        """
         return self.nsobj_to_extract
 
     # TODO: JFH Should we reduce the number of iterations for standards or
@@ -823,6 +820,12 @@ class EchelleExtract(Extract):
 
     @property
     def nobj_to_extract(self):
+        """
+        See parent method docs.
+
+        Returns:
+
+        """
 
         norders = self.order_vec.size
         if (self.nsobj_to_extract % norders) == 0:
