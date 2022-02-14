@@ -473,7 +473,8 @@ class PypeIt:
             # The default is to find_negative objects if the bg_frames are classified as "science", and to not find_negative
             # objects if the bg_frames are classified as "sky". This can be explicitly overridden if
             # par['reduce']['findobj']['find_negative'] is set to something other than the default of None.
-            self.find_negative = ('science' in self.fitstbl['frametype'][bg_frames[0]]) \
+            self.find_negative = (('science' in self.fitstbl['frametype'][bg_frames[0]]) |
+                                  ('standard' in self.fitstbl['frametype'][bg_frames[0]]))\
                 if self.par['reduce']['findobj']['find_negative'] is None else self.par['reduce']['findobj']['find_negative']
         else:
             self.bkg_redux = False

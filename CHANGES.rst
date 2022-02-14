@@ -84,7 +84,7 @@
 -- Fixed a bug in extraction for echelle spectrographs for IR reductions.
 -- Tuned up preivious refactor of object finding and extraction classes.
 -- Fixed a bug that was introduced in skymask definition.
-
+-- Fixed a bug where negative objects were not being found for IR reductions of standard stars.
 
 
 1.7.0 (19 Nov 2021)
