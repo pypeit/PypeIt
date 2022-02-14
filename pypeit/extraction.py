@@ -207,7 +207,11 @@ class Extract:
         Returns:
 
         """
-        return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign)
+
+        if len(self.sobjs_obj) > 0:
+            return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign)
+        else:
+            return 0
 
     @property
     def nobj_to_extract(self):
