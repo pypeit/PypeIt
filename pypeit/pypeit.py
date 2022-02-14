@@ -860,6 +860,7 @@ class PypeIt:
         else:
             final_global_sky = objFind.global_skysub(previous_sky=initial_sky, skymask=skymask, show=self.show)
 
+
         msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
 
         # Instantiate Reduce object

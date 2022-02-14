@@ -321,6 +321,7 @@ class FindObjects:
 
         # Global sky subtract (self.global_sky is also generated here)
         initial_sky = self.global_skysub(skymask=skymask_init).copy()
+
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky,
@@ -489,7 +490,10 @@ class FindObjects:
                                           counts=previous_sky,
                                           count_scale=self.sciImg.img_scale,
                                           noise_floor=self.sciImg.noise_floor)
-            self.sciImg.ivar = utils.inverse(var)
+            skysub_ivar = utils.inverse(var)
+        else:
+            skysub_ivar = self.sciImg.ivar
+
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -505,7 +509,7 @@ class FindObjects:
 
             # Find sky
             global_sky[thismask] = skysub.global_skysub(
-                self.sciImg.image, self.sciImg.ivar, self.tilts, thismask,
+                self.sciImg.image, skysub_ivar, self.tilts, thismask,
                 self.slits_left[:,slit_idx], self.slits_right[:,slit_idx],
                 inmask=inmask, sigrej=sigrej,
                 bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -942,6 +946,7 @@ class EchelleFindObjects(FindObjects):
             npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
             fwhm=self.par['reduce']['findobj']['find_fwhm'],
             use_user_fwhm=self.par['reduce']['extraction']['use_user_fwhm'],
+            nperorder=self.par['reduce']['findobj']['maxnumber'],
             maxdev=self.par['reduce']['findobj']['find_maxdev'],
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
