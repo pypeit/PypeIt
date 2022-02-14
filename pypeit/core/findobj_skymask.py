@@ -132,15 +132,12 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # computation from objs_in_slit is not necessarily that reliable and when large amounts of masking are performed
     # on narrow slits/orders, we have problems. We should revisit this after object finding is refactored since
     # maybe then the fwhm estimates will be more robust.
-    if (box_rad_pix is None) and np.any(sobj.smask_peakflux is None for sobj in sobjs):
+    if box_rad_pix is None and np.all([sobj.smash_peakflux is not None for sobj in sobjs]) \
+            and np.all([sobj.smash_peakflux != 0. for sobj in sobjs]):
         # TODO This is a kludge until we refactor this routine. Basically mask design objects that are not auto-ID
         # always have smash_peakflux undefined. If there is a hybrid situation of auto-ID and maskdesign, the logic
         # here does not really make sense. Soution would be to compute thershold and smash_peakflux for all objects.
         skymask = skymask_objflux | skymask_fwhm
-
-        skymask = skymask_objflux & skymask_fwhm
-        else:
-
     else:  # Enforces boxcar radius masking
         skymask = skymask_objflux & skymask_fwhm
 
