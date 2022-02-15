@@ -2,7 +2,7 @@ name: pypeit
 channels:
   - conda-forge
 dependencies:
-  - python>=3.7
+  - python>=3.7,<3.10
   - pyyaml>=5.4
   - requests>=2.26
   - packaging>=21.0
@@ -17,6 +17,7 @@ dependencies:
   - extension-helpers>=0.1
   - ginga>=3.2
   - qtpy>=1.11
+  - pyqt<6.0
   - pytest>=6.2
   - bottleneck
   - pip
