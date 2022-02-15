@@ -76,7 +76,7 @@ class FindObjects:
             WaveImage image generated on-the-spot
         slitshift (`numpy.ndarray`_):
             Global spectral flexure correction for each slit (in pixels)
-        vel_corr (:obj:`float`float):
+        vel_corr (:obj:`float`):
             Relativistic reference frame velocity correction (e.g. heliocentyric/barycentric/topocentric)
 
     """
@@ -95,15 +95,15 @@ class FindObjects:
         the description of the valid keyword arguments.
 
         Args:
-            sciImg (pypeit.images.scienceimage.ScienceImage):
+            sciImg (:class:`~pypeit.images.scienceimage.ScienceImage`):
                 Image to reduce.
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (pypeit.par.pyepeitpar.PypeItPar):
-            caliBrate (:class:`pypeit.calibrations.Calibrations`):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            par (:class:`~pypeit.par.pyepeitpar.PypeItPar`):
+            caliBrate (:class:`~pypeit.calibrations.Calibrations`):
             objtype (:obj:`str`):
-                Specifies object being reduced 'science' 'standard' 'science_coadd2d'.
-                TODO used only to determine the spat_flexure_shift and ech_order for coadd2d.
-                    Find a way to dermine those outside this class
+                Specifies object being reduced 'science' 'standard'
+                'science_coadd2d'.  This is used only to determine the
+                spat_flexure_shift and ech_order for coadd2d.
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
@@ -122,7 +122,7 @@ class FindObjects:
                 Passed to Parent init
 
         Returns:
-            :class:`pypeit.find_objects.FindObjects`:
+            :class:`~pypeit.find_objects.FindObjects`:
         """
         return next(c for c in utils.all_subclasses(FindObjects)
                     if c.__name__ == (spectrograph.pypeline + 'FindObjects'))(
@@ -203,18 +203,18 @@ class FindObjects:
         self.vel_corr = None
 
     def create_skymask(self, sobjs_obj):
-        """
+        r"""
         Creates a skymask from a SpecObjs object
 
         Args:
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
-            Objects for which you would like to create the mask
+                Objects for which you would like to create the mask
 
         Returns:
-            `numpy.ndarray`_: Boolean image with shape :math:`(N_{\rm spec}, N_{\rm spat})`
-            indicating which pixels are usable for global sky subtraction.
-            True = usable for sky subtraction, False = should be masked when sky subtracting.
-
+            `numpy.ndarray`_: Boolean image with shape :math:`(N_{\rm spec},
+            N_{\rm spat})` indicating which pixels are usable for global sky
+            subtraction.  True = usable for sky subtraction, False = should be
+            masked when sky subtracting.
         """
         # Masking options
         boxcar_rad_pix = None
@@ -1018,16 +1018,22 @@ class IFUFindObjects(MultiSlitFindObjects):
         self.sciImg.ivar = utils.inverse(varImg)
 
     def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0), debug=False):
-        """ Calculate the residual spatial illumination profile using the sky regions.
+        """
+        Calculate the residual spatial illumination profile using the sky regions.
+
         The redisual is calculated using the differential:
-        correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
-        where y is the spatial profile determined from illumflat, and spatial_shift
-        is the residual spatial flexure shift in units of pixels.
+
+        .. code-block:: python
+
+            correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
+
+        where ``y`` is the spatial profile determined from illumflat, and
+        spatial_shift is the residual spatial flexure shift in units of pixels.
 
          Args:
-             skymask (`numpy.ndarray`_):
+            skymask (`numpy.ndarray`_):
                 Mask of sky regions where the spatial illumination will be determined
-             trim_edg (:obj:`tuple`):
+            trim_edg (:obj:`tuple`):
                 A tuple of two ints indicated how much of the slit edges should be
                 trimmed when fitting to the spatial profile.
             debug (:obj:`bool`):

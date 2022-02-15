@@ -1049,6 +1049,7 @@ class RawImage:
         if self.oscansec_img.shape != self.image.shape:
             msgs.error('Must estimate readnoise before trimming the image.')
 
+        # Calculate the slit image
         _ps_img = [None]*self.nimg
         for i in range(self.nimg):
             # The image must have an overscan region for this to work.
@@ -1056,7 +1057,7 @@ class RawImage:
                 msgs.error('Image has no overscan region.  Pattern noise cannot be subtracted.')
 
             # Grab the frequency, if it exists in the header.  For some instruments,
-            # PYPEITFRQ is added to the header in get_rawimage() in the spectrograph
+            # PYPFRQ is added to the header in get_rawimage() in the spectrograph
             # file.  See keck_kcwi.py for an example.
             frequency = []
             try:

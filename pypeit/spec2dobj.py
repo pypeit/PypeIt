@@ -14,6 +14,7 @@ from copy import deepcopy
 import numpy as np
 
 from astropy.io import fits
+from astropy.stats import mad_std
 import astropy
 
 from pypeit import msgs
@@ -45,7 +46,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.3'
+    version = '1.0.4'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -76,6 +77,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
+                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                                           descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
@@ -89,6 +92,11 @@ class Spec2DObj(datamodel.DataContainer):
                                                    'Current list: observed, heliocentric, barycentric'),
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
+                 'med_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Median of the chi image for each slit/order'),
+                 'std_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='std of the chi image for each slit/order'),
+                 'det': dict(otype=int, descr='Detector index'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
@@ -122,7 +130,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
-                 vel_type, vel_corr, slits, tilts):
+                 vel_type, vel_corr, slits, tilts, maskdef_designtab):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -185,6 +193,9 @@ class Spec2DObj(datamodel.DataContainer):
             # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # maskdef_designtab
+            elif key == 'maskdef_designtab':
+                d.append(dict(maskdef_designtab=self.maskdef_designtab))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
@@ -245,6 +256,56 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
+    def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
+        """ Calculate a chi map and run some stats on it
+        for a given slit/order
+
+        Args:
+            slitidx (int): Given slit/order
+            pad (int, optional):  Ignore pixels within pad of edges. 
+                Defaults to None.
+            remove_object (bool, optional):  Remove object model (if 
+                it exists)
+
+        Returns:
+            tuple: np.ndarray (chi image), median (float), std (float)
+        """
+        slit_select = self.slits.slit_img(pad=pad, slitidx=slitidx)
+        skysub_img = self.sciimg - self.skymodel
+        if remove_object and self.objmodel is not None:
+            skysub_img -= self.objmodel
+
+        # Chi
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
+
+        # All bad?
+        if np.all(chi_slit == 0):
+            return None, 0., 0.
+        
+        # Stats
+        median = np.median(chi_slit[chi_slit!=0]) 
+        std = mad_std(chi_slit[chi_slit!=0])
+        #
+        return chi_slit, median, std
+
+    def gen_qa(self):
+        """ Generate QA for the slits/orders 
+
+        Saved to the DataContainer
+        """
+
+        # Loop on slits to generate stats on chi^2
+        med_chis = []
+        std_chis = []
+        for slitidx in range(self.slits.nslits):
+            _, med, std = self.calc_chi_slit(slitidx)
+            med_chis.append(med)
+            std_chis.append(std)
+        # Save
+        self.med_chis = np.array(med_chis)
+        self.std_chis = np.array(std_chis)
+        return
 
 class AllSpec2DObj:
     """

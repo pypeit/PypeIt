@@ -54,8 +54,7 @@
 - Dark counts used for calculating the shot noise now includes measured
   dark images if provided
 - `PypeIt` file parameters can now parse sets of tuples; e.g.,
-  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2),
-  (3,4)]`.
+  `detnum=(1,2),(3,4)` should get parsed as `par['detnum'] = [(1,2), (3,4)]`.
 - `PypeIt.select_detectors` has been moved to `Spectrograph`.
 - Update for `LDT/DeVeny` including support for binned data, `use_header`
   for reading arc lamps used from frames, and `reid_arxiv` templates for
@@ -65,10 +64,21 @@
 - Include sky model in 2nd pass of global sky subtraction (not for IR redux).
 - Skymask is now computed also for the maskdef_extract objects.
 - Added dedicated fwhm and boxcar_radius for maskdef_extract objects.
-- Added a new parset `skip_serendip` to skip th extraction of detected
-  objects considered a serendipitous detection.
 - Added pypeit_version to the pypeit file header.
 - Set DEIMOS `find_fwhm` default to 0.8" in binned pixels.
+- Added row-dependent pattern-noise calculation
+- Improvements in `pypeit_coadd_2d`:
+    - `maskdef_id` assigned to each slit
+    - Assigning object's name, ra and dec to detected objects is now available
+    - Force extract of undetected objects is now available
+    - `maskdef_offset` can be use as offsets in the coadd
+    - Coadding only a specific sets of slits is now possible with the parset `--only_slits`
+    - If the user inputs a list of offsets, the weights can still be computed
+      if a bright object is found, otherwise uniform weigths will be used
+    - Fixed manual extraction bug
+    - Various improvements in the flow of the code
+    - spec1d*.txt is now produced also for coadd2d
+- Scripts to explore the noise residuals in PypeIt
 
 
 1.7.0 (19 Nov 2021)

@@ -170,7 +170,7 @@ def test_dith_obs():
                 sobj.MASKDEF_OBJNAME = None
                 sobj.RA = None
                 sobj.DEC = None
-                sobj.MASKDEF_EXTRACT = None
+                sobj.MASKDEF_EXTRACT = False
         sobjs.remove_sobj(idx_remove)
 
         if name == 'keck_deimos':

@@ -81,7 +81,7 @@ must be **True**.  This is the default for DEIMOS (except when the *LongMirr* or
 MOSFIRE (except when the *LONGSLIT* mask is used).
 
 Currently, for LRIS one needs to add these explicitly to the 
-:doc:`pypeit_file`, e.g.::
+:ref:`pypeit_file`, e.g.::
 
     [calibrations]
     [[slitedges]]
