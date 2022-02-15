@@ -217,8 +217,8 @@ class SpecObj(datamodel.DataContainer):
         # Add in arrays
         for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
-        # Mask
-        slf[mode+'_MASK'] = slf[mode+'_COUNTS'] > 0.
+        # Mask. Watch out for places where ivar is infinite due to a divide by 0
+        slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
         return slf
 
     def _init_internals(self):
