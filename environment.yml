@@ -20,5 +20,8 @@ dependencies:
   - pyqt<6.0
   - pytest>=6.2
   - bottleneck
+  - scikit-image
   - pip
   - linetools>=0.3dev2231
+  - pip:
+    - pypeit
