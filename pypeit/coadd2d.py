@@ -613,7 +613,7 @@ class CoAdd2D:
                                                       parcopy['reduce']['findobj']['find_fwhm'])
                 # Assign undetected objects
                 sobjs_obj = slits.mask_add_missing_obj(sobjs_obj, None, fwhm,
-                                                       parcopy['reduce']['missing_objs_boxcar_rad']/platescale)
+                                                       parcopy['reduce']['slitmask']['missing_objs_boxcar_rad']/platescale)
 
         # Initiate Extract object
         exTract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
