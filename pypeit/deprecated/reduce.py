@@ -268,7 +268,7 @@ class Reduce:
                 else:
                     box_rad = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg,
-                                       global_sky, box_rad, sobj, base_var=self.sciImg.base_var,
+                                       global_sky, sobj, base_var=self.sciImg.base_var,
                                        count_scale=self.sciImg.img_scale,
                                        noise_floor=self.sciImg.noise_floor)
 
