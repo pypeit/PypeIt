@@ -61,7 +61,7 @@ MOSFIRE (except when the *LONGSLIT* or the *long2pos* mask is used).
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
-For LRIS one needs to add these explicitly to the :doc:`pypeit_file`, e.g.::
+For LRIS one needs to add these explicitly to the :ref:`pypeit_file`, e.g.::
 
     [reduce]
     [[slitmask]]
