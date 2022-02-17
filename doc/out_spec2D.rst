@@ -76,7 +76,6 @@ indicate traces for manually extracted objects.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
-.. _pypeit_parse_slits:
 
 pypeit_parse_slits
 ------------------
