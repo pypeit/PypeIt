@@ -86,17 +86,19 @@ and one is for the RA, Dec and object name assignment. They are the following.
 - **bright_maskdef_id**: ``maskdef_id`` (corresponding to ``dSlitId`` and ``Slit_Number`` in the DEIMOS
   and MOSFIRE slitmask design, respectively) of a slit containing a bright object that will be used
   to compute the slitmask offset. This parameter is optional (default value is **bright_maskdef_id=None**)
-  and is ignored if **slitmask_offset** is provided. However, this parameter is highly recommended
-  for MOSFIRE observations if a bright object is present in the slitmask, since it allows to
-  trace the small drifts of the objects position that have been typically seen in MOSFIRE data.
+  and is ignored if **slitmask_offset** is provided or **use_dither_offset = True**. However,
+  this parameter is highly recommended for MOSFIRE observations if a bright object is present in
+  the slitmask, since it allows to trace the small drifts of the objects position that have been
+  typically seen in MOSFIRE data.
 
 - **use_alignbox**: flag to use stars in alignment boxes to compute the slitmask offset. This is
-  available only for DEIMOS observations. If this is set to True PypeIt will NOT compute the
-  offset using **nsig_thrshd** or **bright_maskdef_id**. The default is **use_alignbox=False**.
+  available only for DEIMOS observations and it is set as the default for this instrument.
+  If **use_alignbox = True** PypeIt will NOT compute the offset using **nsig_thrshd** or
+  **bright_maskdef_id**.
 
 - **use_dither_offset**: flag to use the dither offset recorded in the header of science frames as the
   value of the slitmask offset. This is currently only available for MOSFIRE reduction and
-  it is set as the default for this instrument. When set to True PypeIt will NOT compute the
+  it is set as the default for this instrument. If **use_dither_offset = True** PypeIt will NOT compute the
   offset using `nsig_thrshd` or `bright_maskdef_id`. However, it is ignored if ``slitmask_offset`` is provided.
 
 - **slitmask_offset**: user-provided slitmask offset (pixels) from the position expected

@@ -3,7 +3,7 @@
 .. _coadd2d_howto:
 
 =============
-Coadd2d HOWTO
+Coadd2D HOWTO
 =============
 
 Overview
@@ -201,7 +201,7 @@ information printed on the terminal:
                              3          5.23
                  -------------------------------------
 
-This confirms that both offsets and weights are computed using an object with the highest S/N and it shows
+This confirms that both offsets and weights are computed using an object with the highest S/N and shows
 the report on what was found.
 
 LRIS: Output
