@@ -15,6 +15,10 @@ Installation
 
 .. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
 
+.. warning::
+
+    Python 3.10 is not yet supported.  
+
 Below, we provide detailed instructions for installing ``PypeIt``.  For
 troubleshooting, please consult our ``PypeIt`` user community via our PypeIt
 Users Slack and/or `submit an issue <https://github.com/pypeit/PypeIt/issues>`__

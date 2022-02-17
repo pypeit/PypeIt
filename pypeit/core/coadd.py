@@ -2759,7 +2759,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     covariant errors.  Dithering is supported as all images are centered
     relative to a set of reference traces in trace_stack.
 
-    ..todo.. -- These docs appear out-of-date
+    .. todo::
+        These docs appear out-of-date
 
     Args:
         ref_trace_stack (`numpy.ndarray`_):
@@ -2796,18 +2797,18 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
             the slit in question.  `True` values are on the slit;
             `False` values are off the slit.  Shape is (nimgs, nspec,
             nspat).
-        # TODO JFH I think the str option should be changed here, but am leaving it for now.
         weights (`numpy.ndarray`_ or str, optional):
             The weights used when combining the rectified images (see
             :func:`weighted_combine`).  If weights is set to 'uniform' then a
-            uniform weighting is used.  Weights are broadast to the
-            correct size of the image stacks (see
-            :func:`broadcast_weights`), as necessary.  If an array is passed in shape must be
-            (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
+            uniform weighting is used.  Weights are broadast to the correct size
+            of the image stacks (see :func:`broadcast_weights`), as necessary.
+            If an array is passed in shape must be (nimgs,), (nimgs, nspec), or
+            (nimgs, nspec, nspat).  (TODO: JFH I think the str option should be
+            changed here, but am leaving it for now.)
         spat_samp_fact (float, optional):
-            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0 (i.e. bigger pixels)
-            will downsample the images spatially, whereas < 1.0 will oversample. Default = 1.0
-
+            Spatial sampling for 2d coadd spatial bins in pixels. A value > 1.0
+            (i.e. bigger pixels) will downsample the images spatially, whereas <
+            1.0 will oversample. Default = 1.0
         loglam_grid (`numpy.ndarray`_, optional):
             Wavelength grid in log10(wave) onto which the image stacks
             will be rectified.  The code will automatically choose the
@@ -2823,6 +2824,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
 
     Returns:
         tuple: Returns the following (TODO: This needs to be updated):
+
             - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
               Rectified and coadded science image
             - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
@@ -2855,6 +2857,7 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
               information about the slits boundaries. The slit
               boundaries are trivial and are simply vertical traces at 0
               and nspat_coadd-1.
+
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
