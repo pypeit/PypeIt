@@ -84,6 +84,7 @@
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
+- Added Coadd2D HOWTO docs
 
 
 1.7.0 (19 Nov 2021)
