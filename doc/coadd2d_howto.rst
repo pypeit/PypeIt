@@ -107,7 +107,7 @@ This parameter defines the weights to be used in the 2D coadding.
 
 - ``weights = auto``: ``PypeIt`` will try to compute (S/N)^2 weights using the 1D extracted spectrum with
   the highest S/N. If such spectrum is not found in each frame that the user wants to coadd,
-  ``PypeIt`` will use uniform weights. **This is the default**
+  ``PypeIt`` will use uniform weights. **This is the default**.
 
 - ``weights`` is a `list` (e.g., ``weights = 1.,1.,1.``): These values will be used as they are.
 
@@ -168,7 +168,7 @@ Once the coadd2d file is ready, the main call is simply:
 
     $ pypeit_coadd_2dspec --file keck_lris_blue_multi_600_4000_d560.coadd2d --only_slits 30,70,111,156,216
 
-The ``--only_slits`` allows to perform the 2D coadding only for the selected slits.
+The ``--only_slits`` option allows to perform the 2D coadding only for the selected slits.
 Several options can be added to this simple run and you can find all of them in :ref:`pypeit-coadd-2dspec`.
 
 At the beginning of the run, the user should inspect the information printed on the terminal by the script,
@@ -246,7 +246,7 @@ example of how it looks::
     |  240 | SPAT0244-SLIT0240-DET02 |       244.2 |        0.563 |      3.00 |    1.045 | 0.87 |
 
 
-The spec1d can be also inspect with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
+The spec1d can also be inspected with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
 visual inspection and a noise diagnostic plot. Here is an example of the call and how the plots looks:
 
 .. code-block:: bash
@@ -361,7 +361,7 @@ A summary of all the extracted sources can be found in the `spec1d_DE.20170425.5
 file in the `Science_coadd` folder. See :ref:`deimos_howto:Spec1D` for an example of this file with the
 explanation for some columns.
 
-The spec1d can be also inspect with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
+The spec1d can also be inspected with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
 visual inspection and a noise diagnostic plot. See example in :ref:`inspecting_spec1d`.
 
 
@@ -409,7 +409,7 @@ Once the coadd2d file is ready, the main call is simply:
 
     $ pypeit_coadd_2dspec --file keck_mosfire.coadd2d --only_slits 1987,721,410,151
 
-The ``--only_slits`` allows to perform the 2D coadding only for the selected slits.
+The ``--only_slits`` option allows to perform the 2D coadding only for the selected slits.
 
 The script will print in the terminal something like this:
 
@@ -463,6 +463,6 @@ in the `Science_coadd` folder. Here is an example::
 
 
 
-The spec1d can be also inspect with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
+The spec1d can also be inspected with the script ``pypeit_chk_noise_1dspec``, which show the spec1D for
 visual inspection and a noise diagnostic plot. See example in :ref:`inspecting_spec1d`.
 
