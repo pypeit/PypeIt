@@ -204,6 +204,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
     Perform boxcar extraction for a single SpecObj.  The size of the boxcar must
     be available as an attribute of :class:`~pypeit.specobj.SpecObj`.
 
+
     Note that the provided :class:`~pypeit.specobj.SpecObj` (``spec``) is
     modified in place.
 

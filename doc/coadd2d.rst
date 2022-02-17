@@ -96,6 +96,8 @@ The parameters that guide the coadd process are also written
 to disk for your records. The default location is *coadd2d.par*.
 You can choose another location by modifying `--basename`_.
 
+See `Additional Reading`_ for some examples on how to run this script.
+
 
 Current Coadd2D Data Model
 ==========================
@@ -103,3 +105,13 @@ Current Coadd2D Data Model
 The outputs are identical to the standard run, as
 described in :doc:`out_spec1D` and :doc:`out_spec2D`.
 
+
+Additional Reading
+==================
+
+Here are additional docs related to coadd2d:
+
+.. toctree::
+   :maxdepth: 1
+
+   coadd2d_howto
