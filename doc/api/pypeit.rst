@@ -45,7 +45,6 @@ Submodules
    pypeit.pypeit
    pypeit.pypeitsetup
    pypeit.pypmsgs
-   pypeit.reduce
    pypeit.sampling
    pypeit.sensfilearchive
    pypeit.sensfunc

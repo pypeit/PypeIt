@@ -18,17 +18,20 @@
       --fileformat FILEFORMAT
                             Is this coadd1d or spec1d? (default: spec1d)
       --extraction EXTRACTION
-                            If spec1d, which extraction? opt or box [default: opt]
-                            (default: opt)
+                            If spec1d, which extraction? opt or box (default: opt)
       --ploterr             Plot noise spectrum (default: False)
       --step                Use `steps-mid` as linestyle (default: False)
       --z [Z ...]           Object redshift (default: None)
       --maskdef_objname MASKDEF_OBJNAME
-                            MASKDEF_OBJNAME of the target that you want to plot
-                            (default: None)
+                            MASKDEF_OBJNAME of the target that you want to plot. If
+                            maskdef_objname is not provided, nor a pypeit_name, all
+                            the 1D spectra in the file(s) will be plotted. (default:
+                            None)
       --pypeit_name PYPEIT_NAME
-                            PypeIt name of the target that you want to plot
-                            (default: None)
+                            PypeIt name of the target that you want to plot. If
+                            pypeit_name is not provided, nor a maskdef_objname, all
+                            the 1D spectra in the file(s) will be plotted. (default:
+                            None)
       --wavemin WAVEMIN     Wavelength min. This is for selecting a region of the
                             spectrum to analyze. (default: None)
       --wavemax WAVEMAX     Wavelength max.This is for selecting a region of the
