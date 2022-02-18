@@ -5,6 +5,7 @@
                                [--debug_offsets] [--peaks] [--basename BASENAME]
                                [--spec_samp_fact SPEC_SAMP_FACT]
                                [--spat_samp_fact SPAT_SAMP_FACT] [--debug]
+                               [--only_slits ONLY_SLITS]
     
     Coadd 2D spectra produced by PypeIt
     
@@ -34,4 +35,6 @@
                             coarser (spat_samp_fact > 1.0) by this sampling factor,
                             i.e. units of spat_samp_fact are pixels. (default: 1.0)
       --debug               show debug plots? (default: False)
+      --only_slits ONLY_SLITS
+                            Only coadd the following slits (default: None)
     
