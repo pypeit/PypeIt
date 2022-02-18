@@ -279,8 +279,8 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'SKY FLAT') & (fitstbl['lampstat01'] == 'off')
         if ftype == 'science':
             # Both OBJECT and STANDARD frames should be processed as science frames
-            return good_exp & (fitstbl['idname'] in ['OBJECT', 'STANDARD']) & \
-                   (fitstbl['lampstat01'] == 'off')
+            return good_exp & (fitstbl['lampstat01'] == 'off') & \
+                   ((fitstbl['idname'] == 'OBJECT') | (fitstbl['idname'] == 'STANDARD'))        
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'STANDARD') & (fitstbl['lampstat01'] == 'off')
         if ftype == 'dark':
