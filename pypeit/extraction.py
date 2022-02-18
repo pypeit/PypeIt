@@ -121,7 +121,7 @@ class Extract:
 
         # Instantiation attributes for this object
         self.sciImg = sciImg
-        self.sobjs_obj = sobjs_obj
+        self.sobjs_obj = sobjs_obj.copy() # This guarantees that stuff below does not mute this input variable
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
@@ -200,7 +200,7 @@ class Extract:
         """
 
         if len(self.sobjs_obj) > 0:
-            return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign)
+            return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign > 0)
         else:
             return 0
 
@@ -250,14 +250,14 @@ class Extract:
                 List of SpecObj that have been found and traced
         """
         # This holds the objects, pre-extraction
-        self.sobjs_obj = sobjs_obj
+        # JFH Commenting this out. Not sure why we need this. It overwrites the previous stuff from the init
+        #self.sobjs_obj = sobjs_obj
 
         if self.par['reduce']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
             msgs.info("Skipping optimal extraction")
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
-            # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
