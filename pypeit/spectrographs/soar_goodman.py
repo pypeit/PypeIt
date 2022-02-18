@@ -72,10 +72,12 @@ class SOARGoodmanSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            binspec, binspatial = [int(item) for item in headarr[1]['CCDSUM'].split(' ')]
+            binspec = headarr[0]['CBIN']
+            binspatial = headarr[0]['RBIN']
             return parse.binning2string(binspec, binspatial)
         elif meta_key == 'mjd':
-            ttime = Time(headarr[1]['DATE-OBS'], format='isot')
+            # use photon weighted midpoint
+            ttime = Time(headarr[1]['THEMIDPT'], format='isot')
             return ttime.mjd
         else:
             msgs.error("Not ready for this compound meta")
