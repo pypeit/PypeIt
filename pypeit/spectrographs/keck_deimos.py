@@ -50,19 +50,19 @@ class DEIMOSMosaicLookUp:
     geometry = {
         'MSC01': {'default_shape': (8274, 2128),
                   'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (-11, 10.26), 'rotation': 0.1883668}},
+                  'red_det': {'shift': (-11, 9.528), 'rotation': 0.2009}},
 
         'MSC02': {'default_shape': (8274, 2128),
                   'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (9, 8.225), 'rotation': -0.0998779}},
+                  'red_det': {'shift': (9, 8.179), 'rotation': -0.098069}},
 
         'MSC03': {'default_shape': (8274, 2128),
                   'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (2, 7.768), 'rotation': -0.0159413548}},
+                  'red_det': {'shift': (2, 7.663), 'rotation': -0.01999}},
 
         'MSC04': {'default_shape': (8274, 2128),
                   'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (-6, 2.148), 'rotation': 0.06214737}},
+                  'red_det': {'shift': (-6, 2.093), 'rotation': 0.049675}},
     }
 
 
