@@ -43,22 +43,26 @@ from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, D
 
 class DEIMOSMosaicLookUp:
     """
-    Provides the geometry required to mosaic Gemini GMOS data.
+    Provides the geometry required to mosaic Keck DEIMOS data.
     Similar to :class:`~pypeit.spectrographs.gemini_gmos.GeminiGMOSMosaicLookUp`
 
     """
     geometry = {
-        'MSC01': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
-                                                 (0, 4108): {'shift': (6., -3.), 'rotation': 0.}},
+        'MSC01': {'default_shape': (8274, 2128),
+                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
+                  'red_det': {'shift': (-11, 10.26), 'rotation': 0.1883668}},
 
-        'MSC02': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
-                                                 (0, 4108): {'shift': (7., 0.), 'rotation': 0.}},
+        'MSC02': {'default_shape': (8274, 2128),
+                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
+                  'red_det': {'shift': (9, 8.225), 'rotation': -0.0998779}},
 
-        'MSC03': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
-                                                 (0, 4108): {'shift': (7., 0.), 'rotation': 0.}},
+        'MSC03': {'default_shape': (8274, 2128),
+                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
+                  'red_det': {'shift': (2, 7.768), 'rotation': -0.0159413548}},
 
-        'MSC04': {'default_shape': (8274, 2128), (0, 0): {'shift': (-4108., 0.), 'rotation': 0.},
-                                                 (0, 4108): {'shift': (1., 0.), 'rotation': 0.}},
+        'MSC04': {'default_shape': (8274, 2128),
+                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
+                  'red_det': {'shift': (-6, 2.148), 'rotation': 0.06214737}},
     }
 
 
@@ -203,6 +207,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
+        par['calibrations']['slitedges']['follow_span'] = 1000
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
@@ -724,17 +729,13 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Collect the offsets and rotations for *all unbinned* detectors in the
         # full instrument, ordered by the number of the detector.  Detector
         # numbers must be sequential and 1-indexed.
-        # NOTE: These lines use the directly copied metadata from the Gemini
-        # DRAGONS software and then adjusts them so that they are in "PypeIt
-        # format".  See the mosaic documentattion.
-        expected_shape = DEIMOSMosaicLookUp.geometry[detid]['default_shape']
-        shift = np.array([(DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['shift'][1],
-                            -DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['shift'][0]),
-                          (DEIMOSMosaicLookUp.geometry[detid][(0,0)]['shift'][1],
-                            -DEIMOSMosaicLookUp.geometry[detid][(0,0)]['shift'][0])])
+        # See the mosaic documentattion.
+        msc_geometry = DEIMOSMosaicLookUp.geometry
+        expected_shape = msc_geometry[detid]['default_shape']
+        shift = np.array([(msc_geometry[detid]['blue_det']['shift'][0], msc_geometry[detid]['blue_det']['shift'][1]),
+                          (msc_geometry[detid]['red_det']['shift'][0],  msc_geometry[detid]['red_det']['shift'][1])])
 
-        rotation = np.array([DEIMOSMosaicLookUp.geometry[detid][(0, 4108)]['rotation'],
-                             DEIMOSMosaicLookUp.geometry[detid][(0,0)]['rotation']])
+        rotation = np.array([msc_geometry[detid]['blue_det']['rotation'], msc_geometry[detid]['red_det']['rotation']])
 
         # The binning and process image shape must be the same for all images in
         # the mosaic
