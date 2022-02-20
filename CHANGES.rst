@@ -88,6 +88,7 @@
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
+- Added Coadd2D HOWTO docs
 - Add template wavelength solution for soar_goodman_red 400_SYZY
 
 
