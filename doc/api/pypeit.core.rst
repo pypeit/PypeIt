@@ -24,6 +24,7 @@ Submodules
    pypeit.core.convert_DEIMOSsavfiles
    pypeit.core.datacube
    pypeit.core.extract
+   pypeit.core.findobj_skymask
    pypeit.core.fitting
    pypeit.core.flat
    pypeit.core.flexure
