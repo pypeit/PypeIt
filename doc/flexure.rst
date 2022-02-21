@@ -88,6 +88,7 @@ no spectral flexure correction, for most spectrographs, except:
 - Keck/KCWI
 - Keck/LRIS (all)
 - LBT/MODS (all)
+- LDT/DeVeny
 - MMT/Binospec
 - NTT/EFOSC2
 - Shane/KAST (all)

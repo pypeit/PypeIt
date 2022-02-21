@@ -4,11 +4,12 @@ from pypeit.scripts import scriptbase
 
 # The import of all the script modules here is what enables the dynamic
 # compiling of all the available scripts below
-from pypeit.scripts import parse_slits
 from pypeit.scripts import chk_alignments
 from pypeit.scripts import chk_edges
 from pypeit.scripts import chk_flats
 from pypeit.scripts import chk_for_calibs
+from pypeit.scripts import chk_noise_1dspec
+from pypeit.scripts import chk_noise_2dspec
 from pypeit.scripts import chk_wavecalib
 from pypeit.scripts import coadd_1dspec
 from pypeit.scripts import coadd_2dspec
@@ -23,7 +24,10 @@ from pypeit.scripts import install_telluric
 from pypeit.scripts import lowrdx_skyspec
 from pypeit.scripts import multislit_flexure
 from pypeit.scripts import obslog
+from pypeit.scripts import parse_calib_id
+from pypeit.scripts import parse_slits
 from pypeit.scripts import qa_html
+from pypeit.scripts import ql_keck_deimos
 from pypeit.scripts import ql_keck_mosfire
 from pypeit.scripts import ql_keck_nires
 from pypeit.scripts import ql_mos

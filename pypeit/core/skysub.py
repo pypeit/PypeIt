@@ -212,6 +212,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         ax.plot(pix, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
+
         plt.show()
 
     # Return
@@ -471,10 +472,11 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
     return fullbkpt
 
+
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, slit_left,
                          slit_righ, sobjs, ingpm=None, spat_pix=None, adderr=0.01, bsp=0.6,
                          trim_edg=(3,3), std=False, prof_nsigma=None, niter=4,
-                         extract_good_frac=0.005, box_rad=7, sigrej=3.5, bkpts_optimal=True,
+                         extract_good_frac=0.005, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False, force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                          model_noise=True, show_profile=False, show_resids=False,
                          use_2dmodel_mask=True, no_local_sky=False, base_var=None,
@@ -544,8 +546,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
     extract_good_frac: float, default = 0.005
         Minimum fraction of pixels along the spectral direction with good
         optimal extraction
-    box_rad : int or float, default = 7
-        Boxcar radius in *pixels* used for boxcar extraction.
     sigrej : :obj:`float`, optional
         Outlier rejection threshold for sky and object fitting
         Set by par['scienceimage']['skysub']['sky_sigrej']
@@ -751,7 +751,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     msgs.info("------------------------------------------------------------------------------------------------------------")
 
                     # TODO -- Use extract_specobj_boxcar to avoid code duplication
-                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage, box_rad,
+                    extract.extract_boxcar(sciimg, modelivar, outmask, waveimg, skyimage,
                                            sobjs[iobj], base_var=base_var, count_scale=count_scale,
                                            noise_floor=adderr)
                     flux = sobjs[iobj].BOX_COUNTS
@@ -761,14 +761,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
                     # For later iterations, profile fitting is based on an optimal extraction
                     last_profile = obj_profiles[:, :, ii]
                     trace = sobjs[iobj].TRACE_SPAT[:, None]
-                    objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
+                    objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
                     # Boxcar
                     extract.extract_boxcar(sciimg, modelivar, (outmask & objmask), waveimg,
-                                           skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                           skyimage, sobjs[iobj], base_var=base_var,
                                            count_scale=count_scale, noise_floor=adderr)
                     # Optimal
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg,
-                                            skyimage, thismask, last_profile, box_rad, sobjs[iobj],
+                                            skyimage, thismask, last_profile, sobjs[iobj],
                                             base_var=base_var, count_scale=count_scale,
                                             noise_floor=adderr)
                     # If the extraction is bad do not update
@@ -895,14 +895,14 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
             this_profile = obj_profiles[:, :, ii]
             trace = sobjs[iobj].TRACE_SPAT[:, None]
             # Optimal
-            objmask = ((spat_img >= (trace - 2.0 * box_rad)) & (spat_img <= (trace + 2.0 * box_rad)))
+            objmask = ((spat_img >= (trace - 2.0 * sobjs[iobj].BOX_RADIUS)) & (spat_img <= (trace + 2.0 * sobjs[iobj].BOX_RADIUS)))
             extract.extract_optimal(sciimg, modelivar * thismask, (outmask_extract & objmask),
-                                    waveimg, skyimage, thismask, this_profile, box_rad, sobjs[iobj],
+                                    waveimg, skyimage, thismask, this_profile, sobjs[iobj],
                                     base_var=base_var, count_scale=count_scale,
                                     noise_floor=adderr)
             # Boxcar
             extract.extract_boxcar(sciimg, modelivar*thismask, (outmask_extract & objmask),
-                                   waveimg, skyimage, box_rad, sobjs[iobj], base_var=base_var,
+                                   waveimg, skyimage, sobjs[iobj], base_var=base_var,
                                    count_scale=count_scale, noise_floor=adderr)
             sobjs[iobj].min_spat = min_spat
             sobjs[iobj].max_spat = max_spat
@@ -953,7 +953,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, thismask, 
 def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, left, right,
                              slitmask, sobjs, order_vec, spat_pix=None, fit_fwhm=False,
                              min_snr=2.0, bsp=0.6, trim_edg=(3,3), std=False, prof_nsigma=None,
-                             niter=4, box_rad_order=7, sigrej=3.5, bkpts_optimal=True,
+                             niter=4, sigrej=3.5, bkpts_optimal=True,
                              force_gauss=False, sn_gauss=4.0, model_full_slit=False,
                              model_noise=True, debug_bkpts=False, show_profile=False,
                              show_resids=False, show_fwhm=False, adderr=0.01, base_var=None,
@@ -991,8 +991,6 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     std:
     prof_nsigma:
     niter:
-    box_rad_order : int
-        Code assumes an np.ndarray even though the default value is int!!
     sigrej:
     bkpts_optimal:
     force_gauss : bool, default = False
@@ -1176,7 +1174,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                                        left[:,iord], right[:,iord], sobjs[thisobj],
                                        spat_pix=spat_pix, ingpm=inmask, std=std, bsp=bsp,
                                        trim_edg=trim_edg, prof_nsigma=prof_nsigma, niter=niter,
-                                       box_rad=box_rad_order[iord], sigrej=sigrej,
+                                       sigrej=sigrej,
                                        bkpts_optimal=bkpts_optimal, force_gauss=force_gauss,
                                        sn_gauss=sn_gauss, model_full_slit=model_full_slit,
                                        model_noise=model_noise, debug_bkpts=debug_bkpts,
