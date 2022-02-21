@@ -239,7 +239,10 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         # Define some hard wired master files here to be later parsed out of the directory
         lris_grating = spectrograph.get_meta_value(files[0], 'dispname')
         #lris_masters = os.path.join(master_dir, 'LRIS_MASTERS', lris_grism)
-        lris_masters='/Users/joe/lris_observing_2022/Jan26/redux/red/600_10000_d680_hizqso/LRIS_RED_MASTERS/'
+        if args.master_dir is None:
+            lris_masters='/Users/joe/lris_observing_2022/Jan26/redux/red/600_10000_d680_hizqso/LRIS_RED_MASTERS/'
+        else:
+            lris_masters = args.master_dir
 
         bias_masterframe_name = \
             utils.find_single_file(os.path.join(lris_masters, "MasterBias*"))
