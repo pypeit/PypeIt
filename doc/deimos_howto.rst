@@ -277,20 +277,18 @@ and science frame, located in the *Science/* folder.
 Spec2D
 ++++++
 
-.. TODO: THE pypeit_chk_2dslits SCRIPT WAS REMOVED.  Check this!!
+Slit inspection
+:::::::::::::::
 
-.. Slit inspection
-.. :::::::::::::::
+It is frequently useful to view a summary of the slits
+successfully reduced by PypeIt.  The
+:ref:`pypeit_parse_slits`, with this explicit call::
 
-.. It is frequently useful to view a summary of the slits
-.. successfully reduced by PypeIt.  The
-.. :ref:`pypeit_chk_2dslits`, with this explicit call::
+     pypeit_parse_slits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits
 
-..     pypeit_chk_2dslits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits 
-
-.. this prints, detector by detector, the SpatID (internal PypeIt name),
-.. MaskID (user ID), and Flags for each slit.  Those with *None* have been
-.. successfully reduced.
+this prints, detector by detector, the SpatID (internal PypeIt name),
+MaskID (user ID), and Flags for each slit.  Those with *None* have been
+successfully reduced.
 
 Visual inspection
 :::::::::::::::::

@@ -88,12 +88,14 @@
     - Various improvements in the flow of the code
     - spec1d*.txt is now produced also for coadd2d
 - Scripts to explore the noise residuals in PypeIt
--- Fixes a  bug in echelle object finding
--- Attempt to make the threshold computation for object finding more robust.
--- Fixed a bug in extraction for echelle spectrographs for IR reductions.
--- Tuned up preivious refactor of object finding and extraction classes.
--- Fixed a bug that was introduced in skymask definition.
--- Fixed a bug where negative objects were not being found for IR reductions of standard stars.
+- Added Coadd2D HOWTO docs
+    - Fixes a  bug in echelle object finding
+    - Attempt to make the threshold computation for object finding more robust.
+    - Fixed a bug in extraction for echelle spectrographs for IR reductions.
+    - Tuned up preivious refactor of object finding and extraction classes.
+    - Fixed a bug that was introduced in skymask definition.
+    - Fixed a bug where negative objects were not being found for IR reductions of standard stars.
+- Add template wavelength solution for soar_goodman_red 400_SYZY
 
 
 1.7.0 (19 Nov 2021)
