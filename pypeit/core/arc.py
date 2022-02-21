@@ -732,6 +732,10 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     cont_now = np.zeros(nspec)
     mask_sm = np.round(cont_frac_fwhm*fwhm).astype(int)
     mask_odd = mask_sm + 1 if mask_sm % 2 == 0 else mask_sm
+
+    nspec_available = np.sum(inmask)
+    max_mask_frac = 0.70
+    max_nmask = int(np.ceil((max_mask_frac)*nspec_available))
     for iter in range(niter_cont):
         spec_sub = spec - cont_now
         mask_sigclip = np.invert(cont_mask & inmask)
@@ -747,12 +751,25 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug_peak_find)
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
-        cont_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999) & inmask
-        # If more than half the spectrum is getting masked than short circuit this masking
-        frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        if (frac_mask > 0.70):
-            msgs.warn('Too many pixels masked in spectrum continuum definiton: frac_mask = {:5.3f}'.format(frac_mask) + ' . Not masking....')
-            cont_mask = np.ones_like(cont_mask) & inmask
+        peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
+        cont_mask = peak_mask & inmask
+        # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
+        #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
+        nmask = np.sum(np.invert(peak_mask[inmask]))
+        if nmask > max_nmask:
+            msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
+                      'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
+            # Old
+            #cont_mask = np.ones_like(cont_mask) & inmask
+            # Short circuit the masking and just mask the 0.70 most offending pixels
+            peak_mask_ind = np.where(np.logical_not(peak_mask) & inmask)[0]
+            isort = np.argsort(np.abs(spec[peak_mask_ind]))[::-1]
+            peak_mask_new = np.ones_like(peak_mask)
+            peak_mask_new[peak_mask_ind[isort[0:max_nmask]]] = False
+            cont_mask = peak_mask_new & inmask
+
+
+
         ngood = np.sum(cont_mask)
         samp_width = np.ceil(ngood/cont_samp).astype(int)
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)

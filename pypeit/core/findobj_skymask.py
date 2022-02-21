@@ -124,7 +124,22 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
     # DP: I think skymask should always be skymask_objflux & skymask_fwhm (i.e., not only when box_rad_pix is not None).
     # In the case of skymask_objflux | skymask_fwhm, if skymask_objflux cannot be computed, the entire slit
     # is used for sky calculation (i.e., skymask_fwhm will not have effect).
-    skymask = skymask_objflux & skymask_fwhm
+
+    # DP's change which I don't think we should adopt at this time.
+    #skymask = skymask_objflux & skymask_fwhm
+
+    # JFH restored old behavior after seeing spurious results for X-shooter. I think the issue here is that the fwhm
+    # computation from objs_in_slit is not necessarily that reliable and when large amounts of masking are performed
+    # on narrow slits/orders, we have problems. We should revisit this after object finding is refactored since
+    # maybe then the fwhm estimates will be more robust.
+    if box_rad_pix is None and np.all([sobj.smash_peakflux is not None for sobj in sobjs]) \
+            and np.all([sobj.smash_peakflux != 0. for sobj in sobjs]):
+        # TODO This is a kludge until we refactor this routine. Basically mask design objects that are not auto-ID
+        # always have smash_peakflux undefined. If there is a hybrid situation of auto-ID and maskdesign, the logic
+        # here does not really make sense. Soution would be to compute thershold and smash_peakflux for all objects.
+        skymask = skymask_objflux | skymask_fwhm
+    else:  # Enforces boxcar radius masking
+        skymask = skymask_objflux & skymask_fwhm
 
     # Return
     return skymask[thismask]
@@ -134,7 +149,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 inmask=None, spec_min_max=None, fof_link=1.5, plate_scale=0.2, has_negative=False,
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
-                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperslit=5,
+                use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
                 extract_maskwidth=3.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0,
                 cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
                 npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
@@ -282,9 +297,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             This parameter determines the initial size of the region in
             units of fwhm that will be used for local sky subtraction in
             the routine skysub.local_skysub_extract.
-        nperslit (:obj:`int`):
-            Maximum number of objects allowed per slit. The code will
-            take the nperslit most significant detections.
+        nperorder (:obj:`int`):
+            Maximum number of objects allowed per order. The code will
+            take the nperorder most significant detections. However hand apertures will always be returned
+            and do not count against this budget.
         std_trace (`numpy.ndarray`_):
             This is a one dimensional float array with shape = (nspec,) containing the standard star
             trace which is used as a crutch for tracing. If the no
@@ -376,6 +392,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     slit_width = slit_righ - slit_left
     slit_spec_pos = nspec/2.0
 
+    # TODO JFH This hand apertures in echelle needs to be completely refactored.
     # Hand prep
     #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
@@ -429,7 +446,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             objs_in_slit(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
-                    nperslit=nperslit, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
+                    nperslit=nperorder, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
                     trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord], cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks, show_fits=show_single_fits,
@@ -482,7 +499,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     # one obj_id per order
                     min_dist_ind = 0
                 ind_rest = np.setdiff1d(ind,ind[min_dist_ind])
-                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
+                # JFH OLD LINE with bug
+                #obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id_init.max()
+                obj_id[ind_rest] = (np.arange(len(ind_rest)) + 1) + obj_id.max()
 
     uni_obj_id, uni_ind = np.unique(obj_id, return_index=True)
     nobj = len(uni_obj_id)
@@ -512,7 +531,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     # Reset names (just in case)
     sobjs_align.set_names()
-
     # Now loop over objects and fill in the missing objects and their traces. We will fit the fraction slit position of
     # the good orders where an object was found and use that fit to predict the fractional slit position on the bad orders
     # where no object was found
@@ -556,12 +574,14 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         else:
             frac_mean_new = np.full(norders, uni_frac[iobj])
 
+
         # Now loop over the orders and add objects on the ordrers for which the current object was not found
         for iord in range(norders):
             # Is the current object detected on this order?
             on_order = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
-            if not np.any(on_order):
-                # Add this to the sobjs_align, and assign required tags
+            num_on_order = np.sum(on_order)
+            if num_on_order == 0:
+                # If it is not, create a new sobjs and add to sobjs_align and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
                                              OBJTYPE=sobjs_align[0].OBJTYPE,
                                              ECH_ORDERINDX=iord,
@@ -596,6 +616,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 sobjs_align.add_sobj(thisobj)
                 obj_id = np.append(obj_id, uni_obj_id[iobj])
                 gfrac = np.append(gfrac, uni_frac[iobj])
+            elif num_on_order == 1:
+                # Object is already on this order so no need to do anything
+                pass
+            elif num_on_order > 1:
+                msgs.error('Problem in echelle object finding. The same objid={:d} appears {:d} times on echelle orderindx ={:d}'
+                           ' even after duplicate obj_ids the orders were removed. '
+                           'Report this bug to PypeIt developers'.format(uni_obj_id[iobj],num_on_order, iord))
+
+
 
     # Loop over the objects and perform a quick and dirty extraction to assess S/N.
     varimg = utils.calc_ivar(ivar)
@@ -642,11 +671,19 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
+    iobj_keep_not_hand = 1
+
     # TODO JFH: Fix this ugly and dangerous hack that was added to accomodate hand apertures
     hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
-    for iobj in range(nobj):
-        if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
-                or (int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac):
+
+    ## Loop over objects from highest SNR to lowest SNR. Apply the S/N constraints. Once we hit the maximum number
+    # objects requested exit, except keep the hand apertures that were requested.
+    isort_SNR_max = np.argsort(np.median(SNR_arr,axis=0))[::-1]
+    for iobj in isort_SNR_max:
+        hand_ap_flag = int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac
+        SNR_constraint = (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr)
+        nperorder_constraint = (iobj_keep-1) < nperorder
+        if (SNR_constraint and nperorder_constraint) or hand_ap_flag:
             keep_obj[iobj] = True
             ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()
@@ -657,9 +694,17 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 #                #spec.OBJID = iobj_keep
             sobjs_trim.add_sobj(sobjs_keep[np.argsort(sobjs_keep.ECH_ORDERINDX)])
             iobj_keep += 1
+            if not hand_ap_flag:
+                iobj_keep_not_hand += 1
         else:
-            msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
-                      ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
+            if not nperorder_constraint:
+                msgs.info('Purging object #{:d}'.format(iobj) +
+                          ' since there are already {:d} objects automatically identified '
+                          'and you set nperorder={:d}'.format(iobj_keep_not_hand-1, nperorder))
+            else:
+                msgs.info('Purging object #{:d}'.format(iobj) + ' which does not satisfy max_snr > {:5.2f} OR min_snr > {:5.2f}'.format(max_snr, min_snr) +
+                ' on at least nabove_min_snr >= {:d}'.format(nabove_min_snr) + ' orders')
+
 
     nobj_trim = np.sum(keep_obj)
 
@@ -668,7 +713,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         sobjs_final = specobjs.SpecObjs()
         return sobjs_final
 
+    # TODO JFH: We need to think about how to implement returning a maximum number of objects, where the objects
+    # returned are the highest S/N ones. It is a bit complicated with regards to the individual object finding and then
+    # the linking that is performed above, and also making sure the hand apertures don't get removed.
     SNR_arr_trim = SNR_arr[:,keep_obj]
+
 
     sobjs_final = sobjs_trim.copy()
     # Loop over the objects one by one and adjust/predict the traces
@@ -986,26 +1035,29 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 
     ##   New CODE
     # 1st iteration
+
+    gauss_smth_sigma = (fwhm/2.3548) # JFH Reduced by two
     smash_mask = np.isfinite(flux_mean)
     flux_mean_med0 = np.median(flux_mean[smash_mask])
     flux_mean[np.invert(smash_mask)] = flux_mean_med0
     fluxsub0 = flux_mean - flux_mean_med0
-    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, fwhm/2.3548, mode='nearest')
+    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
 
+    #show_cont=True
     cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask0 = arc.iter_continuum(
-        fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
+        fluxconv0, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
         qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
 
     # Second iteration
     flux_mean_med = np.median(flux_mean[cont_mask0])
     fluxsub = flux_mean - flux_mean_med
-    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, fwhm/2.3548, mode='nearest')
+    fluxconv = scipy.ndimage.filters.gaussian_filter1d(fluxsub, gauss_smth_sigma, mode='nearest')
 
     cont, cont_mask = arc.iter_continuum(
         fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
-        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
         qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
