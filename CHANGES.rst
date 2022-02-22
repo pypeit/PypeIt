@@ -2,6 +2,10 @@
 1.8.1dev
 --------
 - embed hotfixes
+- Added enhancements and fixes for Keck lris red Mark4.
+- Fixed pypeit setup issues due to bad LRIS headers.
+- Added support for VLT xshooter 600z grism.
+- Experimental quick look for LRIS and VLT.
 
 1.8.0 (12 Feb 2022)
 -------------------
