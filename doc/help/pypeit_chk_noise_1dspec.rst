@@ -3,10 +3,11 @@
     $ pypeit_chk_noise_1dspec -h
     usage: pypeit_chk_noise_1dspec [-h] [--fileformat FILEFORMAT]
                                    [--extraction EXTRACTION] [--ploterr] [--step]
-                                   [--z [Z ...]] [--maskdef_objname MASKDEF_OBJNAME]
+                                   [--z [Z [Z ...]]]
+                                   [--maskdef_objname MASKDEF_OBJNAME]
                                    [--pypeit_name PYPEIT_NAME] [--wavemin WAVEMIN]
                                    [--wavemax WAVEMAX] [--plot_or_save PLOT_OR_SAVE]
-                                   [files ...]
+                                   [files [files ...]]
     
     Examine the noise in a PypeIt spectrum
     
@@ -21,7 +22,7 @@
                             If spec1d, which extraction? opt or box (default: opt)
       --ploterr             Plot noise spectrum (default: False)
       --step                Use `steps-mid` as linestyle (default: False)
-      --z [Z ...]           Object redshift (default: None)
+      --z [Z [Z ...]]       Object redshift (default: None)
       --maskdef_objname MASKDEF_OBJNAME
                             MASKDEF_OBJNAME of the target that you want to plot. If
                             maskdef_objname is not provided, nor a pypeit_name, all

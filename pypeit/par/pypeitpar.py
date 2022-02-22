@@ -3382,7 +3382,16 @@ class FindObjPar(ParSet):
         defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
-                             'None for no limit.'
+                             'None for no limit. This parameter can be useful in situations where systematics lead to ' \
+                             'spurious extra objects. Setting this parameter means they will be trimmed. ' \
+                             'For mulitslit maxnumber applies per slit, for echelle observations this ' \
+                             'applies per order. Note that objects on a slit/order impact the sky-modeling and so ' \
+                             'maxnumber should never be lower than the true number of detectable objects on your slit. ' \
+                             'For image differenced observations with positive and negative object traces, maxnumber applies' \
+                             'to the number of positive/negative traces individually. In other words, if you had two positive objects and' \
+                             'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually' \
+                             'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
+                             'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept.'
 
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
@@ -3417,17 +3426,23 @@ class FindObjPar(ParSet):
         defaults['ech_find_max_snr'] = 1.0
         dtypes['ech_find_max_snr'] = [int, float]
         descr['ech_find_max_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value' \
-                                    ' or satisfy the min_snr criteria described by the min_snr parameters'
+                                    ' or satisfy the min_snr criteria described by the min_snr parameters. If maxnumber is set (see above) then these criteria' \
+                                    'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
 
         defaults['ech_find_min_snr'] = 0.3
         dtypes['ech_find_min_snr'] = [int, float]
         descr['ech_find_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
-                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. If maxnumber is set (see above) then these criteria' \
+                                    'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
 
         defaults['ech_find_nabove_min_snr'] = 2
         dtypes['ech_find_nabove_min_snr'] = int
-        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
-                                           ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across ' \
+                                           'all the orders greater than ech_find_max_snr,  value' \
+                                           ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. ' \
+                                           'If maxnumber is set (see above) then these criteria' \
+                                           'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept.'
+
 
         defaults['skip_second_find'] = False
         dtypes['skip_second_find'] = bool

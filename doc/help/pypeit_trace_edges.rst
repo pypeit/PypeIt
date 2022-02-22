@@ -2,9 +2,9 @@
 
     $ pypeit_trace_edges -h
     usage: pypeit_trace_edges [-h] (-f PYPEIT_FILE | -t TRACE_FILE) [-g GROUP]
-                              [-d [DETECTOR ...]] [-s SPECTROGRAPH] [-b BINNING]
-                              [-p REDUX_PATH] [-m MASTER_DIR] [-o] [--debug]
-                              [--show]
+                              [-d [DETECTOR [DETECTOR ...]]] [-s SPECTROGRAPH]
+                              [-b BINNING] [-p REDUX_PATH] [-m MASTER_DIR] [-o]
+                              [--debug] [--show]
     
     Trace slit edges
     
@@ -18,7 +18,7 @@
                             If providing a pypeit file, use the trace images for
                             this calibration group. If None, use the first
                             calibration group. (default: None)
-      -d [DETECTOR ...], --detector [DETECTOR ...]
+      -d [DETECTOR [DETECTOR ...]], --detector [DETECTOR [DETECTOR ...]]
                             Detector(s) to process. If more than one, the list of
                             detectors must be one of the allowed mosaics hard-coded
                             for the selected spectrograph. Using "mosaic" for

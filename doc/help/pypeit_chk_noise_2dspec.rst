@@ -1,12 +1,12 @@
 .. code-block:: console
 
     $ pypeit_chk_noise_2dspec -h
-    usage: pypeit_chk_noise_2dspec [-h] [--det DET] [--z [Z ...]]
+    usage: pypeit_chk_noise_2dspec [-h] [--det DET] [--z [Z [Z ...]]]
                                    [--maskdef_id MASKDEF_ID] [--pypeit_id PYPEIT_ID]
                                    [--pad PAD] [--aspect_ratio ASPECT_RATIO]
                                    [--wavemin WAVEMIN] [--wavemax WAVEMAX]
                                    [--mode MODE] [--list]
-                                   [files ...]
+                                   [files [files ...]]
     
     Examine the noise in a PypeIt slit/order
     
@@ -20,7 +20,7 @@
                             detector. If a string, it must match the name of the
                             detector object (e.g., DET01 for a detector, MSC01 for a
                             mosaic). (default: 1)
-      --z [Z ...]           Object redshift (default: None)
+      --z [Z [Z ...]]       Object redshift (default: None)
       --maskdef_id MASKDEF_ID
                             MASKDEF_ID of the slit that you want to plot. If
                             maskdef_id is not provided, nor a pypeit_id, all the 2D
