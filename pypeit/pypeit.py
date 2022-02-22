@@ -877,7 +877,6 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
                 tilts = self.exTract.run(final_global_sky, ra=self.fitstbl["ra"][frames[0]],
                                          dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime)
