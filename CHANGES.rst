@@ -2,6 +2,8 @@
 1.8.1dev
 --------
 - embed hotfixes
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
 
 1.8.0 (12 Feb 2022)
 -------------------
@@ -1377,8 +1379,6 @@
 - Add SpecObjs class
 - Add from_dict and to_dict methods to pydl bspline and update docs
 - Updated from_dict method in pydl bspline
-- Include preliminary support for fluxing with archived SensFunc files
-  for DEIMOS.
 
 0.7 (2017-02-07)
 ----------------

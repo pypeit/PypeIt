@@ -130,10 +130,25 @@ followed by a list of spec1d files. An example configuration file is shown below
 
 Coadd1D and Fluxing Configuration
 ---------------------------------
-Coadd1d and Fluxing configuration can be configured in the ``.collate1d`` as shown above. 
-Coadd parameters can be specified in a separate ``.coadd1d`` file with the same base name 
-as the ``.collate1d`` file (See :ref:`pypeit_par:Coadd1DPar Keywords`). For the :ref:`pypeit_par:FluxCalibratePar Keywords`
-``pypeit_collate_1d`` will always set ``extrap_sens`` and ``use_archived_sens`` to True.
+Coadd1d configuration can be set in the ``.collate1d`` as shown above. 
+Coadd parameters can also be specified in a separate ``.coadd1d`` file with the same base name 
+as the ``.collate1d`` file (See :ref:`pypeit_par:Coadd1DPar Keywords`). 
+
+Fluxing configuration can also be configured as shown above. (See :ref:`pypeit_par:FluxCalibratePar Keywords`).
+However ``pypeit_collate_1d`` will always set ``extrap_sens`` and ``use_archived_sens`` to True when
+fluxing.
+
+Flux Calibration
+----------------
+``pypeit_collate_1d`` will coadd flux calibrated data if it is available in all of the spec1ds 
+being used (i.e. a ``OPT_FLAM`` or ``BOX_FLAM`` entry exists, see :ref:`out_spec1D:Spec1D Output`). To override this
+behavior so that ``pypeit_collate_1d`` always coadds using counts, pass ``--ignore_flux`` to the 
+command line or set the ``ignore_flux = True`` in the configuration file.
+
+Alternatively ``pypeit_collate_1d`` can perform flux calibration itself using archived sensitivity functions.
+To do so pass ``--flux`` to the command line or set ``flux = True`` in the configuration file.
+Doing so will overwrite any flux calibration data already in the spec1d files.
+Currently archived sensitivity functions are experimental and only supported for DEIMOS.
 
 Reporting
 ---------
