@@ -282,6 +282,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['trace_npoly'] = 8
         par['reduce']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
         par['reduce']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
+
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to

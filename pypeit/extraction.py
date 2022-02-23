@@ -27,23 +27,9 @@ from IPython import embed
 
 class Extract:
     """
-    This class will organize and run actions related to
-    finding objects, sky subtraction, and extraction for
+    This class will organize and run actions relatedt to sky subtraction, and extraction for
     a Science or Standard star exposure
 
-    Args:
-        sciImg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
-            Image to reduce.
-        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
-        par (:class:`~pypeit.par.pypeitpar.PypeItPar`):
-        caliBrate (:class:`~pypeit.calibrations.Calibrations`):
-        objtype (:obj:`str`):
-           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
-        bkg_redux (:obj:`bool`, optional):
-            If True, the sciImg has been subtracted by
-            a background image (e.g. standard treatment in the IR)
-        show (:obj:`bool`, optional):
-           Show plots along the way?
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -80,7 +66,7 @@ class Extract:
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, bkg_redux=False,
-                     find_negative=False, std_redux=False, show=False, basename=None):
+                     return_negative=False, std_redux=False, show=False, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -103,8 +89,13 @@ class Extract:
             bkg_redux (:obj:`bool`, optional):
                 If True, the sciImg has been subtracted by
                 a background image (e.g. standard treatment in the IR)
-            find_negative (:obj:`bool`, optional):
-                If True, the negative objects are found
+            return_negative (:obj:`bool`, optional):
+                If True, negative objects from difference imaging will also be extracted and returned. Default=False.
+                This option only applies to the case where bkg_redux=True, i.e. typically a near-IR reduction
+                where difference imaging has been employed to perform a first-pass at sky-subtraction. The
+                default behavior is to not extract these objects, although they are masked in global sky-subtraction
+                (performed in the find_objects class), and modeled in local sky-subtraction (performed by this class).
+
             std_redux (:obj:`bool`, optional):
                 If True the object being extracted is a standards star
                 so that the reduction parameters can be adjusted accordingly.
@@ -112,8 +103,6 @@ class Extract:
                 Output filename used for spectral flexure QA
             show (:obj:`bool`, optional):
                 Show plots along the way?
-            **kwargs
-                Passed to Parent init
 
         Returns:
             :class:`~pypeit.extraction.Extract`:
@@ -121,19 +110,18 @@ class Extract:
         return next(c for c in utils.all_subclasses(Extract)
                     if c.__name__ == (spectrograph.pypeline + 'Extract'))(
                             sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, 
-                            bkg_redux=bkg_redux,
-                            find_negative=find_negative, std_redux=std_redux, show=show,
+                            bkg_redux=bkg_redux, return_negative=return_negative, std_redux=std_redux, show=show,
                             basename=basename)
 
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate,
-                 objtype, bkg_redux=False, find_negative=False, std_redux=False, show=False,
+                 objtype, bkg_redux=False, return_negative=False, std_redux=False, show=False,
                  basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
         # Instantiation attributes for this object
         self.sciImg = sciImg
-        self.sobjs_obj = sobjs_obj
+        self.sobjs_obj = sobjs_obj.copy() # This guarantees that stuff below does not mute this input variable
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
@@ -171,7 +159,7 @@ class Extract:
 
         # Load up other input items
         self.bkg_redux = bkg_redux
-        self.find_negative = find_negative
+        self.return_negative=return_negative
 
         self.std_redux = std_redux
         self.det = caliBrate.det
@@ -200,6 +188,30 @@ class Extract:
                 remove_idx.append(i)
         # remove
         self.sobjs_obj.remove_sobj(remove_idx)
+
+
+    @property
+    def nsobj_to_extract(self):
+        """
+        Number of sobj objects in sobjs_obj taking into account whether or not we are returning negative traces
+
+        Returns:
+
+        """
+
+        if len(self.sobjs_obj) > 0:
+            return len(self.sobjs_obj) if self.return_negative else np.sum(self.sobjs_obj.sign > 0)
+        else:
+            return 0
+
+    @property
+    def nobj_to_extract(self):
+        """
+        Number of objects to extract. Defined in children
+        Returns:
+
+        """
+        return None
 
     def initialise_slits(self, initial=False):
         """
@@ -238,14 +250,14 @@ class Extract:
                 List of SpecObj that have been found and traced
         """
         # This holds the objects, pre-extraction
-        self.sobjs_obj = sobjs_obj
+        # JFH Commenting this out. Not sure why we need this. It overwrites the previous stuff from the init
+        #self.sobjs_obj = sobjs_obj
 
         if self.par['reduce']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
             msgs.info("Skipping optimal extraction")
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
-            # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
@@ -299,7 +311,9 @@ class Extract:
         # Set the initial and global sky
         self.global_sky = global_sky
 
-    def run_extraction(self, global_sky, sobjs_obj, ra=None, dec=None, obstime=None, return_negative=False):
+
+
+    def run(self, global_sky, ra=None, dec=None, obstime=None):
         """
         Primary code flow for PypeIt reductions
 
@@ -330,10 +344,9 @@ class Extract:
         # TODO this should return things to make the control flow less opqaque.
         self.prepare_extraction(global_sky)
 
-        self.nobj = len(sobjs_obj)
 
         # Do we have any positive objects to proceed with?
-        if self.nobj > 0:
+        if self.nobj_to_extract > 0:
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
@@ -343,16 +356,16 @@ class Extract:
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
 
-            if self.find_negative:
-                self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
+            if self.bkg_redux:
+                self.sobjs.make_neg_pos() if self.return_negative else self.sobjs.purge_neg()
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
                 self.spec_flexure_correct(mode='global')
             #Could have negative objects but no positive objects so purge them
-            if self.find_negative:
-                self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
+            if self.bkg_redux:
+                self.sobjs_obj.make_neg_pos() if self.return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = global_sky 
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
@@ -652,6 +665,17 @@ class MultiSlitExtract(Extract):
     def __init__(self, sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs):
         super().__init__(sciImg, sobjs_obj, spectrograph, par, caliBrate, objtype, **kwargs)
 
+
+    @property
+    def nobj_to_extract(self):
+        """
+        See parent method docs.
+
+        Returns:
+
+        """
+        return self.nsobj_to_extract
+
     # TODO: JFH Should we reduce the number of iterations for standards or
     # near-IR redux where the noise model is not being updated?
     def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True,
@@ -793,6 +817,22 @@ class EchelleExtract(Extract):
             msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
                        'assigned in the relevant SlitTraceSet.')
 
+
+    @property
+    def nobj_to_extract(self):
+        """
+        See parent method docs.
+
+        Returns:
+
+        """
+
+        norders = self.order_vec.size
+        if (self.nsobj_to_extract % norders) == 0:
+            return int(self.nsobj_to_extract/norders)
+        else:
+            msgs.error('Number of specobjs in sobjs is not an integer multiple of the number or ordres!')
+
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
     def local_skysub_extract(self, global_sky, sobjs,
@@ -841,6 +881,7 @@ class EchelleExtract(Extract):
         sn_gauss = self.par['reduce']['extraction']['sn_gauss']
         model_full_slit = self.par['reduce']['extraction']['model_full_slit']
         force_gauss = self.par['reduce']['extraction']['use_user_fwhm']
+
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,

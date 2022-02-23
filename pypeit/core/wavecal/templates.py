@@ -246,7 +246,7 @@ def pypeit_arcspec(in_file, slit, binspec, binning=None):
                                           minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
 
         if binning is not None and binning != binspec:
-            embed(header='Not ready for this yet!')
+            raise NotImplementedError('Cannot rebin yet')
         else:
             x = np.arange(len(iwv_calib['spec']))
 

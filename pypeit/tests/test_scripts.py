@@ -12,6 +12,8 @@ import matplotlib
 from IPython import embed
 matplotlib.use('agg')  # For Travis
 
+from astropy.io import fits
+
 from pypeit.scripts import parse_slits
 from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
@@ -21,6 +23,7 @@ from pypeit import data
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
+from pypeit import fluxcalibrate
 from pypeit import onespec
 
 from pypeit.pypeitsetup import PypeItSetup
@@ -394,7 +397,7 @@ def test_compare_sky():
 def test_collate_1d(tmp_path, monkeypatch):
 
     # Build up arguments for testing command line parsing
-    args = ['--dry_run', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
+    args = ['--dry_run', '--ignore_flux', '--flux', '--outdir', '/outdir2', '--match', 'ra/dec', '--exclude_slit_bm', 'BOXSLIT', '--exclude_serendip']
     spec1d_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science', 'spec1d_b27*')
     spec1d_args = ['--spec1d_files', spec1d_file]
     tol_args = ['--tolerance', '0.03d']
@@ -411,7 +414,9 @@ def test_collate_1d(tmp_path, monkeypatch):
         print("ex_value = BOX", file=f)
         print("[collate1d]", file=f)
         print("dry_run = False", file=f)
+        print("flux = False", file=f)
         print("outdir = /outdir", file=f)
+        print("ignore_flux = False", file=f)
         print("tolerance = 4.0", file=f)
         print("match_using = 'pixel'", file=f)
         print("exclude_slit_trace_bm = BADREDUCE", file=f)
@@ -456,6 +461,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is False
     assert params['collate1d']['outdir'] == '/outdir'
+    assert params['collate1d']['ignore_flux'] == False
+    assert params['collate1d']['flux'] == False
     assert params['collate1d']['tolerance'] == 4.0
     assert params['collate1d']['match_using'] == 'pixel'
     assert params['collate1d']['exclude_slit_trace_bm'] == 'BADREDUCE'
@@ -470,6 +477,8 @@ def test_collate_1d(tmp_path, monkeypatch):
     params, spectrograph, expanded_spec1d_files = scripts.collate_1d.build_parameters(parsed_args)
     assert params['collate1d']['dry_run'] is True
     assert params['collate1d']['outdir'] == '/outdir2'
+    assert params['collate1d']['ignore_flux'] == True
+    assert params['collate1d']['flux'] == True
     assert params['collate1d']['tolerance'] == '0.03d'
     assert params['collate1d']['match_using'] == 'ra/dec'
     assert params['collate1d']['exclude_slit_trace_bm'] == ['BOXSLIT']
@@ -563,8 +572,105 @@ def test_parse_slits():
     # Spec2d
     pargs = parse_slits.ParseSlits.parse_args([spec2d_file])
     parse_slits.ParseSlits.main(pargs)
+    
+def test_flux_calib(tmp_path, monkeypatch):
+
+    # Change to the tmp_path so the fluxing.par file is written there
+    os.chdir(tmp_path)
+
+    # Test the flux_calib script (but not fluxing itself)
+    def mock_get_header(*args, **kwargs):
+        return {"DISPNAME": "600ZD",
+                "PYP_SPEC": "keck_deimos" }
+
+    def mock_get_flux_calib_instance(*args, **kwargs):
+        # The flux_calib caller doesn't use the output, it just
+        # depends on the side effect of fluxing
+        return None 
 
 
-# TODO: Include tests for coadd2d, sensfunc, flux_calib
+    with monkeypatch.context() as m:
+        monkeypatch.setattr(fits, "getheader", mock_get_header)
+        monkeypatch.setattr(fluxcalibrate.FluxCalibrate, "get_instance", mock_get_flux_calib_instance)
+
+        # Test with a flux file missing "flux end"
+
+        config_file_missing_end = str(tmp_path / "test_flux_calib_missing_end.flux")
+
+        with open(config_file_missing_end, "w") as f:
+            print("flux read", file=f)
+            print(" spec1d_file1.fits sens_file1.fits", file=f)
+            print(" spec1d_file2.fits sens_file2.fits", file=f)
+
+
+        with pytest.raises(PypeItError, match="Missing 'flux end'"):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_end])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+
+        # Test with a flux file missing the flux block entirely
+        config_file_missing_flux = str(tmp_path / "test_flux_calib_missing_flux.flux")
+        with open(config_file_missing_flux, "w") as f:
+            print(" spec1d_file1.fits sens_file1.fits", file=f)
+            print(" spec1d_file2.fits sens_file2.fits", file=f)
+        
+        with pytest.raises(PypeItError, match="Missing flux block in"):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_missing_flux])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+
+        # Test 1 sens file with multiple spec1ds
+        config_file_one_to_many = str(tmp_path / "test_flux_calib_1_to_many.flux")
+        with open(config_file_one_to_many, "w") as f:
+            print("flux read", file=f)
+            print(" spec1d_file1.fits sens_file1.fits", file=f)
+            print(" spec1d_file2.fits", file=f)
+            print(" spec1d_file3.fits", file=f)
+            print("flux end", file=f)
+
+        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_many])
+        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+
+        # Test 1 sens file per spec1d
+        config_file_one_to_one = str(tmp_path / "test_flux_calib_one_to_one.flux")
+        with open(config_file_one_to_one, "w") as f:
+            print("flux read", file=f)
+            print(" spec1d_file1.fits sens_file1.fits", file=f)
+            print(" spec1d_file2.fits sens_file2.fits", file=f)
+            print(" spec1d_file3.fits sens_file1.fits", file=f)
+            print("flux end", file=f)
+
+        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_one_to_one])
+        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+        
+        # Test with no sensfunc, but using an archived sensfunc
+        config_file_use_arxiv = str(tmp_path / "test_flux_calib_use_arxiv.flux")
+        with open(config_file_use_arxiv, "w") as f:
+            print("[fluxcalib]", file=f)
+            print(" use_archived_sens = True", file=f)
+            print("flux read", file=f)
+            print(" spec1d_file1.fits", file=f)
+            print(" spec1d_file2.fits", file=f)
+            print(" spec1d_file3.fits", file=f)
+            print("flux end", file=f)
+
+        parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_use_arxiv])
+        assert scripts.flux_calib.FluxCalib.main(parsed_args) == 0
+        
+        
+        # Test with no sensfunc, but it's an error because an archive sensfunc
+        # was not requested
+        config_file_no_sens = str(tmp_path / "test_flux_calib_no_sens.flux")
+        with open(config_file_no_sens, "w") as f:
+            print("flux read", file=f)
+            print(" spec1d_file1.fits", file=f)
+            print(" spec1d_file2.fits", file=f)
+            print(" spec1d_file3.fits", file=f)
+            print("flux end", file=f)
+
+        with pytest.raises(PypeItError, match = 'Invalid format for .flux'):
+            parsed_args = scripts.flux_calib.FluxCalib.parse_args([config_file_no_sens])
+            scripts.flux_calib.FluxCalib.main(parsed_args)
+        
+
+# TODO: Include tests for coadd2d, sensfunc
 
 

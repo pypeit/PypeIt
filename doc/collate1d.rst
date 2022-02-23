@@ -8,7 +8,10 @@ Overview
 of processed :ref:`out_spec1D:Spec1D Output` files, group the spectra by object, and 
 coadd all matching spectra. 
 
-Fluxing is planned to be added in a future release. 
+Grouping can be done by sky coordinates if available, or by pixel coordinates.
+Coadding is done using flux calibrated spectra when available. 
+
+Fluxing is performed using archived sensitivity files.
 
 Usage
 =====
@@ -72,9 +75,12 @@ Command Line
 The cofiguration file for pypeit_collate_1d consists of a set of :ref:`pypeit_par:Collate1DPar Keywords`, 
 followed by a list of spec1d files. An example configuration file is shown below::
 
-    # User-defined coadding parameters
+    # User-defined coadding and fluxing parameters can be given but are not required
     [coadd1d]
     sn_clip = 20
+
+    [fluxcalib]
+    extinct_correct = True
 
     # User-defined collating parameters
     [collate1d]
@@ -103,6 +109,16 @@ followed by a list of spec1d files. An example configuration file is shown below
 
     slit_exclude_flags = BOXSLIT
 
+    # Whether to flux calibrate spec1d files using archival senfuncs.
+    # Defaults to False
+    #flux = False
+
+    # Whether to ignore existing flux calibrated data in the spec1ds.
+    # Defaults to False. Even when this is False, if the flux calibration data 
+    # (e.g. OPT_FLAM or BOX_FLAM) is not available the uncalibrated data is coadded.
+    #ignore_flux = False
+    
+    
     # Where to place coadded files and report files. Defaults to
     # current directory.
     #outdir = /work/output
@@ -112,11 +128,27 @@ followed by a list of spec1d files. An example configuration file is shown below
     Science/spec1d*.fits
     spec1d end
 
-Coadd1D Configuration
---------------------- 
-Coadd1d configuration can be configured in the ``.collate1d`` as shown above, or
-in a separate ``.coadd1d`` file with the same base name as the ``.collate1d`` file.
-:ref:`pypeit_par:Coadd1DPar Keywords`, 
+Coadd1D and Fluxing Configuration
+---------------------------------
+Coadd1d configuration can be set in the ``.collate1d`` as shown above. 
+Coadd parameters can also be specified in a separate ``.coadd1d`` file with the same base name 
+as the ``.collate1d`` file (See :ref:`pypeit_par:Coadd1DPar Keywords`). 
+
+Fluxing configuration can also be configured as shown above. (See :ref:`pypeit_par:FluxCalibratePar Keywords`).
+However ``pypeit_collate_1d`` will always set ``extrap_sens`` and ``use_archived_sens`` to True when
+fluxing.
+
+Flux Calibration
+----------------
+``pypeit_collate_1d`` will coadd flux calibrated data if it is available in all of the spec1ds 
+being used (i.e. a ``OPT_FLAM`` or ``BOX_FLAM`` entry exists, see :ref:`out_spec1D:Spec1D Output`). To override this
+behavior so that ``pypeit_collate_1d`` always coadds using counts, pass ``--ignore_flux`` to the 
+command line or set the ``ignore_flux = True`` in the configuration file.
+
+Alternatively ``pypeit_collate_1d`` can perform flux calibration itself using archived sensitivity functions.
+To do so pass ``--flux`` to the command line or set ``flux = True`` in the configuration file.
+Doing so will overwrite any flux calibration data already in the spec1d files.
+Currently archived sensitivity functions are experimental and only supported for DEIMOS.
 
 Reporting
 ---------

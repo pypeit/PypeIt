@@ -79,8 +79,8 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
-        if debug:
-            embed(header='68 of flexure')
+#        if debug:
+#            embed(header='68 of flexure')
         return 0.
 
     # Find the peak
@@ -107,7 +107,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
         #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
-        embed(header='83 of flexure.py')
+        #embed(header='83 of flexure.py')
 
     return lag_max[0]
 
