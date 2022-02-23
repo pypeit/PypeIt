@@ -40,6 +40,7 @@ class Paths():
     extinction = os.path.join(data, 'extinction')
     skisim = os.path.join(data, 'skisim')
     filters = os.path.join(data, 'filters')
+    sensfuncs = os.path.join(data, 'sensfuncs')
 
     # Other
     sky_spec = os.path.join(data, 'sky_spec')
