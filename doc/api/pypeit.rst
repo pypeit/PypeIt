@@ -46,6 +46,7 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.sampling
+   pypeit.sensfilearchive
    pypeit.sensfunc
    pypeit.setup_package
    pypeit.slittrace

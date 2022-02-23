@@ -4,6 +4,7 @@
     usage: pypeit_collate_1d [-h] [--spec1d_files [SPEC1D_FILES [SPEC1D_FILES ...]]]
                              [--par_outfile PAR_OUTFILE] [--outdir OUTDIR]
                              [--tolerance TOLERANCE] [--match MATCH] [--dry_run]
+                             [--ignore_flux] [--flux]
                              [--exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]]
                              [--exclude_serendip]
                              [input_file]
@@ -53,6 +54,11 @@
                             object. Must be either 'pixel' or 'ra/dec'.
       --dry_run             If set, the script will display the matching File and
                             Object Ids but will not flux, coadd or archive.
+      --ignore_flux         If set, the script will only coadd non-fluxed spectra
+                            even if flux data is present. Otherwise fluxed spectra
+                            are coadded if all spec1ds have been fluxed calibrated.
+      --flux                If set, the script will flux calibrate using archived
+                            sensfuncs before coadding.
       --exclude_slit_bm [EXCLUDE_SLIT_BM [EXCLUDE_SLIT_BM ...]]
                             A list of slit trace bitmask bits that should be
                             excluded.
