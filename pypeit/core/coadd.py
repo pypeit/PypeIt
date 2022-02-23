@@ -3218,7 +3218,7 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
             done2[idx] = True
 
         else:
-            embed(header="70 Should not get here")
+            msgs.error('CODING ERROR: nmtch must be 0 or 1; submit an issue')
         # Update
         update_sync_dict(sync_dict, indx1, files, names)
 

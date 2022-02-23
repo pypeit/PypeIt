@@ -409,8 +409,8 @@ Developer Installation
 We, of course, welcome and encourage community development of ``PypeIt``.
 Please see our :ref:`codeconduct` and the :ref:`development`.
 
-Install via ``pip``
--------------------
+Developer install via ``pip``
+-----------------------------
 
 Install pre-release or development versions of ``PypeIt`` directly from `GitHub
 <https://github.com/pypeit/PypeIt>`_ using ``pip`` as follows. If you already
@@ -439,8 +439,8 @@ Support documentation
 <https://pip.pypa.io/en/stable/reference/pip_install/#vcs-support>`_ for details
 and examples.
 
-Install from source
--------------------
+Developer install from source
+-----------------------------
 
 Developers doing code development will likely want to set up an "editable"
 install that points to a locally checked out copy of the GitHub repository.  We
