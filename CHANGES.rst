@@ -1,7 +1,8 @@
 
-1.8.1dev
---------
-- embed hotfixes
+1.8.1 (23 Feb 2022)
+-------------------
+
+- various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
 
