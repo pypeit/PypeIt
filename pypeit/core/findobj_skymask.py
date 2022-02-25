@@ -998,6 +998,10 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         show_trace = True
         show_cont = True
 
+    show_cont=True
+    show_peaks=True
+
+
     if specobj_dict is None:
         specobj_dict = dict(SLITID=999, DET='DET01', OBJTYPE='unknown', PYPELINE='MultiSlit')
 
@@ -1097,7 +1101,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 
     #show_cont=True
     nconv_iter=2
-    gpm = smash_mask
+    gpm = gpm_smash
     for iconv in range(nconv_iter):
         qa_title='Smash Image Background for Iteration # {:d}: Slit# {:d}'.format(iconv + 1, specobj_dict['SLITID'])
         fluxconv_cont, cont_gpm = get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
