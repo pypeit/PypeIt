@@ -1373,7 +1373,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None, extrap_sens=None):
+    def __init__(self, extinct_correct=None, extrap_sens=None, use_archived_sens = False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1404,6 +1404,9 @@ class FluxCalibratePar(ParSet):
                                    ' parameter is set, this overide this default behavior. In other words, it will force an extinction correction' \
                                    'if extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.' \
 
+        defaults['use_archived_sens'] = False
+        dtypes['use_archived_sens'] = bool
+        descr['use_archived_sens'] = 'Use an archived sensfunc to flux calibration'
 
         # Instantiate the parameter set
         super(FluxCalibratePar, self).__init__(list(pars.keys()),
@@ -1416,7 +1419,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['extinct_correct', 'extrap_sens']
+        parkeys = ['extinct_correct', 'extrap_sens', 'use_archived_sens']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -4552,7 +4555,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4582,6 +4585,16 @@ class Collate1DPar(ParSet):
         dtypes['dry_run'] = bool
         descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
                            "but will not flux, coadd or archive."
+
+        # Forces coadding using counts instead of flux
+        defaults['ignore_flux'] = False
+        dtypes['ignore_flux'] = bool
+        descr['ignore_flux'] = "If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
+
+        # Enables a flux calibration after coadding
+        defaults['flux'] = False
+        dtypes['flux'] = bool
+        descr['flux'] = "If set, the script will flux calibrate using archived sensfuncs before coadding."
 
         # Directory for output files
         defaults['outdir'] = os.getcwd()
@@ -4615,7 +4628,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

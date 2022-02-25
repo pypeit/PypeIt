@@ -2,6 +2,8 @@
 1.8.1dev
 --------
 - embed hotfixes
+- Include preliminary support for fluxing with archived SensFunc files
+  for DEIMOS.
 - Added enhancements and fixes for Keck lris red Mark4.
 - Fixed pypeit setup issues due to bad LRIS headers.
 - Added support for VLT xshooter 600z grism.

@@ -24,9 +24,22 @@
                           ...    
                      flux end
                       
+                     OR
+                      
+                     [fluxcalib]
+                       use_archived_sens = True
+                     flux read
+                       spec1dfile1
+                       spec1dfile2
+                       spec1dfile3
+                          ...    
+                     flux end
+                      
                      That is, you must specify either a sensfile for all spec1dfiles
-                     on the first line, or create a two column list of spec1dfiles
-                     and corresponding sensfiles
+                     on the first line, specify one sensfile for each spec1dfile, or
+                     specify no sensfiles and use an archived one.
+                     Archived sensfiles are available for the following
+                     spectrographs: keck_deimos
                       
     
     optional arguments:
