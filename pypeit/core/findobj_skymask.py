@@ -1248,7 +1248,6 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             viewer, ch = display.show_image(image*(thismask*inmask))
             plt.show()
         plt.close('all')
-        embed()
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
