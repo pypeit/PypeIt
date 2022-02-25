@@ -23,7 +23,7 @@ from pypeit.core.trace import fit_trace
 from pypeit.core import arc
 from pypeit.display import display
 from pypeit.core import pixels
-
+from pypeit.utils import fast_running_median
 from IPython import embed
 
 
@@ -812,6 +812,32 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     return sobjs_final
 
+def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
+                 qa_title=None, show_cont=False, cont_fit=False):
+
+    nsamp = flux_mean.size
+    gauss_smth_sigma = (fwhm/2.3548)
+    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
+
+    flux_mean_med0 = np.median(flux_mean[gpm])
+    # Fill in masked values with the running median
+    spat_pix = np.arange(nsamp)
+    flux_mean_fill_val = np.interp(spat_pix, spat_pix[gpm], fast_running_median(flux_mean[gpm], 5.0*fwhm))
+    flux_mean[np.logical_not(gpm)] = flux_mean_fill_val[np.logical_not(gpm)]
+    fluxsub0 = flux_mean - flux_mean_med0
+    fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
+
+    #show_cont=True
+    cont, cont_gpm = arc.iter_continuum(
+        fluxconv0, inmask=gpm, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
+        npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
+        qa_title=qa_title)
+
+    fluxconv_cont = (fluxconv0 - cont) if cont_fit else fluxconv0
+
+    return fluxconv_cont, cont_gpm
+
+
 
 def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, has_negative=False, spec_min_max=None, hand_extract_dict=None, std_trace=None,
@@ -1025,6 +1051,9 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
+    smash_mask_spec = np.sum(mask_spec, axis=0)/nsamp < 0.9
+    smash_mask = np.isfinite(flux_mean) & smash_mask_spec
+
     # In some cases flux_spec can be totally masked and the result of sigma_clipped_stats is "masked"
     # and that would crush in the following lines
     # TODO investigate and fix this bug
@@ -1036,15 +1065,19 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     ##   New CODE
     # 1st iteration
 
+    """
     gauss_smth_sigma = (fwhm/2.3548) # JFH Reduced by two
-    smash_mask = np.isfinite(flux_mean)
+    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
+
+
     flux_mean_med0 = np.median(flux_mean[smash_mask])
-    flux_mean[np.invert(smash_mask)] = flux_mean_med0
+    spat_pix = np.arange(nsamp)
+    flux_mean_fill_val = np.interp(spat_pix, spat_pix[smash_mask], fast_running_median(flux_mean[smash_mask], 5.0*fwhm))
+    flux_mean[np.logical_not(smash_mask)] = flux_mean_fill_val[np.logical_not(smash_mask)]
     fluxsub0 = flux_mean - flux_mean_med0
     fluxconv0 = scipy.ndimage.filters.gaussian_filter1d(fluxsub0, gauss_smth_sigma, mode='nearest')
 
     #show_cont=True
-    cont_samp = np.fmin(int(np.ceil(nsamp/(fwhm/2.3548))), 30)
     cont, cont_mask0 = arc.iter_continuum(
         fluxconv0, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=cont_sig_thresh, sigrej=2.0, cont_samp=cont_samp,
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
@@ -1060,6 +1093,19 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=has_negative, debug=show_cont, debug_peak_find=False,
         qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
+    """
+
+    #show_cont=True
+    nconv_iter=2
+    gpm = smash_mask
+    for iconv in range(nconv_iter):
+        qa_title='Smash Image Background for Iteration # {:d}: Slit# {:d}'.format(iconv + 1, specobj_dict['SLITID'])
+        fluxconv_cont, cont_gpm = get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative,
+                                                qa_title=qa_title, show_cont=show_cont,
+                                                cont_fit=False if iconv != nconv_iter-1 else cont_fit)
+        gpm = cont_gpm
+
+
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
     #  use the cont_mask to isolate continuum pixels, and then interpolate the unmasked pixels.
     ##   New CODE
@@ -1097,11 +1143,11 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
 #    fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
 ## OLD CODE
 
-    if not np.any(cont_mask):
-        cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
+    if not np.any(cont_gpm):
+        cont_gpm = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    mean_sky, med_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
-    mean, med, sigma = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
+    mean_sky, med_sky, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_gpm], sigma=1.5)
+    mean, med, sigma = stats.sigma_clipped_stats(fluxconv_cont[cont_gpm], sigma=2.5)
 
     if skythresh == 0.0 and sigma != 0.0:
         skythresh = sigma
@@ -1174,6 +1220,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     else:
         nobj_reg = 0
 
+    #show_peaks=True
     # ToDo Also plot the edge trimming boundaries on the QA here.
     if show_peaks or objfindQA_filename is not None:
         spat_approx_vec = slit_left[specmid] + xsize[specmid]*np.arange(nsamp)/nsamp
@@ -1181,7 +1228,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
         # Define the plotting function
         #plt.plot(spat_approx_vec, fluxsub/sigma, color ='cornflowerblue',linestyle=':', label='Collapsed Flux')
         plt.plot(spat_approx_vec, fluxconv_cont/sigma, color='black', label = 'Collapsed flux (FWHM convol)')
-        plt.plot(spat_approx_vec[cont_mask], fluxconv_cont[cont_mask]/sigma, color='red', markersize=3.0,
+        plt.plot(spat_approx_vec[cont_gpm], fluxconv_cont[cont_gpm]/sigma, color='red', markersize=3.0,
                  mfc='red', linestyle='None', fillstyle='full',
                  zorder=9, marker='o', label = 'Used for threshold')
         plt.hlines(threshold/sigma,spat_approx_vec.min(),spat_approx_vec.max(), color='red',linestyle='--', label='Threshold')
@@ -1201,6 +1248,7 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
             viewer, ch = display.show_image(image*(thismask*inmask))
             plt.show()
         plt.close('all')
+        embed()
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
