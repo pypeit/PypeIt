@@ -1041,23 +1041,23 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     # TODO Should we be passing the mask here with extract_asymbox or not?
     flux_spec = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0]
-    mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
+    bpm_flux_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0] < 0.3
     if find_min_max is not None:
         find_spec_min,find_spec_max = int(find_min_max[0]), int(find_min_max[1])
         flux_spec = flux_spec[find_spec_min:find_spec_max,:]
-        mask_spec = mask_spec[find_spec_min:find_spec_max,:]
+        bpm_flux_spec = bpm_flux_spec[find_spec_min:find_spec_max,:]
 
     flux_mean, flux_median, flux_sig \
-            = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
+            = stats.sigma_clipped_stats(flux_spec, mask=bpm_flux_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
-    smash_mask_spec = np.sum(mask_spec, axis=0)/nsamp < 0.9
-    smash_mask = np.isfinite(flux_mean) & smash_mask_spec
+    gpm_smash_spec = np.sum(bpm_flux_spec, axis=0)/nspec < 0.3
+    gpm_smash = np.isfinite(flux_mean) & gpm_smash_spec
 
     # In some cases flux_spec can be totally masked and the result of sigma_clipped_stats is "masked"
     # and that would crush in the following lines
     # TODO investigate and fix this bug
-    if flux_mean is np.ma.core.MaskedConstant():
+    if flux_mean is np.ma.core.MaskedConstant() or np.sum(gpm_smash) == 0:
         msgs.info('No objects found')
         # Instantiate a null specobj
         return specobjs.SpecObjs()
