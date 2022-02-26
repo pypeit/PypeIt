@@ -308,7 +308,7 @@ class FindObjects:
 
         # First pass object finding
         sobjs_obj, self.nobj = \
-            self.find_objects(self.sciImg.image, std_trace=std_trace,
+            self.find_objects(self.sciImg.image, self.sciImg.ivar, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.findobj_show and not self.std_redux,
                               save_objfindQA=self.par['reduce']['findobj']['skip_second_find'] | self.std_redux)
@@ -332,7 +332,7 @@ class FindObjects:
 
         return initial_sky, sobjs_obj
 
-    def find_objects(self, image, std_trace=None,
+    def find_objects(self, image, ivar, std_trace=None,
                      show_peaks=False, show_fits=False,
                      show_trace=False, show=False, save_objfindQA=True,
                      manual_extract_dict=None, debug=False):
@@ -380,7 +380,7 @@ class FindObjects:
             manual_extract_dict= self.manual.dict_for_objfind(self.det, neg=False) if self.manual is not None else None
 
         sobjs_obj_single, nobj_single = \
-            self.find_objects_pypeline(image,
+            self.find_objects_pypeline(image, ivar,
                                        std_trace=std_trace,
                                        show_peaks=show_peaks, show_fits=show_fits,
                                        show_trace=show_trace, save_objfindQA=save_objfindQA,
@@ -393,7 +393,7 @@ class FindObjects:
             # Parses
             manual_extract_dict = self.manual.dict_for_objfind(self.det, neg=True) if self.manual is not None else None
             sobjs_obj_single_neg, nobj_single_neg = \
-                self.find_objects_pypeline(-image, std_trace=std_trace,
+                self.find_objects_pypeline(-image, ivar, std_trace=std_trace,
                                            show_peaks=show_peaks, show_fits=show_fits,
                                            show_trace=show_trace, save_objfindQA=save_objfindQA,
                                            manual_extract_dict=manual_extract_dict, neg=True,
@@ -410,7 +410,7 @@ class FindObjects:
         return sobjs_obj_single, nobj_single
 
     # TODO maybe we don't need parent and children for this method. But IFU has a bunch of extra methods.
-    def find_objects_pypeline(self, image, std_trace=None,
+    def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
@@ -699,7 +699,7 @@ class MultiSlitFindObjects(FindObjects):
         bin_spec, bin_spat = parse.parse_binning(self.binning)
         return self.sciImg.detector.platescale * bin_spec
 
-    def find_objects_pypeline(self, image, std_trace=None,
+    def find_objects_pypeline(self, image, ivar, std_trace=None,
                               manual_extract_dict=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, save_objfindQA=False, neg=False, debug=False):
@@ -781,7 +781,7 @@ class MultiSlitFindObjects(FindObjects):
                                                         det=detname, out_dir=out_dir)
 
             sobjs_slit = \
-                    findobj_skymask.objs_in_slit(image, thismask,
+                    findobj_skymask.objs_in_slit(image, ivar, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask, has_negative=self.find_negative,
@@ -869,7 +869,7 @@ class EchelleFindObjects(FindObjects):
 #        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)
 #        return self.sobjs_obj[np.where(thisobj)[0][0]]
 
-    def find_objects_pypeline(self, image, std_trace=None,
+    def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,
                               show_trace=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
@@ -931,7 +931,7 @@ class EchelleFindObjects(FindObjects):
                                                     det=detname, out_dir=out_dir)
 
         sobjs_ech = findobj_skymask.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
+            image, ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, has_negative=self.find_negative, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
@@ -975,7 +975,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         super().__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
-    def find_objects_pypeline(self, image, std_trace=None,
+    def find_objects_pypeline(self, image, ivar, std_trace=None,
                               show_peaks=False, show_fits=False, show_trace=False,
                               show=False, save_objfindQA=False, neg=False, debug=False,
                               manual_extract_dict=None):
@@ -983,7 +983,7 @@ class IFUFindObjects(MultiSlitFindObjects):
         See MultiSlitReduce for slit-based IFU reductions
         """
         if self.par['reduce']['cube']['slit_spec']:
-            return super().find_objects_pypeline(image, std_trace=std_trace,
+            return super().find_objects_pypeline(image, ivar, std_trace=std_trace,
                                                  show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
                                                  show=show, save_objfindQA=save_objfindQA, neg=neg,
                                                  debug=debug, manual_extract_dict=manual_extract_dict)

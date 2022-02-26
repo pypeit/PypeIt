@@ -839,7 +839,7 @@ def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative
 
 
 
-def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
+def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, has_negative=False, spec_min_max=None, hand_extract_dict=None, std_trace=None,
                  ncoeff=5, nperslit=None, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
                  cont_sig_thresh=2.0, extract_maskwidth=4.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
@@ -1040,7 +1040,8 @@ def objs_in_slit(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, u
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     # TODO Should we be passing the mask here with extract_asymbox or not?
-    flux_spec = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
+    embed()
+    flux_spec, flux_spec_ivar,  = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0]
     bpm_flux_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0] < 0.3
