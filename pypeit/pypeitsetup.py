@@ -396,6 +396,9 @@ class PypeItSetup:
         # configuration-defining metadata
         if clean_config:
             self.fitstbl.clean_configurations()
+            if len(self.fitstbl) == 0:
+                msgs.error('Cleaning the configurations removed all the files!  Rerun '
+                           'pypeit_setup with the --keep_bad_frames option.')
 
         # Determine the type of each frame.
         self.get_frame_types(flag_unknown=setup_only or calibration_check)
