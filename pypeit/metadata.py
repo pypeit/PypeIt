@@ -307,7 +307,7 @@ class PypeItMetaData:
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
                     # TODO: This should be converted to an assert statement...
                     raise ValueError('CODING ERROR: Found high-dimensional column.')
-                    embed(header='372 of metadata')
+                    #embed(header='372 of metadata')
                 elif key in meta_data_model.keys(): # Is this meta data??
                     dtype = meta_data_model[key]['dtype']
                 else:

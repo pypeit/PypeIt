@@ -10,6 +10,7 @@ from scipy import signal, ndimage
 from scipy.optimize import curve_fit
 
 from astropy.convolution import convolve, Box2DKernel
+from astropy.timeseries import LombScargle
 
 from pypeit import msgs
 from pypeit import utils
@@ -766,9 +767,21 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
+        # Estimate the frequency at each pixel
+        all_rows = np.arange(overscan.shape[0])
+        all_freq = np.zeros(overscan.shape[0])
+        pixels = np.arange(overscan.shape[1])
+        for ii in range(overscan.shape[0]):
+            sgnl = overscan[ii,:]
+            LSfreq, power = LombScargle(pixels, sgnl).autopower(minimum_frequency=use_fr*(1-100/frame_orig.shape[1]), maximum_frequency=use_fr*(1+100/frame_orig.shape[1]), samples_per_peak=10)
+            bst = np.argmax(power)
+            cc = np.polyfit(LSfreq[bst-2:bst+3],power[bst-2:bst+3],2)
+            all_freq[ii] = -0.5*cc[1]/cc[0]
+        cc = np.polyfit(all_rows, all_freq, 1)
+        frq_mod = np.polyval(cc, all_rows) * (overscan.shape[1]-1)
+
         # Convert frequency to the size of the overscan region
         msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
-        use_fr *= (overscan.shape[1]-1)
 
         # Get a first guess of the amplitude and phase information
         amp = np.fft.rfft(overscan, axis=1)
@@ -786,8 +799,9 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Get the best estimate of the amplitude
         for ii in range(overscan.shape[0]):
             try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
-                                       bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], frq_mod[ii], phss[ii]],
+                                       bounds=([-np.inf, frq_mod[ii] * 0.99999999, -np.inf],
+                                               [+np.inf, frq_mod[ii] * 1.00000001, +np.inf]))
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
@@ -795,14 +809,13 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
                 msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             val[ii] = popt[0]
-            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
         use_amp = np.median(val)
         # Get the best estimate of the phase, and generate a model
         for ii in range(overscan.shape[0]):
             try:
-                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, use_fr, phss[ii]],
-                                       bounds=([use_amp * 0.99999999, use_fr * 0.99999999, -np.inf],
-                                               [use_amp * 1.00000001, use_fr * 1.00000001, +np.inf]))
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, frq_mod[ii], phss[ii]],
+                                       bounds=([use_amp * 0.99999999, frq_mod[ii] * 0.99999999, -np.inf],
+                                               [use_amp * 1.00000001, frq_mod[ii] * 1.00000001, +np.inf]))
             except ValueError:
                 msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue

@@ -100,6 +100,7 @@
 .. _pytest: https://docs.pytest.org/en/latest/
 .. _shapely: https://shapely.readthedocs.io/en/stable/manual.html
 .. _scikit-image: https://scikit-image.org/
+.. _bottleneck: https://bottleneck.readthedocs.io/en/latest/
 
 .. ginga
 

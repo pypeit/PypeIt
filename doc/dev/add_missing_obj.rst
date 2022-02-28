@@ -61,7 +61,7 @@ MOSFIRE (except when the *LONGSLIT* or the *long2pos* mask is used).
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
-For LRIS one needs to add these explicitly to the :doc:`pypeit_file`, e.g.::
+For LRIS one needs to add these explicitly to the :ref:`pypeit_file`, e.g.::
 
     [reduce]
     [[slitmask]]
@@ -81,7 +81,7 @@ Access
 - The same flag is also visible when running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
 - The forced extraction are shown in a different color than the detected objects (yellow vs. orange)
   in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
-- the **slitmask_offset** value is reported when running ``pypeit_chk_2dslits Science/spec2d_XXX.fits``.
+- the **slitmask_offset** value is reported when running ``pypeit_parse_slits Science/spec2d_XXX.fits``.
 
 
 Testing

@@ -7,7 +7,18 @@
 Installation
 ============
 
+.. warning::
+
+    **Apple Silicon (e.g. M1 or M1 Pro) Users**: We have a solution that works
+    for installation on newer Apple hardware.  It *requires* `conda`_ and a specific
+    miniconda installer. If you're an Apple Silicon Mac user, skip to the :ref:`m1_macs`
+    section for details.
+
 .. DO WE HAVE A RELEVANT LINK FOR THE PYPEIT USERS SLACK?
+
+.. warning::
+
+    Python 3.10 is not yet supported.  
 
 Below, we provide detailed instructions for installing ``PypeIt``.  For
 troubleshooting, please consult our ``PypeIt`` user community via our PypeIt
@@ -34,7 +45,8 @@ Both methods discussed below for installing ``PypeIt`` (via `pip`_ or `conda`_)
 also install or upgrade its :ref:`dependencies`.  For this reason, we highly
 (!!) recommended you first set up a clean python environment in which to install
 ``PypeIt``.  This mitigates any possible dependency conflicts with other
-packages you use.
+packages you use. Note that users of Apple Silicon-based computers must use `conda`_
+because some key dependencies are not yet available via `pip`_.
 
 You can setup a new python environment using `virtualenv`_:
 
@@ -47,7 +59,7 @@ or `conda`_:
 
 .. code-block:: console
 
-    conda create -n pypeit python=3.8
+    conda create -n pypeit python=3.9
     conda activate pypeit
 
 See the `Virtualenv documentation <https://virtualenv.pypa.io/en/latest/>`_
@@ -55,10 +67,11 @@ and/or `Managing Environments with Conda
 <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
 for more details. See also `virtualenvwrapper
 <https://virtualenvwrapper.readthedocs.io/en/latest/>`_ as an option for more
-easily managing `virtualenv`_ environments.
+easily managing `virtualenv`_ environments. The `conda`_ installation method described below
+creates an environment for you.
 
-Install via ``pip`` (recommended)
----------------------------------
+Install via ``pip``
+-------------------
 
 To install the latest release of ``PypeIt`` and its required dependencies, execute
 either
@@ -83,6 +96,15 @@ in the optional dependencies, e.g.:
 
     pip install "pypeit[pyside2,scikit-image]"
 
+Also, ``PypeIt`` will use the `bottleneck`_ package to speed up a few
+calculations, if it is available.  To include bottleneck in the ``PypeIt``
+installation and take advantage of these speed gains, instead install by
+running, e.g.:
+
+.. code-block:: console
+
+    pip install "pypeit[pyqt5,bottleneck]"
+
 .. note::
 
     Whether or not it is correct syntax to use the quotes in the commands above
@@ -92,17 +114,18 @@ in the optional dependencies, e.g.:
     marks may not be correct, leading to errors when they are directly pasted
     into a terminal window.
 
-Install via ``conda``
----------------------
+Install via ``conda`` (recommended overall and *required for Apple Silicon*)
+----------------------------------------------------------------------------
 
 `conda`_ is a popular and widely-used package and environment manager. We
 provide a yaml file that can be used to setup a conda environment called
-``pypeit`` that contains all of the required dependencies.  To use this:
+``pypeit`` that contains ``pypeit`` and all of the required dependencies.
+To use this:
 
     #. Download `environment.yml
        <https://github.com/pypeit/PypeIt/blob/release/environment.yml>`__.
 
-    #. Create the conda environment:
+    #. Create the conda environment and install ``pypeit`` into it:
 
         .. code-block:: console
 
@@ -114,31 +137,13 @@ provide a yaml file that can be used to setup a conda environment called
 
             conda activate pypeit
 
-    #. Verify that the new environment was installed correctly:
+    #. Verify that the new environment was installed correctly and contains ``pypeit``:
 
         .. code-block:: console
 
             conda env list
 
-    #. Install latest ``pypeit`` via ``pip`` as above or perform a developer
-       install as below or install the latest release from ``conda-forge``:
-
-        .. code-block:: console
-
-            conda install -c conda-forge pypeit
-
-    #. Install the preferred QT binding either via ``pip`` as above or via
-       conda:
-
-        .. code-block:: console
-
-            conda install -c conda-forge pyqt
-
-       or
-
-        .. code-block:: console
-
-            conda install -c conda-forge pyside2
+This environment should now be ready to use and contain the latest official ``pypeit`` release.
 
 Upgrading to a new version
 --------------------------
@@ -149,15 +154,36 @@ Upgrading ``PypeIt`` should simply be a matter of executing:
 
     pip install pypeit --upgrade
 
-or 
+If this causes problems (e.g., a new ``PypeIt`` script is unavailable or
+you encounter script errors), first try uninstalling (e.g., ``pip uninstall pypeit``)
+and then reinstalling.
+
+.. _m1_macs:
+
+User Installation on Apple Silicon-based Macs
+---------------------------------------------
+
+The `conda`_ installation method described above is currently the *only* reliable way to
+natively install ``pypeit`` on new Macs based on Apple Silicon processors (e.g. M1 and M1 Pro).
+It requires that `conda`_ was installed via a Apple Silicon native installer, though.
+There is now an official `miniconda <https://docs.conda.io/en/latest/miniconda.html>`__ installer
+for Apple Silicon and we recommend using that. The `miniforge <https://github.com/conda-forge/miniforge>`__
+installer for Apple Silicon should also work, but is not as well tested. The full Anaconda installers will
+not work and do not yet support Apple Silicon.
+
+It is also possible to install and run ``pypeit`` using Mac OS's Rosetta emulator. To do so, bring up
+a command-line in emulation mode:
 
 .. code-block:: console
 
-    conda install pypeit --upgrade
+    arch -x86_64 /bin/zsh
 
-depending on how you first installed ``PypeIt``.  If this causes problems (e.g.,
-a new ``PypeIt`` script is unavailable or you encounter script errors), first
-try uninstalling (e.g., ``pip uninstall pypeit``) and then reinstalling.
+Then follow one of the installation methods described above. However, we only recommend this
+approach if there is some unforeseen problem with one of the native miniconda installers. Rosetta
+emulation works exceedingly well, but does incur a 15-30% performance penalty compared to native.
+
+Solutions/Recommendations/Feedback for these installation options are welcome; please `Submit an
+issue`_.
 
 ----
 
@@ -293,8 +319,8 @@ Interactive tools in ``PypeIt`` are built using the `QT
 provide an abstract interface to the two most widely used QT bindings for
 Python (see :ref:`dependencies`):
 
-* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_ 
-* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_ 
+* `pyqt5 <https://riverbankcomputing.com/software/pyqt/intro>`_
+* `PySide2 <https://wiki.qt.io/Qt_for_Python>`_
 
 At least one of those bindings must be installed for the interative GUIs to
 work. **Do not install both!**  These two packages do not play nicely together.
@@ -327,7 +353,7 @@ Some notes if you have problems installing the C code:
 
     - to successfully compile the C code, you may need to update ``gcc`` and/or
       ``Xcode`` for Mac users
-    
+
     - for some Mac users, you may also need to update your OS if you're using a
       particularly old version (e.g., 10.10 Yosemite)
 
@@ -373,10 +399,6 @@ Some users have run into the following complications when installing the
 - At the moment, an implicit dependency on QT bindings remains (either PyQT5 or
   PySide2) because of our dependence on ``linetools``.
 
-- Note that ``shapely`` is provided as an optional dependency, but is only
-  currently used by one method that calculates the spaxel area for KCWI output
-  datacubes.
-
 ----
 
 .. _developer_install:
@@ -403,14 +425,14 @@ dependencies as well:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt#egg=pypeit[pyqt5]"
 
 These commands will install the default branch, ``release``. You can also
 specify a different branch, such as the main ``develop`` branch:
 
 .. code-block:: console
 
-    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5,shapely]"
+    pip install --upgrade "git+https://github.com/pypeit/PypeIt.git@develop#egg=pypeit[pyqt5]"
 
 Commit hashes, tag names, or git refs can also be specified; see the `VCS
 Support documentation
@@ -421,7 +443,7 @@ Install from source
 -------------------
 
 Developers doing code development will likely want to set up an "editable"
-install that points to a locally checked out copy of the GitHub repository.  We 
+install that points to a locally checked out copy of the GitHub repository.  We
 highly recommended using ``pip`` to install the repository and to
 :ref:`environment` for code development.
 
@@ -487,6 +509,19 @@ For example:
 
     python
     >>> import pypeit
+
+**To ensure that your installation of either ``pyqt5`` or ``pyside2`` works**,
+you can try to use ``pypeit_show_1dspec`` on one of the test files distributed
+with the package.  Below is a zshell command-line incantation (it's likely the
+same in bash) that will locate a test spec1D file and attempt to use
+:ref:`pypeit_show_1dspec` to show it:
+
+.. code-block:: console
+
+    python -c "from pkg_resources import resource_filename; print(resource_filename('pypeit', 'tests/files/spec1d_r153-J0025-0312_KASTr_20150123T025323.850.fits'))" | xargs -I {} pypeit_show_1dspec {}
+
+If ``pyqt5`` or ``pypside2`` are correctly installed, this should show a test
+spectrum from the Shane/KAST spectrograph.
 
 Developer Tests
 ---------------

@@ -199,12 +199,14 @@ def append_FORS():
                 try:
                     lam.append(float(items[0])*10)
                 except:
+                    # TODO: Get rid of this?
                     embed(header='196')
                 T.append(float(items[1])/10)
             else:
                 try:
                     T.append(float(items[1]))
                 except:
+                    # TODO: Get rid of this?
                     embed(header='205')
         # Recast
         wave = np.array(lam)

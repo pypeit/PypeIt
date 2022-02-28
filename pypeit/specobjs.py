@@ -770,16 +770,16 @@ class SpecObjs:
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
-                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'IFU':
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
-                wave_rms.append(specobj.WAVE_RMS)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
+            # Wave RMS
+            if specobj.WAVE_RMS is not None:  # this is needed to print info for coadd2d
                 wave_rms.append(specobj.WAVE_RMS)
             # Boxcar width
             if specobj.BOX_RADIUS is not None:
@@ -867,8 +867,9 @@ class SpecObjs:
                 obj_tbl['manual_extract'] = manual_extract
 
             # Wavelengths
-            obj_tbl['wv_rms'] = wave_rms
-            obj_tbl['wv_rms'].format = '.3f'
+            if len(wave_rms) > 0:
+                obj_tbl['wv_rms'] = wave_rms
+                obj_tbl['wv_rms'].format = '.3f'
             # Write
             obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
 
