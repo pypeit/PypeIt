@@ -7,8 +7,6 @@ Data locations for built-in PypeIt data files
 import os
 from pkg_resources import resource_filename
 
-import numpy as np
-
 from linetools.spectra import xspectrum1d
 
 from pypeit import io

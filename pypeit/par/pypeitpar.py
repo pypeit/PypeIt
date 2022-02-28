@@ -73,7 +73,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit import data
 
 
 def tuple_force(par):
