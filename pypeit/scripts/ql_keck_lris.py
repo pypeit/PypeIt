@@ -30,7 +30,8 @@ from pypeit import spec2dobj
 from pypeit import coadd2d
 from pypeit import specobjs
 from pypeit import slittrace
-from pypeit import reduce
+from pypeit import extraction
+from pypeit import find_objects
 from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
@@ -113,17 +114,35 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
         spectrograph, det, parset['scienceframe'], list(files),  bias=caliBrate.msbias,
         bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
+
+    # Instantiate FindObjects object
+    # Required for pypeline specific object
+    # At instantiaton, the fullmask in self.sciImg is modified
+    # DP: Should find_negative be True here? JFH: For quicklook yes!
+    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+                                                    bkg_redux=False, find_negative=False, show=show)
+
+    global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
+
+
+    # Instantiate Extract object
+    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
+                                              'science', bkg_redux=False, return_negative=False, show=show)
+
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+
+
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
+    #redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
 
     # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
     #     std_trace=std_trace, return_negative=True, show_peaks=show)
 
-    global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
-        global_sky, sobjs_obj, skymask)
+    #global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
+    #skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
+    #    global_sky, sobjs_obj, skymask)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -297,7 +316,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         det = 1  # Currently CHIP1 is supported
         if std_spec1d_file is not None:
             # Get the standard trace if need be
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
+            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)
             this_det = sobjs.DET == det
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
