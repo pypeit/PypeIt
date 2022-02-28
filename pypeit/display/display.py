@@ -512,8 +512,12 @@ def clear_canvas(cname):
 
 def clear_all(allow_new=False):
     """
-    Clear all of the ginga canvasses
+    Clear all of the ginga canvasses.
 
+    Args:
+        allow_new (:obj:`bool`, optional):
+            Allow a subprocess to be called to execute a new ginga viewer if one
+            is not already running.  See :func:`connect_to_ginga`.
     """
     viewer = connect_to_ginga(allow_new=allow_new)
     shell = viewer.shell()

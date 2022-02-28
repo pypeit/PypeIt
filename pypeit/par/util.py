@@ -312,7 +312,7 @@ def _read_data_file_names(lines, file_check=True, sort=True):
             The list of string lines to parse.
         file_check (:obj:`bool`, optional):
             Check that the parsed file names are valid files on disk.
-        sorted (:obj:`bool`, optional):
+        sort (:obj:`bool`, optional):
             Sort the list of file names on output
 
     Returns:
