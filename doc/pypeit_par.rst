@@ -1926,14 +1926,11 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
           [[[process]]]
               combine = median
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
-      [[pinholeframe]]
-          exprng = 999999, None
       [[alignframe]]
           [[[process]]]
               satpix = nothing
@@ -1942,7 +1939,6 @@ Alterations to the default parameters are::
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9
       [[traceframe]]
-          exprng = None, 30
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1970,7 +1966,6 @@ Alterations to the default parameters are::
       [[slitedges]]
           fit_order = 4
   [scienceframe]
-      exprng = 30, None
       [[process]]
           mask_cr = True
           sigclip = 4.0
