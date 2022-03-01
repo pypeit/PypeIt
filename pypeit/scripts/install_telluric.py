@@ -40,10 +40,6 @@ class InstallTelluric(scriptbase.ScriptBase):
         if len(tell_files) == 0:
             raise ValueError(f'No telluric grid files found in {args.path}')
 
-        # Get the directory for the grids and make sure it exists
-        if not os.path.isdir(data.Paths.telgrid):
-            raise NotADirectoryError(f'Unable to find {data.Paths.telgrid}.  Check your installation.')
-
         # Create a symlink for each file
         for f in tell_files:
             create_symlink(f, data.Paths.telgrid, overwrite=True)

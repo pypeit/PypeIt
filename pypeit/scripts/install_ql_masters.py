@@ -68,10 +68,6 @@ class InstallQLMasters(scriptbase.ScriptBase):
                                         f'{_odir}, but that directory does not exist.  Check '
                                         'and/or re-download the zip file.')
 
-        # Get the pypeit data directory and make sure it exists
-        if not os.path.isdir(data.Paths.data):
-            raise NotADirectoryError(f'Unable to find {data.Paths.data}.  Check your installation.')
-
         # Create a symlink to the QL_MASTERS directory in the pypeit/data
         # directory.
         create_symlink(ql_dir, data.Paths.data, overwrite=True)
