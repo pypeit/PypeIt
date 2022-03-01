@@ -189,7 +189,7 @@ class Identify:
     @classmethod
     def initialise(cls, arccen, lamps, slits, slit=0, par=None, wv_calib_all=None,
                    wavelim=None, nonlinear_counts=None, test=False,
-                   pxtoler=0.1, fwhm=4., specname=""):
+                   pxtoler=0.1, fwhm=4., specname="", y_log=True):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -225,6 +225,8 @@ class Identify:
             Tolerance in pixels for adding lines with the auto option
         specname : str, optional
             The name of the spectrograph
+        ylog : bool, optional
+            Scale the Y-axis logarithmically instead of linearly?  (Default: True)
 
         Returns
         -------
@@ -274,7 +276,14 @@ class Identify:
         fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
         plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
         ax.add_line(spec)
-        ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+        if y_log:
+            ax.set_yscale('log')
+            ax.set_ylim( (max(1., spec.get_ydata().min()),
+                        4.0 * spec.get_ydata().max()))
+        else:
+            ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+        ax.set_xlabel('Pixel')
+        ax.set_ylabel('Flux')
 
         # Add two residual fitting axes
         axfit = fig.add_axes([0.7, .5, .28, 0.35])

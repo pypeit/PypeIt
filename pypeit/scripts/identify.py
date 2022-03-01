@@ -32,6 +32,8 @@ class Identify(scriptbase.ScriptBase):
                             help="Pixel tolerance for Auto IDs")
         parser.add_argument('--test', default=False, action='store_true',
                             help="Unit tests?")
+        parser.add_argument("--linear", default=False, action="store_true",
+                            help="Show the spectrum in linear scale? (Default: log")
         parser.add_argument('--force_save', default=False, action='store_true',
                             help="Save the solutions, despite the RMS")
         return parser
@@ -92,7 +94,7 @@ class Identify(scriptbase.ScriptBase):
                                         wv_calib_all=wv_calib, wavelim=[args.wmin, args.wmax],
                                         nonlinear_counts=msarc.detector.nonlinear_counts(),
                                         pxtoler=args.pixtol, test=args.test, fwhm=args.fwhm,
-                                        specname=spec.name)
+                                        specname=spec.name, y_log=not args.linear)
         # Testing?
         if args.test:
             return arcfitter
