@@ -92,7 +92,7 @@ Provide a file to guide the process.  Do this if your changes to
 the defaults are not accommodated by the script inputs.  This file
 contains a Parameter Block where you can specify ``sensfunc`` parameters.
 For example, if you wish to use the MaunaKea telluric grid with your data,
-you would create a sens file containing::
+you would create a sens file containing:
 
     .. code-block:: ini
         # User-defined execution parameters
@@ -107,7 +107,7 @@ IR without a Standard
 If you wish to generate a sensitivity function on a standard
 star that is not part of the PypeIt database and are working
 in the IR, you can feed the stellar parameters.  Here is an
-example sens file::
+example sens file:
 
     .. code-block:: ini
         [sensfunc]
