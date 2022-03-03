@@ -696,7 +696,6 @@ class MultiSlitFindObjects(FindObjects):
             :obj:`float`: plate scale in binned pixels
 
         """
-        embed()
         bin_spec, bin_spat = parse.parse_binning(self.binning)
         return self.sciImg.detector.platescale * bin_spec
 

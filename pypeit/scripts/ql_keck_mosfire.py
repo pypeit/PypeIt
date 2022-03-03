@@ -424,7 +424,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             exptime = spectrograph.get_meta_value(files[0],'exptime')
             sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'][:,islit],
                                                          sens.wave.flatten(), sens.zeropoint.flatten(), exptime,
-                                                         extrap_sens=parset['fluxcalib']['extrap_sens'])
+                                                         extrap_sens=True) #parset['fluxcalib']['extrap_sens'])
 
             # Compute the median sensitivity and set the sensitivity to zero at
             # locations 100 times the median. This prevents the 2d image from

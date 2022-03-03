@@ -1205,6 +1205,7 @@ def mask_star_lines(wave_star, mask_width=10.0):
 
 def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
                       telgridfile, ech_orders=None, polyorder=8, mask_abs_lines=True,
+                      resln_guess=None, resln_frac_bounds=(0.5, 1.5),
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, ballsize=5e-4, only_orders=None, maxiter=3, lower=3.0,
                       upper=3.0, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
@@ -1248,6 +1249,20 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Polynomial order for the sensitivity function fit.
     mask_abs_lines : :obj:`bool`, optional, default=True
         Mask proiminent stellar absorption lines?
+    resln_guess (:obj:`float`, optional):
+        A guess for the resolution of your spectrum expressed as
+        lambda/dlambda. The resolution is fit explicitly as part of the
+        telluric model fitting, but this guess helps determine the bounds
+        for the optimization (see ``resln_frac_bounds``). If not
+        provided, the wavelength sampling of your spectrum will be used
+        and the resolution calculated using a typical sampling of 3
+        spectral pixels per resolution element.
+    resln_frac_bounds (:obj:`tuple`, optional):
+        A two-tuple with the bounds for the resolution fit optimization
+        which is part of the telluric model. This range is in units of
+        ``resln_guess``. For example, ``(0.5, 1.5)`` would bound the
+        spectral resolution fit to be within the range
+        ``(0.5*resln_guess, 1.5*resln_guess)``.
     delta_coeff_bounds : :obj:`tuple`, optional, default = (-20.0, 20.0)
         Parameters setting the polynomial coefficient bounds for sensfunc
         optimization.
@@ -1337,7 +1352,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     # Since we are fitting a sensitivity function, first compute counts per second per angstrom.
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
                       init_sensfunc_model, eval_sensfunc_model, ech_orders=ech_orders,
-                      sn_clip=sn_clip, maxiter=maxiter, lower=lower, upper=upper, tol=tol,
+                      resln_guess=resln_guess, resln_frac_bounds=resln_frac_bounds, sn_clip=sn_clip,
+                      maxiter=maxiter,  lower=lower, upper=upper, tol=tol,
                       popsize=popsize, recombination=recombination, polish=polish, disp=disp,
                       sensfunc=True, debug=debug)
     TelObj.run(only_orders=only_orders)
