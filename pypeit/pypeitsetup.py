@@ -289,7 +289,6 @@ class PypeItSetup:
 
         # Add this to the completed steps
         self.steps.append(inspect.stack()[0][3])
-
         # Return the table
         return self.fitstbl.table
 

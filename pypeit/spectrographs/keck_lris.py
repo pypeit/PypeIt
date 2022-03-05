@@ -143,6 +143,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['cenwave'] = dict(ext=0, card='WAVELEN', rtol=2.0)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -1230,7 +1231,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'amp', 'binning']
+        return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1296,7 +1297,6 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Over-ride a pair
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
-
 
 
     def get_detector_par(self, det, hdu=None):
