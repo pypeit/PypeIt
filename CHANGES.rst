@@ -1,7 +1,16 @@
 
-1.8.1dev
+1.8.2dev
 --------
-- embed hotfixes
+
+- When using glob to get files in pypeit_setup, added automatic sorting so that
+  the default `comb_id` ordering matches the sorted file name.
+- Improve Keck/KCWI automatic frame typing.
+
+
+1.8.1 (23 Feb 2022)
+-------------------
+
+- various hotfixes
 - Include preliminary support for fluxing with archived SensFunc files
   for DEIMOS.
 - Added enhancements and fixes for Keck lris red Mark4.
@@ -102,7 +111,6 @@
     - Fixed a bug that was introduced in skymask definition.
     - Fixed a bug where negative objects were not being found for IR reductions of standard stars.
 - Add template wavelength solution for soar_goodman_red 400_SYZY
-
 
 1.7.0 (19 Nov 2021)
 -------------------

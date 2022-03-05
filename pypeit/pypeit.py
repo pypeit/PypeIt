@@ -463,7 +463,7 @@ class PypeIt:
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
             # TODO: Put this in a try/except block?
-            display.clear_all()
+            display.clear_all(allow_new=True)
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
         # Is this an b/g subtraction reduction?
