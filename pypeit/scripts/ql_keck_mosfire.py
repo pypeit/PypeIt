@@ -115,7 +115,7 @@ def run_pair(A_files, B_files, caliBrate, spectrograph, det, parset, show=False,
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
 
-    # DP: Should find_negative be True here?
+    # DP: Should find_negative be True here? JFH: For quicklook yes!
     objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
                                                     bkg_redux=True, find_negative=True, show=show)
 
@@ -307,9 +307,10 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
 
         ## Read in the master frames that we need
         ##
+        embed()
         if std_spec1d_file is not None:
             # Get the standard trace if need be
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
+            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)
             this_det = sobjs.DET == detname
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
@@ -423,7 +424,7 @@ class QLKeckMOSFIRE(scriptbase.ScriptBase):
             exptime = spectrograph.get_meta_value(files[0],'exptime')
             sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'][:,islit],
                                                          sens.wave.flatten(), sens.zeropoint.flatten(), exptime,
-                                                         extrap_sens=parset['fluxcalib']['extrap_sens'])
+                                                         extrap_sens=True) #parset['fluxcalib']['extrap_sens'])
 
             # Compute the median sensitivity and set the sensitivity to zero at
             # locations 100 times the median. This prevents the 2d image from

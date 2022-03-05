@@ -78,6 +78,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
         par['scienceframe']['exprng'] = [60, None]
+
+
+        # If telluric is triggered
+        par['sensfunc']['IR']['telgridfile'] \
+                = os.path.join(par['sensfunc']['IR'].default_root,
+                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -136,6 +143,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         self.meta['hatch'] = dict(ext=0, card='TRAPDOOR')
         # Red only, but grabbing here
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
+        self.meta['cenwave'] = dict(ext=0, card='WAVELEN', rtol=2.0)
         self.meta['frameno'] = dict(ext=0, card='FRAMENO')
         self.meta['instrument'] = dict(ext=0, card='INSTRUME')
 
@@ -1132,6 +1140,10 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['scienceframe']['process']['sigclip'] = 5.
         par['scienceframe']['process']['objlim'] = 5.
 
+        # Sensitivity function defaults
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 9
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -1219,7 +1231,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
-        return super().configuration_keys() + ['dispangle', 'amp', 'binning']
+        return super().configuration_keys() + ['dispangle', 'cenwave', 'amp', 'binning']
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -1285,6 +1297,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Over-ride a pair
         self.meta['mjd'] = dict(ext=0, card='MJD')
         self.meta['exptime'] = dict(ext=0, card='TELAPSE')
+
 
     def get_detector_par(self, det, hdu=None):
         """

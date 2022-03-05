@@ -30,7 +30,8 @@ from pypeit import spec2dobj
 from pypeit import coadd2d
 from pypeit import specobjs
 from pypeit import slittrace
-from pypeit import reduce
+from pypeit import extraction
+from pypeit import find_objects
 from pypeit import calibrations
 from pypeit.display import display
 from pypeit.images import buildimage
@@ -113,17 +114,35 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
         spectrograph, det, parset['scienceframe'], list(files),  bias=caliBrate.msbias,
         bpm=caliBrate.msbpm, slits=caliBrate.slits, ignore_saturation=False)
 
+
+    # Instantiate FindObjects object
+    # Required for pypeline specific object
+    # At instantiaton, the fullmask in self.sciImg is modified
+    # DP: Should find_negative be True here? JFH: For quicklook yes!
+    objFind = find_objects.FindObjects.get_instance(sciImg, spectrograph, parset, caliBrate, 'science',
+                                                    bkg_redux=False, find_negative=False, show=show)
+
+    global_sky, sobjs_obj = objFind.run(std_trace=std_trace, show_peaks=show)
+
+
+    # Instantiate Extract object
+    extract = extraction.Extract.get_instance(sciImg, sobjs_obj, spectrograph, parset, caliBrate,
+                                              'science', bkg_redux=False, return_negative=False, show=show)
+
+    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = extract.run(global_sky, sobjs_obj)
+
+
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
+    #redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=show, det=det)
 
     # skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run(
     #     std_trace=std_trace, return_negative=True, show_peaks=show)
 
-    global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
-    skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
-        global_sky, sobjs_obj, skymask)
+    #global_sky, sobjs_obj, skymask = redux.run_objfind(std_trace=std_trace, show_peaks=show)
+    #skymodel, objmodel, ivarmodel, outmask, sobjs, scaleimg, waveimg, tilts = redux.run_extraction(
+    #    global_sky, sobjs_obj, skymask)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -133,7 +152,7 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
     # Construct table of spectral flexure
     spec_flex_table = Table()
     spec_flex_table['spat_id'] = caliBrate.slits.spat_id
-    spec_flex_table['sci_spec_flexure'] = redux.slitshift
+    spec_flex_table['sci_spec_flexure'] = extract.slitshift
 
     # Construct the Spec2DObj with the positive image
     spec2DObj = spec2dobj.Spec2DObj(sciimg=sciImg.image,
@@ -150,7 +169,8 @@ def run(files, caliBrate, spectrograph, det, parset, show=False, std_trace=None)
                                     vel_corr=None,
                                     vel_type=parset['calibrations']['wavelengths']['refframe'],
                                     tilts=tilts,
-                                    slits=copy.deepcopy(caliBrate.slits))
+                                    slits=copy.deepcopy(caliBrate.slits),
+                                    maskdef_designtab=None)
     spec2DObj.process_steps = sciImg.process_steps
     return spec2DObj
 
@@ -240,7 +260,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         lris_grating = spectrograph.get_meta_value(files[0], 'dispname')
         #lris_masters = os.path.join(master_dir, 'LRIS_MASTERS', lris_grism)
         if args.master_dir is None:
-            lris_masters='/Users/joe/lris_observing_2022/Jan26/redux/red/600_10000_d680_hizqso/LRIS_RED_MASTERS/'
+            lris_masters='/Users/joe/lris_observing_2022/Jan26/quicklook/LRIS_QL_MASTERS/'
         else:
             lris_masters = args.master_dir
 
@@ -297,7 +317,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         det = 1  # Currently CHIP1 is supported
         if std_spec1d_file is not None:
             # Get the standard trace if need be
-            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file)
+            sobjs = specobjs.SpecObjs.from_fitsfile(std_spec1d_file, chk_version=False)
             this_det = sobjs.DET == det
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
@@ -333,6 +353,8 @@ class QLKECKLRIS(scriptbase.ScriptBase):
         caliBrate.slits = slits
         caliBrate.wavetilts = tilts_obj
         caliBrate.wv_calib = wv_calib
+        caliBrate.binning = f'{slits.binspec},{slits.binspat}'
+
 
         # Find the unique offsets. This is a bit of a kludge, i.e. we are considering offsets within
         # 0.1 arcsec of each other to be the same throw, but I should like to be able to specify a tolerance here,
@@ -374,7 +396,7 @@ class QLKECKLRIS(scriptbase.ScriptBase):
                                              offsets=offsets_pixels, weights='uniform',
                                              spec_samp_fact=args.spec_samp_fact,
                                              spat_samp_fact=args.spat_samp_fact,
-                                             ir_redux=True, debug=args.show)
+                                             bkg_redux=True, debug=args.show)
         # Coadd the slits
         # TODO implement only_slits later
         coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)
@@ -391,8 +413,8 @@ class QLKECKLRIS(scriptbase.ScriptBase):
             # don't need to do a 2d interpolation
             exptime = spectrograph.get_meta_value(files[0], 'exptime')
             sens_factor = flux_calib.get_sensfunc_factor(pseudo_dict['wave_mid'][:, islit],
-                                                         sens.wave, sens.zeropoint, exptime,
-                                                         extrap_sens=parset['fluxcalib']['extrap_sens'])
+                                                         sens.wave.flatten(), sens.zeropoint.flatten(), exptime,
+                                                         extrap_sens=True) #parset['fluxcalib']['extrap_sens'])
 
             # Compute the median sensitivity and set the sensitivity to zero at
             # locations 100 times the median. This prevents the 2d image from

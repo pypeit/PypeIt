@@ -129,6 +129,7 @@ def define_additional_meta(nlamps=20):
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'dichroic': dict(dtype=str, comment='Beam splitter'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
+                       'cenwave': dict(dtype=float, comment='Central wavelength of the disperser', rtol=0.),
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
                        'dithpat': dict(dtype=str, comment='Dither pattern'),
                        'dithpos': dict(dtype=str, comment='Dither position'),

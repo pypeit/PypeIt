@@ -384,7 +384,6 @@ class PypeIt:
                     # exposure
                     history = History(self.fitstbl.frame_paths(frames[0]))
                     history.add_reduce(i, self.fitstbl, frames, bg_frames)
-
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
 
                     # TODO come up with sensible naming convention for save_exposure for combined files
