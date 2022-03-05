@@ -198,6 +198,35 @@ def extract_optimal(sciimg, ivar, mask, waveimg, skyimg, thismask, oprof,
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
 
+def extract_asym_boxcar(sciimg, left_trace, righ_trace, gpm=None, ivar=None):
+
+    ivar1 = np.ones_like(sciimg) if ivar is None else ivar
+    gpm1 = ivar1 > 0.0 if gpm is None else gpm
+
+    flux_box = moment1d(sciimg*gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+    box_denom = moment1d(gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    pixtot = moment1d(sciimg*0 + 1.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+    pixmsk = moment1d(ivar1*gpm1 == 0.0, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    # If every pixel is masked then mask the boxcar extraction
+    gpm_box = (pixmsk != pixtot)
+
+    varimg = 1.0 / (ivar1 + (ivar1 == 0.0))
+    var_box = moment1d(varimg * gpm1, (left_trace+righ_trace)/2.0, (righ_trace-left_trace))[0]
+
+    ivar_box = 1.0/(var_box + (var_box == 0.0))
+
+    flux_out = flux_box*gpm_box
+    ivar_out = ivar_box*gpm_box
+    box_npix = pixtot - pixmsk
+
+    if ivar is None:
+        return flux_out, gpm_box, box_npix
+    else:
+        return flux_out, gpm_box, box_npix, ivar_out
+
+
 def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, spec, base_var=None,
                    count_scale=None, noise_floor=None):
     """

@@ -23,6 +23,7 @@ from pypeit.core.trace import fit_trace
 from pypeit.core import arc
 from pypeit.display import display
 from pypeit.core import pixels
+from pypeit.core import extract
 from pypeit.utils import fast_running_median
 from IPython import embed
 
@@ -1041,7 +1042,22 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     # TODO Should we be passing the mask here with extract_asymbox or not?
     embed()
-    flux_spec, flux_spec_ivar,  = moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
+
+    # Rectify the image
+    gpm_tot = thismask & inmask
+    image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
+    # sigma clip if we have enough images
+    # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
+    data = np.ma.MaskedArray(image_rect, mask=np.logical_not(gpm_rect))
+    sigclip = stats.SigmaClip(sigma=5.0, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
+    data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
+    gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
+
+    image_smash = np.sum(image_rect*gpm_sigclip, axis=0)
+    npix_smash = np.sum(gpm_sigclip, axis=0)
+    gpm_smash = npix_smash > 0.3*nspec
+
+    flux_spec2= moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0]
     bpm_flux_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0] < 0.3
