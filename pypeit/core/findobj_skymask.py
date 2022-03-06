@@ -372,7 +372,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                    'submit an issue on Github: https://github.com/pypeit/PypeIt/issues .')
 
     if spec_min_max is None:
-        spec_min_max = np.zeros((2,norders))
+        spec_min_max = np.zeros((2,norders), dtype=int)
         for iord in range(norders):
             ispec, ispat = np.where(slitmask == gdslit_spat[iord])
             spec_min_max[:,iord] = ispec.min(), ispec.max()
@@ -445,7 +445,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             if objfindQA_filename is not None else None
         # Run
         sobjs_slit = \
-            objs_in_slit(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
+            objs_in_slit(image, ivar, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
                     nperslit=nperorder, extract_maskwidth=extract_maskwidth, snr_thresh=snr_thresh,
@@ -907,11 +907,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         inmask (`numpy.ndarray`_):
             Floating-point Input mask image.
         spec_min_max (:obj:`tuple`):
-            This is tuple (float or int) of two elements which defines the minimum and
+            This is tuple of integers which defines the minimum and
             maximum of the slit/order in the spectral direction on the
-            detector. If not passed in it will be determined
-            automatically from the thismask. Either element of the tuple can be None, which will then
-            default to using the full min or max over which the slit is defined from the thismask.
+            detector. If None, the values will be determined automatically from the thismask.
+            Either element of the tuple can also None, which will then default to using the full min or max over
+            which the slit is defined from the thismask.
         find_min_max (:obj:`tuple`):
             Tuple of integers that defines the minimum and maximum of your OBJECT
             in the spectral direction on the detector. It is only used for object finding.

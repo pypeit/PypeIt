@@ -163,10 +163,10 @@ class SlitTraceSet(datamodel.DataContainer):
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape '
                                     'is Nslits.'),
                 'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
-                'specmin': dict(otype=np.ndarray, atype=np.floating,
+                'specmin': dict(otype=np.ndarray, atype=np.integer,
                                 descr='Minimum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.'),
-                'specmax': dict(otype=np.ndarray, atype=np.floating,
+                'specmax': dict(otype=np.ndarray, atype=np.integer,
                                 descr='Maximum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
@@ -236,9 +236,9 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.mask_init is None:
             self.mask_init = np.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
         if self.specmin is None:
-            self.specmin = np.full(self.nslits, -1, dtype=float)
+            self.specmin = np.full(self.nslits, -1, dtype=int)
         if self.specmax is None:
-            self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+            self.specmax = np.full(self.nslits, self.nspec, dtype=int)
 
         # If the echelle order is provided, check that the number of
         # orders matches the number of provided "slits"
