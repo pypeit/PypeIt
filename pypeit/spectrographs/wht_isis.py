@@ -3,8 +3,6 @@ Module for WHT/ISIS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs

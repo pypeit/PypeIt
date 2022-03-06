@@ -2,7 +2,6 @@
 Module to run tests on scripts
 """
 import os
-from pkg_resources import resource_filename
 import shutil
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from pypeit import scripts
 from pypeit.tests.tstutils import dev_suite_required, cooked_required, data_path
 from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import utils
+from pypeit import data
 from pypeit import io
 from pypeit import wavecalib
 from pypeit import coadd1d
@@ -382,8 +381,7 @@ def test_obslog():
 def test_compare_sky():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_20150520T045733.560.fits')
-    sky_file = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                              'sky_kastb_600.fits')
+    sky_file = 'sky_kastb_600.fits'
 
     # Running in `test` mode for boxcar extraction
     pargs = scripts.compare_sky.CompareSky.parse_args([spec_file, sky_file, '--test'])

@@ -3,10 +3,6 @@ Module for MDM/OSMOS specific methods.
 
 .. include:: ../include/links.rst
 """
-from pkg_resources import resource_filename
-
-from IPython import embed
-
 import numpy as np
 
 from pypeit import msgs

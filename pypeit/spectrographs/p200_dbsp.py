@@ -3,11 +3,7 @@ Module for P200/DBSP specific methods.
 
 .. include:: ../include/links.rst
 """
-import os
 from typing import List, Optional
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 
@@ -508,9 +504,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         par['sensfunc']['algorithm'] = 'UVIS'
         par['sensfunc']['UVIS']['polycorrect'] = False
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_Lick_3100_11100_R10000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Lick_3100_11100_R10000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

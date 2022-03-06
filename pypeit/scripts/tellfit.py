@@ -5,9 +5,8 @@ Fit telluric absorption to observed spectra
 .. include:: ../include/links.rst
 """
 
-from IPython import embed
-
 from pypeit.scripts import scriptbase
+from pypeit import data
 
 
 class TellFit(scriptbase.ScriptBase):
@@ -79,7 +78,6 @@ class TellFit(scriptbase.ScriptBase):
         """
 
         import os
-        from pkg_resources import resource_filename
 
         from astropy.io import fits
 
@@ -113,14 +111,13 @@ class TellFit(scriptbase.ScriptBase):
             if par['sensfunc']['IR']['telgridfile'] is not None:
                 par['telluric']['telgridfile'] = par['sensfunc']['IR']['telgridfile']
             else:
-                par['telluric']['telgridfile'] = resource_filename('pypeit',
-                                 '/data/telluric/atm_grids/TelFit_MaunaKea_3100_26100_R20000.fits')
+                par['telluric']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
                 msgs.warn(f"No telluric grid file given. Using {par['telluric']['telgridfile']}.")
 
         # Checks
         if par['telluric']['telgridfile'] is None:
             msgs.error('A file with the telluric grid must be provided.')
-        elif not os.path.isfile(par['telluric']['telgridfile']):
+        elif not os.path.isfile(os.path.join(data.Paths.telgrid, par['telluric']['telgridfile'])):
             msgs.error(f"{par['telluric']['telgridfile']} does not exist.  Check your "
                        f"installation.")
 

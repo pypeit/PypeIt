@@ -124,7 +124,7 @@ class SensFunc(scriptbase.ScriptBase):
         # command line, overwrite the parset values read in from the .sens file
 
         # Write the par to disk
-        print(f'Writing the parameters to {args.par_outfile}')
+        msgs.info(f'Writing the parameters to {args.par_outfile}')
         par['sensfunc'].to_config(args.par_outfile, section_name='sensfunc', include_descr=False)
 
         # TODO JFH I would like to be able to run only
