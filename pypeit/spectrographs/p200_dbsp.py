@@ -358,7 +358,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.error("Your grating " + grating + " needs a template spectrum for the blue arm of DBSP.")
+                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         else:
             if grating == '600/4000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
@@ -367,7 +367,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             elif grating == '300/3990' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_300_3990_d55.fits'
             else:
-                msgs.error("Your grating " + grating + ' needs a template spectrum for the blue arm of DBSP.')
+                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the blue arm of DBSP.")
         
         return par
 
@@ -585,14 +585,14 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
                         "\t\tmethod = holy-grail")
                 par['calibrations']['wavelengths']['reid_arxiv'] = reids[best_wv]
             except KeyError:
-                msgs.error("Your grating " + grating + " needs a template spectrum for the red arm of DBSP.")
+                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
         else:
             if grating == '316/7500' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
             elif grating == '600/10000' and dichroic == 'D55':
                 par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_600_10000_d55.fits'
             else:
-                msgs.error("Your grating " + grating + ' needs a template spectrum for the red arm of DBSP.')
+                msgs.warn("Your grating " + grating + " doesn't have a template spectrum for the red arm of DBSP.")
 
         return par
 
