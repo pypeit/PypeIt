@@ -938,7 +938,7 @@ class EchelleFindObjects(FindObjects):
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,
-            sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
+            snr_thresh=self.par['reduce']['findobj']['sig_thresh'],
             cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
             show_peaks=show_peaks, show_fits=show_fits,
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],

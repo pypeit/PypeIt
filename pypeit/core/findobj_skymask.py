@@ -88,7 +88,8 @@ def create_skymask(sobjs, thismask, slit_left, slit_righ, box_rad_pix=None, trim
                 sep_inc = sobjs[iobj].maskwidth/nsamp
                 close = sep <= sep_inc
                 # This is an analytical SNR profile with a Gaussian shape.
-                # JFH modified to use SNR here instead of smash peakflux, but I don't understand the logic behind this line.
+                # JFH modified to use SNR here instead of smash peakflux. I believe that the 2.77 is supposed to be
+                # 2.355**2/2, i.e. the argument of a gaussian with sigma = FWHM/2.35
                 qobj[close] = sobjs[iobj].smash_snr * \
                                np.exp(np.fmax(-2.77*(sep[close]*nsamp)**2/sobjs[iobj].FWHM**2, -9.0))
                 skymask_objflux[thismask] &= np.interp(ximg[thismask], xtmp, qobj) < skymask_snr_thresh
@@ -151,7 +152,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 std_trace=None, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0,
                 nabove_min_snr=2, pca_explained_var=99.0, box_radius=2.0, fwhm=3.0,
                 use_user_fwhm=False, maxdev=2.0, hand_extract_dict=None, nperorder=2,
-                extract_maskwidth=3.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0,
+                extract_maskwidth=3.0, snr_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0,
                 cont_sig_thresh=2.0, specobj_dict=None, trim_edg=(5,5), cont_fit=True,
                 npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
                 show_trace=False, show_single_trace=False, show_pca=False,
@@ -315,8 +316,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             used later for boxcar extraction. In this method box_radius is converted into pixels
             by using the plate scale for the particular order.
             box_radius is also used for SNR calculation and trimming.
-        sig_thresh (:obj:`float`):
-            Threshold for finding objects
+        snr_thresh (:obj:`float`):
+            SNR Threshold for finding objects
         show_peaks (:obj:`bool`):
             Whether plotting the QA of peak finding of your object in each order
         show_fits (:obj:`bool`):
@@ -447,7 +448,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             objs_in_slit(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, ncoeff=ncoeff, fwhm=fwhm, use_user_fwhm=use_user_fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, has_negative=has_negative,
-                    nperslit=nperorder, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
+                    nperslit=nperorder, extract_maskwidth=extract_maskwidth, snr_thresh=snr_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, cont_sig_thresh=cont_sig_thresh,
                     trim_edg=trim_edg, boxcar_rad=box_radius/plate_scale_ord[iord], cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks, show_fits=show_single_fits,
@@ -859,11 +860,12 @@ def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_ti
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('SNR')
         plt.title(qa_title)
-        plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
+        #plt.ylim(np.fmax(snr_vector.min(), -20.0), 1.3*snr_vector.max())
+        fig = plt.gcf()
         if show:
             plt.show()
         if objfindQA_filename is not None:
-            plt.savefig(objfindQA_filename, dpi=400)
+            fig.savefig(objfindQA_filename, dpi=400)
         plt.close('all')
 
 
@@ -1082,37 +1084,41 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     # Mask skypixels with 2 fwhm of edge
     left_asym = slit_left[:,None] + np.outer(xsize/nsamp, np.arange(nsamp))
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
-    # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
-    # TODO Should we be passing the mask here with extract_asymbox or not?
-
-
-    # Rectify the image
+    # This extract_asymbox_boxcar call rectifies the image along the curved object traces
     gpm_tot = thismask & inmask
     image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
 
+    # This smashes out the spatial direction to construct an aggregate sky model
     sky_mean, sky_median, sky_sig = stats.sigma_clipped_stats(image_rect, mask=np.logical_not(gpm_rect), axis=1, sigma=3.0,
                                                               cenfunc='median', stdfunc=utils.nan_mad_std)
-    sky_rect = np.repeat(sky_mean[:, np.newaxis], nsamp, axis=1)
+    gpm_sky = np.sum(gpm_rect,axis=1) != 0 & np.isfinite(sky_median)
+    sky_fill_value = np.median(sky_median[gpm_sky]) if np.any(gpm_sky) else 0.0
+    sky_median[np.logical_not(gpm_sky)] = sky_fill_value
 
-    # sigma clip if we have enough images
-    # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
+    sky_rect = np.repeat(sky_median[:, np.newaxis], nsamp, axis=1)
+
+    # Smash out the spectral direction masking outlying pixels. We use this mask gpm_sigclip below
     data = np.ma.MaskedArray(image_rect-sky_rect, mask=np.logical_not(gpm_rect))
     sigclip = stats.SigmaClip(sigma=5.0, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
 
+    # Compute the average flux over the set of pixels that are not masked by gpm_sigclip
     nsmash = find_min_max[1] - find_min_max[0] + 1
-    flux_smash = np.sum(((image_rect-sky_rect)*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
     npix_smash = np.sum(gpm_sigclip[find_min_max[0]:find_min_max[1]], axis=0)
     gpm_smash = npix_smash > 0.3*nsmash
+    flux_sum_smash = np.sum(((image_rect-sky_rect)*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    flux_smash = flux_sum_smash*gpm_smash/(npix_smash + (npix_smash == 0.0))
 
     if not np.any(gpm_smash):
         msgs.info('No objects found')
         # Instantiate a null specobj and return
         return specobjs.SpecObjs()
 
+    # Compute the formal corresponding variance over the set of pixels that are not masked by gpm_sigclip
     var_rect = utils.inverse(ivar_rect)
-    var_smash = np.sum((var_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    var_sum_smash = np.sum((var_rect*gpm_sigclip)[find_min_max[0]:find_min_max[1]], axis=0)
+    var_smash = var_sum_smash/(npix_smash**2 + (npix_smash == 0.0))
     ivar_smash = utils.inverse(var_smash)*gpm_smash
     snr_smash = flux_smash*np.sqrt(ivar_smash)
 
@@ -1159,7 +1165,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         viewer, ch = display.show_image(image * (thismask * inmask), chname='objs_in_slit_show')
 
     objfind_QA(spat_peaks, snr_peaks_all, spat_vector, snr_smash_smth, snr_thresh, qa_title, peaks_gpm,
-               near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=show_peaks)
+               near_edge_bpm, nperslit_bpm, objfindQA_filename=objfindQA_filename, show=True) #show_peaks)
 
     nobj_reg = np.sum(peaks_gpm)
 

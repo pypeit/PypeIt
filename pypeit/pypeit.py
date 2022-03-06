@@ -850,7 +850,6 @@ class PypeIt:
 
         # Update the skymask
         skymask = objFind.create_skymask(sobjs_obj)
-
         # Update the global sky
         if 'standard' in self.fitstbl['frametype'][frames[0]] or \
                 self.par['reduce']['findobj']['skip_final_global'] or \
