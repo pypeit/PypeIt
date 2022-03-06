@@ -324,7 +324,7 @@ class FindObjects:
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky,
+            sobjs_obj, self.nobj = self.find_objects(self.sciImg.image - initial_sky, self.sciImg.ivar,
                                                      std_trace=std_trace, show=self.findobj_show,
                                                      show_peaks=show_peaks)
         else:

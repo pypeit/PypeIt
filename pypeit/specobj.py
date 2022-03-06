@@ -60,8 +60,6 @@ class SpecObj(datamodel.DataContainer):
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
-                 'THRESHOLD': dict(otype=float,
-                                  descr='Threshold used for object finding'),
                  'smash_peakflux': dict(otype=float,
                                    descr='Peak value of the spectrum spatial profile'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
@@ -224,7 +222,7 @@ class SpecObj(datamodel.DataContainer):
     def _init_internals(self):
         # Object finding
         self.smash_peakflux = None
-        self.smash_nsig = None
+        self.smash_snr = None
 
         # Hand
         self.hand_extract_flag = False
@@ -589,8 +587,8 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
-            'smash_peakflux',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
+            'smash_peakflux', 'smash_snr',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 
