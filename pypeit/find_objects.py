@@ -764,9 +764,9 @@ class MultiSlitFindObjects(FindObjects):
             # because these boxes are smaller than normal slits and the stars are very bright,
             # the detection threshold would be too high and the star not detected.
             if self.slits.bitmask.flagged(self.slits.mask[slit_idx], flag='BOXSLIT'):
-                sig_thresh = 0.
+                snr_thresh = 0.
             else:
-                sig_thresh = self.par['reduce']['findobj']['sig_thresh']
+                snr_thresh = self.par['reduce']['findobj']['sig_thresh']
 
             # Set objfind QA filename
             objfindQA_filename = None
@@ -787,7 +787,7 @@ class MultiSlitFindObjects(FindObjects):
                                 inmask=inmask, has_negative=self.find_negative,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh=sig_thresh,
+                                snr_thresh=snr_thresh,
                                 cont_sig_thresh=self.par['reduce']['findobj']['cont_sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,

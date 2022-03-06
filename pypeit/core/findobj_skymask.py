@@ -839,10 +839,32 @@ def get_fluxconv(flux_mean, gpm, fwhm, npoly_cont, cont_sig_thresh, has_negative
     return fluxconv_cont, cont_gpm
 
 
+def objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_vector, snr_thresh, qa_title, peak_gpm,
+               near_edge_bpm, nperslit_bpm, objfindQA_filename=None, show=False):
+
+        plt.plot(spat_vector, snr_vector, color='black', label = 'Collapsed SNR (FWHM convol)')
+        plt.hlines(snr_thresh,spat_vector.min(),spat_vector.max(), color='red',linestyle='--', label='Threshold')
+        plt.plot(spat_peaks[peak_gpm], snr_peaks[peak_gpm], color='red', marker='o', markersize=10.0, mfc='lawngreen', fillstyle='full',
+                 linestyle='None', zorder = 10,label='Good Object')
+        plt.plot(spat_peaks[near_edge_bpm], snr_peaks[near_edge_bpm], color='red', marker='o', markersize=10.0, mfc='cyan', fillstyle='full',
+                 linestyle='None', zorder = 10,label='Rejected: Near Edge')
+        plt.plot(spat_peaks[nperslit_bpm], snr_peaks[nperslit_bpm], color='red', marker='o', markersize=10.0, mfc='yellow', fillstyle='full',
+                 linestyle='None', zorder = 10,label='Rejected: Nperslit')
+        plt.legend()
+        plt.xlabel('Approximate Spatial Position (pixels)')
+        plt.ylabel('SNR')
+        plt.title(qa_title)
+        if show:
+            plt.show()
+        if objfindQA_filename is not None:
+            plt.savefig(objfindQA_filename, dpi=400)
+        plt.close('all')
+
+
 
 def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, use_user_fwhm=False, boxcar_rad=7.,
                  maxdev=2.0, has_negative=False, spec_min_max=None, hand_extract_dict=None, std_trace=None,
-                 ncoeff=5, nperslit=None, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
+                 ncoeff=5, nperslit=None, snr_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
                  cont_sig_thresh=2.0, extract_maskwidth=4.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
                  find_min_max=None, show_peaks=False, show_fits=False, show_trace=False, show_cont=False,
                  debug_all=False, qa_title='objfind', objfindQA_filename=None):
@@ -876,6 +898,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
             Dectector number of slit to be extracted.
         inmask (`numpy.ndarray`_):
             Floating-point Input mask image.
+        TODO: THESE SEEM TO BE THE SAME
         spec_min_max (:obj:`tuple`):
             This is tuple (float or int) of two elements which defines the minimum and
             maximum of the SLIT in the spectral direction on the
@@ -912,11 +935,11 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         nperslit (:obj:`int`):
             Maximum number of objects allowed per slit. The code will
             take the nperslit most significant detections.
-        sig_thresh (:obj:`float`):
-            Significance threshold for object detection. The code uses
-            the maximum of the thresholds defined by sig_thresh,
+        snr_thresh (:obj:`float`):
+            S/N ratio threshold for object detection. The code uses
+            the maximum of the thresholds defined by snr_thresh,
             peak_thresh, and abs_thresh.  For the default behavior
-            peak_thresh and abs_thresh are zero, so sig_thresh defines
+            peak_thresh and abs_thresh are zero, so snr_thresh defines
             the threshold.
         peak_thresh (:obj:`float`):
             Peak threshold for object detection. This is a number
@@ -1041,21 +1064,103 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
     righ_asym = left_asym + np.outer(xsize/nsamp, np.ones(int(nsamp)))
     # This extract_asymbox2 call smashes the image in the spectral direction along the curved object traces
     # TODO Should we be passing the mask here with extract_asymbox or not?
-    embed()
 
     # Rectify the image
     gpm_tot = thismask & inmask
     image_rect, gpm_rect, npix_rect, ivar_rect = extract.extract_asym_boxcar(image, left_asym, righ_asym, gpm=gpm_tot, ivar=ivar)
+
+    sky_mean, sky_median, sky_sig = stats.sigma_clipped_stats(image_rect, mask=np.logical_not(gpm_rect), axis=1, sigma=3.0,
+                                                              cenfunc='median', stdfunc=utils.nan_mad_std)
+    sky_rect = np.repeat(sky_mean[:, np.newaxis], nsamp, axis=1)
+
     # sigma clip if we have enough images
     # mask_stack > 0 is a masked value. numpy masked arrays are True for masked (bad) values
-    data = np.ma.MaskedArray(image_rect, mask=np.logical_not(gpm_rect))
+    data = np.ma.MaskedArray(image_rect-sky_rect, mask=np.logical_not(gpm_rect))
     sigclip = stats.SigmaClip(sigma=5.0, maxiters=25, cenfunc='median', stdfunc=utils.nan_mad_std)
     data_clipped, lower, upper = sigclip(data, axis=0, masked=True, return_bounds=True)
     gpm_sigclip = np.logical_not(data_clipped.mask)  # gpm_smash = True are good values
 
-    image_smash = np.sum(image_rect*gpm_sigclip, axis=0)
-    npix_smash = np.sum(gpm_sigclip, axis=0)
-    gpm_smash = npix_smash > 0.3*nspec
+    if find_min_max  is None:
+        smash_spec_min, smash_spec_max = int(find_min_max[0]), int(find_min_max[1])
+        nsmash = smash_spec_max - smash_spec_min + 1
+    else:
+        smash_spec_min, smash_spec_max = 0, nspec
+        nsmash = nspec
+
+    skysub_smash = np.sum(((image_rect-sky_rect)*gpm_sigclip)[smash_spec_min:smash_spec_max], axis=0)
+    npix_smash = np.sum(gpm_sigclip[smash_spec_min,smash_spec_max], axis=0)
+    gpm_smash = npix_smash > 0.3*nsmash
+
+    var_rect = utils.inverse(ivar_rect)
+    var_smash = np.sum((var_rect*gpm_sigclip)[smash_spec_min:smash_spec_max], axis=0)
+    ivar_smash = utils.inverse(var_smash)*gpm_smash
+    snr_skysub = skysub_smash*np.sqrt(ivar_smash)
+
+    gauss_smth_sigma = (fwhm/2.3548)
+    snr_skysub_smth = scipy.ndimage.filters.gaussian_filter1d(snr_skysub, gauss_smth_sigma, mode='nearest')
+
+    x_peaks = arc.detect_peaks(snr_skysub_smth, mph=snr_thresh, mpd=fwhm * 0.75, show=True)
+    snr_peaks = np.interp(x_peaks, snr_skysub_smth, np.arange(nsamp))
+    npeak_tot = len(x_peaks)
+
+    near_edge_bpm = (x_peaks < trim_edg[0]) | (x_peaks > (nsamp - trim_edg[1]))
+    npeak_not_near_edge = np.sum(np.logical_not(near_edge_bpm))
+
+    if np.any(near_edge_bpm):
+        msgs.warn('Discarding {:d}'.format(np.sum(near_edge_bpm)) +
+                  ' at spatial pixels spat = {:}'.format(x_peaks[near_edge_bpm]) +
+                  ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
+                  ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
+        msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
+        msgs.warn('Such edge objects are often spurious')
+
+
+    # If the user requested the nperslit most significant peaks have been requested, then only return these
+    if nperslit is not None:
+        # If the requested number is less than (the non-edge) number found, mask them out
+        if nperslit < npeak_not_near_edge:
+            snr_thresh = snr_peaks[np.logical_not(near_edge_bpm)].argsort()[::-1][nperslit-1]
+            nperslit_bpm = np.logical_not(near_edge_bpm) & snr_peaks < snr_thresh
+    else:
+        nperslit_bpm = np.zeros(npeak_tot, dtype=bool)
+
+    peak_gpm = np.logical_not(near_edge_bpm) & np.logical_not(nperslit_bpm)
+
+    spat_vector = slit_left[specmid] + xsize[specmid] * np.arange(nsamp) / nsamp
+    spat_peaks = slit_left[specmid] + xsize[specmid] * x_peaks / nsamp
+
+    objfind_QA(spat_peaks, snr_peaks, spat_vector, snr_skysub_smth, snr_thresh, qa_title, peak_gpm,
+               near_edge_bpm, nperslit_bpm, objfindQA_filename=None, show=False)
+    embed()
+
+    # Now find all the peaks without setting any threshold
+    ypeak, _, xcen, sigma_pk, _, good_indx, _, _ = arc.detect_lines(snr_skysub, cont_subtract = False, fwhm = fwhm,
+                                                                    max_frac_fwhm = 5.0, input_thresh = 'None', debug=False)
+    ypeak = ypeak[good_indx]
+    xcen = xcen[good_indx]
+    # Get rid of peaks within trim_edg of slit edge which are almost always spurious, this should have been handled
+    # with the edgemask, but we do it here anyway
+    not_near_edge = (xcen > trim_edg[0]) & (xcen < (nsamp - trim_edg[1]))
+    if np.any(np.invert(not_near_edge)):
+        msgs.warn('Discarding {:d}'.format(np.sum(np.invert(not_near_edge))) +
+                  ' at spatial pixels spat = {:}'.format(xcen[np.invert(not_near_edge)]) +
+                  ' which land within trim_edg = (left, right) = {:}'.format(trim_edg) +
+                  ' pixels from the slit boundary for this nsamp = {:5.2f}'.format(nsamp) + ' wide slit')
+        msgs.warn('You must decrease from the current value of trim_edg in order to keep them')
+        msgs.warn('Such edge objects are often spurious')
+
+    xcen = xcen[not_near_edge]
+    ypeak = ypeak[not_near_edge]
+
+    # If the user requested the nperslit most significant peaks have been requested, then grab and return only these lines
+    if nperslit is not None:
+        ikeep = (ypeak.argsort()[::-1])[0:nperslit]
+        xcen = xcen[ikeep]
+        ypeak = ypeak[ikeep]
+
+
+
+
 
     flux_spec2= moment1d(thisimg, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0]
