@@ -113,6 +113,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         self.meta['idname'] = dict(ext=0, card='IMAGETYP')
         self.meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-3)
+        #self.meta['cenwave'] = dict(card=None, compound=True)
         self.meta['filter1'] = dict(card=None, compound=True)
         self.meta['slitwid'] = dict(ext=0, card='SLITASEC')
         self.meta['lampstat01'] = dict(card=None, compound=True)
@@ -170,6 +171,12 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Remove the parenthetical knob position to leave just the filter name
             return headarr[0]['FILTREAR'].split()[0].upper()
 
+        if meta_key == 'cenwave':
+            # Use the DeVeny grating angle formula to return the central wavelength
+            #  rounded to the nearest, say, 50A
+            #  Use headarr[0]['GRATING'].split('/')[0] and headarr[0]['GRANGLE']
+            return 5000
+
         msgs.error(f"Not ready for compound meta {meta_key} for LDT/DeVeny")
 
     @classmethod
@@ -199,12 +206,11 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         # These are changes from defaults from another spectrograph, but seem
         #   to work well for LDT/DeVeny.
-        par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
-        par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
         # The DeVeny arc lines are bright, but FWHM varies based on slitwidth used
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5  # Default: 0.15
         par['calibrations']['wavelengths']['sigdetect'] = 10.  # Default: 5.0
+        par['calibrations']['wavelengths']['nsnippet'] = 1  # Default: 2
 
         # Slit-edge settings for long-slit data (DeVeny's slit is > 90" long)
         par['calibrations']['slitedges']['bound_detector'] = True
@@ -245,6 +251,7 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             and used to constuct the :class:`~pypeit.metadata.PypeItMetaData`
             object.
         """
+        # TODO: Change 'dispangle' -> 'cenwave'
         return ['dispname', 'dispangle', 'filter1', 'binning']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -341,6 +348,9 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # Reduction File if the default method fails.  This parameter pre-loads the proper
             # reid_arxiv in this case.
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_150l_HgCdNeAr.fits'
+            par['calibrations']['wavelengths']['nsnippet'] = 2  # Back to default for this grating
+            par['calibrations']['wavelengths']['n_first'] = 3  # Default: 2
+            par['calibrations']['wavelengths']['n_final'] = 5  # Default: 4
         elif grating == 'DV2 (300/4000)':
             # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
             # Reduction File if the default method fails.  This parameter pre-loads the proper
@@ -359,17 +369,19 @@ class LDTDeVenySpectrograph(spectrograph.Spectrograph):
             # For whatever reason, 'holy-grail' fails on DV5 data.  Use 'full-template' instead.
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_500l_HgCdAr.fits'
+            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
         elif grating == 'DV6 (600/4900)':
             # Default method is `holy-grail`, but user may specify `full_template` in the Pypeit
             # Reduction File if the default method fails.  This parameter pre-loads the proper
             # reid_arxiv in this case.
             par['calibrations']['wavelengths']['reid_arxiv'] = 'ldt_deveny_600l_HgCdNeAr.fits'
+            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
         elif grating == 'DV7 (600/6750)':
-            pass
+            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
         elif grating == 'DV8 (831/8000)':
-            pass
+            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
         elif grating == 'DV9 (1200/5000)':
-            pass
+            par['calibrations']['wavelengths']['n_final'] = 3  # Default: 4
         elif grating == 'DV10 (2160/5000)':
             pass
         else:
