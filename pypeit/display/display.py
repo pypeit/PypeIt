@@ -436,7 +436,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             xt, yt = yt, xt
             xb, yb = yb, xb
         # Slit IDs
-        canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
+        canvas.add(str('text'), xb, yb-400, str('S{0}'.format(_slit_ids[i])), color=str('aquamarine'),
                    fontsize=20., rot_deg=90.)
         # maskdef_ids
         if _maskdef_ids is not None:

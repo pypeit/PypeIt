@@ -607,7 +607,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 thisobj.FWHM = sobjs_align[imin].FWHM
                 thisobj.maskwidth = sobjs_align[imin].maskwidth
                 thisobj.smash_peakflux = sobjs_align[imin].smash_peakflux
-                thisobj.THRESHOLD = sobjs_align[imin].THRESHOLD
+                thisobj.smash_snr = sobjs_align[imin].smash_snr
+                #thisobj.THRESHOLD = sobjs_align[imin].THRESHOLD
                 thisobj.BOX_RADIUS = sobjs_align[imin].BOX_RADIUS
                 thisobj.ECH_FRACPOS = uni_frac[iobj]
                 thisobj.ECH_OBJID = uni_obj_id[iobj]
@@ -907,7 +908,7 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         inmask (`numpy.ndarray`_):
             Floating-point Input mask image.
         spec_min_max (:obj:`tuple`):
-            This is tuple of integers which defines the minimum and
+            This is tuple (int or float) which defines the minimum and
             maximum of the slit/order in the spectral direction on the
             detector. If None, the values will be determined automatically from the thismask.
             Either element of the tuple can also None, which will then default to using the full min or max over
@@ -1070,9 +1071,9 @@ def objs_in_slit(image, ivar, thismask, slit_left, slit_righ, inmask=None, fwhm=
         if find_min_max is None:
             find_min_max = [None, None]
     if find_min_max[0] is None:
-        find_min_max[0] = spec_min_max[0]
+        find_min_max[0] = int(np.round(spec_min_max[0]))
     if find_min_max[1] is None:
-        find_min_max[1] = spec_min_max[1]
+        find_min_max[1] = int(np.round(spec_min_max[1]))
 
 
     totmask = thismask & inmask & np.invert(edgmask)

@@ -600,7 +600,7 @@ class CoAdd2D:
             objFind.show('image', image=pseudo_dict['imgminsky']*gpm.astype(float),
                        chname='imgminsky', slits=True, clear=True)
 
-        sobjs_obj, nobj = objFind.find_objects(sciImage.image, show_peaks=show_peaks,
+        sobjs_obj, nobj = objFind.find_objects(sciImage.image, sciImage.ivar, show_peaks=show_peaks,
                                                save_objfindQA=True, manual_extract_dict=manual_dict)
 
         # maskdef stuff
