@@ -273,58 +273,58 @@ class GTCOSIRISSpectrograph(spectrograph.Spectrograph):
 
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == 'R300B':
-            par['calibrations']['wavelengths']['wv_cen'] = 4405.
-            par['calibrations']['wavelengths']['disp'] = 4.96
+            # par['calibrations']['wavelengths']['wv_cen'] = 4405.
+            # par['calibrations']['wavelengths']['disp'] = 4.96
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R300R':
-            par['calibrations']['wavelengths']['wv_cen'] = 6635.
-            par['calibrations']['wavelengths']['disp'] = 7.74
+            # par['calibrations']['wavelengths']['wv_cen'] = 6635.
+            # par['calibrations']['wavelengths']['disp'] = 7.74
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R300R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R500B':
-            par['calibrations']['wavelengths']['wv_cen'] = 4745.
-            par['calibrations']['wavelengths']['disp'] = 3.54
-            par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
+            # par['calibrations']['wavelengths']['wv_cen'] = 4745.
+            # par['calibrations']['wavelengths']['disp'] = 3.54
+            # par['calibrations']['wavelengths']['lamps'] = ['HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R500R':
-            par['calibrations']['wavelengths']['wv_cen'] = 7165.
-            par['calibrations']['wavelengths']['disp'] = 4.88
+            # par['calibrations']['wavelengths']['wv_cen'] = 7165.
+            # par['calibrations']['wavelengths']['disp'] = 4.88
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R500R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000B':
-            par['calibrations']['wavelengths']['wv_cen'] = 5455.
-            par['calibrations']['wavelengths']['disp'] = 2.12
+            # par['calibrations']['wavelengths']['wv_cen'] = 5455.
+            # par['calibrations']['wavelengths']['disp'] = 2.12
             par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R1000R':
-            par['calibrations']['wavelengths']['wv_cen'] = 7430.
-            par['calibrations']['wavelengths']['disp'] = 2.62
+            # par['calibrations']['wavelengths']['wv_cen'] = 7430.
+            # par['calibrations']['wavelengths']['disp'] = 2.62
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R1000R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2000B':
-            par['calibrations']['wavelengths']['wv_cen'] = 4755.
-            par['calibrations']['wavelengths']['disp'] = 0.86
+            # par['calibrations']['wavelengths']['wv_cen'] = 4755.
+            # par['calibrations']['wavelengths']['disp'] = 0.86
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2000B.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500U':
-            par['calibrations']['wavelengths']['wv_cen'] = 3975.
-            par['calibrations']['wavelengths']['disp'] = 0.62
+            # par['calibrations']['wavelengths']['wv_cen'] = 3975.
+            # par['calibrations']['wavelengths']['disp'] = 0.62
             par['calibrations']['wavelengths']['lamps'] = ['XeI,HgI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500U.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500V':
-            par['calibrations']['wavelengths']['wv_cen'] = 5185.
-            par['calibrations']['wavelengths']['disp'] = 0.85
+            # par['calibrations']['wavelengths']['wv_cen'] = 5185.
+            # par['calibrations']['wavelengths']['disp'] = 0.85
             par['calibrations']['wavelengths']['lamps'] = ['HgI','NeI','XeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500V.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500R':
-            par['calibrations']['wavelengths']['wv_cen'] = 6560.
-            par['calibrations']['wavelengths']['disp'] = 1.04
+            # par['calibrations']['wavelengths']['wv_cen'] = 6560.
+            # par['calibrations']['wavelengths']['disp'] = 1.04
             par['calibrations']['wavelengths']['lamps'] = ['ArI,HgI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500R.fits'
         elif self.get_meta_value(scifile, 'dispname') == 'R2500I':
-            par['calibrations']['wavelengths']['wv_cen'] = 8650.
-            par['calibrations']['wavelengths']['disp'] = 1.36
+            # par['calibrations']['wavelengths']['wv_cen'] = 8650.
+            # par['calibrations']['wavelengths']['disp'] = 1.36
             par['calibrations']['wavelengths']['lamps'] = ['ArI,XeI,NeI']
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gtc_osiris_R2500I.fits'
         else:
