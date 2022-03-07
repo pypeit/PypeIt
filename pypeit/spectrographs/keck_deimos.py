@@ -48,21 +48,21 @@ class DEIMOSMosaicLookUp:
 
     """
     geometry = {
-        'MSC01': {'default_shape': (8274, 2128),
-                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (-11, 9.528), 'rotation': 0.2009}},
+        'MSC01': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+                  'red_det': {'shift': (-11.4, 4116.7), 'rotation':  0.197}},
 
-        'MSC02': {'default_shape': (8274, 2128),
-                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (9, 8.179), 'rotation': -0.098069}},
+        'MSC02': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (0., 0.), 'rotation': 0},
+                  'red_det': {'shift': (9.6, 4114.9), 'rotation': -0.110}},
 
-        'MSC03': {'default_shape': (8274, 2128),
-                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (2, 7.663), 'rotation': -0.01999}},
+        'MSC03': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (0., 0.), 'rotation': 0},
+                  'red_det': {'shift': (2.5, 4114.4), 'rotation': -0.02}},
 
-        'MSC04': {'default_shape': (8274, 2128),
-                  'blue_det': {'shift': (0., -4108.), 'rotation': 0},
-                  'red_det': {'shift': (-6, 2.093), 'rotation': 0.049675}},
+        'MSC04': {'default_shape': (8218, 2064),
+                  'blue_det': {'shift': (0., 0.), 'rotation': 0.},
+                  'red_det': {'shift': (-5.5, 4108.7), 'rotation': 0.0511}},
     }
 
 
@@ -264,9 +264,12 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         headarr = self.get_headarr(scifile)
 
+        # mosaic by default
+        par['rdx']['detnum'] = [(1, 5), (2, 6), (3, 7), (4, 8)]
+
         # When using LVM mask reduce only detectors 3,7
         if 'LVMslit' in self.get_meta_value(headarr, 'decker'):
-            par['rdx']['detnum'] = [3,7]
+            par['rdx']['detnum'] = [(3,7)]
 
         # Turn PCA off for long slits
         # TODO: I'm a bit worried that this won't catch all
@@ -316,6 +319,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             # par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
+
+        # increase order of final fit because better for mosaic (mosaic is the default)
+        par['calibrations']['wavelengths']['n_final'] = 5
+        # increase sigdetect because better for mosaic (mosaic is the default)
+        par['calibrations']['wavelengths']['sigdetect'] = 20.
 
         # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

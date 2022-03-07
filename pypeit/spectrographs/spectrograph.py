@@ -800,7 +800,8 @@ class Spectrograph:
             msgs.error('Selected detectors or detector mosaics contain invalid values.')
 
         # Require the list contains unique items
-        return list(set(_subset))
+        # DP: changed list to sorted because list was changing the order of the detectors
+        return sorted(set(_subset))
 
     @property
     def default_mosaic(self):
