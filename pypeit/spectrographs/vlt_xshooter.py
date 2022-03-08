@@ -4,10 +4,6 @@ Module for VLT X-Shooter
 .. include:: ../include/links.rst
 """
 import os
-import glob
-from pkg_resources import resource_filename
-
-from IPython import embed
 
 import numpy as np
 
@@ -21,6 +17,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit import data
 
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
@@ -285,6 +282,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['trace_npoly'] = 8
         par['reduce']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
         par['reduce']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['findobj']['maxnumber'] = 1  # Assume that there is only one object on the slit.
+
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
@@ -301,9 +300,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_Paranal_NIR_9800_25000_R25000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_NIR_9800_25000_R25000.fits'
 
         return par
 
@@ -445,12 +442,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         bpm_img = super().bpm(filename, det, shape=shape, msbias=msbias)
 
         if det == 1:
-            bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
+            bpm_dir = os.path.join(data.Paths.static_calibs, 'vlt_xshoooter')
             try :
-                bpm_loc = np.loadtxt(bpm_dir+'BP_MAP_RP_NIR.dat',usecols=(0,1))
+                bpm_loc = np.loadtxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'),
+                                     usecols=(0,1))
             except IOError :
                 msgs.warn('BP_MAP_RP_NIR.dat not present in the static database')
-                bpm_fits = io.fits_open(bpm_dir+'BP_MAP_RP_NIR.fits.gz')
+                bpm_fits = io.fits_open(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.fits.gz'))
                 # ToDo: this depends on datasec, biassec, specflip, and specaxis
                 #       and should become able to adapt to these parameters.
                 # Flipping and shifting BPM to match the PypeIt format
@@ -466,7 +464,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
                 filt_bpm = bpm_data_pypeit[1:y_len,1:x_len]>100.
                 y_bpm, x_bpm = np.where(filt_bpm)
                 bpm_loc = np.array([y_bpm,x_bpm]).T
-                np.savetxt(bpm_dir+'BP_MAP_RP_NIR.dat', bpm_loc, fmt=['%d','%d'])
+                np.savetxt(os.path.join(bpm_dir, 'BP_MAP_RP_NIR.dat'), bpm_loc,
+                           fmt=['%d','%d'])
             finally :
                 bpm_img[bpm_loc[:,0].astype(int),bpm_loc[:,1].astype(int)] = 1.
 
@@ -687,9 +686,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = [9, 11, 11, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7]
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_Paranal_VIS_4900_11100_R25000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_Paranal_VIS_4900_11100_R25000.fits'
         return par
 
     def init_meta(self):

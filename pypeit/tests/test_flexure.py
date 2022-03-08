@@ -11,6 +11,7 @@ from linetools.spectra.io import readspec
 
 import pypeit
 from pypeit.core import flexure, arc
+from pypeit import data
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests.tstutils import cooked_required
@@ -45,7 +46,7 @@ def test_flex_shift():
     # Dummy slf
     # Read spectra
     obj_spec = readspec(data_path('obj_lrisb_600_sky.fits'))
-    arx_file = pypeit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
+    arx_file = os.path.join(data.Paths.sky_spec, 'sky_LRISb_600.fits')
     arx_spec = readspec(arx_file)
     arx_lines = arc.detect_lines(arx_spec.flux.value)
 

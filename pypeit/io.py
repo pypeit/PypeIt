@@ -657,6 +657,10 @@ def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
             types.
 
     """
+    # Silence the "Keyword name ... is greater than 8 characters ... a HIERARCH
+    #   card will be created" Warnings from [astropy.io.fits.card]
+    warnings.simplefilter('ignore', fits.verify.VerifyWarning)
+
     if isinstance(d, dict):
         return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_to_bintbl)
     if isinstance(d, Table):

@@ -212,6 +212,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         ax.plot(pix, yfit, color='cornflowerblue')
         ax.plot(skyset.breakpoints[goodbk], yfit_bkpt, color='lawngreen', marker='o', markersize=4.0, mfc='lawngreen', fillstyle='full', linestyle='None')
         ax.set_ylim((0.99*yfit.min(),1.01*yfit.max()))
+
         plt.show()
 
     # Return

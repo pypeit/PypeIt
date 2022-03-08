@@ -630,4 +630,5 @@ Here are some developer-specific docs:
    ../new_script
    reports
    conda_forge
+   build_archived_sensfuncs
    fluxing
