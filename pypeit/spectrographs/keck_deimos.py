@@ -321,7 +321,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
         # increase order of final fit because better for mosaic (mosaic is the default)
-        par['calibrations']['wavelengths']['n_final'] = 5
+        par['calibrations']['wavelengths']['n_final'] = 6
         # increase sigdetect because better for mosaic (mosaic is the default)
         par['calibrations']['wavelengths']['sigdetect'] = 20.
 
