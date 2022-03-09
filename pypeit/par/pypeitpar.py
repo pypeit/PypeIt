@@ -2150,7 +2150,12 @@ class ReduxPar(ParSet):
 #                                'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         dtypes['detnum'] = [int, list]
-        descr['detnum'] = 'Restrict reduction to a list of detector indices.' \
+        descr['detnum'] = 'Restrict reduction to a list of detector indices. ' \
+                          'In case of mosaic reduction (currently only available for ' \
+                          'Gemini/GMOS and Keck/DEIMOS) ``detnum`` should be a list of ' \
+                          'tuples of the detector indices that are mosaic-ed together. ' \
+                          'E.g., for Gemini/GMOS ``detnum`` would be ``[(1,2,3)]`` and for ' \
+                          'KEck/DEIMOS it would be ``[(1, 5), (2, 6), (3, 7), (4, 8)]`` ' \
                           'This cannot (and should not) be used with slitspatnum. '
 
         dtypes['slitspatnum'] = [str, list]
@@ -3610,7 +3615,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, skip_extraction=None, skip_optimal=None,
-                 use_2dmodel_mask=None, use_user_fwhm=None):
+                 use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3667,6 +3672,9 @@ class ExtractionPar(ParSet):
                                  '(``find_fwhm`` in `FindObjPar`) for the optimal extraction. ' \
                                  'If this parameter is ``False`` (default), PypeIt estimates the FWHM for each ' \
                                  'detected object, and uses ``find_fwhm`` as initial guess.'
+        defaults['return_negative'] = False
+        dtypes['return_negative'] = bool
+        descr['return_negative'] = 'If ``True`` the negative traces will be extracted and saved to disk'
 
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
@@ -3683,7 +3691,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit',
-                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm']
+                   'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):

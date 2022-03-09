@@ -791,7 +791,7 @@ class PypeIt:
         # Deal with manual extraction
         row = self.fitstbl[frames[0]]
         manual_obj = ManualExtractionObj.by_fitstbl_input(
-            row['filename'], row['manual']) if len(row['manual'].strip()) > 0 else None
+            row['filename'], row['manual'], self.spectrograph) if len(row['manual'].strip()) > 0 else None
 
         # Instantiate Reduce object
         # Required for pypeline specific object
@@ -880,11 +880,10 @@ class PypeIt:
             basename=self.basename)
 
         if not self.par['reduce']['extraction']['skip_extraction']:
-            # DP: what should we put here for return_negative?
             skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, \
                 tilts = self.redux.run_extraction(final_global_sky, sobjs_obj, ra=self.fitstbl["ra"][frames[0]],
                                                   dec=self.fitstbl["dec"][frames[0]], obstime=self.obstime,
-                                                  return_negative=False)
+                                                  return_negative=self.par['reduce']['extraction']['return_negative'])
         else:
             # Although exrtaction is not performed, still need to prepare some masks and the tilts
             self.redux.prepare_extraction(final_global_sky)
