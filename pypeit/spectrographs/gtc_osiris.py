@@ -3,9 +3,6 @@ Module for GTC OSIRIS specific methods.
 
 .. include:: ../include/links.rst
 """
-import glob
-from pkg_resources import resource_filename
-
 import numpy as np
 
 from pypeit import msgs

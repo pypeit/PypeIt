@@ -5,11 +5,6 @@ Module for LRIS specific methods.
 """
 import glob
 import os
-import pdb
-
-from IPython import embed
-
-from pkg_resources import resource_filename
 
 import numpy as np
 
@@ -28,6 +23,7 @@ from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
+from pypeit import data
 
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
@@ -764,20 +760,16 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                  'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
         elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
@@ -1334,14 +1326,12 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = os.path.join(
-                resource_filename('pypeit', 'data'), 'spectrographs',
+            ampmode_translate_file = os.path.join(data.Paths.data, 'spectrographs',
                 'keck_lris_red_mark4', 'dict_for_ampmode.json')
             ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
             # Load up the corrected header
             swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = os.path.join(
-                resource_filename('pypeit', 'data'), 'spectrographs',
+            header_file = os.path.join(data.Paths.data, 'spectrographs',
                 'keck_lris_red_mark4', 
                 f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
             correct_header = fits.getheader(header_file)

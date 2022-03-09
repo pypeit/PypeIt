@@ -606,8 +606,7 @@ class CoAdd2D:
 
         # Initiate Extract object
         exTract = extraction.Extract.get_instance(sciImage, sobjs_obj, self.spectrograph, parcopy, caliBrate,
-                                                  'science_coadd2d', bkg_redux=self.bkg_redux,
-                                                  find_negative=self.find_negative, show=show)
+                                                  'science_coadd2d', bkg_redux=self.bkg_redux, show=show)
 
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds

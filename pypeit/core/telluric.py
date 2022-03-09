@@ -19,11 +19,11 @@ from pypeit.core import flux_calib
 from pypeit.core.wavecal import wvutils
 from pypeit.core import coadd
 from pypeit.core import fitting
+from pypeit import data
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
 from pypeit import onespec
-from pypeit import io
 from pypeit import datamodel
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -59,9 +59,12 @@ def init_pca(filename,wave_grid,redshift, npca):
     # The relevant pieces are the wavelengths (wave_pca_c), the PCA components (pca_comp_c),
     # and the Gaussian mixture model prior (mix_fit)
 
+    # The PCA file location is provided by data.Paths.tel_model
+    file_with_path = os.path.join(data.Paths.tel_model, filename)
+
     loglam = np.log10(wave_grid)
     dloglam = np.median(loglam[1:] - loglam[:-1])
-    pca_table = table.Table.read(filename)
+    pca_table = table.Table.read(file_with_path)
     wave_pca_c = pca_table['WAVE_PCA'][0].flatten()
     pca_comp_c = pca_table['PCA_COMP'][0][0,:,:]
     coeffs_c =pca_table['PCA_COEFFS'][0][0,:,:]
@@ -158,11 +161,8 @@ def read_telluric_grid(filename, wave_min=None, wave_max=None, pad_frac=0.10):
     Returns:
         :obj:`dict`: Dictionary containing the telluric grid.
     """
-    # Check for file
-    if not os.path.isfile(filename):
-        msgs.error(f"File {filename} is not on your disk.  You likely need to download the Telluric files.  See https://pypeit.readthedocs.io/en/release/installing.html#atmospheric-model-grids")
-
-    hdul = io.fits_open(filename)
+    # load_telluric_grid() takes care of path and existance check
+    hdul = data.load_telluric_grid(filename)
     wave_grid_full = 10.0*hdul[1].data
     model_grid_full = hdul[0].data
     nspec_full = wave_grid_full.size

@@ -1225,10 +1225,6 @@ class PypeItMetaData:
         if 'framebit' in self.keys():
             del self.table['framebit']
 
-#        # TODO: This needs to be moved into each Spectrograph
-#        if useIDname and 'idname' not in self.keys():
-#            raise ValueError('idname is not set in table; cannot use it for file typing.')
-
         # Start
         msgs.info("Typing files")
         type_bits = np.zeros(len(self), dtype=self.type_bitmask.minimum_dtype())
@@ -1245,11 +1241,6 @@ class PypeItMetaData:
     
         # Loop over the frame types
         for i, ftype in enumerate(self.type_bitmask.keys()):
-    
-#            # Initialize: Flag frames with the correct ID name or start by
-#            # flagging all as true
-#            indx = self['idname'] == self.spectrograph.idname(ftype) if useIDname \
-#                        else np.ones(len(self), dtype=bool)
     
             # Include a combination of instrument-specific checks using
             # combinations of the full set of metadata

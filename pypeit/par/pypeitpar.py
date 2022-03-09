@@ -62,7 +62,6 @@ assuming you want it to be accessed throughout the code.
 """
 import os
 import warnings
-from pkg_resources import resource_filename
 import inspect
 from IPython import embed
 from collections import OrderedDict
@@ -788,8 +787,7 @@ class FlexurePar(ParSet):
         dtypes['spec_maxshift'] = [int, float]
         descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
-        defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                            'paranal_sky.fits')
+        defaults['spectrum'] = 'paranal_sky.fits'
         dtypes['spectrum'] = str
         descr['spectrum'] = 'Archive sky spectrum to be used for the flexure correction.'
 
@@ -1373,7 +1371,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None, extrap_sens=None):
+    def __init__(self, extinct_correct=None, extrap_sens=None, use_archived_sens = False):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1404,6 +1402,9 @@ class FluxCalibratePar(ParSet):
                                    ' parameter is set, this overide this default behavior. In other words, it will force an extinction correction' \
                                    'if extinct_correct=True, and will not perform an extinction correction if extinct_correct=False.' \
 
+        defaults['use_archived_sens'] = False
+        dtypes['use_archived_sens'] = bool
+        descr['use_archived_sens'] = 'Use an archived sensfunc to flux calibration'
 
         # Instantiate the parameter set
         super(FluxCalibratePar, self).__init__(list(pars.keys()),
@@ -1416,7 +1417,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = np.array([*cfg.keys()])
-        parkeys = ['extinct_correct', 'extrap_sens']
+        parkeys = ['extinct_correct', 'extrap_sens', 'use_archived_sens']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
@@ -1841,7 +1842,9 @@ class TelluricPar(ParSet):
         dtypes['telgridfile'] = str
         descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
                                'generated from HITRAN models for each observatory using nominal site parameters. They ' \
-                               'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+                               'must be downloaded from the GoogleDrive and installed in your PypeIt installation via ' \
+                               'the pypeit_install_telluric script. NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Grid file, but is just the filename of the grid itself.'
 
         defaults['sn_clip'] = 30.0
         dtypes['sn_clip'] = [int, float]
@@ -1985,10 +1988,10 @@ class TelluricPar(ParSet):
         descr['delta_redshift'] = 'Range within the redshift can be varied for telluric fitting, i.e. the code performs a bounded optimization within' \
                                   'the redshift +- delta_redshift'
 
-        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/models/'),
-                                            'qso_pca_1200_3100.fits')
+        defaults['pca_file'] = 'qso_pca_1200_3100.fits'
         dtypes['pca_file'] = str
-        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso'
+        descr['pca_file'] = 'Fits file containing quasar PCA model. Needed for objmodel=qso.  NOTE: This parameter no longer includes the full ' \
+                               'pathname to the Telluric Model file, but is just the filename of the model itself.'
 
         defaults['npca'] = 8
         dtypes['npca'] = int
@@ -2100,13 +2103,6 @@ class TelluricPar(ParSet):
         pass
         # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
         # scipy.optimize.differential_evoluiton probalby checks this.
-
-    @property
-    def default_root(self):
-        """
-        Return the default path to the atmospheric model grids.
-        """
-        return resource_filename('pypeit', '/data/telluric/atm_grids/')
 
 
 class ReduxPar(ParSet):
@@ -2337,7 +2333,7 @@ class WavelengthSolutionPar(ParSet):
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
                          '``None`` for no calibration. Choose ``use_header`` to use the list of lamps ' \
                          'recorded in the header of the arc frames (this is currently ' \
-                         'available only for Keck DEIMOS).' # \
+                         'available only for Keck DEIMOS and LDT DeVeny).' # \
 #                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
         defaults['use_instr_flag'] = False
@@ -3384,7 +3380,16 @@ class FindObjPar(ParSet):
         defaults['maxnumber'] = 10
         dtypes['maxnumber'] = int
         descr['maxnumber'] = 'Maximum number of objects to extract in a science frame.  Use ' \
-                             'None for no limit.'
+                             'None for no limit. This parameter can be useful in situations where systematics lead to ' \
+                             'spurious extra objects. Setting this parameter means they will be trimmed. ' \
+                             'For mulitslit maxnumber applies per slit, for echelle observations this ' \
+                             'applies per order. Note that objects on a slit/order impact the sky-modeling and so ' \
+                             'maxnumber should never be lower than the true number of detectable objects on your slit. ' \
+                             'For image differenced observations with positive and negative object traces, maxnumber applies' \
+                             'to the number of positive/negative traces individually. In other words, if you had two positive objects and' \
+                             'one negative object, then you would set maxnumber to be equal to two (not three). Note that if manually' \
+                             'extracted apertures are explicitly requested, they do not count against this maxnumber. If more than ' \
+                             'maxnumber objects are detected, then highest S/N ratio objects will be the ones that are kept.'
 
         defaults['sig_thresh'] = 10.0
         dtypes['sig_thresh'] = [int, float]
@@ -3419,17 +3424,23 @@ class FindObjPar(ParSet):
         defaults['ech_find_max_snr'] = 1.0
         dtypes['ech_find_max_snr'] = [int, float]
         descr['ech_find_max_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than this value' \
-                                    ' or satisfy the min_snr criteria described by the min_snr parameters'
+                                    ' or satisfy the min_snr criteria described by the min_snr parameters. If maxnumber is set (see above) then these criteria' \
+                                    'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
 
         defaults['ech_find_min_snr'] = 0.3
         dtypes['ech_find_min_snr'] = [int, float]
         descr['ech_find_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
-                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+                                    ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. If maxnumber is set (see above) then these criteria' \
+                                    'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept. '
 
         defaults['ech_find_nabove_min_snr'] = 2
         dtypes['ech_find_nabove_min_snr'] = int
-        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across all the orders greater than ech_find_max_snr,  value' \
-                                           ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders'
+        descr['ech_find_nabove_min_snr'] = 'Criteria for keeping echelle objects. They must either have a maximum S/N across ' \
+                                           'all the orders greater than ech_find_max_snr,  value' \
+                                           ' or they must have S/N > ech_find_min_snr on >= ech_find_nabove_min_snr orders. ' \
+                                           'If maxnumber is set (see above) then these criteria' \
+                                           'will be applied but only the maxnumber highest (median) S/N ratio objects will be kept.'
+
 
         defaults['skip_second_find'] = False
         dtypes['skip_second_find'] = bool
@@ -4545,7 +4556,7 @@ class Collate1DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, tolerance=None, dry_run=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
+    def __init__(self, tolerance=None, dry_run=None, ignore_flux=None, flux=None, match_using=None, exclude_slit_trace_bm=[], exclude_serendip=False, outdir=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -4575,6 +4586,16 @@ class Collate1DPar(ParSet):
         dtypes['dry_run'] = bool
         descr['dry_run'] = "If set, the script will display the matching File and Object Ids " \
                            "but will not flux, coadd or archive."
+
+        # Forces coadding using counts instead of flux
+        defaults['ignore_flux'] = False
+        dtypes['ignore_flux'] = bool
+        descr['ignore_flux'] = "If set, the script will only coadd non-fluxed spectra even if flux data is present. Otherwise fluxed spectra are coadded if all spec1ds have been fluxed calibrated."
+
+        # Enables a flux calibration after coadding
+        defaults['flux'] = False
+        dtypes['flux'] = bool
+        descr['flux'] = "If set, the script will flux calibrate using archived sensfuncs before coadding."
 
         # Directory for output files
         defaults['outdir'] = os.getcwd()
@@ -4608,7 +4629,7 @@ class Collate1DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = [*cfg.keys()]
-        parkeys = ['tolerance', 'dry_run', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
+        parkeys = ['tolerance', 'dry_run', 'ignore_flux', 'flux', 'match_using', 'exclude_slit_trace_bm', 'exclude_serendip', 'outdir']
 
         badkeys = np.array([pk not in parkeys for pk in k])
         if np.any(badkeys):
