@@ -5,16 +5,13 @@ Module for LRIS specific methods.
 """
 import glob
 import os
-import pdb
-
-from IPython import embed
-
-from pkg_resources import resource_filename
 
 import numpy as np
 
 from astropy.io import fits
 from astropy import time
+from astropy.coordinates import SkyCoord 
+from astropy import units
 
 from linetools import utils as ltu
 
@@ -24,7 +21,9 @@ from pypeit import io
 from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.spectrographs import spectrograph
+from pypeit.spectrographs import slitmask
 from pypeit.images import detector_container
+from pypeit import data
 
 
 class KeckLRISSpectrograph(spectrograph.Spectrograph):
@@ -358,13 +357,18 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         xbin, ybin = [int(ibin) for ibin in binning.split(',')]
 
         # First read over the header info to determine the size of the output array...
-        n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+        extensions = []
+        for kk, ihdu in enumerate(hdu):
+            if 'VidInp' in ihdu.name:
+                extensions.append(kk)
+        n_ext = len(extensions)
         xcol = []
         xmax = 0
         ymax = 0
         xmin = 10000
         ymin = 10000
-        for i in np.arange(1, n_ext + 1):
+
+        for i in extensions:
             theader = hdu[i].header
             detsec = theader['DETSEC']
             if detsec != '0':
@@ -489,6 +493,136 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         return super().subheader_for_spec(row_fitstbl, raw_header,
                                           extra_header_cards=_extra_header_cards,
                                           allow_missing=allow_missing)
+
+    def get_slitmask(self, filename:str):
+        """
+        Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
+        :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+
+        Returns:
+            :class:`~pypeit.spectrographs.slitmask.SlitMask`: The slitmask
+            data read from the file. The returned object is the same as
+            :attr:`slitmask`.
+        """
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
+        return self.slitmask
+
+    def get_maskdef_slitedges(self, ccdnum=None, filename=None, debug=None):
+        """
+        Provides the slit edges positions predicted by the slitmask design using
+        the mask coordinates already converted from mm to pixels by the method
+        `mask_to_pixel_coordinates`.
+
+        If not already instantiated, the :attr:`slitmask`, :attr:`amap`,
+        and :attr:`bmap` attributes are instantiated.  If so, a file must be provided.
+
+        Args:
+            ccdnum (:obj:`int`):
+                Detector number
+            filename (:obj:`str`):
+                The filename to use to (re)instantiate the :attr:`slitmask` and :attr:`grating`.
+                Default is None, i.e., to use previously instantiated attributes.
+            debug (:obj:`bool`, optional):
+                Run in debug mode.
+
+        Returns:
+            :obj:`tuple`: Three `numpy.ndarray`_ and a :class:`~pypeit.spectrographs.slitmask.SlitMask`.
+            Two arrays are the predictions of the slit edges from the slitmask design and
+            one contains the indices to order the slits from left to right in the PypeIt orientation
+
+        """
+        # Re-initiate slitmask
+        if filename is not None:
+            self.get_slitmask(filename)
+        else:
+            msgs.error('The name of a science file should be provided')
+
+        if self.slitmask is None:
+            msgs.error('Unable to read slitmask design info. Provide a file.')
+
+        platescale = self.get_detector_par(det=1)['platescale']
+
+
+        hdu = fits.open(filename)
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+        _, bin_spat = parse.parse_binning(binning)
+
+        # Slit center
+        slit_coords = SkyCoord(ra=self.slitmask.onsky[:,0], 
+                               dec=self.slitmask.onsky[:,1], unit='deg')
+        mask_coord = SkyCoord(ra=self.slitmask.mask_radec[0],
+                              dec=self.slitmask.mask_radec[1], unit='deg')
+
+        # build an array of values containing the bottom (right) edge of the slits
+        # starting edge
+        left_edges = []
+        #for islit in x_order:
+        for islit in range(self.slitmask.nslits):
+            sep = mask_coord.separation(slit_coords[islit])
+            PA = mask_coord.position_angle(slit_coords[islit])
+            #
+            alpha = sep.to('arcsec') * np.cos(PA-self.slitmask.posx_pa*units.deg)
+            #delta = sep.to('arcsec') * np.sin(PA-self.slitmask.posx_pa*units.deg)
+            dx_pix = (alpha.value-self.slitmask.onsky[islit,2]/2.) / (platescale*bin_spat)
+            # target is the slit number
+            left_edges.append(np.round(dx_pix))
+        left_edges = np.array(left_edges, dtype=int)
+
+        # Build up the right edges
+        right_edges = left_edges + np.round(
+            self.slitmask.onsky[:,2]/(platescale*bin_spat)).astype(int)
+
+        # Center of slit
+        centers = (left_edges + right_edges)/2.
+
+        # Trim down by detector
+        # TODO -- Deal with Mark4
+        max_spat = 2048//bin_spat
+        if ccdnum == 1:
+            if self.name == 'keck_lris_red':
+                good = centers < 0.
+                xstart = max_spat + 160//bin_spat  # The 160 is for the chip gap
+            elif self.name == 'keck_lris_blue':
+                good = centers < 0.
+                xstart = max_spat + 30//bin_spat  
+            else:
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+        else:
+            if self.name in ['keck_lris_red', 'keck_lris_blue']:
+                good = centers >= 0.
+                xstart = -48//bin_spat
+            else:             
+                msgs.error(f'Not ready to use slitmasks for {self.name}.  Develop it!')
+        left_edges += xstart
+        right_edges += xstart
+        left_edges[~good] = -1
+
+        # Toss any left edges off the right-side of the detector
+        keep = left_edges < max_spat
+        left_edges[~keep] = -1
+
+        right_edges[left_edges == -1] = -1
+        # Deal with right edge off the detector
+        for islit in range(self.slitmask.nslits):
+            if left_edges[islit] != -1 and right_edges[islit] > max_spat:
+                right_edges[islit] = max_spat
+        # Now the left
+        for islit in range(self.slitmask.nslits):
+            if right_edges[islit] != -1 and left_edges[islit] < 0:
+                left_edges[islit] = 0
+
+        # Order from left to right
+        # Highest x is leftmost on DET=1
+        x_order = np.argsort(self.slitmask.corners[:,1,0])
+        sortindx = x_order[::-1]
+
+        # Return
+        return left_edges.astype(float), right_edges.astype(float), sortindx, self.slitmask
+
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -626,20 +760,16 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Wavelength calibrations
         if self.get_meta_value(scifile, 'dispname') == '300/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '400/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                  'sky_LRISb_400.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_400.fits'
         elif self.get_meta_value(scifile, 'dispname') == '600/4000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
         elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
-            par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-                                                      'sky_LRISb_600.fits')
+            par['flexure']['spectrum'] = 'sky_LRISb_600.fits'
 
         # FWHM
         binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
@@ -1185,7 +1315,7 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
         # Date of Mark4 installation
         t2021_upgrade = time.Time("2021-04-15", format='isot') 
         # TODO -- Update with the date we transitioned to the correct ones
-        t_gdhead = time.Time("2022-01-01", format='isot')  
+        t_gdhead = time.Time("2029-01-01", format='isot')  
         date = time.Time(hdu[0].header['MJD'], format='mjd')
 
         if date < t2021_upgrade:
@@ -1196,14 +1326,12 @@ class KeckLRISRMark4Spectrograph(KeckLRISRSpectrograph):
             amp_mode = hdu[0].header['AMPMODE']
             msgs.info("AMPMODE = {:s}".format(amp_mode))
             # Load up translation dict
-            ampmode_translate_file = os.path.join(
-                resource_filename('pypeit', 'data'), 'spectrographs',
+            ampmode_translate_file = os.path.join(data.Paths.data, 'spectrographs',
                 'keck_lris_red_mark4', 'dict_for_ampmode.json')
             ampmode_translate_dict = ltu.loadjson(ampmode_translate_file)
             # Load up the corrected header
             swap_binning = f"{binning[-1]},{binning[0]}"  # LRIS convention is oppopsite ours
-            header_file = os.path.join(
-                resource_filename('pypeit', 'data'), 'spectrographs',
+            header_file = os.path.join(data.Paths.data, 'spectrographs',
                 'keck_lris_red_mark4', 
                 f'header{ampmode_translate_dict[amp_mode]}_{swap_binning.replace(",","_")}.fits')
             correct_header = fits.getheader(header_file)
@@ -1494,7 +1622,8 @@ def lris_read_amp(inp, ext):
         hdu = io.fits_open(inp)
     else:
         hdu = inp
-    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
+    # Count the number of extensions
+    n_ext = np.sum(['VidInp' in h.name for h in hdu])
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12

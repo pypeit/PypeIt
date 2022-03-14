@@ -461,10 +461,11 @@ class BuildWaveCalib:
                                          spectrograph=self.spectrograph.name)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
+            raise NotImplementedError('method = identify not yet implemented')
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            embed(header='line 222 wavecalib.py')
+            #embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
                 arcfitter = Identify.initialise(arccen, self.lamps, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()

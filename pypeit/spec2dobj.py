@@ -8,23 +8,25 @@ Module for the Spec2DObj class
 import os
 import inspect
 import datetime
-from IPython import embed
 
-
+from copy import deepcopy
 
 import numpy as np
 
 from astropy.io import fits
+from astropy.stats import mad_std
 import astropy
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
+from pypeit.core import parse 
 from pypeit.images import imagebitmask
 from pypeit.images.detector_container import DetectorContainer
 from pypeit.images.mosaic import Mosaic
 
+from IPython import embed
 
 #def spec2d_hdu_prefix(det):
 #    return 'DET{:02d}-'.format(det)
@@ -44,7 +46,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.3'
+    version = '1.0.4'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -66,7 +68,7 @@ class Spec2DObj(datamodel.DataContainer):
                  'tilts': dict(otype=np.ndarray, atype=np.floating,
                                descr='2D tilts image (float64)'),
                  'scaleimg': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='2D multiplicative scale image that has been applied to '
+                                  descr='2D multiplicative scale image [or a single scalar as an array] that has been applied to '
                                         'the science image (float32)'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating,
                                  descr='2D wavelength image in vacuum (float64)'),
@@ -75,6 +77,8 @@ class Spec2DObj(datamodel.DataContainer):
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
                  'slits': dict(otype=slittrace.SlitTraceSet,
                                descr='SlitTraceSet defining the slits'),
+                 'maskdef_designtab': dict(otype=astropy.table.Table,
+                                           descr='Table with slitmask design and object info'),
                  'sci_spat_flexure': dict(otype=float,
                                           descr='Shift, in spatial pixels, between this image '
                                                 'and SlitTrace'),
@@ -88,6 +92,11 @@ class Spec2DObj(datamodel.DataContainer):
                                                    'Current list: observed, heliocentric, barycentric'),
                  'vel_corr': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
+                 'med_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Median of the chi image for each slit/order'),
+                 'std_chis': dict(otype=np.ndarray, atype=np.floating,
+                               descr='std of the chi image for each slit/order'),
+                 'det': dict(otype=int, descr='Detector index'),
                  'detector': dict(otype=(DetectorContainer, Mosaic),
                                   descr='Detector or Mosaic metadata') }
 
@@ -121,7 +130,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     def __init__(self, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
                  scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, sci_spec_flexure,
-                 vel_type, vel_corr, slits, tilts):
+                 vel_type, vel_corr, slits, tilts, maskdef_designtab):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -184,6 +193,9 @@ class Spec2DObj(datamodel.DataContainer):
             # SlitTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
+            # maskdef_designtab
+            elif key == 'maskdef_designtab':
+                d.append(dict(maskdef_designtab=self.maskdef_designtab))
             # Spectral flexure
             elif key == 'sci_spec_flexure':
                 d.append(dict(sci_spec_flexure=self.sci_spec_flexure))
@@ -244,6 +256,56 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
+    def calc_chi_slit(self, slitidx:int, pad:int=None, remove_object:bool=True):
+        """ Calculate a chi map and run some stats on it
+        for a given slit/order
+
+        Args:
+            slitidx (int): Given slit/order
+            pad (int, optional):  Ignore pixels within pad of edges. 
+                Defaults to None.
+            remove_object (bool, optional):  Remove object model (if 
+                it exists)
+
+        Returns:
+            tuple: np.ndarray (chi image), median (float), std (float)
+        """
+        slit_select = self.slits.slit_img(pad=pad, slitidx=slitidx)
+        skysub_img = self.sciimg - self.skymodel
+        if remove_object and self.objmodel is not None:
+            skysub_img -= self.objmodel
+
+        # Chi
+        chi = skysub_img * np.sqrt(self.ivarmodel) * (self.bpmmask == 0)
+        chi_slit = chi * (slit_select == self.slits.spat_id[slitidx]) * (self.bpmmask == 0)
+
+        # All bad?
+        if np.all(chi_slit == 0):
+            return None, 0., 0.
+        
+        # Stats
+        median = np.median(chi_slit[chi_slit!=0]) 
+        std = mad_std(chi_slit[chi_slit!=0])
+        #
+        return chi_slit, median, std
+
+    def gen_qa(self):
+        """ Generate QA for the slits/orders 
+
+        Saved to the DataContainer
+        """
+
+        # Loop on slits to generate stats on chi^2
+        med_chis = []
+        std_chis = []
+        for slitidx in range(self.slits.nslits):
+            _, med, std = self.calc_chi_slit(slitidx)
+            med_chis.append(med)
+            std_chis.append(std)
+        # Save
+        self.med_chis = np.array(med_chis)
+        self.std_chis = np.array(std_chis)
+        return
 
 class AllSpec2DObj:
     """
@@ -422,7 +484,7 @@ class AllSpec2DObj:
         if redux_path is not None:
             hdr['PYPRDXP'] = redux_path
         # Sky sub mode
-        if 'ir_redux' in self['meta'] and self['meta']['ir_redux']:
+        if 'bkg_redux' in self['meta'] and self['meta']['bkg_redux']:
             hdr['SKYSUB'] = 'DIFF'
         else:
             hdr['SKYSUB'] = 'MODEL'
@@ -434,7 +496,8 @@ class AllSpec2DObj:
          
         return hdr
 
-    def write_to_fits(self, outfile, pri_hdr=None, update_det=None, overwrite=True):
+    def write_to_fits(self, outfile, pri_hdr=None, update_det=None, 
+                      slitspatnum=None, overwrite=True):
         """
         Write the spec2d FITS file
 
@@ -442,6 +505,13 @@ class AllSpec2DObj:
             outfile (:obj:`str`):
                 Output filename
             pri_hdr (:class:`astropy.io.fits.Header`, optional):
+                Header to be used in lieu of default
+                Usually generated by :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
+            slitspatnum (:obj:`str` or :obj:`list`, optional):
+              Restricted set of slits for reduction
+              If provided, do not clobber the existing file but only update
+              the indicated slits.  Useful for re-running on a subset of slits
+            pri_hdr():
                 Baseline primary header.  If None, initial primary header is
                 empty.  Usually generated by
                 :func:`pypeit,spec2dobj.AllSpec2DObj.build_primary_hdr`
@@ -459,16 +529,49 @@ class AllSpec2DObj:
                 object based on the existing file.
         """
         if os.path.isfile(outfile):
+            # Clobber?
             if not overwrite:
                 msgs.warn("File {} exits.  Use -o to overwrite.".format(outfile))
                 return
+            # Load up the original
+            _allspecobj = AllSpec2DObj.from_fits(outfile)
+            # Replace the newly reduced detector?
             if update_det is not None:
-                # Load up and replace
-                _allspecobj = AllSpec2DObj.from_fits(outfile)
                 for det in _allspecobj.detectors:
                     if det in np.atleast_1d(update_det):
                         continue
-                    self[det] = _allspecobj[det]
+                    else:
+                        self[det] = _allspecobj[det]
+            elif slitspatnum is not None: # Update specific slits!
+                
+                # Grab modified detectors and slits
+                dets, spat_ids = parse.parse_slitspatnum(slitspatnum)
+
+                # Loop on detectors to be fussed with
+                for det in _allspecobj.detectors:
+                    if det in dets:
+                        # Check version 
+                        if self[det].version != _allspecobj[det].version:
+                            msgs.error("Original spec2D object has a different version.  Too risky to continue.  Rerun both")
+                        # Generate the slit "mask"
+                        slitmask = _allspecobj[det].slits.slit_img(
+                            flexure=_allspecobj[det].sci_spat_flexure)
+                        # Save the new one in a copy
+                        new_Spec2DObj = deepcopy(self[det])
+                        # Replace with the old
+                        self[det] = _allspecobj[int(det)]
+                        # Spat ids    
+                        spats = spat_ids[dets==det]
+                        for spat_id in spats:
+                            # Find pixels to replace
+                            replace_pix = slitmask == spat_id
+                            # Fill em in
+                            for key in new_Spec2DObj.datamodel.keys():
+                                if new_Spec2DObj.datamodel[key]['otype'] == np.ndarray and (
+                                    new_Spec2DObj[key].shape == slitmask.shape):
+                                    self[det][key][replace_pix] = new_Spec2DObj[key][replace_pix]
+                    else:
+                        self[det] = _allspecobj[det]
 
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()

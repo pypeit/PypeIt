@@ -277,20 +277,18 @@ and science frame, located in the *Science/* folder.
 Spec2D
 ++++++
 
-.. TODO: THE pypeit_chk_2dslits SCRIPT WAS REMOVED.  Check this!!
+Slit inspection
+:::::::::::::::
 
-.. Slit inspection
-.. :::::::::::::::
+It is frequently useful to view a summary of the slits
+successfully reduced by PypeIt.  The
+:ref:`pypeit_parse_slits`, with this explicit call::
 
-.. It is frequently useful to view a summary of the slits
-.. successfully reduced by PypeIt.  The
-.. :ref:`pypeit_chk_2dslits`, with this explicit call::
+     pypeit_parse_slits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits
 
-..     pypeit_chk_2dslits Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits 
-
-.. this prints, detector by detector, the SpatID (internal PypeIt name),
-.. MaskID (user ID), and Flags for each slit.  Those with *None* have been
-.. successfully reduced.
+this prints, detector by detector, the SpatID (internal PypeIt name),
+MaskID (user ID), and Flags for each slit.  Those with *None* have been
+successfully reduced.
 
 Visual inspection
 :::::::::::::::::
@@ -299,7 +297,7 @@ Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det07) after using
 :ref:`pypeit_show_2dspec`, with this explicit call::
 
-    pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --det 7
+    pypeit_show_2dspec Science/spec2d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --det 7
 
 .. image:: figures/deimos_spec2d.png
 
@@ -323,7 +321,7 @@ Spec1D
 
 You can see a summary of all the extracted sources in spec1d*.txt
 files in the Science/ folder.  Here is the top of the one I've
-produced named spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.txt:
+produced named spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits:
 
 .. code-block:: bash
 
@@ -343,13 +341,13 @@ detected by PypeIt so extraction was performed based on the mask design.
 One can generate a similar, smaller set of output using the --list option
 with :ref:`pypeit_show_1dspec`::
 
-    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --list    
+    pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --list    
 
 Last, here is a screen shot from the GUI showing the
 1D spectrum after using
 :ref:`pypeit_show_1dspec`, with this explicit call::
 
-   pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_2017Apr25T140121.014.fits --exten 23
+   pypeit_show_1dspec spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23
 
 .. image:: figures/deimos_spec1d.png
 
@@ -363,10 +361,31 @@ See :doc:`out_spec1D` for further details.
 Fluxing
 =======
 
-TO BE ADDED WHEN ARCHIVE FLUXING IS IMPLEMENTED
+The results can be flux calibrated using archived sensitivity functions. To do so first create a
+fluxing file, named keck_deimos_1200g_m_7750.flux in this example:
 
-We are currently working to generate archived sensitivity
-solutions.
+.. code-block:: bash
+
+    [fluxcalib]
+    use_archived_sens = True
+
+    # User-defined fluxing parameters
+    flux read
+      Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits
+    flux end
+
+Next run the flux calibration tool::
+
+    pypeit_flux_calib keck_deimos_1200g_m_7750.flux
+
+The results can be viewed by passing *--flux* to pypeit_show_1dspec::
+
+    pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121.014.fits --exten 23 --flux
+
+.. image:: figures/deimos_spec1d_flux.png
+
+The archived sensitivity functions for DEIMOS are currently experimental and should be used with caution.
+See :doc:`fluxing` for more details on flux calibration with ``PypeIt``.
 
 Flexure
 =======

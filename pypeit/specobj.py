@@ -50,7 +50,7 @@ class SpecObj(datamodel.DataContainer):
             Running index for the order.
     """
 
-    version = '1.1.4'
+    version = '1.1.5'
     """
     Current datamodel version number.
     """
@@ -60,6 +60,10 @@ class SpecObj(datamodel.DataContainer):
                  'FWHM': dict(otype=float, descr='Spatial FWHM of the object (pixels)'),
                  'FWHMFIT': dict(otype=np.ndarray,
                                  descr='Spatial FWHM across the detector (pixels)'),
+                 'THRESHOLD': dict(otype=float,
+                                  descr='Threshold used for object finding'),
+                 'smash_peakflux': dict(otype=float,
+                                   descr='Peak value of the spectrum spatial profile'),
                  'OPT_WAVE': dict(otype=np.ndarray, atype=float,
                                   descr='Optimal Wavelengths in vacuum (Angstroms)'),
                  'OPT_FLAM': dict(otype=np.ndarray, atype=float,
@@ -88,7 +92,6 @@ class SpecObj(datamodel.DataContainer):
                                             'used for this extraction'),
                  'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
-                 # TODO -- Confirm BOX_NPIX should be a float and not int!
                  'BOX_NPIX': dict(otype=np.ndarray, atype=float,
                                   descr='Number of pixels used for the boxcar extraction; can be '
                                         'fractional'),
@@ -214,8 +217,8 @@ class SpecObj(datamodel.DataContainer):
         # Add in arrays
         for item, attr in zip([wave, counts, ivar], ['_WAVE', '_COUNTS', '_COUNTS_IVAR']):
             setattr(slf, mode+attr, item.astype(float))
-        # Mask
-        slf[mode+'_MASK'] = slf[mode+'_COUNTS_IVAR'] > 0.
+        # Mask. Watch out for places where ivar is infinite due to a divide by 0
+        slf[mode+'_MASK'] = (slf[mode+'_COUNTS_IVAR'] > 0.) & np.isfinite(slf[mode+'_COUNTS_IVAR'])
         return slf
 
     def _init_internals(self):
@@ -586,7 +589,8 @@ class SpecObj(datamodel.DataContainer):
         """
         required = ['TRACE_SPAT', 'SPAT_PIXPOS', 'SPAT_FRACPOS',
             'trace_spec', 'OBJID', 'FWHM', 'maskwidth', 'NAME',
-            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE']
+            'smash_peakflux',
+            'SLITID', 'DET', 'PYPELINE', 'OBJTYPE', 'THRESHOLD']
         if 'Echelle' in self.PYPELINE:
             required += ['ECH_NAME']
 

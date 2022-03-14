@@ -8,13 +8,14 @@ Object position on the slit from slitmask design
 Version History
 ---------------
 
-=========   ================   =========== ===========
-*Version*   *Author*           *Date*      ``PypeIt``
-=========   ================   =========== ===========
-1.0         Debora Pelliccia   02 Apr 2021  1.3.4dev
-1.1         Debora Pelliccia   28 Jul 2021  1.4.3dev
-1.3         Debora Pelliccia   21 Oct 2021  1.6.1dev
-=========   ================   =========== ===========
+=========   =================== =========== ===========
+*Version*   *Author*            *Date*      ``PypeIt``
+=========   =================== =========== ===========
+1.0         Debora Pelliccia    02 Apr 2021  1.3.4dev
+1.1         Debora Pelliccia    28 Jul 2021  1.4.3dev
+1.3         Debora Pelliccia    21 Oct 2021  1.6.1dev
+1.4         J. Xavier Prochaska 25 Jan 2022  1.7.1dev
+=========   =================== =========== ===========
 
 ----
 
@@ -60,6 +61,16 @@ MOSFIRE (except when the *LONGSLIT* or the *long2pos* mask is used).
 
 See :ref:`pypeit_par:SlitMaskPar Keywords` for more details.
 
+For LRIS one needs to add these explicitly to the :ref:`pypeit_file`, e.g.::
+
+    [reduce]
+    [[slitmask]]
+        use_alignbox = False
+        assign_obj = True
+        extract_missing_objs = True
+
+For faint alignment stars, one may wish to set `use_alignbox = True`.
+
 Access
 ------
 
@@ -70,7 +81,7 @@ Access
 - The same flag is also visible when running `pypeit_show_1d --list` (see :ref:`out_spec1D:pypeit_show_1dspec`)
 - The forced extraction are shown in a different color than the detected objects (yellow vs. orange)
   in `ginga` when running `pypeit_show_2d` (see :ref:`out_spec2D:pypeit_show_2dspec`)
-- the **slitmask_offset** value is reported when running ``pypeit_chk_2dslits Science/spec2d_XXX.fits``.
+- the **slitmask_offset** value is reported when running ``pypeit_parse_slits Science/spec2d_XXX.fits``.
 
 
 Testing

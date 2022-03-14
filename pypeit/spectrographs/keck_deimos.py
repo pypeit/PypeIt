@@ -8,7 +8,6 @@ import os
 import glob
 import re
 import warnings
-from pkg_resources import resource_filename
 
 from IPython import embed
 
@@ -32,10 +31,11 @@ from pypeit.core import wave
 from pypeit import specobj, specobjs
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
+from pypeit import data
 
 from pypeit.utils import index_of_x_eq_y
 
-from pypeit.spectrographs.slitmask import SlitMask
+from pypeit.spectrographs import slitmask 
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
@@ -208,14 +208,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
-        # Find objects
-        #  The following corresponds to 1.1" if unbinned (DEIMOS is never binned)
-        par['reduce']['findobj']['find_fwhm'] = 10.  
-
         # If telluric is triggered
-        par['sensfunc']['IR']['telgridfile'] \
-                = os.path.join(par['sensfunc']['IR'].default_root,
-                               'TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = 'TelFit_MaunaKea_3100_26100_R20000.fits'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -263,8 +257,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['slitedges']['minimum_slit_gap'] = 0.
             # Lower edge_thresh works better
             par['calibrations']['slitedges']['edge_thresh'] = 10.
-            # needed for better slitmask design matching
-            par['calibrations']['flatfield']['tweak_slits'] = False
             # use stars in alignment boxes to compute the slitmask offset (this works the best)
             par['reduce']['slitmask']['use_alignbox'] = True
             # Assign RA, DEC, OBJNAME to detected objects
@@ -294,10 +286,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Arc lamps list from header
         par['calibrations']['wavelengths']['lamps'] = ['use_header']
 
-        # FWHM
+        # Wavelength FWHM
         binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
         par['calibrations']['wavelengths']['fwhm_fromlines'] = True
+
+        # Objects FWHM
+        # Find objects
+        #  The following corresponds to 0.8"
+        par['reduce']['findobj']['find_fwhm'] = 7.0 / binning[0]
 
         # Return
         return par
@@ -778,7 +775,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         return np.array(tel_off)
 
-    def get_slitmask(self, filename):
+    def get_slitmask(self, filename:str):
         """
         Parse the slitmask data from a DEIMOS file into :attr:`slitmask`, a
         :class:`~pypeit.spectrographs.slitmask.SlitMask` object.
@@ -792,58 +789,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             data read from the file. The returned object is the same as
             :attr:`slitmask`.
         """
-        # Open the file
-        hdu = io.fits_open(filename)
-
-        # Build the object data
-        #   - Find the index of the object IDs in the slit-object
-        #     mapping that match the object catalog
-        mapid = hdu['SlitObjMap'].data['ObjectID']
-        catid = hdu['ObjectCat'].data['ObjectID']
-        indx = index_of_x_eq_y(mapid, catid)
-        objname = [item.strip() for item in hdu['ObjectCat'].data['OBJECT']]
-        #   - Pull out the slit ID, object ID, name, object coordinates, top and bottom distance
-        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(int),
-                            catid.astype(int),
-                            hdu['ObjectCat'].data['RA_OBJ'],
-                            hdu['ObjectCat'].data['DEC_OBJ'],
-                            objname,
-                            hdu['ObjectCat'].data['mag'],
-                            hdu['ObjectCat'].data['pBand'],
-                            hdu['SlitObjMap'].data['TopDist'][indx],
-                            hdu['SlitObjMap'].data['BotDist'][indx]]).T
-        #   - Only keep the objects that are in the slit-object mapping
-        objects = objects[mapid[indx] == catid]
-
-        # Match the slit IDs in DesiSlits to those in BluSlits
-        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
-                               strict=True)
-
-        # PA corresponding to positive x on detector (spatial)
-        posx_pa = hdu['MaskDesign'].data['PA_PNT'][0]
-        if posx_pa < 0.:
-            posx_pa += 360.
-
-        # Instantiate the slit mask object and return it
-        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
-                                           hdu['BluSlits'].data['slitY1'],
-                                           hdu['BluSlits'].data['slitX2'],
-                                           hdu['BluSlits'].data['slitY2'],
-                                           hdu['BluSlits'].data['slitX3'],
-                                           hdu['BluSlits'].data['slitY3'],
-                                           hdu['BluSlits'].data['slitX4'],
-                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
-                                 slitid=hdu['BluSlits'].data['dSlitId'],
-                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
-                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
-                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
-                                                 hdu['DesiSlits'].data['slitDec'][indx],
-                                                 hdu['DesiSlits'].data['slitLen'][indx],
-                                                 hdu['DesiSlits'].data['slitWid'][indx],
-                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
-                                 objects=objects,
-                                 #object_names=hdu['ObjectCat'].data['OBJECT'],
-                                 posx_pa=posx_pa)
+        self.slitmask = slitmask.load_keck_deimoslris(filename, self.name)
         return self.slitmask
 
     # TODO: Allow this to accept the relevant row from the PypeItMetaData
@@ -1006,11 +952,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Grating slider
         slider = hdu[0].header['GRATEPOS']
 
-        mp_dir = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
+        mp_dir = os.path.join(data.Paths.static_calibs, 'keck_deimos')
 
         if slider in [3,4]:
-            self.amap = fits.getdata(mp_dir+'amap.s{}.2003mar04.fits'.format(slider))
-            self.bmap = fits.getdata(mp_dir+'bmap.s{}.2003mar04.fits'.format(slider))
+            self.amap = fits.getdata(os.path.join(mp_dir, f'amap.s{slider}.2003mar04.fits'))
+            self.bmap = fits.getdata(os.path.join(mp_dir, f'bmap.s{slider}.2003mar04.fits'))
         else:
             msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2
@@ -1367,8 +1313,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 #                     obj['objra'],obj['objdec'],obj['objname'],obj['maskdef_id'],obj['slit']))
                 #n=n+1
             elif np.sum(mtc)>1:
-                embed()
-                exit()
                 msgs.error("Multiple RA matches?!  No good..")
 
             # TODO - confirm with Marla this block is NG
@@ -1689,7 +1633,7 @@ def deimos_read_1chip(hdu,chipno):
     return data, oscan
 
 
-def load_wmko_std_spectrum(fits_file:str, outfile=None):
+def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False):
     """Load up a Standard spectrum generated by WMKO IDL scripts
     of the great Greg Wirth
 
@@ -1710,6 +1654,11 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None):
 
     # Hope this always works..
     npix = int(len(idl_spec)/2)
+
+    if pad:
+        if int(len(idl_spec)) % 2 != 0:
+            npix = int((len(idl_spec)+1)/2)
+            idl_spec.add_row([0.0, 0.0])
 
     # Generate vacuum wavelengths
     idl_vac = wave.airtovac(idl_spec['WAVELENGTH']*units.AA)
@@ -1735,6 +1684,7 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None):
                         AIRMASS=float(meta['AIRMASS']), 
                         DISPNAME=str(meta['GRATING'][0]), 
                         PYP_SPEC='keck_deimos', 
+                        PYPELINE='MultiSlit',
                         RA=coord.ra.deg, 
                         DEC=coord.dec.deg
                    )

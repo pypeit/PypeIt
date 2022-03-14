@@ -16,7 +16,7 @@ from astropy.table import Table
 
 from configobj import ConfigObj
 
-from pypeit import msgs
+from pypeit import msgs, __version__
 
 
 #-----------------------------------------------------------------------
@@ -279,36 +279,44 @@ def _find_pypeit_block(lines, group):
     return start, end
 
 
-def _parse_data_file_name(inp, current_path):
+def _parse_data_file_name(inp, current_path=None, sort=True):
     """
     Expand the data file name as necessary and
-    then search for all data files
+    then search for all data files.
 
     Args:
-        inp (str): Path
-        current_path (str or None):
+        inp (:obj:`str`):
+            Primary search string used by `glob.glob`_ to find the data files.
+        current_path (:obj:`str`, optional):
+            If provided, this is used as the root path for ``inp`` search
+            string.
+        sort (:obj:`bool`, optional):
+            Sort the list of data file names.
 
     Returns:
-        list: Glob list of files in the generated a path
-
+        :obj:`list`: Glob list of files in the generated a path
     """
     out = os.path.expanduser(inp) if inp[0] == '~' else inp
     if current_path is not None:
         out = os.path.join(current_path, out)
-    return glob.glob(out)
+    files = glob.glob(out)
+    return sorted(files) if sort else files
     
 
-def _read_data_file_names(lines, file_check=True):
+def _read_data_file_names(lines, file_check=True, sort=True):
     """
     Read the raw data file format
 
     Args:
-        lines (list):
-        file_check (bool, optional):
+        lines (:obj:`list`):
+            The list of string lines to parse.
+        file_check (:obj:`bool`, optional):
+            Check that the parsed file names are valid files on disk.
+        sort (:obj:`bool`, optional):
+            Sort the list of file names on output
 
     Returns:
-        list: List of data file names
-
+        :obj:`list`: List of data file names
     """
     # Pass through all the lines and:
     #   - Determine if a path is set
@@ -323,7 +331,7 @@ def _read_data_file_names(lines, file_check=True):
         if _l[0] == 'skip':
             space_ind = l.index(" ")
             path = l[space_ind + 1:]
-            skip_inp += _parse_data_file_name(path, current_path)
+            skip_inp += _parse_data_file_name(path, current_path=current_path, sort=sort)
             continue
 
         if _l[0] == 'path':
@@ -331,7 +339,7 @@ def _read_data_file_names(lines, file_check=True):
             current_path = l[space_ind + 1:]
             continue
 
-        read_inp += _parse_data_file_name(l, current_path)
+        read_inp += _parse_data_file_name(l, current_path=current_path, sort=sort)
 
     # Remove any repeated lines
     if len(skip_inp) > 0 and len(skip_inp) != len(set(skip_inp)):
@@ -549,14 +557,11 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
             Perform additional checks if called to run PypeIt
 
     Returns:
-        6-element tuple containing
-
-        - list:  List of configuration lines,
-        - list:  List of datafiles to read,
-        - list:  List of frametypes for each file
-        - :obj:`astropy.table.Table`:  Table of user supplied info on data files
-        - list:  List of setup lines.
-        - dict:  Setup dict
+        :obj:`tuple`:  Provides (1) a list of configuration lines, (2) a list of
+        datafiles to read, (3) a list of frametypes for each file, (4) an
+        `astropy.table.Table`_ with the user supplied metadata for the data
+        files, (5) a list of setup lines, and (6) a instrument configuration
+        (setup) dictionary.
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the reduction file')
@@ -678,7 +683,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
 
     # Here we go
     with open(pypeit_file, 'w') as f:
-        f.write('# Auto-generated PypeIt file\n')
+        f.write('# Auto-generated PypeIt file using PypeIt version: {}\n'.format(__version__))
         #f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S",time.localtime())))
         f.write('# {0}\n'.format(time.strftime("%Y-%m-%d",time.localtime())))
         f.write("\n")
